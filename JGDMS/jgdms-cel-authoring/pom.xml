@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Copyright (C) 2026 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>au.net.zeus.jgdms</groupId>
+    <artifactId>jgdms-cel-authoring</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Module :: JGDMS DETERMINISTIC CEL Authoring / Tooling</name>
+    <description>Author-side toolchain for DETERMINISTIC CEL (JGDMS-STD-011):
+        a recursive-descent text parser (STD-011 §5's textual grammar String
+        -&gt; ExprNode AST, T-CEL-A) and a canonical DER wire encoder
+        (CelFilterRecord -&gt; byte[] per Appendix B, T-CEL-B). Deliberately a
+        SEPARATE module from jgdms-cel so the evaluator stays minimal and
+        polyglot -- authoring tooling is not needed by a wire-form-only
+        evaluator (STD-011 §5.1). Builds on jgdms-cel's shipped AST/wire
+        surface and jgdms-der's DER writer primitives; the jgdms-cel wire
+        decoder (CelDecoder) is the round-trip oracle these tools are tested
+        against.</description>
+
+    <properties>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- jgdms-cel-authoring depends on jgdms-cel and jgdms-der,
+                         which require JDK 25+ at runtime (java.lang.ScopedValue,
+                         finalised JEP 506); this module targets release 25 to
+                         match those dependencies rather than understating the
+                         real minimum runtime. -->
+                    <release>25</release>
+                    <debug>true</debug>
+                    <encoding>UTF-8</encoding>
+                    <meminitial>128m</meminitial>
+                    <maxmem>1024m</maxmem>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
