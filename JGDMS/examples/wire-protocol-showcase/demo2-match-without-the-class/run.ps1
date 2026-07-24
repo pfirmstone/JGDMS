@@ -23,7 +23,13 @@ if (-not (Test-Path $entryClass) -or -not (Test-Path $cpFile)) {
     Write-Host "Building the shared-space library (one module, offline)..."
     Push-Location $jgdms
     try {
-        & mvn -o -q -pl services/outrigger/outrigger-dl -DskipTests -Dtidy.skip=true -Drat.skip=true `
+        # Each -D argument is quoted: Windows PowerShell 5.1 otherwise splits an
+        # unquoted token like -Dtidy.skip=true into "-Dtidy" and ".skip=true",
+        # which Maven rejects as an unknown lifecycle phase. -Dmaven.test.skip=true
+        # skips test COMPILE and run (unlike -DskipTests, which still compiles test
+        # sources); the demo needs only main classes, keeping the offline build from
+        # being blocked by any test-scoped dependency.
+        & mvn -o -q -pl services/outrigger/outrigger-dl "-Dmaven.test.skip=true" "-Dtidy.skip=true" "-Drat.skip=true" `
             package dependency:build-classpath "-Dmdep.outputFile=$cpFile"
         if ($LASTEXITCODE -ne 0) { throw "library build failed (exit $LASTEXITCODE)" }
     } finally { Pop-Location }
