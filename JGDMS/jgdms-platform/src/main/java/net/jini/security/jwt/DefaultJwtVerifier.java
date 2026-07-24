@@ -120,9 +120,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     "JWT must have exactly 3 parts (header.payload.signature), got: "
                             + parts.length);
 
-        Map<String, String> payload;
+        Map<String, List<String>> claims;
         try {
-            payload = parseClaimsJson(
+            claims = parseClaimsMultimap(
                     new String(Base64.getUrlDecoder().decode(parts[1]),
                                StandardCharsets.UTF_8));
         } catch (Exception e) {
@@ -130,7 +130,10 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     "Failed to decode JWT payload: " + e.getMessage(), e);
         }
 
-        validateClaims(payload);
+        // Scalar claims (exp/iat/iss) use the comma-joined view; the aud check
+        // uses the element-preserving list so a single audience value that
+        // literally contains ',' is one value, not two (cf. the groups fix).
+        validateClaims(joinClaims(claims), claims.get("aud"));
     }
 
     /**
@@ -166,7 +169,8 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
     // -------------------------------------------------------------------------
 
-    private void validateClaims(Map<String, String> payload) throws JwtVerificationException {
+    private void validateClaims(Map<String, String> payload, List<String> audValues)
+            throws JwtVerificationException {
         Instant now = Instant.now();
 
         // exp — token must not have expired
@@ -211,28 +215,28 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
         // aud — must contain configured audience
         if (expectedAudience != null) {
-            String aud = payload.get("aud");
-            if (aud == null || !containsExactAudience(aud, expectedAudience))
+            if (audValues == null || !containsExactAudience(audValues, expectedAudience))
                 throw new JwtVerificationException(
                         "JWT audience mismatch: expected '" + expectedAudience
-                                + "', got '" + aud + "'");
+                                + "', got '" + (audValues == null ? null
+                                        : String.join(",", audValues)) + "'");
         }
     }
 
     /**
-     * Returns {@code true} if {@code rawAud} contains {@code expected} as an
-     * exact element.  The {@code aud} claim may be a scalar string or a
-     * comma-separated list (as produced by {@link #parseClaimsJson} for JSON
-     * arrays).  This method handles both by splitting on {@code ,} and
-     * comparing each trimmed token with {@link String#equals}.
+     * Returns {@code true} if {@code audValues} contains {@code expected} as an
+     * exact element.  The {@code aud} claim may be a scalar string or a JSON
+     * array; either way {@link #parseClaimsMultimap} yields one list element
+     * per audience, preserving element boundaries structurally.  A single
+     * audience value that itself contains a {@code ','} is therefore one
+     * element and is never split (cf. the {@code groups} fix).
      *
      * <p>Exact matching prevents false positives: {@code "example.com"} would
      * NOT match {@code "notexample.com"} even though it is a substring.
      */
-    private static boolean containsExactAudience(String rawAud, String expected) {
-        if (rawAud.equals(expected)) return true;
-        for (String part : rawAud.split(",", -1)) {
-            if (part.trim().equals(expected)) return true;
+    private static boolean containsExactAudience(List<String> audValues, String expected) {
+        for (String v : audValues) {
+            if (v.equals(expected)) return true;
         }
         return false;
     }
@@ -314,7 +318,17 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      * elements that themselves contain a comma.
      */
     static Map<String, String> parseClaimsJson(String json) {
-        Map<String, List<String>> multi = parseClaimsMultimap(json);
+        return joinClaims(parseClaimsMultimap(json));
+    }
+
+    /**
+     * Collapses an element-preserving claims multimap into the comma-joined
+     * scalar view used by {@link #parseClaimsJson}.  Extracted so a caller that
+     * has already parsed the multimap (e.g. {@link #verify(String)}, which needs
+     * the element-preserving {@code aud} list) can derive the scalar view
+     * without re-parsing the payload.
+     */
+    private static Map<String, String> joinClaims(Map<String, List<String>> multi) {
         Map<String, String> result = new HashMap<>((int) (multi.size() / 0.75f) + 1);
         for (Map.Entry<String, List<String>> e : multi.entrySet()) {
             result.put(e.getKey(), String.join(",", e.getValue()));

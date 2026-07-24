@@ -93,4 +93,40 @@ public class DefaultJwtVerifierTest {
         Assert.assertEquals("acme", claims.get("iss"));
         Assert.assertEquals("svcA,svcB", claims.get("aud"));
     }
+
+    // ---- aud comma fidelity: a single audience with ',' is ONE value ---------
+
+    @Test
+    public void audValueContainingCommaIsOneAudience() throws JwtVerificationException {
+        // A single array-form audience whose value literally contains a comma
+        // must match only the exact string, never the split halves.
+        String token = jwt("{\"aud\":[\"eng,ops\"],\"exp\":1899999999}");
+
+        // Exact whole value matches.
+        new DefaultJwtVerifier(null, "eng,ops").verify(token);
+
+        // Neither split half is a valid audience.
+        assertAudienceRejected(token, "eng");
+        assertAudienceRejected(token, "ops");
+    }
+
+    @Test
+    public void scalarAudContainingCommaIsOneAudience() throws JwtVerificationException {
+        // Same guarantee for the scalar (non-array) aud form.
+        String token = jwt("{\"aud\":\"eng,ops\",\"exp\":1899999999}");
+
+        new DefaultJwtVerifier(null, "eng,ops").verify(token);
+
+        assertAudienceRejected(token, "eng");
+        assertAudienceRejected(token, "ops");
+    }
+
+    private static void assertAudienceRejected(String token, String expectedAud) {
+        try {
+            new DefaultJwtVerifier(null, expectedAud).verify(token);
+            Assert.fail("expected audience mismatch for '" + expectedAud + "'");
+        } catch (JwtVerificationException expected) {
+            // aud must not be split on ',' — the half is not a valid audience.
+        }
+    }
 }
