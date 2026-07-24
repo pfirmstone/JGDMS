@@ -35,6 +35,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -94,7 +95,6 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.ClientUserSubject;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.Security;
@@ -267,6 +267,38 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private static final JwtVerifier DEFAULT_JWT_VERIFIER = new DefaultJwtVerifier();
 
     /**
+     * One-time latch guarding the WARNING emitted the first time a JWT-bearing
+     * user Subject is accepted under the unregistered {@link #DEFAULT_JWT_VERIFIER}.
+     * The signature-free default posture must never be reached silently, but a
+     * per-call log would be a DoS amplifier, so the warning fires at most once
+     * per JVM.  Package-private only so tests can reset it.
+     */
+    private static final AtomicBoolean DEFAULT_VERIFIER_WARNED = new AtomicBoolean(false);
+
+    /**
+     * Opt-in strict mode: when {@code true}, a JWT-bearing user Subject that
+     * arrives while <em>no</em> custom {@link JwtVerifier} is registered is
+     * rejected (fail closed) instead of being accepted on the signature-free
+     * {@link #DEFAULT_JWT_VERIFIER}.
+     *
+     * <p>Defaults to {@code false} so that (a) a deployment that does not use
+     * JWT user-auth — and therefore transmits no tokens — is entirely
+     * unaffected, and (b) a dev/no-verifier deployment that relies on the
+     * structural-only default keeps working, but with the loud one-time
+     * {@link #DEFAULT_VERIFIER_WARNED WARNING}.  Enable with
+     * {@code -Dnet.jini.jeri.BasicInvocationDispatcher.jwt.strictUnverified=true}
+     * to force such deployments to register a JWKS-backed verifier before any
+     * JWT-bearing identity is accepted.
+     *
+     * <p>Non-final so tests can toggle it via reflection; production reads it
+     * once from the system property at class initialisation.
+     */
+    private static volatile boolean jwtStrictUnverified =
+        ((Boolean) AccessController.doPrivileged(new GetBooleanAction(
+            "net.jini.jeri.BasicInvocationDispatcher.jwt.strictUnverified")))
+            .booleanValue();
+
+    /**
      * Maximum number of raw JWT tokens accepted per Subject from the wire.
      * Prevents unbounded allocation from a malicious peer.
      */
@@ -279,7 +311,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private static final int MAX_JWT_BYTES = 65_536;
 
     /**
-     * Connection-level JWT verification cache (Option D, Work Item 44).
+     * JVM-global (static) JWT verification cache (Option D, Work Item 44).
      *
      * <p>Maps raw JWT compact-serialization strings to a {@link CachedJwt}
      * record carrying the token's expiry {@link Instant} (extracted from the
@@ -2308,7 +2340,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *
      * <p>Verification uses the registered {@link JwtVerifier} (or the built-in
      * {@link DefaultJwtVerifier} structural-claims check when none is
-     * registered), with connection-level caching of both the verification
+     * registered), with JVM-global (static) caching of both the verification
      * outcome and the reconstructed principals.  A verification failure throws
      * {@link IOException}, aborting the request.  Note that the trustworthiness
      * of the reconstructed principals is only as strong as the verifier: the
@@ -2427,28 +2459,65 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Verifies a raw JWT token using the registered {@link JwtVerifier}, with
-     * connection-level caching keyed on the raw token string.
+     * JVM-global (static) caching keyed on the raw token string.
      *
      * <p>If no custom verifier is registered ({@link #jwtVerifier} is
      * {@code null}) the {@link #DEFAULT_JWT_VERIFIER} is used, which performs
-     * structural claim checks ({@code exp}, {@code iat}) without JWKS network
-     * calls.  This closes the default-path gap (§2.3): a peer that presents a
-     * JWT whose {@code exp} claim has elapsed is rejected even without an
-     * explicit verifier registration.
+     * structural claim checks ({@code exp}, {@code iat}) but <strong>no
+     * cryptographic signature check</strong>.  That posture accepts unsigned
+     * tokens that can mint any identity, so it is never reached silently: the
+     * first time it is used a one-time {@link Level#WARNING} names the risk
+     * (see {@link #DEFAULT_VERIFIER_WARNED}), and when
+     * {@link #jwtStrictUnverified strict mode} is enabled the request is
+     * rejected outright.
      *
-     * <p>Cache entries expire when the token's own {@code exp} claim is
-     * passed; an {@link Instant#MIN} sentinel is stored when the {@code exp}
-     * claim cannot be parsed, causing re-verification on each call.
+     * <p>Cache entries expire when the token's own {@code exp} claim is passed,
+     * derived via {@link DefaultJwtVerifier#extractExpiry(String)} — the same
+     * payload parse the verifier and principal-deriver use — so a token can
+     * never be cached past its true expiry.  A token whose {@code exp} cannot
+     * be parsed is not cached at all and is re-verified on every call.
      *
-     * @throws IOException wrapping the {@link JwtVerificationException} if
-     *         the verifier rejects the token
+     * @throws IOException wrapping the {@link JwtVerificationException} if the
+     *         verifier rejects the token, or naming the risk if strict mode is
+     *         enabled and no verifier is registered
      */
     private static Set<Principal> verifyAndDeriveJwtPrincipals(
 	    String rawJwt, int subjectIdx, int jwtIdx)
 	    throws IOException
     {
 	JwtVerifier verifier = jwtVerifier;
-	if (verifier == null) verifier = DEFAULT_JWT_VERIFIER; // fallback: structural claims only
+	if (verifier == null) {
+	    // No custom verifier registered: the signature-free DefaultJwtVerifier
+	    // is the only gate, and it accepts UNSIGNED tokens that can mint any
+	    // identity (including group:admins).  This weak posture must never be
+	    // reached silently.
+	    if (jwtStrictUnverified) {
+		// Fail closed: reject the JWT-bearing Subject rather than accept
+		// an unsigned identity.  Opt-in, so a legitimate no-JWT-auth or
+		// dev deployment is unaffected unless it explicitly enables this.
+		throw new IOException(
+		    "JWT-bearing user Subject rejected for Subject[" + subjectIdx
+		    + "] JWT[" + jwtIdx + "]: strict mode is enabled"
+		    + " (net.jini.jeri.BasicInvocationDispatcher.jwt.strictUnverified)"
+		    + " and no JwtVerifier is registered; the signature-free"
+		    + " DefaultJwtVerifier would accept unsigned tokens. Register a"
+		    + " JWKS-backed JwtVerifier via"
+		    + " BasicInvocationDispatcher.setJwtVerifier(...).");
+	    }
+	    if (DEFAULT_VERIFIER_WARNED.compareAndSet(false, true)) {
+		logger.log(Level.WARNING,
+		    "SECURITY: no JwtVerifier is registered, so JWT-bearing user"
+		    + " Subjects are being accepted on the signature-free"
+		    + " DefaultJwtVerifier, which performs NO cryptographic signature"
+		    + " verification. An unsigned or forged token can therefore mint"
+		    + " ANY identity, including privileged groups such as"
+		    + " group:admins. Register a JWKS-backed JwtVerifier via"
+		    + " BasicInvocationDispatcher.setJwtVerifier(...), or set"
+		    + " -Dnet.jini.jeri.BasicInvocationDispatcher.jwt.strictUnverified=true"
+		    + " to reject such Subjects. (This warning is logged once per JVM.)");
+	    }
+	    verifier = DEFAULT_JWT_VERIFIER; // fallback: structural claims only, NO signature
+	}
 
 	CachedJwt cached = JWT_VERIFICATION_CACHE.get(rawJwt);
 	if (cached != null && Instant.now().isBefore(cached.exp)) {
@@ -2474,8 +2543,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    principals = Collections.unmodifiableSet(principals);
 	}
 
-	// Cache the result using the token's exp claim as the TTL.
-	Instant exp = extractJwtExp(rawJwt);
+	// Cache the result using the token's exp claim as the TTL, derived from
+	// the SAME payload parse the verifier/deriver used (no divergent scan),
+	// so a token can never be cached past its true expiry.
+	Instant exp = DefaultJwtVerifier.extractExpiry(rawJwt);
 	if (exp == null) {
 	    // No parseable exp → do not cache; re-verify on every call.
 	    return principals;
@@ -2490,35 +2561,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
 	JWT_VERIFICATION_CACHE.put(rawJwt, new CachedJwt(exp, principals));
 	return principals;
-    }
-
-    /**
-     * Extracts the {@code exp} epoch-seconds claim from a JWT compact string
-     * using minimal Base64url decode + JSON scan.  Returns {@code null} if the
-     * claim is absent or cannot be parsed.
-     */
-    private static Instant extractJwtExp(String rawJwt) {
-	if (rawJwt == null || rawJwt.isEmpty()) return null;
-	int firstDot  = rawJwt.indexOf('.');
-	int secondDot = rawJwt.indexOf('.', firstDot + 1);
-	if (firstDot < 0 || secondDot <= firstDot) return null;
-	try {
-	    byte[] payloadBytes = Base64.getUrlDecoder()
-		    .decode(rawJwt.substring(firstDot + 1, secondDot));
-	    String json = new String(payloadBytes, StandardCharsets.UTF_8);
-	    int idx = json.indexOf("\"exp\"");
-	    if (idx < 0) return null;
-	    int colon = json.indexOf(':', idx + 5);
-	    if (colon < 0) return null;
-	    int start = colon + 1;
-	    while (start < json.length() && json.charAt(start) == ' ') start++;
-	    int end = start;
-	    while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
-	    if (end == start) return null;
-	    return Instant.ofEpochSecond(Long.parseLong(json.substring(start, end)));
-	} catch (Exception e) {
-	    return null;
-	}
     }
 
     /**

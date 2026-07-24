@@ -21,14 +21,21 @@ package net.jini.jeri;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import net.jini.security.jwt.JwtRawToken;
@@ -111,8 +118,35 @@ public class MultiSubjectWireProtocolTest {
 
     @Before
     @After
-    public void resetJwtVerifier() {
+    public void resetJwtVerifier() throws Exception {
         BasicInvocationDispatcher.setJwtVerifier(null);
+        setJwtStrictUnverified(false);
+    }
+
+    /** Reflectively toggles the opt-in strict-unverified mode (F1). */
+    private static void setJwtStrictUnverified(boolean v) throws Exception {
+        Field f = BasicInvocationDispatcher.class
+                .getDeclaredField("jwtStrictUnverified");
+        f.setAccessible(true);
+        f.setBoolean(null, v);
+    }
+
+    /** Reflectively resets the one-time default-verifier warning latch (F1). */
+    private static void resetDefaultVerifierWarnLatch() throws Exception {
+        Field f = BasicInvocationDispatcher.class
+                .getDeclaredField("DEFAULT_VERIFIER_WARNED");
+        f.setAccessible(true);
+        ((AtomicBoolean) f.get(null)).set(false);
+    }
+
+    /** Wire bytes for one user Subject carrying only the given raw JWT. */
+    private static byte[] wireForJwtSubject(String rawJwt) throws IOException {
+        Subject s = new Subject(true, Collections.emptySet(),
+            Collections.singleton((Object) new JwtRawToken(rawJwt)),
+            Collections.emptySet());
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+        return baos.toByteArray();
     }
 
     // -------------------------------------------------------------------------
@@ -613,5 +647,117 @@ public class MultiSubjectWireProtocolTest {
         invokeReadUserSubjects(baos2.toByteArray());
 
         Assert.assertEquals("Verifier should only be called once for the same token", 1, callCount[0]);
+    }
+
+    // -------------------------------------------------------------------------
+    // F1 (2026-07 board review): the signature-free default posture must never
+    // be reached silently — loud one-time WARNING, plus opt-in fail-closed.
+    // -------------------------------------------------------------------------
+
+    /**
+     * With no verifier registered, accepting a JWT-bearing Subject under the
+     * signature-free {@code DefaultJwtVerifier} must emit a WARNING that names
+     * the risk — exactly once per JVM, regardless of how many tokens follow.
+     */
+    @Test
+    public void testDefaultVerifierEmitsOneTimeWarning() throws Exception {
+        resetDefaultVerifierWarnLatch();
+        Logger log = Logger.getLogger("net.jini.jeri.BasicInvocationDispatcher");
+        final List<LogRecord> records = new ArrayList<>();
+        Handler h = new Handler() {
+            @Override public void publish(LogRecord r) { records.add(r); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        h.setLevel(Level.ALL);
+        Level saved = log.getLevel();
+        log.addHandler(h);
+        log.setLevel(Level.ALL);
+        try {
+            long futureExp = System.currentTimeMillis() / 1000L + 3600;
+            // Two distinct tokens, both under the unregistered default.
+            invokeReadUserSubjects(wireForJwtSubject(
+                buildJwt(futureExp, "warn-a-" + System.nanoTime())));
+            invokeReadUserSubjects(wireForJwtSubject(
+                buildJwt(futureExp, "warn-b-" + System.nanoTime())));
+
+            List<LogRecord> warns = new ArrayList<>();
+            for (LogRecord r : records) {
+                if (r.getLevel() == Level.WARNING
+                    && String.valueOf(r.getMessage()).contains("no JwtVerifier is registered")) {
+                    warns.add(r);
+                }
+            }
+            Assert.assertEquals("warning must fire exactly once per JVM", 1, warns.size());
+            String msg = warns.get(0).getMessage();
+            Assert.assertTrue("warning must name the missing-signature risk",
+                msg.contains("NO cryptographic signature"));
+            Assert.assertTrue("warning must name the privileged-identity risk",
+                msg.contains("group:admins"));
+        } finally {
+            log.removeHandler(h);
+            log.setLevel(saved);
+        }
+    }
+
+    /**
+     * Opt-in strict mode fails closed: a JWT-bearing Subject arriving with no
+     * registered verifier is rejected with an {@link java.io.IOException}
+     * naming strict mode, rather than accepted on the signature-free default.
+     */
+    @Test
+    public void testStrictModeRejectsUnverifiedJwtSubject() throws Exception {
+        setJwtStrictUnverified(true);
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        byte[] wire = wireForJwtSubject(buildJwt(futureExp, "strict-" + System.nanoTime()));
+        try {
+            invokeReadUserSubjects(wire);
+            Assert.fail("strict mode must reject a JWT Subject with no verifier");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Assert.assertTrue(ite.getCause() instanceof java.io.IOException);
+            Assert.assertTrue("IOException must name strict mode",
+                ite.getCause().getMessage().contains("strict mode"));
+        }
+    }
+
+    /**
+     * Strict mode only gates the unregistered default: a Subject verified by a
+     * genuinely registered verifier is still accepted while strict is enabled.
+     */
+    @Test
+    public void testStrictModeAllowsRegisteredVerifier() throws Exception {
+        setJwtStrictUnverified(true);
+        final boolean[] called = {false};
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> { called[0] = true; });
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        byte[] wire = wireForJwtSubject(buildJwt(futureExp, "strict-ok-" + System.nanoTime()));
+        List<Subject> decoded = invokeReadUserSubjects(wire);
+        Assert.assertTrue("registered verifier runs even under strict mode", called[0]);
+        Assert.assertEquals(1, decoded.size());
+    }
+
+    /**
+     * F2 end-to-end: a {@code groups} element that literally contains a comma
+     * survives the wire round-trip as a SINGLE {@code JwtPrincipal}, not two.
+     */
+    @Test
+    public void testGroupWithCommaThroughWireIsOnePrincipal() throws Exception {
+        long futureExp = System.currentTimeMillis() / 1000L + 3600;
+        String sub = "grpcomma-" + System.nanoTime();
+        String rawJwt = buildJwtWithGroups(futureExp, sub, "eng,ops", "users");
+
+        Subject s = new Subject(true, Collections.emptySet(),
+            Collections.singleton((Object) new JwtRawToken(rawJwt)),
+            Collections.emptySet());
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
+
+        Set<Principal> got = invokeReadUserSubjects(baos.toByteArray()).get(0).getPrincipals();
+        Assert.assertTrue("comma-bearing group stays intact",
+            got.contains(new net.jini.security.jwt.JwtPrincipal("group:eng,ops")));
+        Assert.assertTrue(got.contains(new net.jini.security.jwt.JwtPrincipal("group:users")));
+        Assert.assertFalse("must NOT split 'eng,ops'",
+            got.contains(new net.jini.security.jwt.JwtPrincipal("group:eng")));
+        Assert.assertEquals("sub + 2 group principals", 3, got.size());
     }
 }

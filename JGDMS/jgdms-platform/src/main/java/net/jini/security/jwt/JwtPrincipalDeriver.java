@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Base64;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -91,37 +92,45 @@ public final class JwtPrincipalDeriver {
         if (parts.length < 2) {
             return principals;
         }
-        Map<String, String> claims;
+        Map<String, List<String>> claims;
         try {
             String payloadJson = new String(
                     Base64.getUrlDecoder().decode(parts[1]),
                     StandardCharsets.UTF_8);
-            claims = DefaultJwtVerifier.parseClaimsJson(payloadJson);
+            // Use the element-preserving parse so a group value that itself
+            // contains a ',' becomes ONE principal, not two (a comma-joined
+            // view would silently split it).
+            claims = DefaultJwtVerifier.parseClaimsMultimap(payloadJson);
         } catch (RuntimeException malformed) {
             // Payload undecodable despite verification having passed: fail
             // closed by authorising no principals.
             return principals;
         }
 
-        String sub = claims.get("sub");
+        String sub = firstValue(claims, "sub");
         if (sub != null && !sub.isBlank()) {
             principals.add(new JwtPrincipal("sub:" + sub));
         }
-        String email = claims.get("email");
+        String email = firstValue(claims, "email");
         if (email != null && !email.isBlank()) {
             principals.add(new JwtPrincipal("email:" + email));
         }
-        String groups = claims.get("groups");
-        if (groups != null && !groups.isBlank()) {
-            // parseClaimsJson joins JSON array elements with ',' — mirror
-            // JwtLoginModule.commit()'s "one JwtPrincipal per group value".
-            for (String group : groups.split(",", -1)) {
-                String g = group.trim();
-                if (!g.isEmpty()) {
-                    principals.add(new JwtPrincipal("group:" + g));
+        List<String> groups = claims.get("groups");
+        if (groups != null) {
+            // One JwtPrincipal per array element (mirrors JwtLoginModule.commit()),
+            // taken verbatim from the parsed array so element boundaries — and any
+            // comma within an element — are preserved exactly.
+            for (String group : groups) {
+                if (group != null && !group.isBlank()) {
+                    principals.add(new JwtPrincipal("group:" + group));
                 }
             }
         }
         return principals;
+    }
+
+    private static String firstValue(Map<String, List<String>> claims, String key) {
+        List<String> values = claims.get(key);
+        return (values == null || values.isEmpty()) ? null : values.get(0);
     }
 }

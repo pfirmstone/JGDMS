@@ -19,8 +19,11 @@ package net.jini.security.jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -130,6 +133,37 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         validateClaims(payload);
     }
 
+    /**
+     * Extracts the {@code exp} claim of a JWT as an {@link Instant}, using the
+     * <em>same</em> payload parse ({@link #parseClaimsJson}) that
+     * {@link #verify(String)} and {@link JwtPrincipalDeriver} use.
+     *
+     * <p>This exists so a caller that caches a verified token (e.g. the JERI
+     * transport's TTL cache) can derive the cache expiry from the identical
+     * parse the verifier enforced, rather than a divergent ad-hoc scan that
+     * could disagree with it and cache a token past its true {@code exp}.
+     *
+     * @param rawJwt the JWT compact serialization ({@code header.payload.sig});
+     *               may be {@code null}
+     * @return the token's expiry, or {@code null} if the token is malformed or
+     *         carries no parseable {@code exp} claim
+     */
+    public static Instant extractExpiry(String rawJwt) {
+        if (rawJwt == null || rawJwt.isEmpty()) return null;
+        String[] parts = rawJwt.split("\\.", -1);
+        if (parts.length < 2) return null;
+        try {
+            String payloadJson = new String(
+                    Base64.getUrlDecoder().decode(parts[1]),
+                    StandardCharsets.UTF_8);
+            String exp = parseClaimsJson(payloadJson).get("exp");
+            if (exp == null) return null;
+            return Instant.ofEpochSecond(Long.parseLong(exp.trim()));
+        } catch (RuntimeException malformed) {
+            return null;
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     private void validateClaims(Map<String, String> payload) throws JwtVerificationException {
@@ -206,16 +240,31 @@ public final class DefaultJwtVerifier implements JwtVerifier {
     // -------------------------------------------------------------------------
     // Minimal JSON claims parser — no external dependencies, JDK only.
     // Handles the flat object structure of a JWT payload; parses string scalar
-    // values and arrays (joined with commas) sufficient for exp/iat/iss/aud.
+    // values and arrays sufficient for exp/iat/iss/aud/sub/email/groups.
+    //
+    // The authoritative parser is parseClaimsMultimap, which keeps each array
+    // element as a distinct list element (so a value that itself contains ','
+    // is never split or merged).  parseClaimsJson is a comma-joined view kept
+    // for the scalar/aud callers; it must not be used to recover individual
+    // array elements — use parseClaimsMultimap for that (see JwtPrincipalDeriver).
     // -------------------------------------------------------------------------
 
     /**
-     * Parses a flat JWT claims JSON object into a string map.
-     * Numeric values are kept as their raw decimal string representation.
-     * JSON arrays are stored as comma-joined strings under the claim key.
+     * Parses a flat JWT claims JSON object, preserving each array element as a
+     * distinct list entry.
+     *
+     * <p>Scalar values (strings and raw numbers) are stored as a
+     * single-element list; JSON arrays are stored with one list element per
+     * array element, in declaration order.  Because element boundaries are
+     * carried structurally rather than through a comma-joined string, a claim
+     * value that literally contains a comma (e.g. a group name
+     * {@code "eng,ops"}) is preserved intact.
+     *
+     * @param json the decoded JWT payload JSON
+     * @return the parsed claims; never {@code null}
      */
-    static Map<String, String> parseClaimsJson(String json) {
-        Map<String, String> result = new HashMap<>();
+    static Map<String, List<String>> parseClaimsMultimap(String json) {
+        Map<String, List<String>> result = new HashMap<>();
         if (json == null || json.isEmpty()) return result;
 
         int[] pos = {0};
@@ -242,22 +291,41 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
             if (v == '"') {
                 String value = readString(json, pos);
-                if (value != null) result.put(key, value);
+                if (value != null) result.put(key, Collections.singletonList(value));
             } else if (v == '[') {
                 result.put(key, readStringArray(json, pos));
             } else {
                 String raw = readRawScalar(json, pos);
-                if (raw != null) result.put(key, raw);
+                if (raw != null) result.put(key, Collections.singletonList(raw));
             }
         }
         return result;
     }
 
-    private static String readStringArray(String json, int[] pos) {
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '[') return "";
+    /**
+     * Parses a flat JWT claims JSON object into a string map — a comma-joined
+     * view of {@link #parseClaimsMultimap}.  Numeric values are kept as their
+     * raw decimal string representation; JSON arrays are joined with {@code ','}.
+     *
+     * <p>Retained for scalar claims ({@code exp}, {@code iat}, {@code iss}) and
+     * the {@code aud} exact-element check.  Callers that must recover the
+     * individual elements of an array claim (e.g. {@code groups}) must use
+     * {@link #parseClaimsMultimap} instead, as the comma join is lossy for
+     * elements that themselves contain a comma.
+     */
+    static Map<String, String> parseClaimsJson(String json) {
+        Map<String, List<String>> multi = parseClaimsMultimap(json);
+        Map<String, String> result = new HashMap<>((int) (multi.size() / 0.75f) + 1);
+        for (Map.Entry<String, List<String>> e : multi.entrySet()) {
+            result.put(e.getKey(), String.join(",", e.getValue()));
+        }
+        return result;
+    }
+
+    private static List<String> readStringArray(String json, int[] pos) {
+        List<String> items = new ArrayList<>();
+        if (pos[0] >= json.length() || json.charAt(pos[0]) != '[') return items;
         pos[0]++; // consume '['
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
         while (pos[0] < json.length()) {
             skipWhitespace(json, pos);
             if (pos[0] >= json.length()) break;
@@ -265,13 +333,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             if (c == ']') { pos[0]++; break; }
             if (c == ',') { pos[0]++; continue; }
             String item = (c == '"') ? readString(json, pos) : readRawScalar(json, pos);
-            if (item != null) {
-                if (!first) sb.append(',');
-                sb.append(item);
-                first = false;
-            }
+            if (item != null) items.add(item);
         }
-        return sb.toString();
+        return items;
     }
 
     private static String readRawScalar(String json, int[] pos) {

@@ -60,6 +60,23 @@ public class JwtPrincipalDeriverTest {
     }
 
     @Test
+    public void groupContainingCommaBecomesOnePrincipal_notSplit() {
+        // F2: a group value that literally contains a comma must map to ONE
+        // JwtPrincipal, not be split into two. The element-preserving parse
+        // (parseClaimsMultimap) carries the boundary structurally.
+        Set<Principal> p = JwtPrincipalDeriver.derivePrincipals(
+                jwt("{\"sub\":\"dan\",\"groups\":[\"eng,ops\",\"users\"]}"));
+        Assert.assertTrue("comma-bearing group stays intact",
+                p.contains(new JwtPrincipal("group:eng,ops")));
+        Assert.assertTrue(p.contains(new JwtPrincipal("group:users")));
+        Assert.assertFalse("must NOT have split 'eng,ops' into 'eng'",
+                p.contains(new JwtPrincipal("group:eng")));
+        Assert.assertFalse("must NOT have split 'eng,ops' into 'ops'",
+                p.contains(new JwtPrincipal("group:ops")));
+        Assert.assertEquals("sub + exactly 2 group principals", 3, p.size());
+    }
+
+    @Test
     public void noRecognisedClaimsYieldsEmptySet() {
         Set<Principal> p = JwtPrincipalDeriver.derivePrincipals(
                 jwt("{\"iss\":\"https://issuer\",\"exp\":9999999999}"));
