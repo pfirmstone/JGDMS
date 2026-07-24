@@ -161,7 +161,16 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>${maven.multiModuleProjectDirectory}/check-serial-schema.sh</executable>
+                            <!--
+                              Invoked via bash (not the script as <executable>)
+                              so the gate runs on Windows Git Bash as well as
+                              Linux: CreateProcess cannot exec a shell script
+                              directly (error=193).
+                            -->
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${maven.multiModuleProjectDirectory}/check-serial-schema.sh</argument>
+                            </arguments>
                             <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
                         </configuration>
                     </execution>
@@ -203,7 +212,11 @@
                                 </goals>
                                 <configuration>
                                     <skip>${jgdms.apicompat.skip}</skip>
-                                    <executable>${maven.multiModuleProjectDirectory}/check-api-compat.sh</executable>
+                                    <!-- bash-wrapped for Windows; see serial-schema-gate above -->
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${maven.multiModuleProjectDirectory}/check-api-compat.sh</argument>
+                                    </arguments>
                                     <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
                                     <environmentVariables>
                                         <RELEASE_BASELINE>${jgdms.previous-release.version}</RELEASE_BASELINE>

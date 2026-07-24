@@ -51,6 +51,30 @@
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+
+# Python 3 interpreter for classify_breaks.py -- overridable via PYTHON env var.
+# On Windows the first python3/python on PATH is typically the Microsoft Store
+# alias stub, which prints an install prompt and exits nonzero without running
+# anything, so a candidate must prove it can execute code, not merely exist on
+# PATH. Falls back to the py launcher, then the standard per-user install dir.
+# A missing interpreter is a hard ERROR, not warn-and-skip: without
+# classify_breaks.py the gate cannot classify anything and a green result
+# would be vacuous.
+PYTHON="${PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+    for cand in python3 python py; do
+        if "$cand" -c 'import sys' >/dev/null 2>&1; then PYTHON="$cand"; break; fi
+    done
+fi
+if [ -z "$PYTHON" ] && [ -n "${LOCALAPPDATA:-}" ] && command -v cygpath >/dev/null 2>&1; then
+    for cand in "$(cygpath "$LOCALAPPDATA")"/Programs/Python/Python3*/python.exe; do
+        if [ -x "$cand" ] && "$cand" -c 'import sys' >/dev/null 2>&1; then PYTHON="$cand"; break; fi
+    done
+fi
+if [ -z "$PYTHON" ]; then
+    echo "ERROR: no working Python 3 interpreter found (needed for classify_breaks.py); set PYTHON" >&2
+    exit 1
+fi
 CACHE="${API_COMPAT_CACHE:-$ROOT/target/api-compat}"
 mkdir -p "$CACHE"
 M="https://repo1.maven.org/maven2"
@@ -105,6 +129,11 @@ build_trunk_baseline() {
     command -v git >/dev/null 2>&1 || { echo "  trunk-baseline ($TRUNK_BASELINE_TAG): git not found (skip)"; return 1; }
     local gitroot; gitroot="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)"
     [ -n "$gitroot" ] || { echo "  trunk-baseline ($TRUNK_BASELINE_TAG): not a git checkout (skip)"; return 1; }
+    # git on Windows prints C:/-style paths; renormalize through the shell so
+    # "realpath --relative-to" below can relativize $ROOT (POSIX-style) against
+    # it. Harmless no-op on Linux. Without this, relsub comes back absolute,
+    # $sub misses, and the nested build runs at the worktree toplevel (no pom).
+    gitroot="$(cd "$gitroot" && pwd)"
     git -C "$gitroot" rev-parse -q --verify "refs/tags/$TRUNK_BASELINE_TAG" >/dev/null 2>&1 \
         || { echo "  trunk-baseline: tag '$TRUNK_BASELINE_TAG' not found (skip)"; return 1; }
 
@@ -152,6 +181,7 @@ build_trunk_baseline() {
     if ( cd "$sub" \
             && export JAVA_HOME="${TRUNK_BASELINE_JAVA_HOME:-${JAVA_HOME:-}}" \
             && [ -n "$JAVA_HOME" ] && export PATH="$JAVA_HOME/bin:$PATH"; \
+            echo "== nested build: cwd=$(pwd) pl=$pl JAVA_HOME=${JAVA_HOME:-<unset>}"; \
             mvn -q -B -DskipTests -Dsurefire.redirectTestOutputToFile=true \
             -Ddependency-check.skip=true \
             -Dmaven.repo.local="$CACHE/trunk-baseline-m2" -pl "$pl" -am install ) \
@@ -199,10 +229,10 @@ for art in $ARTIFACTS; do
 done
 
 echo "== japicmp binary-incompat classification ($BASELINE -> current) =="
-python3 "$ROOT/classify_breaks.py" "$RELEASE_REPORT"; rc1=$?
+"$PYTHON" "$ROOT/classify_breaks.py" "$RELEASE_REPORT"; rc1=$?
 echo
 echo "== japicmp binary-incompat classification ($TRUNK_BASELINE_TAG -> current) =="
-python3 "$ROOT/classify_breaks.py" "$TRUNK_REPORT"; rc2=$?
+"$PYTHON" "$ROOT/classify_breaks.py" "$TRUNK_REPORT"; rc2=$?
 
 rc=0
 [ "$rc1" -ne 0 ] && rc=1
