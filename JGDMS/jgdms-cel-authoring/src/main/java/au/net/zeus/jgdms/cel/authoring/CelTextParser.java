@@ -20,6 +20,9 @@ package au.net.zeus.jgdms.cel.authoring;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.ast.ExprNode.InListOperand;
 import au.net.zeus.jgdms.cel.ast.ExprNode.SelectorStep;
+import au.net.zeus.jgdms.cel.CelType;
+import au.net.zeus.jgdms.cel.verifier.CelTypeInference;
+import au.net.zeus.jgdms.cel.verifier.SchemaView;
 import au.net.zeus.jgdms.cel.wire.CelCeilings;
 import au.net.zeus.jgdms.cel.wire.FunctionRegistry;
 
@@ -27,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -49,17 +53,28 @@ import java.util.Set;
  * therefore returns an {@link ExprNode}; assemble a full {@code CelFilterRecord}
  * with {@link CelRecordBuilder} by supplying the context programmatically.
  * <p>
- * <b>Overload note (schema-free limitation, reported as an OPEN QUESTION).</b>
- * The type-dispatched functions {@code size}/{@code abs}/{@code min}/{@code max}
- * map one text name to several Appendix B §B.8.3 wire ids by operand type. This
- * standalone parser resolves the overload only when every operand's scalar type
- * is statically known from literals: {@code size}/{@code abs} reject an
- * UNKNOWN (bare-field) argument, and {@code min}/{@code max} reject unless
- * <em>both</em> operands are statically known and share the same numeric type
- * (so {@code min(1, someField)} and {@code min(1, 2.0)} are rejected, not
- * guessed onto a wire id that matches neither pinned signature). Such
- * expressions must be built through the AST directly (or await a schema-aware
- * parser); this parser never guesses a wire id.
+ * <b>Overload resolution.</b> The type-dispatched functions {@code size}/
+ * {@code abs}/{@code min}/{@code max} map one text name to several Appendix B
+ * §B.8.3 wire ids by operand type. Resolution consults the <em>same</em> static
+ * type inference {@code CelVerifier} uses -- {@code
+ * au.net.zeus.jgdms.cel.verifier.StaticTypeChecker}, via its public facade
+ * {@link CelTypeInference} -- never a second, divergent type system (G8):
+ * <ul>
+ *   <li>{@link #parse(String)} (schema-free): every field reference infers to
+ *       "unknown", so only literal-typed overloads resolve; a bare-field
+ *       {@code size}/{@code abs} argument, or a {@code min}/{@code max} whose
+ *       operands are not both statically known and identically numeric, is
+ *       rejected (fail-closed) rather than guessed onto a wire id that matches
+ *       no pinned signature.</li>
+ *   <li>{@link #parse(String, SchemaView)} (schema-aware): a field's
+ *       <em>declared</em> scalar type resolves the overload too, so {@code
+ *       size(listField)}/{@code abs(intField)}/{@code min(intA, intB)} pick the
+ *       right §B.8.3 id. The schema affects <em>only</em> id selection, never
+ *       encoding: a schema-resolved expression encodes byte-identically to the
+ *       equivalent hand-built AST with the same id (G1). Fail-closed remains:
+ *       an absent/indeterminate field, or {@code min}/{@code max} operands of
+ *       differing types, is a hard {@link CelParseException}.</li>
+ * </ul>
  */
 public final class CelTextParser {
 
@@ -106,12 +121,32 @@ public final class CelTextParser {
      *         exclusion, or ceiling violation
      */
     public static ExprNode parse(String text) throws CelParseException {
+        return parse(text, null);
+    }
+
+    /**
+     * Parses a DETERMINISTIC CEL textual expression into its AST, resolving
+     * type-dispatched platform-function overloads ({@code size}/{@code abs}/
+     * {@code min}/{@code max}) against {@code schema}: a field's declared scalar
+     * type selects the correct Appendix B §B.8.3 wire id. All other §5 rules and
+     * ceilings are enforced exactly as in {@link #parse(String)}; the schema
+     * affects overload id selection only, never encoding (G1).
+     *
+     * @param text   the expression source (§5's {@code Expr})
+     * @param schema the governing schema for field-type-driven overload
+     *               resolution, or {@code null} for the schema-free behaviour of
+     *               {@link #parse(String)}
+     * @return the AST
+     * @throws CelParseException on any lexical, syntactic, well-formedness,
+     *         exclusion, ceiling, or unresolvable-overload violation
+     */
+    public static ExprNode parse(String text, SchemaView schema) throws CelParseException {
         if (text == null) throw new NullPointerException("text");
         if (text.length() > MAX_INPUT_CHARS) {
             throw new CelParseException("input too long: " + text.length() + " chars exceeds cap " + MAX_INPUT_CHARS);
         }
         List<Token> tokens = new Lexer(text).lex();
-        Parser p = new Parser(tokens);
+        Parser p = new Parser(tokens, schema);
         ExprNode node = p.parseExpr();
         p.expectEof();
         String authoring = CelAstValidator.findAuthoringViolation(node);
@@ -399,10 +434,14 @@ public final class CelTextParser {
 
     private static final class Parser {
         private final List<Token> toks;
+        private final SchemaView schema;   // null for the schema-free path
         private int p = 0;
         private int frames = 0;   // live recursive-descent frames (StackOverflow guard, G10)
 
-        Parser(List<Token> toks) { this.toks = toks; }
+        Parser(List<Token> toks, SchemaView schema) {
+            this.toks = toks;
+            this.schema = schema;
+        }
 
         /** Increments the recursive-descent frame counter, rejecting past the cap before the JVM stack can overflow. */
         private void enterFrame() throws CelParseException {
@@ -726,44 +765,57 @@ public final class CelTextParser {
             return (String) advance().value();
         }
 
-        // ---- overload resolution (schema-free static inference) ----
+        // ---- overload resolution -------------------------------------------
+        // Every resolver consults the SAME inference CelVerifier uses
+        // (StaticTypeChecker, via the CelTypeInference facade). With a null
+        // schema every field infers to empty, reproducing the schema-free
+        // behaviour; with a schema, a field's declared type resolves the id.
+        // Resolution NEVER changes encoding -- it only selects the wire id.
+
+        /** The statically inferred scalar type of {@code arg} against the parse-time schema (empty = not resolvable). */
+        private Optional<CelType> typeOf(ExprNode arg) {
+            return CelTypeInference.inferType(arg, schema);
+        }
 
         private int resolveSize(ExprNode arg) throws CelParseException {
-            return switch (CelStaticType.of(arg)) {
-                case STRING -> 1;
-                case BYTES -> 2;
-                case LIST -> 3;
+            CelType t = typeOf(arg).orElseThrow(() -> overloadErr("size", arg));
+            return switch (t) {
+                case STRING -> 1;   // SIZE_STRING
+                case BYTES -> 2;    // SIZE_BYTES
+                case LIST -> 3;     // SIZE_LIST
                 default -> throw overloadErr("size", arg);
             };
         }
 
         private int resolveAbs(ExprNode arg) throws CelParseException {
-            return switch (CelStaticType.of(arg)) {
-                case INT -> 6;
-                case DOUBLE -> 7;
+            CelType t = typeOf(arg).orElseThrow(() -> overloadErr("abs", arg));
+            return switch (t) {
+                case INT -> 6;      // ABS_INT
+                case DOUBLE -> 7;   // ABS_DOUBLE
                 default -> throw overloadErr("abs", arg);
             };
         }
 
         private int resolveMinMax(boolean isMin, ExprNode a, ExprNode b) throws CelParseException {
-            // Symmetric with size/abs: resolve ONLY when both operands' scalar types are
-            // statically known AND identical. Reject an UNKNOWN (bare-field) operand or a
-            // mixed pairing rather than guessing a wire id that matches neither pinned
-            // signature (e.g. min(1, field) or min(1, 2.0)). No schema-aware resolution
-            // and no new syntax this round -- that is a separate decision pending Peter.
-            CelStaticType ta = CelStaticType.of(a), tb = CelStaticType.of(b);
-            if (ta == CelStaticType.UNKNOWN || tb == CelStaticType.UNKNOWN || ta != tb) {
+            // Both operands must resolve to the SAME numeric type (fail-closed): an
+            // UNKNOWN (absent/indeterminate field, schema-free field) operand or a mixed
+            // pairing is a hard reject, never a guess at a wire id matching no signature.
+            Optional<CelType> ta = typeOf(a), tb = typeOf(b);
+            if (ta.isEmpty() || tb.isEmpty() || ta.get() != tb.get()) {
                 throw overloadErr(isMin ? "min" : "max", a);
             }
-            if (ta == CelStaticType.INT) return isMin ? 8 : 10;
-            if (ta == CelStaticType.DOUBLE) return isMin ? 9 : 11;
-            throw overloadErr(isMin ? "min" : "max", a);   // both known but non-numeric (bool/string/...)
+            return switch (ta.get()) {
+                case INT -> isMin ? 8 : 10;      // MIN_INT / MAX_INT
+                case DOUBLE -> isMin ? 9 : 11;   // MIN_DOUBLE / MAX_DOUBLE
+                default -> throw overloadErr(isMin ? "min" : "max", a);   // both known but non-numeric
+            };
         }
 
         private CelParseException overloadErr(String fn, ExprNode arg) {
             return new CelParseException("parse error: cannot resolve the '" + fn
-                    + "' overload -- its argument's scalar type is not statically known without a schema"
-                    + " (this is a documented limitation of the standalone text parser; build such calls through the AST)");
+                    + "' overload -- the operand scalar type(s) are not statically determinable"
+                    + (schema == null ? " without a schema (use parse(text, schema), or build the call through the AST)"
+                                      : " from the supplied schema (field absent/indeterminate, or min/max operand types differ)"));
         }
 
         private CelParseException err(String msg) {
