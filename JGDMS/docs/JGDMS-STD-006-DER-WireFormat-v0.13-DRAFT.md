@@ -1154,10 +1154,10 @@ obligation.
 | `maxCerts` | 100 | `UrlCodeSourceRecord.certificates` (§7.2) and `DigestCodeSourceRecord.certificates` (§7.3) — shared bound |
 | `maxCertLen` | 65536 | per-certificate `OCTET STRING` length, both §7.2 and §7.3 certificate paths |
 | `maxDigestLen` | 512 | `DigestValue.digest` (§7.2) |
-| `maxChainRecords` | 64 **[PROPOSED]** | §7.8 schema chain — maximum `AtomicSerialSchemaRecord` SEQUENCEs per encoded chain, at **every** chain decode site: the top-level `MarshalledInstanceRecord.schemaBytes` and each nested `@AtomicSerial` field record's embedded chain. Inclusive: exactly 64 records accepted, 65 rejected. Metered **during** the chain-decode loop (the ceiling-breaching record is the last one parsed), not checked once at entry. |
-| `maxChainBytes` | 65536 **[PROPOSED]** | §7.8 schema chain — cumulative encoded byte length of one chain, same two sites as `maxChainRecords`. Inclusive: a chain of exactly 65536 bytes accepted, 65537 rejected. Metered during the chain-decode loop. |
+| `maxChainRecords` | 64 **[RATIFIED — Peter, 2026-07-21 (dedup item 7) / T6 merge 2026-07-24]** | §7.8 schema chain — maximum `AtomicSerialSchemaRecord` SEQUENCEs per encoded chain, at **every** chain decode site: the top-level `MarshalledInstanceRecord.schemaBytes` and each nested `@AtomicSerial` field record's embedded chain. Inclusive: exactly 64 records accepted, 65 rejected. Metered **during** the chain-decode loop (the ceiling-breaching record is the last one parsed), not checked once at entry. |
+| `maxChainBytes` | 65536 **[RATIFIED — Peter, 2026-07-21 (dedup item 7) / T6 merge 2026-07-24]** | §7.8 schema chain — cumulative encoded byte length of one chain, same two sites as `maxChainRecords`. Inclusive: a chain of exactly 65536 bytes accepted, 65537 rejected. Metered during the chain-decode loop. |
 
-**Chain-ceiling admissibility note [PROPOSED — ratify with the values].** `maxChainBytes`
+**Chain-ceiling admissibility note [RATIFIED with the values — Peter, 2026-07-21/24].** `maxChainBytes`
 deliberately **tightens** the base-admissible set: a single `AtomicSerialSchemaRecord` at
 the `maxFields` (65535) and `className`/`wireType` (1024-byte) ceilings could alone encode
 to tens of megabytes, so such a record — while individually legal against the per-record
@@ -1194,8 +1194,8 @@ maxDomains         INTEGER ::= 4096
 maxCerts           INTEGER ::= 100     -- shared: UrlCodeSourceRecord and DigestCodeSourceRecord cert paths
 maxCertLen         INTEGER ::= 65536
 maxDigestLen       INTEGER ::= 512
-maxChainRecords    INTEGER ::= 64      -- [PROPOSED] §7.8 schema chain record count, inclusive
-maxChainBytes      INTEGER ::= 65536   -- [PROPOSED] §7.8 schema chain cumulative bytes, inclusive
+maxChainRecords    INTEGER ::= 64      -- RATIFIED §7.8 schema chain record count, inclusive
+maxChainBytes      INTEGER ::= 65536   -- RATIFIED §7.8 schema chain cumulative bytes, inclusive
 ```
 
 ### 4.6 Tagging Mode (NORMATIVE)
@@ -2090,7 +2090,7 @@ ThrowableRecord ::= SEQUENCE {
     -- untagged they are indistinguishable when only one is present.
     -- suppressed exceptions, each a full ThrowableRecord; depth counts toward
     -- maxCauseDepth / MAX_NESTING exactly as `cause` does (§4.5, §3.12).
-    suppressed    [0] IMPLICIT SEQUENCE SIZE(0..maxCollection) OF ThrowableRecord OPTIONAL,  -- §4.5
+    suppressed    [0] IMPLICIT SEQUENCE SIZE(0..maxSuppressedPerNode) OF ThrowableRecord OPTIONAL,  -- §4.5 (ratified 2026-07-24, item 21)
     cause         [1] IMPLICIT ThrowableRecord OPTIONAL   -- acyclic; nesting <= maxCauseDepth (§4.5)
 }
 ```

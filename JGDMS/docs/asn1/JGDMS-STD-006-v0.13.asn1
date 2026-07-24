@@ -15,6 +15,22 @@
 --
 -- Compiled and round-trip-tested with Python asn1tools 0.167.0, the 'der' codec.
 --
+-- G8 SYNC PASS (2026-07-24): brought up to date with ratified prose+code on three
+-- fronts (see JGDMS-STD-006-v0.13-validation.md, "2026-07-24 sync" section):
+--   1. Chain ceilings + chain-integrity constraints (spec section 4.5 table +
+--      section 7.8 "Chain integrity and ceilings" block): maxChainRecords /
+--      maxChainBytes added; completeness + adjacent-pair cross-check comments at
+--      the section 7.8 productions.
+--   2. Throwable ceilings (RATIFIED Peter 2026-07-24, open item 21, commit
+--      9dcb74342): maxCauseDepth 64 -> 12; maxSuppressedPerNode / maxThrowableNodes
+--      added; ThrowableRecord.suppressed re-bounded; DerThrowableForm realization
+--      note added.
+--   3. Appendix C stream layer (RATIFIED 2026-07-21; NORMATIVE, MANDATORY part of
+--      the standard per the spec header's Integral-parts declaration; T2-built):
+--      new clearly-delimited STREAM LAYER section at the end of the module
+--      (StreamFormatVersion, SchemaChainRef, DedupMarshalledInstanceRecord,
+--      DedupNestedAtomicRecord, maxDistinctChainsPerStream, maxDedupTableBytes).
+--
 -- VALIDATION FINDING (type-model-pinning pass, 2026-07-05): the section 3.12
 -- AnyElement CHOICE's collection arms (canonicalCollection/orderedCollection)
 -- wrap CanonicalCollection/OrderedCollection, which are themselves CHOICEs over
@@ -100,13 +116,45 @@ BEGIN
 
 maxFields            INTEGER ::= 65535
 maxCollection        INTEGER ::= 65536
-maxStackFrames       INTEGER ::= 2048
-maxCauseDepth        INTEGER ::= 64
+maxStackFrames       INTEGER ::= 2048   -- RATIFIED (Peter, 2026-07-24, item 21)
+-- maxCauseDepth 64 -> 12: RATIFIED (Peter, 2026-07-24, item 21; was proposed 64).
+-- Under the nested-@AtomicSerial carrier realization (DerThrowableForm) each cause
+-- level consumes one codec nesting level and MAX_NESTING=16 makes 64 structurally
+-- unreachable; a consistency test pins maxCauseDepth + 2 <= MAX_NESTING. Capture
+-- truncates with an explicit marker (boundary class + message preserved); decode
+-- rejects over-ceiling wire fail-secure. (Spec section 4.5 table.)
+maxCauseDepth        INTEGER ::= 12
+-- RATIFIED (Peter, 2026-07-24, item 21): per-node suppressed[] count. NOTE: the
+-- spec's section 7.6 asn1 snippet still writes SIZE(0..maxCollection) on
+-- `suppressed` — intra-spec drift against the ratified section 4.5 table row
+-- ("ThrowableRecord.suppressed per node" = 32); this module follows the RATIFIED
+-- section 4.5 value. Flagged in the validation report (2026-07-24 sync).
+maxSuppressedPerNode INTEGER ::= 32
+-- RATIFIED (Peter, 2026-07-24, item 21): total ThrowableRecord nodes per carried
+-- fault tree (root + all cause/suppressed descendants). A GLOBAL count over the
+-- recursion — not expressible as a per-field SIZE constraint; enforced by the
+-- decoder's node counter, metered during decode. Carrier className additionally
+-- bounded 1..2048 octets (section 4.5 table note; the bound lives in the
+-- DerThrowableForm carrier realization, not this hand-authored SEQUENCE).
+maxThrowableNodes    INTEGER ::= 128
 maxGroups            INTEGER ::= 128
 maxKnownServiceIds   INTEGER ::= 256
 maxOperations        INTEGER ::= 1024
 maxParameters        INTEGER ::= 255
 maxInterfaces        INTEGER ::= 64
+
+-- Section 4.5 chain ceilings (T6 base adoption; section 7.8 "Chain integrity and
+-- ceilings" block). NOTE ON STATUS MARKERS: the spec's section 4.5 table currently
+-- annotates these two rows "[PROPOSED]" while the identical values are RATIFIED
+-- for the stream layer (Appendix C section C.8, Peter 2026-07-21) and the section
+-- 7.8 integrity block is marked NORMATIVE — the residual [PROPOSED] marker
+-- appears to be stale; flagged in the validation report rather than silently
+-- resolved here. Both are INCLUSIVE bounds, metered DURING the chain-decode loop
+-- (the ceiling-breaching record is the last one parsed), at EVERY chain decode
+-- site: the top-level MarshalledInstanceRecord.schemaBytes and each nested
+-- @AtomicSerial field record's embedded chain.
+maxChainRecords      INTEGER ::= 64      -- records per encoded chain (65 rejected)
+maxChainBytes        INTEGER ::= 65536   -- cumulative encoded bytes per chain (65537 rejected)
 
 -- Section 7.2 named ceilings (established pattern predating section 4.5's
 -- table; same SPEC-DEFECT class. MAX_DOMAINS / MAX_CERTS / MAX_DIGEST_LEN /
@@ -441,15 +489,34 @@ StackTraceElement ::= SEQUENCE {
 -- cause = a ThrowableRecord SEQUENCE), so untagged they violate the X.680
 -- distinct-tag rule (section 4.5); they are indistinguishable when only one is
 -- present.
+-- Ceilings RATIFIED (Peter, 2026-07-24, open item 21 CLOSED): maxStackFrames=2048,
+-- maxCauseDepth=12, maxSuppressedPerNode=32, maxThrowableNodes=128 (section 4.5).
+--
+-- REALIZATION NOTE (2026-07-24, post-review; spec section 7.6): the
+-- invocation-layer fault carrier (org.apache.river.api.io.DerThrowableForm,
+-- applied at the AtomicDerInvocationDispatcher.marshalThrow/unmarshalThrow seam)
+-- realizes this RATIFIED field set (className/message/stackTrace/suppressed/cause;
+-- the five gadget-adjacent fields excluded) in @AtomicSerial SCHEMA-RECORD FRAMING
+-- rather than this hand-authored SEQUENCE — the closed DER registry continues to
+-- defer Throwable itself. The decoder never resolves the carried class name; typed
+-- rebuild happens only at the trusted client seam. This SEQUENCE remains the
+-- normative field-set/bounds statement the carrier realizes.
 ThrowableRecord ::= SEQUENCE {
     className     UTF8String,            -- class NAME only (not a Class object)
     message       UTF8String OPTIONAL,
     -- ORDER-SIGNIFICANT (section 3.8): stack frames are top-of-stack first
     stackTrace    SEQUENCE (SIZE(0..maxStackFrames)) OF StackTraceElement,
-    suppressed    [0] IMPLICIT SEQUENCE (SIZE(0..maxCollection)) OF ThrowableRecord OPTIONAL,
+    -- suppressed per-node count bound is maxSuppressedPerNode (RATIFIED section
+    -- 4.5), NOT maxCollection — see the intra-spec-drift note at the
+    -- maxSuppressedPerNode value assignment above.
+    suppressed    [0] IMPLICIT SEQUENCE (SIZE(0..maxSuppressedPerNode)) OF ThrowableRecord OPTIONAL,
     cause         [1] IMPLICIT ThrowableRecord OPTIONAL
-    -- suppressed[] and cause nest ThrowableRecords; depth <= maxCauseDepth /
-    -- MAX_NESTING, suppressed count <= maxCollection; acyclic (section 3.7/3.12).
+    -- suppressed[] and cause nest ThrowableRecords; cause-chain depth <=
+    -- maxCauseDepth (12; maxCauseDepth + 2 <= MAX_NESTING=16 consistency
+    -- constraint); TOTAL nodes per fault tree <= maxThrowableNodes (128, a global
+    -- decoder-metered count, not a SIZE constraint); acyclic (section 3.7/3.12).
+    -- Capture truncates at the ceilings with an explicit marker; decode rejects
+    -- over-ceiling wire fail-secure.
 }
 
 -- Section 7.6 Permission: NOT a structured DER wire type.
@@ -705,11 +772,115 @@ AtomicSerialSchemaRecord ::= SEQUENCE {
     fields           SEQUENCE (SIZE(0..maxFields)) OF AtomicSerialFieldDef
 }
 
+-- CHAIN INTEGRITY AND CEILINGS (NORMATIVE; spec section 7.8 "Chain integrity and
+-- ceilings" block, added under T6 chain-ceiling adoption). schemaBytes (below) and
+-- every nested @AtomicSerial field record's embedded chain carry a leaf-first
+-- concatenation of AtomicSerialSchemaRecord DER SEQUENCEs. These constraints are
+-- semantic rules over that concatenation and are NOT expressible as per-field
+-- ASN.1 constraints; they apply identically at EVERY chain decode site (top-level
+-- P1 MarshalledInstanceRecord and nested P2 records alike), as hard decode
+-- rejects (fail-secure, principle 6) — never a skip, default, or fallback:
+--   * COMPLETENESS: the terminal (last, root) record MUST NOT carry a
+--     parentSchemaHash. A terminal record with a dangling parentSchemaHash is a
+--     TRUNCATED CHAIN and MUST be rejected. (Without this, truncated {leaf} and
+--     full {leaf, parent, root} yield the same leaf digest from different bytes,
+--     breaking the injectivity of schemaDigest over chain bytes.)
+--   * ADJACENT-PAIR MERKLE CROSS-CHECK: each record's parentSchemaHash MUST equal
+--     the next record's schema version digest (SHA-256 of that record's DER), and
+--     every NON-terminal record MUST carry one.
+--   * CEILINGS: maxChainRecords (64) records and maxChainBytes (65536) cumulative
+--     bytes per chain, inclusive, metered DURING the chain-decode loop.
+
 MarshalledInstanceRecord ::= SEQUENCE {
     payloadBytes       OCTET STRING,
     schemaBytes        OCTET STRING,
     schemaDigest       OCTET STRING (SIZE(32)),
     payloadFormat      UTF8String
+}
+
+-- ============================================================================
+-- ============================================================================
+-- STREAM LAYER — Appendix C, Stream Schema Dedup
+--   (JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md, internal
+--   version 0.3-DRAFT)
+--
+-- NORMATIVE and MANDATORY: per the spec header's Integral-parts declaration and
+-- Peter's 2026-07-21 ratification, dedup is the SOLE stream form of the released
+-- DER object-stream format — not a negotiated mode. One record sequence, one
+-- stream encoding (G1 at the stream layer). The record-level canonical forms
+-- above (MarshalledInstanceRecord, and the nested SEQUENCE{schemaChainBytes,
+-- payloadBytes} form of STD-008 section 16) remain defined and in use for MI
+-- state, persistence, [8] proxy interiors, and as reconstitution targets — they
+-- are NOT stream productions (Appendix C sections C.5.3/C.5.4). Everything in
+-- this section applies to DER OBJECT STREAMS only; the standalone
+-- MarshalledInstance capture path never uses these productions (section C.1.2).
+-- ============================================================================
+-- ============================================================================
+
+-- Stream ceilings (Appendix C section C.8.1; RATIFIED Peter 2026-07-21).
+-- Per-stream dedup-table bounds, inclusive, metered DURING decode at each
+-- fullChain table insertion (the stream is rejected at the first violating
+-- site). maxChainRecords/maxChainBytes above bound each individual chain at
+-- every site — ONE profile, stream and record-level alike (section C.8.1).
+maxDistinctChainsPerStream INTEGER ::= 256      -- distinct chain identities per stream table
+maxDedupTableBytes         INTEGER ::= 1048576  -- sum of stored chain bytes per stream table
+
+-- The stream-format version octet (Appendix C section C.5.2; [PROPOSED], the one
+-- v0.3 item awaiting ratification — repurposed per the 2026-07-21 ruling from
+-- the superseded v0.2 mode marker). MANDATORY first TLV of every stream, exactly
+-- once: wire bytes 8F 01 01 for version 1 (this appendix). A stream not
+-- beginning with it, a duplicate, a content length != 1, or an unknown version
+-- octet is a hard reject; there is no unversioned form. Tag [15] is the next
+-- free object-stream item tag after [0]-[14] (STD-008 section 15.2/15.2.1;
+-- registration there pending, Appendix C section C.13.3 item 2).
+StreamFormatVersion ::= [15] IMPLICIT OCTET STRING (SIZE(1))
+
+streamFormatVersion1 StreamFormatVersion ::= '01'H
+
+-- SchemaChainRef (Appendix C section C.5.1; RATIFIED). The stream-layer carrier
+-- of a schema chain: the PINNED first-full-then-reference rule (section C.6.1,
+-- no encoder discretion) selects the arm — first occurrence of a chain identity
+-- in the stream's normative traversal order (section C.6.2, record-entry
+-- pre-order: a record's own chain site precedes every site in its payload) MUST
+-- be fullChain; every subsequent occurrence MUST be chainRef. Decoders MUST
+-- reject a chainRef whose digest is not already tabled (unknown-digest reject,
+-- never a fetch or fallback) AND a fullChain whose identity is already tabled
+-- (duplicate-full reject — the mandatory-dedup enforcement, section C.9.2).
+-- The chain identity is SHA-256 over the RECEIVED leaf-record bytes (strict
+-- canonical DER enforced within fullChain content; section C.7.3), and the
+-- fullChain content is subject to the full chain-integrity block above
+-- (completeness, Merkle cross-check, maxChainRecords/maxChainBytes).
+-- Both arms IMPLICIT over OCTET STRING (a primitive, non-CHOICE type; X.680
+-- section 31.2.7 does not bite): tag bytes 0x80 (fullChain) / 0x81 (chainRef).
+SchemaChainRef ::= CHOICE {
+    fullChain [0] IMPLICIT OCTET STRING (SIZE(1..maxChainBytes)),
+    chainRef  [1] IMPLICIT OCTET STRING (SIZE(32))
+}
+
+-- Stream form of the P1 record (Appendix C section C.5.3; RATIFIED): replaces
+-- MarshalledInstanceRecord at P1 STREAM sites ([1] CTX_ATOMIC items). Exactly
+-- three fields — schemaDigest is DELIBERATELY ABSENT (derivable in both arms:
+-- computed from fullChain bytes / the chainRef IS the digest; removing it makes
+-- a lying digest unrepresentable). payloadFormat unchanged
+-- ("JGDMS-STD-006/ATOMIC-DER"). Reconstitution rebuilds the canonical four-field
+-- record byte-for-byte, inserting the computed leaf digest (round-trip law,
+-- section C.5.4). NOT used inside [8] proxy interiors, which carry the canonical
+-- record-level forms at every nesting level (raw-wire-form retention contract,
+-- section C.6.5 — the exclusion is byte-region-scoped and transitive).
+DedupMarshalledInstanceRecord ::= SEQUENCE {
+    payloadBytes  OCTET STRING,
+    schema        SchemaChainRef,
+    payloadFormat UTF8String
+}
+
+-- Stream form of the P2 nested record (Appendix C section C.5.3; RATIFIED):
+-- replaces the STD-008 section 16 SEQUENCE{schemaChainBytes, payloadBytes} at
+-- P2 STREAM sites (nested @AtomicSerial fields, Any [20] arm bodies,
+-- array/collection elements of @AtomicSerial type). Chain-first, matching the
+-- section 16 field order. Same [8]-interior exclusion as above.
+DedupNestedAtomicRecord ::= SEQUENCE {
+    schema        SchemaChainRef,
+    payloadBytes  OCTET STRING
 }
 
 END

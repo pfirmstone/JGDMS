@@ -1,0 +1,250 @@
+-- JGDMS-STD-011-AppendixB-v0.1.asn1
+--
+-- Consolidated, COMPILING ASN.1 module for JGDMS-STD-011 Appendix B — DER Wire
+-- Encoding for DETERMINISTIC CEL Expressions — v0.1-DRAFT. Assembled from:
+--   JGDMS/docs/JGDMS-STD-011-Appendix-B-DER-Wire-Encoding-v0.1-DRAFT.md
+--     (section B.3 module verbatim; section B.4.1 tag table; section B.8.3
+--      function-id/arity registry; section B.9 envelope)
+--   JGDMS/docs/JGDMS-STD-011-CEL-Filter-Expression-Format-v0.1-DRAFT.md
+--     (section 11 node inventory; section 10.3 ceilings)
+--
+-- This file is a VALIDATION ARTIFACT in the same regime as
+-- JGDMS-STD-006-v0.13.asn1 (open item 20 discipline). It is not itself
+-- normative; the Appendix B document is. See JGDMS-STD-006-v0.13-validation.md
+-- ("2026-07-24 sync" section) for this module's compile/round-trip record.
+--
+-- Separate module mirroring standard ownership: STD-006's types are IMPORTED,
+-- never redefined here. Module OID: the cel(2) arc beside atomicDer's own
+-- versioned arc, matching the OID printed in Appendix B section B.3 exactly
+-- (999999 remains the documented PLACEHOLDER PEN; replace on IANA assignment).
+--
+-- G8 THREE-WAY CROSS-CHECK (2026-07-24; prose vs this module vs merged
+-- jgdms-cel code) — ALL AGREE, character-for-character:
+--   * ExprNode tags [0]-[26] == Appendix B section B.3/B.4.1 == CelDecoder's
+--     tag switch (jgdms-cel/src/main/java/au/net/zeus/jgdms/cel/wire/
+--     CelDecoder.java:166-184; reserved [27]-[62] and >[62] hard-reject).
+--   * Function ids 1-24 with arities == section B.8.3's table ==
+--     FunctionRegistry.java:57-80 (24 entries, same ids, names, arities);
+--     CelDecoder rejects functionId outside [1,24] and arity mismatches
+--     (CelDecoder.java:395-422).
+--   * Ceilings == STD-011 section 10.3 proposals == CelCeilings.java:
+--     MAX_EXPR_NODES=1024, MAX_EXPR_DEPTH=32, MAX_SELECTOR_STEPS=16,
+--     MAX_SCALAR_BYTES = ObjectCodec.MAX_COLLECTION (65536, the deliberate
+--     section B.7 alignment), MAX_EXPR_COST=1000000; enforced at decode
+--     (CelDecoder.java:118-126,169-170,273-274) and at the cost gate
+--     (CostModel.java:105). CelFilterRecord.FORMAT_VERSION=1 == section B.9.
+--   No three-way disagreement found.
+--
+-- CEILINGS STATUS (load-bearing; STD-011 section 3.3's conditional Claim 3):
+-- the five ceiling values below are [PROPOSED] in STD-011 section 10.3 /
+-- Appendix B section B.7 and are RATIFICATION-PENDING-CONFIRMATION — the merged
+-- Java implementation already enforces exactly these values on the
+-- expression-LITERAL side (see cross-check above), which is the half Appendix B
+-- section B.7 discharges. The CANDIDATE-PROJECTION side of maxScalarBytes
+-- (STD-011 section 3.3: "enforced at wire-decode time on both sides") remains
+-- OPEN: STD-006 section 4.5 on trunk (2026-07-24) still carries NO
+-- maxScalarBytes row (the section B.7 [PATCH] block was never applied), so
+-- until Peter ratifies the values AND the projection-side bound is pinned and
+-- enforced in STD-006, STD-011's Claim 3 conditional is only half-discharged.
+-- See the [PROPOSED] ratification table in the validation report's 2026-07-24
+-- section.
+--
+-- TAGGING MODE: DEFINITIONS EXPLICIT TAGS, matching STD-006 section 4.6 and
+-- Appendix B section B.3 exactly; every context tag below spells out its own
+-- IMPLICIT/EXPLICIT disposition, so the module default is inert for every type
+-- defined here.
+
+JGDMS-STD-011-Appendix-B
+{ iso(1) identified-organization(3) dod(6) internet(1) private(4)
+  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
+DEFINITIONS
+EXPLICIT TAGS ::=
+BEGIN
+
+IMPORTS
+    maxCollection
+        FROM JGDMS-STD-006
+        { iso(1) identified-organization(3) dod(6) internet(1) private(4)
+          enterprise(1) 999999 jgdms(1) atomicDer(1) v13(13) };
+
+-- ============================================================================
+-- STD-011 section 10.3 ceilings [PROPOSED — ratification pending; see the
+-- CEILINGS STATUS block in this file's header and Appendix B section B.7]
+-- ============================================================================
+
+maxExprNodes     INTEGER ::= 1024
+maxExprDepth     INTEGER ::= 32
+maxSelectorSteps INTEGER ::= 16
+maxScalarBytes   INTEGER ::= 65536
+-- maxExprCost is a T6 verification-time bound computed over the decoded AST
+-- (STD-011 section 10.2/10.5's cost sum), not a wire-level SIZE constraint on
+-- any single field; recorded for completeness, not referenced by any SIZE
+-- below. Enforced by CelVerifier/CostModel post-decode.
+maxExprCost      INTEGER ::= 1000000
+
+-- maxExprNodes and maxExprDepth are likewise NOT single-field SIZE constraints:
+-- maxExprNodes is a whole-decode running node counter and maxExprDepth a
+-- recursion-depth counter, both metered DURING decode (G10 interior fence;
+-- Appendix B section B.6.2's exact metered positions; CelDecoder.java:118-126).
+
+-- ============================================================================
+-- Envelope (Appendix B section B.9): how an expression travels as a parameter
+-- ============================================================================
+
+ScalarType ::= ENUMERATED {
+    boolT(0), intT(1), doubleT(2), stringT(3), bytesT(4)
+}
+
+-- Declared result type for a TRANSFORM registration (STD-011 section 4.1's
+-- expression types; list<T> restricted to scalar T per section 4.7).
+DeclaredResultType ::= CHOICE {
+    scalar      [0] IMPLICIT ScalarType,
+    nullType    [1] IMPLICIT NULL,
+    listType    [2] IMPLICIT ScalarType,
+    objectType  [3] IMPLICIT NULL
+}
+
+-- The context tag alone selects predicate vs transform (STD-011 section 11.3
+-- item 4); predicate's result type is always bool (section 9.4) so there is
+-- nothing further to declare on that arm (H3: one discriminator, not two).
+EvaluationContext ::= CHOICE {
+    predicate  [0] IMPLICIT NULL,
+    -- DeclaredResultType is itself a CHOICE: this arm MUST be EXPLICIT
+    -- (X.680 section 31.2.7); Appendix B section B.4.4 has the justification.
+    transform  [1] EXPLICIT DeclaredResultType
+}
+
+-- The parameter shape (section B.9). formatVersion pinned to 1 for v0.1
+-- (CelFilterRecord.FORMAT_VERSION in code); unknown versions hard-reject.
+-- No signature/digest field of its own: tamper-detection is the enclosing
+-- Integrity-constrained ATOMIC DER stream's job (STD-009 RULE-D1; section B.9).
+CelFilterRecord ::= SEQUENCE {
+    formatVersion  INTEGER (0..255),      -- Appendix B pins value 1
+    context        EvaluationContext,
+    expression     ExprNode
+}
+
+-- ============================================================================
+-- The AST CHOICE: the context tag IS the node-kind discriminator (H3).
+-- Closed set: exactly the 27 arms below (STD-011 section 11.1 inventory;
+-- Appendix B section B.4.1 tag table). Tags [27]-[62] RESERVED; any tag outside
+-- the listed arms (reserved block included, and anything > [62]) is
+-- UNREGISTERED and MUST be a hard decode reject (STD-011 section 11.3 item 2)
+-- — automatic in the CHOICE form, confirmed empirically (section B.13).
+-- A future revision MUST append new node kinds after [26], never insert.
+-- ============================================================================
+
+ExprNode ::= CHOICE {
+    -- literals [0]-[5]: IMPLICIT, leaf values, nothing to preserve underneath
+    litBool     [0]  IMPLICIT BOOLEAN,
+    litInt      [1]  IMPLICIT INTEGER (-9223372036854775808..9223372036854775807),
+    litDouble   [2]  IMPLICIT OCTET STRING (SIZE(8)),
+    litString   [3]  IMPLICIT UTF8String (SIZE(0..maxScalarBytes)),
+    litBytes    [4]  IMPLICIT OCTET STRING (SIZE(0..maxScalarBytes)),
+    litNull     [5]  IMPLICIT NULL,
+
+    -- structural / reference [6]-[8]
+    listLit     [6]  IMPLICIT ListLitNode,
+    fieldRef    [7]  IMPLICIT FieldRefNode,
+    has         [8]  IMPLICIT HasNode,
+
+    -- unary [9]-[10]
+    notOp       [9]  IMPLICIT UnaryNode,
+    negOp       [10] IMPLICIT UnaryNode,
+
+    -- binary [11]-[23]
+    andOp       [11] IMPLICIT BinaryNode,
+    orOp        [12] IMPLICIT BinaryNode,
+    eqOp        [13] IMPLICIT BinaryNode,
+    neOp        [14] IMPLICIT BinaryNode,
+    ltOp        [15] IMPLICIT BinaryNode,
+    leOp        [16] IMPLICIT BinaryNode,
+    gtOp        [17] IMPLICIT BinaryNode,
+    geOp        [18] IMPLICIT BinaryNode,
+    addOp       [19] IMPLICIT BinaryNode,
+    subOp       [20] IMPLICIT BinaryNode,
+    mulOp       [21] IMPLICIT BinaryNode,
+    divOp       [22] IMPLICIT BinaryNode,
+    modOp       [23] IMPLICIT BinaryNode,
+
+    -- membership / conditional / call [24]-[26]
+    inOp        [24] IMPLICIT InNode,
+    condOp      [25] IMPLICIT CondNode,
+    callOp      [26] IMPLICIT CallNode
+}
+
+ListLitNode ::= SEQUENCE (SIZE(1..maxCollection)) OF ExprNode
+
+FieldRefNode ::= SEQUENCE {
+    steps  SEQUENCE (SIZE(1..maxSelectorSteps)) OF SelectorStep
+}
+
+-- unqual/fieldName/className ceilings align with STD-006 section 7.8's
+-- AtomicSerialFieldDef (wireName SIZE(1..255), wireType SIZE(1..1024)): a name
+-- longer than the schema format's own ceiling can never match a real schema
+-- entry (Appendix B section B.6.3).
+SelectorStep ::= CHOICE {
+    unqual  [0] IMPLICIT UTF8String (SIZE(1..255)),
+    qual    [1] IMPLICIT QualifiedSelector
+}
+
+QualifiedSelector ::= SEQUENCE {
+    className  UTF8String (SIZE(1..1024)),
+    fieldName  UTF8String (SIZE(1..255))
+}
+
+-- Structurally guarantees STD-011 section 5.3.1 item 2 (has()'s argument MUST
+-- be a field designator) by construction (Appendix B section B.2.3).
+HasNode ::= SEQUENCE {
+    target  FieldRefNode
+}
+
+UnaryNode ::= SEQUENCE {
+    operand  ExprNode
+}
+
+-- left/right are both mandatory, fixed-position components: the X.680
+-- distinct-tag rule governs OPTIONAL/CHOICE-sibling ambiguity and does not
+-- apply between two mandatory fields, so no inner context tags are needed on
+-- left/right even though ExprNode is a CHOICE (Appendix B section B.4.3).
+BinaryNode ::= SEQUENCE {
+    left   ExprNode,
+    right  ExprNode
+}
+
+InNode ::= SEQUENCE {
+    needle       ExprNode,
+    listOperand  InListOperand
+}
+
+-- Structurally guarantees STD-011 section 5.3.1 item 6 by construction.
+InListOperand ::= CHOICE {
+    literalList  [0] IMPLICIT ListLitNode,
+    fieldList    [1] IMPLICIT FieldRefNode
+}
+
+CondNode ::= SEQUENCE {
+    condition   ExprNode,
+    thenBranch  ExprNode,
+    elseBranch  ExprNode
+}
+
+-- functionId is the pinned registry id per Appendix B section B.8.3's table
+-- (one wire id per (function name, operand-type signature) — the section B.8.1
+-- resolution of STD-011 section 7.2's per-row ambiguity; ids 22-24 are the
+-- section B.8.2 string-method assignment). Cross-checked against
+-- FunctionRegistry.java (see header): ids 1-24 =
+--   1 size(string), 2 size(bytes), 3 size(list), 4 int(double),
+--   5 double(int), 6 abs(int), 7 abs(double), 8 min(int,int),
+--   9 min(double,double), 10 max(int,int), 11 max(double,double),
+--   12 sqrt, 13 radians, 14 degrees, 15 sin, 16 cos, 17 tan, 18 asin,
+--   19 acos, 20 atan, 21 atan2 (arity 2), 22 contains (arity 2),
+--   23 startsWith (arity 2), 24 endsWith (arity 2); all others arity 1.
+-- EXACT per-id arity is enforced at decode against that table
+-- (CelDecoder.java:420-422), not by this generic SIZE(1..2) bound.
+CallNode ::= SEQUENCE {
+    functionId  INTEGER (1..24),
+    arguments   SEQUENCE (SIZE(1..2)) OF ExprNode
+}
+
+END

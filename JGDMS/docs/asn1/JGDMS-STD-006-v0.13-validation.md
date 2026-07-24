@@ -1,5 +1,19 @@
 # JGDMS-STD-006 v0.13 — ASN.1 Compiler Validation Report
 
+> **Currency note (2026-07-24).** Sections 1–5 below are the original 2026-07-04
+> report and describe the module as it stood then ("OK 41 types", the
+> `Permission`/`CollectionField`/`MapField` type names, the optionally-tagged
+> `EntryFieldValue`). The module has since been revised (the 2026-07-05
+> type-model-pinning pass — `AnyElement`/`TypedWireObject`/collection-discipline
+> types, `Permission` structured form withdrawn in favour of
+> `PermissionTextForm`/`PermissionGrantTextForm`, `EntryFieldValue` reverted to
+> the spec's untagged form — and the 2026-07-24 G8 sync below), so the historical
+> sections no longer describe the current file; they are retained unmodified as
+> the record of that validation round. **The current validation state is §6
+> (2026-07-24), which also covers the new companion module
+> `JGDMS-STD-011-AppendixB-v0.1.asn1`.** The expected compile output is now
+> `OK 59 types` (STD-006 module alone) / `OK 75 types` (both modules together).
+
 **Open item addressed:** #20 ("Whole-document — validate every ASN.1 module against
 a real compiler (asn1c / pyasn1 / rasn). External review found five modules that
 were invalid ASN.1 ... all are fixed in v0.13, but only compiler validation proves
@@ -240,3 +254,131 @@ apparent "used before defined" ordering across subsections (e.g.
 row in the same section; `ServiceItemRecord` in §7.7.5 referencing `ServiceID`,
 defined in the earlier §7.7.3) is a document-organisation artifact, not a
 missing definition.
+
+---
+
+## 6. 2026-07-24 G8 sync — STD-006 module update + STD-011 Appendix B companion module
+
+Per G8 (all sources of truth agree; sync as one mergeable unit), the module was
+brought up to date with ratified prose+code on three fronts, and a companion
+module for DETERMINISTIC CEL's wire encoding was authored. Everything in this
+section was **run**, not reasoned about, with the §1 toolchain (asn1tools
+0.167.0, `der` codec, CPython 3.11.0 at the full path §1 records).
+
+### 6.1 STD-006 module changes (three fronts)
+
+1. **T6 chain ceilings + integrity (spec §4.5 table + §7.8 "Chain integrity and
+   ceilings" block):** `maxChainRecords ::= 64` and `maxChainBytes ::= 65536`
+   added to the ceiling constants; a chain-integrity comment block added at the
+   §7.8 productions covering **completeness** (terminal record MUST NOT carry
+   `parentSchemaHash` — truncated-chain reject), the **adjacent-pair Merkle
+   cross-check** (every non-terminal record carries one; each equals the next
+   record's digest), and the ceilings' metered-during-decode discipline — all
+   applying at **every** chain decode site, P1 top-level and nested/P2 alike.
+   These are semantic rules over an `OCTET STRING`'s content, not expressible as
+   per-field ASN.1 constraints; carried as normative comments per the module's
+   established convention.
+2. **Item 21 throwable ceilings (RATIFIED Peter 2026-07-24, commit 9dcb74342):**
+   `maxCauseDepth` 64 → **12** (annotated: `DerThrowableForm` nested-carrier
+   realization, `MAX_NESTING`=16, consistency constraint
+   `maxCauseDepth + 2 ≤ MAX_NESTING`); `maxSuppressedPerNode ::= 32` and
+   `maxThrowableNodes ::= 128` added; `ThrowableRecord.suppressed` re-bounded
+   `SIZE(0..maxSuppressedPerNode)`; realization-note comment added
+   (`DerThrowableForm` realizes the RATIFIED field set in `@AtomicSerial`
+   schema-record framing at the `marshalThrow`/`unmarshalThrow` seam; this
+   SEQUENCE remains the field-set/bounds statement).
+3. **Appendix C stream layer (RATIFIED 2026-07-21; Integral-parts-declared
+   NORMATIVE/MANDATORY; T2-built):** new clearly-delimited STREAM LAYER section
+   at the end of the module: `StreamFormatVersion ::= [15] IMPLICIT OCTET STRING
+   (SIZE(1))` with value `streamFormatVersion1 ::= '01'H` (wire bytes verified
+   `8F 01 01`), `SchemaChainRef` (`fullChain [0]` / `chainRef [1]`, tag bytes
+   verified `0x80`/`0x81`, `chainRef` `SIZE(32)`), the three-field
+   `DedupMarshalledInstanceRecord` (`schemaDigest` deliberately absent), the
+   chain-first `DedupNestedAtomicRecord`, and the stream table ceilings
+   `maxDistinctChainsPerStream ::= 256` / `maxDedupTableBytes ::= 1048576`.
+   Comments pin: mandatory-dedup (sole stream form), the pinned
+   first-full-then-reference rule + duplicate-full/unknown-digest rejects,
+   record-level canonical forms kept distinct from stream productions
+   (§C.5.3/§C.5.4), and the `[8]`-interior exclusion (§C.6.5).
+
+### 6.2 Drift found BEYOND the three briefed fronts (report, not silently fixed)
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | **Intra-spec drift, §7.6 vs §4.5 (trunk):** the ratified §4.5 table row says `ThrowableRecord.suppressed` per node is bounded by `maxSuppressedPerNode` (32), but trunk §7.6's own `asn1` snippet still writes `SIZE(0..maxCollection)` on `suppressed` (and its prose kept "suppressed[] count by `maxCollection`"). The module follows the **RATIFIED §4.5 value** (32), per the sync brief. | Spec editor should fix §7.6's snippet/prose to `maxSuppressedPerNode`; flagged here |
+| 2 | **Status-marker inconsistency on chain ceilings:** the sync brief calls the T6 chain ceilings "merged trunk, ratified", and §7.8's integrity block is marked NORMATIVE with Appendix C's identical values RATIFIED (2026-07-21) — but trunk §4.5's two chain-ceiling rows still carry **[PROPOSED]** markers ("ratify with the values"). The residual markers appear stale. | Module records both statuses verbatim rather than resolving; Peter/spec editor to strike the stale [PROPOSED] or confirm it stands |
+| 3 | **This validation report was itself stale** against the module (pre-existing): §5's "OK 41 types" and type list predate the 2026-07-05/06 module revisions (`AnyElement` et al., `Permission` withdrawal, `EntryFieldValue` reverted-to-untagged). | Currency note added at the top; historical sections retained unmodified |
+| 4 | `ThrowableRecord.className`/`message` remain unbounded `UTF8String` in both the spec's §7.6 snippet and this module, while §4.5's item-21 row bounds the **carrier** `className` at 1..2048 octets (realized in `DerThrowableForm`, not the hand-authored SEQUENCE). Not a module-vs-spec divergence (module matches spec), but a principle-5 gap in the hand-authored form worth an editor's look. | Flagged only; module left matching the spec snippet |
+
+### 6.3 New companion module: `JGDMS-STD-011-AppendixB-v0.1.asn1`
+
+Authored from the Appendix B §B.3 module verbatim (same OID `...atomicDer(1)
+cel(2) v1(1)`, same `EXPLICIT TAGS` mode, `maxCollection` IMPORTed from
+`JGDMS-STD-006` — STD-006's types are imported, never redefined), plus the
+§B.4.1 tag registry, §B.8.3 function-id/arity table, and §B.9 envelope notes as
+comments at their definition sites.
+
+**G8 three-way cross-check (prose vs module vs merged `jgdms-cel` code) — no
+disagreement found:**
+
+- `ExprNode` tags `[0]`–`[26]` = §B.3/§B.4.1 = `CelDecoder.java:166-184`
+  (reserved/unregistered tags hard-reject).
+- Function ids 1–24 + arities = §B.8.3 = `FunctionRegistry.java:57-80`;
+  `CelDecoder.java:395-422` rejects out-of-range ids and arity mismatches.
+- Ceilings = STD-011 §10.3 proposals = `CelCeilings.java` (`MAX_EXPR_NODES`
+  1024, `MAX_EXPR_DEPTH` 32, `MAX_SELECTOR_STEPS` 16, `MAX_SCALAR_BYTES =
+  ObjectCodec.MAX_COLLECTION` = 65536, `MAX_EXPR_COST` 1 000 000);
+  `CelFilterRecord.FORMAT_VERSION` = 1 = §B.9.
+
+### 6.4 [PROPOSED] — ceilings ratification table for Peter (closes STD-011 §3.3's conditional when ratified)
+
+STD-011 §10.3's values were [PROPOSED]; the merged Java implementation enforces
+exactly them (decode-time for the wire-shaped ones, `CelVerifier`/`CostModel`
+for the cost gate). Ratifying this table confirms the implemented values as
+normative:
+
+| Constant | Value | Enforced today (merged code) | Notes |
+|---|---|---|---|
+| `maxExprNodes` | 1024 | `CelDecoder` running node counter | |
+| `maxExprDepth` | 32 | `CelDecoder` recursion counter (G10-metered) | |
+| `maxSelectorSteps` | 16 | `CelDecoder` per-`FieldRefNode` step counter | |
+| `maxExprCost` | 1 000 000 | `CelVerifier`/`CostModel` post-decode gate (overflow ⇒ exceeded) | Not a wire ceiling; stays out of STD-006 §4.5 per §B.7 |
+| `maxScalarBytes` | 65536 | **Literal side only**: `CelDecoder` `LIT_STRING`/`LIT_BYTES` length checks | **Half-discharged.** STD-011 §3.3 conditions Claim 3 on this being pinned **and enforced on both sides**. The candidate-projection side is still open: trunk STD-006 §4.5 (checked 2026-07-24) has **no** `maxScalarBytes` row — the §B.7 [PATCH] block was never applied — and no projection-side scalar-length enforcement is claimed anywhere. Ratification of the value should ride with applying that [PATCH] and pinning the projection-side enforcement point, after which STD-011 gets its §3.3 closure note (prose edit deliberately NOT made here). |
+
+### 6.5 Validation results (run 2026-07-24)
+
+```
+$ python -c "import asn1tools; s = asn1tools.compile_files(['JGDMS-STD-006-v0.13.asn1'], 'der'); print('OK', len(s.types), 'types')"
+OK 59 types
+
+$ python -c "import asn1tools; s = asn1tools.compile_files(['JGDMS-STD-006-v0.13.asn1','JGDMS-STD-011-AppendixB-v0.1.asn1'], 'der'); print('OK', len(s.types), 'types')"
+OK 75 types
+```
+
+Round-trip results (all `roundtrip_equal=True` unless noted):
+
+| # | Module | Type / case | Result |
+|---|---|---|---|
+| 1 | STD-006 | `StreamFormatVersion` value — wire bytes exactly `8F 01 01` | PASS |
+| 2 | STD-006 | `SchemaChainRef` `fullChain` arm — leading tag byte `0x80` | PASS |
+| 3 | STD-006 | `SchemaChainRef` `chainRef` arm (32 bytes) — leading tag byte `0x81` | PASS |
+| 4 | STD-006 | `DedupMarshalledInstanceRecord`, both arms | PASS |
+| 5 | STD-006 | `DedupNestedAtomicRecord`, `chainRef` arm | PASS |
+| 6 | STD-006 | `ThrowableRecord` with `suppressed` = 32 (at the new bound) | PASS |
+| 7 | STD-006 | `MarshalledInstanceRecord` four-field regression | PASS |
+| 8 | STD-011 | `CelFilterRecord` predicate (`GE(fieldRef, litInt 30)` — §B.10.1's shape) | PASS |
+| 9 | STD-011 | `CelFilterRecord` transform (`scalar doubleT`) | PASS |
+| 10 | STD-011 | `ExprNode`: `litBool`, `cond`, `call`(atan2, arity 2), `in`(literal list), `has`(qualified selector) | PASS |
+| 11 | STD-011 | Tag-byte spot checks vs §B.4.1: `litBool` `0x80`, `litInt` `0x81`, `listLit` `0xA6`, `callOp` `0xBA` | PASS |
+
+**Tool-limitation note (G12 — enforcement NOT validated by this tool, matching
+the §B.13 precedent verbatim):** asn1tools 0.167.0 does **not** enforce `SIZE`
+constraints at encode/decode — a 31- or 33-byte `chainRef` and a 33-element
+`suppressed` list were **accepted** by the tool. As with the STD-011 Appendix B
+§B.13 transcript, every `SIZE`/range/canonical-form/ceiling rule is a
+**decoder-implementation obligation** (the built Java codecs and the future Rust
+peer), not something the compiled grammar gives for free; the compile + round-
+trip here prove grammar/tag validity and encode-shape only. The Java-side
+enforcement of the new bounds is separately real (T2's dedup codec for the
+stream layer; `CelDecoder`/`CelVerifier` for CEL; the T6 chain-ceiling branch
+for chains) — validated by their own test suites, not by this artifact.
