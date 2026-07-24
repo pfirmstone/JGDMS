@@ -83,10 +83,10 @@ each record — 461 bytes, about three quarters of a single self-describing reco
 - **100 records, shape sent once:** 17,136 bytes.
 - **100 records, shape repeated every time:** 63,000 bytes. Sending it once saved
   **72.8%**.
-- **100 records, as plain text with the field names spelled out every time:** 23,346
+- **100 records, as JSON text with the field names spelled out every time:** 23,346
   bytes. The shape-sent-once form was **26.6%** smaller.
 
-Reported honestly: at small counts the plain-text form is smaller (it has no shape
+Reported honestly: at small counts the JSON form is smaller (it has no shape
 description to amortise); the stream format overtakes it after a handful of records.
 
 ---

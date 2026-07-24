@@ -71,7 +71,7 @@ class SchemaSentOnceTest {
         long repeat = SchemaSentOnceDemo.repeatedShapeSize(r);
         long json   = SchemaSentOnceDemo.jsonSize(r);
         assertTrue(once < repeat, "shape-once must beat shape-repeated: once=" + once + " repeat=" + repeat);
-        assertTrue(once < json, "shape-once must beat plain text at scale: once=" + once + " json=" + json);
+        assertTrue(once < json, "shape-once must beat JSON text at scale: once=" + once + " json=" + json);
         // A conservative floor on the real saving vs repeating the shape.
         assertTrue((repeat - once) > repeat * 0.5,
                 "expected at least a 50% saving vs repeating the shape; once=" + once + " repeat=" + repeat);

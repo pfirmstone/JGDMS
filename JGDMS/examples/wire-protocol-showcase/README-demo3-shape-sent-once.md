@@ -9,8 +9,8 @@ three ways:
   shape (its family tree of field names and types) is sent with the first record; every
   record after that points back to it.
 - **shape repeated every time** — each record carries its own full shape description.
-- **plain text** — the same data written as text with every field name spelled out on
-  every record.
+- **JSON (field names on every record)** — the same data written as minified JSON text,
+  which spells out every field name on every record.
 
 You will see the shape description measured (461 bytes — about three quarters of a
 single self-describing record), then watch what each extra record adds to the stream:
@@ -33,19 +33,19 @@ java -cp "target/classes;target/lib/*" au.net.zeus.jgdms.showcase.demo.SchemaSen
 The automated check is `SchemaSentOnceTest` (run by `mvn test`). It measures **real
 bytes** and asserts: the shape description is a genuine fraction of each record; each
 record after the first costs far less than a full self-describing record; and at 100
-records the stream is smaller than repeating the shape and smaller than the plain-text
-form. It also decodes all 100 records back out of the stream.
+records the stream is smaller than repeating the shape and smaller than the equivalent
+JSON text. It also decodes all 100 records back out of the stream.
 
 ## The numbers from a real run
 
-| records | shape sent once | shape repeated | plain text |
-|--------:|----------------:|---------------:|-----------:|
+| records | shape sent once | shape repeated | JSON w/ names |
+|--------:|----------------:|---------------:|-------------:|
 | 1       | 606             | 633            | 234        |
 | 10      | 2,104           | 6,298          | 2,317      |
 | 100     | 17,136          | 63,000         | 23,346     |
 
 At 100 records, sending the shape once instead of every time saved **72.8%**, and the
-result was **26.6%** smaller than the plain-text form.
+result was **26.6%** smaller than the equivalent JSON text (field names on every record).
 
 ## Honesty note (important)
 

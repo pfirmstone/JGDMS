@@ -36,8 +36,8 @@ import java.util.List;
  *   <li><b>shape sent once</b> -- this library's stream format.</li>
  *   <li><b>shape repeated every time</b> -- each object carries its own full shape
  *       description (what you get without the sharing).</li>
- *   <li><b>plain text (field names every time)</b> -- the same data as JSON text, which
- *       spells out every field name on every object.</li>
+ *   <li><b>JSON text (field names every time)</b> -- the same data as minified JSON,
+ *       which spells out every field name on every object.</li>
  * </ol>
  *
  * <p>Honesty note: none of these lines is flat. Storing N objects always costs at least
@@ -84,7 +84,7 @@ public final class SchemaSentOnceDemo {
         System.out.println("Cumulative bytes to write N readings:");
         System.out.println();
         System.out.printf("   %5s | %14s | %14s | %14s%n",
-                "N", "shape once", "shape repeated", "plain text");
+                "N", "shape once", "shape repeated", "JSON w/ names");
         System.out.println("   ------+----------------+----------------+----------------");
         long lastOnce = 0, lastRepeat = 0, lastJson = 0;
         for (int n : points) {
@@ -101,11 +101,11 @@ public final class SchemaSentOnceDemo {
         System.out.println("At N=" + COUNT + " (bar length = relative size):");
         System.out.printf("   shape once     %6d B  %s%n", lastOnce,   ShowcaseSupport.bar(lastOnce, max, 48));
         System.out.printf("   shape repeated %6d B  %s%n", lastRepeat, ShowcaseSupport.bar(lastRepeat, max, 48));
-        System.out.printf("   plain text     %6d B  %s%n", lastJson,   ShowcaseSupport.bar(lastJson, max, 48));
+        System.out.printf("   JSON w/ names  %6d B  %s%n", lastJson,   ShowcaseSupport.bar(lastJson, max, 48));
         System.out.println();
         System.out.printf("   Sending the shape once instead of every time saved %,d bytes (%.1f%% smaller)%n",
                 lastRepeat - lastOnce, 100.0 * (lastRepeat - lastOnce) / lastRepeat);
-        System.out.printf("   and it is %.1f%% smaller than the plain-text form.%n",
+        System.out.printf("   and it is %.1f%% smaller than the equivalent JSON text (field names on every record).%n",
                 100.0 * (lastJson - lastOnce) / lastJson);
         System.out.println();
         System.out.println("Why it matters: the reader never has to already know the shape. It arrives");

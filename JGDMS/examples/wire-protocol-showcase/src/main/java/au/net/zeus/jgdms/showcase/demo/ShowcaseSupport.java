@@ -104,8 +104,8 @@ public final class ShowcaseSupport {
 
     /**
      * A deterministic representation of one reading as JSON text, with every field
-     * name spelled out — the way a plain text format sends its data. Used only as a
-     * size comparison point; it repeats the field names on every single object.
+     * name spelled out — the way a verbose text format such as JSON sends its data.
+     * Used only as a size comparison point; it repeats the field names on every object.
      */
     public static byte[] asJsonText(CalibratedReading r) {
         String json = "{"
