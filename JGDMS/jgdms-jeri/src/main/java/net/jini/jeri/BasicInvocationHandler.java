@@ -1678,6 +1678,28 @@ public class BasicInvocationHandler
 	    throw new NullPointerException();
 	}
 	Throwable t = (Throwable) in.readObject();
+	return postProcessRemoteThrowable(proxy, method, t);
+    }
+
+    /**
+     * The post-read half of {@link #unmarshalThrow unmarshalThrow}: marks the
+     * received throwable's stack trace boundary
+     * ({@code Util.exceptionReceivedFromServer}) and enforces the documented
+     * checked-exception contract -- a checked exception not assignable to any
+     * exception in the proxy method's {@code throws} clause is wrapped in an
+     * {@link UnexpectedException} (or an {@link IllegalArgumentException} is
+     * thrown when the proxy class lacks the method). Package-private so
+     * subclasses that override {@code unmarshalThrow} to read an alternative
+     * fault representation (e.g. the DER fault carrier in
+     * {@link AtomicDerInvocationHandler}) apply the identical contract rather
+     * than duplicating it.
+     *
+     * @param proxy  the proxy instance the method was invoked on
+     * @param method the interface method invoked
+     * @param t      the throwable received from the server
+     * @return the throwable to throw from the proxy method invocation
+     */
+    final Throwable postProcessRemoteThrowable(Object proxy, Method method, Throwable t) {
 	Util.exceptionReceivedFromServer(t);
 	if (!(t instanceof RuntimeException || t instanceof Error)) {
 	    Class cl = proxy.getClass();

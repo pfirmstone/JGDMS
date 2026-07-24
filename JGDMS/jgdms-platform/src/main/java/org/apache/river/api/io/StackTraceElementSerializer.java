@@ -25,12 +25,22 @@ import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
+ * {@code @AtomicSerial} serializer for {@link StackTraceElement} (an inert
+ * 4-tuple: declaringClass, methodName, fileName, lineNumber -- the shape
+ * confirmed by JGDMS-STD-006 sec.7.6).
+ *
+ * <p>Public since 4.0: {@link DerThrowableForm} declares a
+ * {@code StackTraceElementSerializer[]} serial field (wire type
+ * {@code "array:@AtomicSerial:..."}), and the DER codec (jgdms-der) invokes the
+ * {@code @AtomicSerial} contract members from outside this package without
+ * {@code setAccessible} -- which requires the class (and its contract members)
+ * to be public. The atomic JOSS wire form is unchanged by the widening.
  *
  * @author peter
  */
 @Serializer(replaceObType = StackTraceElement.class)
 @AtomicSerial
-class StackTraceElementSerializer {
+public class StackTraceElementSerializer {
 
     private static final String DECLARING_CLASS = "declaringClass";
     private static final String METHOD_NAME = "methodName";
@@ -118,6 +128,17 @@ class StackTraceElementSerializer {
     }
     
     Object readResolve() throws ObjectStreamException {
+	if (stackTraceElement != null) return stackTraceElement;
+	return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
+    }
+
+    /**
+     * The represented {@link StackTraceElement}. Unlike JOSS, the DER decode
+     * path performs no {@code readResolve} substitution for this class (it does
+     * not implement {@link Resolve}), so {@link DerThrowableForm} converts
+     * explicitly through this accessor.
+     */
+    StackTraceElement toStackTraceElement() {
 	if (stackTraceElement != null) return stackTraceElement;
 	return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
     }

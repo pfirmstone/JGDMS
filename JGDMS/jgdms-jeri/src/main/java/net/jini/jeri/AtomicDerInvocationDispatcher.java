@@ -26,6 +26,8 @@ import java.lang.reflect.Method;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
 import java.util.Collection;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.constraint.MethodConstraints;
 
 /**
@@ -136,6 +138,97 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
         // dispatcher's stream loader gates the ProxyCodebaseSpi.substitute() check.
         return new DerMarshalOutputStream(request.getResponseOutputStream(),
                 context, getStreamLoader(impl));
+    }
+
+    /**
+     * Marshals a remote fault over the pure DER response stream (U1b finding 8a).
+     *
+     * <p>The DER stream admits only {@code @AtomicSerial} objects at top level
+     * (and the closed DER registry deliberately defers {@code Throwable}), so the
+     * inherited {@code out.writeObject(throwable)} fails for every
+     * non-{@code @AtomicSerial} fault -- including the {@code ServerException} /
+     * {@code ServerError} wrappers this class's superclass applies before calling
+     * this method -- degrading the fault to a {@code request.abort()} and a
+     * generic connection failure at the client. This override applies the
+     * STD-006 sec.7.6 {@code ThrowableRecord} safe-subset carrier
+     * ({@link DerThrowableForm}) as an <em>explicit top-level replacement at this
+     * dispatcher seam</em>; the closed DER registry is NOT involved.
+     *
+     * <h4>Dispatch rule (pinned)</h4>
+     * <ul>
+     *   <li>An {@code @AtomicSerial} throwable whose declared serial form is
+     *       DER-SCHEMA-TYPABLE ({@code SchemaGenerator.generateChain} succeeds --
+     *       memoised, so the per-fault cost is a cache hit) travels NATIVELY:
+     *       unchanged wire form, and its {@code (GetArg)} invariant-checked
+     *       reconstruction is higher-fidelity than the carrier's constructor
+     *       matching. This also preserves the serializer-vs-annotation
+     *       precedence pinned by {@code ThrowableDerDispatchProbeTest}.</li>
+     *   <li>Everything else is captured into a {@link DerThrowableForm} carrier
+     *       at this seam. That includes {@code @AtomicSerial} throwables whose
+     *       form is NOT schema-typable: notably every
+     *       {@code org.apache.river.api.io.AtomicException} subclass (e.g.
+     *       {@code TransactionException}), whose inherited serial form declares
+     *       {@code cause: Throwable} / {@code suppressed: Throwable[]} /
+     *       {@code stack: StackTraceElement[]} -- types the declaration-driven
+     *       DER schema rejects. Pre-carrier, such faults did not travel natively
+     *       either: they failed schema generation mid-marshal and degraded to
+     *       {@code request.abort()}; the carrier upgrade is strict.</li>
+     *   <li>Within a carried tree the conversion is carrier-for-all: the
+     *       declaration-driven schema cannot express a polymorphic
+     *       {@code Throwable} slot, so mixed native/carrier trees are not
+     *       representable.</li>
+     *   <li>Belt-and-braces: if a native-eligible fault still fails to encode
+     *       (a value-level failure, e.g. a polymorphic slot holding a
+     *       non-{@code @AtomicSerial} value), it falls back to the carrier
+     *       rather than aborting -- the DER stream buffers each object item
+     *       whole before emitting, so a failed {@code writeObject} leaves the
+     *       stream clean.</li>
+     * </ul>
+     */
+    @Override
+    protected void marshalThrow(Remote impl,
+                                Method method,
+                                Throwable throwable,
+                                java.io.ObjectOutput out,
+                                Collection context)
+        throws IOException {
+        if (impl == null || throwable == null || context == null) {
+            throw new NullPointerException();
+        }
+        if (nativeDerEligible(throwable.getClass())) {
+            try {
+                out.writeObject(throwable);
+                return;
+            } catch (IOException | RuntimeException e) {
+                logger.log(Level.FINE,
+                        "native DER encode of @AtomicSerial fault {0} failed;"
+                        + " falling back to the DerThrowableForm carrier: {1}",
+                        new Object[]{throwable.getClass().getName(), e});
+            }
+        }
+        out.writeObject(org.apache.river.api.io.DerThrowableForm.capture(throwable));
+    }
+
+    /** Fault-path logger. */
+    private static final Logger logger =
+            Logger.getLogger("net.jini.jeri.AtomicDerInvocationDispatcher");
+
+    /**
+     * Whether {@code cls} may travel natively as a top-level DER fault:
+     * {@code @AtomicSerial} AND its declared serial form is DER-schema-typable.
+     * Both checks are per-class deterministic ({@code generateChain} is
+     * memoised, caching failures too).
+     */
+    private static boolean nativeDerEligible(Class<?> cls) {
+        if (!cls.isAnnotationPresent(org.apache.river.api.io.AtomicSerial.class)) {
+            return false;
+        }
+        try {
+            au.net.zeus.jgdms.der.schema.SchemaGenerator.generateChain(cls);
+            return true;
+        } catch (au.net.zeus.jgdms.der.DerException e) {
+            return false;
+        }
     }
 
     // Visible in stack traces.
