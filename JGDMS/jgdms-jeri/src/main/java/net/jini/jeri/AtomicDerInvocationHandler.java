@@ -180,6 +180,57 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     }
 
     /**
+     * Unmarshals a remote fault from the pure DER response stream (U1b finding
+     * 8a; server counterpart: {@code AtomicDerInvocationDispatcher.marshalThrow}).
+     *
+     * <p>Two fault representations arrive here (the pinned dispatch rule):
+     * <ul>
+     *   <li>a NATIVE {@code @AtomicSerial} throwable -- returned as read (its own
+     *       {@code (GetArg)} invariant-checked reconstruction already ran in the
+     *       codec);</li>
+     *   <li>a {@link DerThrowableForm} carrier (STD-006 sec.7.6
+     *       {@code ThrowableRecord} safe subset) -- rebuilt HERE, at the trusted
+     *       invocation-layer seam, via its constructor-matching typed rebuild
+     *       (the sec.7.6 "best-effort typed rebuild by trusted local code"; the
+     *       DER decoder itself never resolves the carried class name). Class
+     *       names resolve against the proxy's own loader (the endpoint-assigned
+     *       loader, NOT the thread-context loader -- the Warres discipline). A
+     *       carried class the client cannot resolve surfaces loudly as an
+     *       {@code UnmarshalException} (via {@code ClassNotFoundException}),
+     *       matching the atomic layer.</li>
+     * </ul>
+     * Both representations then flow through the inherited checked-exception
+     * contract ({@code postProcessRemoteThrowable}).
+     *
+     * @throws java.io.InvalidObjectException if the stream yields neither a
+     *         {@code Throwable} nor a {@code DerThrowableForm}
+     */
+    @Override
+    protected Throwable unmarshalThrow(Object proxy,
+                                       Method method,
+                                       java.io.ObjectInput in,
+                                       Collection context)
+        throws IOException, ClassNotFoundException {
+        if (proxy == null || method == null || context == null) {
+            throw new NullPointerException();
+        }
+        Object fault = in.readObject();
+        Throwable t;
+        if (fault instanceof org.apache.river.api.io.DerThrowableForm) {
+            t = ((org.apache.river.api.io.DerThrowableForm) fault)
+                    .toThrowable(getProxyLoader(proxy.getClass()));
+        } else if (fault instanceof Throwable) {
+            t = (Throwable) fault;
+        } else {
+            throw new java.io.InvalidObjectException(
+                    "DER fault stream yielded neither a Throwable nor a"
+                    + " DerThrowableForm: "
+                    + (fault == null ? "null" : fault.getClass().getName()));
+        }
+        return postProcessRemoteThrowable(proxy, method, t);
+    }
+
+    /**
      * DER handler equality is based on the object endpoint and server
      * constraints only (client constraints are excluded, as with
      * {@link AtomicInvocationHandler}).

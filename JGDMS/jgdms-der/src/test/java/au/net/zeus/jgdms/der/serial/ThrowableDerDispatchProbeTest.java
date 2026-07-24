@@ -52,6 +52,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       Throwable cannot cross the pure DER stream at all -- it fails loudly
  *       rather than riding {@code ThrowableSerializer}.</li>
  * </ol>
+ *
+ * <p><b>Since fix/der-throwable-marshalling (U1b finding 8a):</b> both findings
+ * remain the pinned STREAM-level behaviour -- the registry is untouched and a
+ * bare non-{@code @AtomicSerial} Throwable still fails loudly at the top of the
+ * pure DER stream. What changed is the INVOCATION-LAYER seam above the stream:
+ * {@code AtomicDerInvocationDispatcher.marshalThrow} now captures a
+ * non-{@code @AtomicSerial} fault into the
+ * {@link org.apache.river.api.io.DerThrowableForm} carrier (the STD-006 sec.7.6
+ * {@code ThrowableRecord} safe subset) as an explicit top-level replacement --
+ * never registry-driven -- and {@code AtomicDerInvocationHandler.unmarshalThrow}
+ * performs the trusted-seam typed rebuild. An {@code @AtomicSerial} throwable
+ * still travels natively (finding 1's precedence is why the carrier must never
+ * double-wrap it). Finding 3 below pins the carrier's own dispatch shape.
  */
 class ThrowableDerDispatchProbeTest {
 
@@ -114,5 +127,28 @@ class ThrowableDerDispatchProbeTest {
             // close() flushing an empty buffer never throws; tolerated for
             // the try-with-resources shape.
         }
+    }
+
+    /**
+     * Finding 3 -- the invocation-layer fault carrier's dispatch shape
+     * (fix/der-throwable-marshalling). {@code DerThrowableForm} is itself
+     * {@code @AtomicSerial} (it rides the [1] path natively, applied explicitly
+     * at the dispatcher seam) and is NOT in the closed registry -- the carrier
+     * is never registry-driven, so the registry's deliberate Throwable deferral
+     * (finding 2) is undisturbed.
+     */
+    @Test
+    void faultCarrierIsSeamAppliedNotRegistryDriven() throws Exception {
+        Class<?> carrier = org.apache.river.api.io.DerThrowableForm.class;
+        assertTrue(carrier.isAnnotationPresent(
+                        org.apache.river.api.io.AtomicSerial.class),
+                "the fault carrier must be @AtomicSerial (native [1] item)");
+        assertFalse(DerReplacer.isRegistered(Throwable.class),
+                "adding the carrier must NOT register Throwable in the closed registry");
+        // The carrier passes through replace() unchanged (annotation precedence,
+        // finding 1) -- the seam writes it directly; no registry hop occurs.
+        Object form = org.apache.river.api.io.DerThrowableForm.capture(
+                new IllegalStateException("seam"));
+        assertSame(form, DerReplacer.replace(form));
     }
 }

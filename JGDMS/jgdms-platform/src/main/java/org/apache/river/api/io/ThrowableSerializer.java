@@ -154,41 +154,8 @@ class ThrowableSerializer implements Resolve {
         } else {
             perm = null;
         }
-        /*
-        * Numeous subclasses override Throwable.getMessage.  Unfortunately we
-        * can't rely on reflection in future, so in order to best retrieve the
-        * original message...
-        */
-        try {
-            Class clas = t.getClass().getMethod("getMessage").getDeclaringClass();
-            if (Throwable.class == clas){
-                message = t.getMessage();
-                return;
-            }
-        } catch (NoSuchMethodException ex) {
-            throw new IncompatibleClassChangeError("Throwable missing method getMessage: " + ex.toString());
-        }
-        if (t instanceof RemoteException && ((RemoteException)t).detail != null){
-            String mess = t.getMessage();
-            String remoteMess = "; nested exception is: \n\t";
-            int endMessage = mess.indexOf(remoteMess);
-            message = mess.substring(0, endMessage);
-        } else if (t instanceof URISyntaxException){
-            message = ((URISyntaxException)t).getReason();
-        } else if (t instanceof  InvalidClassException  && ((InvalidClassException)t).classname != null){
-            String classnme = ((InvalidClassException)t).classname + "; ";
-            String mess = t.getMessage();
-            message = mess.substring(classnme.length());
-        } else if (t instanceof WriteAbortedException && ((WriteAbortedException)t).detail != null){
-            String detail = "; " + ((WriteAbortedException)t).detail.toString();
-            String mess = t.getMessage();
-            int endMessage = mess.indexOf(detail);
-            message = mess.substring(0, endMessage);
-        } else {
-            message = t.getMessage();
-            logger.log(Level.FINE, "unable to access detailMessage field in Throwable, using overridden getMessage method result instead");
-        }
-	
+        message = captureMessage(t);
+
 //	if (detailMessage != null){
 //	    String mess = null;
 //	    try {
@@ -210,6 +177,66 @@ class ThrowableSerializer implements Resolve {
 //	}
     }
     
+    /**
+     * Best-effort recovery of the original {@code detailMessage} of {@code t}
+     * without reflection: numerous subclasses override {@link Throwable#getMessage}
+     * to decorate the stored message with nested-exception / classname / index
+     * detail that is captured separately (or reconstructed on resolve), so the
+     * decoration is stripped here to avoid doubling it up on reconstruction.
+     *
+     * <p>Shared capture logic (JGDMS 4.0): used by this serializer's capture
+     * constructor (the atomic JOSS layer) and by {@link DerThrowableForm#capture}
+     * (the pure-DER invocation-fault carrier) so the two layers never diverge on
+     * message extraction.
+     *
+     * @param t the throwable being captured (never {@code null})
+     * @return the best-effort original detail message; may be {@code null}
+     */
+    static String captureMessage(Throwable t) {
+        /*
+        * Numeous subclasses override Throwable.getMessage.  Unfortunately we
+        * can't rely on reflection in future, so in order to best retrieve the
+        * original message...
+        */
+        try {
+            Class clas = t.getClass().getMethod("getMessage").getDeclaringClass();
+            if (Throwable.class == clas){
+                return t.getMessage();
+            }
+        } catch (NoSuchMethodException ex) {
+            throw new IncompatibleClassChangeError("Throwable missing method getMessage: " + ex.toString());
+        }
+        /*
+        * Each decoration-stripping branch below assumes the standard JDK
+        * getMessage() decoration shape. A SUBCLASS overriding getMessage() can
+        * return null or an undecorated string; the strip must then degrade to
+        * the message as-is, never throw (this runs on the fault-marshalling
+        * path -- a StringIndexOutOfBounds/NPE here would replace the fault
+        * with a connection abort).
+        */
+        if (t instanceof RemoteException && ((RemoteException)t).detail != null){
+            String mess = t.getMessage();
+            String remoteMess = "; nested exception is: \n\t";
+            int endMessage = mess == null ? -1 : mess.indexOf(remoteMess);
+            return endMessage < 0 ? mess : mess.substring(0, endMessage);
+        } else if (t instanceof URISyntaxException){
+            return ((URISyntaxException)t).getReason();
+        } else if (t instanceof  InvalidClassException  && ((InvalidClassException)t).classname != null){
+            String classnme = ((InvalidClassException)t).classname + "; ";
+            String mess = t.getMessage();
+            return (mess != null && mess.startsWith(classnme))
+                    ? mess.substring(classnme.length()) : mess;
+        } else if (t instanceof WriteAbortedException && ((WriteAbortedException)t).detail != null){
+            String detail = "; " + ((WriteAbortedException)t).detail.toString();
+            String mess = t.getMessage();
+            int endMessage = mess == null ? -1 : mess.indexOf(detail);
+            return endMessage < 0 ? mess : mess.substring(0, endMessage);
+        } else {
+            logger.log(Level.FINE, "unable to access detailMessage field in Throwable, using overridden getMessage method result instead");
+            return t.getMessage();
+        }
+    }
+
     public ThrowableSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg));
     }
