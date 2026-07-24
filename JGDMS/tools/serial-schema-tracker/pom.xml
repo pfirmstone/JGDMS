@@ -33,8 +33,10 @@
         Entry mode (GATE): for @SerialEntry classes, computes the registrar
         type hash via the runtime ClassMapper (bit-identical to the registrar),
         and fails on a hash change between releases (silent registrar-invisibility
-        per JGDMS-STD-005 RULE-7). @AtomicSerial mode (INFORMATIVE): ASM-extracts
-        serialForm()/entryForm() (name,type) schema and reports field-level drift.
+        per JGDMS-STD-005 RULE-7). @AtomicSerial mode (CLASSIFIED): ASM-extracts
+        serialForm()/entryForm() (name,type) schema and classifies field-level
+        drift -- ADD/REORDER informative, RETYPE/REMOVE gate FAIL (they break
+        reads of streams written by earlier versions).
         See docs/JGDMS-API-Compatibility-Accepted-Breaks.md.
     </description>
 
