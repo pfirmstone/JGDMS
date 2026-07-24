@@ -814,6 +814,21 @@ fields (protocol `0x02`), and the gate's default source
 dispatch (no binding) the default source resolves no carrier and the gate
 fails closed.
 
+**Deployment note — admin dispatch requires wire protocol `0x02`.**
+`BasicInvocationDispatcher.dispatch(...)` assembles the carrier only when
+`hasUserSubjects || hasSerializedAcc`, and those two flags are set together
+only in the `VERSION_WITH_PRINCIPALS_AND_ACC` (`0x02`) branch of the version
+switch; a client that instead negotiates the older `VERSION` (`0x01`) sets
+neither flag, so the seam assembles and binds no carrier at all for that
+request. This is safe — the gate then resolves no seam-minted carrier and
+fails closed, same as any other unbound call — but it means an
+mTLS-authenticated admin client that is pinned to `0x01` is refused outright,
+never silently authorized on the worker SPIFFE principal alone. A deployment
+that intends to authorize admin purely on the authenticated worker identity
+must still ensure the client negotiates `0x02`; this is not a defect, `0x02`
+is simply a documented operational prerequisite for admin dispatch, not
+automatic transport behavior.
+
 **CLOSED 2026-07-20 (was: known pre-existing gap, not specific to SPIFFE/SPIRE deployment).** The 7
 `qa/harness/policy/defaultspiffe*.policy` files (mahalo, outrigger, reggie, fiddler, group, mercury,
 norm) that previously granted unconditional `AllPermission`/`AuthPermission "*"` to every protection
