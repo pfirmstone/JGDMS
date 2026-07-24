@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.stream;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
@@ -165,6 +166,35 @@ final class StreamSchemaDedup {
     /** Max sum of stored chain-byte lengths in one stream's table. */
     static final int MAX_DEDUP_TABLE_BYTES = 1_048_576;
 
+    /**
+     * Multiplier applied to {@code maxInputBytes} to derive
+     * {@link #maxReconstitutedChainBytes}, the absolute ceiling on the total
+     * schema-chain bytes re-materialised while reconstituting <em>one</em> top-level
+     * item (sec.C.8.1 {@code maxReconstitutedBytes}).
+     *
+     * <p><b>Why an absolute ceiling, not a ratio.</b> Dedup's whole purpose is that the
+     * reconstituted output is <em>larger</em> than the wire input (that expansion is the
+     * saving), so a per-item {@code output <= input} or fixed-ratio cap would reject
+     * legitimate dedup-heavy traffic — e.g. a collection of thousands of same-typed
+     * {@code @AtomicSerial} elements, all sharing one chain, legitimately expands
+     * ~30x. The bomb is a difference of <em>magnitude</em>, not ratio: a chainRef is
+     * ~40 wire bytes but re-materialises a chain up to {@link SchemaChain#MAX_CHAIN_BYTES}
+     * (65536 B), a marginal ~1560x per reference site, and with only {@code maxInputBytes}
+     * (default 16 MiB) of references an unmetered decoder buffers ~24 GiB before any base
+     * decode or class resolution. The defence is therefore an <em>absolute</em> byte
+     * budget for one item's re-materialised chains, sized generously above real payloads
+     * (largest heavy-reuse legitimate reconstitution measured in the corpus is tens of
+     * MiB) and far below OOM.
+     *
+     * <p>Tying the budget to {@code maxInputBytes} (rather than a hard constant) keeps it
+     * proportional to the deployment's own DoS budget: an operator who raises the input
+     * cap to accept larger graphs raises the reconstitution budget in step; one who
+     * lowers it for a tighter posture tightens both. Factor 8 gives the default a 128 MiB
+     * per-item budget — comfortable headroom over legitimate traffic, a bounded and
+     * survivable peak buffer, and ~190x below the unmetered bomb target.
+     */
+    static final int RECONSTITUTION_EXPANSION_FACTOR = 8;
+
     // =========================================================================
     // SchemaChainRef arm tags (sec.C.5.1): both IMPLICIT primitive context tags.
     // Constructed forms (0xA0/0xA1) do NOT compare equal and are rejected.
@@ -205,6 +235,25 @@ final class StreamSchemaDedup {
     /** Running sum of stored chain-byte lengths (metered at insertion, sec.C.8.2). */
     private long tableBytes = 0;
 
+    /**
+     * Absolute ceiling (decode direction) on the schema-chain bytes re-materialised
+     * while reconstituting one top-level item — {@code maxInputBytes ×
+     * RECONSTITUTION_EXPANSION_FACTOR} (sec.C.8.1 {@code maxReconstitutedBytes}). The
+     * dominant, and the only super-linear, cost of reconstitution: every other output
+     * byte (verbatim payloads, value TLVs, DER framing) is 1:1 with consumed input and
+     * so separately bounded by {@code maxInputBytes}.
+     */
+    private final long maxReconstitutedChainBytes;
+
+    /**
+     * Chain bytes re-materialised so far in the current top-level reconstitution
+     * (decode direction). Reset to 0 at each top-level decode entry point (per-item
+     * budget: buffers are released between items, so the peak decoder buffer — not the
+     * stream total — is what must be bounded, sec.C.8.3). Metered at the single
+     * chain-materialisation chokepoint {@link #decodeSite}.
+     */
+    private long reconstitutedChainBytes = 0;
+
     /** One verified chain: the interned bytes and the parsed (leaf-first) records. */
     private record TableEntry(byte[] chainBytes, List<AtomicSerialSchemaRecord> records) {}
 
@@ -213,7 +262,19 @@ final class StreamSchemaDedup {
      *                 {@code false} for the decode direction (stream form → canonical)
      */
     StreamSchemaDedup(boolean encoding) {
+        this(encoding, DerInputLimits.DEFAULT.maxInputBytes());
+    }
+
+    /**
+     * @param encoding      {@code true} for the encode direction, {@code false} for decode
+     * @param maxInputBytes the stream's DoS input cap (the codec's {@link DerInputLimits}
+     *                      value); scales the absolute reconstitution ceiling
+     *                      (sec.C.8.1 {@code maxReconstitutedBytes})
+     */
+    StreamSchemaDedup(boolean encoding, int maxInputBytes) {
         this.encoding = encoding;
+        this.maxReconstitutedChainBytes =
+                (long) maxInputBytes * RECONSTITUTION_EXPANSION_FACTOR;
     }
 
     /** Number of distinct chains currently tabled (test/diagnostic seam). */
@@ -256,6 +317,7 @@ final class StreamSchemaDedup {
      */
     byte[] reconstituteTopLevelAtomic(byte[] streamRecord) throws DerException {
         requireDirection(false);
+        reconstitutedChainBytes = 0;   // per-item budget (sec.C.8.3)
         return transformP1(streamRecord);
     }
 
@@ -273,6 +335,7 @@ final class StreamSchemaDedup {
     /** Decode-direction counterpart of {@link #dedupTopLevelArray}. */
     byte[] reconstituteTopLevelArray(byte[] arrayContent) throws DerException {
         requireDirection(false);
+        reconstitutedChainBytes = 0;   // per-item budget (sec.C.8.3)
         return transformTopLevelArray(arrayContent);
     }
 
@@ -845,6 +908,10 @@ final class StreamSchemaDedup {
             }
             // 4. Insert (stream-level ceilings metered at insertion, sec.C.8.2).
             insert(digest, content, records);
+            // 5. Meter reconstituted output BEFORE the caller re-materialises these bytes
+            //    (transformP1/transformNestedSite writeOctetString) — the interior fence
+            //    on total re-materialised chain bytes (sec.C.8.1/C.8.3, G10).
+            meterReconstitution(content.length);
             return new Site(content, records, digest, null);
         }
         if (TAG_CHAIN_REF.equals(t)) {
@@ -864,6 +931,12 @@ final class StreamSchemaDedup {
                         + " (sec.C.6.4/C.7.4; references never resolve across streams or"
                         + " against local schemas)");
             }
+            // Reference-site amplification is metered here — the same interior fence as
+            // the fullChain arm — BEFORE the caller re-materialises the interned chain
+            // (each chainRef is ~40 wire bytes but re-emits up to maxChainBytes; without
+            // this fence, maxInputBytes of references buffers ~maxChainBytes/40 × that,
+            // ~24 GiB by default, sec.C.8.3).
+            meterReconstitution(e.chainBytes().length);
             return new Site(e.chainBytes(), e.records(), digest, null);
         }
         throw new DerException(
@@ -890,6 +963,31 @@ final class StreamSchemaDedup {
         }
         table.put(ByteBuffer.wrap(digest), new TableEntry(chainBytes, records));
         tableBytes += chainBytes.length;
+    }
+
+    /**
+     * Meters cumulative re-materialised schema-chain bytes for the current top-level
+     * reconstitution against {@link #maxReconstitutedChainBytes}, failing closed BEFORE
+     * the amplifying allocation (sec.C.8.1 {@code maxReconstitutedBytes}, inclusive
+     * fencepost). This is the interior fence that bounds the reconstituted-output buffer
+     * — the dominant decoder-memory cost that the table/depth/chain ceilings do NOT
+     * cover: those cap distinct/stored/single-chain state, none of them the number of
+     * reference sites or the total re-materialised output (sec.C.8.3).
+     *
+     * @param chainByteLen the chain bytes about to be re-materialised at this decode site
+     */
+    private void meterReconstitution(int chainByteLen) throws DerException {
+        long next = reconstitutedChainBytes + chainByteLen;
+        if (next > maxReconstitutedChainBytes) {
+            throw new DerException(
+                    "StreamSchemaDedup: reconstituted schema-chain bytes " + next
+                    + " would exceed maxReconstitutedBytes (" + maxReconstitutedChainBytes
+                    + " = maxInputBytes × " + RECONSTITUTION_EXPANSION_FACTOR
+                    + ", inclusive; sec.C.8.1) — a chainRef fan-out decompression bomb"
+                    + " (each ~40-byte reference re-materialises up to maxChainBytes);"
+                    + " rejected at the reference site before allocation (sec.C.8.3)");
+        }
+        reconstitutedChainBytes = next;
     }
 
     // =========================================================================
