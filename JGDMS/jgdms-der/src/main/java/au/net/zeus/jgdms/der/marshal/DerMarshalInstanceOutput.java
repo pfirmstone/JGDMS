@@ -226,7 +226,11 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
      */
     private byte[] encodeObjectStreamItem(Object obj) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DerMarshalOutputStream dmos = new DerMarshalOutputStream(bos);
+        // Record-level capture context (STD-006 Appendix C sec.C.1.2 item 3): a
+        // MarshalledInstance's captured payloadBytes are identity/persistence-bearing
+        // and are NOT a DER object stream — no [15] stream-format version octet, no
+        // schema-chain dedup productions; canonical record-level full form only.
+        DerMarshalOutputStream dmos = DerMarshalOutputStream.recordLevelCapture(bos);
         dmos.writeObject(obj);
         dmos.flush();
         return bos.toByteArray();

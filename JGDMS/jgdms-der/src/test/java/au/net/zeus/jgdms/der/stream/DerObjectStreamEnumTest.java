@@ -67,7 +67,10 @@ class DerObjectStreamEnumTest {
     void simpleEnum_roundTripsViaTag7() throws Exception {
         for (Color col : Color.values()) {
             byte[] b = write(col);
-            assertEquals((byte) 0xA7, b[0],
+            // b[0..2] is the mandatory [15] stream-format version octet (8F 01 01);
+            // the enum item's tag follows it.
+            assertEquals((byte) 0x8F, b[0], "stream must begin with the version octet");
+            assertEquals((byte) 0xA7, b[3],
                     "enum must use the constructed context tag [7] (0xA7)");
             assertEquals(col, read(b), "enum constant must round-trip");
         }

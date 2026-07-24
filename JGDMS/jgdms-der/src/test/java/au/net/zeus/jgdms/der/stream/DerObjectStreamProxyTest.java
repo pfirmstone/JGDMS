@@ -97,7 +97,9 @@ class DerObjectStreamProxyTest {
                 new FixedAnswerHandler("hello-DER"));
 
         byte[] bytes = write(g);
-        assertEquals((byte) 0xA8, bytes[0], "bare proxy must use the constructed context tag [8] (0xA8)");
+        // bytes[0..2] is the mandatory [15] stream-format version octet (8F 01 01).
+        assertEquals((byte) 0x8F, bytes[0], "stream must begin with the version octet");
+        assertEquals((byte) 0xA8, bytes[3], "bare proxy must use the constructed context tag [8] (0xA8)");
 
         Object back = read(bytes);
         assertTrue(Proxy.isProxyClass(back.getClass()), "reconstructed value must be a dynamic proxy");

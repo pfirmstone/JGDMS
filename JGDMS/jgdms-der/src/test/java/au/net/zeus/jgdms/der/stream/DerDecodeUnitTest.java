@@ -45,9 +45,16 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DerDecodeUnitTest {
 
-    /** A DER input stream over an empty buffer (no objects decoded; mechanism only). */
+    /**
+     * A DER input stream over an EMPTY stream (no objects decoded; mechanism only).
+     * Since the Appendix C stream format, an empty stream is not zero bytes: every
+     * object stream begins with the mandatory {@code [15]} stream-format version
+     * octet ({@code 8F 01 01}, sec.C.5.2), so the minimal valid stream is exactly
+     * that TLV.
+     */
     private static DerMarshalInputStream emptyStream() throws IOException {
-        return new DerMarshalInputStream(new ByteArrayInputStream(new byte[0]));
+        return new DerMarshalInputStream(new ByteArrayInputStream(
+                new byte[] { (byte) 0x8F, 0x01, 0x01 }));
     }
 
     @Test
@@ -117,9 +124,13 @@ class DerDecodeUnitTest {
     /** Empty input stream whose {@code close()} appends a marker to a shared log. */
     private static final class RecordingInputStream extends InputStream {
         private final List<String> log;
+        // The minimal valid (empty) stream: the mandatory [15] stream-format version
+        // octet (8F 01 01, STD-006 Appendix C sec.C.5.2) and nothing else.
+        private final ByteArrayInputStream content =
+                new ByteArrayInputStream(new byte[] { (byte) 0x8F, 0x01, 0x01 });
         RecordingInputStream(List<String> log) { this.log = log; }
 
-        @Override public int read() { return -1; }
+        @Override public int read() { return content.read(); }
 
         @Override public void close() { log.add("close"); }
     }

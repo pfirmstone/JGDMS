@@ -175,7 +175,10 @@ public final class DerMarshalInstanceInput implements MarshalInstanceInput, Atom
         // endpoint resolution context is threaded through so [8] interface/handler classes
         // resolve against the endpoint loader (NOT the thread-context loader).
         if (schemaBytes == null || schemaBytes.length == 0) {
-            DerMarshalInputStream in = new DerMarshalInputStream(
+            // Record-level capture context (STD-006 Appendix C sec.C.1.2 item 3): the
+            // captured payloadBytes are NOT a DER object stream — no [15] version octet,
+            // no schema-chain dedup productions; canonical record-level form only.
+            DerMarshalInputStream in = DerMarshalInputStream.recordLevelCapture(
                     new ByteArrayInputStream(payloadBytes), resolution);
             return in.readObject(type);
         }
