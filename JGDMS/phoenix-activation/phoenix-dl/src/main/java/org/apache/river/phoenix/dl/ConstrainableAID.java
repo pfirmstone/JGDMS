@@ -30,8 +30,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ProxyAccessor;
 import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -292,11 +290,6 @@ public final class ConstrainableAID extends AID
 		"activator not TrustEquivalence instance");
 	}
 	return activator;
-    }
-
-    /** Returns an iterator that yields the activator. */
-    private ProxyTrustIterator getProxyTrustIterator() {
-	return new SingletonProxyTrustIterator(activator);
     }
 
     /**
