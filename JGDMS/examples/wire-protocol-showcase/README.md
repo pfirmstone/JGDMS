@@ -1,11 +1,11 @@
-# The wire format, shown three ways
+# The wire format, shown four ways
 
 This is a small set of runnable demonstrations. Each one takes a claim about how
 this project puts objects onto the wire, and shows it happening, with real bytes,
 in about fifteen seconds of terminal output. Each demonstration also checks itself,
 so a person watching — or a build server — can confirm the claim actually held.
 
-There is no jargon in what you see on screen. The three claims, in plain terms:
+There is no jargon in what you see on screen. The four claims, in plain terms:
 
 1. **Same object, same bytes — everywhere.** The same value always turns into exactly
    the same bytes. That makes a plain checksum of the bytes a real identity for the
@@ -19,6 +19,11 @@ There is no jargon in what you see on screen. The three claims, in plain terms:
 3. **The shape description travels in the stream, and you pay for it once.** When many
    records of the same type go down one stream, the description of their shape is sent
    with the first one; every record after that just points back to it.
+
+4. **Feed it garbage, it stops politely.** A message that is cut off partway through, one
+   whose structure markers are scrambled, one nested inside itself far deeper than
+   allowed, or a tiny one crafted to balloon into gigabytes when unpacked — each is
+   refused cleanly, with bounded memory, no crash, and no attacker code ever running.
 
 ---
 
@@ -43,7 +48,10 @@ From this folder:
 ./run-demos.sh
 ```
 
-That builds the showcase, runs demonstrations 1 and 3, and runs the automated checks.
+That builds the showcase, runs demonstrations 1, 3 and 4, and runs the automated checks.
+Demonstration 4 runs inside a small 128-megabyte memory ceiling on purpose — the
+expansion bomb would want gigabytes, and you get to watch it refused without ever
+reaching that ceiling.
 
 The second demonstration lives in its own folder because it needs two separate
 processes with different classpaths — that difference is the whole point:
@@ -57,13 +65,14 @@ Each demonstration also has its own short README next to its code.
 
 ---
 
-## The three demonstrations
+## The four demonstrations
 
 | Folder / file | What it shows | The automated check |
 |---|---|---|
 | `SameObjectSameBytesDemo` | equal values → identical bytes → identical checksum; a signature survives a round trip; Java's built-in serialization does **not** give equal values identical bytes | `SameObjectSameBytesTest` |
 | `demo2-match-without-the-class/` | a server matches a template against a stored record by comparing bytes, with the record's class absent from its classpath | the server program exits non-zero if any claim fails; the launcher checks that |
 | `SchemaSentOnceDemo` | writing 100 records to one stream sends the shape description once; the total stays far below sending it every time | `SchemaSentOnceTest` |
+| `HostileInputDemo` | truncated, scrambled, over-nested, and expansion-bomb inputs are each refused cleanly, with bounded memory and no crash (see `README-demo4-feed-it-garbage.md`) | `HostileInputStopsPolitelyTest` |
 
 ### The real numbers this produced
 
@@ -93,13 +102,18 @@ description to amortise); the stream format overtakes it after a handful of reco
   report that number, not this one. The demonstration measures real bytes every time;
   it never draws a flat line that is not there.
 
-- **On the third demonstration's "fail safely on bad input":** this showcase does not
-  include a "feed it garbage" demonstration, because one denial-of-service case (a
-  small message that expands into a very large object on the way in) is being fixed on
-  another branch. The fail-safe properties that *do* hold today — truncated input,
-  malformed markers, and over-deep nesting all being rejected cleanly with bounded
-  memory — are real, but we are not shipping a demonstration that could be read as a
-  claim of "bomb-proof" until that fix lands.
+- **On demonstration 4, "feed it garbage":** this demonstration was deliberately held
+  back when the first three shipped, because one denial-of-service case — a small message
+  that expands into a very large object on the way in — was not yet fixed, and shipping it
+  then would have made a "bomb-proof" claim that was not yet true. That fix has since
+  landed: the reader now refuses the expansion bomb at a fixed ceiling (both the
+  single-message peak-memory ceiling and the many-message cumulative ceiling), with memory
+  staying bounded. So the demonstration now claims only what it actually shows. The "about
+  24 gigabytes" figure in its output and README is a projection from the measured
+  per-reference amplification to the normal input budget, not a run that allocated that
+  much — the demonstration uses a small budget on purpose so it can prove the fence
+  without buffering gigabytes. It does not claim resistance to any threat it does not
+  exercise.
 
 ---
 
@@ -116,7 +130,8 @@ things those compact formats do not offer:
    the bytes keeps verifying after the value has travelled;
 2. a server can hold and match records whose classes it never loads — so a hostile
    record cannot run code on it during a match; and
-3. a malformed message fails safely instead of turning into attacker-chosen behaviour.
+3. a malformed, truncated, over-nested, or expanding message fails safely instead of
+   turning into attacker-chosen behaviour (demonstration 4).
 
 And there is one thing none of the compact formats can do at all: compare two records
 for a match by looking only at the bytes. They have to decode first. This format does
