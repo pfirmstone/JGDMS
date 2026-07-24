@@ -80,6 +80,14 @@ sweeps the marked/unmarked mode terminology out of the document (the superseded
 per-occurrence trunk encoding is referred to historically as the **superseded trunk
 format**). §C.13.1 carries the full ratification state.
 
+**Editorial addition (post-T2 review, 2026-07-24).** T2 (the Java implementation)
+completed with a security-review APPROVE; the reviewer confirmed G8 agreement across
+this appendix, STD-008 §15.2.2, and the code, and identified two valid G9
+normative-clarity gaps plus one degenerate-case omission in this appendix's text. The
+reviewer's drafted sentences are inserted verbatim at §C.6.2 (chain-site walker depth
+bound), §C.5.3 (SET-OF reference-substitution order), and §C.5.2 (empty-stream shape),
+each tagged *added post-T2 review, 2026-07-24*. No design change; no version bump.
+
 ---
 
 > **Decision summary (with ratification state; each decided section carries the full rationale).**
@@ -478,6 +486,12 @@ stream-format version. This appendix defines version `0x01`. Wire bytes: `8F 01 
   unversioned form. A version TLV whose content length is not 1, or whose content
   octet names a version the receiver does not implement, MUST be rejected (a future
   revision that changes the grammar assigns `0x02`; it never reuses `0x01`).
+- *(Added post-T2 review, 2026-07-24.)* An object stream with zero object items is
+  exactly the 3-byte version TLV `8F 01 01`, never zero bytes; a zero-length input is
+  a hard reject. (Precisely: a stream with no items of any kind — object or
+  positional — is exactly those 3 bytes; a stream carrying only positional primitives
+  is the version TLV followed by their TLVs. Cf. the degenerate conformance case
+  §C.11.3(11).)
 - This is **not** a mode marker and carries no optionality: dedup is the format
   (§C.9), and version `0x01` *means* the grammar of this appendix at every chain
   site. Its retention — rather than deletion along with the v0.2 negotiation design —
@@ -556,6 +570,20 @@ arms, canonical scalar forms. Rule 2 of §C.3.1 is enforced by this sentence: a
 conformance check MUST be able to diff a stream against the analytic baseline encoding
 of the same record sequence (§C.3.2(i)) and find differences *only* at the version
 TLV, at P1 field-set changes, and at chain sites.
+
+**Canonicalise-collection sites (NORMATIVE — added post-T2 review, 2026-07-24).** At
+a canonicalise-collection chain site (`set:`/`bag:`/`map:` positions, `SET OF`
+`0x31`), reference substitution MUST preserve the canonical full-form octet-sort
+order of the elements as received and MUST NOT re-sort by the post-substitution
+(deduped) encodings; decoders MUST reconstitute in received order and rely on the
+unchanged record-level decode to enforce §11.6 strict-ascending over the
+reconstituted full forms. The stream-layer `SET OF` is a deterministic
+order-preserving transform of the canonical `SET OF`, not itself a canonical
+`SET OF` of the deduped bytes. (Without this sentence, two conformant
+implementations could disagree on element order wherever a chain-site substitution
+changes an element's relative octet ordering — a G9 gap the T2 review surfaced;
+determinism is preserved because the full-form order is itself canonical and
+substitution is order-stable.)
 
 ### C.5.4 Canonicality and the round-trip law
 
@@ -689,6 +717,18 @@ and it is the only decode order under which §C.6.2 is satisfiable in one pass; 
 peer implementing from this document alone MUST NOT attempt fully-incremental interior
 decode ahead of the enclosing chain field.
 
+**Walker depth bound (NORMATIVE — added post-T2 review, 2026-07-24).** A conformant
+chain-site walker MUST enforce its own nesting bound (the base profile's
+`MAX_NESTING`) fail-closed at every interior descent — `Any`-arm, nested-record, and
+collection-element alike — independently of, and prior to, the record-level decode
+that follows reconstitution. This bound is a load-bearing DoS fence, not a mirror of
+the encoder's: a hand-crafted (encoder-unproducible) stream nesting deeper than
+`MAX_NESTING` MUST be rejected during the walk, before any stack-exhausting recursion
+or record-level decode. (This is G10's interior-fence discipline applied to the walk
+itself: the walker is a new recursive traversal that precedes the already-fenced
+record-level decode, so it needs its own counter at the frames that actually
+recurse.)
+
 ### C.6.3 Occurrence granularity
 
 An occurrence is a chain **site**, not a class mention: every P1a/P2a–P2d position
@@ -813,7 +853,9 @@ occurrences cheap to produce, §C.12.3.)
 
 ### C.7.3 Normative decode algorithm (verify once, then look up)
 
-For each chain site, in traversal order (§C.6.2):
+For each chain site, in traversal order (§C.6.2; the walk that visits the sites is
+itself depth-bounded fail-closed at every interior descent — §C.6.2's walker depth
+bound, added post-T2 review):
 
 1. **`fullChain` arm:** parse the chain bytes into `AtomicSerialSchemaRecord`s
    (rejecting on any parse failure, any non-canonical encoding, or trailing bytes),

@@ -309,7 +309,7 @@ before any field is assigned. Crucially, `@AtomicSerial` defines validation
 *contracts*, not a wire encoding — the encoding is pluggable, exactly as JERI's
 transport is pluggable.
 
-Java Object Serialization remains the default encoding beneath `@AtomicSerial`, and
+Java Object Serialization was the first encoding implemented beneath `@AtomicSerial`, and
 it carries inherent problems that no validation discipline fully removes:
 
 - **Multiple object-creation pathways.** The stream grammar instantiates objects
