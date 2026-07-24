@@ -206,22 +206,31 @@ class ThrowableSerializer implements Resolve {
         } catch (NoSuchMethodException ex) {
             throw new IncompatibleClassChangeError("Throwable missing method getMessage: " + ex.toString());
         }
+        /*
+        * Each decoration-stripping branch below assumes the standard JDK
+        * getMessage() decoration shape. A SUBCLASS overriding getMessage() can
+        * return null or an undecorated string; the strip must then degrade to
+        * the message as-is, never throw (this runs on the fault-marshalling
+        * path -- a StringIndexOutOfBounds/NPE here would replace the fault
+        * with a connection abort).
+        */
         if (t instanceof RemoteException && ((RemoteException)t).detail != null){
             String mess = t.getMessage();
             String remoteMess = "; nested exception is: \n\t";
-            int endMessage = mess.indexOf(remoteMess);
-            return mess.substring(0, endMessage);
+            int endMessage = mess == null ? -1 : mess.indexOf(remoteMess);
+            return endMessage < 0 ? mess : mess.substring(0, endMessage);
         } else if (t instanceof URISyntaxException){
             return ((URISyntaxException)t).getReason();
         } else if (t instanceof  InvalidClassException  && ((InvalidClassException)t).classname != null){
             String classnme = ((InvalidClassException)t).classname + "; ";
             String mess = t.getMessage();
-            return mess.substring(classnme.length());
+            return (mess != null && mess.startsWith(classnme))
+                    ? mess.substring(classnme.length()) : mess;
         } else if (t instanceof WriteAbortedException && ((WriteAbortedException)t).detail != null){
             String detail = "; " + ((WriteAbortedException)t).detail.toString();
             String mess = t.getMessage();
-            int endMessage = mess.indexOf(detail);
-            return mess.substring(0, endMessage);
+            int endMessage = mess == null ? -1 : mess.indexOf(detail);
+            return endMessage < 0 ? mess : mess.substring(0, endMessage);
         } else {
             logger.log(Level.FINE, "unable to access detailMessage field in Throwable, using overridden getMessage method result instead");
             return t.getMessage();
