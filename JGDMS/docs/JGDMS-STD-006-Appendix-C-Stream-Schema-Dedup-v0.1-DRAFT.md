@@ -955,14 +955,16 @@ encoder and decoder, JVM and non-JVM, enforces them identically.
 | `maxChainRecords` | 64 | `AtomicSerialSchemaRecord` count in one chain (`fullChain` content). Chains are class hierarchies; real JVM hierarchies are ≤ ~10 deep — 64 mirrors `maxCauseDepth`'s generosity without admitting pathological record floods. |
 | `maxChainBytes` | 65536 | Byte length of one `fullChain` content (`SIZE(1..maxChainBytes)`, §C.5.1). Typical chains measure hundreds of bytes (§C.10.2); 64 KiB accommodates `maxChainRecords` records of unusual width while capping single-chain allocation. |
 | `maxDedupTableBytes` | 1048576 | Sum of stored chain-byte lengths in one stream's table. Binds before `maxDistinctChainsPerStream × maxChainBytes` (16 MiB) can be reached; 1 MiB of *distinct* schema text in one stream is far beyond any legitimate workload. |
-| `maxReconstitutedBytes` **[PROPOSED — value pending Peter's ratification]** | `maxInputBytes × 8` (default 128 MiB) | **Absolute** ceiling on the total schema-chain bytes re-materialised while reconstituting **one** top-level item (decode direction). A `chainRef` is ~40 wire bytes but re-materialises its interned chain (up to `maxChainBytes`) at *every* reference site — a marginal ~1560× per site (`maxChainBytes / 40`). None of the four bounds above caps reference-site **count** or total **reconstituted output**: `maxDistinctChainsPerStream`/`maxDedupTableBytes` bound *distinct/stored* chains (references are lookups, not insertions); `maxChainBytes` bounds a *single* chain; reference count is otherwise bounded only by `maxInputBytes`. Without this ceiling, `maxInputBytes` (default 16 MiB) of references reconstitute ~24 GiB **before** base decode or class resolution — expanding ~1560× *inside* the decoder and structurally defeating the `maxInputBytes` DoS cap. It is deliberately **absolute** (a byte budget), not a ratio: dedup's purpose is that reconstituted output *exceeds* wire input (that expansion is the saving — a collection of thousands of same-typed elements sharing one chain legitimately expands ~30×), so an `output ≤ input` or fixed-ratio cap would reject legitimate traffic. The bomb is a difference of *magnitude*; the fence is a generous absolute budget (tied to the deployment's own `maxInputBytes` DoS posture) sized far above real payloads and far below OOM. |
+| `maxReconstitutedBytes` **[PROPOSED — value pending Peter's ratification]** | `maxInputBytes × 8` (default 128 MiB) | **Absolute** ceiling on the total schema-chain bytes re-materialised while reconstituting **one** top-level item (decode direction) — bounds **peak memory** (the in-flight reconstituted buffer for the current item, released between `readObject` calls). A `chainRef` is ~40 wire bytes but re-materialises its interned chain (up to `maxChainBytes`) at *every* reference site — a marginal ~1560× per site (`maxChainBytes / 40`). None of the four bounds above caps reference-site **count** or total **reconstituted output**: `maxDistinctChainsPerStream`/`maxDedupTableBytes` bound *distinct/stored* chains (references are lookups, not insertions); `maxChainBytes` bounds a *single* chain; reference count is otherwise bounded only by `maxInputBytes`. Without this ceiling, `maxInputBytes` (default 16 MiB) of references packed into **one** item reconstitute ~24 GiB **before** base decode or class resolution — expanding ~1560× *inside* the decoder and structurally defeating the `maxInputBytes` DoS cap. It is deliberately **absolute** (a byte budget), not a ratio: dedup's purpose is that reconstituted output *exceeds* wire input (that expansion is the saving — a collection of thousands of same-typed elements sharing one chain legitimately expands ~30×), so an `output ≤ input` or fixed-ratio cap would reject legitimate traffic. The bomb is a difference of *magnitude*; the fence is a generous absolute budget (tied to the deployment's own `maxInputBytes` DoS posture) sized far above real payloads and far below OOM. |
+| `maxStreamReconstitutedBytes` **[PROPOSED — value pending Peter's ratification]** | `maxInputBytes × 64` (default 1 GiB) | Ceiling on the **cumulative** schema-chain bytes re-materialised across **every** top-level item of one **input window** (decode direction) — bounds cumulative reconstitution **WORK** (CPU/GC), the residual `maxReconstitutedBytes` leaves open. The per-item ceiling resets each item, so an attacker who keeps *every* item just under it but sends *many* items drives unbounded-in-constant array-copy/GC churn: `maxInputBytes` (16 MiB) of ~40-byte `chainRef`s spread across ~200 items reconstitutes ~24 GiB cumulatively — **memory-safe** (each item under the peak cap, buffers released between items) but a ~1560× **work-amplification** DoS on untrusted input. This ceiling fences that work. It is **per input window**, reset only at window open — which on the DER read path is **once per stream**: the entire DER input is eagerly buffered into a single `byte[]` bounded *once* by `maxInputBytes` (`DerInputLimits.readAllBytesBounded`) and decoded through one codec/dedup instance, then discarded. There is no periodic in-stream reset and no long-running DER stream (unlike `AtomicMarshalInputStream`, whose JOSS streams read incrementally over a long-lived connection and reset their counters at periodic `TC_RESET`/per-item boundaries), so exactly one window exists per stream and this bound **cannot reject a genuine long stream** — a DER stream is inherently finite (`≤ maxInputBytes` wire). *Measured* legitimate cumulative expansion of a dense same-schema stream (minimal-payload pure-`chainRef` packing, the worst-legit ratio) at the default 16 MiB window: **~102 MB for a 256 B chain (6.1×), ~204 MB for 512 B (12.2×), ~408 MB for 1 KiB (24.3×), ~816 MB for 2 KiB (48.6×)** — i.e. 9.5–76 % of the 1 GiB cap, with real chains (hundreds of bytes, §C.10.2) at the low end. Factor 64 clears realistic traffic with headroom and sits ~24× below the ~24 GiB bomb; deployments expecting large schemas (> ~2.7 KiB) at extreme fan-out may raise it. Necessarily `≥` the `maxReconstitutedBytes` factor (64 ≥ 8) so the two ceilings compose without a gap (one item cannot breach the cumulative bound before the per-item bound fires). Resetting the *work* counter per window never touches the *peak-memory* counter (`maxReconstitutedBytes`, a separate mechanism reset per item) or buffer release, so it cannot reintroduce OOM. |
 
 ```asn1
-maxDistinctChainsPerStream INTEGER ::= 256
-maxChainRecords            INTEGER ::= 64
-maxChainBytes              INTEGER ::= 65536
-maxDedupTableBytes         INTEGER ::= 1048576
-maxReconstitutedBytes      INTEGER ::= maxInputBytes * 8   -- absolute; default 134217728
+maxDistinctChainsPerStream   INTEGER ::= 256
+maxChainRecords              INTEGER ::= 64
+maxChainBytes                INTEGER ::= 65536
+maxDedupTableBytes           INTEGER ::= 1048576
+maxReconstitutedBytes        INTEGER ::= maxInputBytes * 8    -- absolute per-item; default 134217728
+maxStreamReconstitutedBytes  INTEGER ::= maxInputBytes * 64   -- cumulative per input window; default 1073741824
 ```
 
 Existing bounds continue to apply unchanged and are not restated as new obligations:
@@ -1019,14 +1021,16 @@ stream format; the base record-level decode paths are the [PATCH]'s target):
    P2 decode, which also removes the stream-vs-record-level validation asymmetry
    noted in §C.7.3. (The T6 base-adoption branch is the natural carrier.)
 
-**`maxReconstitutedBytes` is NOT part of this [PATCH]** and does **not** belong in
-§4.5. Unlike `maxChainRecords`/`maxChainBytes` (which bound chain *parsing*, a
-dimension the base record-level decoder shares), reconstitution — re-materialising a
-`chainRef` into a full chain — exists **only** in the Appendix-C stream format. The
-base record-level format has no `SchemaChainRef` production (§C.1.2 item 3: canonical
-full forms only), so there is nothing for it to re-materialise and no per-item output
-buffer to bound beyond `maxInputBytes`. `maxReconstitutedBytes` is therefore a
-stream-format (decode-direction) ceiling scoped to this appendix alone.
+**Neither `maxReconstitutedBytes` nor `maxStreamReconstitutedBytes` is part of this
+[PATCH]**, and neither belongs in §4.5. Unlike `maxChainRecords`/`maxChainBytes` (which
+bound chain *parsing*, a dimension the base record-level decoder shares), reconstitution
+— re-materialising a `chainRef` into a full chain — exists **only** in the Appendix-C
+stream format. The base record-level format has no `SchemaChainRef` production (§C.1.2
+item 3: canonical full forms only), so there is nothing for it to re-materialise, no
+per-item output buffer to bound beyond `maxInputBytes`, and no cumulative reconstitution
+work to bound. Both reconstitution ceilings are therefore stream-format (decode-direction)
+ceilings scoped to this appendix alone — the per-item one bounds peak memory, the
+cumulative one bounds total work across the window.
 
 ### C.8.2 Metered during decode (G10 interior fence)
 
@@ -1041,25 +1045,45 @@ completed structure:
   each `fullChain` site, as the stream is decoded — not at stream end. A stream that
   exceeds a table bound is rejected at the first violating site, having allocated at
   most the ceiling.
-- `maxReconstitutedBytes`: checked at **each chain-materialisation site** — the single
-  `SchemaChainRef`-resolution chokepoint through which *both* the `fullChain` and
-  `chainRef` arms pass, at every reference location (top-level record, `[9]` array
-  element, nested `@AtomicSerial` field, collection/map element, and `Any [20]` arm).
-  The running total of re-materialised chain bytes is checked **before** the octet
-  string re-emission that would exceed it; the reference site that crosses the ceiling
-  is rejected before its allocation. The counter is **per top-level item** (reset at
-  each `readObject`/reconstitution entry): buffers are released between items, so the
-  quantity to bound is the peak in-flight reconstituted buffer, not the stream total —
-  a per-stream-cumulative counter would reject a legitimate long stream of many
-  distinct objects. Every other reconstituted byte (verbatim payloads, value TLVs, DER
-  framing) is 1:1 with consumed input and therefore separately bounded by
-  `maxInputBytes`, so metering the re-materialised chain bytes bounds the whole output.
+- `maxReconstitutedBytes` **and** `maxStreamReconstitutedBytes`: both checked at **each
+  chain-materialisation site** — the single `SchemaChainRef`-resolution chokepoint
+  through which *both* the `fullChain` and `chainRef` arms pass, at every reference
+  location (top-level record, `[9]` array element, nested `@AtomicSerial` field,
+  collection/map element, and `Any [20]` arm). The running totals of re-materialised
+  chain bytes are checked **before** the octet string re-emission that would exceed
+  either; the reference site that crosses a ceiling is rejected before its allocation,
+  and **neither** counter advances when either bound would be exceeded (fail-closed, no
+  partial/poisoned state). The two counters bound different quantities over different
+  windows:
+    - `maxReconstitutedBytes` (peak memory) is **per top-level item** — reset at each
+      `readObject`/reconstitution entry, because buffers are released between items, so
+      the peak in-flight reconstituted buffer is the memory to bound.
+    - `maxStreamReconstitutedBytes` (cumulative work) is **per input window** — reset
+      only at window open, accumulating across **all** items, because the residual DoS
+      the per-item reset leaves open is total CPU/GC WORK, not peak memory (many items
+      each under the per-item cap but summing to unbounded array-copy churn). The cap is
+      set with generous headroom (factor 64 vs the per-item factor 8) precisely so it
+      does **not** reject a legitimate long stream: a *tight* (per-item-sized) cumulative
+      counter would, but a generous one bounds the attacker's work-amplification while
+      clearing the measured legitimate cumulative expansion (§C.8.1) by a wide margin. On
+      the DER read path the input window is the **whole stream** (the entire input is
+      eagerly buffered once, bounded by `maxInputBytes`, decoded through one dedup
+      instance, then discarded — there is no periodic in-stream reset, so exactly one
+      window exists per stream and the cumulative bound cannot reject a genuine long
+      stream, DER streams being inherently finite). A streaming decoder with periodic
+      input-window resets (the `AtomicMarshalInputStream` model) MUST reset this counter
+      at the same boundary it resets the input-byte budget — never the per-item
+      peak-memory counter, whose reset discipline is independent and guards OOM.
+
+  Every other reconstituted byte (verbatim payloads, value TLVs, DER framing) is 1:1
+  with consumed input and therefore separately bounded by `maxInputBytes`, so metering
+  the re-materialised chain bytes bounds the whole output (peak and cumulative alike).
 - Encoders MUST apply the same bounds as encode-time failures (an encoder that would
   emit a 257th distinct chain fails the encode; it MUST NOT silently fall back to
   emitting full forms past the cap — that would be a second encoding, §C.5.4).
-  (`maxReconstitutedBytes` is a *decode*-direction ceiling only: encoding never
-  re-materialises a chain — the encoder emits a 34-byte `chainRef`, which is the
-  saving, so there is no encode-side counterpart.)
+  (Both `maxReconstitutedBytes` and `maxStreamReconstitutedBytes` are *decode*-direction
+  ceilings only: encoding never re-materialises a chain — the encoder emits a 34-byte
+  `chainRef`, which is the saving, so there is no encode-side counterpart to either.)
 
 Boundary-pair conformance obligations (the §10.3/STD-011 inclusive-fencepost
 convention): for **each** of the four constants, the corpus carries an
@@ -1078,25 +1102,62 @@ bounded by `maxInputBytes`). These ceilings fence that new surface; they do not 
 to improve the base record-level bounds (see the [PATCH] above for that separate
 recommendation).
 
-Worst-case decoder memory attributable to dedup, per live stream, is:
+Dedup exposes **two** decoder-resource dimensions, bounded by **two** different ceilings.
+
+**(1) Peak memory attributable to dedup, per live stream:**
 
 > `maxDedupTableBytes` (the interned table) + `maxReconstitutedBytes` (the in-flight
 > reconstituted output buffer for the current item) + `maxInputBytes` (the input the
 > verbatim portion of that buffer is bounded by).
 
-**Correction (2026-07-24).** An earlier draft of this note stated the worst case as
-`maxDedupTableBytes` + one in-flight chain ≤ `maxChainBytes` — it omitted the
-**reconstituted-output buffer**, which is the *dominant* term and, before
+**(2) Cumulative reconstitution WORK attributable to dedup, per input window:**
+
+> `maxStreamReconstitutedBytes` (the total schema-chain bytes re-materialised across
+> all items of the window) — the sum of the per-item peak-memory term (1) over every
+> item, which the per-item reset alone leaves unbounded-in-constant.
+
+**Correction (2026-07-24, peak memory).** An earlier draft of this note stated the worst
+case as `maxDedupTableBytes` + one in-flight chain ≤ `maxChainBytes` — it omitted the
+**reconstituted-output buffer**, which is the *dominant* memory term and, before
 `maxReconstitutedBytes` was added, was **unbounded**. Reconstitution re-materialises a
 `chainRef`'s interned chain (up to `maxChainBytes`) at *every* reference site, and the
 in-flight decode assembles the whole reconstituted item in memory before base decode;
 the earlier note accounted for the table (one copy per *distinct* chain) but not the
-output (one copy per *reference*, of which there may be `maxInputBytes / ~40`). A
-`chainRef` fan-out — many references to one large chain — therefore expanded ~1560×
-(`maxChainBytes / 40`) inside the decoder: ~16 MiB of references → ~24 GiB buffered,
-defeating `maxInputBytes` entirely. `maxReconstitutedBytes` (§C.8.1) is the absolute
-per-item ceiling that fences this dominant term; the corrected bound above holds with
-it in place.
+output (one copy per *reference*, of which one item may hold `maxInputBytes / ~40`). A
+`chainRef` fan-out **within one item** — many references to one large chain — therefore
+expanded ~1560× (`maxChainBytes / 40`) inside the decoder: ~16 MiB of references in one
+item → ~24 GiB buffered, defeating `maxInputBytes` entirely. `maxReconstitutedBytes`
+(§C.8.1) is the absolute per-item ceiling that fences this dominant memory term; bound
+(1) above holds with it in place.
+
+**Extension (2026-07-24, cumulative work).** The per-item ceiling bounds *peak memory*
+but not *cumulative work*: buffers are released between top-level `readObject` calls, so
+`maxReconstitutedBytes` resets each item and a stream of many items each **just under**
+the per-item cap passes it every time. The same fan-out **spread across items** —
+~16 MiB of ~40-byte `chainRef`s across ~200 items — therefore drives the **same ~24 GiB**
+of cumulative array-copy/GC churn, memory-safe but a ~1560× CPU/GC work-amplification DoS
+on untrusted input. `maxStreamReconstitutedBytes` (§C.8.1) fences this residual: a
+cumulative counter metered at the same chokepoint, accumulating across all items,
+**reset only at input-window open**. On the DER read path the window is the whole stream
+(the entire input is eagerly buffered once and bounded by `maxInputBytes`, then discarded
+with the codec — no periodic in-stream reset exists), so there is exactly one window per
+stream and the cumulative bound cannot reject a genuine long stream (DER streams are
+inherently finite). A streaming decoder with periodic input-window resets (the
+`AtomicMarshalInputStream` model, whose long-lived connections reset counters at
+`TC_RESET`/per-item boundaries) MUST reset this cumulative *work* counter at the same
+boundary it resets the *input-byte* budget.
+
+**The two ceilings compose without reintroducing OOM.** They are independent mechanisms:
+`maxReconstitutedBytes` (per-item, reset each item) bounds peak memory; the
+window-open reset of `maxStreamReconstitutedBytes` touches **only** the cumulative *work*
+counter and the input-byte budget — never the per-item memory counter and never the
+buffer-release discipline. Adding the cumulative bound therefore only ADDS a fail-closed
+rejection; it never relaxes the peak-memory bound nor lets buffers accumulate across a
+reset, so peak memory stays bounded to one item (`maxReconstitutedBytes`) across any
+number of items or windows. Because the cumulative factor is `≥` the per-item factor
+(64 ≥ 8), a single item can never breach the cumulative bound before the per-item one
+fires — no gap between them, no double-count (they are separate counters over separate
+windows, incremented once each at the shared chokepoint).
 
 ---
 
@@ -1138,12 +1199,13 @@ specified — an observation the spec states explicitly so no implementer adds o
 
 The pinned first-full-then-reference rule plus the fail-closed decode checks *are*
 the mandatory-dedup enforcement — mechanically, on every stream, with no mode state
-anywhere. The per-stream memory commitment (bounded by §C.8's ceilings, at most
-`maxDedupTableBytes` for the interned table + `maxReconstitutedBytes` for the in-flight
-reconstituted item + `maxInputBytes` for the input, per live stream — see the §C.8.3
-worst-case bound and its correction) is part of implementing the format, exactly as the
-existing `maxInputBytes` buffering is; it is not a capability an endpoint can decline
-while speaking the format.
+anywhere. The per-stream resource commitment (bounded by §C.8's ceilings: peak memory
+at most `maxDedupTableBytes` for the interned table + `maxReconstitutedBytes` for the
+in-flight reconstituted item + `maxInputBytes` for the input, and cumulative
+reconstitution work at most `maxStreamReconstitutedBytes` per input window — see the
+§C.8.3 two-dimension bound and its correction/extension) is part of implementing the
+format, exactly as the existing `maxInputBytes` buffering is; it is not a capability an
+endpoint can decline while speaking the format.
 
 ### C.9.3 Residual skew (transition note, informative)
 
@@ -1369,16 +1431,16 @@ the §C.7.6 interning path exercised together, board fix 8a).
     (an outside-`X` site *after* the `[8]` still follows the outside-only
     first-occurrence sequence; the interior neither populates nor consumes the
     table).
-16. **Reconstitution fan-out bomb (`maxReconstitutedBytes`, §C.8.1/§C.8.3):** a stream
-    whose top-level item is one `fullChain` at (or near) `maxChainBytes` followed by
-    **many `chainRef` references to it** — at any single fan-out site (`[9]` array
-    elements, a nested `@AtomicSerial` array/collection, or interleaved payload sites).
-    Each ~40-byte reference re-materialises the full chain; the corpus MUST include a
-    stream whose cumulative re-materialised chain bytes for one item exceed
-    `maxReconstitutedBytes`, and the decoder MUST reject it **at the crossing reference
-    site, before the allocation that would exceed the ceiling** (G10 interior fence),
-    naming `maxReconstitutedBytes`. This MUST be **run** against the built decoder as an
-    adversarial input under a deliberately small `maxInputBytes` so the reject fires
+16. **Reconstitution fan-out bomb — single item, peak memory (`maxReconstitutedBytes`,
+    §C.8.1/§C.8.3):** a stream whose **one top-level item** is one `fullChain` at (or
+    near) `maxChainBytes` followed by **many `chainRef` references to it** — at any single
+    fan-out site (`[9]` array elements, a nested `@AtomicSerial` array/collection, or
+    interleaved payload sites). Each ~40-byte reference re-materialises the full chain; the
+    corpus MUST include a stream whose cumulative re-materialised chain bytes **for one
+    item** exceed `maxReconstitutedBytes`, and the decoder MUST reject it **at the crossing
+    reference site, before the allocation that would exceed the ceiling** (G10 interior
+    fence), naming `maxReconstitutedBytes`. This MUST be **run** against the built decoder
+    as an adversarial input under a deliberately small `maxInputBytes` so the reject fires
     within a bounded buffer — proving the amplification and the fence without buffering
     the ~24 GiB the default budget would otherwise permit (G13 — run, don't reason). The
     corpus MUST also carry the paired **acceptance** case: a legitimate dedup-heavy item
@@ -1386,6 +1448,25 @@ the §C.7.6 interning path exercised together, board fix 8a).
     exceeds its wire size yet stays under the absolute ceiling — asserting the fence does
     not penalise dedup's intended expansion. (Implemented as
     `StreamSchemaDedupReconstitutionBombTest`.)
+17. **Reconstitution fan-out bomb — many items, cumulative work
+    (`maxStreamReconstitutedBytes`, §C.8.1/§C.8.3):** the residual the per-item ceiling
+    (16) leaves open. A stream of **many top-level items**, each re-materialising chains
+    **under** `maxReconstitutedBytes` (so the per-item ceiling never fires) but whose
+    **cumulative** re-materialised chain bytes across the input window exceed
+    `maxStreamReconstitutedBytes`. The decoder MUST reject it **at the crossing reference
+    site, before allocation** (G10), naming `maxStreamReconstitutedBytes`, and MUST have
+    **individually accepted many earlier items** first (asserting the per-item ceiling did
+    *not* catch it — this is a cumulative-WORK reject, not a peak-memory one). Run under a
+    deliberately small `maxInputBytes` (G13 — run, don't reason). The corpus MUST also
+    carry the paired **acceptance** case and its **OOM-composition proof**: a legitimate
+    long stream of many genuine same-schema items whose cumulative reconstitution work
+    climbs **far past** `maxReconstitutedBytes` yet stays under `maxStreamReconstitutedBytes`
+    — accepted, round-tripping, and **provably memory-bounded** (after every item the
+    per-item counter has reset and the item's reconstituted output is bounded, while the
+    cumulative counter grows monotonically), proving the per-window work reset does not
+    reintroduce OOM and does not penalise genuine long streams. (Implemented as
+    `StreamSchemaDedupCumulativeWorkBoundTest`; the measured legitimate cumulative
+    expansion is recorded in §C.8.1.)
 
 ---
 
