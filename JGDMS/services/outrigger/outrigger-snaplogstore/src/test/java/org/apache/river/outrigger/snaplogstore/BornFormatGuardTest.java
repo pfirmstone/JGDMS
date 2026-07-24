@@ -156,7 +156,7 @@ public class BornFormatGuardTest {
         String dir = tmp.newFolder("joss-refused").getAbsolutePath();
         writeOneSnapshot(dir, JOSS);
 
-        final Map<String, Long> before = dirState(dir);
+        final Map<String, String> before = dirState(dir);
 
         LogStore store2 = openStore(dir);
         RecoverStub recover2 = new RecoverStub();
@@ -175,13 +175,29 @@ public class BornFormatGuardTest {
             before, dirState(dir));
     }
 
-    /** Name -> length for every file under dir (recursive not needed: flat). */
-    private static Map<String, Long> dirState(String dir) {
-        Map<String, Long> state = new HashMap<String, Long>();
+    /**
+     * Name -> SHA-256(content) for every file under dir (recursive not
+     * needed: flat). Content hash, not name/length (U1a-review F4 rider,
+     * U1c): "pristine" means byte-for-byte identical -- a same-length
+     * in-place mutation (e.g. a partially-applied header rewrite) must
+     * fail this assertion, not slip past a length check.
+     */
+    private static Map<String, String> dirState(String dir) throws Exception {
+        Map<String, String> state = new HashMap<String, String>();
         File[] children = new File(dir).listFiles();
         assertNotNull(children);
+        java.security.MessageDigest md =
+            java.security.MessageDigest.getInstance("SHA-256");
         for (File f : children) {
-            state.put(f.getName(), Long.valueOf(f.length()));
+            md.reset();
+            byte[] digest = md.digest(
+                java.nio.file.Files.readAllBytes(f.toPath()));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16))
+                   .append(Character.forDigit(b & 0xF, 16));
+            }
+            state.put(f.getName(), hex.toString());
         }
         return state;
     }

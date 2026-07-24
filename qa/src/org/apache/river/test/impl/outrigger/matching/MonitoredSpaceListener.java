@@ -32,9 +32,10 @@ import net.jini.core.event.UnknownEventException;
 import net.jini.core.entry.Entry;
 
 // java.rmi
-import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.rmi.RemoteException;
+
+import net.jini.io.MarshalledInstance;
 
 import java.io.Serializable;
 import java.io.ObjectStreamException;
@@ -75,9 +76,13 @@ public class MonitoredSpaceListener
      */
     final private Template notifyTmpl;
 
-    // handBack object that was registered with the client's notify
-    final private MarshalledObject handBack;
-    private MarshalledObject handBackReceived;
+    /*
+     * handBack object that was registered with the client's notify.
+     * DER-only (JGDMS 4.0.0): a constraint-built ATOMIC_DER
+     * MarshalledInstance -- the MarshalledObject path is withdrawn.
+     */
+    final private MarshalledInstance handBack;
+    private MarshalledInstance handBackReceived;
 
     // The client who really registered for this event
     final private RemoteEventListener client;
@@ -133,8 +138,8 @@ public class MonitoredSpaceListener
      * <code>tmpl</code> is not a legal JavaSpace entry.
      */
     public MonitoredSpaceListener(Configuration c, Entry tmpl, RemoteEventListener client,
-            MarshalledObject regObject)
-            throws IllegalAccessException, IOException 
+            MarshalledInstance regObject)
+            throws IllegalAccessException, IOException
     {
 	try {
 	    Exporter exporter;
@@ -255,10 +260,44 @@ public class MonitoredSpaceListener
         if (!theEvent.getSource().equals(registration.getSource())) {
             wrongSource = true;
         }
-	handBackReceived = theEvent.getRegistrationObject();
-        if (handBack != null
-                && !handBack.equals(handBackReceived)) {
-            wrongHandBack = true;
+	/*
+	 * Handback CONTENT assertion at delivery (DER-only, JGDMS 4.0.0,
+	 * SOW-Outrigger-DER-Only-JOSS-Rejection.md sec.3 item 8): the
+	 * delivered MarshalledInstance must (a) be present when one was
+	 * registered, (b) byte-equal the registered constraint-built
+	 * ATOMIC_DER instance (canonical DER: byte equality IS content
+	 * equality), and (c) actually unmarshal back to the registered
+	 * template's content -- proving the payload survived the wire
+	 * (and, in the *Shutdown variants, service restart) intact, not
+	 * merely that some same-length blob arrived.
+	 */
+	handBackReceived = theEvent.getRegistrationInstance();
+        if (handBack != null) {
+            if (handBackReceived == null
+                    || !handBack.equals(handBackReceived)) {
+                wrongHandBack = true;
+            } else {
+                try {
+                    Object expectedContent = handBack.get(false);
+                    Object deliveredContent = handBackReceived.get(false);
+                    if (expectedContent instanceof Entry
+                            && deliveredContent instanceof Entry) {
+                        if (!new Template((Entry) expectedContent)
+                                .matchFieldAreEqual(new Template(
+                                    (Entry) deliveredContent))) {
+                            wrongHandBack = true;
+                        }
+                    } else if (expectedContent == null
+                            ? deliveredContent != null
+                            : !expectedContent.equals(deliveredContent)) {
+                        wrongHandBack = true;
+                    }
+                } catch (Throwable t) {
+                    // unmarshalling the delivered handback failed:
+                    // the content did not survive delivery
+                    wrongHandBack = true;
+                }
+            }
         }
 
         if (maskRestarts(theEvent.getSequenceNumber()) > highestSeqNum) {
@@ -414,10 +453,14 @@ public class MonitoredSpaceListener
         }
 
         if (wrongHandBack) {
-            rslt = rslt + "Received an event with the wrong hand back object: " 
-		    + handBack + " hashcode " +handBack.hashCode() 
-		    + " should have been " + handBackReceived 
-		    + " hashcode " + handBackReceived.hashCode()+"\n";
+            rslt = rslt + "Received an event whose hand back object was "
+		    + "missing, unequal, or whose content did not "
+		    + "unmarshal to the registered content: registered "
+		    + handBack
+		    + (handBack == null ? "" : " hashcode " + handBack.hashCode())
+		    + ", delivered " + handBackReceived
+		    + (handBackReceived == null ? ""
+		       : " hashcode " + handBackReceived.hashCode()) + "\n";
         }
 
         if (wrongSource) {

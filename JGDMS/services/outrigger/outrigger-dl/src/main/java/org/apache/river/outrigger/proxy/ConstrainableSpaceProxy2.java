@@ -22,6 +22,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.List;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.MethodConstraints;
@@ -139,7 +140,51 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 long.class,
 					 MarshalledInstance.class}),
 
-	ProxyUtil.getMethod(JavaSpace05.class, "contents", 
+	/* U1a-review F2 rider (U1c): constraint pairs for the three
+	 * client-reachable server methods the map previously omitted --
+	 * registerForAvailabilityEvent (keyed, like notify, against the
+	 * live TupleSpace MI overload; the deprecated MO overload's
+	 * behavior is withdrawn), batch write, and batch take. Without a
+	 * pair, a client's per-method constraints on these operations
+	 * would silently fail to map onto the backend methods.
+	 */
+	ProxyUtil.getMethod(TupleSpace.class, "registerForAvailabilityEvent",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 boolean.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "registerForAvailabilityEvent",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 boolean.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class}),
+
+	ProxyUtil.getMethod(JavaSpace05.class, "write",
+			    new Class[] {List.class,
+					 Transaction.class,
+					 List.class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "write",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long[].class}),
+
+	ProxyUtil.getMethod(JavaSpace05.class, "take",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 long.class,
+					 long.class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "take",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long.class,
+					 int.class,
+					 OutriggerServer.QueryCookie.class}),
+
+	ProxyUtil.getMethod(JavaSpace05.class, "contents",
 			    new Class[] {Collection.class,
 					 Transaction.class,
 					 long.class,

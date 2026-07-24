@@ -38,9 +38,11 @@ import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.space.JavaSpace;
+import net.jini.space.TupleSpace;
 
 // others
 import java.io.PrintWriter;
@@ -396,7 +398,35 @@ public class JavaSpaceAuditor implements JavaSpace {
     }
 
     /**
-     * Wrapper around <code>JavaSpace.notify()</code>.  Note, the
+     * Wrapper around the deprecated <code>JavaSpace.notify()</code>
+     * {@link MarshalledObject} overload. DER-only (JGDMS 4.0.0,
+     * {@code SOW-Outrigger-DER-Only-JOSS-Rejection.md} decisions 3+4):
+     * the auditor mirrors the withdrawn platform behavior so tests
+     * exercising this overload observe exactly what a real client
+     * would -- a <code>null</code> handback delegates to the
+     * {@link MarshalledInstance} path (nothing MO-shaped exists in a
+     * null call); a non-null MO throws
+     * {@link UnsupportedOperationException} (a MarshalledObject can only
+     * carry a JOSS payload, which a DER-only space rejects).
+     *
+     * @see net.jini.space.JavaSpace#notify
+     */
+    public EventRegistration notify(Entry tmpl, Transaction txn,
+            RemoteEventListener listener, long lease, MarshalledObject handback)
+            throws TransactionException, RemoteException {
+        if (handback != null) {
+            throw new UnsupportedOperationException(
+                "JavaSpaceAuditor: the MarshalledObject handback overload "
+                + "of notify has been withdrawn (DER-only, JGDMS 4.0.0); "
+                + "use the MarshalledInstance overload with a "
+                + "constraint-built ATOMIC_DER handback");
+        }
+        return notify(tmpl, txn, listener, lease, (MarshalledInstance) null);
+    }
+
+    /**
+     * Wrapper around <code>TupleSpace.notify()</code> (the live
+     * {@link MarshalledInstance} handback overload).  Note, the
      * auditor attempts to track if the correct number of event
      * notifications are received, this is an impossible task if the
      * notify & write calls are made from different threads and the
@@ -406,17 +436,18 @@ public class JavaSpaceAuditor implements JavaSpace {
      * lease expiration, thus it may expect more events than it
      * legally gets if the associated lease expires or is canceled.
      *
-     * @see net.jini.space.JavaSpace#notify
+     * @see net.jini.space.TupleSpace#notify
      */
     public EventRegistration notify(Entry tmpl, Transaction txn,
-            RemoteEventListener listener, long lease, MarshalledObject handback)
+            RemoteEventListener listener, long lease,
+            MarshalledInstance handback)
             throws TransactionException, RemoteException {
         MonitoredSpaceListener passThrough;
 
         try {
             passThrough = new MonitoredSpaceListener(configuration,
-                                                     tmpl, 
-						     listener, 
+                                                     tmpl,
+						     listener,
 						     handback);
             passThrough.export();
             /*
@@ -434,11 +465,11 @@ public class JavaSpaceAuditor implements JavaSpace {
             events.add(passThrough);
         }
         // NOTE: this used to be declare final
-        EventRegistration rslt = space.notify(tmpl, txn, passThrough,
-                lease, handback);
+        EventRegistration rslt = ((TupleSpace) space).notify(tmpl, txn,
+                passThrough, lease, handback);
 	try {
 	    String preparerName = "test.outriggerEventRegistrationPreparer";
-	    rslt = (EventRegistration) 
+	    rslt = (EventRegistration)
 		   QAConfig.getConfig().prepare(preparerName, rslt);
 	} catch (TestException e) {
 	    throw new RemoteException("Configuration error", e);

@@ -18,11 +18,22 @@
 package org.apache.river.outrigger;
 
 import java.io.File;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.io.IOException;
+import java.rmi.Remote;
 import net.jini.config.ConfigurationException;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.DiscoveryListener;
+import net.jini.discovery.DiscoveryLocatorManagement;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -71,6 +82,75 @@ public class DerOnlyConfigRejectTest {
             false, true);
     }
 
+    /**
+     * Called from the configuration file: an in-VM exporter handing back a
+     * constrainable {@code OutriggerServer} proxy, so the acceptance test
+     * below can boot the service fully without a network endpoint (mirrors
+     * {@code HandbackFormatRejectTest.FakeExporter}).
+     */
+    public static Exporter inVmExporter() {
+        return new Exporter() {
+            public Remote export(Remote impl) {
+                InvocationHandler handler = new InvocationHandler() {
+                    public Object invoke(Object proxy, Method method,
+                            Object[] args) {
+                        switch (method.getName()) {
+                            case "setConstraints": return proxy;
+                            case "getConstraints": return null;
+                            case "equals": return proxy == args[0];
+                            case "hashCode":
+                                return System.identityHashCode(proxy);
+                            case "toString": return "FakeExportedProxy";
+                            default: {
+                                Class<?> rt = method.getReturnType();
+                                if (rt == boolean.class) return Boolean.FALSE;
+                                if (rt.isPrimitive() && rt != void.class) return 0;
+                                return null;
+                            }
+                        }
+                    }
+                };
+                return (Remote) Proxy.newProxyInstance(
+                    DerOnlyConfigRejectTest.class.getClassLoader(),
+                    new Class<?>[]{OutriggerServer.class,
+                                   RemoteMethodControl.class},
+                    handler);
+            }
+            public boolean unexport(boolean force) { return true; }
+        };
+    }
+
+    /**
+     * Inert discovery manager keeping the boot path off the network
+     * (mirrors {@code HandbackFormatRejectTest.FakeDiscoveryManager}).
+     * Named public type so the configuration language's static type check
+     * sees a {@code DiscoveryManagement} implementation.
+     */
+    public static final class InertDiscoveryManager implements
+            DiscoveryManagement, DiscoveryGroupManagement,
+            DiscoveryLocatorManagement {
+        public void addDiscoveryListener(DiscoveryListener l) { }
+        public void removeDiscoveryListener(DiscoveryListener l) { }
+        public ServiceRegistrar[] getRegistrars() {
+            return new ServiceRegistrar[0];
+        }
+        public void discard(ServiceRegistrar proxy) { }
+        public void terminate() { }
+        public String[] getGroups() { return new String[0]; }
+        public void setGroups(String[] groups) { }
+        public void addGroups(String[] groups) { }
+        public void removeGroups(String[] groups) { }
+        public LookupLocator[] getLocators() { return new LookupLocator[0]; }
+        public void setLocators(LookupLocator[] locators) { }
+        public void addLocators(LookupLocator[] locators) { }
+        public void removeLocators(LookupLocator[] locators) { }
+    }
+
+    /** Called from the configuration file. */
+    public static InertDiscoveryManager inertDiscoveryManager() {
+        return new InertDiscoveryManager();
+    }
+
     private String writeConfig(String body) throws Exception {
         File f = tmp.newFile("outrigger-config-reject.config");
         Files.write(f.toPath(), body.getBytes(StandardCharsets.UTF_8));
@@ -96,6 +176,62 @@ public class DerOnlyConfigRejectTest {
             assertTrue("refusal must name the DER-only regime",
                 expected.getMessage().contains("ATOMIC_DER"));
         }
+    }
+
+    /**
+     * U1a-review F5 rider (U1c): the retained {@code useDerForEntries}
+     * entry explicitly set to {@code true} is ACCEPTED -- the service
+     * boots fully (sec.9.1 resolution: retained and reject-if-JOSS; a
+     * DER-affirming config must never be refused).
+     */
+    @Test
+    public void useDerForEntriesTrueIsAccepted() throws Exception {
+        String config = writeConfig(
+            "import org.apache.river.outrigger.DerOnlyConfigRejectTest;\n"
+            + "import net.jini.export.Exporter;\n"
+            + "org.apache.river.outrigger {\n"
+            + "    useDerForEntries = true;\n"
+            + "    serverExporter = DerOnlyConfigRejectTest.inVmExporter();\n"
+            + "    discoveryManager = "
+            + "DerOnlyConfigRejectTest.inertDiscoveryManager();\n"
+            + "    initialLookupGroups = new String[]{};\n"
+            + "}\n");
+        TransientOutriggerImpl wrapper =
+            new TransientOutriggerImpl(new String[]{config}, null);
+        try {
+            wrapper.start(); // must not throw: true is the (only) accepted value
+        } finally {
+            try {
+                wrapper.destroy();
+            } catch (Throwable t) {
+                // teardown is best-effort; thread wait below still runs
+            }
+            // Wait for the DestroyThread to tear non-daemon threads down so
+            // the surefire fork can exit.
+            long deadline = System.currentTimeMillis() + 30000;
+            while (System.currentTimeMillis() < deadline
+                    && anyOutriggerThreadAlive()) {
+                Thread.sleep(100);
+            }
+        }
+    }
+
+    private static boolean anyOutriggerThreadAlive() {
+        Thread[] threads = new Thread[Thread.activeCount() * 2 + 32];
+        int n = Thread.enumerate(threads);
+        for (int i = 0; i < n; i++) {
+            Thread t = threads[i];
+            if (t != null && t.isAlive() && !t.isDaemon()) {
+                String name = t.getName();
+                if (name.contains("TxnMonitor") || name.contains("Reaper")
+                    || name.contains("OperationJournal")
+                    || name.contains("ExpirationOpQueue")
+                    || name.contains("DestroyThread")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Test
