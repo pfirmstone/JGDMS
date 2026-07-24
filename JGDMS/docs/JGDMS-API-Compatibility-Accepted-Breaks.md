@@ -76,10 +76,14 @@ instead of being added to or left in the legacy package.
 - **Seen:** 2026-07 — `RemotePolicyProvider`/`RemotePolicyService` pair moved together (the
   provider's javadoc references the service and vice versa); all `services/policy-service`
   callers re-pointed to the new package. Serial axis: `PolicyEventLease.server`'s declared
-  field type changed package (`serial-schema.golden` updated) — `@AtomicSerial` retype is
-  informative-only per `check-serial-schema.sh`, not a gate failure; wire compatibility is
+  field type changed package (`serial-schema.golden` updated) — `@AtomicSerial` retype was
+  informative-only per `check-serial-schema.sh` at the time; wire compatibility is
   unaffected because the interface itself is never serialized, only concrete proxy
-  implementations of it are.
+  implementations of it are. (Since 2026-07-24 the gate classifies `@AtomicSerial`
+  serialForm() drift per field: ADD/REORDER informative, RETYPE/REMOVE gate FAIL —
+  they break reads of streams written by earlier versions. An intentional break is
+  accepted by regenerating the golden from a full build:
+  `./check-serial-schema.sh --regenerate`.)
 
 ### Benign (flagged by japicmp, not a real break)
 - `DelegationAbsoluteTime` "field removed" = `private static SoftReference formatterRef`

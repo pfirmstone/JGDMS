@@ -50,12 +50,35 @@ import org.objectweb.asm.Type;
  *       A hash change between the golden file and the current build is a
  *       breaking change (stored entries become invisible &mdash; STD-005
  *       RULE-7) and fails the build under {@code --fail-on-change}.</li>
- *   <li><b>{@code @AtomicSerial} mode &mdash; INFORMATIVE.</b> ASM extracts the
- *       {@code serialForm()} / {@code entryForm()} (name,type) schema; field
- *       add/remove/retype is reported but never fails the build (the
- *       {@code @AtomicSerial} schema is designed to evolve via defaulted
- *       {@code GetArg.get}).</li>
+ *   <li><b>{@code @AtomicSerial} mode &mdash; CLASSIFIED.</b> ASM extracts the
+ *       {@code serialForm()} / {@code entryForm()} (name,type) schema and
+ *       field-level drift is classified by severity:
+ *       <ul>
+ *         <li><b>ADD &mdash; informative.</b> The {@code @AtomicSerial} schema
+ *             is designed to evolve by field addition via defaulted
+ *             {@code GetArg.get}; new fields read as absent/default from old
+ *             streams.</li>
+ *         <li><b>RETYPE &mdash; GATE.</b> Retyping an existing field breaks
+ *             typed {@code GetArg.get} reads of streams written by earlier
+ *             versions (the break class that forced the DerThrowableForm
+ *             twin-class approach instead of retyping ThrowableSerializer
+ *             in place). Fails the build under {@code --fail-on-change}.</li>
+ *         <li><b>REMOVE &mdash; GATE.</b> Removing a field breaks readers
+ *             that require it. Fails the build under
+ *             {@code --fail-on-change}. (A field rename appears as
+ *             REMOVE+ADD and therefore gates.)</li>
+ *         <li><b>REORDER &mdash; informative.</b> Same (name,type) set in a
+ *             different order; fields are read by name.</li>
+ *       </ul>
+ *       Whole-class disappearance from the scan stays informative: the tool
+ *       cannot distinguish a deleted class from a module that simply was not
+ *       built in this reactor run.</li>
  * </ul>
+ *
+ * <p><b>Override for intentional changes:</b> regenerate the golden file
+ * ({@code check-serial-schema.sh --regenerate}, or run this tool in
+ * {@code generate} mode) after a full build, and commit it together with the
+ * change and its migration rationale.
  *
  * <p>Usage:
  * <pre>
@@ -164,6 +187,64 @@ public final class SerialSchemaTracker {
             hashField.setAccessible(true);
         }
         return hashField.getLong(ec);
+    }
+
+    // ------------------------------------------------- field-drift classifier
+
+    enum ChangeKind { ADD, RETYPE, REMOVE, REORDER }
+
+    static final class FieldChange {
+        final ChangeKind kind;
+        final String name;      // null for REORDER
+        final String oldType;   // null for ADD/REORDER
+        final String newType;   // null for REMOVE/REORDER
+        FieldChange(ChangeKind kind, String name, String oldType, String newType) {
+            this.kind = kind; this.name = name; this.oldType = oldType; this.newType = newType;
+        }
+        /** RETYPE and REMOVE break reads of streams written by earlier versions. */
+        boolean breaking() { return kind == ChangeKind.RETYPE || kind == ChangeKind.REMOVE; }
+    }
+
+    /** Parses a comma-separated "name:type, name:type" field list, preserving order. */
+    static Map<String, String> parseFields(String s) {
+        Map<String, String> m = new LinkedHashMap<String, String>();
+        for (String f : s.split(",")) {
+            f = f.trim();
+            if (f.isEmpty()) continue;
+            int i = f.indexOf(':');
+            m.put(i < 0 ? f : f.substring(0, i), i < 0 ? "?" : f.substring(i + 1));
+        }
+        return m;
+    }
+
+    /**
+     * Classifies drift between two field lists. Fields are matched by name:
+     * present-in-old-only is REMOVE, present-in-new-only is ADD, same name
+     * with a different type is RETYPE (a rename therefore classifies as
+     * REMOVE+ADD, which gates). If the (name,type) sets are identical but the
+     * order differs, the single result is REORDER.
+     */
+    static List<FieldChange> diffFields(String oldFields, String newFields) {
+        Map<String, String> o = parseFields(oldFields);
+        Map<String, String> n = parseFields(newFields);
+        List<FieldChange> out = new ArrayList<FieldChange>();
+        for (Map.Entry<String, String> e : o.entrySet()) {
+            String nt = n.get(e.getKey());
+            if (nt == null) {
+                out.add(new FieldChange(ChangeKind.REMOVE, e.getKey(), e.getValue(), null));
+            } else if (!nt.equals(e.getValue())) {
+                out.add(new FieldChange(ChangeKind.RETYPE, e.getKey(), e.getValue(), nt));
+            }
+        }
+        for (Map.Entry<String, String> e : n.entrySet()) {
+            if (!o.containsKey(e.getKey())) {
+                out.add(new FieldChange(ChangeKind.ADD, e.getKey(), null, e.getValue()));
+            }
+        }
+        if (out.isEmpty() && !o.toString().equals(n.toString())) {
+            out.add(new FieldChange(ChangeKind.REORDER, null, null, null));
+        }
+        return out;
     }
 
     // ----------------------------------------------------------------- driver
@@ -300,7 +381,8 @@ public final class SerialSchemaTracker {
             if (o == null) {
                 System.out.println("  + ADDED   " + fqcn + (isEntry ? " (new @SerialEntry — ok)" : " (new @AtomicSerial)"));
             } else if (c == null) {
-                System.out.println("  - REMOVED " + fqcn + (isEntry ? "  *** ENTRY removed" : ""));
+                System.out.println("  - REMOVED " + fqcn + (isEntry ? "  *** ENTRY removed"
+                        : "  (informative - class deleted or module not built)"));
                 if (isEntry) gateFailures++;
             } else {
                 String oldHash = hashOf(o);
@@ -312,9 +394,40 @@ public final class SerialSchemaTracker {
                             + "  *** BREAKING (stored entries invisible)  [" + oldFields + " -> " + newFields + "]");
                     gateFailures++;
                 } else if (!oldFields.equals(newFields)) {
-                    System.out.println("  ~ SCHEMA  " + fqcn + "  [" + oldFields + " -> " + newFields + "]"
-                            + (c.kind == Kind.ENTRY ? "" : "  (informative)"));
-                    infoChanges++;
+                    List<FieldChange> changes = diffFields(oldFields, newFields);
+                    if (c.kind == Kind.ENTRY || changes.isEmpty()) {
+                        // ENTRY wire compatibility is governed by the hash (unchanged here).
+                        System.out.println("  ~ SCHEMA  " + fqcn + "  [" + oldFields + " -> " + newFields
+                                + "]  (informative)");
+                        infoChanges++;
+                    } else {
+                        boolean breaking = false;
+                        for (FieldChange fc : changes) if (fc.breaking()) breaking = true;
+                        System.out.println((breaking ? "  ! SCHEMA  " : "  ~ SCHEMA  ") + fqcn);
+                        for (FieldChange fc : changes) {
+                            switch (fc.kind) {
+                                case ADD:
+                                    System.out.println("      + ADD     " + fc.name + ":" + fc.newType
+                                            + "  (informative - evolves via defaulted GetArg.get)");
+                                    break;
+                                case RETYPE:
+                                    System.out.println("      ! RETYPE  " + fc.name + "  " + fc.oldType
+                                            + " -> " + fc.newType
+                                            + "  *** BREAKING (typed GetArg.get of old streams fails)");
+                                    gateFailures++;
+                                    break;
+                                case REMOVE:
+                                    System.out.println("      ! REMOVE  " + fc.name + ":" + fc.oldType
+                                            + "  *** BREAKING (readers requiring the field break)");
+                                    gateFailures++;
+                                    break;
+                                case REORDER:
+                                    System.out.println("      ~ REORDER  (informative - fields are read by name)");
+                                    break;
+                            }
+                        }
+                        if (!breaking) infoChanges++;
+                    }
                 }
             }
         }
@@ -325,6 +438,8 @@ public final class SerialSchemaTracker {
         System.out.println("Summary: " + gateFailures + " breaking (gate), " + infoChanges + " informative schema change(s).");
         if (gateFailures > 0 && failOnChange) {
             System.out.println("GATE: FAIL");
+            System.out.println("If a breaking change above is intentional, regenerate the golden from a FULL build");
+            System.out.println("(check-serial-schema.sh --regenerate) and commit it with the migration rationale.");
             System.exit(1);
         }
         System.out.println("GATE: PASS");
