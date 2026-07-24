@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.cel.authoring;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.ast.ExprNode.InListOperand;
 import au.net.zeus.jgdms.cel.ast.ExprNode.SelectorStep;
+import au.net.zeus.jgdms.cel.wire.CelCeilings;
 import au.net.zeus.jgdms.cel.wire.FunctionRegistry;
 
 import java.io.ByteArrayOutputStream;
@@ -51,15 +52,35 @@ import java.util.Set;
  * <b>Overload note (schema-free limitation, reported as an OPEN QUESTION).</b>
  * The type-dispatched functions {@code size}/{@code abs}/{@code min}/{@code max}
  * map one text name to several Appendix B §B.8.3 wire ids by operand type. This
- * standalone parser resolves the overload by {@link CelStaticType static
- * inference}; over a bare field-reference argument the type is not statically
- * knowable without a schema, and the parser rejects it rather than guess a wire
- * id. Such expressions must be built through the AST directly (or await a
- * schema-aware parser).
+ * standalone parser resolves the overload only when every operand's scalar type
+ * is statically known from literals: {@code size}/{@code abs} reject an
+ * UNKNOWN (bare-field) argument, and {@code min}/{@code max} reject unless
+ * <em>both</em> operands are statically known and share the same numeric type
+ * (so {@code min(1, someField)} and {@code min(1, 2.0)} are rejected, not
+ * guessed onto a wire id that matches neither pinned signature). Such
+ * expressions must be built through the AST directly (or await a schema-aware
+ * parser); this parser never guesses a wire id.
  */
 public final class CelTextParser {
 
     private CelTextParser() {}
+
+    /** Hard cap on input length: rejects a pathologically large source before any O(n) or worse work (DoS guard). */
+    private static final int MAX_INPUT_CHARS = 1_000_000;
+
+    /**
+     * Hard cap on recursive-descent parser stack frames, threaded independently
+     * of AST depth. Grouping parens add ZERO AST nodes, so the post-parse
+     * AST-depth ceiling ({@code MAX_EXPR_DEPTH}) can never bound {@code (((...)))}
+     * or {@code !!!...}; this frame counter turns deep input into a
+     * {@link CelParseException} instead of a {@link StackOverflowError}. Set well
+     * above {@code MAX_EXPR_DEPTH} (32) to leave headroom for the per-precedence-
+     * level frames and legitimate grouping, but far below the JVM stack limit.
+     */
+    private static final int MAX_PARSE_FRAMES = 400;
+
+    /** Max digit-run length of a numeric literal before it is rejected -- keeps BigInteger construction off any adversary-scalable input (O(n^2) guard). Any value in range needs at most 19 decimal / 16 hex digits. */
+    private static final int MAX_NUMERIC_DIGITS = 40;
 
     /** Global platform functions callable as {@code name(...)} (§7.2), plus the special forms {@code has}/{@code field}/{@code size}. */
     private static final Set<String> GLOBAL_FUNCTIONS = Set.of(
@@ -86,6 +107,9 @@ public final class CelTextParser {
      */
     public static ExprNode parse(String text) throws CelParseException {
         if (text == null) throw new NullPointerException("text");
+        if (text.length() > MAX_INPUT_CHARS) {
+            throw new CelParseException("input too long: " + text.length() + " chars exceeds cap " + MAX_INPUT_CHARS);
+        }
         List<Token> tokens = new Lexer(text).lex();
         Parser p = new Parser(tokens);
         ExprNode node = p.parseExpr();
@@ -216,12 +240,15 @@ public final class CelTextParser {
 
         private Token number() throws CelParseException {
             int start = i;
-            // hex
-            if (s.charAt(i) == '0' && i + 1 < s.length() && (s.charAt(i + 1) == 'x' || s.charAt(i + 1) == 'X')) {
+            // hex -- §5.2 pins lowercase "0x" only ("0X" is not a valid prefix).
+            if (s.charAt(i) == '0' && i + 1 < s.length() && s.charAt(i + 1) == 'x') {
                 i += 2;
                 int hs = i;
                 while (i < s.length() && isHex(s.charAt(i))) i++;
                 if (i == hs) throw err(start, "malformed hex literal '0x' with no digits");
+                // Cap the digit run BEFORE constructing BigInteger: keeps parsing off any
+                // adversary-scalable O(n^2) work; any in-range value fits far fewer digits.
+                if (i - hs > MAX_NUMERIC_DIGITS) throw err(start, "hex literal too long (" + (i - hs) + " digits); out of range [0, 2^63]");
                 BigInteger v = new BigInteger(s.substring(hs, i), 16);
                 requireIntRange(v, start);
                 return new Token(T.INT_LIT, s.substring(start, i), v, start);
@@ -245,6 +272,10 @@ public final class CelTextParser {
                 else isDouble = true;
             }
             String txt = s.substring(start, i);
+            // Cap the whole numeric run BEFORE BigInteger / Double.parseDouble (O(n^2)/slow-path guard).
+            if (txt.length() > MAX_NUMERIC_DIGITS) {
+                throw err(start, "numeric literal too long (" + txt.length() + " chars)");
+            }
             if (isDouble) {
                 double d = Double.parseDouble(txt);   // correctly rounded, ties-to-even
                 return new Token(T.DOUBLE_LIT, txt, d, start);
@@ -266,6 +297,9 @@ public final class CelTextParser {
             i++; // opening quote
             StringBuilder sb = new StringBuilder();
             while (true) {
+                if (sb.length() > CelCeilings.MAX_SCALAR_BYTES) {
+                    throw err(start, "string literal exceeds maxScalarBytes (" + CelCeilings.MAX_SCALAR_BYTES + ")");
+                }
                 if (i >= s.length()) throw err(start, "unterminated string literal");
                 char c = s.charAt(i);
                 if (c == quote) { i++; break; }
@@ -289,7 +323,14 @@ public final class CelTextParser {
                     i++;
                 }
             }
-            return new Token(T.STRING_LIT, s.substring(start, i), sb.toString(), start);
+            String value = sb.toString();
+            // §5.2 / Appendix B §B.5 item 10: a raw unpaired surrogate character in the
+            // source (not via a backslash-u / backslash-U escape, which are already
+            // range-checked) is ill-formed UTF-16 and must be rejected.
+            if (CelAstValidator.hasUnpairedSurrogate(value)) {
+                throw err(start, "string literal contains an unpaired surrogate code unit (ill-formed UTF-16)");
+            }
+            return new Token(T.STRING_LIT, s.substring(start, i), value, start);
         }
 
         private int readUnicodeEscape(int nHex, int start) throws CelParseException {
@@ -310,6 +351,9 @@ public final class CelTextParser {
             i += 2; // 'b' and opening '"'
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             while (true) {
+                if (out.size() > CelCeilings.MAX_SCALAR_BYTES) {
+                    throw err(start, "bytes literal exceeds maxScalarBytes (" + CelCeilings.MAX_SCALAR_BYTES + ")");
+                }
                 if (i >= s.length()) throw err(start, "unterminated bytes literal");
                 char c = s.charAt(i);
                 if (c == '"') { i++; break; }
@@ -356,8 +400,18 @@ public final class CelTextParser {
     private static final class Parser {
         private final List<Token> toks;
         private int p = 0;
+        private int frames = 0;   // live recursive-descent frames (StackOverflow guard, G10)
 
         Parser(List<Token> toks) { this.toks = toks; }
+
+        /** Increments the recursive-descent frame counter, rejecting past the cap before the JVM stack can overflow. */
+        private void enterFrame() throws CelParseException {
+            if (++frames > MAX_PARSE_FRAMES) {
+                throw new CelParseException("parse error: expression nesting too deep (parser frame limit "
+                        + MAX_PARSE_FRAMES + " reached) -- grouping parens and unary chains are metered here, "
+                        + "since they add no AST node the post-parse depth ceiling could bound");
+            }
+        }
 
         private Token peek() { return toks.get(p); }
         private Token peek2() { return p + 1 < toks.size() ? toks.get(p + 1) : toks.get(toks.size() - 1); }
@@ -377,14 +431,19 @@ public final class CelTextParser {
         // ---- precedence climbing (§5.3) ----
 
         ExprNode parseExpr() throws CelParseException {                 // Expr ::= COr [ "?" COr ":" Expr ]
-            ExprNode cond = parseOr();
-            if (match(T.QUESTION)) {
-                ExprNode thenB = parseOr();
-                expect(T.COLON, "':' in conditional");
-                ExprNode elseB = parseExpr();                           // right-associative
-                return new ExprNode.Cond(cond, thenB, elseB);
+            enterFrame();
+            try {
+                ExprNode cond = parseOr();
+                if (match(T.QUESTION)) {
+                    ExprNode thenB = parseOr();
+                    expect(T.COLON, "':' in conditional");
+                    ExprNode elseB = parseExpr();                       // right-associative
+                    return new ExprNode.Cond(cond, thenB, elseB);
+                }
+                return cond;
+            } finally {
+                frames--;
             }
-            return cond;
         }
 
         private ExprNode parseOr() throws CelParseException {           // COr ::= CAnd { "||" CAnd }
@@ -446,17 +505,22 @@ public final class CelTextParser {
         }
 
         private ExprNode parseUnary() throws CelParseException {        // Unary ::= "!" Unary | "-" Unary | Postfix
-            if (match(T.NOT)) return new ExprNode.Not(parseUnary());
-            if (check(T.MINUS)) {
-                advance();
-                // §5.2 fold: unary '-' immediately over the literal 2^63 yields LIT_INT(-2^63).
-                if (check(T.INT_LIT) && TWO_63.equals((BigInteger) peek().value())) {
+            enterFrame();
+            try {
+                if (match(T.NOT)) return new ExprNode.Not(parseUnary());
+                if (check(T.MINUS)) {
                     advance();
-                    return applyPostfix(new ExprNode.LitInt(Long.MIN_VALUE));
+                    // §5.2 fold: unary '-' immediately over the literal 2^63 yields LIT_INT(-2^63).
+                    if (check(T.INT_LIT) && TWO_63.equals((BigInteger) peek().value())) {
+                        advance();
+                        return applyPostfix(new ExprNode.LitInt(Long.MIN_VALUE));
+                    }
+                    return new ExprNode.Neg(parseUnary());
                 }
-                return new ExprNode.Neg(parseUnary());
+                return parsePostfix();
+            } finally {
+                frames--;
             }
-            return parsePostfix();
         }
 
         private ExprNode parsePostfix() throws CelParseException {      // Postfix ::= Primary { "." IDENT [ "(" [ExprList] ")" ] }
@@ -517,6 +581,7 @@ public final class CelTextParser {
             if (!(subject instanceof ExprNode.FieldRef fr)) {
                 throw err("field selection '." + name + "' applies only to a field designator, not to this expression (§5.3.3)");
             }
+            boundSteps(fr);   // bound the chain incrementally, so a 50k-dot chain fails fast (not O(n^2) then post-hoc)
             List<SelectorStep> steps = new ArrayList<>(fr.steps());
             steps.add(new SelectorStep.Unqual(name));
             return new ExprNode.FieldRef(steps);
@@ -526,12 +591,28 @@ public final class CelTextParser {
             if (!(subject instanceof ExprNode.FieldRef fr)) {
                 throw err("qualified selector '.field(...)' applies only to a field designator (§5.3.3)");
             }
+            boundSteps(fr);
             List<SelectorStep> steps = new ArrayList<>(fr.steps());
             steps.add(new SelectorStep.Qual(className, fieldName));
             return new ExprNode.FieldRef(steps);
         }
 
+        private void boundSteps(ExprNode.FieldRef fr) throws CelParseException {
+            if (fr.steps().size() >= CelCeilings.MAX_SELECTOR_STEPS) {
+                throw err("maxSelectorSteps (" + CelCeilings.MAX_SELECTOR_STEPS + ") exceeded in a field designator");
+            }
+        }
+
         private ExprNode parsePrimary() throws CelParseException {
+            enterFrame();
+            try {
+                return parsePrimaryBody();
+            } finally {
+                frames--;
+            }
+        }
+
+        private ExprNode parsePrimaryBody() throws CelParseException {
             Token t = peek();
             switch (t.type()) {
                 case INT_LIT: advance(); return litInt(t);
@@ -665,10 +746,18 @@ public final class CelTextParser {
         }
 
         private int resolveMinMax(boolean isMin, ExprNode a, ExprNode b) throws CelParseException {
+            // Symmetric with size/abs: resolve ONLY when both operands' scalar types are
+            // statically known AND identical. Reject an UNKNOWN (bare-field) operand or a
+            // mixed pairing rather than guessing a wire id that matches neither pinned
+            // signature (e.g. min(1, field) or min(1, 2.0)). No schema-aware resolution
+            // and no new syntax this round -- that is a separate decision pending Peter.
             CelStaticType ta = CelStaticType.of(a), tb = CelStaticType.of(b);
-            if (ta == CelStaticType.DOUBLE || tb == CelStaticType.DOUBLE) return isMin ? 9 : 11;
-            if (ta == CelStaticType.INT || tb == CelStaticType.INT) return isMin ? 8 : 10;
-            throw overloadErr(isMin ? "min" : "max", a);
+            if (ta == CelStaticType.UNKNOWN || tb == CelStaticType.UNKNOWN || ta != tb) {
+                throw overloadErr(isMin ? "min" : "max", a);
+            }
+            if (ta == CelStaticType.INT) return isMin ? 8 : 10;
+            if (ta == CelStaticType.DOUBLE) return isMin ? 9 : 11;
+            throw overloadErr(isMin ? "min" : "max", a);   // both known but non-numeric (bool/string/...)
         }
 
         private CelParseException overloadErr(String fn, ExprNode arg) {

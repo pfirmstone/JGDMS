@@ -29,6 +29,12 @@ import au.net.zeus.jgdms.der.Tag;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 /**
  * The T-CEL-B wire encoder: {@code CelFilterRecord} / {@code ExprNode} to the
@@ -71,6 +77,11 @@ public final class CelEncoder {
      */
     public static byte[] encode(CelFilterRecord record) throws CelEncodeException {
         if (record == null) throw new NullPointerException("record");
+        if (record.formatVersion() != CelFilterRecord.FORMAT_VERSION) {
+            throw new CelEncodeException("formatVersion " + record.formatVersion()
+                    + " is not the pinned value " + CelFilterRecord.FORMAT_VERSION
+                    + " (Appendix B §B.9); the decoder would reject any other value");
+        }
         String v = CelAstValidator.findWireViolation(record.expression());
         if (v != null) throw new CelEncodeException(v);
 
@@ -129,7 +140,7 @@ public final class CelEncoder {
             case ExprNode.LitBool b -> ctxTlv(0, false, new byte[]{ (byte) (b.value() ? 0xFF : 0x00) });
             case ExprNode.LitInt i -> ctxTlv(1, false, BigInteger.valueOf(i.value()).toByteArray());
             case ExprNode.LitDouble d -> ctxTlv(2, false, doubleContent(d.value()));
-            case ExprNode.LitString s -> ctxTlv(3, false, s.value().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            case ExprNode.LitString s -> ctxTlv(3, false, strictUtf8(s.value(), "LIT_STRING"));
             case ExprNode.LitBytes b -> ctxTlv(4, false, b.value().clone());
             case ExprNode.LitNull n -> ctxTlv(5, false, new byte[0]);
 
@@ -197,24 +208,24 @@ public final class CelEncoder {
     // ---- FieldRef helpers -------------------------------------------------
 
     /** The content of a {@code fieldRef[7]} / {@code fieldList[1]} node: the inner {@code steps SEQUENCE OF SelectorStep} (universal 0x30). */
-    private static byte[] encodeStepsSequence(ExprNode.FieldRef fr) {
+    private static byte[] encodeStepsSequence(ExprNode.FieldRef fr) throws CelEncodeException {
         ByteArrayOutputStream steps = new ByteArrayOutputStream();
         for (SelectorStep s : fr.steps()) writeAll(steps, encodeSelectorStep(s));
         return DerWriter.writeSequence(steps.toByteArray());
     }
 
     /** A {@code FieldRefNode} carrying its own universal SEQUENCE tag (Has.target is untagged): {@code SEQUENCE { steps SEQUENCE OF }}. */
-    private static byte[] encodeFieldRefUntagged(ExprNode.FieldRef fr) {
+    private static byte[] encodeFieldRefUntagged(ExprNode.FieldRef fr) throws CelEncodeException {
         return DerWriter.writeSequence(encodeStepsSequence(fr));
     }
 
-    private static byte[] encodeSelectorStep(SelectorStep step) {
+    private static byte[] encodeSelectorStep(SelectorStep step) throws CelEncodeException {
         return switch (step) {
-            case SelectorStep.Unqual u -> ctxTlv(0, false, u.name().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            case SelectorStep.Unqual u -> ctxTlv(0, false, strictUtf8(u.name(), "SelectorStep.unqual"));
             case SelectorStep.Qual q -> {
                 ByteArrayOutputStream b = new ByteArrayOutputStream();
-                writeAll(b, DerWriter.writeUtf8String(q.className()));   // universal UTF8String
-                writeAll(b, DerWriter.writeUtf8String(q.fieldName()));
+                writeAll(b, DerWriter.writeTlv(Tag.UTF8STRING, strictUtf8(q.className(), "QualifiedSelector.className")));
+                writeAll(b, DerWriter.writeTlv(Tag.UTF8STRING, strictUtf8(q.fieldName(), "QualifiedSelector.fieldName")));
                 yield ctxTlv(1, true, b.toByteArray());
             }
         };
@@ -239,6 +250,29 @@ public final class CelEncoder {
             bits >>>= 8;
         }
         return content;
+    }
+
+    /**
+     * Strict UTF-8 encode: rejects an unpaired surrogate (which
+     * {@code String.getBytes(UTF_8)} would silently replace with {@code 0x3F},
+     * collapsing distinct strings onto one wire form -- a G1 canonicality
+     * break). Mirrors the decoder's strict-UTF-8 decode (Appendix B §B.5 item
+     * 10). The shared {@link CelAstValidator} already rejects such strings
+     * before encode, so this is defence in depth: reaching it signals a
+     * validator-invariant violation.
+     */
+    private static byte[] strictUtf8(String s, String what) throws CelEncodeException {
+        CharsetEncoder enc = StandardCharsets.UTF_8.newEncoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        try {
+            ByteBuffer bb = enc.encode(CharBuffer.wrap(s));
+            byte[] out = new byte[bb.remaining()];
+            bb.get(out);
+            return out;
+        } catch (CharacterCodingException e) {
+            throw new CelEncodeException(what + ": contains an unpaired surrogate; not encodable as canonical UTF-8 (Appendix B §B.5 item 10)");
+        }
     }
 
     /** Emits a context-class TLV with the given tag number, constructed flag, and content, using minimal tag/length octets. */

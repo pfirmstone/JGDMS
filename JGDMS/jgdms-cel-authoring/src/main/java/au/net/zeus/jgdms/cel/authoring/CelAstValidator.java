@@ -104,7 +104,10 @@ final class CelAstValidator {
                     reject("non-finite LIT_DOUBLE is not a canonical literal (Appendix B §B.5 item 5)");
                 }
             }
-            case ExprNode.LitString s -> checkScalarBytes(s.value().getBytes(StandardCharsets.UTF_8).length, "LIT_STRING");
+            case ExprNode.LitString s -> {
+                checkWellFormedUtf16(s.value(), "LIT_STRING");
+                checkScalarBytes(s.value().getBytes(StandardCharsets.UTF_8).length, "LIT_STRING");
+            }
             case ExprNode.LitBytes b -> checkScalarBytes(b.value().length, "LIT_BYTES");
             case ExprNode.ListLit l -> { for (ExprNode e : l.elements()) visitExpr(e, depth + 1, c); }
             case ExprNode.FieldRef f -> visitSteps(f.steps(), c);
@@ -171,9 +174,34 @@ final class CelAstValidator {
     }
 
     private static void checkName(String s, int min, int max, String what) {
+        // Reject unpaired surrogates BEFORE measuring: getBytes(UTF-8) silently
+        // replaces them with 0x3F, which both understates the length and would
+        // collide distinct strings on one wire form (Appendix B §B.5 item 10).
+        checkWellFormedUtf16(s, what);
         int n = s.getBytes(StandardCharsets.UTF_8).length;
         if (n < min) reject(what + ": empty name (min " + min + " byte)");
         if (n > max) reject(what + ": length " + n + " exceeds ceiling " + max);
+    }
+
+    private static void checkWellFormedUtf16(String s, String what) {
+        if (hasUnpairedSurrogate(s)) {
+            reject(what + ": contains an unpaired surrogate; not well-formed UTF-16 / not encodable as canonical UTF-8 (Appendix B §B.5 item 10)");
+        }
+    }
+
+    /** True iff {@code s} contains a surrogate code unit that is not part of a valid high+low pair. */
+    static boolean hasUnpairedSurrogate(String s) {
+        int i = 0, n = s.length();
+        while (i < n) {
+            char c = s.charAt(i);
+            if (Character.isHighSurrogate(c)) {
+                if (i + 1 < n && Character.isLowSurrogate(s.charAt(i + 1))) { i += 2; continue; }
+                return true;                       // high surrogate with no following low surrogate
+            }
+            if (Character.isLowSurrogate(c)) return true;   // low surrogate with no preceding high surrogate
+            i++;
+        }
+        return false;
     }
 
     private static void checkScalarBytes(int len, String what) {
@@ -262,10 +290,23 @@ final class CelAstValidator {
         }
     }
 
-    /** §5.4 item 6: {@code +} (and the other arithmetic operators) are numeric-only; reject a statically non-numeric operand (e.g. string/bytes/list concatenation). */
+    /**
+     * §5.4 item 6 / §6.3 / §4.3.2: {@code +} (and the other arithmetic
+     * operators) are numeric-only with <em>no</em> implicit int/double
+     * conversion. Reject a statically non-numeric operand (e.g. string/bytes/
+     * list concatenation), and reject a statically-provable mixed {@code int}
+     * &times; {@code double} pairing (a §6.3 TYPE_MISMATCH).
+     */
     private static void checkNumericConcat(ExprNode l, ExprNode r, String op) {
         rejectIfNonNumeric(l, op);
         rejectIfNonNumeric(r, op);
+        CelStaticType lt = CelStaticType.of(l), rt = CelStaticType.of(r);
+        boolean lNum = lt == CelStaticType.INT || lt == CelStaticType.DOUBLE;
+        boolean rNum = rt == CelStaticType.INT || rt == CelStaticType.DOUBLE;
+        if (lNum && rNum && lt != rt) {
+            reject("'" + op + "' has no implicit int/double conversion; mixed " + lt + " " + op + " " + rt
+                    + " is a TYPE_MISMATCH (§4.3.2/§6.3) -- use int(...)/double(...)");
+        }
     }
 
     private static void rejectIfNonNumeric(ExprNode e, String op) {
