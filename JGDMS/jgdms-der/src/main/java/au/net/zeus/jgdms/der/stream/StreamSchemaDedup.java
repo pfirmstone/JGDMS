@@ -195,6 +195,55 @@ final class StreamSchemaDedup {
      */
     static final int RECONSTITUTION_EXPANSION_FACTOR = 8;
 
+    /**
+     * Multiplier applied to {@code maxInputBytes} to derive
+     * {@link #maxStreamReconstitutedChainBytes}, the ceiling on the <em>cumulative</em>
+     * schema-chain bytes re-materialised across <em>every</em> top-level item of one
+     * input window (sec.C.8.1 {@code maxStreamReconstitutedBytes}).
+     *
+     * <p><b>Why a cumulative bound is needed in addition to the per-item one.</b> The
+     * per-item ceiling ({@link #RECONSTITUTION_EXPANSION_FACTOR}) bounds PEAK MEMORY: the
+     * reconstituted buffer for one top-level item, released between {@code readObject}
+     * calls. It does <em>not</em> bound cumulative CPU/GC WORK. An attacker who keeps each
+     * item just under the per-item cap but sends many items drives unbounded-in-constant
+     * array-copy/GC churn: with the whole input window at {@code maxInputBytes} (16 MiB) of
+     * ~40-byte {@code chainRef}s spread across ~200 items, ~24 GiB of cumulative
+     * re-materialisation flows through the decoder — memory-safe (each item under the peak
+     * cap) but a ~1560x work-amplification DoS. This cumulative ceiling fences that WORK.
+     *
+     * <p><b>Why per input WINDOW, not per stream lifetime — and why they coincide here.</b>
+     * The bound is confined to one {@code StreamSchemaDedup} decode instance, whose lifetime
+     * is exactly one input window: the DER read path
+     * ({@link DerMarshalInputStream}/{@code DerInputLimits.readAllBytesBounded}) eagerly
+     * buffers the <em>entire</em> stream into a single {@code byte[]} bounded <em>once</em> by
+     * {@code maxInputBytes}, decodes it through one codec, then discards the codec and its
+     * dedup table. There is no periodic in-stream reset and no long-running DER stream (unlike
+     * {@code AtomicMarshalInputStream}, whose JOSS streams read incrementally over a
+     * long-lived connection and reset their counters at periodic {@code TC_RESET} / per-item
+     * boundaries so genuine long streams are not rejected). Consequently there is exactly ONE
+     * window per DER stream, the cumulative counter is reset only at construction (window
+     * open), and it CANNOT reject a genuine long stream — a DER stream is inherently finite
+     * (its wire is {@code ≤ maxInputBytes}). If a future streaming/periodic-reset DER path is
+     * added, this counter MUST reset at the same boundary the input-byte budget does (window
+     * close/reopen), mirroring {@code AtomicMarshalInputStream}.
+     *
+     * <p><b>Why this cannot reintroduce OOM.</b> Peak memory is guarded by the SEPARATE
+     * per-item counter ({@link #reconstitutedChainBytes}, reset each item) and by the buffers
+     * being released between {@code readObject} calls — neither of which this counter or its
+     * (construction-only) reset touches. Adding a cumulative ceiling only ADDS a fail-closed
+     * rejection; it never relaxes the per-item memory bound nor defers buffer release, so peak
+     * memory stays bounded to one item ({@code maxReconstitutedBytes}) regardless of how many
+     * items the window carries.
+     *
+     * <p>Factor 64 gives the default a 1 GiB per-window work budget: generous headroom over
+     * the measured legitimate cumulative expansion of a dense same-schema stream (single-to-
+     * low-double-digit× the ≤16 MiB wire), and ~24x below the ~24 GiB unmetered bomb. Tied to
+     * {@code maxInputBytes} so it tracks the deployment's own DoS posture. Necessarily {@code
+     * ≥ RECONSTITUTION_EXPANSION_FACTOR} (64 ≥ 8) so the two ceilings compose without a gap:
+     * one item can never breach the cumulative bound before the per-item bound fires.
+     */
+    static final int STREAM_RECONSTITUTION_EXPANSION_FACTOR = 64;
+
     // =========================================================================
     // SchemaChainRef arm tags (sec.C.5.1): both IMPLICIT primitive context tags.
     // Constructed forms (0xA0/0xA1) do NOT compare equal and are rejected.
@@ -250,9 +299,30 @@ final class StreamSchemaDedup {
      * (decode direction). Reset to 0 at each top-level decode entry point (per-item
      * budget: buffers are released between items, so the peak decoder buffer — not the
      * stream total — is what must be bounded, sec.C.8.3). Metered at the single
-     * chain-materialisation chokepoint {@link #decodeSite}.
+     * chain-materialisation chokepoint {@link #decodeSite}. Bounds PEAK MEMORY.
      */
     private long reconstitutedChainBytes = 0;
+
+    /**
+     * Ceiling (decode direction) on the schema-chain bytes re-materialised across the
+     * <em>whole input window</em> — {@code maxInputBytes ×
+     * STREAM_RECONSTITUTION_EXPANSION_FACTOR} (sec.C.8.1 {@code maxStreamReconstitutedBytes}).
+     * Bounds cumulative reconstitution WORK (CPU/GC), the residual the per-item ceiling
+     * leaves open (many items each under the per-item cap). One decode instance = one input
+     * window (the whole ≤{@code maxInputBytes} DER buffer), so this is a per-window bound
+     * with exactly one window per stream.
+     */
+    private final long maxStreamReconstitutedChainBytes;
+
+    /**
+     * Chain bytes re-materialised so far across the current input window (decode
+     * direction). Accumulates across ALL top-level items and is <em>never</em> reset per
+     * item — reset only at construction (window open). Metered at the same
+     * chain-materialisation chokepoint {@link #decodeSite} as the per-item counter. Bounds
+     * cumulative WORK, not peak memory (peak memory is the per-item counter's job); it does
+     * not gate buffer release, so it cannot increase peak memory (sec.C.8.3).
+     */
+    private long streamReconstitutedChainBytes = 0;
 
     /** One verified chain: the interned bytes and the parsed (leaf-first) records. */
     private record TableEntry(byte[] chainBytes, List<AtomicSerialSchemaRecord> records) {}
@@ -275,6 +345,37 @@ final class StreamSchemaDedup {
         this.encoding = encoding;
         this.maxReconstitutedChainBytes =
                 (long) maxInputBytes * RECONSTITUTION_EXPANSION_FACTOR;
+        this.maxStreamReconstitutedChainBytes =
+                (long) maxInputBytes * STREAM_RECONSTITUTION_EXPANSION_FACTOR;
+    }
+
+    /**
+     * The cumulative schema-chain bytes re-materialised so far across this input window
+     * (decode direction) — a test/diagnostic seam for the sec.C.8.3 measurement and the
+     * cumulative-work-bound conformance vectors. Not reset per item.
+     */
+    long streamReconstitutedChainBytes() {
+        return streamReconstitutedChainBytes;
+    }
+
+    /**
+     * The per-item schema-chain bytes re-materialised in the current/last top-level
+     * reconstitution (decode direction) — a test/diagnostic seam proving the per-item
+     * peak-memory bound resets each item while the cumulative-work counter accumulates.
+     * Reset to 0 at each top-level entry point.
+     */
+    long reconstitutedChainBytes() {
+        return reconstitutedChainBytes;
+    }
+
+    /** The per-item peak-memory ceiling (sec.C.8.1 {@code maxReconstitutedBytes}); test seam. */
+    long maxReconstitutedChainBytes() {
+        return maxReconstitutedChainBytes;
+    }
+
+    /** The cumulative per-window work ceiling (sec.C.8.1 {@code maxStreamReconstitutedBytes}); test seam. */
+    long maxStreamReconstitutedChainBytes() {
+        return maxStreamReconstitutedChainBytes;
     }
 
     /** Number of distinct chains currently tabled (test/diagnostic seam). */
@@ -317,7 +418,9 @@ final class StreamSchemaDedup {
      */
     byte[] reconstituteTopLevelAtomic(byte[] streamRecord) throws DerException {
         requireDirection(false);
-        reconstitutedChainBytes = 0;   // per-item budget (sec.C.8.3)
+        reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
+        // streamReconstitutedChainBytes is deliberately NOT reset here — it accumulates
+        // cumulative WORK across the whole input window (sec.C.8.1/C.8.3).
         return transformP1(streamRecord);
     }
 
@@ -335,7 +438,8 @@ final class StreamSchemaDedup {
     /** Decode-direction counterpart of {@link #dedupTopLevelArray}. */
     byte[] reconstituteTopLevelArray(byte[] arrayContent) throws DerException {
         requireDirection(false);
-        reconstitutedChainBytes = 0;   // per-item budget (sec.C.8.3)
+        reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
+        // streamReconstitutedChainBytes is deliberately NOT reset here (cumulative WORK).
         return transformTopLevelArray(arrayContent);
     }
 
@@ -977,17 +1081,40 @@ final class StreamSchemaDedup {
      * @param chainByteLen the chain bytes about to be re-materialised at this decode site
      */
     private void meterReconstitution(int chainByteLen) throws DerException {
-        long next = reconstitutedChainBytes + chainByteLen;
-        if (next > maxReconstitutedChainBytes) {
+        // Per-item ceiling (peak memory). Fires first on a single-item bomb because the
+        // per-item budget is the tighter of the two (factor 8 ≤ 64), so the two ceilings
+        // compose with no gap and no double-reject.
+        long nextItem = reconstitutedChainBytes + chainByteLen;
+        if (nextItem > maxReconstitutedChainBytes) {
             throw new DerException(
-                    "StreamSchemaDedup: reconstituted schema-chain bytes " + next
+                    "StreamSchemaDedup: reconstituted schema-chain bytes " + nextItem
                     + " would exceed maxReconstitutedBytes (" + maxReconstitutedChainBytes
                     + " = maxInputBytes × " + RECONSTITUTION_EXPANSION_FACTOR
                     + ", inclusive; sec.C.8.1) — a chainRef fan-out decompression bomb"
                     + " (each ~40-byte reference re-materialises up to maxChainBytes);"
                     + " rejected at the reference site before allocation (sec.C.8.3)");
         }
-        reconstitutedChainBytes = next;
+        // Cumulative per-input-window ceiling (total reconstitution WORK). Catches the
+        // residual the per-item ceiling leaves open: many top-level items each under the
+        // per-item cap but summing to unbounded array-copy/GC churn across the window.
+        // Math.addExact is defensive (values are far from overflow: bound ~1 GiB, chain
+        // ≤ maxChainBytes) and pins the fail-closed contract even under a misconfiguration.
+        long nextStream = Math.addExact(streamReconstitutedChainBytes, (long) chainByteLen);
+        if (nextStream > maxStreamReconstitutedChainBytes) {
+            throw new DerException(
+                    "StreamSchemaDedup: cumulative reconstituted schema-chain bytes " + nextStream
+                    + " would exceed maxStreamReconstitutedBytes ("
+                    + maxStreamReconstitutedChainBytes + " = maxInputBytes × "
+                    + STREAM_RECONSTITUTION_EXPANSION_FACTOR + ", inclusive; sec.C.8.1) — a"
+                    + " chainRef fan-out work-amplification bomb spread across many top-level"
+                    + " items (each under maxReconstitutedBytes, cumulatively unbounded);"
+                    + " rejected at the reference site before allocation (sec.C.8.3)");
+        }
+        // Both checks passed — commit both counters. No partial/poisoned state on breach
+        // (G6): neither counter advances when either ceiling would be exceeded, and the
+        // stream is dead (codec discarded) regardless.
+        reconstitutedChainBytes = nextItem;
+        streamReconstitutedChainBytes = nextStream;
     }
 
     // =========================================================================
