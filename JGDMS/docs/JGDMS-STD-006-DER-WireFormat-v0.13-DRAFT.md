@@ -1141,8 +1141,10 @@ obligation.
 |---|---|---|
 | `maxFields` | 65535 | `AtomicSerialSchemaRecord.fields`, `EntrySchemaRecord.fields`, `EntryRecord.fieldValues`, `EntryTemplate.fieldValues` |
 | `maxCollection` | 65536 | §7.6 collection-field element/entry count — the six discipline types `CanonicalSet`/`CanonicalMultiset`/`CanonicalMap`/`OrderedSetField`/`ListField`/`OrderedMapField` (`SIZE(0..maxCollection)`, inclusive; per-type schemas MAY declare tighter bounds). Enforced by **every** decoder, JVM and non-JVM (built codec, branch der-collection-codec). |
-| `maxStackFrames` | 2048 | `ThrowableRecord.stackTrace` |
-| `maxCauseDepth` | 64 | `ThrowableRecord.cause` nesting (closes part of open item on §7.6) |
+| `maxStackFrames` | 2048 | `ThrowableRecord.stackTrace` — **RATIFIED (Peter, 2026-07-24, item 21)** |
+| `maxCauseDepth` | **12** | `ThrowableRecord.cause` nesting — **RATIFIED (Peter, 2026-07-24, item 21; was proposed 64)**: under the nested-`@AtomicSerial` carrier realization (`DerThrowableForm`) each cause level consumes one codec nesting level and `MAX_NESTING`=16 makes 64 structurally unreachable; a consistency test pins `maxCauseDepth + 2 ≤ MAX_NESTING`. Capture truncates with an explicit marker (boundary class + message preserved); decode rejects over-ceiling wire fail-secure |
+| `maxSuppressedPerNode` | 32 | `ThrowableRecord.suppressed` per node — **RATIFIED (Peter, 2026-07-24, item 21)** |
+| `maxThrowableNodes` | 128 | total nodes per carried fault tree — **RATIFIED (Peter, 2026-07-24, item 21)**; carrier `className` additionally bounded 1..2048 octets |
 | `maxGroups` | 128 | discovery `groups` sequences (§7.7.7, §7.7.8) |
 | `maxKnownServiceIds` | 256 | `MulticastRequestRecord.knownServiceIds` (datagram-bounded anyway) |
 | `maxOperations` | 1024 | `ServiceSpecRecord.operations` |
@@ -1180,7 +1182,9 @@ fallback.
 maxFields          INTEGER ::= 65535
 maxCollection      INTEGER ::= 65536
 maxStackFrames     INTEGER ::= 2048
-maxCauseDepth      INTEGER ::= 64
+maxCauseDepth      INTEGER ::= 12   -- ratified 2026-07-24 (item 21); see §4.5 table note
+maxSuppressedPerNode INTEGER ::= 32
+maxThrowableNodes  INTEGER ::= 128
 maxGroups          INTEGER ::= 128
 maxKnownServiceIds INTEGER ::= 256
 maxOperations      INTEGER ::= 1024
@@ -2128,8 +2132,18 @@ constructor runs, with attacker-supplied arguments" shape the format exists to r
   (§3.12, §4.5); `stackTrace` by `maxStackFrames`; `suppressed[]` count by
   `maxCollection`.
 
-The bound numbers themselves (`maxStackFrames`=2048, `maxCauseDepth`=64, §4.5; the
-`suppressed[]`/`maxCollection` cap) still need confirming (open item 21).
+The bound numbers are **RATIFIED (Peter, 2026-07-24 — open item 21 CLOSED)**:
+`maxStackFrames`=2048, `maxCauseDepth`=12, `maxSuppressedPerNode`=32,
+`maxThrowableNodes`=128 (§4.5 table).
+
+**Realization note (2026-07-24, post-review):** the invocation-layer fault carrier
+(`org.apache.river.api.io.DerThrowableForm`, applied at the
+`AtomicDerInvocationDispatcher.marshalThrow`/`unmarshalThrow` seam) realizes this
+section's RATIFIED `ThrowableRecord` **field set** (className/message/stackTrace/
+suppressed/cause; the five gadget-adjacent fields excluded) in **`@AtomicSerial`
+schema-record framing** rather than the hand-authored ASN.1 `SEQUENCE` above — the
+closed DER registry continues to defer `Throwable` itself. The decoder never resolves
+the carried class name; typed rebuild happens only at the trusted client seam.
 
 **[OPEN → mostly RESOLVED] for §7.6 as a whole:**
 - **Complete substituted-type set (RESOLVED from source, with two additions).** Against
@@ -2157,8 +2171,8 @@ The bound numbers themselves (`maxStackFrames`=2048, `maxCauseDepth`=64, §4.5; 
 - `Throwable`: **RATIFIED 2026-07-06** — the bounded `ThrowableRecord` safe subset
   (name/message/stackTrace/suppressed/cause); reflective-constructor reconstruction and
   the `clazz`/`perm`/`classname`/`length`/`eof` fields are **excluded** (gadget-adjacent;
-  see the `Throwable` note above). Only the §4.5 bound *numbers*
-  (`maxStackFrames`/`maxCauseDepth`/`maxCollection`) remain to confirm (open item 21).
+  see the `Throwable` note above). The §4.5 bound numbers are RATIFIED
+  (Peter, 2026-07-24 — open item 21 CLOSED; see the realization note above).
 
 ### 7.6.1 Registered DER `@Serializer` set — wire-affecting, governed, NOT a decode gate (NORMATIVE)
 
