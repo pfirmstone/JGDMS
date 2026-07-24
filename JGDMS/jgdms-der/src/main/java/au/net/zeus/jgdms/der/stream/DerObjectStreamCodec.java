@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.stream;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
@@ -272,6 +273,14 @@ final class DerObjectStreamCodec {
      */
     private StreamSchemaDedup decodeDedup;
 
+    /**
+     * The stream's DoS input cap ({@link DerInputLimits#maxInputBytes()}), threaded into
+     * the decode-side {@link StreamSchemaDedup} to scale its absolute reconstitution
+     * ceiling (sec.C.8.1 {@code maxReconstitutedBytes}). Defaults to the JVM-wide value
+     * when the caller does not supply one.
+     */
+    private final int maxInputBytes;
+
     // =========================================================================
     // Construction
     // =========================================================================
@@ -287,10 +296,23 @@ final class DerObjectStreamCodec {
     /**
      * Creates a fresh codec, selecting between the object-stream format
      * ({@code streamFormat = true}) and the record-level capture context
-     * ({@code streamFormat = false} — see {@link #streamFormat}).
+     * ({@code streamFormat = false} — see {@link #streamFormat}), with the JVM-wide
+     * default input cap.
      */
     DerObjectStreamCodec(boolean streamFormat) {
+        this(streamFormat, DerInputLimits.DEFAULT.maxInputBytes());
+    }
+
+    /**
+     * Creates a fresh codec with an explicit input cap (threaded to the decode-side
+     * reconstitution ceiling, sec.C.8.1).
+     *
+     * @param streamFormat  object-stream format vs. record-level capture context
+     * @param maxInputBytes the stream's DoS input cap ({@link DerInputLimits#maxInputBytes()})
+     */
+    DerObjectStreamCodec(boolean streamFormat, int maxInputBytes) {
         this.streamFormat = streamFormat;
+        this.maxInputBytes = maxInputBytes;
         if (streamFormat) {
             // sec.C.5.2: the version TLV is the FIRST TLV of every stream — seeded
             // before any item or positional primitive can be buffered. (Harmless for
@@ -356,7 +378,7 @@ final class DerObjectStreamCodec {
             // unversioned form and no fallback. Consuming it here also creates this
             // stream's decode-side dedup table (sec.C.7.2: table created at stream open).
             consumeVersionOctet();
-            this.decodeDedup = new StreamSchemaDedup(false);
+            this.decodeDedup = new StreamSchemaDedup(false, maxInputBytes);
         }
     }
 

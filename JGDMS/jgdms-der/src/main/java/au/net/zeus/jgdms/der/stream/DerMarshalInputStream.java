@@ -139,7 +139,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
         byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
-        this.codec = new DerObjectStreamCodec(streamFormat);
+        this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes());
         this.codec.initReader(buf, decodeUnit, resolution);
     }
 
