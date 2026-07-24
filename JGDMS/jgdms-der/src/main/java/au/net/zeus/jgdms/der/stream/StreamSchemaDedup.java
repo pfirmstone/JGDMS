@@ -36,6 +36,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Per-stream schema-chain dedup for DER object streams — the STD-006 Appendix C
@@ -166,6 +168,51 @@ final class StreamSchemaDedup {
     /** Max sum of stored chain-byte lengths in one stream's table. */
     static final int MAX_DEDUP_TABLE_BYTES = 1_048_576;
 
+    // =========================================================================
+    // Reconstitution-ceiling expansion factors (sec.C.8.1, RATIFIED defaults
+    // 8/64 — Peter 2026-07-24; deployment-tunable via system property)
+    // =========================================================================
+
+    /** Package-scoped logger (mirrors the sibling {@code der.object}/{@code der.serial} loggers). */
+    private static final Logger LOGGER = Logger.getLogger("au.net.zeus.jgdms.der.stream");
+
+    /**
+     * System property overriding {@link #RECONSTITUTION_EXPANSION_FACTOR} (per-item
+     * peak-memory ceiling factor). Property namespace mirrors this class's package, the
+     * same convention {@link DerInputLimits} uses for {@code au.net.zeus.jgdms.der.*}.
+     */
+    static final String PROP_RECONSTITUTION_FACTOR =
+            "au.net.zeus.jgdms.der.stream.reconstitutionFactor";
+
+    /**
+     * System property overriding {@link #STREAM_RECONSTITUTION_EXPANSION_FACTOR}
+     * (per-window cumulative-work ceiling factor). For large-schema/high-fan-out
+     * deployments where the false-reject ratio cancels {@code maxInputBytes} so only the
+     * factor moves the threshold (sec.C.8.1).
+     */
+    static final String PROP_STREAM_RECONSTITUTION_FACTOR =
+            "au.net.zeus.jgdms.der.stream.streamReconstitutionFactor";
+
+    /** Ratified default per-item factor (sec.C.8.1, Peter 2026-07-24). */
+    static final int DEFAULT_RECONSTITUTION_FACTOR = 8;
+
+    /** Ratified default per-window factor (sec.C.8.1, Peter 2026-07-24). */
+    static final int DEFAULT_STREAM_RECONSTITUTION_FACTOR = 64;
+
+    /**
+     * The largest value either factor may be set to. A factor at/above the ~1560×
+     * marginal {@code chainRef} amplification ({@code maxChainBytes}/~40 wire bytes)
+     * would raise the ceiling to (or past) the unmetered ~24 GiB bomb target — i.e.
+     * effectively DISABLE the fence (the exact "fat-finger to Integer.MAX" failure the
+     * cap exists to refuse). 1024 is a documented power-of-two ceiling comfortably below
+     * that: even at the maximum permitted factor the fence still bites (default 16 MiB ×
+     * 1024 = 16 GiB &lt; ~24 GiB bomb), and {@code maxInputBytes × 1024} cannot overflow
+     * {@code long} for any {@code int maxInputBytes}. A property value above this is
+     * treated as invalid and falls back to the ratified default (never accepted, never
+     * silently clamped up to a weaker-but-legal value).
+     */
+    static final int MAX_EXPANSION_FACTOR = 1024;
+
     /**
      * Multiplier applied to {@code maxInputBytes} to derive
      * {@link #maxReconstitutedChainBytes}, the absolute ceiling on the total
@@ -192,8 +239,17 @@ final class StreamSchemaDedup {
      * lowers it for a tighter posture tightens both. Factor 8 gives the default a 128 MiB
      * per-item budget — comfortable headroom over legitimate traffic, a bounded and
      * survivable peak buffer, and ~190x below the unmetered bomb target.
+     *
+     * <p><b>Deployment-tunable (sec.C.8.1).</b> Overridable via {@link
+     * #PROP_RECONSTITUTION_FACTOR}; read <em>once</em> at class init and hard-validated
+     * ({@link #resolveFactor}): a positive integer in {@code [1, }{@link
+     * #MAX_EXPANSION_FACTOR}{@code ]}, else the {@linkplain #DEFAULT_RECONSTITUTION_FACTOR
+     * ratified default} with a warning (an invalid/hostile value can never weaken the
+     * fence into uselessness). The composition invariant {@code
+     * STREAM_RECONSTITUTION_EXPANSION_FACTOR >= RECONSTITUTION_EXPANSION_FACTOR} is
+     * enforced fail-closed at class init ({@link #checkCompositionInvariant}).
      */
-    static final int RECONSTITUTION_EXPANSION_FACTOR = 8;
+    static final int RECONSTITUTION_EXPANSION_FACTOR;
 
     /**
      * Multiplier applied to {@code maxInputBytes} to derive
@@ -241,8 +297,114 @@ final class StreamSchemaDedup {
      * {@code maxInputBytes} so it tracks the deployment's own DoS posture. Necessarily {@code
      * ≥ RECONSTITUTION_EXPANSION_FACTOR} (64 ≥ 8) so the two ceilings compose without a gap:
      * one item can never breach the cumulative bound before the per-item bound fires.
+     *
+     * <p><b>Deployment-tunable (sec.C.8.1).</b> Overridable via {@link
+     * #PROP_STREAM_RECONSTITUTION_FACTOR}; same read-once/validate contract as {@link
+     * #RECONSTITUTION_EXPANSION_FACTOR}, additionally bound by the composition invariant
+     * (must be {@code >=} the per-item factor).
      */
-    static final int STREAM_RECONSTITUTION_EXPANSION_FACTOR = 64;
+    static final int STREAM_RECONSTITUTION_EXPANSION_FACTOR;
+
+    static {
+        // Read-once (class init), fail-safe per factor, fail-closed on the composition
+        // invariant. A misconfigured property can NEVER disable/gap the ceilings: each
+        // factor is clamped to a validated positive range (invalid -> ratified default),
+        // and an inverted per-window<per-item pair refuses to load (sec.C.8.1).
+        int itemFactor = resolveFactor(PROP_RECONSTITUTION_FACTOR, DEFAULT_RECONSTITUTION_FACTOR);
+        int streamFactor =
+                resolveFactor(PROP_STREAM_RECONSTITUTION_FACTOR, DEFAULT_STREAM_RECONSTITUTION_FACTOR);
+        checkCompositionInvariant(itemFactor, streamFactor);
+        RECONSTITUTION_EXPANSION_FACTOR = itemFactor;
+        STREAM_RECONSTITUTION_EXPANSION_FACTOR = streamFactor;
+    }
+
+    /**
+     * Reads and validates one expansion-factor system property once (class init). Returns
+     * a value guaranteed in {@code [1, }{@link #MAX_EXPANSION_FACTOR}{@code ]}: the parsed
+     * value when it is a positive integer within range, otherwise the ratified {@code def}
+     * (with a {@code WARNING}). Never returns an out-of-range or non-positive value, so the
+     * fence can never be weakened into uselessness by a fat-fingered or hostile property; a
+     * {@link SecurityException} reading the property is treated as absence (default).
+     *
+     * <p>Package-private for direct unit testing of the property→factor wiring.
+     */
+    static int resolveFactor(String propName, int def) {
+        String raw;
+        try {
+            raw = System.getProperty(propName);
+        } catch (SecurityException e) {
+            LOGGER.log(Level.WARNING,
+                    "Cannot read system property {0} ({1}); using ratified default {2}",
+                    new Object[] { propName, e.toString(), def });
+            return def;
+        }
+        return parseFactor(raw, def, propName);
+    }
+
+    /**
+     * Pure validation of one factor's raw string against the ratified {@code def}
+     * (testable without touching system state): {@code null} (unset) → {@code def};
+     * non-numeric / {@code <= 0} / {@code >} {@link #MAX_EXPANSION_FACTOR} → {@code def}
+     * with a {@code WARNING}. The result is always in {@code [1, MAX_EXPANSION_FACTOR]}
+     * (the default itself always is), so the ceiling {@code maxInputBytes × factor} is
+     * always bounded and never overflows {@code long}.
+     */
+    static int parseFactor(String raw, int def, String propName) {
+        if (raw == null) {
+            return def;
+        }
+        int v;
+        try {
+            v = Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING,
+                    "Non-numeric value \"{0}\" for {1}; using ratified default {2}",
+                    new Object[] { raw, propName, def });
+            return def;
+        }
+        if (v <= 0) {
+            LOGGER.log(Level.WARNING,
+                    "Non-positive value {0} for {1} would disable the reconstitution ceiling;"
+                    + " using ratified default {2}",
+                    new Object[] { v, propName, def });
+            return def;
+        }
+        if (v > MAX_EXPANSION_FACTOR) {
+            LOGGER.log(Level.WARNING,
+                    "Value {0} for {1} exceeds the maximum permitted factor {2} (would push the"
+                    + " ceiling toward the unmetered bomb target and effectively disable the"
+                    + " fence); using ratified default {3}",
+                    new Object[] { v, propName, MAX_EXPANSION_FACTOR, def });
+            return def;
+        }
+        return v;
+    }
+
+    /**
+     * Enforces the composition invariant {@code streamFactor >= itemFactor} fail-closed
+     * (sec.C.8.1): the per-window cumulative ceiling MUST NOT sit below the per-item
+     * ceiling, or the bound the bomb-fix relies on reopens (one top-level item could
+     * breach the cumulative bound before the per-item bound fires — a gap between the two
+     * fences). Unlike a single fat-fingered value (which has an obviously-safe recovery,
+     * the ratified default), an inverted-but-individually-valid pair has no silent
+     * recovery that respects the operator's stated numbers, so this refuses to start with
+     * an actionable message rather than silently clamping or defaulting both.
+     *
+     * @throws IllegalStateException if {@code streamFactor < itemFactor}
+     */
+    static void checkCompositionInvariant(int itemFactor, int streamFactor) {
+        if (streamFactor < itemFactor) {
+            throw new IllegalStateException(
+                    "StreamSchemaDedup: reconstitution expansion factors violate the composition"
+                    + " invariant — streamReconstitutionFactor (" + streamFactor + ", "
+                    + PROP_STREAM_RECONSTITUTION_FACTOR + ") must be >= reconstitutionFactor ("
+                    + itemFactor + ", " + PROP_RECONSTITUTION_FACTOR + "). The per-window"
+                    + " cumulative ceiling (maxStreamReconstitutedBytes) must never be below the"
+                    + " per-item ceiling (maxReconstitutedBytes) or the DoS bounds gap reopens."
+                    + " Fix the two system properties so streamReconstitutionFactor >="
+                    + " reconstitutionFactor (defaults 64 >= 8).");
+        }
+    }
 
     // =========================================================================
     // SchemaChainRef arm tags (sec.C.5.1): both IMPLICIT primitive context tags.
@@ -342,11 +504,43 @@ final class StreamSchemaDedup {
      *                      (sec.C.8.1 {@code maxReconstitutedBytes})
      */
     StreamSchemaDedup(boolean encoding, int maxInputBytes) {
+        this(encoding, maxInputBytes,
+                RECONSTITUTION_EXPANSION_FACTOR, STREAM_RECONSTITUTION_EXPANSION_FACTOR);
+    }
+
+    /**
+     * Test seam: build with explicit (still hard-validated) factors, bypassing the
+     * class-init system-property read, so a test can exercise how a chosen factor moves
+     * the effective ceiling and the decode accept/reject boundary deterministically in one
+     * JVM. Applies the same range and composition-invariant validation the property path
+     * does, and the same overflow-checked ceiling derivation.
+     *
+     * @param encoding      encode ({@code true}) or decode ({@code false}) direction
+     * @param maxInputBytes the stream's DoS input cap
+     * @param itemFactor    per-item factor (must be in {@code [1, }{@link #MAX_EXPANSION_FACTOR}{@code ]})
+     * @param streamFactor  per-window factor (same range; must be {@code >= itemFactor})
+     */
+    StreamSchemaDedup(boolean encoding, int maxInputBytes, int itemFactor, int streamFactor) {
+        requireValidFactor(itemFactor, PROP_RECONSTITUTION_FACTOR);
+        requireValidFactor(streamFactor, PROP_STREAM_RECONSTITUTION_FACTOR);
+        checkCompositionInvariant(itemFactor, streamFactor);
         this.encoding = encoding;
+        // Math.multiplyExact keeps a large factor × maxInputBytes from overflowing to a
+        // small/negative ceiling (structurally impossible in the validated range —
+        // MAX_EXPANSION_FACTOR × Integer.MAX_VALUE < Long.MAX_VALUE — but pinned defensively).
         this.maxReconstitutedChainBytes =
-                (long) maxInputBytes * RECONSTITUTION_EXPANSION_FACTOR;
+                Math.multiplyExact((long) maxInputBytes, (long) itemFactor);
         this.maxStreamReconstitutedChainBytes =
-                (long) maxInputBytes * STREAM_RECONSTITUTION_EXPANSION_FACTOR;
+                Math.multiplyExact((long) maxInputBytes, (long) streamFactor);
+    }
+
+    /** Rejects a factor outside {@code [1, MAX_EXPANSION_FACTOR]} (the validated invariant). */
+    private static void requireValidFactor(int factor, String propName) {
+        if (factor <= 0 || factor > MAX_EXPANSION_FACTOR) {
+            throw new IllegalArgumentException(
+                    "StreamSchemaDedup: expansion factor " + factor + " for " + propName
+                    + " is out of range [1, " + MAX_EXPANSION_FACTOR + "]");
+        }
     }
 
     /**

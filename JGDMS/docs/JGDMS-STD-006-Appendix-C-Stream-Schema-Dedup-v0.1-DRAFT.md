@@ -955,17 +955,57 @@ encoder and decoder, JVM and non-JVM, enforces them identically.
 | `maxChainRecords` | 64 | `AtomicSerialSchemaRecord` count in one chain (`fullChain` content). Chains are class hierarchies; real JVM hierarchies are ≤ ~10 deep — 64 mirrors `maxCauseDepth`'s generosity without admitting pathological record floods. |
 | `maxChainBytes` | 65536 | Byte length of one `fullChain` content (`SIZE(1..maxChainBytes)`, §C.5.1). Typical chains measure hundreds of bytes (§C.10.2); 64 KiB accommodates `maxChainRecords` records of unusual width while capping single-chain allocation. |
 | `maxDedupTableBytes` | 1048576 | Sum of stored chain-byte lengths in one stream's table. Binds before `maxDistinctChainsPerStream × maxChainBytes` (16 MiB) can be reached; 1 MiB of *distinct* schema text in one stream is far beyond any legitimate workload. |
-| `maxReconstitutedBytes` **[RATIFIED — Peter, 2026-07-24]** (factor 8 tunable via system property) | `maxInputBytes × 8` (default 128 MiB) | **Absolute** ceiling on the total schema-chain bytes re-materialised while reconstituting **one** top-level item (decode direction) — bounds **peak memory** (the in-flight reconstituted buffer for the current item, released between `readObject` calls). A `chainRef` is ~40 wire bytes but re-materialises its interned chain (up to `maxChainBytes`) at *every* reference site — a marginal ~1560× per site (`maxChainBytes / 40`). None of the four bounds above caps reference-site **count** or total **reconstituted output**: `maxDistinctChainsPerStream`/`maxDedupTableBytes` bound *distinct/stored* chains (references are lookups, not insertions); `maxChainBytes` bounds a *single* chain; reference count is otherwise bounded only by `maxInputBytes`. Without this ceiling, `maxInputBytes` (default 16 MiB) of references packed into **one** item reconstitute ~24 GiB **before** base decode or class resolution — expanding ~1560× *inside* the decoder and structurally defeating the `maxInputBytes` DoS cap. It is deliberately **absolute** (a byte budget), not a ratio: dedup's purpose is that reconstituted output *exceeds* wire input (that expansion is the saving — a collection of thousands of same-typed elements sharing one chain legitimately expands ~30×), so an `output ≤ input` or fixed-ratio cap would reject legitimate traffic. The bomb is a difference of *magnitude*; the fence is a generous absolute budget (tied to the deployment's own `maxInputBytes` DoS posture) sized far above real payloads and far below OOM. |
-| `maxStreamReconstitutedBytes` **[RATIFIED — Peter, 2026-07-24]** (factor 64 tunable via system property — for large-schema/high-fan-out deployments, since the false-reject ratio cancels `maxInputBytes` and only the factor moves it) | `maxInputBytes × 64` (default 1 GiB) | Ceiling on the **cumulative** schema-chain bytes re-materialised across **every** top-level item of one **input window** (decode direction) — bounds cumulative reconstitution **WORK** (CPU/GC), the residual `maxReconstitutedBytes` leaves open. The per-item ceiling resets each item, so an attacker who keeps *every* item just under it but sends *many* items drives unbounded-in-constant array-copy/GC churn: `maxInputBytes` (16 MiB) of ~40-byte `chainRef`s spread across ~200 items reconstitutes ~24 GiB cumulatively — **memory-safe** (each item under the peak cap, buffers released between items) but a ~1560× **work-amplification** DoS on untrusted input. This ceiling fences that work. It is **per input window**, reset only at window open — which on the DER read path is **once per stream**: the entire DER input is eagerly buffered into a single `byte[]` bounded *once* by `maxInputBytes` (`DerInputLimits.readAllBytesBounded`) and decoded through one codec/dedup instance, then discarded. There is no periodic in-stream reset and no long-running DER stream (unlike `AtomicMarshalInputStream`, whose JOSS streams read incrementally over a long-lived connection and reset their counters at periodic `TC_RESET`/per-item boundaries), so exactly one window exists per stream and this bound **cannot reject a genuine long stream** — a DER stream is inherently finite (`≤ maxInputBytes` wire). *Measured* legitimate cumulative expansion of a dense same-schema stream (minimal-payload pure-`chainRef` packing, the worst-legit ratio) at the default 16 MiB window: **~102 MB for a 256 B chain (6.1×), ~204 MB for 512 B (12.2×), ~408 MB for 1 KiB (24.3×), ~816 MB for 2 KiB (48.6×)** — i.e. 9.5–76 % of the 1 GiB cap, with real chains (hundreds of bytes, §C.10.2) at the low end. Factor 64 clears realistic traffic with headroom and sits ~24× below the ~24 GiB bomb; deployments expecting large schemas (> ~2.7 KiB) at extreme fan-out may raise it. Necessarily `≥` the `maxReconstitutedBytes` factor (64 ≥ 8) so the two ceilings compose without a gap (one item cannot breach the cumulative bound before the per-item bound fires). Resetting the *work* counter per window never touches the *peak-memory* counter (`maxReconstitutedBytes`, a separate mechanism reset per item) or buffer release, so it cannot reintroduce OOM. |
+| `maxReconstitutedBytes` **[RATIFIED — Peter, 2026-07-24]** (factor 8 default; tunable via system property `au.net.zeus.jgdms.der.stream.reconstitutionFactor` — see the validation contract below the ASN.1 block) | `maxInputBytes × 8` (default 128 MiB) | **Absolute** ceiling on the total schema-chain bytes re-materialised while reconstituting **one** top-level item (decode direction) — bounds **peak memory** (the in-flight reconstituted buffer for the current item, released between `readObject` calls). A `chainRef` is ~40 wire bytes but re-materialises its interned chain (up to `maxChainBytes`) at *every* reference site — a marginal ~1560× per site (`maxChainBytes / 40`). None of the four bounds above caps reference-site **count** or total **reconstituted output**: `maxDistinctChainsPerStream`/`maxDedupTableBytes` bound *distinct/stored* chains (references are lookups, not insertions); `maxChainBytes` bounds a *single* chain; reference count is otherwise bounded only by `maxInputBytes`. Without this ceiling, `maxInputBytes` (default 16 MiB) of references packed into **one** item reconstitute ~24 GiB **before** base decode or class resolution — expanding ~1560× *inside* the decoder and structurally defeating the `maxInputBytes` DoS cap. It is deliberately **absolute** (a byte budget), not a ratio: dedup's purpose is that reconstituted output *exceeds* wire input (that expansion is the saving — a collection of thousands of same-typed elements sharing one chain legitimately expands ~30×), so an `output ≤ input` or fixed-ratio cap would reject legitimate traffic. The bomb is a difference of *magnitude*; the fence is a generous absolute budget (tied to the deployment's own `maxInputBytes` DoS posture) sized far above real payloads and far below OOM. |
+| `maxStreamReconstitutedBytes` **[RATIFIED — Peter, 2026-07-24]** (factor 64 default; tunable via system property `au.net.zeus.jgdms.der.stream.streamReconstitutionFactor` — for large-schema/high-fan-out deployments, since the false-reject ratio cancels `maxInputBytes` and only the factor moves it; see the validation contract below the ASN.1 block) | `maxInputBytes × 64` (default 1 GiB) | Ceiling on the **cumulative** schema-chain bytes re-materialised across **every** top-level item of one **input window** (decode direction) — bounds cumulative reconstitution **WORK** (CPU/GC), the residual `maxReconstitutedBytes` leaves open. The per-item ceiling resets each item, so an attacker who keeps *every* item just under it but sends *many* items drives unbounded-in-constant array-copy/GC churn: `maxInputBytes` (16 MiB) of ~40-byte `chainRef`s spread across ~200 items reconstitutes ~24 GiB cumulatively — **memory-safe** (each item under the peak cap, buffers released between items) but a ~1560× **work-amplification** DoS on untrusted input. This ceiling fences that work. It is **per input window**, reset only at window open — which on the DER read path is **once per stream**: the entire DER input is eagerly buffered into a single `byte[]` bounded *once* by `maxInputBytes` (`DerInputLimits.readAllBytesBounded`) and decoded through one codec/dedup instance, then discarded. There is no periodic in-stream reset and no long-running DER stream (unlike `AtomicMarshalInputStream`, whose JOSS streams read incrementally over a long-lived connection and reset their counters at periodic `TC_RESET`/per-item boundaries), so exactly one window exists per stream and this bound **cannot reject a genuine long stream** — a DER stream is inherently finite (`≤ maxInputBytes` wire). *Measured* legitimate cumulative expansion of a dense same-schema stream (minimal-payload pure-`chainRef` packing, the worst-legit ratio) at the default 16 MiB window: **~102 MB for a 256 B chain (6.1×), ~204 MB for 512 B (12.2×), ~408 MB for 1 KiB (24.3×), ~816 MB for 2 KiB (48.6×)** — i.e. 9.5–76 % of the 1 GiB cap, with real chains (hundreds of bytes, §C.10.2) at the low end. Factor 64 clears realistic traffic with headroom and sits ~24× below the ~24 GiB bomb; deployments expecting large schemas (> ~2.7 KiB) at extreme fan-out may raise it. Necessarily `≥` the `maxReconstitutedBytes` factor (64 ≥ 8) so the two ceilings compose without a gap (one item cannot breach the cumulative bound before the per-item bound fires). Resetting the *work* counter per window never touches the *peak-memory* counter (`maxReconstitutedBytes`, a separate mechanism reset per item) or buffer release, so it cannot reintroduce OOM. |
 
 ```asn1
 maxDistinctChainsPerStream   INTEGER ::= 256
 maxChainRecords              INTEGER ::= 64
 maxChainBytes                INTEGER ::= 65536
 maxDedupTableBytes           INTEGER ::= 1048576
-maxReconstitutedBytes        INTEGER ::= maxInputBytes * 8    -- absolute per-item; default 134217728
-maxStreamReconstitutedBytes  INTEGER ::= maxInputBytes * 64   -- cumulative per input window; default 1073741824
+maxReconstitutedBytes        INTEGER ::= maxInputBytes * reconstitutionFactor        -- absolute per-item; factor default 8  -> default 134217728
+maxStreamReconstitutedBytes  INTEGER ::= maxInputBytes * streamReconstitutionFactor  -- cumulative per input window; factor default 64 -> default 1073741824
 ```
+
+**Reconstitution-factor tunability — validation contract [RATIFIED — Peter, 2026-07-24].**
+Only the two reconstitution *factors* are deployment-tunable (the four table-ceiling
+constants above are fixed admissibility bounds). The false-reject ratio cancels
+`maxInputBytes` (a large-schema/high-fan-out deployment that legitimately trips
+`maxStreamReconstitutedBytes` cannot recover by raising `maxInputBytes` — that lifts the
+window proportionally, leaving the ratio unchanged; only the *factor* moves the
+threshold), so each factor is a first-class deployment knob. On the JVM they are the
+system properties `au.net.zeus.jgdms.der.stream.reconstitutionFactor` (per-item, default
+`8`) and `au.net.zeus.jgdms.der.stream.streamReconstitutionFactor` (per-window, default
+`64`) — the property namespace mirrors the stream-layer package, matching the
+`au.net.zeus.jgdms.der.*` convention `DerInputLimits` already uses for `maxInputBytes`.
+A conformant implementation on any platform exposing an equivalent knob MUST apply the
+same rules; a factor is **read once** (at codec/class initialisation, never per-decode)
+and hard-validated so a misconfigured or hostile value can never disable or gap the
+ceilings:
+
+1. **Bounded positive range.** Each factor MUST be an integer in `[1, 1024]`. The upper
+   bound `1024` is a documented ceiling below the ~1560× marginal `chainRef`
+   amplification (`maxChainBytes` / ~40 wire bytes): a factor at/above that would raise
+   the ceiling to (or past) the unmetered ~24 GiB bomb target and effectively disable the
+   fence — the exact "fat-finger to `Integer.MAX`" failure this cap refuses. Even at the
+   maximum permitted factor the fence still bites (default 16 MiB × 1024 = 16 GiB < ~24
+   GiB), and `maxInputBytes × 1024` cannot overflow a signed 64-bit ceiling for any
+   32-bit `maxInputBytes`.
+2. **Invalid value → ratified default (fail-safe), never unbounded.** A non-numeric,
+   `≤ 0`, or `> 1024` value (or an unreadable property) falls back to the ratified default
+   (`8` / `64`) with a `WARNING` — matching `DerInputLimits`'s fail-safe-to-default
+   convention. The default is always in range and always satisfies the invariant below, so
+   an invalid value can never silently become "unbounded" or weaken the fence.
+3. **Composition invariant `streamReconstitutionFactor ≥ reconstitutionFactor`,
+   fail-closed.** The per-window cumulative ceiling MUST NOT sit below the per-item
+   ceiling (`64 ≥ 8` for the defaults), or the gap the bomb-fix relies on reopens (one
+   top-level item could breach the cumulative bound before the per-item bound fires).
+   Unlike a single fat-fingered value — which has an obviously-safe recovery (the ratified
+   default) — an inverted-but-individually-valid pair has no silent recovery that respects
+   the operator's stated numbers, so a violating configuration **refuses to start** with an
+   actionable message rather than silently clamping or defaulting both. (`resolveFactor` /
+   `parseFactor` / `checkCompositionInvariant` in `StreamSchemaDedup`; the ceiling itself
+   is derived with a checked multiply.)
 
 Existing bounds continue to apply unchanged and are not restated as new obligations:
 per-record `className` `SIZE(1..1024)`, `maxFields` 65535 (§4.5), the stream-level
@@ -1062,7 +1102,10 @@ completed structure:
       only at window open, accumulating across **all** items, because the residual DoS
       the per-item reset leaves open is total CPU/GC WORK, not peak memory (many items
       each under the per-item cap but summing to unbounded array-copy churn). The cap is
-      set with generous headroom (factor 64 vs the per-item factor 8) precisely so it
+      set with generous headroom (factor 64 vs the per-item factor 8 by default — both
+      deployment-tunable within `[1, 1024]` under the §C.8.1 validation contract, with the
+      invariant `streamReconstitutionFactor ≥ reconstitutionFactor` enforced fail-closed so
+      this headroom can never invert) precisely so it
       does **not** reject a legitimate long stream: a *tight* (per-item-sized) cumulative
       counter would, but a generous one bounds the attacker's work-amplification while
       clearing the measured legitimate cumulative expansion (§C.8.1) by a wide margin. On
