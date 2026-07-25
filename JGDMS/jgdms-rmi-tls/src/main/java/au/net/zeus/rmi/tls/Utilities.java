@@ -258,6 +258,18 @@ class Utilities {
 	}
     }    
 
+    /**
+     * Normalizes a key algorithm name so that the JSSE key type and an X.509
+     * certificate's public-key algorithm compare equal.  JSSE requests
+     * elliptic-curve aliases under the key type "ECDSA" (the signature
+     * algorithm), while an EC public key reports its algorithm as "EC"; the
+     * two spellings must be treated as equivalent.  All other algorithm names
+     * pass through unchanged.  Mirrors net.jini.jeri.ssl.Utilities.
+     */
+    static String normalizeKeyAlgorithm(String algorithm) {
+	return "EC".equals(algorithm) ? "ECDSA" : algorithm;
+    }
+
     /** Same as equals(), but allows either argument to be null */
     static boolean safeEquals(Object x, Object y) {
 	return (x == null) ? y == null : x.equals(y);

@@ -272,7 +272,7 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
         @Override
         public Thread newThread(Runnable r) {
             Thread t = AccessController.doPrivileged(
-                new org.apache.river.thread.NewThreadAction(r, "Reference collection cleaner", false));
+                new org.apache.river.thread.NewThreadAction(r, "Reference collection cleaner", true));
             t.setPriority(Thread.MAX_PRIORITY);
             t.setContextClassLoader(null);
             return t;

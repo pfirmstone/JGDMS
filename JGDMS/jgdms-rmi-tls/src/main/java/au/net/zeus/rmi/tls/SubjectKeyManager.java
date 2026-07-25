@@ -133,8 +133,8 @@ abstract class SubjectKeyManager extends FilterX509TrustManager implements X509K
       	throws GeneralSecurityException
     {
 	X509Certificate head = firstX509Cert(chain);
-	String certKeyType = head.getPublicKey().getAlgorithm();
-	if (!certKeyType.equals(keyType)) {
+	String certKeyType = normalizeKeyAlgorithm(head.getPublicKey().getAlgorithm());
+	if (!certKeyType.equals(normalizeKeyAlgorithm(keyType))) {
 	    return null;
 	}
 	Subject subject = getSubject();
