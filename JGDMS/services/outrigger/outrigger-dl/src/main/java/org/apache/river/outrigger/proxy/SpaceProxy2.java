@@ -74,7 +74,7 @@ import org.apache.river.landlord.LandlordLease;
 // @see OutriggerSpace
 @AtomicSerial
 public abstract class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
-			     ProxyAccessor
+			     ProxyAccessor, FilteredJavaSpace
 {
     /**
      * The remote server this proxy works with.
@@ -845,9 +845,150 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 			     long maxEntries)
 	throws RemoteException, TransactionException
     {
-	final MatchSetData msd = 
+	final MatchSetData msd =
 	    space.contents(repFor(tmpls, "tmpls", entryFormat), txn, leaseDuration, maxEntries);
 	return new MatchSetProxy(msd, this, space, tmpls);
+    }
+
+    /* ======================================================================
+     * FilteredJavaSpace — CEL predicate pushdown (SOW Part B, unit B1).
+     *
+     * These mirror the unfiltered operations above but thread an explicit
+     * {@code byte[] filter} (a canonical FilterEnvelope) through to the
+     * server's filtered OutriggerServer overloads. The server admits the
+     * filter before matching and fails LOUDLY (FilterRejectedException) on any
+     * rejection; this proxy never downgrades a filtered call to an unfiltered
+     * one. A {@code null} filter is a caller error (NullPointerException) — use
+     * the ordinary JavaSpace/TupleSpace methods for an unfiltered query.
+     * ==================================================================== */
+
+    public Entry read(Entry tmpl, Transaction txn, long timeout, byte[] filter)
+	throws UnusableEntryException, TransactionException,
+	       InterruptedException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	final long endTime = calcEndTime(timeout);
+	long remaining = timeout;
+	OutriggerServer.QueryCookie queryCookie = null;
+	do {
+	    final long serverTimeout = Math.min(remaining, maxServerQueryTimeout);
+	    logQuery("read(filtered)", serverTimeout, queryCookie, remaining);
+	    final Object rslt =
+		space.read(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie, filter);
+	    if (rslt == null) {
+		throw new AssertionError("space.read(filtered) returned null");
+	    } else if (rslt instanceof EntryRep) {
+		return entryFrom((EntryRep)rslt, tmpl);
+	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
+		queryCookie = (OutriggerServer.QueryCookie)rslt;
+	    } else {
+		throw new AssertionError("Unexpected return type from space.read(filtered)");
+	    }
+	    remaining = endTime - System.currentTimeMillis();
+	} while (remaining > 0);
+	return null;
+    }
+
+    public Entry readIfExists(Entry tmpl, Transaction txn, long timeout, byte[] filter)
+	throws UnusableEntryException, TransactionException,
+	       InterruptedException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	final long endTime = calcEndTime(timeout);
+	long remaining = timeout;
+	OutriggerServer.QueryCookie queryCookie = null;
+	do {
+	    final long serverTimeout = Math.min(remaining, maxServerQueryTimeout);
+	    logQuery("readIfExists(filtered)", serverTimeout, queryCookie, remaining);
+	    final Object rslt =
+		space.readIfExists(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie, filter);
+	    if (rslt == null) {
+		return null;
+	    } else if (rslt instanceof EntryRep) {
+		return entryFrom((EntryRep)rslt, tmpl);
+	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
+		queryCookie = (OutriggerServer.QueryCookie)rslt;
+	    } else {
+		throw new AssertionError("Unexpected return type from space.readIfExists(filtered)");
+	    }
+	    remaining = endTime - System.currentTimeMillis();
+	} while (remaining > 0);
+	return null;
+    }
+
+    public Entry take(Entry tmpl, Transaction txn, long timeout, byte[] filter)
+	throws UnusableEntryException, TransactionException,
+	       InterruptedException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	final long endTime = calcEndTime(timeout);
+	long remaining = timeout;
+	OutriggerServer.QueryCookie queryCookie = null;
+	do {
+	    final long serverTimeout = Math.min(remaining, maxServerQueryTimeout);
+	    logQuery("take(filtered)", serverTimeout, queryCookie, remaining);
+	    final Object rslt =
+		space.take(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie, filter);
+	    if (rslt == null) {
+		throw new AssertionError("space.take(filtered) returned null");
+	    } else if (rslt instanceof EntryRep) {
+		return entryFrom((EntryRep)rslt, tmpl);
+	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
+		queryCookie = (OutriggerServer.QueryCookie)rslt;
+	    } else {
+		throw new AssertionError("Unexpected return type from space.take(filtered)");
+	    }
+	    remaining = endTime - System.currentTimeMillis();
+	} while (remaining > 0);
+	return null;
+    }
+
+    public Entry takeIfExists(Entry tmpl, Transaction txn, long timeout, byte[] filter)
+	throws UnusableEntryException, TransactionException,
+	       InterruptedException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	final long endTime = calcEndTime(timeout);
+	long remaining = timeout;
+	OutriggerServer.QueryCookie queryCookie = null;
+	do {
+	    final long serverTimeout = Math.min(remaining, maxServerQueryTimeout);
+	    logQuery("takeIfExists(filtered)", serverTimeout, queryCookie, remaining);
+	    final Object rslt =
+		space.takeIfExists(repFor(tmpl, entryFormat), txn, serverTimeout, queryCookie, filter);
+	    if (rslt == null) {
+		return null;
+	    } else if (rslt instanceof EntryRep) {
+		return entryFrom((EntryRep)rslt, tmpl);
+	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
+		queryCookie = (OutriggerServer.QueryCookie)rslt;
+	    } else {
+		throw new AssertionError("Unexpected return type from space.takeIfExists(filtered)");
+	    }
+	    remaining = endTime - System.currentTimeMillis();
+	} while (remaining > 0);
+	return null;
+    }
+
+    public EventRegistration notify(Entry tmpl, Transaction txn,
+	    RemoteEventListener listener, long lease,
+	    MarshalledInstance handback, byte[] filter)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	return space.notify(repFor(tmpl, entryFormat), txn, listener, lease, handback, filter);
+    }
+
+    public EventRegistration registerForAvailabilityEvent(
+	    Collection tmpls, Transaction txn, boolean visibilityOnly,
+	    RemoteEventListener listener, long leaseDuration,
+	    MarshalledInstance handback, byte[] filter)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	return space.registerForAvailabilityEvent(
+	    repFor(tmpls, "tmpls", entryFormat), txn, visibilityOnly, listener,
+	    leaseDuration, handback, filter);
     }
 
     /* We break up lease creation into two methods. newLease takes

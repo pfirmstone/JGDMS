@@ -968,6 +968,22 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
+     * Returns a fresh copy of this rep's canonical {@code EntryRepV2Body} DER
+     * bytes (the whole-entry wire body), or an empty array for the schema-less
+     * match-any stand-in. Used by the server-side CEL filter admission seam
+     * (SOW Part&nbsp;B, unit&nbsp;B1) to derive the template's v2 schema chain
+     * class-free from its own wire bytes — the server never loads the entry
+     * class. A zero-length result signals a schema-less template (match-any or
+     * a null client template), for which a filter is verified schema-lessly.
+     *
+     * @return a copy of the DER body bytes (never {@code null})
+     */
+    public byte[] bodyBytes() {
+	final byte[] b = body;
+	return (b == null) ? new byte[0] : b.clone();
+    }
+
+    /**
      * @return the array names of superclasses of this entry type.
      */
     public String[] superclasses() {
