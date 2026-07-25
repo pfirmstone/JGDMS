@@ -917,6 +917,10 @@ header) and is cleaner-aligned with the 4.0.0 "no Java Serialization" thesis.
   - `[3]` String (UTF8String), `[5]` `byte[]` (OCTET STRING), `[7]` enum constant
     (sec.17.1), `[8]` a bare `java.lang.reflect.Proxy`, `[9]` a top-level value array
     (sec.17.2).
+  - `[16]` a top-level `Collection`/`Map` **VALUE** — see **sec.15.2.3** below (COLL-1).
+    Emitted ONLY by the typed `writeCollection(coll, declaredToken)` entry point; the untyped
+    `writeObject` still **rejects** a bare collection (`@AtomicSerial`-restricted) — a bare
+    collection has no declared discipline, so the caller MUST supply the token.
   - `[2]`/`[4]`/`[6]`/`[10]`-`[14]` boxed scalars — see **sec.15.2.1** immediately below.
     (This numbering supersedes an earlier draft note that named `[2]` "reserved, NOT used"
     and `[4]` "a boxed primitive" singular/unallocated; `[2]` is now assigned per sec.15.2.1
@@ -1049,7 +1053,53 @@ unallocated at registration time.
 - The **record-level capture context** (the standalone `MarshalledInstance` capture
   path, Appendix C §C.1.2 item 3) is not an object stream: it carries no `[15]` TLV and
   no dedup productions — sec.13's canonical record-level forms only.
-- Future item-tag allocations in this registry continue from `[16]`.
+- Future item-tag allocations in this registry continue from `[17]` (`[16]` is assigned to
+  the top-level collection VALUE item, sec.15.2.3 below).
+
+#### 15.2.3 Tag `[16]` — top-level `Collection`/`Map` VALUE (COLL-1)
+
+**Motivation.** The enabling layer for collection-valued entry match-contract fields: a bare
+`Collection`/`Map` reaching `writeObject` as a top-level item today dies at the
+`@AtomicSerial`-only fallthrough. COLL-1 lifts that **narrowly**, via a *typed* entry point
+`writeCollection(coll, declaredToken)` that emits a new self-describing item `[16]
+CTX_COLLECTION` (constructed context tag, single-byte `0xB0`). The untyped `writeObject`
+is **unchanged** — it still rejects a bare collection, because a bare collection carries no
+declared ordering discipline and the discipline is not sniffable from the runtime instance
+(STD-006 §3.8). Only the token-supplied path emits `[16]`.
+
+**Content.** Modelled byte-for-byte on the `[9]` array item:
+`content = UTF8String(collectionWireType) ++ collectionTLV`, where `collectionTLV` is
+**exactly** `ObjectCodec.encodeCollection(value, token, …)` — an ASN.1 `SET OF` (outer
+`0x31`) for the CANONICALISE disciplines (`set:`/`bag:`/`map:`) or a `SEQUENCE OF` (outer
+`0x30`) for the PRESERVE disciplines (`orderedset:`/`list:`/`orderedmap:`), Option-A tagging
+per STD-006 §3.8.
+
+**Decode** parses the token, validates its grammar, cross-checks the Option-A outer tag
+against the token (a `set:` token over a `0x30` body is a lying encoding → reject), then
+delegates to `ObjectCodec.decodeCollection`, reusing its full defensive stack unchanged:
+attacker-token depth guard (`MAX_NESTING`), element-count cap (`MAX_COLLECTION`),
+strictly-ascending / non-decreasing §11.6 order enforcement + duplicate rejection for the
+canonicalise disciplines, and gated element reconstruction into immutable wrappers with
+**zero methods invoked on any decoded element** (an `@AtomicSerial` element passes the same
+`DeSerializationPermission("ATOMIC")` / `check(GetArg)` door as any other nested record — no
+second door).
+
+**Canonical crux (G1).** The `[16]` encoding is a **pure function of `(declaredToken,
+value)`**: under a canonicalise token the same multiset yields identical bytes across senders
+and implementations (octet-sorted §11.6); under a preserve token the transmitted order *is*
+the value. This is what lets a collection later serve as a match-contract field slice, and it
+is byte-identical to the same value carried as a collection **field** inside an
+`@AtomicSerial` record (one encoding per value, H1). Because the encoding must not depend on
+stream position, the `[16]` interior is **excluded from schema-chain dedup** — see STD-006
+Appendix C §C.6.5a.
+
+**Ordered-shape decode (Q3 / COLL-2 hand-off).** A declared `SequencedSet`/`SequencedMap`
+(the JDK 21+ interface way to declare encounter order) maps to `orderedset:`/`orderedmap:`
+(PRESERVE_ORDERED), and the PRESERVE_ORDERED decode returns an immutable wrapper that
+**implements** `SequencedSet`/`SequencedMap` — so COLL-2 can assign a decoded value directly
+to an interface-declared entry field with **no coercion**. `set:`/`map:` stay plain
+`Set`/`Map`; `SortedSet`/`SortedMap`-declared fields keep the sorted wrapper (already a
+`SequencedSet`/`SequencedMap`).
 
 ### 15.3 No handle table — pure value-tree, deterministic, no cycles (security)
 

@@ -177,7 +177,7 @@ final class EntryFieldIndex {
      * selective) constrained bucket.  If the template constrains no indexable field,
      * returns {@link #FULL_SCAN} (candidates == null) signalling the caller to scan.
      *
-     * @param tmpl the template rep; {@code tmpl.value(i) == null} is a wildcard for
+     * @param tmpl the template rep; {@code tmpl.isWildcard(i)} marks a wildcard for
      *             field {@code i}.  May have fewer fields than the indexed entries
      *             (a superclass template); only its own fields are considered.
      */
@@ -190,7 +190,7 @@ final class EntryFieldIndex {
         int bestOffset = -1, bestSize = Integer.MAX_VALUE;
         Set<EntryHandle> bestBucket = null;
         for (int i = 0; i < tmplFields; i++) {
-            if (tmpl.value(i) == null) {
+            if (tmpl.isWildcard(i)) {
                 continue;                                   // wildcard field
             }
             final ConcurrentMap<Long, Set<EntryHandle>> line = lines.get(i);

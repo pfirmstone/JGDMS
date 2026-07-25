@@ -26,6 +26,8 @@ import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.object.immutable.ImmutableList;
 import au.net.zeus.jgdms.der.object.immutable.ImmutableMap;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableSequencedMap;
+import au.net.zeus.jgdms.der.object.immutable.ImmutableSequencedSet;
 import au.net.zeus.jgdms.der.object.immutable.ImmutableSet;
 import au.net.zeus.jgdms.der.object.immutable.ImmutableSortedMap;
 import au.net.zeus.jgdms.der.object.immutable.ImmutableSortedSet;
@@ -1553,6 +1555,150 @@ public final class ObjectCodec {
     }
 
     /**
+     * Encodes a top-level {@link java.util.Collection}/{@link Map} VALUE as the self-describing
+     * content of a {@code [16] CTX_COLLECTION} stream TLV (STD-008 §15.2, the collection-value
+     * item): {@code UTF8String(collectionWireType) ++ collectionTLV}, where {@code collectionTLV}
+     * is <b>exactly</b> {@link #encodeCollection}'s output for {@code (value, token)} at depth 0 —
+     * an ASN.1 {@code SET OF} (outer {@code 0x31}) for the CANONICALISE disciplines
+     * ({@code set:}/{@code bag:}/{@code map:}) or a {@code SEQUENCE OF} (outer {@code 0x30}) for
+     * the PRESERVE disciplines ({@code orderedset:}/{@code list:}/{@code orderedmap:}).
+     *
+     * <p>This is the collection parallel of {@link #encodeTopLevelArray}: it lives here (not in the
+     * stream codec) because the {@code encodeCollection} canonicalisation discipline lives in this
+     * package. The produced {@code collectionTLV} is byte-for-byte identical to the same value
+     * carried as a collection <em>field</em> inside an {@code @AtomicSerial} record under the same
+     * token — the one-encoding-per-value property (board guidance §2.1 H1) on which a collection's
+     * later use as a match-contract field slice rests.
+     *
+     * <p><b>Crux (canonical, pure function of (token, value)):</b> for a CANONICALISE token the
+     * bytes are the octet-sorted §11.6 form of the element multiset, so the same multiset under the
+     * same token yields identical bytes across senders and implementations; for a PRESERVE token
+     * the transmitted order <em>is</em> the value. The encoding depends only on {@code (token,
+     * value)} — never on stream position or write order — which is why the {@code [16]} interior is
+     * excluded from stream schema-chain dedup (see {@code DerObjectStreamCodec.writeCollection}).
+     *
+     * @param value the non-null collection/map value
+     * @param token the collection wire-type token (e.g. {@code "set:int"},
+     *              {@code "orderedmap:{int}{java.lang.String}"})
+     * @return the {@code CTX_COLLECTION} content bytes
+     * @throws DerException if {@code token} is not a collection token, is grammatically malformed,
+     *                      or the value does not match the token, or an element type is unsupported
+     */
+    public static byte[] encodeTopLevelCollection(Object value, String token) throws DerException {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(token, "token");
+        if (!CollectionWireTypes.isCollection(token)) {
+            throw new DerException("ObjectCodec.encodeTopLevelCollection: '" + token
+                    + "' is not a collection wire-type token (expected set:/bag:/orderedset:/list:/"
+                    + "map:/orderedmap:)");
+        }
+        validateCollectionTokenGrammar(token);
+        byte[] wtTlv    = DerWriter.writeUtf8String(token);
+        byte[] collTlv  = encodeCollection(value, token, "<top-level collection>", 0);
+        byte[] content  = new byte[wtTlv.length + collTlv.length];
+        System.arraycopy(wtTlv,   0, content, 0,            wtTlv.length);
+        System.arraycopy(collTlv, 0, content, wtTlv.length, collTlv.length);
+        return content;
+    }
+
+    /**
+     * Decodes a {@code [16] CTX_COLLECTION} item's content bytes (as produced by
+     * {@link #encodeTopLevelCollection}) into an immutable collection value. Mirrors
+     * {@code DerObjectStreamCodec}'s {@code [9]} array read path.
+     *
+     * <p>The token is parsed and its grammar validated first; then — the <b>AnyCodec Option-A
+     * fence</b> — the collection TLV's outer tag is cross-checked against the token
+     * (CANONICALISE ⟺ {@code 0x31 SET OF}; PRESERVE ⟺ {@code 0x30 SEQUENCE OF}), so a lying
+     * encoding (e.g. a {@code set:} token over a {@code 0x30} body) is rejected before any element
+     * is touched. Decode is then delegated to the existing {@link #decodeCollection}, which brings
+     * the full defensive stack: attacker-token depth guard ({@code MAX_NESTING}), element-count cap
+     * ({@code MAX_COLLECTION}), strictly-ascending / non-decreasing §11.6 order enforcement and
+     * duplicate rejection for the canonicalise disciplines, and gated element reconstruction into
+     * immutable wrappers with zero methods invoked on any decoded element (an {@code @AtomicSerial}
+     * element passes through the same {@code DeSerializationPermission("ATOMIC")} /
+     * {@code check(GetArg)} door as every other nested record — no second door).
+     *
+     * <p>{@code declaredType} is {@code null} here: a top-level collection value has no receiving
+     * field, so the plain (non-sorted) wrapper shape is returned for the preserve-ordered
+     * disciplines — an {@link ImmutableSequencedSet}/{@link ImmutableSequencedMap} for
+     * {@code orderedset:}/{@code orderedmap:} (so it is still a {@code SequencedSet}/
+     * {@code SequencedMap}), an {@link ImmutableSet}/{@link ImmutableMap} for {@code set:}/
+     * {@code map:}, an {@link ImmutableList} for {@code list:}/{@code bag:}.
+     *
+     * @param content    the {@code CTX_COLLECTION} content bytes ({@code UTF8String(token) ++ collectionTLV})
+     * @param decodeUnit the per-decode-unit completion sink, or {@code null}
+     * @param resolution the endpoint-assigned class-resolution context (must not be {@code null})
+     * @return the decoded immutable collection value
+     * @throws DerException           if the content, token, or outer tag is malformed / inconsistent
+     * @throws IOException            propagated from element reconstruction
+     * @throws ClassNotFoundException if an element class cannot be resolved
+     */
+    public static Object decodeTopLevelCollection(byte[] content,
+                                                  DeserializationCompletion decodeUnit,
+                                                  ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
+        Objects.requireNonNull(content, "content");
+        Objects.requireNonNull(resolution, "resolution");
+        DerReader r = new DerReader(content);
+        String token;
+        try {
+            token = r.readUtf8String();
+        } catch (DerException e) {
+            throw new DerException("ObjectCodec.decodeTopLevelCollection: malformed collection"
+                    + " wire-type token", e);
+        }
+        if (!CollectionWireTypes.isCollection(token)) {
+            throw new DerException("ObjectCodec.decodeTopLevelCollection: '" + token
+                    + "' is not a collection wire-type token (expected set:/bag:/orderedset:/list:/"
+                    + "map:/orderedmap:)");
+        }
+        validateCollectionTokenGrammar(token);
+        byte[] collTlv = Arrays.copyOfRange(content, r.position(), content.length);
+        if (collTlv.length == 0) {
+            throw new DerException("ObjectCodec.decodeTopLevelCollection: missing collection TLV"
+                    + " after token '" + token + "'");
+        }
+        // AnyCodec Option-A fence: the outer tag MUST agree with the token's discipline. A
+        // CANONICALISE token demands SET OF (0x31); a PRESERVE token demands SEQUENCE OF (0x30).
+        // (decodeCollection re-checks this via readSet()/readSequence(), but rejecting here gives a
+        // precise, token-anchored error and closes the "lying encoding" hole at the layer boundary.)
+        boolean canonicalise = CollectionWireTypes.isCanonicalise(token);
+        int outerTag = collTlv[0] & 0xFF;
+        int expectedTag = canonicalise ? 0x31 : 0x30;
+        if (outerTag != expectedTag) {
+            throw new DerException("ObjectCodec.decodeTopLevelCollection: token '" + token
+                    + "' (" + (canonicalise ? "CANONICALISE" : "PRESERVE") + ") requires outer tag 0x"
+                    + Integer.toHexString(expectedTag) + " but the collection TLV opens with 0x"
+                    + Integer.toHexString(outerTag) + " -- lying Option-A encoding, rejected");
+        }
+        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
+        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
+        return decodeCollection(collTlv, token, 0, decodeUnit, resolution, null);
+    }
+
+    /**
+     * Validates that {@code token} is a grammatically well-formed collection token: its element
+     * (or map key/value) sub-token(s) are present and non-empty, and a map token's braces balance.
+     * Fail-secure — a malformed token is rejected as a {@link DerException} rather than being
+     * handed to {@link #decodeCollection} where it might surface as a less specific error.
+     */
+    private static void validateCollectionTokenGrammar(String token) throws DerException {
+        if (CollectionWireTypes.isMap(token)) {
+            String[] kv = CollectionWireTypes.mapKeyValueWireTypes(token); // throws on unbalanced braces
+            if (kv[0].isEmpty() || kv[1].isEmpty()) {
+                throw new DerException("ObjectCodec: malformed map wire-type token (empty key or"
+                        + " value sub-token): " + token);
+            }
+        } else {
+            String elemWT = CollectionWireTypes.elementWireType(token);
+            if (elemWT.isEmpty()) {
+                throw new DerException("ObjectCodec: malformed collection wire-type token (empty"
+                        + " element sub-token): " + token);
+            }
+        }
+    }
+
+    /**
      * Loads a class by name using the ResolutionContext.
      * Used by hierarchy encode/decode to resolve class
      * names from schema records.
@@ -2597,15 +2743,25 @@ public final class ObjectCodec {
         if (!setKind) {
             // list: (preserve) or bag: (canonicalise multiset, duplicates retained) -> a List
             // (Discipline.CANONICALISE_MULTISET is documented as "reconstructed as a List").
+            // ImmutableList is a java.util.List, hence a SequencedCollection.
             return new ImmutableList<>(out);
         }
-        // set: (canonicalise) never carries SortedSet-declared semantics (CollectionWireTypes
-        // .disciplineFor never maps a Comparable-ordered class to CANONICALISE); only
-        // orderedset: (PRESERVE_ORDERED, which bundles SortedSet/NavigableSet together with
-        // LinkedHashSet/EnumSet under one token) needs the declared-type check.
-        if (!canonicalise && isSortedType(declaredType, true)) {
-            return new ImmutableSortedSet<>(out);
+        if (!canonicalise) {
+            // orderedset: (PRESERVE_ORDERED) -- encounter order IS the value, so the wrapper MUST
+            // implement java.util.SequencedSet (COLL-2 assigns a decoded orderedset: value DIRECTLY
+            // to an interface-declared field with NO coercion; a SequencedSet-declared field would
+            // otherwise reject a plain Set with ClassCastException). This token bundles
+            // SortedSet/NavigableSet together with LinkedHashSet/EnumSet/SequencedSet, so the
+            // declared-type check picks the SortedSet shape when the field is sorted (already a
+            // SequencedSet) and the plain sequenced shape otherwise.
+            if (isSortedType(declaredType, true)) {
+                return new ImmutableSortedSet<>(out);
+            }
+            return new ImmutableSequencedSet<>(out);
         }
+        // set: (canonicalise) -- a plain Set (NOT a SequencedSet): its order is the octet-sort
+        // artefact, not part of the value. disciplineFor never maps a Comparable-ordered class to
+        // CANONICALISE, so no SortedSet shape is possible here.
         return new ImmutableSet<>(out);
     }
 
@@ -2672,11 +2828,19 @@ public final class ObjectCodec {
             out.add(new AbstractMap.SimpleImmutableEntry<>(key, val));
         }
 
-        // map: (canonicalise) never carries SortedMap-declared semantics (see decodeSetOrList's
-        // matching comment); only orderedmap: (PRESERVE_ORDERED) needs the declared-type check.
-        if (!canonicalise && isSortedType(declaredType, false)) {
-            return new ImmutableSortedMap<>(out);
+        if (!canonicalise) {
+            // orderedmap: (PRESERVE_ORDERED) -- encounter order IS the value, so the wrapper MUST
+            // implement java.util.SequencedMap (COLL-2 assigns DIRECTLY to an interface-declared
+            // field with NO coercion). SortedMap/NavigableMap-declared fields get the SortedMap
+            // shape (already a SequencedMap); every other preserve-ordered field gets the plain
+            // sequenced shape.
+            if (isSortedType(declaredType, false)) {
+                return new ImmutableSortedMap<>(out);
+            }
+            return new ImmutableSequencedMap<>(out);
         }
+        // map: (canonicalise) -- a plain Map (NOT a SequencedMap); its key-octet order is not part
+        // of the value. disciplineFor never maps a SortedMap-declared class to CANONICALISE.
         return new ImmutableMap<>(out);
     }
 

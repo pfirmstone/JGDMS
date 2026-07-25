@@ -814,6 +814,34 @@ residue alongside its three-way comparison.
 **[OPEN → T2/T3]** T2 MUST implement the region exclusion at both write/read sites;
 T3's corpus carries the §C.11.3(14)–(15) boomerang-relay and transitivity vectors.
 
+### C.6.5a Exclusion: every `[16]` top-level-collection interior (COLL-1)
+
+**The rule.** The entire content of every `[16]` `CTX_COLLECTION` TLV (STD-008 §15.2.3 — the
+top-level `Collection`/`Map` VALUE item emitted by `writeCollection`) is **outside the dedup
+layer**, in both directions, by the same byte-region-scoped mechanism as the `[8]` exclusion
+(§C.6.5): no chain site inside a `[16]` TLV's content participates in dedup, none is entered
+into the table or counted as an occurrence or usable as a reference target, and no `chainRef`
+may appear inside a `[16]` interior. Any `@AtomicSerial` element chains within the collection
+are encoded as the canonical record-level full forms (§7.8 / STD-008 §16). Consequently `[16]`
+is **not a chain site**.
+
+**Rationale (required for the crux, not merely convenient).** A `[16]` collection value's
+encoding is a **pure function of `(declaredToken, value)`** (STD-008 §15.2.3 G1): the property
+that lets a collection serve as a match-contract field slice, byte-identical across senders and
+to the same value carried as a collection *field*. If an interior `@AtomicSerial` element were
+rewritten as a stream-scoped `chainRef` — whose bytes depend on what appeared *earlier in the
+stream* — that pure-function/canonical property would be destroyed (the same value would encode
+differently depending on stream position). Excluding the region wholesale keeps the invariant
+true by construction (G1/G7) and gives the exclusion a definition a peer can implement without
+inspecting the collection's elements (G9). The write side (`DerObjectStreamCodec.writeCollection`)
+therefore appends the `[16]` TLV verbatim with no dedup pass, and the read side performs no
+reconstitution before handing the interior to `ObjectCodec.decodeTopLevelCollection`.
+
+**Cost annotation.** As with `[8]`, this leaves `[16]`-interior `@AtomicSerial` element chains
+undeduplicated. A `[16]` item is expected to be used for a *whole collection field value* (one
+per field, not per element of a bulk response), and canonical-slice determinism is the explicit
+requirement here, so the residue is by-design rather than an optimisation gap.
+
 ---
 
 ## C.7 Per-Stream Table Semantics (NORMATIVE)
