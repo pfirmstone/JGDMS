@@ -120,6 +120,7 @@ import org.apache.river.outrigger.proxy.ConstrainableAdminProxy;
 import org.apache.river.outrigger.proxy.ParticipantProxy;
 import org.apache.river.outrigger.proxy.SpaceProxy2;
 import org.apache.river.outrigger.proxy.EntryRep;
+import net.jini.space.FilterRejectedException;
 import org.apache.river.outrigger.proxy.MatchSetData;
 import org.apache.river.outrigger.proxy.ConstrainableParticipantProxy;
 import org.apache.river.outrigger.proxy.ConstrainableSpaceProxy2;
@@ -2269,6 +2270,129 @@ public class OutriggerServerImpl
 		new Object[]{tmpl, Long.valueOf(timeout), cookie});
 	}
 	return getMatch(tmpl, txn, timeout, true, true, cookie);
+    }
+
+    /* ======================================================================
+     * Filtered (CEL predicate pushdown) operations — SOW Part B, unit B1.
+     *
+     * Each admits the filter at operation entry, BEFORE matching
+     * (FilterAdmission.admit: envelope decode -> CEL verify against the
+     * template's own v2 schema -> require a Predicate -> compile), throwing
+     * FilterRejectedException loudly on any rejection. Because predicate
+     * EVALUATION at the match chokepoints is unit B3, an admitted filter here
+     * does not yet run: the operation fails loudly with EVALUATION_NOT_WIRED
+     * rather than execute the query unfiltered. When B3 lands, the
+     * evaluationNotWired() call is replaced by threading the CompiledFilter
+     * into the matching chokepoint.
+     * ==================================================================== */
+
+    public Object read(EntryRep tmpl, Transaction txn, long timeout,
+		       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	typeCheck(tmpl);
+	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
+	throw FilterAdmission.evaluationNotWired("read", filter);
+    }
+
+    public Object readIfExists(EntryRep tmpl, Transaction txn, long timeout,
+			       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	typeCheck(tmpl);
+	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
+	throw FilterAdmission.evaluationNotWired("readIfExists", filter);
+    }
+
+    public Object take(EntryRep tmpl, Transaction txn, long timeout,
+		       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	typeCheck(tmpl);
+	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
+	throw FilterAdmission.evaluationNotWired("take", filter);
+    }
+
+    public Object takeIfExists(EntryRep tmpl, Transaction txn, long timeout,
+			       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	typeCheck(tmpl);
+	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
+	throw FilterAdmission.evaluationNotWired("takeIfExists", filter);
+    }
+
+    public EventRegistration notify(EntryRep tmpl, Transaction tr,
+	    RemoteEventListener listener, long leaseTime,
+	    MarshalledInstance handback, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	typeCheck(tmpl);
+	checkForNull(listener, "Passed null listener for event registration");
+	checkHandbackFormat(handback);
+	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
+	throw FilterAdmission.evaluationNotWired("notify", filter);
+    }
+
+    public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
+	    Transaction tr, boolean visibilityOnly, RemoteEventListener listener,
+	    long leaseTime, MarshalledInstance handback, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	checkForNull(listener, "Passed null listener for event registration");
+	checkForEmpty(tmpls, "Must provide at least one template");
+	FilterAdmission.checkTemplateCount(tmpls.length);
+	checkHandbackFormat(handback);
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole registration loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
+	CompiledFilter filter = null;
+	for (int i = 0; i < tmpls.length; i++) {
+	    typeCheck(tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	}
+	throw FilterAdmission.evaluationNotWired("registerForAvailabilityEvent", filter);
+    }
+
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+	    long leaseTime, long limit, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	checkForEmpty(tmpls, "Must provide at least one template");
+	FilterAdmission.checkTemplateCount(tmpls.length);
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole query loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
+	CompiledFilter filter = null;
+	for (int i = 0; i < tmpls.length; i++) {
+	    typeCheck(tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	}
+	throw FilterAdmission.evaluationNotWired("contents", filter);
+    }
+
+    public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+	    int limit, QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	checkForEmpty(tmpls, "Must provide at least one template");
+	FilterAdmission.checkTemplateCount(tmpls.length);
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole query loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
+	CompiledFilter filter = null;
+	for (int i = 0; i < tmpls.length; i++) {
+	    typeCheck(tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	}
+	throw FilterAdmission.evaluationNotWired("take<multiple>", filter);
     }
 
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,

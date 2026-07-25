@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Copyright (C) 2026 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus.jgdms</groupId>
+        <artifactId>outrigger</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+    </parent>
+
+    <groupId>au.net.zeus.jgdms.outrigger</groupId>
+    <artifactId>outrigger-cel-authoring</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Module :: Outrigger CEL Filter Authoring (client-side)</name>
+    <description>Client-side helper for authoring Outrigger CEL predicate
+        filters (SOW Part B / JGDMS-STD-011): EntrySchemaView adapts an Entry
+        class to the CEL verifier's SchemaView by REUSING jgdms-der's
+        EntrySchemaGenerator field rules (no duplication), and EntryFilter
+        compiles a CEL text rule against that schema into a canonical
+        FilterEnvelope byte[] ready to pass to a FilteredJavaSpace operation.
+        Depends on outrigger-dl (the opaque envelope codec) and
+        jgdms-cel-authoring (parse/encode); it is a CLIENT authoring jar, kept
+        out of both outrigger-dl (release-8, no CEL) and the outrigger-service
+        server jar.</description>
+
+    <properties>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>au.net.zeus.jgdms.outrigger</groupId>
+            <artifactId>outrigger-dl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel-authoring</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- jgdms-der (EntrySchemaGenerator) and jgdms-cel (SchemaView,
+             DerSchemaChainView, CelType) arrive transitively via
+             jgdms-cel-authoring; declared explicitly here so the compile
+             surface this module actually names is not left implicit. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-der</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test-only: the authoring round-trip test drives a compiled filter
+             through the server-side FilterAdmission seam to prove a well-typed
+             rule is accepted and a mistyped rule rejected. outrigger-service
+             does NOT depend on this module, so there is no cycle. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms.outrigger</groupId>
+            <artifactId>outrigger-service</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- EntryRep (built in the round-trip test) resolves entry
+                         class codebase annotations via RMIClassLoader; the JDK
+                         default provider suffices for in-JVM test classes (same
+                         pattern as outrigger-dl / outrigger-service). -->
+                    <systemPropertyVariables>
+                        <java.rmi.server.RMIClassLoaderSpi>default</java.rmi.server.RMIClassLoaderSpi>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Matches jgdms-cel-authoring / jgdms-der / jgdms-cel,
+                         which require JDK 25+ at runtime. This is a client
+                         authoring helper, not a download (-dl) jar, so the
+                         release-8 -dl norm does not apply. -->
+                    <release>25</release>
+                    <debug>true</debug>
+                    <encoding>UTF-8</encoding>
+                    <meminitial>128m</meminitial>
+                    <maxmem>1024m</maxmem>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

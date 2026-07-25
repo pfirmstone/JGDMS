@@ -33,6 +33,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
+import net.jini.space.FilteredJavaSpace;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import net.jini.space.TupleSpace;
@@ -197,14 +198,127 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 
 
 	// Use the same constants for nextBatch as contents
-	ProxyUtil.getMethod(JavaSpace05.class, "contents", 
+	ProxyUtil.getMethod(JavaSpace05.class, "contents",
 			    new Class[] {Collection.class,
 					 Transaction.class,
 					 long.class,
-					 long.class}), 
+					 long.class}),
 	ProxyUtil.getMethod(OutriggerServer.class, "nextBatch",
 			    new Class[] {Uuid.class,
-					 Uuid.class}) 
+					 Uuid.class}),
+
+	/* Filtered (CEL pushdown) operations — SOW Part B, unit B1. Each
+	 * client-facing FilteredJavaSpace method is paired with its filtered
+	 * OutriggerServer backend method so a client's per-method constraints
+	 * (including the space's ATOMIC_DER MarshallingFormat requirement) map
+	 * onto the filtered call exactly as they do for the unfiltered siblings.
+	 */
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "read",
+			    new Class[] {Entry.class,
+					 Transaction.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "read",
+			    new Class[] {EntryRep.class,
+					 Transaction.class,
+					 long.class,
+					 OutriggerServer.QueryCookie.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "take",
+			    new Class[] {Entry.class,
+					 Transaction.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "take",
+			    new Class[] {EntryRep.class,
+					 Transaction.class,
+					 long.class,
+					 OutriggerServer.QueryCookie.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "readIfExists",
+			    new Class[] {Entry.class,
+					 Transaction.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "readIfExists",
+			    new Class[] {EntryRep.class,
+					 Transaction.class,
+					 long.class,
+					 OutriggerServer.QueryCookie.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "takeIfExists",
+			    new Class[] {Entry.class,
+					 Transaction.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "takeIfExists",
+			    new Class[] {EntryRep.class,
+					 Transaction.class,
+					 long.class,
+					 OutriggerServer.QueryCookie.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "notify",
+			    new Class[] {Entry.class,
+					 Transaction.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "notify",
+			    new Class[] {EntryRep.class,
+					 Transaction.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "registerForAvailabilityEvent",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 boolean.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "registerForAvailabilityEvent",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 boolean.class,
+					 RemoteEventListener.class,
+					 long.class,
+					 MarshalledInstance.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "contents",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "contents",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "take",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "take",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long.class,
+					 int.class,
+					 OutriggerServer.QueryCookie.class,
+					 byte[].class})
     };//end methodMapArray
 
     /** 

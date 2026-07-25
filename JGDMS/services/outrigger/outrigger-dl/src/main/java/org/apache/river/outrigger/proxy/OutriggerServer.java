@@ -32,6 +32,7 @@ import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.TransactionParticipant;
 
 import net.jini.id.Uuid;
+import net.jini.space.FilterRejectedException;
 import net.jini.space.InternalSpaceException;
 import net.jini.io.MarshalledInstance;
 
@@ -462,6 +463,110 @@ public interface OutriggerServer extends TransactionParticipant, Landlord,
             RemoteEventListener listener, long leaseTime, 
             MarshalledInstance handback)
         throws TransactionException, RemoteException;
+
+    /* ======================================================================
+     * Filtered (CEL predicate pushdown) operations — SOW Part B, unit B1.
+     *
+     * Each method mirrors its unfiltered sibling above and adds one explicit
+     * operation parameter: {@code byte[] filterEnvelope}, a canonical
+     * {@link FilterEnvelope} carrying an opaque CEL predicate. The filter is a
+     * genuine operation parameter, never a field on the template EntryRep, so
+     * an older server that lacks these methods produces a LOUD dispatch break
+     * (never a silent unfiltered run).
+     *
+     * The server admits the filter (parse envelope -> CEL decode -> verify
+     * against the template's own v2 schema -> require a Predicate context ->
+     * compile) BEFORE matching. Every admission failure throws
+     * {@link FilterRejectedException}; a refused filter is never downgraded to
+     * an unfiltered query. Predicate EVALUATION at the match chokepoints is
+     * unit B3: until it lands, a filtered call that reaches an unwired
+     * chokepoint fails with {@link FilterRejectedException.Reason#EVALUATION_NOT_WIRED}.
+     * ==================================================================== */
+
+    /**
+     * Filtered variant of {@link #read(EntryRep, Transaction, long, QueryCookie)}.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object read(EntryRep tmpl, Transaction txn, long timeout,
+                QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, InterruptedException,
+               FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link #readIfExists(EntryRep, Transaction, long, QueryCookie)}.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object readIfExists(EntryRep tmpl, Transaction txn, long timeout,
+                        QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, InterruptedException,
+               FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link #take(EntryRep, Transaction, long, QueryCookie)}.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object take(EntryRep tmpl, Transaction txn, long timeout,
+                QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, InterruptedException,
+               FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link #takeIfExists(EntryRep, Transaction, long, QueryCookie)}.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object takeIfExists(EntryRep tmpl, Transaction txn, long timeout,
+                        QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, InterruptedException,
+               FilterRejectedException;
+
+    /**
+     * Filtered variant of
+     * {@link #notify(EntryRep, Transaction, RemoteEventListener, long, MarshalledInstance)}.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    EventRegistration notify(EntryRep tmpl, Transaction txn,
+                             RemoteEventListener listener, long lease,
+                             MarshalledInstance handback, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of
+     * {@link #registerForAvailabilityEvent(EntryRep[], Transaction, boolean, RemoteEventListener, long, MarshalledInstance)}.
+     * The one filter is admitted against every template's schema.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
+            Transaction txn, boolean visibilityOnly,
+            RemoteEventListener listener, long leaseTime,
+            MarshalledInstance handback, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link #contents(EntryRep[], Transaction, long, long)}.
+     * The one filter is admitted against every template's schema.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+                                 long leaseTime, long limit, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of
+     * {@link #take(EntryRep[], Transaction, long, int, QueryCookie)}.
+     * The one filter is admitted against every template's schema.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+                int limit, QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
 
     /**
      * Start a new contents query. Returns a
