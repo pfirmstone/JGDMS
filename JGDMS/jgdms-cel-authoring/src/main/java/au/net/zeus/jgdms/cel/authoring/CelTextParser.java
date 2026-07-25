@@ -149,13 +149,21 @@ public final class CelTextParser {
         Parser p = new Parser(tokens, schema);
         ExprNode node = p.parseExpr();
         p.expectEof();
-        String authoring = CelAstValidator.findAuthoringViolation(node);
-        if (authoring != null) {
-            throw new CelParseException("well-formedness violation: " + authoring);
-        }
+        // CEILING CHECK FIRST (G7/G10). findWireViolation is bounded-by-construction:
+        // its visitExpr checks depth > MAX_EXPR_DEPTH at ENTRY and increments on descent,
+        // so it rejects a hostile deep/wide tree (e.g. a 50k-operator flat binary chain,
+        // which the binary-operator LOOPS build without hitting MAX_PARSE_FRAMES) after at
+        // most ~33 frames, never descending the full spine. Running it BEFORE the authoring
+        // walk guarantees findAuthoringViolation (and the CelStaticType recursion it drives)
+        // only ever sees a tree of depth <= 32 and <= 1024 nodes -- bounded, no stack
+        // overflow, no O(n^2) re-walk.
         String wire = CelAstValidator.findWireViolation(node);
         if (wire != null) {
             throw new CelParseException("ceiling/wire violation: " + wire);
+        }
+        String authoring = CelAstValidator.findAuthoringViolation(node);
+        if (authoring != null) {
+            throw new CelParseException("well-formedness violation: " + authoring);
         }
         return node;
     }
@@ -772,8 +780,23 @@ public final class CelTextParser {
         // behaviour; with a schema, a field's declared type resolves the id.
         // Resolution NEVER changes encoding -- it only selects the wire id.
 
-        /** The statically inferred scalar type of {@code arg} against the parse-time schema (empty = not resolvable). */
-        private Optional<CelType> typeOf(ExprNode arg) {
+        /**
+         * The statically inferred scalar type of {@code arg} against the
+         * parse-time schema (empty = not resolvable).
+         * <p>
+         * Overload resolution runs DURING parse, on an argument subtree that has
+         * not yet passed the whole-expression ceiling check. {@code
+         * StaticTypeChecker.inferNode} recurses the whole subtree with no depth
+         * guard (safe in its normal use, where every tree it sees already passed
+         * the wire decoder's depth ceiling), so a hostile deep argument (e.g.
+         * {@code size(1+1+...+1)}) would overflow it here. Guard it with the
+         * bounded-by-construction {@link CelAstValidator#findWireViolation}, which
+         * rejects a &gt;32-deep / &gt;1024-node argument after ~33 frames -- so
+         * {@code inferType} only ever runs on a within-ceiling subtree.
+         */
+        private Optional<CelType> typeOf(ExprNode arg) throws CelParseException {
+            String v = CelAstValidator.findWireViolation(arg);
+            if (v != null) throw new CelParseException("ceiling/wire violation in function argument: " + v);
             return CelTypeInference.inferType(arg, schema);
         }
 
