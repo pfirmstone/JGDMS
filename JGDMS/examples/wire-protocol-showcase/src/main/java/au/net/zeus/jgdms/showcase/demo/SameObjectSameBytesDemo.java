@@ -43,6 +43,7 @@ public final class SameObjectSameBytesDemo {
         System.out.println("========================================================================");
         System.out.println(" Same object, same bytes -- everywhere");
         System.out.println("========================================================================");
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/src/main/java/au/net/zeus/jgdms/showcase/demo/SameObjectSameBytesDemo.java");
         System.out.println();
 
         CalibratedReading reading = new CalibratedReading(

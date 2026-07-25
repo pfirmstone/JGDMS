@@ -55,6 +55,7 @@ public final class SchemaSentOnceDemo {
         System.out.println("========================================================================");
         System.out.println(" The shape description travels in the stream -- and you pay for it once");
         System.out.println("========================================================================");
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/src/main/java/au/net/zeus/jgdms/showcase/demo/SchemaSentOnceDemo.java");
         System.out.println();
         System.out.println("We write " + COUNT + " readings of the same type. Each reading's shape is a");
         System.out.println("family tree of three levels, with descriptive field names -- a realistic,");
