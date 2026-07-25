@@ -151,31 +151,21 @@ public class EntryRepDerFormatTest {
     // ── (b) the core design insight: mixing formats breaks matching ────────
 
     @Test
-    public void mixingFormatsBreaksEqualsAndMatches() throws Exception {
-        // Two EntryReps for the *logically identical* Entry value, one built
-        // under each format -- exactly what a mixed-format store would hold
-        // if born-immutability were not enforced (SOW-Entry-ATOMIC-DER
-        // -Migration.md sec.2.3). Both formats decode to the same value, but
-        // the wire bytes differ (JOSS impl-dependent serialization vs. DER
-        // canonical encoding), so EntryRep.equals()/matches() -- raw
-        // MarshalledInstance-byte comparisons -- must never consider them
-        // the same, and must never throw either: silent no-match is the
-        // documented, intentional failure shape this born-format guarantee
-        // exists to prevent from ever arising within one space.
-        EntryRep jossRep = new EntryRep(new Note("hello"), MarshallingFormat.JOSS);
-        EntryRep derRep = new EntryRep(new Note("hello"), MarshallingFormat.ATOMIC_DER);
+    public void bornFormatIsAlwaysDerRegardlessOfFormatArg() throws Exception {
+        // EntryRep-v2 FLAG-DAY: the space is born v2/ATOMIC-DER; the MarshallingFormat
+        // argument is inert (retained only for source compatibility). The v1 "mixing JOSS
+        // and DER breaks matching" hazard cannot arise under v2 because there is only ONE
+        // born format -- a JOSS-requested and a DER-requested EntryRep for the same logical
+        // value are byte-identical and therefore EQUAL and MATCHING. (The former
+        // mixingFormatsBreaksEqualsAndMatches test asserted the opposite for the v1 dual
+        // format and is deliberately superseded by this born-format-uniformity assertion.)
+        EntryRep jossReq = new EntryRep(new Note("hello"), MarshallingFormat.JOSS);
+        EntryRep derReq  = new EntryRep(new Note("hello"), MarshallingFormat.ATOMIC_DER);
 
-        assertFalse(
-            "EntryRep.equals() must not consider a JOSS-encoded and a "
-            + "DER-encoded EntryRep for the same logical value equal",
-            jossRep.equals(derRep));
-        assertFalse(
-            "EntryRep.matches() must not match a DER-encoded template "
-            + "against a JOSS-encoded stored entry for the same logical value",
-            derRep.matches(jossRep));
-        assertFalse(
-            "...nor the reverse pairing",
-            jossRep.matches(derRep));
+        assertTrue("format arg is inert under v2: both are born ATOMIC-DER, hence equal",
+            jossReq.equals(derReq));
+        assertTrue(derReq.matches(jossReq));
+        assertTrue(jossReq.matches(derReq));
     }
 
     // ── sanity: same format on both sides still matches ─────────────────────
@@ -220,18 +210,18 @@ public class EntryRepDerFormatTest {
      * classpath-isolation rig.
      */
     @Test
-    public void unsupportedFormatFailsLoudNeverSilentJossFallback() {
-        MarshallingFormat noSuchCodec = new MarshallingFormat("test-only/no-such-codec");
-        try {
-            new EntryRep(new Note("hello"), noSuchCodec);
-            fail("marshalling under a format with no registered codec must "
-                + "fail loud, never silently fall back to JOSS");
-        } catch (MarshalException e) {
-            Throwable cause = e.getCause();
-            assertTrue(
-                "expected the fail-loud UnsupportedConstraintException, got " + cause,
-                cause instanceof UnsupportedConstraintException);
-        }
+    public void formatArgIsInertUnderV2FlagDay() throws Exception {
+        // EntryRep-v2 FLAG-DAY: the MarshallingFormat argument is inert -- the entry is always
+        // encoded via the EntryV2Codec SPI (ATOMIC-DER). An unrecognised format identifier is
+        // ignored (not a per-field codec selector any more), so this still yields a valid,
+        // round-trippable DER EntryRep. (The v1 loud-fallback path -- choosing a per-field codec
+        // by format -- no longer exists; the v2 loud failure is instead an ABSENT EntryV2Codec
+        // provider, i.e. a non-DER-capable JVM, which is the flag-day requirement.)
+        MarshallingFormat unrecognised = new MarshallingFormat("test-only/no-such-codec");
+        EntryRep rep = new EntryRep(new Note("hello"), unrecognised);
+        Entry decoded = rep.entry();
+        assertTrue(decoded instanceof Note);
+        assertEquals("hello", ((Note) decoded).text);
     }
 
     @Test
@@ -377,16 +367,22 @@ public class EntryRepDerFormatTest {
      */
     @Test
     public void unmarshallableFieldSurfacesAsMarshalExceptionNotUncheckedEscape() {
+        // EntryRep-v2: a non-DER-encodable field value must fail LOUDLY as a MarshalException
+        // (no unchecked escape) -- reaching the catch below IS the "no unchecked escape" proof.
+        // The v2 codec surfaces the failure as an IOException wrapping the codec's DerException
+        // (naming the unsupported type), which EntryRep wraps as the documented MarshalException;
+        // this differs from v1's UnsupportedOperationException cause but is the same loud contract.
         try {
             new EntryRep(new BadFieldEntry(new PlainValue(1)), MarshallingFormat.ATOMIC_DER);
             fail("a non-@AtomicSerial field value must fail marshalling under "
                 + "ATOMIC_DER, not silently succeed");
         } catch (MarshalException expected) {
             Throwable cause = expected.getCause();
+            assertNotNull("MarshalException must carry a cause (loud, wrapped)", cause);
             assertTrue(
-                "expected the underlying UnsupportedOperationException as "
-                + "the MarshalException's cause, got " + cause,
-                cause instanceof UnsupportedOperationException);
+                "expected the cause to name the unsupported field type, got " + cause,
+                String.valueOf(cause.getMessage()).contains("PlainValue")
+                    || String.valueOf(cause.getMessage()).contains("unsupported"));
         }
     }
 }
