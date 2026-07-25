@@ -17,6 +17,8 @@
  */
 package org.apache.river.outrigger.proxy;
 
+import net.jini.space.FilterRejectedException;
+
 /**
  * Canonical DER codec for the Outrigger CEL <em>filter envelope</em> — the
  * opaque {@code byte[]} carried as an explicit operation parameter on the

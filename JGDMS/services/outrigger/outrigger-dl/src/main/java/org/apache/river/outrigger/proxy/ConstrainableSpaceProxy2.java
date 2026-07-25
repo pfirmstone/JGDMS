@@ -33,6 +33,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
+import net.jini.space.FilteredJavaSpace;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import net.jini.space.TupleSpace;

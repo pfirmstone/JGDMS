@@ -57,9 +57,10 @@ on them (loud break by construction).
 
 ## 2. Client-facing interface: `FilteredJavaSpace` (proposed permanent name — OPEN)
 
-**Decision (proposed).** `SpaceProxy2` additionally implements a new interface,
-`org.apache.river.outrigger.proxy.FilteredJavaSpace`, whose six methods mirror the JavaSpace/`TupleSpace`
-operations with a trailing `byte[] filter`:
+**Decision (Peter).** `SpaceProxy2` additionally implements a new interface,
+**`net.jini.space.FilteredJavaSpace`** (module **`jgdms-lib-dl`**, alongside `JavaSpace`, `JavaSpace05`,
+`TupleSpace`, `MatchSet`), whose six methods mirror the JavaSpace/`TupleSpace` operations with a trailing
+`byte[] filter`:
 
 ```
 Entry read/readIfExists/take/takeIfExists(Entry tmpl, Transaction, long timeout, byte[] filter)
@@ -76,13 +77,18 @@ caller error (`NullPointerException`) — the ordinary unfiltered methods exist 
 per-method constraints (including the space's `ATOMIC_DER` `MarshallingFormat` requirement) map onto the
 filtered backend calls exactly as for the unfiltered siblings.
 
-**DECISION (Peter):** keep the name **`FilteredJavaSpace`** and keep it in
-**`org.apache.river.outrigger.proxy`** — do **not** promote it to `net.jini.space`. Rationale, correcting an
-earlier draft of this memo: every method on the interface declares
-`throws org.apache.river.outrigger.proxy.FilterRejectedException`, so the interface does **not** carry "no
-Outrigger-specific type" — promotion to `net.jini.space` (in `jgdms-lib-dl`) would require moving
-`FilterRejectedException` (and the envelope's reason vocabulary) into that general module too, which is not
-warranted while CEL filtering is Outrigger-only. The interface stays where its exception lives.
+**DECISION (Peter): `net.jini.space` in `jgdms-lib-dl`, NOT the `-dl` proxy package.** `FilteredJavaSpace` is
+a client-compile-time API — a client programs against it and casts its proxy to it — so it cannot live in
+`org.apache.river.outrigger.proxy`, which ships in the **downloaded** codebase proxy jar. It belongs in the
+public space-API namespace `net.jini.space` (module `jgdms-lib-dl`), the same place `SpaceProxy2` already gets
+`JavaSpace05`/`TupleSpace` from — so this needs **no new module dependency**, only imports. Its companion
+exception **`FilterRejectedException` moves with it**, to `net.jini.space` (next to `InternalSpaceException`,
+the natural home for a space-API exception); every filtered method — both the client interface and the
+`OutriggerServer` backend — throws that relocated exception. Neither type names any `jgdms-cel`/`jgdms-der`
+type, so hosting them in the general API module introduces no CEL dependency there (the reason vocabulary is a
+plain transport-neutral enum). The Outrigger-specific pieces stay in Outrigger: the opaque `FilterEnvelope`
+codec (`outrigger-dl`), the admission seam and `CompiledFilter` (`outrigger-service`), and the authoring
+adapter (`outrigger-cel-authoring`).
 
 ---
 
@@ -285,13 +291,16 @@ authoring — both loud).
 | Module | Adds | Release | New dep |
 |--------|------|---------|---------|
 | `jgdms-der` | `EntryRepV2Codec.decodeEntrySchemaChain` (read-only helper + `EntrySchemaChain` record) | 25 | — |
-| `outrigger-dl` | `FilterEnvelope`, `FilterRejectedException`, `FilteredJavaSpace`; `OutriggerServer` filtered overloads; `SpaceProxy2` + `ConstrainableSpaceProxy2` plumbing; `EntryRep.bodyBytes()` | 8 | none (no cel/der leak) |
+| `jgdms-lib-dl` | `net.jini.space.FilteredJavaSpace` (client API), `net.jini.space.FilterRejectedException` (API exception) | 8 | none |
+| `outrigger-dl` | `FilterEnvelope` (opaque codec); `OutriggerServer` filtered overloads; `SpaceProxy2` + `ConstrainableSpaceProxy2` plumbing; `EntryRep.bodyBytes()` | 8 | none (already deps `jgdms-lib-dl`) |
 | `outrigger-service` | `CompiledFilter`, `FilterAdmission`; filtered `OutriggerServerImpl` + `OutriggerServerWrapper` methods | 21 | `jgdms-cel` (precedent: already deps release-25 `jgdms-der`) |
 | `outrigger-cel-authoring` (new) | `EntrySchemaView`, `EntryFilter` | 25 | `outrigger-dl`, `jgdms-cel-authoring` |
 
-`outrigger-dl` keeps its release-8, CEL-free discipline: the filter surface there is opaque `byte[]` plus a
-transport-neutral exception. All CEL type contact is server-side (`outrigger-service`) or client-authoring-side
-(`outrigger-cel-authoring`).
+The client-facing API (`FilteredJavaSpace` + `FilterRejectedException`) lives in the public `net.jini.space`
+namespace (`jgdms-lib-dl`), not the downloaded `-dl` proxy package; both are CEL-free (opaque `byte[]` + a
+transport-neutral reason enum). `outrigger-dl` keeps its release-8, CEL-free discipline: its only filter type
+is the opaque `FilterEnvelope` codec. All CEL type contact is server-side (`outrigger-service`) or
+client-authoring-side (`outrigger-cel-authoring`).
 
 ---
 
@@ -303,9 +312,9 @@ own (B4). B1 stops at "a verified filter exists".
 
 ## 10. Open questions carried to the board
 
-1. **[RESOLVED — Peter]** `FilteredJavaSpace` name/home (§2): keep the name, keep it in
-   `org.apache.river.outrigger.proxy`, do not promote to `net.jini.space` (the interface's methods declare
-   the Outrigger `FilterRejectedException`).
+1. **[RESOLVED — Peter]** `FilteredJavaSpace` name/home (§2): name kept; placed in **`net.jini.space`**
+   (module `jgdms-lib-dl`), the public space-API namespace — NOT the downloaded `-dl` proxy package.
+   `FilterRejectedException` moves with it to `net.jini.space` (next to `InternalSpaceException`).
 2. **[RESOLVED — Peter]** Observability audience (§5): operator-only; no client-visible exclusion count.
 3. **Envelope `version` forward-compatibility** — B1 refuses any `version ≠ 1` (fail-closed). If a future
    version must be introduced without a flag-day, the negotiation rule (advertise supported versions? refuse

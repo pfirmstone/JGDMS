@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.river.outrigger.proxy.EntryRep;
 import org.apache.river.outrigger.proxy.FilterEnvelope;
-import org.apache.river.outrigger.proxy.FilterRejectedException;
+import net.jini.space.FilterRejectedException;
 
 import au.net.zeus.jgdms.cel.verifier.CelVerifier;
 import au.net.zeus.jgdms.cel.verifier.DerSchemaChainView;

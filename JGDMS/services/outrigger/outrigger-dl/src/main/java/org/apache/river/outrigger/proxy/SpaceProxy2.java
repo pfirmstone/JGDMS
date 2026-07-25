@@ -48,6 +48,8 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
+import net.jini.space.FilterRejectedException;
+import net.jini.space.FilteredJavaSpace;
 import net.jini.space.MatchSet;
 import net.jini.space.TupleSpace;
 import org.apache.river.api.io.AtomicSerial;

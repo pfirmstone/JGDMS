@@ -15,32 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.river.outrigger.proxy;
+package net.jini.space;
 
 /**
- * Thrown, LOUDLY, when a CEL filter attached to an Outrigger operation is
+ * Thrown, LOUDLY, when a CEL filter attached to a filtered space operation is
  * refused. A refused filter is <em>never</em> downgraded to an unfiltered
  * query: every rejection path throws this exception so that a caller can never
  * silently receive more entries than the predicate asked for.
  *
  * <p>This is the single, defined, client-facing rejection type for the
- * Outrigger CEL filter-pushdown feature (JGDMS-STD-011 / SOW Part B, unit B1).
+ * JavaSpaces CEL filter-pushdown feature (JGDMS-STD-011 / SOW Part B, unit B1).
  * It is a <em>checked</em> exception declared on every filtered operation
- * signature (both {@link OutriggerServer}'s remote methods and the client-facing
- * {@link FilteredJavaSpace} interface) precisely so that a loud break is
- * structural: a caller cannot ignore the possibility that a filter was refused.
+ * signature (both the {@code OutriggerServer} backend's remote methods and the
+ * client-facing {@link FilteredJavaSpace} interface) precisely so that a loud
+ * break is structural: a caller cannot ignore the possibility that a filter was
+ * refused.
  *
- * <p>The exception lives in {@code outrigger-dl} (release&nbsp;8 target) and
- * therefore names <b>no</b> {@code jgdms-cel} or {@code jgdms-der} type. The
- * server-side admission seam maps a CEL {@code VerificationResult.Reason} onto
- * the transport-neutral {@link Reason} enum below before throwing, so the
- * download/proxy layer never depends on the CEL type surface.
+ * <p>It lives in {@code jgdms-lib-dl} — the {@code net.jini.space} public API
+ * module (release&nbsp;8 target), alongside {@link FilteredJavaSpace},
+ * {@link JavaSpace05} and {@link InternalSpaceException} — because it is a
+ * client-compile-time API, not a codebase-download proxy type. It names
+ * <b>no</b> {@code jgdms-cel} or {@code jgdms-der} type: the server-side
+ * admission seam maps a CEL {@code VerificationResult.Reason} onto the
+ * transport-neutral {@link Reason} enum below before throwing, so the API layer
+ * never depends on the CEL type surface.
  *
  * <p>Rationale for a checked exception over the codebase's usual unchecked
- * {@code IllegalArgumentException} "loud pre-side-effect" idiom
- * (e.g. {@code OutriggerServerImpl.checkHandbackFormat}): the filter feature is
- * security-relevant, and its whole contract is "reject rather than run
- * unfiltered". Making the rejection a declared checked exception forces the
+ * {@code IllegalArgumentException} "loud pre-side-effect" idiom: the filter
+ * feature is security-relevant, and its whole contract is "reject rather than
+ * run unfiltered". Making the rejection a declared checked exception forces the
  * compiler to keep that contract visible at every call site.
  *
  * @since JGDMS 4.0.0
@@ -53,7 +56,7 @@ public class FilterRejectedException extends Exception {
      * The machine-readable cause of a filter rejection. Transport-neutral: the
      * four {@code FILTER_*} constants correspond 1:1 to the CEL verifier's
      * {@code VerificationResult.Reason} constants, but are re-declared here so
-     * that {@code outrigger-dl} carries no CEL dependency.
+     * that the {@code net.jini.space} API carries no CEL dependency.
      */
     public enum Reason {
         /**

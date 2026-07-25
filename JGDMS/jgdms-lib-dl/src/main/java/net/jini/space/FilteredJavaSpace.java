@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.river.outrigger.proxy;
+package net.jini.space;
 
 import java.rmi.RemoteException;
 import java.util.Collection;
@@ -29,21 +29,23 @@ import net.jini.io.MarshalledInstance;
 
 /**
  * Client-facing extension of the JavaSpaces API that attaches a CEL predicate
- * filter to Outrigger operations (JGDMS-STD-011 / SOW Part&nbsp;B). The
- * {@link SpaceProxy2} proxy implements this interface in addition to
- * {@code net.jini.space.TupleSpace}; a client that wants filtered semantics
- * casts its space proxy to {@code FilteredJavaSpace}.
+ * filter to space operations (JGDMS-STD-011 / SOW Part&nbsp;B). It lives in the
+ * public {@code net.jini.space} API package (module {@code jgdms-lib-dl}),
+ * alongside {@link JavaSpace05} and {@link TupleSpace} — it is a
+ * client-compile-time API a client programs against, not a codebase-download
+ * proxy type. The Outrigger space proxy implements this interface in addition to
+ * {@link TupleSpace}; a client that wants filtered semantics casts its space
+ * proxy to {@code FilteredJavaSpace}.
  *
  * <h3>The filter is an explicit operation parameter</h3>
  * Every method here takes a {@code byte[] filter} — a canonical
- * {@link FilterEnvelope} produced by the client authoring adapter
+ * {@code FilterEnvelope} produced by the client authoring adapter
  * ({@code EntryFilter.compile}). The filter is a genuine operation parameter,
- * <b>never</b> a field smuggled onto the template {@code EntryRep}. This makes
- * version skew a <em>loud break</em>: a proxy from an older server that does not
- * implement these methods simply cannot be cast to {@code FilteredJavaSpace},
- * and the corresponding {@link OutriggerServer} overloads are absent, so a
- * filtered call fails outright rather than silently running unfiltered and
- * over-returning.
+ * <b>never</b> a field smuggled onto the template entry. This makes version skew
+ * a <em>loud break</em>: a proxy from an older server that does not implement
+ * these methods simply cannot be cast to {@code FilteredJavaSpace}, and the
+ * corresponding backend overloads are absent, so a filtered call fails outright
+ * rather than silently running unfiltered and over-returning.
  *
  * <h3>Semantics</h3>
  * The filter <em>narrows</em> the result of the ordinary template match: an
@@ -56,8 +58,8 @@ import net.jini.io.MarshalledInstance;
  * is treated as a non-match (fail-closed).
  *
  * <p>A {@code null} filter is not valid on these methods — a caller that wants
- * an unfiltered query uses the ordinary {@code net.jini.space.JavaSpace} /
- * {@code TupleSpace} methods.
+ * an unfiltered query uses the ordinary {@link JavaSpace} / {@link TupleSpace}
+ * methods.
  *
  * <h3>Rejection is loud</h3>
  * If the filter cannot be admitted — a malformed envelope, a CEL record that
@@ -72,12 +74,12 @@ import net.jini.io.MarshalledInstance;
 public interface FilteredJavaSpace {
 
     /**
-     * Filtered variant of {@code JavaSpace.read}.
+     * Filtered variant of {@link JavaSpace#read}.
      *
      * @param tmpl    the query template (may be {@code null} for match-any)
      * @param txn     the transaction, or {@code null}
      * @param timeout the maximum wait, in milliseconds
-     * @param filter  a canonical {@link FilterEnvelope} (must not be {@code null})
+     * @param filter  a canonical filter envelope (must not be {@code null})
      * @return a matching entry that also satisfies the filter, or {@code null}
      *         if none became available before the timeout
      * @throws FilterRejectedException if the filter is refused (loud; never an
@@ -88,7 +90,7 @@ public interface FilteredJavaSpace {
                    InterruptedException, RemoteException, FilterRejectedException;
 
     /**
-     * Filtered variant of {@code JavaSpace.readIfExists}.
+     * Filtered variant of {@link JavaSpace#readIfExists}.
      * @see #read(Entry, Transaction, long, byte[])
      */
     Entry readIfExists(Entry tmpl, Transaction txn, long timeout, byte[] filter)
@@ -96,7 +98,7 @@ public interface FilteredJavaSpace {
                    InterruptedException, RemoteException, FilterRejectedException;
 
     /**
-     * Filtered variant of {@code JavaSpace.take}.
+     * Filtered variant of {@link JavaSpace#take}.
      * @see #read(Entry, Transaction, long, byte[])
      */
     Entry take(Entry tmpl, Transaction txn, long timeout, byte[] filter)
@@ -104,7 +106,7 @@ public interface FilteredJavaSpace {
                    InterruptedException, RemoteException, FilterRejectedException;
 
     /**
-     * Filtered variant of {@code JavaSpace.takeIfExists}.
+     * Filtered variant of {@link JavaSpace#takeIfExists}.
      * @see #read(Entry, Transaction, long, byte[])
      */
     Entry takeIfExists(Entry tmpl, Transaction txn, long timeout, byte[] filter)
@@ -112,7 +114,7 @@ public interface FilteredJavaSpace {
                    InterruptedException, RemoteException, FilterRejectedException;
 
     /**
-     * Filtered variant of {@code TupleSpace.notify}: the listener is notified
+     * Filtered variant of {@link TupleSpace#notify}: the listener is notified
      * only for writes that match {@code tmpl} <b>and</b> satisfy the filter.
      *
      * @param tmpl     the registration template (may be {@code null})
@@ -120,7 +122,7 @@ public interface FilteredJavaSpace {
      * @param listener the remote event listener
      * @param lease    the requested registration lease, in milliseconds
      * @param handback an event handback, or {@code null}
-     * @param filter   a canonical {@link FilterEnvelope} (must not be {@code null})
+     * @param filter   a canonical filter envelope (must not be {@code null})
      * @return the event registration
      * @throws FilterRejectedException if the filter is refused
      */
@@ -130,7 +132,7 @@ public interface FilteredJavaSpace {
             throws TransactionException, RemoteException, FilterRejectedException;
 
     /**
-     * Filtered variant of {@code TupleSpace.registerForAvailabilityEvent}: an
+     * Filtered variant of {@link TupleSpace#registerForAvailabilityEvent}: an
      * availability event fires only for entries that match one of {@code tmpls}
      * <b>and</b> satisfy the filter. The one filter is admitted against every
      * template's schema; if it fails to type-check against any of them, the
@@ -142,7 +144,7 @@ public interface FilteredJavaSpace {
      * @param listener       the remote event listener
      * @param leaseDuration  the requested registration lease, in milliseconds
      * @param handback       an event handback, or {@code null}
-     * @param filter         a canonical {@link FilterEnvelope} (must not be {@code null})
+     * @param filter         a canonical filter envelope (must not be {@code null})
      * @return the event registration
      * @throws FilterRejectedException if the filter is refused
      */

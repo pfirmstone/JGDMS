@@ -34,7 +34,7 @@ import net.jini.core.entry.Entry;
 
 import org.apache.river.outrigger.proxy.EntryRep;
 import org.apache.river.outrigger.proxy.FilterEnvelope;
-import org.apache.river.outrigger.proxy.FilterRejectedException;
+import net.jini.space.FilterRejectedException;
 
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.authoring.CelEncoder;

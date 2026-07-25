@@ -32,6 +32,7 @@ import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.TransactionParticipant;
 
 import net.jini.id.Uuid;
+import net.jini.space.FilterRejectedException;
 import net.jini.space.InternalSpaceException;
 import net.jini.io.MarshalledInstance;
 

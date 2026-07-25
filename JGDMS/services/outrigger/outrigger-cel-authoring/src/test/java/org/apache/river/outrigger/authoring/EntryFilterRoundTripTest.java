@@ -28,7 +28,7 @@ import net.jini.core.entry.Entry;
 import org.apache.river.outrigger.CompiledFilter;
 import org.apache.river.outrigger.FilterAdmission;
 import org.apache.river.outrigger.proxy.EntryRep;
-import org.apache.river.outrigger.proxy.FilterRejectedException;
+import net.jini.space.FilterRejectedException;
 
 import au.net.zeus.jgdms.cel.authoring.CelParseException;
 

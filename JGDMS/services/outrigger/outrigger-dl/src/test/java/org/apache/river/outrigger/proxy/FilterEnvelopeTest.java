@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import net.jini.space.FilterRejectedException;
 import org.junit.Test;
 
 /**

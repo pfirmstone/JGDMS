@@ -120,7 +120,7 @@ import org.apache.river.outrigger.proxy.ConstrainableAdminProxy;
 import org.apache.river.outrigger.proxy.ParticipantProxy;
 import org.apache.river.outrigger.proxy.SpaceProxy2;
 import org.apache.river.outrigger.proxy.EntryRep;
-import org.apache.river.outrigger.proxy.FilterRejectedException;
+import net.jini.space.FilterRejectedException;
 import org.apache.river.outrigger.proxy.MatchSetData;
 import org.apache.river.outrigger.proxy.ConstrainableParticipantProxy;
 import org.apache.river.outrigger.proxy.ConstrainableSpaceProxy2;

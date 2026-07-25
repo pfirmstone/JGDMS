@@ -53,7 +53,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
 import org.apache.river.outrigger.proxy.OutriggerServer;
 import org.apache.river.outrigger.proxy.EntryRep;
-import org.apache.river.outrigger.proxy.FilterRejectedException;
+import net.jini.space.FilterRejectedException;
 import org.apache.river.outrigger.proxy.MatchSetData;
 
 /**
