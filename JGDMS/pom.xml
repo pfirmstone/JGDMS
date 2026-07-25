@@ -63,6 +63,7 @@
     <module>jgdms-platform</module>
     <module>jgdms-der</module>
     <module>jgdms-cel</module>
+    <module>jgdms-cel-authoring</module>
     <module>jgdms-jeri</module>
     <module>jgdms-security-jwt</module>
     <module>jgdms-discovery-providers</module>

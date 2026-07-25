@@ -48,7 +48,9 @@ import java.util.Optional;
  * checker never rejects what it cannot prove is wrong, so the dynamic layer
  * remains load-bearing for every deferred case).
  * <p>
- * Package-private: {@link CelVerifier} is the only supported entry point.
+ * Package-private: reached through {@link CelVerifier} (full registration-time
+ * verification) and {@link CelTypeInference} (the public single-node type-query
+ * facade, e.g. for authoring-time overload resolution) -- both in this package.
  */
 final class StaticTypeChecker {
 
