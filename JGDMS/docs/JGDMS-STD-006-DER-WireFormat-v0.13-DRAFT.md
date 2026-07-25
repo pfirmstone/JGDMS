@@ -2233,13 +2233,23 @@ the code and SOW cite (previously cited but unwritten); cite it as **STD-006 §7
    reconstruct; a genuinely `Object`/broad-interface-typed slot is a documented residual
    still governed only by the ATOMIC gate + `check(GetArg)`.
 
-### 7.7 Jini Discovery/Registration Wire Types
+### 7.7 Jini Discovery/Registration Wire Types (sidecar / non-JVM Registrar records)
 
 These types enable a ServiceRegistrar to be implemented in any language — including
 on embedded devices running a sidecar Registrar — and enable dynamic Java proxy
 generation for non-JVM services. They depend on `EntrySchemaRecord` for type
 identity and on §7.6 scalar types for field value encoding. See STD-005 Appendix B
 for the relationship to the `@SerialEntry` validation contract.
+
+> **Scope note (RATIFIED — Peter, Q1).** These are the **sidecar** records for the
+> non-JVM / cross-runtime Registrar path. In particular the §7.7.2 `EntryRecord` /
+> §7.7.5 `EntryTemplate` are the **scalar-only sidecar** Entry records; they are a
+> **distinct** record from the Outrigger JavaSpace whole-entry `EntryRepV2Body` defined
+> in the EntryRep-v2 amendment (`JGDMS-STD-006-Appendix-EntryRep-v2-DRAFT.md`). The two
+> are for two subsystems, never share a decode surface, and are **intentionally not
+> tag-discriminated** — so the numeric collision between the sidecar
+> `EntryRecord.hashAlgorithm = 2` and `EntryRepV2Body.version = 2` is harmless by
+> construction (see amendment §A.0). Do not conflate them.
 
 #### 7.7.1 Entry Schema Identity
 
@@ -2343,7 +2353,7 @@ Options A and C are not adopted. **The enumerant numbers above are [PROPOSED —
 (they need to be pinned before interop, like the other §4.5/enumerant numbers, open
 item 21); the *mechanism* — Option B, version tag in `hashAlgorithm` — is ratified.**
 
-#### 7.7.2 Entry Instances
+#### 7.7.2 Entry Instances (sidecar `EntryRecord` — scalar-only, non-JVM Registrar)
 
 ```asn1
 EntryFieldValue ::= CHOICE {

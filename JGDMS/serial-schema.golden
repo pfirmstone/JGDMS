@@ -201,7 +201,7 @@ ATOMIC org.apache.river.outrigger.proxy.ConstrainableAdminProxy  -  | methodCons
 ATOMIC org.apache.river.outrigger.proxy.ConstrainableOutriggerAvailabilityEvent  -  | 
 ATOMIC org.apache.river.outrigger.proxy.ConstrainableParticipantProxy  -  | 
 ATOMIC org.apache.river.outrigger.proxy.ConstrainableSpaceProxy2  -  | methodConstraints:net.jini.core.constraint.MethodConstraints
-ATOMIC org.apache.river.outrigger.proxy.EntryRep  -  | values:[Lnet.jini.io.MarshalledInstance;, superclasses:[Ljava.lang.String;, hashes:[J, hash:long, className:java.lang.String, codebase:java.lang.String, id:net.jini.id.Uuid
+ATOMIC org.apache.river.outrigger.proxy.EntryRep  -  | body:[B, entrySchemaDigest:[B, superclasses:[Ljava.lang.String;, hashes:[J, hash:long, className:java.lang.String, codebase:java.lang.String, id:net.jini.id.Uuid
 ATOMIC org.apache.river.outrigger.proxy.MatchSetData  -  | uuid:net.jini.id.Uuid, reps:[Lorg.apache.river.outrigger.proxy.EntryRep;, intialLeaseDuration:long
 ATOMIC org.apache.river.outrigger.proxy.OutriggerAvailabilityEvent  -  | rep:org.apache.river.outrigger.proxy.EntryRep
 ATOMIC org.apache.river.outrigger.proxy.OutriggerQueryCookie  -  | startTime:long

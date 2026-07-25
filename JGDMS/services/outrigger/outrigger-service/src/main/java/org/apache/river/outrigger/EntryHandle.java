@@ -17,7 +17,6 @@
  */
 package org.apache.river.outrigger;
 
-import net.jini.io.MarshalledInstance;
 import org.apache.river.landlord.LeasedResource;
 import org.apache.river.outrigger.proxy.EntryRep;
 import java.util.Queue;
@@ -225,8 +224,8 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
 
 	// Create the mask to mask away wildcard fields
 	for (int i = 0; i < fieldsInHash; i++) {
-	    // If this field is one we have a value for, set bits in the mask
-	    if (i < tmpl.numFields() && tmpl.value(i) != null)
+	    // If this field is one we have a value for (not a wildcard), set bits in the mask
+	    if (i < tmpl.numFields() && !tmpl.isWildcard(i))
 		tmplMask |= (mask << (i * bitsPerField));
 	}
         
@@ -246,11 +245,11 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * @see #hashFor(EntryRep,int)
      */
     static long hashForField(EntryRep rep, int field) {
-	MarshalledInstance v = rep.value(field);
-	if (v == null)	  // for templates, it's just zero
-	    return 0;
-	else
-	    return v.hashCode();
+	// EntryRep-v2: the packed quick-reject hash is computed over the per-field canonical
+	// slice bytes (0 for a wildcard/null field), replacing the v1
+	// rep.value(field).hashCode(). The slice bytes are the byte-equality match unit, so a
+	// v1-matching pair still buckets identically under these indexes.
+	return rep.sliceHash(field);
     }
 
     public String toString() {
