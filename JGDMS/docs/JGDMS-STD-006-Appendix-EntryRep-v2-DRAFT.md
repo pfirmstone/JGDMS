@@ -41,10 +41,21 @@ different subsystem (the JavaSpace store):
   class-chain digest), so matching distinguishes value class identity (§A.4.4).
 
 `EntryRepV2Body` and §7.7.2 `EntryRecord` do **not** interoperate and are never
-byte-compared against each other; they are two records for two subsystems. **[BOARD
-Q1]** whether to relocate §7.7.2 under an explicit "sidecar" heading to remove the
-name-adjacency confusion, or to fold the Outrigger record into §7.7 as §7.7.2a. This
-amendment keeps the brief's names (`EntryRepV2Body`, `SchemaEntry`, `FieldSlice`).
+byte-compared against each other; they are two records for two subsystems. **RATIFIED
+(Peter, Q1): keep them distinct.** The base spec's §7.7.2 record is relabelled the
+**sidecar** record (an explicit "sidecar" heading; it is the non-JVM / cross-runtime
+Registrar record), and the Outrigger record keeps the brief's names (`EntryRepV2Body`,
+`SchemaEntry`, `FieldSlice`).
+
+**The two outer shapes are intentionally NOT tag-discriminated.** They never share a
+decode surface — a decoder is invoked knowing which subsystem's bytes it holds (the
+JavaSpace store path decodes `EntryRepV2Body`; the sidecar Registrar path decodes
+`EntryRecord`), and neither is a CHOICE alternative of the other. Consequently the
+numeric collision between `EntryRepV2Body.version = 2` and the sidecar
+`EntryRecord.hashAlgorithm = 2` is **harmless by construction**: the two `2`s are read by
+different decoders at different, non-overlapping offsets in unrelated records and can
+never be confused. No discriminating tag is added (adding one would imply a shared decode
+surface that does not exist).
 
 ---
 
@@ -246,11 +257,15 @@ excludes schema/digest/annotation). Consequences:
 - For `@AtomicSerial` values: v2 additionally requires the **runtime value class chain
   digest** to match. Two values of **different** `@AtomicSerial` classes that happen to
   encode to identical `payload` bytes matched in v1 (payload-only) but do **not** match
-  in v2. This is an intended **tightening** — it adds value-class identity to the match,
-  restoring the intuitive "same value ⇒ same class" expectation. **[BOARD Q2]** confirm
-  this tightening is acceptable; it is stricter than v1 and cannot produce a v1 match
-  that v2 rejects **for equal-class values** (the only affected case is
-  different-class-coincidental-payload, which is vanishingly rare and arguably a v1 bug).
+  in v2. This is an intended **TIGHTENING** of v1 semantics — it adds value-class identity
+  to the match, distinguishing two same-layout `@AtomicSerial` classes that v1's
+  payload-only comparison conflated. It does **not** "restore" a v1 behaviour: v1 never
+  matched across genuinely different values (e.g. `Integer(5)` and `Long(5)` had distinct
+  self-describing payloads in v1 too); it purely closes the different-class /
+  coincidentally-equal-payload conflation, which was arguably a v1 bug. It is stricter
+  than v1 and cannot produce a v1 match that v2 rejects **for equal-class values** (the
+  only affected case is different-class-coincidental-payload, vanishingly rare).
+  **RATIFIED (Peter) — intended.**
 
 ### A.4.5 Wildcard / null parity (bit-for-bit v1)
 
@@ -339,14 +354,23 @@ ceiling-breaching element is the last one parsed). Registered against §4.5.
 |---|---|---|
 | `version` | exactly `2` | `EntryRepV2Body.version`; any other value rejected LOUDLY (§A.8) |
 | `maxFields` | 65535 (existing §4.5) | `EntryRepV2Body.fields` count |
-| `maxSchemaTable` | **256** [PROPOSED — pin with Peter] | `EntryRepV2Body.schemaTable` entry count. Rationale: an entry has ≤ `maxFields` fields but distinct value **classes** are far fewer; 256 distinct schema chains per entry is generous and bounds the sort/dedup work and the completeness cross-check. |
+| `maxSchemaTable` | **256** (RATIFIED — Peter) | `EntryRepV2Body.schemaTable` entry count. Rationale: an entry has ≤ `maxFields` fields but distinct value **classes** are far fewer; 256 distinct schema chains per entry is generous and bounds the sort/dedup work and the completeness cross-check. |
 | `maxChainBytes` | 65536 (existing §4.5) | each `SchemaEntry.chainBytes` (one chain), and the entry chain |
 | `maxChainRecords` | 64 (existing §4.5) | records within any one `chainBytes` chain |
-| `maxSlicePayload` | **1048576** (1 MiB) [PROPOSED — pin with Peter] | `FieldSlice.value.payload` length. Rationale: a single entry field value; 1 MiB bounds a hostile payload while admitting realistic large fields (small blobs). |
-| `maxBodyBytes` | **8388608** (8 MiB) [PROPOSED — pin with Peter] | total `EntryRepV2Body` DER length, checked before/at the outer SEQUENCE. Backstops the product of the per-element ceilings so a body cannot be enormous even within per-element bounds. |
+| `maxSlicePayload` | **1048576** (1 MiB) (RATIFIED — Peter) | `FieldSlice.value.payload` length. Rationale: a single entry field value; 1 MiB bounds a hostile payload while admitting realistic large fields (small blobs). |
+| `maxBodyBytes` | **8388608** (8 MiB) (RATIFIED — Peter) | total `EntryRepV2Body` DER length, checked before/at the outer SEQUENCE. Backstops the product of the per-element ceilings so a body cannot be enormous even within per-element bounds. |
 
 `valueSchemaDigest` is 0 or exactly 32 bytes; `entrySchemaDigest` and
 `SchemaEntry.digest` are exactly 32 bytes; any other length is a decode error.
+
+**Unit-2 obligation — bound the read upstream (§2.1 H6).** `decode`'s `maxBodyBytes`
+check runs **after** the caller has already materialized the body `byte[]`, so it caps
+what the codec will process but does **not** cap what the stream/transport layer will
+read into memory. The stream/transport layer (the JERI/DER decode-unit that supplies the
+body bytes, and the snaplogstore read that supplies the persisted body) MUST impose its
+own read bound so an adversary cannot force an unbounded allocation before `decode` ever
+sees the bytes. This is a unit-2 wiring obligation on every site that produces the body
+`byte[]` fed to `decode`.
 
 ---
 
