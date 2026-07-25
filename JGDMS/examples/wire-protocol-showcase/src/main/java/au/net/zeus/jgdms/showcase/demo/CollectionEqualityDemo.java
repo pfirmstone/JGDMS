@@ -197,6 +197,7 @@ public final class CollectionEqualityDemo {
         System.out.println("========================================================================");
         System.out.println(" Two different collection classes, one value, one encoding");
         System.out.println("========================================================================");
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/src/main/java/au/net/zeus/jgdms/showcase/demo/CollectionEqualityDemo.java");
         System.out.println();
         System.out.println("The canonical format serialises a collection's VALUE (what .equals");
         System.out.println("compares), never the implementation class holding it. Stock Java");

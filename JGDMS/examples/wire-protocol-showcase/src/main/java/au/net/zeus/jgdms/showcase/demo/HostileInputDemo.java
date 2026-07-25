@@ -51,6 +51,7 @@ public final class HostileInputDemo {
         System.out.println("========================================================================");
         System.out.println(" Feed it garbage, it stops politely");
         System.out.println("========================================================================");
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/src/main/java/au/net/zeus/jgdms/showcase/demo/HostileInputDemo.java");
         System.out.println();
         System.out.println("The reader that turns wire bytes back into objects is handed four hostile");
         System.out.println("inputs. It refuses each one cleanly -- a plain error, bounded memory, no");
