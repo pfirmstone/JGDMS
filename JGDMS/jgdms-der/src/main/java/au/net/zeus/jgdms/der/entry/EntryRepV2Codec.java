@@ -29,6 +29,11 @@ import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.CodebaseAccessor;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 
 import java.io.ByteArrayInputStream;
@@ -135,6 +140,13 @@ public final class EntryRepV2Codec {
         if (value == null) {
             return new Slice(DerWriter.writeTlv(SLICE_ABSENT, EMPTY), EMPTY, null);
         }
+        // F1 (board ruling: REJECT, do not substitute). A live downloadable/smart proxy value
+        // would encode SILENTLY as a bare [8] object-stream item (deterministic empty digest),
+        // which DIVERGES from v1's DerProxySerializer substitution in deployment. Substitution
+        // cannot be added here because substituted bytes depend on streamLoader/context, not on
+        // the value alone -- it would breach the pure-function contract (amendment A.4.1). So a
+        // proxy-typed field value is refused LOUDLY at encode.
+        rejectProxyValue(value);
         byte[] digest;
         byte[] payload;
         byte[] chainBytes;
@@ -156,6 +168,14 @@ public final class EntryRepV2Codec {
         } catch (DerException e) {
             throw new IOException("EntryRepV2: cannot DER-encode field value of type "
                     + value.getClass().getName() + ": " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            // D6: the object-stream (inc-1) layer signals some non-encodable values with an
+            // unchecked exception (e.g. UnsupportedOperationException for a bare top-level
+            // collection value -- see amendment A.4.2 disclosure). Wrap it as the checked
+            // IOException this method contracts, so a caller (EntryRep) can surface it as a
+            // MarshalException rather than have it escape unchecked.
+            throw new IOException("EntryRepV2: cannot DER-encode field value of type "
+                    + value.getClass().getName() + ": " + e, e);
         }
         if (payload.length > MAX_SLICE_PAYLOAD) {
             throw new IOException("EntryRepV2: field payload " + payload.length
@@ -408,6 +428,24 @@ public final class EntryRepV2Codec {
             }
         }
 
+        // 6. FIELD-COUNT GUARD (amendment A.8/A.9 D1). entrySchemaDigest is EXCLUDED from
+        //    matching (A.4.6), so this structural check is the ONLY defence in the decoded body
+        //    against a positional / class-confusion shift: the number of slices MUST equal the
+        //    total usable-field count implied by the entry's own on-wire schema chain. A body
+        //    with too few/many slices for its declared class is rejected LOUDLY.
+        byte[] entryChainBytes = table.get(hex(entrySchemaDigest));
+        // (entryChainBytes is non-null: completeness above proved entrySchemaDigest is in the table.)
+        int declaredFieldCount = 0;
+        for (AtomicSerialSchemaRecord rec :
+                SchemaChain.decodeChain(entryChainBytes, "EntryRepV2.entryChain")) {
+            declaredFieldCount += rec.fields().size();
+        }
+        if (declaredFieldCount != sliceList.size()) {
+            throw new DerException("EntryRepV2: field-count skew -- entry schema implies "
+                    + declaredFieldCount + " usable field(s) but the body carries "
+                    + sliceList.size() + " slice(s) -- rejected (A.8 field-count guard)");
+        }
+
         byte[][] slices = sliceList.toArray(new byte[0][]);
         boolean[] absent = new boolean[absentList.size()];
         for (int i = 0; i < absent.length; i++) absent[i] = absentList.get(i);
@@ -472,6 +510,27 @@ public final class EntryRepV2Codec {
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    /**
+     * F1: refuses a live proxy/downloadable-service value held as an entry field. Detects the
+     * {@code ProxyAccessor}/{@code DynamicProxyCodebaseAccessor} carriers, and a dynamic proxy
+     * that is both {@code RemoteMethodControl} and {@code CodebaseAccessor} (a smart proxy). Such
+     * a value would encode non-deterministically vs its deployment (streamLoader/context
+     * dependent), so it cannot be a pure function of the value -- refuse LOUDLY.
+     */
+    private static void rejectProxyValue(Object value) throws IOException {
+        boolean proxyish = (value instanceof ProxyAccessor)
+                || (value instanceof DynamicProxyCodebaseAccessor)
+                || (java.lang.reflect.Proxy.isProxyClass(value.getClass())
+                        && value instanceof RemoteMethodControl
+                        && value instanceof CodebaseAccessor);
+        if (proxyish) {
+            throw new IOException("EntryRepV2: a live proxy/downloadable-service value of type "
+                    + value.getClass().getName() + " may not be stored as an entry field"
+                    + " (its encoding is not a pure function of the value -- F1). Store a data"
+                    + " value, not a proxy.");
+        }
+    }
 
     /** The nearest class in {@code c}'s hierarchy annotated {@code @AtomicSerial}, or null. */
     private static Class<?> nearestAtomicSerial(Class<?> c) {

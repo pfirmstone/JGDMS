@@ -175,9 +175,12 @@ where `D(v)` and `P(v)` depend on **nothing** except the value `v` itself:
 - `P(v)` = the canonical ATOMIC DER of `v` alone. It is **byte-identical** to the
   `payloadBytes` of a per-value DER `MarshalledInstance` built from `v`
   (`ObjectCodec.encodeHierarchy` for an `@AtomicSerial` graph; a self-describing,
-  context-tagged object-stream item for a `String`/boxed/`byte[]`/enum/collection/bare
-  proxy). This is exactly the byte-string v1's `matches()` compared, so matching parity
-  is preserved by construction.
+  context-tagged object-stream item for a `String`/boxed/`byte[]`/enum). This is exactly
+  the byte-string v1's `matches()` compared, so matching parity is preserved by
+  construction. **Payload-content canonicity is INHERITED** from the
+  `ObjectCodec`/object-stream layer (STD-006 §7 / §15.2: same value ⇒ same bytes across
+  senders). It is a **precondition** relied on here, not re-established by this amendment;
+  the match contract rests on it.
 - `D(v)` = the leaf digest of `v`'s **runtime** class chain
   (`SHA-256(DER(leaf AtomicSerialSchemaRecord of v.getClass()))`), or a **0-length**
   OCTET STRING when `v` has no `@AtomicSerial` class in its hierarchy (the
@@ -195,11 +198,29 @@ deterministic schema generation ⇒ same-class-same-digest across senders).
 | value's runtime hierarchy | `valueSchemaDigest` | `payload` |
 |---|---|---|
 | contains an `@AtomicSerial` class | 32-byte leaf digest of the value's class chain | `ObjectCodec.encodeHierarchy(v, chain)` |
-| no `@AtomicSerial` class (`String`, `Integer`, …, `byte[]`, enum, collection, bare proxy) | 0-length | self-describing DER object-stream item (context-tagged, §15.2) |
+| no `@AtomicSerial` class (`String`, `Integer`, …, `byte[]`, enum) | 0-length | self-describing DER object-stream item (context-tagged, §15.2) |
 
 Both shapes are produced by encoding `v` through the identical `net.jini.io.Marshalled­Instance` DER path v1 used, then lifting out `(schemaDigest, payloadBytes)`. The
 value's schema chain bytes (when non-empty) become the `SchemaEntry.chainBytes` keyed
 by `D(v)` in the `schemaTable`.
+
+**Restrictions on the field-value shape (DISCLOSED, G8/G9).** Two value shapes are
+**not encodable** as a field value in this unit — both fail **loudly at encode**, so no
+peer produces a divergent slice:
+
+- **A bare top-level `Collection`/`Map` VALUE** (e.g. a field holding an `ArrayList`
+  instance directly): the inc-1 object-stream layer rejects a bare top-level collection
+  value with a loud exception — **same as v1** (no parity break). A `Collection`/`Map`
+  travels only as a field **inside** an `@AtomicSerial` value (where the STD-006 §7.6
+  discipline types apply) or via a `@SerialEntry` wire field. Lifting this is a larger
+  object-stream change, deferred (Peter may lift later). Note the DECLARED collection
+  field *type* is still recorded with its correct discipline token (§A.5) — only a bare
+  collection *value* at the top of a slice is restricted.
+- **A live proxy / downloadable-service VALUE** (`ProxyAccessor`,
+  `DynamicProxyCodebaseAccessor`, or a smart proxy that is both `RemoteMethodControl` and
+  `CodebaseAccessor`): refused loudly (§A.4.3 / board ruling F1) — its encoding is not a
+  pure function of the value (it depends on the marshalling stream loader/context), so it
+  cannot satisfy §A.4.1. Store a data value, not a proxy.
 
 ### A.4.3 REJECTED TRAP — no chain-relative references in payloads
 
@@ -380,6 +401,13 @@ A conformant `EntryRepV2Body` decoder MUST reject, before acting on any partial 
    (fail-secure; the record is exactly its declared components).
 9. A `FieldSlice` CHOICE tag other than `[0]`/`[1]`; a `value` slice with the wrong
    inner component count/tags.
+10. **Field-count skew (§A.8).** The number of `FieldSlice`s MUST equal the total usable-field
+    count implied by the entry's own on-wire schema chain (the sum of the field-def counts
+    across the records of the `entrySchemaDigest`'s `chainBytes`). Because `entrySchemaDigest`
+    is EXCLUDED from matching (§A.4.6), this is the ONLY structural defence in the decoded
+    body against a positional / class-confusion shift, and a decoder MUST reject a mismatch
+    LOUDLY. (Normative in §A.8; enumerated here so a decoder implemented from §A.9 alone does
+    not omit it.)
 
 A decoder MUST NOT attempt to reconstruct the entry, run `matches()`, or index the
 entry from a body that fails any of the above.

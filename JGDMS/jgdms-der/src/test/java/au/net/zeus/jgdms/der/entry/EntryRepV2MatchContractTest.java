@@ -342,6 +342,74 @@ public class EntryRepV2MatchContractTest {
                 ex.getMessage());
     }
 
+    @Test
+    public void adversarial_fieldCountSkew_rejected() throws Exception {
+        // D1: entry chain (EntryT) implies 2 usable fields, but the body carries 0 slices.
+        EntrySchemaGenerator.EntrySchema es = EntrySchemaGenerator.forClass(EntryT.class);
+        byte[] body = buildBody(2, es.entrySchemaDigest(),
+                List.of(schemaEntry(es.entrySchemaDigest(), es.chainBytes())),
+                List.of()); // ZERO slices vs 2 declared
+        DerException ex = assertThrows(DerException.class, () -> EntryRepV2Codec.decode(body));
+        assertTrue(ex.getMessage().contains("field-count") || ex.getMessage().contains("skew"),
+                "field-count guard must reject a slice-count skew: " + ex.getMessage());
+    }
+
+    // ------------------------------------------------------------------ D2: generic collection token
+
+    public static class WithCollections {
+        public java.util.ArrayList<String> tags;   // concrete List -> must NOT be rejected
+        public java.util.Set<Integer> nums;        // Set discipline token
+        public WithCollections() {}
+    }
+
+    @Test
+    public void collectionField_getsDisciplineToken_notAtomicSerial() throws Exception {
+        EntrySchemaGenerator.EntrySchema es = EntrySchemaGenerator.forClass(WithCollections.class);
+        List<au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef> defs =
+                es.chain().chain().get(0).fields();
+        // order alpha within class: nums, tags
+        assertEquals("nums", defs.get(0).wireName());
+        assertEquals("tags", defs.get(1).wireName());
+        String numsWt = defs.get(0).wireType();
+        String tagsWt = defs.get(1).wireType();
+        assertFalse(numsWt.equals("@AtomicSerial"), "Set<Integer> must not record @AtomicSerial: " + numsWt);
+        assertFalse(tagsWt.equals("@AtomicSerial"), "ArrayList<String> must not record @AtomicSerial: " + tagsWt);
+        assertTrue(tagsWt.startsWith("list:"), "ArrayList<String> -> list token: " + tagsWt);
+        assertTrue(tagsWt.contains("java.lang.String"), "element type recorded: " + tagsWt);
+        assertTrue(numsWt.startsWith("set:") || numsWt.startsWith("orderedset:"), "Set token: " + numsWt);
+        assertTrue(numsWt.contains("int"), "element type recorded: " + numsWt);
+    }
+
+    // ------------------------------------------------------------------ D4: @SerialEntry reject
+
+    @net.jini.core.entry.SerialEntry
+    public static class SerialEntryFixture {
+        public String v;
+        public SerialEntryFixture() {}
+    }
+
+    @Test
+    public void serialEntryClass_rejectedLoudly() {
+        DerException ex = assertThrows(DerException.class,
+                () -> EntrySchemaGenerator.forClass(SerialEntryFixture.class));
+        assertTrue(ex.getMessage().contains("@SerialEntry") || ex.getMessage().contains("entryForm"),
+                "must reject @SerialEntry reflective generation: " + ex.getMessage());
+    }
+
+    // ------------------------------------------------------------------ F1: proxy value reject
+
+    @Test
+    public void proxyValuedField_rejectedAtEncode() {
+        Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{ net.jini.export.ProxyAccessor.class },
+                (p, m, a) -> null);
+        IOException ex = assertThrows(IOException.class,
+                () -> EntryRepV2Codec.encodeFieldSlice(proxy));
+        assertTrue(ex.getMessage().contains("proxy") || ex.getMessage().contains("F1"),
+                "a live proxy field value must be refused loudly: " + ex.getMessage());
+    }
+
     // Low-level body builders (test-only) -------------------------------
 
     private static byte[] schemaEntry(byte[] digest, byte[] chainBytes) {

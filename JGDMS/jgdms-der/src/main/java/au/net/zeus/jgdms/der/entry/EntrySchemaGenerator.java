@@ -72,7 +72,8 @@ import java.util.Objects;
  * {@code FieldComparator} therefore necessarily coexist with the rules here; the two
  * MUST agree. This is a field-<i>selection</i> duplication forced by the
  * release-8/JDK25 split, not a second source of the schema <i>bytes</i> (there is one:
- * this class). {@code EntrySchemaGeneratorFieldOrderTest} pins the agreement.
+ * this class). {@code EntrySchemaGeneratorFieldOrderTest} pins the agreement (field order,
+ * namespace/shadowing, usable-field edge cases, and primitive-field rejection).
  */
 public final class EntrySchemaGenerator {
 
@@ -145,6 +146,15 @@ public final class EntrySchemaGenerator {
     // =========================================================================
 
     private static EntrySchema generate(Class<?> entryClass) throws DerException {
+        // D4/G8: a @SerialEntry (STD-005) class declares its wire schema via entryForm()
+        // (developer-controlled wireName/wireType), NOT via reflection. Silently building a
+        // reflective schema for it would mis-schema the class. Reject loudly until unit 2
+        // implements the entryForm()-driven branch (see EntryRepV2Support.encodeSerialEntry).
+        if (entryClass.isAnnotationPresent(net.jini.core.entry.SerialEntry.class)) {
+            throw new DerException("EntrySchemaGenerator: @SerialEntry class "
+                    + entryClass.getName() + " must derive its schema from entryForm()"
+                    + " -- reflective schema generation is not valid for it (unit 2)");
+        }
         // Per-class records, leaf-first (matches SchemaChain.linkAndGetLeafDigest input
         // convention). Each class in the hierarchy leaf..(Object exclusive) is one record
         // carrying its OWN declared usable fields (alphabetical within the class).
@@ -188,8 +198,11 @@ public final class EntrySchemaGenerator {
         List<AtomicSerialFieldDef> defs = new ArrayList<>(usable.size());
         for (Field f : usable) {
             // The DECLARED field type is the wireType (declared-type metadata for later
-            // name-resolution/type-checking); NEVER the runtime value class.
-            String wireType = SchemaGenerator.toWireType(f.getType(), c);
+            // name-resolution/type-checking); NEVER the runtime value class. Use the
+            // GENERIC-signature overload (D2/G8): a Collection/Map field records its
+            // discipline token over the declared element type (Field.getGenericType()),
+            // not "@AtomicSerial" -- so e.g. List<String> is admitted with the right token.
+            String wireType = SchemaGenerator.toWireType(f.getGenericType(), c);
             defs.add(new AtomicSerialFieldDef(f.getName(), wireType));
         }
         return new AtomicSerialSchemaRecord(c.getName(), (byte[]) null, defs);
