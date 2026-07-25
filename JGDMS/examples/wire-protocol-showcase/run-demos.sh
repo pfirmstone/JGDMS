@@ -17,6 +17,23 @@
 # own `set -e` around each demo so one failure doesn't abort the whole run, and
 # capture $? immediately after.
 set -uo pipefail
+
+# Convert a Unix/Git-Bash path to a Windows path the native javac/java can
+# resolve. Prefers cygpath -m (mixed C:/... form, safe from further Git-Bash
+# mangling); falls back to a /c/foo -> C:/foo transform when cygpath is
+# unavailable. Same helper as demo2-match-without-the-class/run.sh and
+# demo5-filter-by-a-rule/run.sh -- see the note there: the Windows Java
+# launcher uses ';' as its classpath separator, and Git Bash does not
+# convert Unix-style paths buried inside a ';'-joined -cp string, so those
+# entries would silently drop out of the classpath.
+to_win() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -m "$1"
+    else
+        echo "$1" | sed -E 's#^/([a-zA-Z])/#\1:/#'
+    fi
+}
+
 showcase="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 jgdms="$(dirname "$(dirname "$showcase")")"
 
@@ -37,9 +54,17 @@ header() {
 # demo2, jgdms-cel for demo5) depend on. One combined reactor build covers
 # both -am closures; -Dmaven.test.skip=true keeps it to main-code compile+install.
 # ---------------------------------------------------------------------------
+# `clean install`, not plain `install`: a *failed* compile leaves whatever
+# .class files an earlier successful build already produced sitting in
+# target/classes untouched (maven-compiler-plugin does not wipe stale
+# output on failure). Without `clean`, a module that fails to build here
+# can silently leave a stale, pre-fix jar behind in the shared local repo
+# (~/.m2) instead of failing loudly -- which is exactly how a demo that
+# depends on a just-changed jgdms-der API can go on to fail downstream
+# with a confusing ClassNotFoundException instead of a build error.
 header "Step 0: building JGDMS modules from current source (jgdms-der, jgdms-platform, jgdms-lib-dl, jgdms-cel, ...)"
 ( cd "$jgdms" && mvn -pl services/outrigger/outrigger-dl,jgdms-cel -am \
-    -Dmaven.test.skip=true -Dtidy.skip=true -Drat.skip=true install )
+    -Dmaven.test.skip=true -Dtidy.skip=true -Drat.skip=true clean install )
 if [[ $? -ne 0 ]]; then
     echo "FATAL: module build failed; cannot run any demo against current source." >&2
     exit 1
@@ -48,16 +73,18 @@ echo "Modules built and installed from current source."
 
 # ---------------------------------------------------------------------------
 # Build the main showcase module (demos 1, 3, 4, 6 live here) against the jars
-# just installed above.
+# just installed above. `clean package`, for the same stale-target reason as
+# Step 0 above: a compile failure here must not be masked by leftover
+# .class files from an earlier, unrelated successful build.
 # ---------------------------------------------------------------------------
 header "Building the showcase module (demos 1, 3, 4, 6)"
-( cd "$showcase" && mvn -q package -DskipTests )
+( cd "$showcase" && mvn -q clean package -DskipTests )
 if [[ $? -ne 0 ]]; then
     echo "FATAL: showcase build failed." >&2
     exit 1
 fi
 
-cp="$showcase/target/classes;$showcase/target/lib/*"
+cp="$(to_win "$showcase/target/classes");$(to_win "$showcase/target/lib")/*"
 
 # ---------------------------------------------------------------------------
 # Demonstration 1: Same object, same bytes -- everywhere
