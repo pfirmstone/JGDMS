@@ -59,7 +59,7 @@ import java.util.Set;
  * {@link Iterator#remove()}, so the {@link Iterator} interface's own default {@code remove()}
  * (which throws {@code UnsupportedOperationException}) applies.
  */
-public final class ImmutableMap<K, V> extends AbstractMap<K, V> {
+public class ImmutableMap<K, V> extends AbstractMap<K, V> {
 
     private final Map.Entry<?, ?>[] entries;
 
@@ -74,6 +74,22 @@ public final class ImmutableMap<K, V> extends AbstractMap<K, V> {
      */
     public ImmutableMap(List<? extends Map.Entry<?, ?>> source) {
         this.entries = source.toArray(new Map.Entry<?, ?>[0]);
+    }
+
+    /**
+     * A fresh positional copy of the backing entries, in this map's iteration order.
+     * Subclass hook for {@link ImmutableSequencedMap#reversed()}: builds an
+     * {@link java.util.ArrayList} by positional {@code add} only, so — like construction — it
+     * invokes zero methods on the contained keys/values. The returned list is a private
+     * snapshot (no shared mutable state with this map).
+     */
+    @SuppressWarnings("unchecked")
+    protected final List<Map.Entry<K, V>> orderedEntries() {
+        java.util.ArrayList<Map.Entry<K, V>> copy = new java.util.ArrayList<>(entries.length);
+        for (Map.Entry<?, ?> e : entries) {
+            copy.add((Map.Entry<K, V>) e);
+        }
+        return copy;
     }
 
     @Override

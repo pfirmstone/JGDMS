@@ -59,7 +59,7 @@ import java.util.NoSuchElementException;
  * override {@link Iterator#remove()}, so the {@link Iterator} interface's own default {@code
  * remove()} (which throws {@code UnsupportedOperationException}) applies.
  */
-public final class ImmutableSet<E> extends AbstractSet<E> {
+public class ImmutableSet<E> extends AbstractSet<E> {
 
     private final Object[] elements;
 
@@ -73,6 +73,22 @@ public final class ImmutableSet<E> extends AbstractSet<E> {
      */
     public ImmutableSet(List<?> source) {
         this.elements = source.toArray();
+    }
+
+    /**
+     * A fresh positional copy of the backing elements, in this set's iteration order.
+     * Subclass hook for {@link ImmutableSequencedSet#reversed()}: builds an
+     * {@link java.util.ArrayList} by positional {@code add} only, so — like construction — it
+     * invokes zero {@code hashCode}/{@code equals}/{@code compareTo} methods on the elements.
+     * The returned list is a private snapshot (no shared mutable state with this set).
+     */
+    @SuppressWarnings("unchecked")
+    protected final List<E> orderedElements() {
+        java.util.ArrayList<E> copy = new java.util.ArrayList<>(elements.length);
+        for (Object e : elements) {
+            copy.add((E) e);
+        }
+        return copy;
     }
 
     @Override

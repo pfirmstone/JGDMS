@@ -86,6 +86,11 @@ import java.util.Set;
  *   [15] PRIMITIVE   -- stream-format version octet (8F 01 01) -- NOT an object item: the
  *                       mandatory FIRST TLV of every object stream (STD-006 Appendix C
  *                       sec.C.5.2); anywhere else it is rejected by the readObject catch-all
+ *   [16] CONSTRUCTED -- top-level Collection/Map VALUE; content = UTF8String(collectionWireType)
+ *                       ++ collectionTLV (SET OF 0x31 for set:/bag:/map:, SEQUENCE OF 0x30 for
+ *                       orderedset:/list:/orderedmap:). Emitted ONLY by the typed writeCollection
+ *                       entry point (the untyped writeObject still rejects a bare collection);
+ *                       its interior is EXCLUDED from schema-chain dedup (like [8], sec.C.6.5)
  * </pre>
  *
  * <h2>Stream format: version octet + mandatory schema-chain dedup (STD-006 Appendix C)</h2>
@@ -102,9 +107,9 @@ import java.util.Set;
  * (sec.C.6.5), and the record-level capture context ({@code streamFormat = false},
  * sec.C.1.2 item 3) uses neither the version octet nor the dedup productions.
  * Context class = 0x80 (primitive) / 0xA0 (constructed); constructed bit set only for
- * [1], [7], [8], [9]. Single-byte tags: [0]-&gt;0x80, [1]-&gt;0xa1, [2]-&gt;0x82, [3]-&gt;0x83,
+ * [1], [7], [8], [9], [16]. Single-byte tags: [0]-&gt;0x80, [1]-&gt;0xa1, [2]-&gt;0x82, [3]-&gt;0x83,
  * [4]-&gt;0x84, [5]-&gt;0x85, [6]-&gt;0x86, [7]-&gt;0xa7, [8]-&gt;0xa8, [9]-&gt;0xa9, [10]-&gt;0x8a,
- * [11]-&gt;0x8b, [12]-&gt;0x8c, [13]-&gt;0x8d, [14]-&gt;0x8e.
+ * [11]-&gt;0x8b, [12]-&gt;0x8c, [13]-&gt;0x8d, [14]-&gt;0x8e, [16]-&gt;0xb0.
  * (A {@code java.lang.reflect.Proxy} whose interfaces + {@code @AtomicSerial} handler are
  * locally resolvable is transmitted bare as [8]; one that needs a codebase download is
  * instead substituted by a {@code ProxySerializer} and rides the [1] path, per STD-008 sec.15.2.
@@ -171,6 +176,11 @@ final class DerObjectStreamCodec {
     private static final Tag CTX_PROXY       = new Tag(Tag.CLASS_CONTEXT, true,  8);
     /** [9] constructed context tag: top-level value array (UTF8 componentWireType + element SEQUENCE). */
     private static final Tag CTX_ARRAY       = new Tag(Tag.CLASS_CONTEXT, true,  9);
+    /** [16] constructed context tag: top-level Collection/Map VALUE (UTF8 collectionWireType +
+     *  collection TLV). Emitted ONLY by the typed {@link #writeCollection} entry point; the untyped
+     *  {@link #writeObject} still rejects a bare collection ({@code @AtomicSerial}-restricted).
+     *  ([15] is the stream-format version octet; [16] is the next free tag after it.) */
+    private static final Tag CTX_COLLECTION  = new Tag(Tag.CLASS_CONTEXT, true,  16);
 
     // -- Boxed scalar top-level items (STD-008 sec.15.2.1; see class javadoc "Boxed-scalar
     // tag allocation" for why eight DISTINCT tags, not one shared tag). All PRIMITIVE
@@ -763,6 +773,49 @@ final class DerObjectStreamCodec {
         }
     }
 
+    /**
+     * Encodes a top-level {@link java.util.Collection}/{@link java.util.Map} VALUE as a
+     * {@code [16] CTX_COLLECTION} item (STD-008 §15.2, the collection-value item). This is the
+     * ONLY path that emits {@code [16]}: the untyped {@link #writeObject(Object)} deliberately
+     * still rejects a bare collection with {@code UnsupportedOperationException} (COLL-1 narrows
+     * the {@code @AtomicSerial}-only fallthrough only for a token-supplied collection, so a
+     * caller must declare the collection's discipline via {@code declaredToken}).
+     *
+     * <p>The content is {@code UTF8String(declaredToken) ++ collectionTLV} exactly as built by
+     * {@link ObjectCodec#encodeTopLevelCollection}. The {@code collectionTLV} is a pure canonical
+     * function of {@code (declaredToken, coll)} — octet-sorted §11.6 form for a CANONICALISE token,
+     * transmitted order for a PRESERVE token — byte-identical to the same value carried as a
+     * collection field inside an {@code @AtomicSerial} record (one encoding per value, H1).
+     *
+     * <p><b>Dedup interaction (STD-006 Appendix C):</b> unlike the {@code [1]}/{@code [9]} chain
+     * sites, the {@code [16]} interior is <b>excluded</b> from stream schema-chain dedup — the
+     * {@code [8]}-proxy precedent (Appendix C sec.C.6.5), and here <em>required</em>, not merely
+     * convenient: the crux property (the encoding is a pure function of {@code (token, value)},
+     * identical across senders) would be destroyed if an interior {@code @AtomicSerial} element
+     * were rewritten as a {@code chainRef} whose bytes depend on what appeared earlier in the
+     * stream. So {@code writeCollection} appends the {@code [16]} TLV verbatim with no
+     * {@code encodeDedup} pass, and the {@code [16]} read branch performs no reconstitution.
+     *
+     * @param coll          the non-null collection/map value
+     * @param declaredToken the collection wire-type token declaring the discipline (e.g.
+     *                      {@code "set:int"}, {@code "orderedmap:{int}{java.lang.String}"})
+     * @throws IOException          if the token is not a collection token, is malformed, or the
+     *                              value does not match the token / has an unsupported element
+     * @throws NullPointerException if either argument is {@code null}
+     */
+    void writeCollection(Object coll, String declaredToken) throws IOException {
+        Objects.requireNonNull(coll, "coll");
+        Objects.requireNonNull(declaredToken, "declaredToken");
+        try {
+            byte[] content = ObjectCodec.encodeTopLevelCollection(coll, declaredToken);
+            // NO encodeDedup: the [16] interior is excluded from schema-chain dedup (see javadoc).
+            writeBuffer.add(DerWriter.writeTlv(CTX_COLLECTION, content));
+        } catch (DerException e) {
+            throw new IOException("DER stream [16] collection encode failed for token '"
+                    + declaredToken + "'", e);
+        }
+    }
+
     // =========================================================================
     // Read side: typed primitives
     // =========================================================================
@@ -1120,6 +1173,27 @@ final class DerObjectStreamCodec {
             }
         }
 
+        if (CTX_COLLECTION.equals(tag)) {
+            // [16] top-level Collection/Map value: content = UTF8String(collectionWireType)
+            // ++ collectionTLV. Structure copied from the [9] branch. NO stream schema-dedup
+            // reconstitution: the [16] interior is EXCLUDED from dedup (the [8]-proxy precedent,
+            // STD-006 Appendix C sec.C.6.5) -- required so the encoding stays a pure function of
+            // (token, value); see writeCollection. ObjectCodec.decodeTopLevelCollection parses and
+            // grammar-validates the token, cross-checks the Option-A outer tag against it (the
+            // AnyCodec fence), then delegates to the fully-defended decodeCollection.
+            byte[] content;
+            try {
+                content = reader.readRawContent(hdr.contentLength());
+            } catch (DerException e) {
+                throw new IOException("readObject: failed to read [16] collection content", e);
+            }
+            try {
+                return ObjectCodec.decodeTopLevelCollection(content, decodeUnit, resolution);
+            } catch (DerException e) {
+                throw new IOException("readObject: [16] collection decode failed", e);
+            }
+        }
+
         if (CTX_ATOMIC.equals(tag)) {
             // [1] @AtomicSerial object. Stream format: the content is a stream-form
             // DedupMarshalledInstanceRecord (STD-006 Appendix C sec.C.5.3), verified and
@@ -1320,7 +1394,7 @@ final class DerObjectStreamCodec {
         }
 
         throw new IOException("readObject: unexpected context tag " + tag
-                + " (expected [0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13],[14]);"
+                + " (expected [0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13],[14],[16]);"
                 + " back-references are not supported (sec.15.3), and [15] is the stream-format"
                 + " version octet, valid ONLY as the first TLV of the stream — a second or"
                 + " mid-stream [15] is rejected here (STD-006 Appendix C sec.C.5.2)");

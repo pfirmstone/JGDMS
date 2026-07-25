@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Queue;
+import java.util.SequencedMap;
+import java.util.SequencedSet;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +47,8 @@ import java.util.concurrent.ConcurrentMap;
  *   <li><b>PRESERVE</b> — the type's iterator yields a reproducible order that is
  *       part of the value: {@code List}/{@code Deque}/array (positional),
  *       {@code LinkedHashSet}/{@code LinkedHashMap} (non-concurrent insertion),
+ *       {@code SequencedSet}/{@code SequencedMap} (the JDK 21+ interface way to
+ *       declare encounter order — insertion order is part of the value),
  *       {@code SortedSet}/{@code TreeSet}/{@code SortedMap}/{@code TreeMap} and the
  *       concurrent-<em>sorted</em> {@code ConcurrentSkipListSet}/{@code Map}
  *       (comparator/element-derived), {@code EnumSet}/{@code EnumMap} (ordinal),
@@ -307,6 +311,14 @@ public final class CollectionWireTypes {
                     || NavigableMap.class.isAssignableFrom(declaredClass)) {
                 return Discipline.PRESERVE_ORDERED;
             }
+            // A declared SequencedMap (JDK 21+) is the INTERFACE way to declare that encounter
+            // (insertion) order is part of the value -> PRESERVE_ORDERED. (LinkedHashMap already
+            // matches by name below; this additionally captures a field declared as the bare
+            // SequencedMap interface, or any future SequencedMap impl. ConcurrentHashMap is NOT a
+            // SequencedMap, so it still canonicalises.)
+            if (SequencedMap.class.isAssignableFrom(declaredClass)) {
+                return Discipline.PRESERVE_ORDERED;
+            }
             // ConcurrentHashMap (and ConcurrentMap impls that are NOT the sorted skip-list)
             // are hash-order → canonicalise. The sorted ConcurrentNavigableMap is caught above.
             if (ConcurrentMap.class.isAssignableFrom(declaredClass)) {
@@ -343,6 +355,14 @@ public final class CollectionWireTypes {
             // SortedSet / NavigableSet (TreeSet, ConcurrentSkipListSet): element-derived → preserve.
             if (SortedSet.class.isAssignableFrom(declaredClass)
                     || NavigableSet.class.isAssignableFrom(declaredClass)) {
+                return Discipline.PRESERVE_ORDERED;
+            }
+            // A declared SequencedSet (JDK 21+) is the INTERFACE way to declare that encounter
+            // (insertion) order is part of the value -> PRESERVE_ORDERED. (LinkedHashSet already
+            // matches by name below; this additionally captures a field declared as the bare
+            // SequencedSet interface, or any future SequencedSet impl. HashSet/CopyOnWriteArraySet
+            // are NOT SequencedSets, so they still canonicalise.)
+            if (SequencedSet.class.isAssignableFrom(declaredClass)) {
                 return Discipline.PRESERVE_ORDERED;
             }
             String n = declaredClass.getName();
