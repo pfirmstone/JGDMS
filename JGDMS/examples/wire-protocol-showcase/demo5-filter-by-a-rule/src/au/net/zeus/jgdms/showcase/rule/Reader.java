@@ -63,6 +63,8 @@ public final class Reader {
             System.exit(2);
         }
 
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/demo5-filter-by-a-rule/src/au/net/zeus/jgdms/showcase/rule/Reader.java");
+        System.out.println();
         System.out.println("Reader (this program does NOT have the record classes on its classpath):");
         System.out.println();
 

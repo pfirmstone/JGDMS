@@ -43,6 +43,8 @@ public final class Server {
             System.exit(2);
         }
 
+        System.out.println(" Source: https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/examples/wire-protocol-showcase/demo2-match-without-the-class/src/au/net/zeus/jgdms/showcase/match/Server.java");
+        System.out.println();
         System.out.println("Server (this program does NOT have the record class on its classpath):");
         System.out.println();
 
