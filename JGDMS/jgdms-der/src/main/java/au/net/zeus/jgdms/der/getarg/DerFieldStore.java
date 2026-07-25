@@ -917,4 +917,26 @@ public final class DerFieldStore {
                                              ResolutionContext res) throws DerException {
         return WireTypes.decode(reader, wireType, res);
     }
+
+    /**
+     * Decodes a single field's value as a <b>class-free scalar</b> gated on its declared
+     * {@code wireType}, loading NO class -- the {@code der.object} bridge to the package-private
+     * {@link WireTypes#decodeScalarNoClassLoad} (STD-011 §B2 class-free candidate projection). Only
+     * the inert scalar kinds ({@code boolean}/int-family/{@code float}/{@code double}/{@code
+     * java.lang.String}/{@code byte[]}, plus wire-null) decode; every non-scalar declared type
+     * ({@code enum:}/{@code array:}/collection/{@code @AtomicSerial}/{@code char}/{@code Class}/
+     * {@code any}) fail-closes with a {@link DerException} <em>without</em> resolving or loading any
+     * class. There is deliberately no {@link ResolutionContext} parameter -- this path must never
+     * reach a class loader.
+     *
+     * @param reader   a reader positioned at the field's TLV
+     * @param wireType the field's declared wire type
+     * @return the decoded scalar (boxed) value, or {@code null} for a wire-null
+     * @throws DerException if the declared type is not a class-free scalar or the encoding is
+     *                      malformed (fail-closed)
+     */
+    public static Object decodeScalarFieldClassFree(DerReader reader, String wireType)
+            throws DerException {
+        return WireTypes.decodeScalarNoClassLoad(reader, wireType);
+    }
 }

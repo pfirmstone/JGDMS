@@ -192,6 +192,109 @@ final class WireTypes {
         };
     }
 
+    /**
+     * Decodes the next TLV as a <b>class-free scalar</b> gated on the field's DECLARED
+     * {@code wireType}, resolving and loading <b>no class whatsoever</b> (STD-011 §B2
+     * class-free candidate projection). Unlike {@link #decode}, this method:
+     * <ul>
+     *   <li>decodes ONLY the inert scalar kinds -- {@code boolean}, the int family
+     *       ({@code byte}/{@code short}/{@code int}/{@code long}), {@code float}/{@code double},
+     *       {@code java.lang.String}, {@code byte[]}, plus a wire-null ({@code NULL}) -- using the
+     *       same primitive {@link DerReader} decoders and canonical checks {@link #decode} uses;</li>
+     *   <li>fail-closes ({@link DerException}) for EVERY non-scalar declared type -- {@code enum:},
+     *       {@code array:}, any collection token, {@code @AtomicSerial}, {@code char}/{@code
+     *       java.lang.Character}, {@code java.lang.Class}, {@code any} -- <b>without</b> calling
+     *       {@link #decodeEnum}, {@link #decodeArray}, {@code loadClass}, or any reconstruction.
+     *       The reject is decided by {@link #isClassFreeScalar} <em>before</em> any wire byte is
+     *       interpreted (before the NULL peek), so a null-valued enum/array/Class field is
+     *       fail-closed too, never silently mapped to {@code null}.</li>
+     * </ul>
+     *
+     * <p>There is no {@link ResolutionContext} parameter <em>by design</em>: this method must never
+     * reach a class loader, so it cannot be handed one. It is the field-level (nested-record, bare
+     * declared-type TLV) counterpart of the self-describing object-stream item scalar reader used by
+     * the top-level slice.
+     *
+     * @param reader   a reader positioned at the field's TLV
+     * @param wireType the field's declared wire type
+     * @return the decoded scalar (boxed) value, or {@code null} for a wire-null
+     * @throws DerException if the declared type is not a class-free scalar, or the encoding is
+     *                      malformed / out of range (fail-closed)
+     */
+    static Object decodeScalarNoClassLoad(DerReader reader, String wireType) throws DerException {
+        if (!isClassFreeScalar(wireType)) {
+            throw new DerException("WireTypes.decodeScalarNoClassLoad: declared wire type '"
+                    + wireType + "' is not a class-free scalar (enum/array/collection/@AtomicSerial/"
+                    + "char/Class/any are fail-closed -- no class is ever loaded)");
+        }
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return null;
+        }
+        return switch (wireType) {
+            case "boolean", "java.lang.Boolean" -> reader.readBoolean();
+            case "byte", "java.lang.Byte" -> {
+                long lv = toLong(reader.readInteger(), wireType);
+                if (lv < Byte.MIN_VALUE || lv > Byte.MAX_VALUE) {
+                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
+                            + wireType + "'");
+                }
+                yield (byte) lv;
+            }
+            case "short", "java.lang.Short" -> {
+                long lv = toLong(reader.readInteger(), wireType);
+                if (lv < Short.MIN_VALUE || lv > Short.MAX_VALUE) {
+                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
+                            + wireType + "'");
+                }
+                yield (short) lv;
+            }
+            case "int", "java.lang.Integer" -> {
+                long lv = toLong(reader.readInteger(), wireType);
+                if (lv < Integer.MIN_VALUE || lv > Integer.MAX_VALUE) {
+                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
+                            + wireType + "'");
+                }
+                yield (int) lv;
+            }
+            case "long", "java.lang.Long" -> {
+                try {
+                    yield reader.readInteger().longValueExact();
+                } catch (ArithmeticException e) {
+                    throw new DerException("INTEGER value overflows wire type '" + wireType + "'", e);
+                }
+            }
+            case "java.lang.String" -> reader.readUtf8String();
+            case "byte[]", "[B" -> reader.readOctetString();
+            case "float", "java.lang.Float" -> decodeFloat(reader);
+            case "double", "java.lang.Double" -> decodeDouble(reader);
+            // isClassFreeScalar admits nothing else; unreachable, but fail-closed for defence.
+            default -> throw new DerException("WireTypes.decodeScalarNoClassLoad: '"
+                    + wireType + "' is not a class-free scalar");
+        };
+    }
+
+    /**
+     * Whether {@code wireType} names one of the inert, class-free scalar kinds
+     * {@link #decodeScalarNoClassLoad} may decode. {@code char}/{@code java.lang.Character} and
+     * {@code java.lang.Class} are deliberately EXCLUDED (deferred / not a CEL scalar), as are
+     * {@code enum:} / {@code array:} / collection tokens / {@code @AtomicSerial} / {@code any}.
+     */
+    private static boolean isClassFreeScalar(String wireType) {
+        return switch (wireType) {
+            case "boolean", "java.lang.Boolean",
+                 "byte", "java.lang.Byte",
+                 "short", "java.lang.Short",
+                 "int", "java.lang.Integer",
+                 "long", "java.lang.Long",
+                 "float", "java.lang.Float",
+                 "double", "java.lang.Double",
+                 "java.lang.String",
+                 "byte[]", "[B" -> true;
+            default -> false;
+        };
+    }
+
     /** Canonical IEEE-754 NaN bit patterns (STD-008 sec.17.3.1); MUST match
      *  {@code ObjectCodec.CANONICAL_*_NAN_BITS}. */
     private static final int  CANONICAL_FLOAT_NAN_BITS  = 0x7FC00000;

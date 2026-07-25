@@ -203,6 +203,25 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * @throws IOException            if the stream is malformed
      * @throws ClassNotFoundException if a class named in the embedded schema cannot be loaded
      */
+    /**
+     * Reads the next self-describing item as a <b>class-free scalar</b> gated on the caller-supplied
+     * declared {@code wireType}, reconstructing NO object and loading NO class (STD-011 §B2 class-free
+     * candidate projection). Delegates to {@link DerObjectStreamCodec#readScalarClassFree}: only the
+     * inert scalar kinds decode; a declared non-scalar, or an item whose actual context tag does not
+     * match the declared scalar type (including a constructed {@code [1]/[7]/[8]/[9]/[16]} item),
+     * is fail-closed with an {@link IOException} <b>before</b> any reconstruction path is reached. A
+     * {@code [0]} NULL item returns {@code null}.
+     *
+     * @param declaredWireType the field's declared wire type (must not be {@code null})
+     * @return the decoded scalar (boxed) value, or {@code null} for a NULL item
+     * @throws IOException if the item is not a class-free scalar of the declared type, or is
+     *                     malformed (fail-closed)
+     */
+    public Object readScalarClassFree(String declaredWireType) throws IOException {
+        Objects.requireNonNull(declaredWireType, "declaredWireType");
+        return codec.readScalarClassFree(declaredWireType);
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
