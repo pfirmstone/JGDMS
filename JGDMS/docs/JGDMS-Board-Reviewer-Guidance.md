@@ -662,6 +662,24 @@ run adversarial input against built classes; empty search ≠ absence, compile �
   review never ran. Filed as a same-shape sibling of §5.2 (nested-`Any` StackOverflow) — same
   depth-through-data root cause, caught this time in live code by a live crash rather than in a
   design memo by inspection.
+- **§5.8 CEL F1 flat-binary-chain: a per-call frame guard bypassed by loop-built depth and
+  pre-ceiling work (HIGH, live).** *Situation:* the CEL authoring work's recursion/frame-depth
+  guard (a "recursion meter") had been reviewed and looked sound against recursively-built deep
+  shapes. Opus, in the adversarial seat, found it wasn't; Fable, in the design seat, missed it.
+  *Tell:* the guard was a per-call counter — correct against a shape *built* by recursive calls,
+  but a flat binary chain assembled by a **loop** (`for (...) node = Binary(node, next)`) never
+  makes a deep call chain while it's being built, so a per-call guard never trips during
+  construction; the resulting StackOverflowError was reachable two ways — (a) the loop-built deep
+  shape itself, handed to any code that then walks it recursively, and (b) a walk that ran
+  **before** the depth ceiling was checked at all, so the unbounded work happened irrespective of
+  what the ceiling would have said. *Lesson (see G10):* this is G10's boundary/interior gap in a
+  new costume — the "recursion" a meter defends against can be structural (a shape already deep
+  when it arrives) rather than call-stack-recursive (a chain of calls building it), and a guard
+  gated on call-time never fires against a shape that was built without recursive calls at all.
+  Reviewer reflex to add whenever a recursion/depth meter is in scope: probe (a) the same deep
+  shape assembled by a **loop** instead of recursive calls, and (b) exactly what code — walks,
+  measurements, transforms — runs **before** the ceiling guard is reached, since anything upstream
+  of the check runs unbounded regardless of what the check would decide.
 
 #### One-page checklist (adversarial security)
 
