@@ -33,7 +33,7 @@ security-relevant feature is the only safe default:
   snaplogstore) distinct from the wire `serialForm()`/`serialize()`. An `EntryRep` filter field would have
   to be scrubbed from persistence; an operation parameter is structurally absent from both paths.
 
-**Permanent API — `OutriggerServer` (outrigger-dl).** Six filtered overloads, each mirroring its unfiltered
+**Permanent API — `OutriggerServer` (outrigger-dl).** Eight filtered overloads, each mirroring its unfiltered
 sibling with a trailing `byte[] filterEnvelope` and `throws FilterRejectedException`:
 
 ```
@@ -46,12 +46,15 @@ EventRegistration notify(EntryRep tmpl, Transaction, RemoteEventListener, long l
 EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls, Transaction, boolean visibilityOnly,
                          RemoteEventListener, long leaseTime, MarshalledInstance handback,
                          byte[] filterEnvelope)
+MatchSetData contents(EntryRep[] tmpls, Transaction, long leaseTime, long limit, byte[] filterEnvelope)
+Object take       (EntryRep[] tmpls, Transaction, long timeout, int limit, QueryCookie,
+                         byte[] filterEnvelope)
 ```
 
 Peter chose to wire **both** the synchronous scan (`read`/`readIfExists`/`take`/`takeIfExists`) **and** the
-standing-query path (`notify` + `registerForAvailabilityEvent`) in B1. Operations **not** wired this unit —
-bulk `take(EntryRep[])`, `contents(...)` — have no filtered overload, so a filter cannot even be expressed
-on them (loud break by construction).
+standing-query path (`notify`, `registerForAvailabilityEvent`, `contents(...)`, and bulk `take(EntryRep[])`)
+in B1. All eight overloads admit their filter in B1; none evaluate it yet — each throws
+`FilterRejectedException(EVALUATION_NOT_WIRED)` at its match chokepoint until B3 (§4.1).
 
 ---
 
@@ -59,8 +62,8 @@ on them (loud break by construction).
 
 **Decision (Peter).** `SpaceProxy2` additionally implements a new interface,
 **`net.jini.space.FilteredJavaSpace`** (module **`jgdms-lib-dl`**, alongside `JavaSpace`, `JavaSpace05`,
-`TupleSpace`, `MatchSet`), whose six methods mirror the JavaSpace/`TupleSpace` operations with a trailing
-`byte[] filter`:
+`TupleSpace`, `MatchSet`), whose eight methods mirror the JavaSpace/`JavaSpace05`/`TupleSpace` operations with
+a trailing `byte[] filter`:
 
 ```
 Entry read/readIfExists/take/takeIfExists(Entry tmpl, Transaction, long timeout, byte[] filter)
@@ -68,13 +71,15 @@ EventRegistration notify(Entry, Transaction, RemoteEventListener, long lease,
                          MarshalledInstance handback, byte[] filter)
 EventRegistration registerForAvailabilityEvent(Collection tmpls, Transaction, boolean,
                          RemoteEventListener, long lease, MarshalledInstance handback, byte[] filter)
+MatchSet contents(Collection tmpls, Transaction, long leaseDuration, long maxEntries, byte[] filter)
+Collection take(Collection tmpls, Transaction, long timeout, long maxEntries, byte[] filter)
 ```
 
 A client obtains filtered semantics by casting its space proxy to `FilteredJavaSpace`. A `null` filter is a
 caller error (`NullPointerException`) — the ordinary unfiltered methods exist for unfiltered queries.
 
-`ConstrainableSpaceProxy2.methodMapArray` gains a client-method → backend-method pair for each of the six, so
-per-method constraints (including the space's `ATOMIC_DER` `MarshallingFormat` requirement) map onto the
+`ConstrainableSpaceProxy2.methodMapArray` gains a client-method → backend-method pair for each of the eight,
+so per-method constraints (including the space's `ATOMIC_DER` `MarshallingFormat` requirement) map onto the
 filtered backend calls exactly as for the unfiltered siblings.
 
 **DECISION (Peter): `net.jini.space` in `jgdms-lib-dl`, NOT the `-dl` proxy package.** `FilteredJavaSpace` is
@@ -249,13 +254,14 @@ no fields".
 
 ### 6.2 Multi-template plurality (B3 obligation)
 
-B1's `registerForAvailabilityEvent` admits the one filter against **every** template's schema (all must pass)
-and then throws `EVALUATION_NOT_WIRED`, so it currently retains only the last `CompiledFilter` — harmless in
-B1 because nothing is evaluated. **B3 MUST retain one `CompiledFilter` per template**: each template yields a
-distinct `applicabilitySchemaDigest` (or a null key, for a match-any template in the collection), and a
-candidate is filtered by the `CompiledFilter` whose applicability key it matches (or by every null-key filter
-in the registration, per §6.1). Collapsing the registration to a single retained filter would misapply one
-template's predicate/applicability to another template's candidates.
+B1's `registerForAvailabilityEvent`, filtered `contents(...)`, and bulk `take(EntryRep[], ...)` each admit the
+one filter against **every** template's schema (all must pass) and then throw `EVALUATION_NOT_WIRED`, so all
+three currently retain only the last `CompiledFilter` (`OutriggerServerImpl` ~2341–2387) — harmless in B1
+because nothing is evaluated. **B3 MUST retain one `CompiledFilter` per template, in all three operations**:
+each template yields a distinct `applicabilitySchemaDigest` (or a null key, for a match-any template in the
+collection), and a candidate is filtered by the `CompiledFilter` whose applicability key it matches (or by
+every null-key filter in the registration/query, per §6.1). Collapsing any of the three to a single retained
+filter would misapply one template's predicate/applicability to another template's candidates.
 
 The exact `SelectorPath` / `ProjectedValue` shapes are B2's to finalize; B1 commits only to (a) `CompiledFilter`
 as the verified-predicate carrier, (b) `entrySchemaDigest` as the applicability key with the null-key

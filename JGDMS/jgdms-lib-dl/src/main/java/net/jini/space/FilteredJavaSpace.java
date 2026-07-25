@@ -167,6 +167,13 @@ public interface FilteredJavaSpace {
      * it fails to type-check against any of them, the operation is refused. The
      * "all templates pass" narrowing at match time is implemented in unit&nbsp;B3.
      *
+     * <p><b>Known limitation (to be resolved in unit B3):</b> the returned match
+     * set's continuation fetches ({@link MatchSet#next()}, wire {@code
+     * OutriggerServer.nextBatch}) are governed by the constraints declared on the
+     * <em>unfiltered</em> {@link JavaSpace05#contents}, not by the constraints on
+     * this filtered method — {@code ConstrainableSpaceProxy2} maps {@code
+     * nextBatch} only from {@code JavaSpace05.contents}.
+     *
      * @param tmpls         the query templates
      * @param txn           the transaction, or {@code null}
      * @param leaseDuration the requested initial lease on the match set, in
