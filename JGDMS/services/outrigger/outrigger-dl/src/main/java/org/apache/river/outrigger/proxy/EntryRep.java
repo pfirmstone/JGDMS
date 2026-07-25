@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,18 +17,17 @@
  */
 package org.apache.river.outrigger.proxy;
 
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.EntryV2Codec;
 import org.apache.river.landlord.LeasedResource;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.CodebaseProvider;
@@ -47,8 +46,8 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.ServiceLoader;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
 import net.jini.core.entry.EntryWireField;
@@ -60,6 +59,15 @@ import net.jini.core.entry.SerialEntry;
  * <code>Entry</code> object for communication between the client and a
  * <code>JavaSpace</code>.
  *
+ * <h2>EntryRep-v2 (JGDMS-STD-006 EntryRep-v2 amendment)</h2>
+ * <p>The v1 {@code MarshalledInstance[] values} array is replaced by a single canonical
+ * DER {@code EntryRepV2Body} ({@link #body}). Per-field <em>slice</em> bytes
+ * ({@link #sliceBytes}) are cached for matching/indexing: a field's slice bytes are a pure
+ * function of the field value alone (context-free), so positional slice-byte comparison in
+ * {@link #matches(EntryRep)} preserves v1 template-matching semantics. The DER work is done
+ * behind the release-8 {@link EntryV2Codec} SPI, resolved via {@link ServiceLoader} on a
+ * DER-capable JVM (the flag-day requirement -- a missing provider fails LOUDLY).
+ *
  * @author Sun Microsystems, Inc.
  *
  * @see JavaSpace
@@ -68,16 +76,23 @@ import net.jini.core.entry.SerialEntry;
 @AtomicSerial
 public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
-    // Synchronization isn't used where volatile access would be atomic.
-    // External operations should synchronize if atomicicity is required for 
-    // multiple operations.
-    // Synchronization is used where multiple fields are accessed or one field
-    // is accessed more than once to ensure atomicity.
     /**
-     * The fields of the entry in marshalled form. Use <code>null</code>
-     * for <code>null</code> fields.
+     * The canonical {@code EntryRepV2Body} DER bytes (wire + persistence form). Replaces the
+     * v1 {@code MarshalledInstance[] values}.
      */
-    private volatile MarshalledInstance[] values;
+    private volatile byte[] body;
+
+    /**
+     * Per-field canonical slice bytes (the byte-equality match unit), derived from
+     * {@link #body}. Transient: recomputed by decoding {@link #body} on unmarshal/restore.
+     */
+    private volatile transient byte[][] sliceBytes;
+
+    /** Per-field wildcard/null marker (true = {@code absent [0]} slice). Transient (derived). */
+    private volatile transient boolean[] absent;
+
+    /** The 32-byte {@code entrySchemaDigest} (routing/identity; EXCLUDED from matching). */
+    private volatile byte[] entrySchemaDigest;
 
     private volatile String[]	superclasses;	// class names of the superclasses
     private volatile long[]	hashes;		// superclass hashes
@@ -87,8 +102,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     private volatile Uuid	id;		// space-relative storage id
     private volatile transient long	expires;// expiration time
 
-    /** 
-     * <code>true</code> if the last time this object was unmarshalled 
+    /**
+     * <code>true</code> if the last time this object was unmarshalled
      * integrity was being enforced, <code>false</code> otherwise.
      */
     private volatile transient boolean integrity;
@@ -100,25 +115,40 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * This object represents the passing of a <code>null</code>
      * parameter as a template, which is designed to match any entry.
      * When a <code>null</code> is passed, it is replaced with this
-     * rep, which is then handled specially in a few relevant places.  
+     * rep, which is then handled specially in a few relevant places.
      */
     private static final EntryRep matchAnyRep;
 
     static {
         classHashes = new WeakHashMap<Class,Long>();
+	matchAnyRep = makeMatchAny();
+    }
+
+    /**
+     * Builds the ``match any'' stand-in for a null template. It is never marshalled on
+     * the wire, so it is given a schema-less v2 form (empty body/slices/digest) built
+     * WITHOUT the {@link EntryV2Codec} SPI -- a null template must work even on a JVM
+     * that lacks a DER provider, and it MUST NOT be fed to the DER decode/guard path.
+     */
+    private static EntryRep makeMatchAny() {
 	try {
-	    /* matchAnyRep stands in for a null template and is never
-	     * actually marshalled on the wire (see class javadoc above);
-	     * the anonymous Entry below has no usable fields either, so no
-	     * field value is ever marshalled under this format -- any
-	     * MarshallingFormat value is equally inert here, JOSS is used
-	     * simply because it requires no optional codec on the classpath.
-	     */
-	    matchAnyRep = new EntryRep(new Entry() {
+	    final Entry anon = new Entry() {
 		// keeps tests happy
 		static final long serialVersionUID = -4244768995726274609L;
-	    }, false, MarshallingFormat.JOSS);
-	} catch (MarshalException e) {
+	    };
+	    EntryRep r = new EntryRep();
+	    r.realClass = anon.getClass();
+	    r.className = r.realClass.getName();
+	    r.codebase = CodebaseProvider.getClassAnnotation(r.realClass);
+	    r.body = new byte[0];
+	    r.sliceBytes = new byte[0][];
+	    r.absent = new boolean[0];
+	    r.entrySchemaDigest = new byte[0];
+	    r.hash = findHash(r.realClass, true).longValue();
+	    r.superclasses = new String[0];
+	    r.hashes = new long[0];
+	    return r;
+	} catch (MarshalException | UnusableEntryException e) {
 	    throw new AssertionError(e);
 	}
     }
@@ -132,13 +162,45 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      */
     private volatile transient Class realClass;	// real class of the contained object
 
-    /** 
+    /**
      * Logger for logging information about operations carried out in
      * the client. Note, we hard code "org.apache.river.outrigger" so
      * we don't drag in OutriggerServerImpl to outrigger-dl.jar.
      */
-    private static final Logger logger = 
+    private static final Logger logger =
 	Logger.getLogger("org.apache.river.outrigger.proxy");
+
+    // -------------------------------------------------------------------------
+    // EntryRep-v2 codec SPI (flag-day: a DER-capable JVM is required)
+    // -------------------------------------------------------------------------
+
+    /** Lazily-resolved EntryV2Codec provider. */
+    private static volatile EntryV2Codec CODEC;
+
+    /**
+     * Resolves the {@link EntryV2Codec} provider (mirrors {@code MarshalledInstance}'s
+     * {@code MarshalFactoryProvider} ServiceLoader dispatch). Fails LOUDLY when no provider
+     * is on the classpath -- a v2-born space requires a DER-capable JVM (flag-day), and a
+     * silent fallback is exactly the state the flag-day forbids.
+     */
+    private static EntryV2Codec codec() {
+	EntryV2Codec c = CODEC;
+	if (c == null) {
+	    for (EntryV2Codec candidate : ServiceLoader.load(
+		    EntryV2Codec.class, EntryRep.class.getClassLoader())) {
+		c = candidate;
+		break;
+	    }
+	    if (c == null) {
+		throw new IllegalStateException(
+		    "EntryRep-v2 requires a DER-capable JVM: no "
+		    + EntryV2Codec.class.getName() + " provider found on the classpath"
+		    + " (jgdms-der). This space is born v2/ATOMIC-DER (flag-day).");
+	    }
+	    CODEC = c;
+	}
+	return c;
+    }
 
     /**
      * Set this entry's generic data to be shared with the <code>other</code>
@@ -182,8 +244,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * found in the cache, generate the hash for the class and
      * save it.
      */
-    static synchronized private Long findHash(Class clazz, 
-					      boolean marshaling) 
+    static synchronized private Long findHash(Class clazz,
+					      boolean marshaling)
 	throws MarshalException, UnusableEntryException
     {
 
@@ -206,12 +268,12 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		    Class c = clazz.getSuperclass();
 		    if (c != Object.class)
 			// recursive call
-			out.writeLong(findHash(c, marshaling).longValue()); 
+			out.writeLong(findHash(c, marshaling).longValue());
 
 		    // Hash only usable fields, this means that we do not
 		    // detect changes in non-usable fields. This should be ok
 		    // since those fields do not move between space and client.
-		    // 
+		    //
 		    for (int i = 0; i < fields.length; i++) {
 			if (!usableField(fields[i]))
 			    continue;
@@ -230,7 +292,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 			throw throwNewMarshalException(
 			   "Exception calculating entry class hash for " +
 			   clazz, e);
-		    else 
+		    else
 			throw throwNewUnusableEntryException(
 			   "Exception calculating entry class hash for " +
 			   clazz, e);
@@ -300,11 +362,11 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * stand-in object for "match any", which is never actually marshalled
      * on the wire and so which doesn't need to be "proper".
      * <p>
-     * Each field value is marshalled under the given {@code format} --
-     * the space's single born-immutable marshalling format (JGDMS-STD-006
-     * sec.3 item 5) -- so that entries and templates produced for a given
-     * space always marshal uniformly; never a per-field or per-relationship
-     * choice (see {@code SpaceProxy2.repFor}).
+     * EntryRep-v2: the entry is encoded to a single canonical DER
+     * {@code EntryRepV2Body} via the {@link EntryV2Codec} SPI (always ATOMIC-DER
+     * under the born-immutable flag-day). The {@code format} argument is retained
+     * for source compatibility; v2 always encodes ATOMIC-DER regardless (the
+     * space's born-format is enforced by {@code SpaceProxy2.repFor}).
      */
     private EntryRep(Entry entry, boolean validate, MarshallingFormat format)
 	    throws MarshalException {
@@ -314,73 +376,25 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	className = realClass.getName();
 	codebase = CodebaseProvider.getClassAnnotation(realClass);
 
-	if (realClass.isAnnotationPresent(SerialEntry.class)) {
-	    this.values = marshalSerialEntry(realClass, entry, format);
-	} else {
-	    /*
-	     * Build up the per-field and superclass information through
-	     * the reflection API.
-	     */
-	    final Field[] fields = getFields(realClass);
-	    int numFields = fields.length;
-
-	    // collect the usable field values in vals[0..nvals-1]
-	    MarshalledInstance[] vals = new MarshalledInstance[numFields];
-	    int nvals = 0;
-
-	    for (int fnum = 0; fnum < fields.length; fnum++) {
-		final Field field = fields[fnum];
-		if (!usableField(field))
-		    continue;
-		    
-		final Object fieldValue;
-		try {
-		    fieldValue = field.get(entry);
-		} catch (IllegalAccessException e) {
-		    /* In general between using getFields() and 
-		     * ensureValidClass this should never happen, however
-		     * there appear to be a few screw cases and
-		     * IllegalArgumentException seems appropriate.
-		     */
-		    throw throwRuntime(
-			new IllegalArgumentException("Couldn't access field " 
-				+ field, e)
-		    );
-		}
-
-		if (fieldValue == null) {
-		    vals[nvals] = null;
-		} else {
-		    try {
-			vals[nvals] = new MarshalledInstance(fieldValue,
-			    Collections.EMPTY_SET,
-			    new InvocationConstraints(format, null));
-		    } catch (IOException | RuntimeException e) {
-			/* Board-review fix (Finding B): mirror
-			 * marshalSerialEntry's outer catch-all below -- a
-			 * marshalling failure isn't guaranteed to surface as
-			 * IOException (e.g. an UnsupportedOperationException
-			 * for a non-DER-encodable field value, sec.3 item 6
-			 * of the ATOMIC_DER migration SOW); left uncaught it
-			 * would escape this constructor unchecked, violating
-			 * its documented "throws only MarshalException"
-			 * contract.
-			 */
-			throw throwNewMarshalException(
-			    "Can't marshal field " + field + " with value " +
-			    fieldValue, e);
-		    }
-		}
-
-		nvals++;
+	try {
+	    final EntryV2Codec.Encoded enc;
+	    if (realClass.isAnnotationPresent(SerialEntry.class)) {
+		enc = encodeSerialEntry(realClass, entry);
+	    } else {
+		// Reflective path: the SPI reads the usable fields in the single
+		// FieldComparator order shared with the server/index.
+		enc = codec().encodeReflective(realClass, entry);
 	    }
-
-	    // copy the vals with the correct length
-	    MarshalledInstance [] values = new MarshalledInstance[nvals];
-	    System.arraycopy(vals, 0, values, 0, nvals);
-	    this.values = values; // safe publication
+	    installBody(enc.body, enc.sliceBytes, enc.entrySchemaDigest);
+	} catch (IOException | RuntimeException e) {
+	    /* A marshalling failure isn't guaranteed to surface as IOException
+	     * (e.g. a non-DER-encodable field value, or a proxy-typed field --
+	     * amendment F1); wrap so this constructor honours its documented
+	     * "throws only MarshalException" contract. */
+	    throw throwNewMarshalException(
+		"Can't marshal entry of type " + className, e);
 	}
-        
+
 	try {
 	    hash = findHash(realClass, true).longValue();
 	} catch (UnusableEntryException e) {
@@ -414,12 +428,12 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
-     * Marshals a {@code @SerialEntry} instance via its static
-     * {@code serialize(PutEntryArg, T)} method, marshalling each field
-     * value under the space's single born {@code format}.
+     * Encodes a {@code @SerialEntry} instance via its static
+     * {@code serialize(PutEntryArg, T)} method (positional field values) and its
+     * {@code entryForm()} wire metadata, through the {@link EntryV2Codec} SPI.
      */
-    private static MarshalledInstance[] marshalSerialEntry(Class realClass, Entry entry,
-	    MarshallingFormat format) throws MarshalException {
+    private static EntryV2Codec.Encoded encodeSerialEntry(Class realClass, Entry entry)
+	    throws MarshalException {
 	try {
 	    Method entryFormMethod = realClass.getMethod("entryForm");
 	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
@@ -428,24 +442,21 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		net.jini.core.entry.PutEntryArg.class, realClass);
 	    serializeMethod.invoke(null, putArg, entry);
 	    Object[] rawValues = putArg.getResult();
-	    MarshalledInstance[] values = new MarshalledInstance[rawValues.length];
-	    for (int i = 0; i < rawValues.length; i++) {
-		Object val = rawValues[i];
-		if (val != null) {
-		    try {
-			values[i] = new MarshalledInstance(val,
-			    Collections.EMPTY_SET,
-			    new InvocationConstraints(format, null));
-		    } catch (IOException e) {
-			throw throwNewMarshalException(
-			    "Can't marshal @SerialEntry field " + wireFields[i].getName()
-			    + " with value " + val, e);
-		    }
-		}
+
+	    String[] wireNames = new String[wireFields.length];
+	    Class<?>[] wireTypes = new Class<?>[wireFields.length];
+	    for (int i = 0; i < wireFields.length; i++) {
+		wireNames[i] = wireFields[i].getName();
+		wireTypes[i] = wireFields[i].getType();
 	    }
-	    return values;
-	} catch (MarshalException e) {
-	    throw e;
+	    // superclass names (routing only)
+	    ArrayList<String> supers = new ArrayList<String>();
+	    for (Class c = realClass.getSuperclass(); c != null && c != Object.class;
+		 c = c.getSuperclass()) {
+		supers.add(c.getName());
+	    }
+	    return codec().encodeSerialEntry(realClass.getName(),
+		supers.toArray(new String[0]), wireNames, wireTypes, rawValues);
 	} catch (InvocationTargetException e) {
 	    Throwable cause = e.getCause();
 	    if (cause instanceof IOException)
@@ -454,36 +465,51 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		    (IOException) cause);
 	    throw throwNewMarshalException(
 		"Exception during " + realClass.getName() + ".serialize()", e);
+	} catch (IOException e) {
+	    throw throwNewMarshalException(
+		"Cannot marshal @SerialEntry " + realClass.getName(), e);
 	} catch (Exception e) {
 	    throw throwNewMarshalException(
 		"Cannot marshal @SerialEntry " + realClass.getName(), e);
 	}
     }
 
+    /** Installs the v2 body + derived slice/absent arrays (safe publication). */
+    private void installBody(byte[] body, byte[][] slices, byte[] entrySchemaDigest) {
+	final boolean[] a = new boolean[slices.length];
+	for (int i = 0; i < slices.length; i++) {
+	    a[i] = isAbsentSlice(slices[i]);
+	}
+	this.sliceBytes = slices;
+	this.absent = a;
+	this.body = body;
+	this.entrySchemaDigest = entrySchemaDigest;
+    }
+
+    /**
+     * A slice is the {@code absent [0]} marker iff its first byte is the context-tag
+     * {@code [0]} primitive (0x80). A {@code value [1]} slice starts with 0xA1.
+     */
+    private static boolean isAbsentSlice(byte[] slice) {
+	return slice != null && slice.length > 0 && (slice[0] & 0xFF) == 0x80;
+    }
+
     /**
      * Create a serialized form of the entry with our object's
-     * relevant fields set, marshalling each field value under the
-     * legacy JOSS format. Retained for source/binary compatibility;
-     * callers that must honor a space's configured (born-immutable)
-     * marshalling format should use {@link #EntryRep(Entry, MarshallingFormat)}
-     * instead -- see {@code SpaceProxy2.repFor}.
+     * relevant fields set. Retained for source/binary compatibility; callers that
+     * must honor a space's configured (born-immutable) marshalling format should use
+     * {@link #EntryRep(Entry, MarshallingFormat)} instead -- see {@code SpaceProxy2.repFor}.
      */
     public EntryRep(Entry entry) throws MarshalException {
-	this(entry, true, MarshallingFormat.JOSS);
+	this(entry, true, MarshallingFormat.ATOMIC_DER);
     }
 
     /**
      * Create a serialized form of the entry with our object's relevant
-     * fields set, marshalling each field value under the given
-     * {@code format}. This is the format-aware constructor used so that
-     * entries and templates produced for a given space are always
-     * marshalled in that space's single born format (JGDMS-STD-006 sec.3
-     * item 5: the format is fixed at instantiation and immutable, and
-     * uniform for every client of the space) -- never a per-field or
-     * per-relationship choice.
+     * fields set. EntryRep-v2 always encodes the space's single born ATOMIC-DER
+     * format; the {@code format} argument is retained for source compatibility.
      * @param entry the entry to marshal.
-     * @param format the marshalling format required for each field's
-     *        {@link MarshalledInstance}.
+     * @param format the marshalling format (retained for compatibility; v2 = ATOMIC-DER).
      * @throws NullPointerException if <code>format</code> is <code>null</code>.
      */
     public EntryRep(Entry entry, MarshallingFormat format) throws MarshalException {
@@ -495,32 +521,36 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    throw new NullPointerException("format cannot be null");
 	return format;
     }
+
     private static boolean checkIntegrity(GetArg arg) throws IOException, ClassNotFoundException {
-	MarshalledInstance[] values = (MarshalledInstance[]) arg.get("values", null);
-	if (values == null) throw new InvalidObjectException("null values");
-	String[] superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
+	byte[] body = (byte[]) arg.get("body", null);
+	if (body == null) throw new InvalidObjectException("null body (EntryRep-v2)");
+	byte[] entrySchemaDigest = (byte[]) arg.get("entrySchemaDigest", null);
+	if (entrySchemaDigest == null) throw new InvalidObjectException("null entrySchemaDigest");
+	String[] superclasses = (String[]) arg.get("superclasses", null);
 	if (superclasses == null) throw new InvalidObjectException("null superclasses");
-	long[]	hashes = (long[]) arg.get("hashes", null); // superclass hashes
+	long[]	hashes = (long[]) arg.get("hashes", null);
 	if (hashes == null) throw new InvalidObjectException("null hashes");
 	if (hashes.length != superclasses.length)
 	    throw new InvalidObjectException("hashes.length (" +
                 hashes.length + ") does not equal  superclasses.length (" +
 	        superclasses.length + ")");
-	arg.get("hash", 0L); // hash for the entry class, causes IllegalArgumentException if doesn't exist
-	String	className = (String) arg.get("className", null); // the class ID of the entry
+	arg.get("hash", 0L);
+	String	className = (String) arg.get("className", null);
 	if (className == null) throw new InvalidObjectException("null className");
-	Object	codebase = arg.get("codebase", null); // the codebase for this entry class
-	if (codebase != null && !((codebase instanceof String))) throw 
+	Object	codebase = arg.get("codebase", null);
+	if (codebase != null && !((codebase instanceof String))) throw
 		new InvalidObjectException("codebase must be an instance of string");
-	Object	id = arg.get("id", null); // space-relative stor
-	if (id != null && !((id instanceof Uuid))) throw 
+	Object	id = arg.get("id", null);
+	if (id != null && !((id instanceof Uuid))) throw
 		new InvalidObjectException("id must be an instance of Uuid");
 	return MarshalledWrapper.integrityEnforced(arg);
     }
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
-            new SerialForm("values", MarshalledInstance[].class),
+            new SerialForm("body", byte[].class),
+            new SerialForm("entrySchemaDigest", byte[].class),
             new SerialForm("superclasses", String[].class),
             new SerialForm("hashes", long[].class),
             new SerialForm("hash", long.class),
@@ -531,7 +561,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     public static void serialize(PutArg arg, EntryRep o) throws IOException {
-        arg.put("values", o.values);
+        arg.put("body", o.body);
+        arg.put("entrySchemaDigest", o.entrySchemaDigest);
         arg.put("superclasses", o.superclasses);
         arg.put("hashes", o.hashes);
         arg.put("hash", o.hash);
@@ -542,16 +573,26 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     private EntryRep(GetArg arg, boolean integrity) throws IOException, ClassNotFoundException {
-	values = (MarshalledInstance[]) arg.get("values", null);
-	superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
-	hashes = (long[]) arg.get("hashes", null); // superclass hashes
-	hash = arg.get("hash", 0L); // hash for the entry class
-	className = (String) arg.get("className", null); // the class ID of the entry
-	codebase = (String) arg.get("codebase", null); // the codebase for this entry class
-	id = (Uuid) arg.get("id", null); // space-relative stor
+	body = (byte[]) arg.get("body", null);
+	entrySchemaDigest = (byte[]) arg.get("entrySchemaDigest", null);
+	superclasses = (String[]) arg.get("superclasses", null);
+	hashes = (long[]) arg.get("hashes", null);
+	hash = arg.get("hash", 0L);
+	className = (String) arg.get("className", null);
+	codebase = (String) arg.get("codebase", null);
+	id = (Uuid) arg.get("id", null);
 	this.integrity = integrity;
+	// Decode the body to populate the per-field slice/absent arrays used for matching
+	// and indexing. A non-v2 body is refused LOUDLY here (the codec rejects version != 2)
+	// -- the @AtomicSerial skew guard (an old-proxy body with no "body" field already
+	// failed above in checkIntegrity/get).
+	if (body != null) {
+	    EntryV2Codec.Decoded dec = codec().decode(body);
+	    this.sliceBytes = dec.sliceBytes;
+	    this.absent = dec.absent;
+	}
     }
-    
+
     EntryRep(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg, checkIntegrity(arg));
     }
@@ -623,11 +664,11 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     public static String matchAnyClassName() {
 	return matchAnyRep.classFor();
     }
-    
+
     /**
-     * 
-     * @param tmpl 
-     * @return  
+     *
+     * @param tmpl
+     * @return
      */
     public boolean primeEntryClass(Entry tmpl){
 	if (tmpl !=null && className != null && className.equals(tmpl.getClass().getCanonicalName())){
@@ -648,15 +689,12 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      *		    itself cannot be deserialized.
      */
     public Entry entry() throws UnusableEntryException {
-	ObjectInputStream objIn = null;
         String className = ""; // set before any exception can be thrown.
 	try {
 	    ArrayList badFields = null;
 	    ArrayList except = null;
             final Entry entryObj;
-            int valuesLength = 0;
-            int nvals = 0;		// index into this.values[]
-                      
+
             synchronized (this){
                 className = this.className;
 		if (realClass == null){
@@ -681,23 +719,21 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 			    new IncompatibleClassChangeError(realClass + " changed: " + e.getMessage()));
 		}
 
+                final EntryV2Codec.Decoded dec = codec().decode(body);
                 Field[] fields = getFields(realClass);
 
-                /*
-                 * Loop through the fields, ensuring no primitives and
-                 * checking for wildcards.
-                 */
-
                 int fLength = fields.length;
-                valuesLength = values.length;
+                int nvals = 0;                 // index into the slice array
+                int slicesLength = dec.sliceBytes.length;
                 for (int i = 0; i < fLength; i++) {
                     Throwable nested = null;
                     try {
                         if (!usableField(fields[i]))
                             continue;
 
-                        final MarshalledInstance val = values[nvals++];
-                        Object value = (val == null ? null : val.get(integrity));
+                        byte[] slice = dec.sliceBytes[nvals++];
+                        Object value = codec().decodeFieldValue(
+                                slice, fields[i].getType(), dec);
                         fields[i].set(entryObj, value);
                     } catch (Throwable e) {
                         nested = e;
@@ -712,25 +748,21 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
                         except.add(nested);
                     }
                 }
+
+                /* See if any fields have vanished from the class. */
+                if (nvals < slicesLength) {
+                    throw throwNewUnusableEntryException(
+                            entryObj,
+                            null,
+                            new Throwable[] {
+                                new IncompatibleClassChangeError(
+                                        "A usable field has been removed from " +
+                                        entryObj.getClass().getName() +
+                                        " since this EntryRep was created")
+                            });
+                }
             }
 
-	    /* See if any fields have vanished from the class, 
-	     * because of the hashing this should never happen but
-	     * throwing an exception that provides more info
-	     * (instead of AssertionError) seems harmless.
-	     */
-	    if (nvals < valuesLength) {
-		throw throwNewUnusableEntryException(
-			entryObj,		// should this be null?
-			null,			// array of bad-field names
-			new Throwable[] {	// array of exceptions
-			    new IncompatibleClassChangeError(
-				    "A usable field has been removed from " +
-				    entryObj.getClass().getName() +
-				    " since this EntryRep was created")
-			});
-	    }
-            
 	    // if there were any bad fields, throw the exception
 	    if (badFields != null) {
 		String[] bf =
@@ -744,52 +776,40 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    // everything fine, return the entry
 	    return entryObj;
 	} catch (InstantiationException e) {
-	    /*
-	     * If this happens outside a per-field deserialization then
-	     * this is a complete failure  The per-field ones are caught
-	     * inside the per-field loop.
-	     */
 	    throw throwNewUnusableEntryException(e);
 	} catch (ClassNotFoundException e) {
-	    // see above
 	    throw throwNewUnusableEntryException("Encountered a " +
 		"ClassNotFoundException while unmarshalling " + className, e);
 	} catch (IllegalAccessException e) {
-	    // see above
 	    throw throwNewUnusableEntryException(e);
 	} catch (RuntimeException e) {
-	    // see above
 	    throw throwNewUnusableEntryException("Encountered a " +
 		"RuntimeException while unmarshalling " + className, e);
-	} catch (MalformedURLException e) {
-	    // see above
-	    throw throwNewUnusableEntryException("Malformed URL " +
-		"associated with entry of type " + className, e);
-	} catch (MarshalException e) {
-	    // because we call findHash() w/ false, should never happen
-	    throw new AssertionError(e);
+	} catch (IOException e) {
+	    // Covers MarshalException (findHash), MalformedURLException (loadClass), and a
+	    // bad/undecodable v2 body (codec) -- all surface as an UnusableEntryException.
+	    throw throwNewUnusableEntryException("Encountered an " +
+		"IOException while unmarshalling " + className, e);
 	}
     }
 
     /**
      * Constructs a {@link SerialEntry @SerialEntry} instance using its
-     * {@code (GetEntryArg)} constructor, unmarshalling the stored
-     * {@link MarshalledInstance} values first.
+     * {@code (GetEntryArg)} constructor, unmarshalling the stored field slices first.
      */
     private Entry entryViaSerialEntry(Class realClass)
 	    throws UnusableEntryException {
 	try {
 	    Method entryFormMethod = realClass.getMethod("entryForm");
 	    EntryWireField[] wireFields = (EntryWireField[]) entryFormMethod.invoke(null);
+	    final EntryV2Codec.Decoded dec = codec().decode(body);
 	    Object[] rawValues = new Object[wireFields.length];
-	    for (int i = 0; i < wireFields.length && i < values.length; i++) {
-		MarshalledInstance mi = values[i];
-		if (mi != null) {
-		    try {
-			rawValues[i] = mi.get(integrity);
-		    } catch (Throwable e) {
-			rawValues[i] = null;
-		    }
+	    for (int i = 0; i < wireFields.length && i < dec.sliceBytes.length; i++) {
+		try {
+		    rawValues[i] = codec().decodeFieldValue(
+			dec.sliceBytes[i], wireFields[i].getType(), dec);
+		} catch (Throwable e) {
+		    rawValues[i] = null;
 		}
 	    }
 	    GetEntryArg getArg = new OutriggerGetEntryArgImpl(wireFields, rawValues);
@@ -816,14 +836,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      */
     @Override
     public boolean equals(Object o) {
-	// The other passed in was null--obviously not equal
 	if (o == null)
 	    return false;
-
-	// The other passed in was ME--obviously I'm the same as me...
 	if (this == o)
 	    return true;
-
 	if (!(o instanceof EntryRep))
 	    return false;
 
@@ -834,39 +850,14 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
             if (hash != other.hash)
                 return false;
 
-            /* Paranoid checkIntegrity just to make sure we can't get an
-             * IndexOutOfBoundsException. Should never happen.
-             */
-            if (values.length != other.values.length)
+            final byte[][] mine = sliceBytes;
+            final byte[][] theirs = other.sliceBytes;
+            if (mine == null || theirs == null)
+                return mine == theirs;
+            if (mine.length != theirs.length)
                 return false;
-
-            /* OPTIMIZATION:
-             * If we have a case where one element is null and the corresponding
-             * element within the object we're comparing ourselves with is
-             * non-null (or vice-versa), we can stop right here and declare the
-             * two objects to be unequal. This is slightly faster than checking 
-             * the bytes themselves.
-             * LOGIC: They've both got to be null or both have got to be
-             *        non-null or we're out-of-here...
-             */
-            for (int i = 0; i < values.length; i++) {
-                if ((values[i] == null) && (other.values[i] != null))
-                    return false;
-                if ((values[i] != null) && (other.values[i] == null))
-                    return false;
-            }
-
-            /* The most expensive tests we save for last.
-             * Because we've made the null/non-null checkIntegrity above, we can
-             * simplify our comparison here: if our element is non-null,
-             * we know the other value is non-null, too.
-             * If any equals() calls from these element comparisons come
-             * back false then return false. If they all succeed, we fall
-             * through and return true (they were equal).
-             */
-            for (int i = 0; i < values.length; i++) {
-                // Short-circuit evaluation if null, compare otherwise.
-                if (values[i] != null && !values[i].equals(other.values[i]))
+            for (int i = 0; i < mine.length; i++) {
+                if (!Arrays.equals(mine[i], theirs[i]))
                     return false;
             }
         }
@@ -922,10 +913,41 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
-     * @return the <code>MarshalledInstance</code> for the given field.
+     * Return the packed quick-reject hash contribution for the given field:
+     * {@code Arrays.hashCode} of the field's canonical slice bytes, or {@code 0} for a
+     * wildcard/null (absent) field. Replaces the v1 {@code value(field).hashCode()}; the
+     * slice bytes are the byte-equality match unit, so a v1-matching pair still buckets
+     * identically under v2 indexes.
+     * @param field the field position.
+     * @return the field's slice hash (0 for absent).
      */
-    public MarshalledInstance value(int fieldNum) {
-            return values[fieldNum];
+    public int sliceHash(int field) {
+	final byte[][] s = sliceBytes;
+	if (s == null || field >= s.length || absent[field])
+	    return 0;
+	return Arrays.hashCode(s[field]);
+    }
+
+    /**
+     * @param field the field position.
+     * @return the raw canonical slice bytes for the given field (the byte-equality match
+     * unit), or {@code null} if out of range.
+     */
+    public byte[] sliceBytes(int field) {
+	final byte[][] s = sliceBytes;
+	if (s == null || field >= s.length)
+	    return null;
+	return s[field];
+    }
+
+    /**
+     * @param field the field position.
+     * @return {@code true} if the given field is a wildcard (template) / null (stored)
+     * -- the {@code absent} marker.
+     */
+    public boolean isWildcard(int field) {
+	final boolean[] a = absent;
+	return a == null || field >= a.length || a[field];
     }
 
     /**
@@ -933,7 +955,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      */
     public int numFields() {
         synchronized (this){
-            if (values != null) return values.length;
+            if (sliceBytes != null) return sliceBytes.length;
         }
 	return 0;
     }
@@ -970,28 +992,28 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * See if the other object matches the template object this
      * represents.  (Note that even though "this" is a template, it may
      * have no wildcards -- a template can have all values.)
+     *
+     * <p>EntryRep-v2: matching is positional byte-equality over the per-field
+     * <em>slice</em> bytes (amendment &sect;A.4). A wildcard (template {@code absent}) field
+     * is skipped; every non-wildcard template slice MUST byte-equal the corresponding
+     * stored slice. The {@code entrySchemaDigest} and schema table are OUTSIDE the compared
+     * region (&sect;A.4.6) -- exactly as v1 compared {@code MarshalledInstance} payload bytes
+     * while excluding schema/annotation.
      * @param other object to check if it matches this objects template.
      * @return true if matches the template object this EntryRep represents.
      */
     public boolean matches(EntryRep other) {
-	/*
-	 * We use the fact that this is the template in several ways in
-	 * the method implementation.  For instance, in this next loop,
-	 * we know that the real object must be at least my type, which
-	 * means (a) the field types already match, and (b) it has at
-	 * least as many fields as the this does.
-	 */
-
-	//Note: If this object is the MatchAny template then 
-	//      return true (all entries match MatchAny)
         synchronized (this){
             if (EntryRep.isMatchAny(this)) return true;
-        
-            for (int f = 0; f < values.length; f++) {
-                if (values[f] == null) {		// skip wildcards
+
+            final byte[][] mine = sliceBytes;
+            final boolean[] wild = absent;
+            final byte[][] theirs = other.sliceBytes;
+            for (int f = 0; f < mine.length; f++) {
+                if (wild[f]) {		// skip wildcards
                     continue;
                 }
-                if (!values[f].equals(other.values[f])) {
+                if (!Arrays.equals(mine[f], theirs[f])) {
                     return false;
                 }
             }
@@ -1084,32 +1106,39 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	out.writeObject(codebase);
 	out.writeObject(className);
 	out.writeObject(superclasses);
-	out.writeObject(values);
+	out.writeObject(body);              // EntryRep-v2 body (was: values)
+	out.writeObject(entrySchemaDigest);
 	out.writeLong(hash);
 	out.writeObject(hashes);
     }
 
     // inherit doc comment
-    public synchronized EntryRep restore(ObjectInputStream in) 
-	throws IOException, ClassNotFoundException 
+    public synchronized EntryRep restore(ObjectInputStream in)
+	throws IOException, ClassNotFoundException
     {
 	final long bits0 = in.readLong();
 	final long bits1 = in.readLong();
 	if (bits0 == 0 && bits1 == 0) {
 	    id = null;
-	} else {	    
+	} else {
 	    id = UuidFactory.create(bits0, bits1);
 	}
 
-	// REMIND: Do we want to check for AtomicMarshalInputStream?
-	
 	expires      = in.readLong();
 	codebase     = (String)in.readObject();
 	className    = (String)in.readObject();
 	superclasses = (String [])in.readObject();
-	values       = (MarshalledInstance [])in.readObject();
+	body         = (byte[])in.readObject();
+	entrySchemaDigest = (byte[])in.readObject();
 	hash	     = in.readLong();
 	hashes       = (long[])in.readObject();
+	// Flag-day recovery guard: a non-v2 body is refused LOUDLY here (the codec rejects
+	// version != 2) -- recovery never silently skips a bad snapshot record.
+	if (body != null) {
+	    EntryV2Codec.Decoded dec = codec().decode(body);
+	    this.sliceBytes = dec.sliceBytes;
+	    this.absent = dec.absent;
+	}
         return this;
     }
 
@@ -1122,10 +1151,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
 	throw e;
     }
-    
+
     /** Construct, log, and throw a new MarshalException */
     private static MarshalException throwNewMarshalException(
-	    String msg, Exception nested) 
+	    String msg, Exception nested)
 	throws MarshalException
     {
 	final MarshalException me = new MarshalException(msg, nested);
@@ -1143,23 +1172,23 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    Entry partial, String[] badFields, Throwable[] exceptions)
 	throws UnusableEntryException
     {
-	final UnusableEntryException uee = 
+	final UnusableEntryException uee =
 	    new UnusableEntryException(partial, badFields, exceptions);
 
 	if (logger.isLoggable(Levels.FAILED)) {
-	    logger.log(Levels.FAILED, 
+	    logger.log(Levels.FAILED,
 		       "failure constructing entry of type " + className, uee);
 	}
 
 	throw uee;
-    }	
+    }
 
     /**
      * Construct, log, and throw a new UnusableEntryException, that
      * wraps a given exception.
      */
     private static UnusableEntryException throwNewUnusableEntryException(
-            Throwable nested) 
+            Throwable nested)
 	throws UnusableEntryException
     {
 	final UnusableEntryException uee = new UnusableEntryException(nested);
@@ -1169,15 +1198,15 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	}
 
 	throw uee;
-    }	
-    
+    }
+
     /**
      * Construct, log, and throw a new UnusableEntryException, that
      * will rap a newly constructed UnmarshalException (that optional
      * wraps a given exception).
      */
     private static UnusableEntryException throwNewUnusableEntryException(
-            String msg, Exception nested) 
+            String msg, Exception nested)
 	throws UnusableEntryException
     {
 	final UnmarshalException ue = new UnmarshalException(msg, nested);
