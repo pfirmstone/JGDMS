@@ -262,6 +262,19 @@ Constraints B1 pins for B2 (from SOW §3.2/§3.3):
   a fail-closed exclusion, it is simply out of scope. Field names were already type-checked against that one
   schema at admission (a wrong *type* on an existing field was rejected loudly; an unknown field *name*
   deferred — see below).
+
+  **`[AMENDED — RATIFIED Peter 2026-07-26]`** A candidate whose `entrySchemaDigest` matches no filter key is
+  **no longer** treated as an unconditional non-match/out-of-scope. B3 established that this case is dominated
+  by **subclass entries**: a subclass candidate byte-matches its superclass template on the template's own
+  fields but carries its own, longer schema chain, so its digest differs from the template's key even though it
+  is a legitimate byte-matched candidate — treating that as unconditional "out of scope" let such candidates
+  through **entirely unfiltered**, contradicting this memo's own §1 rationale. Per B3, a digest-mismatched
+  candidate is instead **resolved schema-less against its own schema chain**, exactly like the null-key case
+  immediately below: each referenced field name is looked up in the candidate's own v2 schema;
+  present-and-unambiguous ⇒ evaluated against the candidate's own value; absent-or-ambiguous ⇒ a fail-closed
+  exclusion (counted in `filter.failClosedExclusions`), never an unconditional pass-through. This means subclass
+  entries are now filtered by their inherited fields. See `DESIGN-Outrigger-CEL-Filter-B3.md` §5 (and §3, where
+  the amended non-null-key rule is stated in full) for the ratified mechanism.
 - **Null key** (filter admitted schema-lessly, against a null / match-any template): the filter applies to
   **ALL candidates**. There was no template schema to type-check against, so each referenced field name is
   resolved **per candidate**, against that candidate's own v2 schema, at evaluation time. A candidate whose

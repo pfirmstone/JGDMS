@@ -1,7 +1,8 @@
 # Design Memo — Outrigger CEL Filter Pushdown, Unit B3 (Confused-Deputy-Safe Server-Side Evaluation)
 
-- **Status:** DESIGN pass on `feat/cel-filter-b3` (off trunk `4a5a2fd02`, reactor under `JGDMS/`). Awaiting
-  parallel board review and Peter's ratification of the per-eval cost ceiling (§4). **No implementation code
+- **Status:** DESIGN pass on `feat/cel-filter-b3` (off trunk `4a5a2fd02`, reactor under `JGDMS/`). Peter has
+  ratified the per-eval cost ceiling (§4, `[RATIFIED Peter 2026-07-26]`) and the subclass-candidate resolution
+  rule (§5/§3, `[RATIFIED Peter 2026-07-26]`); board review of the remainder continues. **No implementation code
   in this unit** — this memo fixes the decisions that will outlive the B3 implementation.
 - **Scope:** SOW `SOW-Entry-ATOMIC-DER-Migration.md` §5 Part B, unit **B3**: wire predicate **evaluation** at
   every match chokepoint, confused-deputy-safe, fail-closed, with a bounded per-candidate cost. B3 consumes
@@ -118,6 +119,8 @@ correct by construction rather than by vigilance (G7: construction beats a check
 | **D** | `OutriggerServerImpl.java:2983` `tmpl.matches(rep)` | single-template journal catch-up | blocking `read`/`take`/`notify` registration catch-up | CAPTURE (consuming) or EVENT (notify) | consuming: confirm window at capture; notify: watcher `process` after txn gate (§2) |
 | **E** | `WatchersForTemplateClass.java:113` `handle.matches(rep)` | `collectInterested(...)` — journal fan-out interested-set build | `notify`, `registerForAvailabilityEvent`, and every *blocking* query watcher | FAN-OUT/EVENT | **NOT here.** Byte-match here only builds the interested set. CEL runs **per-watcher, after its `transition.getTxn()` gate**, in the watcher's `process`/`isInterested` (§2) — never inside the shared `collectInterested` |
 | **F** | `OutriggerServerImpl.java:3997` `tmpl.matches(reps[i])` | `IteratorImpl.nextReps(...)` — **legacy `JavaSpaceAdmin` AdminIterator** contents | **none** — no filtered overload routes here | n/a | **Must be *proven* unreachable by any filtered op (§1.5), fail-closed if that ever changes** |
+| **G** | `ReadWatcher.java:52–74` `process(...)`/`catchUp(...)` | non-transactional blocking `read` watcher | blocking `read` | NON-CAPTURE BLOCKING READ | after the existing `transition.getTxn() == null` gate (:49, :65), **before `resolve(...)`** (:58, :69) — predicate-false ⇒ do not resolve, keep waiting |
+| **H** | `ReadIfExistsWatcher.java:101–155` `process(...)`/`catchUp(...)` | non-transactional blocking `readIfExists` watcher | blocking `readIfExists` | NON-CAPTURE BLOCKING READ | after the existing `transition.getTxn() == null` gate (:111, :152), **before `resolve(...)`** (:112, :153) — predicate-false ⇒ do not resolve, keep waiting |
 
 **Reconciliation of the archetypes.** Sites A, B, C, and the consuming half of D all reach the *same* method,
 `EntryHolder.confirmAvailability`. That is the design's biggest lever: **one evaluation insertion point covers
@@ -125,6 +128,24 @@ four match sites**, because Outrigger already funnels every capture through it (
 CEL must be added *outside* the confirm window, because event delivery never captures — and it is exactly the
 confused-deputy site (§2). Site F is the trap: a legacy path with no filter parameter that must never silently
 serve unfiltered.
+
+**Sites G/H are a second confused-deputy trap, distinct from F — `[RATIFIED Peter 2026-07-26]` (Blocker 2).**
+`ReadWatcher` (`ReadWatcher.java:52–74`) and `ReadIfExistsWatcher` (`ReadIfExistsWatcher.java:101–155`) are
+**non-transactional blocking read** watchers. They do not add a new `matches()` call site — the byte-match that
+selects them as candidates already happened upstream, at site D's catch-up loop (`OutriggerServerImpl.java:2983`)
+or at site E's `collectInterested`. The gap is downstream of that match: on a hit, both watchers `resolve(...)`
+the matched handle **directly** (`ReadWatcher.java:58,69`; `ReadIfExistsWatcher.java:112,153`) — they never call
+`attemptCapture`/`confirmAvailabilityWithTxn`, so they never pass through the confirm window that hosts every
+other CAPTURE-archetype evaluation. Left unwired, a blocking `read`/`readIfExists` would resolve on the first
+byte-matched, entitled transition **without ever consulting the predicate** — a silent fail-open exactly like
+site F, but on the live (non-legacy) blocking-read path. Both watchers already gate correctly on
+`transition.getTxn() == null` before resolving (`ReadWatcher.java:49,65`; `ReadIfExistsWatcher.java:111,152`), so
+INV-1's entitlement precedent is already in place; B3 must insert predicate evaluation **between that existing
+gate and the `resolve(...)` call**: predicate-false ⇒ do not resolve, keep waiting for the next candidate
+transition (nothing is captured either way, so INV-2 is trivially satisfied here — this is a NON-CAPTURE
+archetype, closer in shape to fan-out than to CAPTURE, except the entitlement gate is the simpler unconditional
+`getTxn() == null` test rather than a per-registration txn comparison). Both watchers must carry the op's
+`FilterSet`, exactly as the consuming watchers do (§1.4).
 
 ### 1.4 Capture-path evaluation, in detail (INV-2)
 
@@ -178,20 +199,26 @@ by the very same insertion point; the watcher must carry the op's `FilterSet` so
 authoritative filter decision is re-made at capture in the confirm window. This is the key exhaustiveness
 argument for the blocking path: **no consuming delivery escapes the confirm-window evaluation.**
 
-**Read-only `contents` snapshot (site B, read side; the B1 F-2 hazard).** Filtered `contents` returns a
-`MatchSetData` the client pages through. The first batch is materialized server-side through
-`ContinuingQuery`; B3 evaluates each candidate at materialization (there is no capture — the entitlement gate
-for a non-transactional read snapshot is visibility, which `ContinuingQuery` already enforces; under a txn,
-`canPerform(READ)` is the gate). **Hazard, flagged by B1 SESSION-WRAP F-2:** the `MatchSet` *continuation*
-(`nextBatch`) historically re-fetches via the **unfiltered** `JavaSpace05.contents` — a latent filter-drop that
-would serve unfiltered pages after the first. **B3 MUST route every continuation batch through the same
-filtered materialization** (carry the `FilterSet` into the server-side `MatchSetData`/iterator state, and make
-the continuation fetch the *filtered* server op, never the unfiltered `JavaSpace05.contents`). A continuation
-that drops the filter is INV-1/fail-open and a blocking B3 defect. **[OPEN — BOARD]:** confirm the continuation
-transport (`MatchSetProxy` → which backend method) carries the `FilterSet`; if the continuation cannot be made
-to re-enter the filtered path, the alternative is to *materialize the whole result server-side under the
-`leaseTime`/`limit` bound at first call* and page from that frozen filtered set — heavier but structurally
-drop-proof.
+**Read-only `contents` snapshot (site B, read side) — continuation resolved, `[RATIFIED Peter 2026-07-26]`.**
+Filtered `contents` returns a `MatchSetData` the client pages through. The first batch is materialized
+server-side through `ContinuingQuery`; B3 evaluates each candidate at materialization (there is no capture — the
+entitlement gate for a non-transactional read snapshot is visibility, which `ContinuingQuery` already enforces;
+under a txn, `canPerform(READ)` is the gate). **Correction to the B1 SESSION-WRAP F-2 description (stale):** the
+memo previously described the `MatchSet` *continuation* as "re-fetching through unfiltered `JavaSpace05.contents`"
+— that description does not match the actual call path and is corrected here. The client-side continuation is
+`MatchSetProxy.next()`, which on batch exhaustion calls **`space.nextBatch(uuid, lastRepReturned.id())`**
+(`MatchSetProxy.java:86`) — a distinct `OutriggerServer` method, never the unfiltered `JavaSpace05.contents`
+overload. Server-side, `OutriggerServerImpl.nextBatch` (`OutriggerServerImpl.java:3197`) looks up the retained
+`ContentsQuery` by its `Uuid` and calls its own `nextBatch(entryUuid, now)` (`OutriggerServerImpl.java:3310`),
+which continues the **same** `ContentsQuery` — advancing through `createQuery(...)` /
+`EntryHolder.ContinuingQuery` (`OutriggerServerImpl.java:2490,2711`) into `ContinuingQuery.next` (site B) exactly
+as the first batch did. So every continuation batch already runs through the identical server-side query state
+that produced the first batch — there is no separate unfiltered re-fetch to drop the filter on. **Resolution:**
+thread the op's `FilterSet` into the retained `ContentsQuery`/`ContinuingQuery` state at construction (alongside
+`tmpls`/`txn`/`limit`), so every continuation batch is filtered **by construction**, not by re-derivation at each
+`nextBatch` call. **No full-materialization fallback is needed** — the continuation already re-enters the
+filtered path; it only needs the `FilterSet` reference carried in state it does not yet have. This closes
+`[OPEN — BOARD]` item 2 of §10.
 
 ### 1.5 Site F — the legacy admin iterator MUST be proven unreachable — [DESIGN CALL]
 
@@ -203,9 +230,16 @@ serve byte-matched-but-unfiltered entries — a silent bypass. B3's obligation:
 - **Do not wire a filter into F** (there is none to wire), but **add a compile/structural guard** that the
   filtered `contents`/`take` paths never delegate to `IteratorImpl` — a code-path assertion or an architectural
   test that fails if a filtered op reaches `nextReps`. This is the "prove the negative" analogue of B1's
-  enumerate-every-admission-site discipline. **[OPEN — BOARD]:** is an admin-only unfiltered iterator an
-  acceptable standing exemption, or should the AdminIterator eventually gain filter support? For B3 the ruling
-  is: exempt, but guarded so the exemption cannot silently rot into a bypass.
+  enumerate-every-admission-site discipline. **`[RATIFIED Peter 2026-07-26]`: exempt-but-structurally-guarded.**
+  The admin-only `IteratorImpl.nextReps` path is an acceptable standing exemption from filtering — it is not
+  reachable from any client-facing filtered operation and gaining filter support there is out of B3 scope. The
+  ratification is conditioned on the guard being a **mechanism, not a promise**: B3 MUST ship an actual
+  structural/architectural test (not merely updated prose in this memo) that fails the build if any filtered
+  `contents`/`take` code path is ever refactored to route through `IteratorImpl.nextReps` — e.g. a test that
+  walks the call graph from each filtered `OutriggerServerImpl` entry point (or asserts on the absence of any
+  caller of `nextReps` outside the `JavaSpaceAdmin` admin path) so a future refactor that quietly wires
+  `AdminIterator` into a filtered op fails loudly at build/test time, not silently in production. Until that test
+  exists, the exemption is a documented risk, not a closed one.
 
 ### 1.6 What threading looks like (no code, signatures only)
 
@@ -266,6 +300,15 @@ ordering is both a correctness requirement (INV-1: entitlement before predicate)
 (cheapest, entitlement-agnostic checks first; the expensive class-free projection + walk last), mirroring
 `CelVerifier`'s own cheapest-check-first composition.
 
+**Nit, pinned exactly:** "the watcher" above means the watcher's **`process(...)` method only** — the method the
+`OperationJournal` thread calls per live transition, one watcher at a time. It does **not** mean a watcher's
+`isInterested(...)` method, which `WatchersForTemplateClass`/`TransitionWatchers` calls while **assembling** the
+interested set for a template class, potentially under a lock shared across every watcher registered for that
+class. Running CEL inside `isInterested` would (a) run it before the per-watcher entitlement gate exists in that
+call at all for some watcher shapes, and (b) hold a shared assembly lock for the class-free projection + walk,
+turning a per-watcher cost into a cross-registrant stall. CEL belongs exclusively in `process` (and the
+consuming-watcher's `attemptCapture`-driven confirm-window path, per §1.4), never in `isInterested`.
+
 ### 2.3 Wrap catch-everything — a RuntimeException must not kill the journal thread (G6)
 
 **The mechanism-level hazard.** `OperationJournal.run()`'s catch block (`OperationJournal.java:469–480`) logs a
@@ -320,14 +363,44 @@ filter against a candidate of a *different* schema, "field identity" (which clas
 unguaranteed — the B2 adversarial seat flagged this as a hard B3 dependency. The enforced mechanism:
 
 **Decision.** Before B3 trusts any `fieldValue`, it selects the applicable filter by
-`candidate.entrySchemaDigest()` (from `EntryProjection.entrySchemaDigest()`), **per candidate, at the top of the
-confirm-window / fan-out evaluation, before projection is consumed:**
+`candidate.entrySchemaDigest()`, **per candidate, at the top of the confirm-window / fan-out evaluation, before
+projection is consumed.** **Nit, pinned exactly (the two digest sources are not interchangeable in timing):** the
+digest consulted for this **pre-decode** selection is the **stored `EntryRep`'s own digest** — computed and
+installed once, at write-time decode (when the entry was accepted into the space and its v2 schema chain was
+bound), and readable directly off the candidate's `EntryRep`/`EntryHandle` without invoking `EntryProjection` at
+all. `EntryProjection.entrySchemaDigest()` is the **post-decode** value — it exists only once a projection has
+actually been constructed for this candidate (which for the non-null-key case happens *after* this very
+selection has already decided the filter applies, per the ordering note below). The two values are defined to
+agree (both derive from the same schema-chain binding, B2/EntryRep-v2 §A.8/A.9), so using the stored `EntryRep`
+digest pre-decode is not a weaker check — it is simply the one that is actually available at the point this
+decision must be made, and it is what makes the "before projection decode" ordering below correct rather than
+circular:
 
-- **Non-null key** (`CompiledFilter.applicabilitySchemaDigest() != null`): the filter applies **iff**
-  `Arrays.equals(candidate.entrySchemaDigest(), key)`. A mismatch ⇒ **out of scope** — not a match, not a
-  fail-closed exclusion, not counted (B1 §6.1: "simply out of scope"). Field names were already statically
+- **Non-null key** (`CompiledFilter.applicabilitySchemaDigest() != null`): the filter applies **without further
+  resolution** iff `Arrays.equals(candidate.entrySchemaDigest(), key)` — field names were already statically
   type-checked against exactly this one schema at admission, so once the digest equals the key, `fieldValue` is
   trustworthy by construction. The check is a 32-byte `Arrays.equals`, done once per candidate.
+  **`[RATIFIED Peter 2026-07-26]` — the digest-mismatch case is no longer "out of scope, untouched."** A
+  candidate reaches this decision only because it already byte-matched some template in scope for this op (§1.0);
+  a digest mismatch at this point is not evidence the candidate is unrelated to that template — the dominant real
+  case is a **subclass entry**: it byte-matches the (superclass) template on the template's own declared fields,
+  but its *own* schema chain is longer (its subclass fields extend the digest), so
+  `candidate.entrySchemaDigest() != key` even though the candidate is a legitimate result the byte-match already
+  selected. The superseded rule ("a mismatch is simply out of scope, not even a fail-closed exclusion, not
+  counted" — B1 §6.1, now amended, see the B1 doc's §6.1 amendment note) was a **fail-open**: it let such
+  candidates through this filter **entirely unconstrained** by the very predicate that byte-match selected them
+  for. **Ratified resolution:** on a digest mismatch, resolve the predicate against the candidate's **own** schema
+  chain, exactly like the null-key path immediately below — each referenced field name is looked up in the
+  candidate's own v2 schema; present-and-unambiguous ⇒ evaluate against the candidate's own value (using the
+  candidate's own field layout, not the template's); absent-or-ambiguous ⇒ fail-closed exclusion, counted in
+  `filter.failClosedExclusions`. This is exactly §5's per-candidate selection rule updated the same way — see
+  §5's cross-reference. **[DESIGN CALL]:** this requires the evaluation machinery to retain, for a digest
+  mismatch, a reference to the *originating* `CompiledFilter` (the one whose template this candidate byte-matched
+  at the match site) rather than only a digest-keyed lookup into `FilterSet` — for single-template ops there is
+  exactly one candidate filter so this is immediate; for multi-template ops (§5) the match site already knows
+  which template produced the byte-match, and that association must be threaded to this step rather than
+  re-derived from the candidate's digest alone (a pure `byDigest` re-lookup would, by definition, miss on a
+  subclass digest and has no way to recover *which* template's filter to fall back to).
 - **Null key** (`CompiledFilter.isSchemaLess()`): the filter applies to **ALL** candidates (OPTION-(b)). There
   was no template schema to type-check against, so each referenced field name is resolved **per candidate,
   against that candidate's own v2 schema** — which is exactly what the `Evaluator` + `EntryProjection` already
@@ -367,11 +440,39 @@ recommended default.
 - **The CEL AST.** `CelDecoder`/`CelVerifier` enforce, at *admission*, `MAX_EXPR_NODES` (1024), `MAX_EXPR_DEPTH`
   (32), `MAX_SELECTOR_STEPS` (16), `MAX_SCALAR_BYTES` (64 KiB, on *literal* scalars in the expression), and the
   **cost gate** `MAX_EXPR_COST` (`CostModel.computeCost`, the first and only mandatory cost admission gate).
-- **Consequence.** The `jgdms-cel` `Evaluator` is a bounded recursive tree-walk with **no runtime step meter**:
-  its work is `O(admitted AST nodes)`, and the AST is ceilinged. **The predicate walk itself is already
-  bounded** — a hostile filter cannot make the *walk* large, because admission rejected a large AST.
+- **Consequence — CORRECTED, `[RATIFIED Peter 2026-07-26]`.** This memo originally claimed here that "the
+  predicate walk itself is already bounded — a hostile filter cannot make the *walk* large, because admission
+  rejected a large AST," concluding the walk is `O(admitted AST nodes)` and therefore effectively free. **That
+  claim was wrong**, and the board established why: bounding the *node count* only bounds the walk if every
+  node's own cost is O(1) (or at least the O(1)-like bound `CostModel` charged it at admission). It is not, for
+  one node kind — see the new bullet immediately below. The AST node count is bounded; the **per-node cost of a
+  string ordering comparison is not**, and that gap is the real lock-hold term, not merely the already-listed
+  decode terms.
 
 **NOT bounded by anything CEL, and the real lock-hold term:**
+
+- **String ordering is eager and unbounded, in contradiction with the cost model that admitted it — the
+  central finding, `[RATIFIED Peter 2026-07-26]`.** `Evaluator.compareCodePoints` (`Evaluator.java:446`)
+  implements string ordering (`<`/`<=`/`>`/`>=`) by calling `a.codePoints().toArray()` and
+  `b.codePoints().toArray()` on **both** operands and then walking the shorter array's length — i.e. it is
+  `O(len(a) + len(b))`, with **no short-circuit** on the shorter operand: even a one-character literal forces a
+  full `toArray()` of the (potentially much longer) candidate-field operand. Separately, `size(string)`
+  (`callSizeString`, `Evaluator.java:653`) is `s.value().codePointCount(0, s.value().length())` — also
+  `O(len)`, recomputed on every occurrence of `size(field)` in the AST, not cached. Meanwhile `CostModel`'s
+  admission-time cost for a string/bytes comparison (`CostModel.java:235–237`) charges only
+  `1 + min(S, len(literalOperand))` — the **tightened** cost that assumes the *shorter* operand bounds the work
+  (`S = MAX_SCALAR_BYTES`, `CostModel.java:93`). That tightening's justification is only true if the evaluator
+  actually stops at `min(len(a), len(b))`; the current `Evaluator` does not implement that — it is eager and
+  operand-length-symmetric, not short-circuited. So `MAX_EXPR_COST` admits an AST whose *charged* cost assumes
+  cheap ordering ops, while the *actual* per-op cost is driven by the **candidate's** field length, which
+  `CostModel` cannot see (it only knows the literal operand's static length at admission). **Consequence:** an
+  admitted AST (≤`MAX_EXPR_NODES` = 1024 nodes) can pack roughly a thousand `field < "x"`-shaped ordering
+  comparisons — each cheap under `CostModel` (literal length 1 ⇒ charged cost ≈ `1 + min(S,1)`) — all against
+  the *same* candidate field. If that field is decoded to (or near) the Option-B `MAX_PROJECTION_DECODE_BYTES`
+  budget (§4.3) of 64 KiB, ~1000 eager `toArray()` calls over a ~64 KiB `String` is **tens of MiB of scan and
+  transient-array allocation per candidate**, under the `handle` lock — nowhere near "sub-millisecond," and the
+  admission cost gate did nothing to prevent it, because it was charging the *wrong* thing. This is the finding
+  behind the §4.4 ratified fix.
 
 - **Projection decode of the candidate body.** `EntryProjection.projectFields` is **eager**: at construction it
   calls `EntryRepV2Codec.decode(candidateBody)` (a full structural decode of the v2 body) and then eagerly
@@ -387,9 +488,12 @@ recommended default.
 
 **Worst-case lock-hold, unmitigated.** For each candidate scanned under the `handle` lock:
 `decode(≤8 MiB body)` + `decode all referenced/nested scalars (≤ Σ slice payloads)` + `walk (≤1024 nodes,
-with string ops ≤1 MiB each)`. Multiplied across a scan of N candidates, an adversary who stores a few large
-entries can hold the `handle` lock (and starve concurrent writes/takes) for a long time per query. **This is
-the lock-hold DoS the ceiling must bound.**
+with string ops ≤1 MiB each — and, per the finding above, ~1000 such ops may legally target the *same* field,
+since `CostModel` under-charges each one)`. Multiplied across a scan of N candidates, an adversary who stores a
+few large entries can hold the `handle` lock (and starve concurrent writes/takes) for a long time per query.
+**This is the lock-hold DoS the ceiling must bound — and, critically, it is a DoS the admission cost gate alone
+does not bound, because the cost gate's own per-op charge assumed a walk behaviour the `Evaluator` does not
+have (see above).**
 
 ### 4.2 A structural reduction that pairs with every option: reuse the already-decoded slices — [DESIGN CALL]
 
@@ -429,18 +533,44 @@ the evaluator returns `CANDIDATE_UNDECODABLE` → **fail-closed exclusion, count
 input length handed to string operators (a `contains` over more than the budget's worth of field bytes is a
 fail-closed exclusion, not an unbounded scan).
 
-- **Lock-hold worst case:** `O(MAX_PROJECTION_DECODE_BYTES)` decode + `O(admitted AST)` walk ≈ **64 KiB + ≤1024
-  bounded nodes** — sub-millisecond, and **independent of stored-entry size**. An adversary storing an 8 MiB
-  entry to slow scans is bounded to 64 KiB of work per candidate touched.
+- **Lock-hold worst case — CORRECTED, `[RATIFIED Peter 2026-07-26]`.** The budget bounds *decode*: the total
+  candidate-value bytes B3 will read out of the wire form. It does **not**, by itself, bound how many times the
+  walk **re-scans** an already-decoded value. As §4.1's central finding shows, `Evaluator.compareCodePoints`
+  (`Evaluator.java:446`) is eager and un-short-circuited, and `CostModel`'s ordering tightening
+  (`CostModel.java:235–237`) under-charges it — so the byte budget alone does **not** restore
+  "`O(MAX_PROJECTION_DECODE_BYTES)` decode + `O(admitted AST)` walk ≈ 64 KiB + ≤1024 bounded nodes —
+  sub-millisecond" as this memo previously claimed. Bounding decode to 64 KiB while the walk can still run
+  ~1000 eager `O(len)` ordering comparisons *against that same 64 KiB value* leaves the walk term at **tens of
+  MiB of scan/alloc per candidate**, not sub-millisecond. **Option B alone is therefore insufficient** — it
+  bounds the decode term (§4.1's other bullets) but not the walk term this section exists to bound. **Option B
+  is ratified only paired with the evaluator fix below**, at which point the sub-millisecond bound is genuinely
+  restored: `O(MAX_PROJECTION_DECODE_BYTES)` decode + `O(admitted-AST-node-count × min(candidate-operand,
+  literal-operand))` walk ≈ 64 KiB + ≤1024 nodes each doing genuinely `O(min)` work — independent of
+  stored-entry size, as originally intended.
+- **The paired evaluator fix (jgdms-cel only; no wire-format, no error-algebra/STD-011 §9.1 change).** Two
+  changes to `au.net.zeus.jgdms.cel.eval.Evaluator`, scoped entirely inside `jgdms-cel`: (1) make string ordering
+  comparison **lazy and O(min)** — compare code point by code point up to the length of the *shorter* operand and
+  stop there (return as soon as a difference is found, or as soon as the shorter operand is exhausted), **never**
+  materialize a `toArray()` of the longer operand; the equivalent applies to `compareUnsignedBytes` for
+  consistency (currently also eager, though its literal-vs-candidate asymmetry is less severe since bytes
+  comparison has no code-point decoding step). (2) **bound `size(string)`/`size(bytes)` per field** by computing
+  it once per candidate (memoized against the already-decoded field value) rather than re-scanning on every AST
+  occurrence of `size(field)`. Neither change touches `CelValue`, `EvalOutcome`, the closed eight-error set
+  (STD-011 §9.1), or any wire format — it is a pure internal-algorithm fix that makes the `Evaluator`'s actual
+  behaviour match the `O(min)` assumption `CostModel`'s tightening already charges for. This is what makes the
+  cost-model tightening's justification **true** rather than merely assumed.
 - **Interaction with the B2 `has(obj)` amplifier:** the budget is checked **cumulatively across the whole nested
   `decodeToScalarFieldMapClassFree` decode**, so `has(bigNestedObject)` is bounded by the budget even though B2
   decodes all nested scalars — the nested decode fail-closes at 64 KiB. This directly bounds the exact term the
-  task flags.
-- **Cost:** lives entirely in `outrigger-service` (`EntryProjection` + one constant); **no `jgdms-cel` API
-  change, no CEL error-set change.** One new counter/metric.
-- **Verdict:** RECOMMENDED. It bounds the dominant lock-hold term (value decode + string scan) cheaply,
-  decouples lock-hold from attacker-controlled entry size, and requires no perturbation of the CEL determinism
-  contract. Pairs with §4.2 slice reuse to also remove the body-structural-decode term.
+  task flags, and is unaffected by the evaluator fix (it is a decode-side bound, not a walk-side one).
+- **Cost:** the byte budget lives entirely in `outrigger-service` (`EntryProjection` + one constant); the paired
+  fix lives entirely in `jgdms-cel`'s `Evaluator` internals. **No `jgdms-cel` public API change, no CEL error-set
+  change** — both changes are internal-algorithm corrections, not new surface. One new counter/metric (the
+  budget) plus no new error variant (the fix).
+- **Verdict:** RECOMMENDED, **as a package with the evaluator fix — the two do not work independently.** The byte
+  budget bounds the dominant *decode* lock-hold term and decouples it from attacker-controlled entry size; the
+  evaluator fix bounds the *walk* term and makes the admission cost gate's own tightening assumption true. Pairs
+  with §4.2 slice reuse to also remove the body-structural-decode term.
 
 #### Option C — Full runtime CEL step budget (most defensive; DEFERRED)
 
@@ -458,16 +588,62 @@ work ceiling independent of both admitted-AST-cost and entry size.
   *walk itself* (not decode) is the lock-hold cost — which the admission ceilings make unlikely. If ever needed,
   it stacks cleanly on B.
 
-### 4.4 Recommendation to Peter (the ratifiable default)
+### 4.4 Ratified decision — `[RATIFIED Peter 2026-07-26]`
 
-**Adopt Option B (projection-decode byte budget, `MAX_PROJECTION_DECODE_BYTES = 64 KiB`, fail-closed + counted),
-layered on the §4.2 slice-reuse reduction. Defer Option C.** With B + §4.2 the worst-case per-candidate
-lock-hold is `O(64 KiB decode + bounded-AST walk)` — sub-millisecond, independent of stored-entry size — and no
-`jgdms-cel`/STD-011 change is incurred. The number Peter ratifies is **`MAX_PROJECTION_DECODE_BYTES = 64 KiB`**
-(a fixed compile-time constant, no runtime knob, per B1's ceiling-discipline precedent). **[OPEN — PETER]:**
-ratify the 64 KiB value (alternatives: 16 KiB tighter, 256 KiB looser); ratify B-over-C; and confirm the
-lock-hold-vs-B4 coupling is acceptably addressed by bounding per-candidate work rather than by an overall
-per-query time budget (a per-query wall-clock cap is a possible B4 add-on, out of B3 scope).
+**Peter ratifies Option B, `MAX_PROJECTION_DECODE_BYTES = 64 KiB`, PAIRED WITH the evaluator fix (§4.3), layered
+on the §4.2 slice-reuse reduction. Option C remains DEFERRED.**
+
+This corrects and supersedes the memo's original recommendation, which described Option B alone as achieving
+"sub-millisecond, `O(64 KiB decode)`" lock-hold. The board established that claim was **wrong**: `Evaluator.
+compareCodePoints` (`Evaluator.java:446`) eagerly `toArray()`s both string operands with no short-circuit
+(`O(candidate-length)`, not `O(min)`), and `size(string)` (`Evaluator.java:653`, `codePointCount`) is `O(len)` per
+occurrence — while `CostModel`'s string-ordering tightening (`CostModel.java:235–237`, `1 + min(S, literalLen)`)
+charges admission cost as if the walk already stopped at `min(candidate-length, literal-length)`. It does not. An
+admitted AST (≤1024 nodes, the `MAX_EXPR_NODES` ceiling) can legally pack roughly a thousand `field < "x"`-shaped
+ordering comparisons against one field; if that field is decoded up to the Option-B 64 KiB budget, that is **tens
+of megabytes of scan and transient-array allocation per candidate**, under the `handle` lock — not
+sub-millisecond, and the admission cost gate does not prevent it because it was charging the wrong quantity.
+
+**The ratified package (jgdms-cel-internal only — NO wire-format change, NO error-algebra/STD-011 §9.1 change):**
+
+1. **§4.3 Option B, unchanged as specified:** `FilterAdmission.MAX_PROJECTION_DECODE_BYTES = 64 KiB`
+   (fixed compile-time constant), bounding total per-candidate projection-decode bytes, fail-closed + counted on
+   exceed.
+2. **The evaluator fix, new to this ratification:** make `Evaluator`'s string ordering comparison lazy and
+   genuinely `O(min)` — compare code point by code point up to the shorter operand's length, short-circuit on
+   first difference, never `toArray()` the longer operand — and bound `size(string)`/`size(bytes)` by computing it
+   once per candidate per field rather than re-scanning per AST occurrence. This is what makes `CostModel`'s
+   `1 + min(S, literalLen)` tightening's justification **true**, restoring the sub-millisecond bound the byte
+   budget alone cannot deliver. Scope: internal to `au.net.zeus.jgdms.cel.eval.Evaluator`; no public API change,
+   no new `CelError` member, no STD-011 amendment.
+3. **§4.2 slice reuse, retained as part of the ratified package:** the confirm window already holds a
+   fully-parsed `EntryRep`; the B3 projection factory must consume its already-decoded slices/schema rather than
+   re-running `EntryRepV2Codec.decode(candidateBody)` from scratch, removing the 8 MiB body-structural-decode term
+   from the lock-hold.
+
+With all three, the worst-case per-candidate lock-hold is genuinely `O(64 KiB decode + bounded-AST-node-count ×
+min-bounded walk)` — sub-millisecond, independent of stored-entry size — and, critically, **no `jgdms-cel` public
+API surface changes and no STD-011 §9.1 closed-error-set amendment is incurred**, because both the byte budget
+and the evaluator fix are internal-algorithm corrections, not new surface.
+
+**Why 64 KiB is retained as the uniquely coherent value.** 64 KiB is not an arbitrary midpoint between "16 KiB
+tighter" and "256 KiB looser" — it is **`MAX_SCALAR_BYTES`**, the same admission-time ceiling `CostModel` already
+uses as `S` (`CostModel.java:93`) to bound a *literal* scalar's contribution to comparison cost. Choosing any
+other value for the per-candidate projection-decode budget would decouple the value half of the admission
+cost-gate's operand-length assumption (bounded by `S`) from the candidate half (bounded by the projection budget)
+— i.e. it would reintroduce an asymmetry between what the cost gate assumes about literals and what B3 enforces
+about candidate values. 64 KiB keeps both sides of every comparison the cost gate reasons about under the same
+ceiling, which is the reason the evaluator fix's `O(min)` bound is meaningful at all: `min(candidate ≤ 64 KiB,
+literal ≤ 64 KiB)` is a bound the admission cost gate can actually charge for honestly, post-fix.
+
+**Option C (full runtime CEL step meter) remains explicitly DEFERRED.** It would require a `jgdms-cel` **public**
+API change (a new `Evaluator` entry point taking a step budget) and either a new `CelError.BUDGET_EXCEEDED`
+member — which reopens STD-011 §9.1's closed eight-error set, a normative spec change — or an out-of-band signal
+that bypasses the closed error algebra. Either path re-opens the CEL determinism seat and needs its own board
+review and STD-011 amendment; neither is warranted now that the ratified B-plus-evaluator-fix package restores
+the intended bound without touching that surface. Hold C in reserve only if profiling later shows the *walk*
+itself — after the fix, genuinely `O(min)` — is still the lock-hold cost, which the admission ceilings make
+unlikely.
 
 ---
 
@@ -489,12 +665,23 @@ into a `FilterSet.Builder`:
 2. Add `byDigest.get(hex(candidateDigest))` if present — the one concrete filter whose applicability key equals
    this candidate's `entrySchemaDigest`.
 3. The candidate **passes** iff it passes **every** filter in that combined list (all-must-pass); the first
-   non-pass short-circuits to exclusion. An **empty** list (a candidate whose digest matches no concrete
-   template and there are no schema-less filters) means *no filter applies* — but note such a candidate would
-   not have byte-matched any template either, so it never reaches evaluation; defensively, an empty applicable
-   list is treated as "no additional constraint" (the byte-match already selected it) — **[DESIGN CALL]:** this
-   is the only case where evaluation adds nothing, and it is safe because byte-match plurality already scoped
-   the candidate to some template.
+   non-pass short-circuits to exclusion.
+
+**`[RATIFIED Peter 2026-07-26]` — an empty combined list is no longer "no additional constraint."** The prior
+text here reasoned that a candidate whose digest matches no `byDigest` entry and no `schemaLess` filter "would not
+have byte-matched any template either, so it never reaches evaluation," and treated that empty-list case as a
+safe no-op. That reasoning was **wrong for subclass candidates** (§3's amended non-null-key rule): a subclass
+entry byte-matches its superclass template on the template's own fields, reaches evaluation as a legitimate
+candidate, yet carries its *own*, longer `entrySchemaDigest` — so it produces exactly this "empty list" outcome
+even though a concrete filter (the byte-matched template's own) plainly should constrain it. Treating that as "no
+additional constraint" returned such candidates **unfiltered**, contradicting the feature's own reason for
+existing (B1 §1) and B1 §6.1's applicability rule. **Resolved:** an empty combined list is never treated as "no
+constraint" by default. Instead, per §3's amended non-null-key rule, the candidate is resolved schema-lessly
+against **the `CompiledFilter` of the template it byte-matched** (looked up via the match site's own
+template↔filter association, not re-derived from `FilterSet.byDigest` by digest) — absent/ambiguous referenced
+field ⇒ fail-closed exclusion; present-and-unambiguous ⇒ evaluated against the candidate's own field values. This
+makes subclass entries filtered by their inherited fields, exactly as a directly-matching candidate would be.
+This amends B1 §6.1 OPTION-(b) — see `DESIGN-Outrigger-CEL-Filter-B1.md` §6.1's amendment note.
 
 **Why all-must-pass, not any-pass.** B1 §4.2/§6.2 admit the one *envelope* against every template (all must
 pass at admission) and §6.2 pins per-template retention. A candidate that byte-matches template *i* and carries
@@ -624,7 +811,15 @@ Following the demo5/demo6 born-DER Outrigger pattern; the class-free property is
      and after Q's write; the private transition, gated out at `transition.getTxn() != P's txn` in the watcher
      *before* CEL, contributes no `filter.evaluated` increment.) This is the concrete, observed evidence that the
      entitlement gate precedes evaluation (INV-1), not just that the result was filtered — the distinction the
-     Board's confused-deputy hunt insists on (mechanism, not outcome).
+     Board's confused-deputy hunt insists on (mechanism, not outcome). **Nit:** `FilterAdmission`'s counters
+     (`filter.evaluated` et al.) are **global static** metrics, not scoped per-registration or per-server-instance
+     by the counter API itself; the demo's "per-registration `filter.evaluated` delta" is only a valid,
+     attributable signal because the demo runs as a **single quiescent scenario** — one server, one registration
+     of interest, no concurrent filtered traffic between the before/after snapshot. Any concurrent filtered
+     activity during the probe window would add noise to the same global counter and invalidate the delta's
+     attribution to Q's specific transition. This is fine for a demo/proof but is not, by itself, a per-registration
+     observability primitive — a future multi-tenant diagnostic would need a scoped (per-`FilterSet`/registration)
+     counter, out of B3 scope.
 - **Assert (matches after commit):** Q commits `Tq`. The entry becomes globally visible
   (`transition.getTxn() == null` semantics on commit). Now P's filtered query **does** evaluate the predicate
   against it and **returns** it (it is warm-northern). This closes the proof: the predicate ran exactly when —
@@ -656,17 +851,24 @@ change reviewable in isolation.
 
 ## 10. Open questions carried to the board / Peter
 
-1. **[OPEN — PETER, the ratification] Per-eval cost ceiling (§4).** Recommended: **Option B**, per-candidate
-   **`MAX_PROJECTION_DECODE_BYTES = 64 KiB`**, fail-closed + counted, layered on §4.2 slice reuse; **Option C
-   (CEL step meter) deferred**. Peter ratifies: (a) B-over-C, (b) the 64 KiB value, (c) that bounding
+1. **`[RATIFIED Peter 2026-07-26]` Per-eval cost ceiling (§4).** Ratified: **Option B**, per-candidate
+   **`MAX_PROJECTION_DECODE_BYTES = 64 KiB`**, fail-closed + counted, layered on §4.2 slice reuse, **PAIRED WITH**
+   a `jgdms-cel`-internal evaluator fix (lazy `O(min)` string ordering + per-candidate-bounded `size(string)`) that
+   makes `CostModel`'s existing `O(min)` cost-tightening assumption actually true; **Option C (CEL step meter)
+   remains deferred**. Peter ratified: (a) B-plus-evaluator-fix over C, (b) the 64 KiB value (= `MAX_SCALAR_BYTES`,
+   the uniquely coherent choice, not merely a midpoint between 16 KiB/256 KiB alternatives), (c) that bounding
    per-candidate work (not an overall per-query wall-clock cap) adequately addresses the lock-hold/B4 coupling.
-2. **[OPEN — BOARD] `contents` continuation filter-drop (§1.4, B1 F-2).** Confirm the `MatchSet` continuation
-   (`nextBatch`) can be routed through the *filtered* server op (carry `FilterSet` into the iterator/MatchSetData
-   state), or adopt the first-call full-materialization fallback. A continuation that re-fetches via unfiltered
-   `JavaSpace05.contents` is a fail-open bypass and a blocking defect.
-3. **[OPEN — BOARD] Legacy admin iterator exemption (§1.5, site F).** Ratify that `IteratorImpl.nextReps`
-   (JavaSpaceAdmin) stays unfiltered-but-guarded (a structural test proving no filtered op reaches it), rather
-   than gaining filter support.
+   See §4.4.
+2. **RESOLVED — `contents` continuation filter-drop (§1.4, B1 F-2).** The memo's prior description ("the
+   continuation re-fetches through unfiltered `JavaSpace05.contents`") was stale/incorrect: `MatchSetProxy.next()`
+   calls `space.nextBatch(...)`, which server-side continues the **same, already-filtered** `ContentsQuery` /
+   `ContinuingQuery` state — there is no separate unfiltered re-fetch. Resolution: thread the `FilterSet` into
+   `ContentsQuery` state at construction so every continuation batch is filtered by construction; no
+   full-materialization fallback is needed. Closed.
+3. **`[RATIFIED Peter 2026-07-26]` Legacy admin iterator exemption (§1.5, site F).** `IteratorImpl.nextReps`
+   (JavaSpaceAdmin) stays unfiltered-but-**structurally guarded**, rather than gaining filter support — ratified
+   conditional on B3 shipping an actual structural/architectural test (not merely this memo's prose) proving no
+   filtered op ever reaches `nextReps`. The exemption is a mechanism to build, not a standing promise.
 4. **[OPEN — BOARD] Metric-name set (§7).** Confirm the five permanent names
    (`filter.evaluated`/`filter.passed`/`filter.excludedFalse`/`filter.failClosedExclusions`/
    `filter.rejected.projectionBudget`) now, extending `FilterAdmission.METRIC_NAMES`, per B1's fix-names-early
