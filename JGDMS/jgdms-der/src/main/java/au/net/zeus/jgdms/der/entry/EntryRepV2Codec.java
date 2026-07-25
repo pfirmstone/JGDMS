@@ -29,6 +29,7 @@ import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 import au.net.zeus.jgdms.der.stream.DerMarshalOutputStream;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
@@ -280,6 +281,40 @@ public final class EntryRepV2Codec {
         }
     }
 
+    /**
+     * Encodes a {@code @SerialEntry} instance from its explicit {@code entryForm()} wire
+     * metadata (STD-005) and the ordered field values. The entry schema is a single
+     * {@code EntrySchemaRecord}-shaped record whose fields are the wire fields in
+     * positional order (the same order as {@code orderedValues}); this matches the
+     * flat positional value array produced by the {@code @SerialEntry} {@code serialize()}
+     * path. (Superclass Merkle linking of the @SerialEntry chain is a later refinement;
+     * matching rests on the slices, not the entry digest -- amendment &sect;A.4.6.)
+     *
+     * @param className     the entry class name
+     * @param wireNames     wire field names, positional
+     * @param wireTypes     wire field declared types, positional (for the wireType tokens)
+     * @param orderedValues the field values, positionally aligned to {@code wireNames}
+     * @return the encoded body
+     * @throws IOException if a wire type is unsupported or a value cannot be encoded
+     */
+    public static EncodedBody encodeSerialEntry(String className, String[] wireNames,
+            Class<?>[] wireTypes, Object[] orderedValues) throws IOException {
+        try {
+            List<AtomicSerialFieldDef> defs = new ArrayList<>(wireNames.length);
+            for (int i = 0; i < wireNames.length; i++) {
+                String wt = SchemaGenerator.toWireType(wireTypes[i], Object.class);
+                defs.add(new AtomicSerialFieldDef(wireNames[i], wt));
+            }
+            AtomicSerialSchemaRecord record = new AtomicSerialSchemaRecord(className, (byte[]) null, defs);
+            SchemaChain.Result chain = SchemaChain.linkAndGetLeafDigest(List.of(record));
+            byte[] chainBytes = EntrySchemaGenerator.concatChain(chain.chain());
+            return encode(chain.leafDigest(), chainBytes, orderedValues);
+        } catch (DerException e) {
+            throw new IOException("EntryRepV2: cannot encode @SerialEntry " + className
+                    + ": " + e.getMessage(), e);
+        }
+    }
+
     // =========================================================================
     // Decode (fail-closed; amendment &sect;A.9)
     // =========================================================================
@@ -519,10 +554,18 @@ public final class EntryRepV2Codec {
      * dependent), so it cannot be a pure function of the value -- refuse LOUDLY.
      */
     private static void rejectProxyValue(Object value) throws IOException {
+        boolean dynamicProxy = java.lang.reflect.Proxy.isProxyClass(value.getClass());
         boolean proxyish = (value instanceof ProxyAccessor)
                 || (value instanceof DynamicProxyCodebaseAccessor)
-                || (java.lang.reflect.Proxy.isProxyClass(value.getClass())
-                        && value instanceof RemoteMethodControl
+                // Peter's ruling: "Proxies that don't implement RemoteMethodControl should be
+                // rejected." Any dynamic-proxy field value that is not a constrainable secure
+                // proxy (RemoteMethodControl) is refused. This subsumes the CodebaseAccessor-only
+                // residual (a CodebaseAccessor proxy lacking RMC is caught here).
+                || (dynamicProxy && !(value instanceof RemoteMethodControl))
+                // A downloadable-service proxy (CodebaseAccessor) is refused even if it DOES carry
+                // RemoteMethodControl -- its encoding depends on stream loader/context, not the
+                // value alone (would breach A.4.1).
+                || (dynamicProxy && value instanceof RemoteMethodControl
                         && value instanceof CodebaseAccessor);
         if (proxyish) {
             throw new IOException("EntryRepV2: a live proxy/downloadable-service value of type "

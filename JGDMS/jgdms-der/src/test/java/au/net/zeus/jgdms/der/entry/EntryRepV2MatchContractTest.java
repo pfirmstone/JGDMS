@@ -410,6 +410,37 @@ public class EntryRepV2MatchContractTest {
                 "a live proxy field value must be refused loudly: " + ex.getMessage());
     }
 
+    @Test
+    public void codebaseAccessorProxy_rejectedOnItsOwn() {
+        // Peter's ruling: a dynamic proxy that does NOT implement RemoteMethodControl is rejected.
+        // A CodebaseAccessor-only proxy (no RMC) is caught by that rule.
+        Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{ net.jini.export.CodebaseAccessor.class },
+                (p, m, a) -> null);
+        IOException ex = assertThrows(IOException.class,
+                () -> EntryRepV2Codec.encodeFieldSlice(proxy));
+        assertTrue(ex.getMessage().contains("proxy") || ex.getMessage().contains("F1"),
+                "a CodebaseAccessor proxy field value must be refused loudly: " + ex.getMessage());
+    }
+
+    /** An unrelated interface with no RemoteMethodControl -- a non-secure proxy. */
+    public interface Unrelated { String ping(); }
+
+    @Test
+    public void nonRmcDynamicProxy_rejected() {
+        // Peter's "non-RMC proxies are rejected" ruling: a plain dynamic proxy implementing only
+        // an unrelated interface (no RemoteMethodControl) is refused loudly at encode.
+        Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{ Unrelated.class },
+                (p, m, a) -> null);
+        IOException ex = assertThrows(IOException.class,
+                () -> EntryRepV2Codec.encodeFieldSlice(proxy));
+        assertTrue(ex.getMessage().contains("proxy") || ex.getMessage().contains("F1"),
+                "a non-RemoteMethodControl proxy field value must be refused loudly: " + ex.getMessage());
+    }
+
     // Low-level body builders (test-only) -------------------------------
 
     private static byte[] schemaEntry(byte[] digest, byte[] chainBytes) {
