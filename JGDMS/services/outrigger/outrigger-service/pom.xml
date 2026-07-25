@@ -91,6 +91,31 @@
             <artifactId>jgdms-der</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+          CEL filter admission (SOW Part B, unit B1). outrigger-service is the
+          server side: it decodes the opaque celWire carried in a FilterEnvelope
+          (defined in outrigger-dl, no CEL dependency) and verifies it against
+          the query template's own v2 schema chain before matching. jgdms-cel is
+          release-25, as jgdms-der already is; this module targets release 21 and
+          already depends on the release-25 jgdms-der artifact, so this follows
+          the identical established precedent. The client-side CEL *authoring*
+          path (CelTextParser/CelEncoder) is deliberately NOT here — it lives in
+          the separate client module outrigger-cel-authoring.
+        -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Test-only: build real CEL wire (CelTextParser/CelEncoder/
+             CelRecordBuilder) to exercise the FilterAdmission verify-reject
+             matrix. Not a main-source dependency (the server never authors). -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-cel-authoring</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

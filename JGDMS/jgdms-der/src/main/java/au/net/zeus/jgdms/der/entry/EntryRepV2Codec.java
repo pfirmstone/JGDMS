@@ -487,6 +487,44 @@ public final class EntryRepV2Codec {
         return new DecodedBody(entrySchemaDigest, slices, absent, table);
     }
 
+    /**
+     * The entry class's {@code entrySchemaDigest} together with its leaf-first
+     * schema chain — the class-free schema identity + field/type view a receiver
+     * needs to admit a query filter (SOW Part&nbsp;B / JGDMS-STD-011).
+     */
+    public record EntrySchemaChain(byte[] entrySchemaDigest,
+                                   List<AtomicSerialSchemaRecord> chain) {}
+
+    /**
+     * Decodes an {@code EntryRepV2Body} and returns the <em>entry class's</em>
+     * {@code entrySchemaDigest} and leaf-first schema chain — the chain keyed by
+     * the body's {@code entrySchemaDigest}. This is the class-free schema a
+     * receiver uses to type-check a query filter against a template's own on-wire
+     * fields: {@link EntrySchemaChain#chain()} is exactly the input type of
+     * {@code au.net.zeus.jgdms.cel.verifier.DerSchemaChainView}, and
+     * {@link EntrySchemaChain#entrySchemaDigest()} is the fail-closed
+     * applicability key (a candidate whose digest differs is a non-match).
+     *
+     * <p>Fully validated fail-closed: {@link #decode(byte[])} enforces the whole
+     * amendment&nbsp;&sect;A.9 check set (including that {@code entrySchemaDigest}
+     * is present in the schemaTable and its chain binds the digest) before this
+     * returns, so the entry chain bytes are guaranteed present and consistent.
+     * The server never loads the entry class.
+     *
+     * @param body the DER body bytes (e.g. from {@code EntryRep.bodyBytes()})
+     * @return the entry class's digest and leaf-first schema chain
+     * @throws DerException if the body is malformed, not v2, or otherwise invalid
+     */
+    public static EntrySchemaChain decodeEntrySchemaChain(byte[] body)
+            throws DerException {
+        DecodedBody db = decode(body);
+        byte[] entryChainBytes = db.schemaTable().get(hex(db.entrySchemaDigest()));
+        // decode() has already proven entrySchemaDigest is present in the table.
+        List<AtomicSerialSchemaRecord> chain =
+                SchemaChain.decodeChain(entryChainBytes, "EntryRepV2.entryChain(view)");
+        return new EntrySchemaChain(db.entrySchemaDigest().clone(), chain);
+    }
+
     // =========================================================================
     // Value reconstruction (for EntryRep.entry())
     // =========================================================================

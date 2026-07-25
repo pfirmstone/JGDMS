@@ -53,6 +53,7 @@ import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
 import org.apache.river.outrigger.proxy.OutriggerServer;
 import org.apache.river.outrigger.proxy.EntryRep;
+import net.jini.space.FilterRejectedException;
 import org.apache.river.outrigger.proxy.MatchSetData;
 
 /**
@@ -282,6 +283,79 @@ public class OutriggerServerWrapper
 	gate();
 	return delegate.registerForAvailabilityEvent(tmpls, txn, visibilityOnly,
 	    listener, leaseTime, handback);
+    }
+
+    /* Filtered (CEL pushdown) operations — SOW Part B, unit B1. */
+
+    public Object read(EntryRep tmpl, Transaction txn, long timeout,
+		       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	gate();
+	return delegate.read(tmpl, txn, timeout, cookie, filterEnvelope);
+    }
+
+    public Object readIfExists(EntryRep tmpl, Transaction txn, long timeout,
+			       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	gate();
+	return delegate.readIfExists(tmpl, txn, timeout, cookie, filterEnvelope);
+    }
+
+    public Object take(EntryRep tmpl, Transaction txn, long timeout,
+		       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	gate();
+	return delegate.take(tmpl, txn, timeout, cookie, filterEnvelope);
+    }
+
+    public Object takeIfExists(EntryRep tmpl, Transaction txn, long timeout,
+			       QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, InterruptedException,
+	       FilterRejectedException
+    {
+	gate();
+	return delegate.takeIfExists(tmpl, txn, timeout, cookie, filterEnvelope);
+    }
+
+    public EventRegistration notify(EntryRep tmpl, Transaction txn,
+	    RemoteEventListener listener, long lease,
+	    MarshalledInstance handback, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.notify(tmpl, txn, listener, lease, handback, filterEnvelope);
+    }
+
+    public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
+	    Transaction txn, boolean visibilityOnly, RemoteEventListener listener,
+	    long leaseTime, MarshalledInstance handback, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.registerForAvailabilityEvent(tmpls, txn, visibilityOnly,
+	    listener, leaseTime, handback, filterEnvelope);
+    }
+
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+	    long leaseTime, long limit, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.contents(tmpls, tr, leaseTime, limit, filterEnvelope);
+    }
+
+    public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+	    int limit, QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.take(tmpls, tr, timeout, limit, cookie, filterEnvelope);
     }
 
     public long[] write(EntryRep[] entries, Transaction txn, long[] leaseTimes)

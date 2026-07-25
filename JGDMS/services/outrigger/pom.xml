@@ -34,5 +34,6 @@
         <module>outrigger-dl</module>
         <module>outrigger-service</module>
         <module>outrigger-snaplogstore</module>
+        <module>outrigger-cel-authoring</module>
     </modules>
 </project>
