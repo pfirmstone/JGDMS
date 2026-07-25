@@ -1,6 +1,6 @@
 <#
   Single-command parent: builds the JGDMS modules the showcase depends on from the
-  CURRENT source tree, then runs all five wire-protocol-showcase demonstrations in
+  CURRENT source tree, then runs all six wire-protocol-showcase demonstrations in
   sequence, then the automated checks, and prints a pass/fail summary.
 
   Demonstrations:
@@ -9,6 +9,7 @@
     3. The shape description travels once            (in-process, main module)
     4. Feed it garbage, it stops politely             (in-process, main module)
     5. Filter records by a written rule, without the class (two processes, demo5 subdir)
+    6. Two different collection classes, one value, one encoding (in-process, main module)
 
   Demonstration 4 (the cumulative-bomb refusal) only proves anything if the
   jgdms-der it runs against is built from the CURRENT source tree: an installed
@@ -60,10 +61,10 @@ try {
 Write-Host "Modules built and installed from current source."
 
 # ---------------------------------------------------------------------------
-# Build the main showcase module (demos 1, 3, 4 live here) against the jars
+# Build the main showcase module (demos 1, 3, 4, 6 live here) against the jars
 # just installed above.
 # ---------------------------------------------------------------------------
-Write-Header "Building the showcase module (demos 1, 3, 4)"
+Write-Header "Building the showcase module (demos 1, 3, 4, 6)"
 Push-Location $showcase
 try {
     & mvn -q package -DskipTests
@@ -149,7 +150,20 @@ try {
 }
 
 # ---------------------------------------------------------------------------
-# Automated checks (a build server can run these) -- not one of the 5 demos,
+# Demonstration 6: Two different collection classes, one value, one encoding
+# ---------------------------------------------------------------------------
+Write-Header "Demonstration 6: Two different collection classes, one value, one encoding"
+try {
+    & java -cp $cp au.net.zeus.jgdms.showcase.demo.CollectionEqualityDemo
+    if ($LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+    Add-Result "Demo 6: Collection equality" $true
+} catch {
+    Write-Host "DEMO 6 FAILED: $_"
+    Add-Result "Demo 6: Collection equality" $false
+}
+
+# ---------------------------------------------------------------------------
+# Automated checks (a build server can run these) -- not one of the 6 demos,
 # but the existing regression coverage for all of them; kept as a bonus step.
 # ---------------------------------------------------------------------------
 Write-Header "Automated checks (mvn test)"

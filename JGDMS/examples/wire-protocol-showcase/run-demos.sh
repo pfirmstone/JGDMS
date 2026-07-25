@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Single-command parent: builds the JGDMS modules the showcase depends on from the
-# CURRENT source tree, then runs all five wire-protocol-showcase demonstrations in
+# CURRENT source tree, then runs all six wire-protocol-showcase demonstrations in
 # sequence, then the automated checks, and prints a pass/fail summary.
 # See run-demos.ps1 for the annotated version and for why demo2/demo5 are invoked
 # as their own scripts (both launch two separate JVMs with different classpaths).
@@ -47,10 +47,10 @@ fi
 echo "Modules built and installed from current source."
 
 # ---------------------------------------------------------------------------
-# Build the main showcase module (demos 1, 3, 4 live here) against the jars
+# Build the main showcase module (demos 1, 3, 4, 6 live here) against the jars
 # just installed above.
 # ---------------------------------------------------------------------------
-header "Building the showcase module (demos 1, 3, 4)"
+header "Building the showcase module (demos 1, 3, 4, 6)"
 ( cd "$showcase" && mvn -q package -DskipTests )
 if [[ $? -ne 0 ]]; then
     echo "FATAL: showcase build failed." >&2
@@ -121,7 +121,17 @@ if [[ $rc -eq 0 ]]; then add_result "Demo 5: Filter by a rule" pass; else
 fi
 
 # ---------------------------------------------------------------------------
-# Automated checks (a build server can run these) -- not one of the 5 demos,
+# Demonstration 6: Two different collection classes, one value, one encoding
+# ---------------------------------------------------------------------------
+header "Demonstration 6: Two different collection classes, one value, one encoding"
+java -cp "$cp" au.net.zeus.jgdms.showcase.demo.CollectionEqualityDemo
+rc=$?
+if [[ $rc -eq 0 ]]; then add_result "Demo 6: Collection equality" pass; else
+    echo "DEMO 6 FAILED (exit $rc)"; add_result "Demo 6: Collection equality" fail
+fi
+
+# ---------------------------------------------------------------------------
+# Automated checks (a build server can run these) -- not one of the 6 demos,
 # but the existing regression coverage for all of them; kept as a bonus step.
 # ---------------------------------------------------------------------------
 header "Automated checks (mvn test)"
