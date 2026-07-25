@@ -51,24 +51,47 @@ function Write-Header([string]$text) {
 # demo2, jgdms-cel for demo5) depend on. One combined reactor build covers
 # both -am closures; -Dmaven.test.skip=true keeps it to main-code compile+install.
 # ---------------------------------------------------------------------------
+
+# `clean install`, not plain `install`: a *failed* compile leaves whatever
+# .class files an earlier successful build already produced sitting in
+# target/classes untouched (maven-compiler-plugin does not wipe stale
+# output on failure). Without `clean`, a module that fails to build here
+# can silently leave a stale, pre-fix jar behind in the shared local repo
+# (~/.m2) instead of failing loudly -- which is exactly how a demo that
+# depends on a just-changed jgdms-der API can go on to fail downstream
+# with a confusing ClassNotFoundException instead of a build error.
 Write-Header "Step 0: building JGDMS modules from current source (jgdms-der, jgdms-platform, jgdms-lib-dl, jgdms-cel, ...)"
 Push-Location $jgdms
 try {
     & mvn -pl services/outrigger/outrigger-dl,jgdms-cel -am `
-        "-Dmaven.test.skip=true" "-Dtidy.skip=true" "-Drat.skip=true" install
-    if ($LASTEXITCODE -ne 0) { throw "module build failed (exit $LASTEXITCODE)" }
+        "-Dmaven.test.skip=true" "-Dtidy.skip=true" "-Drat.skip=true" clean install
+    if (-not $?) {
+        Write-Host ""
+        Write-Host "FATAL: module build failed (exit $LASTEXITCODE) -- aborting before any demo runs."
+        Write-Host "The showcase would otherwise run against stale, pre-existing jars/classes"
+        Write-Host "and fail confusingly downstream instead of here, where the real error is."
+        exit 1
+    }
 } finally { Pop-Location }
 Write-Host "Modules built and installed from current source."
 
 # ---------------------------------------------------------------------------
 # Build the main showcase module (demos 1, 3, 4, 6 live here) against the jars
-# just installed above.
+# just installed above. `clean package`, for the same stale-target reason as
+# Step 0 above: a compile failure here must not be masked by leftover
+# .class files from an earlier, unrelated successful build.
 # ---------------------------------------------------------------------------
 Write-Header "Building the showcase module (demos 1, 3, 4, 6)"
 Push-Location $showcase
 try {
-    & mvn -q package -DskipTests
-    if ($LASTEXITCODE -ne 0) { throw "showcase build failed" }
+    & mvn -q clean package -DskipTests
+    if (-not $?) {
+        Write-Host ""
+        Write-Host "FATAL: showcase build failed (exit $LASTEXITCODE) -- aborting before any demo runs."
+        Write-Host "The demos would otherwise run against a stale target/classes and fail"
+        Write-Host "confusingly downstream (e.g. ClassNotFoundException) instead of here."
+        exit 1
+    }
 } finally { Pop-Location }
 
 $cp = "$showcase\target\classes;$showcase\target\lib\*"
