@@ -370,4 +370,181 @@ public class EntryProjectionTest {
         byte[] emptyBody = new byte[0];
         assertTrue(EntryProjection.projectFields(emptyBody, Set.of("a")).isUndecodable());
     }
+
+    // =====================================================================
+    // ADVERSARIAL — the class-free guarantee (the seat-BLOCK scenario)
+    //
+    // These prove that a hostile candidate can NEVER cause a wire-named class
+    // to be resolved or an @AtomicSerial (GetArg) constructor to run on the
+    // server during projection. Before the B2 root fix, EntryProjection routed
+    // a scalar slice through the general self-describing object-stream reader
+    // (DerMarshalInputStream.readObject), so a [1]/[7]/[8] item in a referenced
+    // field loaded classes / ran constructors BEFORE the projection rejected
+    // them. The fix decodes every value positionally, gated on the field's
+    // DECLARED wireType, via the class-free jgdms-der decoders.
+    // =====================================================================
+
+    /** An enum whose class IS on the classpath — used only to build a hostile [7] enum item. */
+    public enum Color { RED, GREEN }
+
+    /**
+     * An @AtomicSerial whose (GetArg) deserialization constructor sets a static tripwire.
+     * If projection ever reconstructs it, {@link #constructed} flips to {@code true}.
+     */
+    @AtomicSerial
+    public static final class Tripwire {
+        /** Set true iff the @AtomicSerial (GetArg) ctor runs — the observable "a class was reconstructed" proof. */
+        static volatile boolean constructed = false;
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("v", int.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, Tripwire o) throws IOException {
+            arg.put("v", o.v);
+            arg.writeArgs();
+        }
+        private final int v;
+        public Tripwire(int v) { this.v = v; }
+        public Tripwire(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            constructed = true; // TRIPWIRE
+            this.v = arg.get("v", 0);
+        }
+    }
+
+    /** A nested @AtomicSerial object with an enum-typed sub-field and a reconstruction tripwire. */
+    @AtomicSerial
+    public static final class HasColor {
+        static volatile boolean constructed = false; // TRIPWIRE
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("color", Color.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, HasColor o) throws IOException {
+            arg.put("color", o.color);
+            arg.writeArgs();
+        }
+        private final Color color;
+        public HasColor(Color color) { this.color = color; }
+        public HasColor(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            constructed = true; // TRIPWIRE
+            this.color = (Color) arg.get("color", null);
+        }
+    }
+
+    /** An Entry whose single field is a nested @AtomicSerial that itself has an enum sub-field. */
+    public static class HasColorEntry implements Entry {
+        public HasColor hc;
+        public HasColorEntry() {}
+        public HasColorEntry(HasColor hc) { this.hc = hc; }
+    }
+
+    @Test
+    public void atomicSerialObjectInScalarSlot_failsClosed_noConstructor() throws Exception {
+        Tripwire.constructed = false;
+        // Schema DECLARES field "p" as int, but the wire value is an @AtomicSerial object
+        // (a non-empty valueSchemaDigest [1]-style slice) — a hostile object-in-a-scalar-slot.
+        byte[] body = ghostBody("com.absent.Ghost",
+                new String[] { "p" }, new Class<?>[] { int.class }, new Object[] { new Tripwire(7) });
+        EntryProjection proj = EntryProjection.project(body, ref("p"));
+        assertTrue("an @AtomicSerial object in an int slot MUST be fail-closed", proj.isUndecodable());
+        assertFalse("the @AtomicSerial (GetArg) constructor MUST NOT have run on the server",
+                Tripwire.constructed);
+    }
+
+    @Test
+    public void enumItemInStringSlot_failsClosed_noClassResolution() throws Exception {
+        // Schema DECLARES "s" as java.lang.String; the wire value is a self-describing [7] enum item.
+        // readScalarClassFree cross-checks the actual [7] tag against the declared String tag [3]
+        // and fail-closes WITHOUT ever resolving the enum's declaring class or calling Enum.valueOf.
+        byte[] body = ghostBody("com.absent.Ghost",
+                new String[] { "s" }, new Class<?>[] { String.class }, new Object[] { Color.RED });
+        EntryProjection proj = EntryProjection.project(body, ref("s"));
+        assertTrue("a [7] enum item in a String slot MUST be fail-closed", proj.isUndecodable());
+    }
+
+    @Test
+    public void arrayItemInScalarSlot_failsClosed() throws Exception {
+        // Declared int; the wire value is a self-describing [9] array item -> fail-closed (no decode).
+        byte[] body = ghostBody("com.absent.Ghost",
+                new String[] { "a" }, new Class<?>[] { int.class }, new Object[] { new int[] { 1, 2, 3 } });
+        EntryProjection proj = EntryProjection.project(body, ref("a"));
+        assertTrue("a [9] array item in an int slot MUST be fail-closed", proj.isUndecodable());
+    }
+
+    @Test
+    public void declaredIntActualStringWire_failsClosed_noCoercion() throws Exception {
+        // Declared int, but the wire carries a [3] String scalar — a declared/actual type confusion.
+        byte[] body = ghostBody("com.absent.Ghost",
+                new String[] { "a" }, new Class<?>[] { int.class }, new Object[] { "not-an-int" });
+        EntryProjection proj = EntryProjection.project(body, ref("a"));
+        assertTrue("declared int but wire [3] String MUST be fail-closed", proj.isUndecodable());
+        // The evaluator maps it to CANDIDATE_UNDECODABLE — never a coerced value or a match.
+        EvalOutcome o = new Evaluator().evaluate(
+                new ExprNode.Eq(ref("a"), new ExprNode.LitInt(0)), proj);
+        assertEquals(CelError.CANDIDATE_UNDECODABLE, errorOf(o));
+    }
+
+    @Test
+    public void nestedEnumSubField_failsClosed_noConstructor() throws Exception {
+        HasColor.constructed = false;
+        // A real nested @AtomicSerial (HasColor) whose OWN schema declares an enum: sub-field.
+        // The class-free nested field-map decode fail-closes on the enum: sub-field WITHOUT
+        // resolving its class, and never runs HasColor's (GetArg) constructor.
+        byte[] body = new EntryRep(new HasColorEntry(new HasColor(Color.GREEN))).bodyBytes();
+        EntryProjection proj = EntryProjection.project(body, ref("hc"));
+        assertTrue("a nested object with an enum: sub-field MUST be fail-closed", proj.isUndecodable());
+        assertFalse("the nested @AtomicSerial (GetArg) constructor MUST NOT have run",
+                HasColor.constructed);
+    }
+
+    // =====================================================================
+    // Root-first order reconstruction across a two-class entry hierarchy
+    // (the single-record-chain tests never exercise this line).
+    // =====================================================================
+
+    /** Root class of a two-level entry hierarchy; its own namespace field is "base". */
+    public static class Base implements Entry {
+        public String base;
+        public Base() {}
+        public Base(String base) { this.base = base; }
+    }
+
+    /** Leaf class; its own namespace field is "derived". */
+    public static class Derived extends Base {
+        public String derived;
+        public Derived() {}
+        public Derived(String base, String derived) { super(base); this.derived = derived; }
+    }
+
+    @Test
+    public void baseDerivedHierarchyAssignsEachClassFieldsRootFirst() throws Exception {
+        // Distinct per-class values: if the field-index -> (class,field) reconstruction were
+        // leaf-first (or otherwise skewed), Base#base and Derived#derived would receive each
+        // other's slice and these assertions would fail.
+        byte[] body = new EntryRep(new Derived("BASE_VAL", "DERIVED_VAL")).bodyBytes();
+        EntryProjection p = EntryProjection.project(body,
+                new ExprNode.And(ref("base"), ref("derived")));
+        assertFalse(p.isUndecodable());
+
+        // The candidate's own namespace chain is leaf-first: [Derived, Base].
+        assertEquals(List.of(Derived.class.getName(), Base.class.getName()), p.namespaceChain());
+
+        // Each class declares exactly its OWN field, and each field resolves to its OWN value.
+        assertTrue(p.declaresField(Base.class.getName(), "base"));
+        assertTrue(p.declaresField(Derived.class.getName(), "derived"));
+        assertFalse("base is Base's field, not Derived's", p.declaresField(Derived.class.getName(), "base"));
+        assertFalse("derived is Derived's field, not Base's", p.declaresField(Base.class.getName(), "derived"));
+        assertEquals(new CelValue.StringV("BASE_VAL"), p.fieldValue(Base.class.getName(), "base"));
+        assertEquals(new CelValue.StringV("DERIVED_VAL"), p.fieldValue(Derived.class.getName(), "derived"));
+    }
+
+    @Test
+    public void topLevelReferencedSetIsFirstStepOnly() {
+        // A FieldRef "obj.base" contributes only the TOP-LEVEL name "obj" to the referenced set;
+        // the nested step "base" belongs to the nested projection, NOT the top-level decode. This
+        // is the fix for flat-selector over-exclusion (a top-level field sharing a name with a
+        // nested step must not be dragged into the top-level decode).
+        ExprNode pred = new ExprNode.And(
+                ref("obj", "base"),           // two-step: only "obj" is top-level
+                new ExprNode.Has(ref("top"))); // single-step: "top"
+        assertEquals(Set.of("obj", "top"), EntryProjection.referencedFieldNames(pred));
+    }
 }

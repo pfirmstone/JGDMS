@@ -17,7 +17,6 @@
  */
 package org.apache.river.outrigger;
 
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -36,12 +35,10 @@ import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.entry.EntryRepV2Codec;
-import au.net.zeus.jgdms.der.getarg.ResolutionContext;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
-import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
 
 /**
  * The class-free candidate projection (SOW Part&nbsp;B, unit&nbsp;B2). Given a
@@ -52,21 +49,26 @@ import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
  * template-side {@link FilterAdmission} seam: where admission type-checks a filter
  * against a <em>template's</em> own schema, projection reads a <em>candidate's</em>
  * own fields — both class-free, both fail-closed, both driven by the one
- * {@code EntryRepV2Codec} / {@code jgdms-der} decode machinery
- * ({@code DerSchemaChainView} / {@code ObjectCodec.decodeToFieldMap}), never a
+ * {@code EntryRepV2Codec} / {@code jgdms-der} decode machinery, never a
  * second lenient scanner (design memo B1 &sect;6).
  *
  * <h3>The five contract points (B1 &sect;6)</h3>
  * <ol>
- *   <li><b>Class-free.</b> No {@code Class.forName}, no constructor, no {@code
- *       check(GetArg)}, no deserialize-to-object, and no {@code ClassLoader}
- *       anywhere near this. The entry class is never named to the JVM. Scalar
- *       field values are decoded from their already-canonical v2 slice bytes as
- *       self-describing DER object-stream items with {@link ResolutionContext#NONE}
- *       (a {@code null} loader); a nested {@code @AtomicSerial} object field is
- *       decoded via {@link ObjectCodec#decodeToFieldMap} over that value's own
- *       embedded schema chain — the exact class-free field-map decode the SOW
- *       points to.</li>
+ *   <li><b>Class-free BY CONSTRUCTION.</b> No {@code Class.forName}/{@code loadClass},
+ *       no constructor, no {@code check(GetArg)}, no reconstruction of any object
+ *       graph, and no {@code ClassLoader} anywhere on the candidate-bytes path. The
+ *       entry class (and any wire-named class) is never resolved to the JVM. There is
+ *       no {@code readObject} / self-describing object-stream reconstruction route left
+ *       in this class: a scalar field value is decoded from its already-canonical v2
+ *       slice bytes by the declared-{@code wireType}-gated class-free scalar decoder
+ *       ({@link EntryRepV2Codec#decodeScalarSliceValueClassFree}), which decodes ONLY the
+ *       inert scalar kinds and cross-checks the item's actual wire tag against the
+ *       declared type (a constructed {@code @AtomicSerial}/enum/proxy/array/collection
+ *       item in a scalar slot is fail-closed, never handed to a reconstructor). A nested
+ *       one-level {@code @AtomicSerial} object field is decoded via
+ *       {@link ObjectCodec#decodeToScalarFieldMapClassFree} — the class-free, scalar-only
+ *       field-map decode that fail-closes any non-scalar sub-field (including an
+ *       attacker-declared {@code enum:} sub-field) <em>without</em> resolving its class.</li>
  *   <li><b>Fail-closed.</b> Any canonical-decode failure, undecodable/trailing
  *       bytes, non-v2 / non-{@code ATOMIC_DER} body, or unexpected error while
  *       building the projection yields a projection whose {@link #isUndecodable()}
@@ -99,8 +101,8 @@ import au.net.zeus.jgdms.der.stream.DerMarshalInputStream;
  * <p>Scalar fields ({@code bool}/{@code int}/{@code double}/{@code string}/{@code
  * bytes}, plus wire-null&nbsp;&rarr;&nbsp;{@code null}) are projected fully. A
  * referenced field that is a nested {@code @AtomicSerial} object is projected one
- * level deep via {@link ObjectCodec#decodeToFieldMap} (its own scalar sub-fields,
- * exposed as a nested {@link CandidateProjection} inside a {@link
+ * level deep via {@link ObjectCodec#decodeToScalarFieldMapClassFree} (its own scalar
+ * sub-fields, exposed as a nested {@link CandidateProjection} inside a {@link
  * CelValue.ObjectV}), which supports {@code has(obj)} and a single {@code obj.sub}
  * step. A referenced field of any other kind (enum / collection / array / {@code
  * char} / {@code any}), or a deeper object step this bounded descent cannot
@@ -190,12 +192,17 @@ public final class EntryProjection implements CandidateProjection {
             return UNDECODABLE;
         }
         try {
-            // 1. Fail-closed structural decode + full amendment-§A.9 validation.
+            // 1. Fail-closed structural decode + full amendment-§A.9 validation. This single
+            //    decode also proves entrySchemaDigest is present in the schemaTable and its
+            //    chain binds the digest, so the entry chain bytes below are guaranteed present
+            //    and consistent (no need to decode the body a second time).
             EntryRepV2Codec.DecodedBody db = EntryRepV2Codec.decode(candidateBody);
-            // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest.
-            EntryRepV2Codec.EntrySchemaChain esc =
-                    EntryRepV2Codec.decodeEntrySchemaChain(candidateBody);
-            List<AtomicSerialSchemaRecord> chain = esc.chain(); // leaf-first
+            // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest, derived from
+            //    the already-decoded body (avoids a second full decode of candidateBody).
+            byte[] entryDigest = db.entrySchemaDigest();
+            byte[] entryChainBytes = db.schemaTable().get(hex(entryDigest));
+            List<AtomicSerialSchemaRecord> chain =
+                    SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"); // leaf-first
 
             List<String> nsChain = new ArrayList<>(chain.size());
             Map<String, Set<String>> declaredByClass = new LinkedHashMap<>();
@@ -242,7 +249,7 @@ public final class EntryProjection implements CandidateProjection {
                     int i = perClass.get(f.wireName());
                     CelValue v = absent[i]
                             ? CelValue.NullV.INSTANCE
-                            : decodeSliceValue(slices[i], schemaTable);
+                            : decodeSliceValue(slices[i], schemaTable, f.wireType());
                     if (vals == null) {
                         vals = new LinkedHashMap<>();
                         decoded.put(rec.className(), vals);
@@ -252,10 +259,13 @@ public final class EntryProjection implements CandidateProjection {
             }
 
             return new EntryProjection(
-                    esc.entrySchemaDigest(),
+                    entryDigest,
                     Collections.unmodifiableList(nsChain),
                     Collections.unmodifiableMap(declaredByClass),
                     decoded);
+        } catch (VirtualMachineError vme) {
+            // A JVM error (OOME/StackOverflow) is NOT an undecodable candidate; never swallow it.
+            throw vme;
         } catch (Throwable t) {
             // Any canonical-decode failure / undecodable-or-unmappable value /
             // unexpected error => fail-closed no-match (never partial, never thrown).
@@ -321,15 +331,19 @@ public final class EntryProjection implements CandidateProjection {
     // =====================================================================
 
     /**
-     * The set of field names a predicate references anywhere in its AST — every
-     * {@link ExprNode.SelectorStep} name across every {@link ExprNode.FieldRef}
-     * (including {@code has(...)} targets and {@code in} field lists). This is the
-     * set {@link #project(byte[], ExprNode)} decodes; an over-approximation by name
-     * is safe (a name a candidate's schema does not declare is simply never
-     * decoded).
+     * The set of <b>top-level</b> field names a predicate references — the FIRST
+     * {@link ExprNode.SelectorStep} name of every {@link ExprNode.FieldRef} in the AST
+     * (including {@code has(...)} targets and {@code in} field lists). Only the first step
+     * names a top-level entry field; deeper steps ({@code obj.sub}) name sub-fields of a
+     * nested object and are resolved by that nested projection (which decodes all its own
+     * scalar sub-fields), NOT by the top-level decode. Flattening every step into this set
+     * (the prior behaviour) over-excluded a candidate whenever a top-level field happened to
+     * share a name with some FieldRef's nested step: that unrelated top-level field would be
+     * decoded and could fail-close the whole candidate. An over-approximation by (first-step)
+     * name is still safe — a name a candidate's schema does not declare is simply never decoded.
      *
      * @param predicate the predicate AST (must not be {@code null})
-     * @return an immutable set of referenced field names
+     * @return an immutable set of referenced top-level field names
      */
     public static Set<String> referencedFieldNames(ExprNode predicate) {
         Objects.requireNonNull(predicate, "predicate");
@@ -382,11 +396,14 @@ public final class EntryProjection implements CandidateProjection {
     }
 
     private static void collectSteps(ExprNode.FieldRef ref, Set<String> out) {
-        for (ExprNode.SelectorStep step : ref.steps()) {
-            switch (step) {
-                case ExprNode.SelectorStep.Unqual u -> out.add(u.name());
-                case ExprNode.SelectorStep.Qual q -> out.add(q.fieldName());
-            }
+        // Only the FIRST step names a top-level entry field; nested steps (obj.sub) belong to
+        // the nested projection, so they must NOT enter the top-level referenced set (design
+        // fix: a top-level field sharing a name with a nested step must not be decoded here).
+        List<ExprNode.SelectorStep> steps = ref.steps();
+        if (steps.isEmpty()) return;
+        switch (steps.get(0)) {
+            case ExprNode.SelectorStep.Unqual u -> out.add(u.name());
+            case ExprNode.SelectorStep.Qual q -> out.add(q.fieldName());
         }
     }
 
@@ -395,17 +412,29 @@ public final class EntryProjection implements CandidateProjection {
     // =====================================================================
 
     /**
-     * Decodes one {@code FieldSlice}'s value class-free. An absent {@code [0]}
-     * slice never reaches here (handled by the {@code absent[]} flag). A value
-     * {@code [1]} slice is either a self-describing scalar object-stream item
-     * (empty {@code valueSchemaDigest}) or a nested {@code @AtomicSerial} object
-     * (32-byte digest keying a chain in the body's {@code schemaTable}), the latter
-     * projected via {@link ObjectCodec#decodeToFieldMap}. Throws on anything it
-     * cannot soundly and class-freely map — the caller turns that into a
-     * fail-closed no-match.
+     * Decodes one {@code FieldSlice}'s value <b>class-free</b>, gated on the field's DECLARED
+     * {@code wireType} — never via a general object-stream reconstruction. An absent {@code [0]}
+     * slice never reaches here (handled by the {@code absent[]} flag). A value {@code [1]} slice is:
+     * <ul>
+     *   <li>a self-describing scalar object-stream item (empty {@code valueSchemaDigest}) — decoded
+     *       by {@link EntryRepV2Codec#decodeScalarSliceValueClassFree}, which decodes ONLY inert
+     *       scalars and cross-checks the item's actual wire tag against {@code declaredWireType}
+     *       (a constructed {@code @AtomicSerial}/enum/proxy/array/collection item in a scalar slot is
+     *       fail-closed, loading no class); or</li>
+     *   <li>a nested {@code @AtomicSerial} object (32-byte {@code valueSchemaDigest} keying a chain in
+     *       the body's {@code schemaTable}), projected one level deep via
+     *       {@link ObjectCodec#decodeToScalarFieldMapClassFree} — class-free, scalar sub-fields only,
+     *       fail-closing any non-scalar (including an attacker-declared {@code enum:}) sub-field
+     *       without resolving its class.</li>
+     * </ul>
+     * The declared {@code wireType} and the actual slice shape are cross-checked: a scalar-declared
+     * field carrying a nested-object slice (non-empty digest), or an {@code @AtomicSerial}-declared
+     * field carrying a self-describing scalar (empty digest), or any non-scalar/non-{@code
+     * @AtomicSerial} declared type, is fail-closed. Throws on anything it cannot soundly and
+     * class-freely map — the caller turns that into a fail-closed no-match.
      */
-    private static CelValue decodeSliceValue(byte[] sliceBytes, Map<String, byte[]> schemaTable)
-            throws Exception {
+    private static CelValue decodeSliceValue(byte[] sliceBytes, Map<String, byte[]> schemaTable,
+                                             String declaredWireType) throws Exception {
         DerReader r = new DerReader(sliceBytes);
         Tag tag = r.peekTag();
         if (SLICE_ABSENT.equals(tag)) {
@@ -418,14 +447,33 @@ public final class EntryProjection implements CandidateProjection {
         r.readTlvHeader(); // step into the [1] IMPLICIT SEQUENCE content
         byte[] valueSchemaDigest = r.readOctetString();
         byte[] payload = r.readOctetString();
+
         if (valueSchemaDigest.length == 0) {
-            // Self-describing scalar object-stream item: class-free (JDK scalar types
-            // only; ResolutionContext.NONE => null loader, no codebase class load).
-            Object o = readObjectStreamItem(payload);
-            return toScalarCelValue(o);
+            // Self-describing scalar slice. A field DECLARED @AtomicSerial must carry a nested
+            // digest, not an empty one -- an empty digest here for such a field is a
+            // declared/actual mismatch, fail-closed.
+            if ("@AtomicSerial".equals(declaredWireType)) {
+                throw new DerException("EntryProjection: field declared @AtomicSerial carries a"
+                        + " self-describing (non-nested) slice -- declared/actual mismatch");
+            }
+            Object v = EntryRepV2Codec.decodeScalarSliceValueClassFree(declaredWireType, payload);
+            if (v == EntryRepV2Codec.NON_SCALAR_SLICE) {
+                // Non-scalar declared type, tag mismatch (object/enum/proxy/array/collection item
+                // in a scalar slot), or malformed content -- class-free fail-closed.
+                throw new DerException("EntryProjection: referenced field (declared '"
+                        + declaredWireType + "') is not a class-free-decodable scalar -- fail-closed");
+            }
+            return toScalarCelValue(v);
         }
-        // Nested @AtomicSerial value: decode class-free via decodeToFieldMap over the
-        // value's own embedded schema chain (from the body's schemaTable).
+
+        // Non-empty valueSchemaDigest => nested @AtomicSerial value. ONLY a field DECLARED
+        // @AtomicSerial may carry one; a scalar-declared field with a nested-object slice is a
+        // type-confusion attempt -> fail-closed (never routed to a reconstructor).
+        if (!"@AtomicSerial".equals(declaredWireType)) {
+            throw new DerException("EntryProjection: field declared '" + declaredWireType
+                    + "' carries a nested @AtomicSerial value (non-empty valueSchemaDigest)"
+                    + " -- declared/actual mismatch, fail-closed");
+        }
         byte[] chainBytes = schemaTable.get(hex(valueSchemaDigest));
         if (chainBytes == null) {
             throw new DerException("EntryProjection: valueSchemaDigest not in schemaTable");
@@ -433,17 +481,11 @@ public final class EntryProjection implements CandidateProjection {
         List<AtomicSerialSchemaRecord> nestedChain =
                 SchemaChain.decodeChain(chainBytes, "EntryProjection.nested");
         SchemaChain.Result nestedResult = SchemaChain.linkAndGetLeafDigest(nestedChain);
+        // Class-free, scalar-only field-map decode: loads no class, runs no constructor, and
+        // fail-closes any non-scalar (incl. attacker-declared enum:) sub-field.
         LinkedHashMap<String, Map<String, Object>> fieldMap =
-                ObjectCodec.decodeToFieldMap(nestedResult, payload); // never loads a class
+                ObjectCodec.decodeToScalarFieldMapClassFree(nestedResult, payload);
         return new CelValue.ObjectV(FieldMapProjection.of(nestedChain, fieldMap));
-    }
-
-    /** Reads one self-describing DER object-stream item class-free (no codebase loader). */
-    private static Object readObjectStreamItem(byte[] payload)
-            throws java.io.IOException, ClassNotFoundException {
-        DerMarshalInputStream in = DerMarshalInputStream.recordLevelCapture(
-                new ByteArrayInputStream(payload), ResolutionContext.NONE);
-        return in.readObject(Object.class);
     }
 
     /** Maps a class-free decoded scalar Java value to its {@link CelValue}; throws for any non-scalar. */
@@ -456,11 +498,12 @@ public final class EntryProjection implements CandidateProjection {
         if (v instanceof Long x) return new CelValue.IntV(x);
         if (v instanceof Float f) return new CelValue.DoubleV(f.doubleValue());
         if (v instanceof Double d) return new CelValue.DoubleV(d);
-        if (v instanceof Character ch) return new CelValue.IntV(ch); // codepoint; char has no scalar CelType
         if (v instanceof String s) return new CelValue.StringV(s);
         if (v instanceof byte[] by) return new CelValue.BytesV(by.clone());
-        // enum / collection / array / nested object / anything else: not a scalar
-        // this projection can produce class-free => fail-closed at the call site.
+        // char/Character is deliberately NOT a projectable scalar: the class-free scalar decoders
+        // never produce one (char is fail-closed like enum/collection), matching the file's scope
+        // doc and the verifier (which defers char). enum / collection / array / nested object /
+        // anything else: not a scalar this projection can produce class-free => fail-closed here.
         throw new IllegalStateException(
                 "EntryProjection: field value type " + v.getClass().getName()
                 + " is not a projectable scalar");
