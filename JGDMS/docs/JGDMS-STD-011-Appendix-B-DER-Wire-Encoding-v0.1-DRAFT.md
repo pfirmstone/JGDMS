@@ -882,6 +882,23 @@ table only pins wire identity and arity, both of which are T2's to define per §
 ("Registry function ids are the §7.2 `#` column values — never a name string resolved
 dynamically").
 
+**[OQ-1] Type-dispatch here is a deliberate, sanctioned exception to "unknown ⇒ defer."**
+Everywhere else in CEL overload/type resolution, an operand whose static type cannot be
+resolved causes resolution to **defer** — fail-closed, not decide (the same discipline
+`StaticTypeChecker` applies to field references against a possibly-absent schema: unknown
+type, `Inferred.UNKNOWN`, never a guess). The `size`/`abs`/`min`/`max` overloads pinned
+above (ids 1–3, 6–11) are the one place that discipline does not apply at the wire/decode
+layer: their wire id already encodes the operand type (`size(string)` vs `size(bytes)` vs
+`size(list<T>)`; `abs(int)` vs `abs(double)`; `min`/`max` split the same way, §B.8.1), so
+dispatch happens on the pinned id, not on inferring an unresolved runtime type. This is
+sound, not a violation of the defer discipline, because the set is closed, total, and
+small — every id in the table above is enumerated, every operand-type signature for every
+name is fully specified in STD-011 §7.1/§7.2, and there is no open-world "type I didn't
+plan for" case the way there is for, say, a field reference against a schema that may
+evolve. Runtime value-type dispatch over a fixed, fully-specified, closed builtin set is
+well-defined and safe; it is the open-world case — inferring an *unknown* type and
+proceeding anyway — that "unknown ⇒ defer" exists to forbid.
+
 ---
 
 ## B.9 The Envelope, and Integrity Posture (STD-009 RULE-D1)
