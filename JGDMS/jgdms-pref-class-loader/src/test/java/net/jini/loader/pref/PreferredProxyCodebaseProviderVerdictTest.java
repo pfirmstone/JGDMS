@@ -27,6 +27,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.Permission;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
@@ -46,6 +47,7 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.junit.Before;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -1298,9 +1300,11 @@ public class PreferredProxyCodebaseProviderVerdictTest {
      * from the effective policy, the INCONCLUSIVE load is refused with an
      * {@link IOException} whose cause is a {@link SecurityException}.
      *
-     * <p>On DirtyChai, {@link java.security.AccessController#checkPermission}
-     * enforces the policy directly via the ACC even when
-     * {@link System#getSecurityManager()} returns {@code null}.
+     * <p>The permit demand is routed through the installed
+     * {@link SecurityManager}, so this test installs one that denies
+     * {@link INCONCLUSIVEPermit}.  With no SecurityManager installed the demand
+     * is a no-op; on a JVM where {@code setSecurityManager} is unsupported
+     * without {@code -Djava.security.manager=allow} the test {@link Assume}-skips.
      */
     @Test
     public void checkVerdictForJar_inconclusive_strictMode_withoutPermission_throwsIOException()
@@ -1313,11 +1317,18 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         assertTrue("inconclusiveStrictMode should default to true",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
 
-        // The test policy does not grant INCONCLUSIVEPermit, so strict mode
-        // must refuse the load.
         try {
+            System.setSecurityManager(new DenyInconclusivePermitSecurityManager());
+        } catch (UnsupportedOperationException noAllowFlag) {
+            Assume.assumeNoException(
+                    "needs -Djava.security.manager=allow", noAllowFlag);
+            return;
+        }
+        try {
+            // The installed SM denies INCONCLUSIVEPermit, so strict mode must
+            // refuse the load.
             PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
-            fail("Expected IOException: no INCONCLUSIVEPermit granted in test policy");
+            fail("Expected IOException: no INCONCLUSIVEPermit granted");
         } catch (IOException ex) {
             assertTrue("Exception should mention the hash",
                     ex.getMessage().contains(FAKE_HASH));
@@ -1326,7 +1337,34 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             assertNotNull("Exception should have a non-null cause", ex.getCause());
             assertTrue("Cause should be SecurityException",
                     ex.getCause() instanceof SecurityException);
+        } finally {
+            // A SecurityManager cannot be uninstalled on the DirtyChai JDK, so
+            // replace the restrictive test SM with a permissive one rather than
+            // attempting to revert to null -- later tests are then unaffected.
+            System.setSecurityManager(new AllowAllSecurityManager());
         }
+    }
+
+    /**
+     * A {@link SecurityManager} that denies only {@link INCONCLUSIVEPermit}
+     * (everything else allowed) -- models a policy that never granted the permit.
+     */
+    private static final class DenyInconclusivePermitSecurityManager extends SecurityManager {
+        @Override public void checkPermission(Permission perm) {
+            if (perm instanceof INCONCLUSIVEPermit) {
+                throw new SecurityException(
+                        "INCONCLUSIVEPermit denied by policy (test SM)");
+            }
+        }
+        @Override public void checkPermission(Permission perm, Object ctx) {
+            checkPermission(perm);
+        }
+    }
+
+    /** A permissive {@link SecurityManager} used to displace the restrictive one. */
+    private static final class AllowAllSecurityManager extends SecurityManager {
+        @Override public void checkPermission(Permission perm) { }
+        @Override public void checkPermission(Permission perm, Object ctx) { }
     }
 
     /**

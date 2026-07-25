@@ -1584,7 +1584,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     contentHash);
             if (inconclusiveStrictMode) {
                 try {
-                    AccessController.checkPermission(new INCONCLUSIVEPermit(contentHash));
+                    // Route the INCONCLUSIVEPermit demand through the SecurityManager
+                    // (so audit managers observe it) rather than AccessController
+                    // directly. With no SM installed there is nothing to enforce.
+                    SecurityManager sm = System.getSecurityManager();
+                    if (sm != null) {
+                        sm.checkPermission(new INCONCLUSIVEPermit(contentHash));
+                    }
                 } catch (SecurityException ex) {
                     logger.log(Level.SEVERE,
                             "Strict mode: INCONCLUSIVE verdict for JAR (SHA-256: {0})"
