@@ -1,11 +1,11 @@
-# The wire format, shown four ways
+# The wire format, shown six ways
 
 This is a small set of runnable demonstrations. Each one takes a claim about how
 this project puts objects onto the wire, and shows it happening, with real bytes,
 in about fifteen seconds of terminal output. Each demonstration also checks itself,
 so a person watching — or a build server — can confirm the claim actually held.
 
-There is no jargon in what you see on screen. The four claims, in plain terms:
+There is no jargon in what you see on screen. The six claims, in plain terms:
 
 1. **Same object, same bytes — everywhere.** The same value always turns into exactly
    the same bytes. That makes a plain checksum of the bytes a real identity for the
@@ -24,6 +24,15 @@ There is no jargon in what you see on screen. The four claims, in plain terms:
    whose structure markers are scrambled, one nested inside itself far deeper than
    allowed, or a tiny one crafted to balloon into gigabytes when unpacked — each is
    refused cleanly, with bounded memory, no crash, and no attacker code ever running.
+
+5. **Select records by a rule, without loading their class.** A reader picks the records
+   it wants by evaluating a rule over their fields — comparing values, not just exact
+   matches — over the bytes, without ever loading the record's class.
+
+6. **Two different collection classes, one value, one set of bytes.** A `HashSet` and a
+   `TreeSet` holding the same elements produce identical bytes — so they match and share a
+   checksum — while standard Java serialization gives them different bytes. The same holds
+   for the corresponding collection types in Rust and Haskell.
 
 ---
 
@@ -48,13 +57,15 @@ From this folder:
 ./run-demos.sh
 ```
 
-That builds the showcase, runs demonstrations 1, 3 and 4, and runs the automated checks.
+That builds the two libraries from the current source first (so nothing runs against a
+stale cache), then runs all six demonstrations and the automated checks.
 Demonstration 4 runs inside a small 128-megabyte memory ceiling on purpose — the
 expansion bomb would want gigabytes, and you get to watch it refused without ever
 reaching that ceiling.
 
-The second demonstration lives in its own folder because it needs two separate
-processes with different classpaths — that difference is the whole point:
+Two of them (demonstrations 2 and 5) live in their own folders because they need two
+separate processes with different classpaths — that difference is the whole point. The
+parent script above runs them for you; you can also run either on its own:
 
 ```
 cd demo2-match-without-the-class
@@ -65,7 +76,7 @@ Each demonstration also has its own short README next to its code.
 
 ---
 
-## The four demonstrations
+## The six demonstrations
 
 | Folder / file | What it shows | The automated check |
 |---|---|---|
@@ -73,6 +84,8 @@ Each demonstration also has its own short README next to its code.
 | `demo2-match-without-the-class/` | a server matches a template against a stored record by comparing bytes, with the record's class absent from its classpath | the server program exits non-zero if any claim fails; the launcher checks that |
 | `SchemaSentOnceDemo` | writing 100 records to one stream sends the shape description once; the total stays far below sending it every time | `SchemaSentOnceTest` |
 | `HostileInputDemo` | truncated, scrambled, over-nested, and expansion-bomb inputs are each refused cleanly, with bounded memory and no crash (see `README-demo4-feed-it-garbage.md`) | `HostileInputStopsPolitelyTest` |
+| `demo5-filter-by-a-rule/` | a reader selects the records matching a rule, evaluated over their fields, with the record's class absent from its classpath | the reader program exits non-zero if any claim fails; the launcher checks that |
+| `CollectionEqualityDemo` | two different collection classes holding the same value → identical bytes and checksum, while standard Java serialization gives them different bytes; plus the corresponding Rust/Haskell types (see `README-demo6-collection-equality.md`) | self-checks — exits non-zero on any failed claim |
 
 ### The real numbers this produced
 
