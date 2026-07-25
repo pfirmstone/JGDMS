@@ -76,11 +76,13 @@ caller error (`NullPointerException`) — the ordinary unfiltered methods exist 
 per-method constraints (including the space's `ATOMIC_DER` `MarshallingFormat` requirement) map onto the
 filtered backend calls exactly as for the unfiltered siblings.
 
-**OPEN QUESTION for Peter (naming/packaging).** `FilteredJavaSpace` in `org.apache.river.outrigger.proxy` is
-a placeholder for the permanent name and home. Alternatives: `net.jini.space.FilteredJavaSpace` (promote to
-the public space API package — but that package lives in `jgdms-lib-dl`, which must not depend on the
-Outrigger filter types, so this needs the interface to carry no Outrigger-specific type; it currently does
-not, so promotion is feasible), or a name that signals CEL specifically. Flagged, not silently fixed.
+**DECISION (Peter):** keep the name **`FilteredJavaSpace`** and keep it in
+**`org.apache.river.outrigger.proxy`** — do **not** promote it to `net.jini.space`. Rationale, correcting an
+earlier draft of this memo: every method on the interface declares
+`throws org.apache.river.outrigger.proxy.FilterRejectedException`, so the interface does **not** carry "no
+Outrigger-specific type" — promotion to `net.jini.space` (in `jgdms-lib-dl`) would require moving
+`FilterRejectedException` (and the envelope's reason vocabulary) into that general module too, which is not
+warranted while CEL filtering is Outrigger-only. The interface stays where its exception lives.
 
 ---
 
@@ -166,11 +168,10 @@ filtered query is never silently unfiltered, at any layer.
   result. The counter/metric name is fixed here as permanent API; it is **populated by B3** (which does the
   evaluation), declared now so the name is stable.
 
-**OPEN QUESTION for Peter (audience).** These are operator-facing counters, off the client result path by
-default. Whether any per-query signal should also be surfaced to the *calling client* (e.g. "N candidates
-fail-closed-excluded") — versus operator-only — is a policy call; a client-visible exclusion count is itself
-a mild information channel about data the client could not otherwise see, so operator-only is the safer
-default and is what B1 ships.
+**DECISION (Peter): operator-only.** These stay operator-facing counters, off the client result path. No
+per-query fail-closed-exclusion signal is surfaced to the *calling client*: a client-visible exclusion count
+is itself a mild information channel about data the client could not otherwise see. Operator-only is what B1
+ships and the settled position.
 
 ---
 
@@ -211,15 +212,49 @@ Constraints B1 pins for B2 (from SOW §3.2/§3.3):
 - Field-name resolution is against the **candidate's own** v2 schema, using the same
   `DerSchemaChainView`/`SchemaView` model the admission seam type-checked against — so the wire schema, the
   authoring schema (`EntrySchemaView`), and the projection schema are one model.
-- A candidate whose `entrySchemaDigest` ≠ the filter's `applicabilitySchemaDigest`, or whose bytes fail
-  canonical decode, or whose schema lacks a referenced field ⇒ **no match** (fail-closed), counted in
-  `filter.failClosedExclusions`, **never** an error.
+- A candidate whose bytes fail canonical decode, or whose schema lacks a referenced field ⇒ **no match**
+  (fail-closed), counted in `filter.failClosedExclusions`, **never** an error.
 - Evaluation must not run against a transactionally-unconfirmed candidate (SOW §3.2 confused-deputy rule).
   That gate is B3's, but the projection must not itself leak: it reads only bytes the server already holds.
 
+### 6.1 Applicability rule — the pinned B3 contract (Peter's ruling, OPTION (b))
+
+`CompiledFilter.applicabilitySchemaDigest()` is the key that decides *which candidates a filter applies to*:
+
+- **Non-null key** (filter admitted against a concrete template): the filter applies **only** to candidates
+  whose `entrySchemaDigest` equals the key. A candidate of any other schema is a non-match — it is not even
+  a fail-closed exclusion, it is simply out of scope. Field names were already type-checked against that one
+  schema at admission (a wrong *type* on an existing field was rejected loudly; an unknown field *name*
+  deferred — see below).
+- **Null key** (filter admitted schema-lessly, against a null / match-any template): the filter applies to
+  **ALL candidates**. There was no template schema to type-check against, so each referenced field name is
+  resolved **per candidate**, against that candidate's own v2 schema, at evaluation time. A candidate whose
+  schema lacks a referenced field is a **fail-closed exclusion** (counted in `filter.failClosedExclusions`),
+  never a match and never an error.
+
+**Why a schema-less filter may still reference fields.** The CEL verifier soundly *defers* a field reference
+whose type it cannot statically determine to `UNKNOWN`, and an `UNKNOWN` operand never by itself triggers a
+static rejection (`StaticTypeChecker`). So `verify(celWire)` with no schema admits `a == "x"`; and even
+`verify(celWire, schema)` admits a reference to a field **name** absent from that schema (deferred), while it
+rejects a **wrong type** on a field the schema *does* declare. Admission is therefore intentionally permissive
+about unknown names (the safe direction: defer, then fail-closed-exclude at eval) and strict about provable
+type errors (reject loudly). `CompiledFilter.isSchemaLess()` documents this; it does **not** mean "references
+no fields".
+
+### 6.2 Multi-template plurality (B3 obligation)
+
+B1's `registerForAvailabilityEvent` admits the one filter against **every** template's schema (all must pass)
+and then throws `EVALUATION_NOT_WIRED`, so it currently retains only the last `CompiledFilter` — harmless in
+B1 because nothing is evaluated. **B3 MUST retain one `CompiledFilter` per template**: each template yields a
+distinct `applicabilitySchemaDigest` (or a null key, for a match-any template in the collection), and a
+candidate is filtered by the `CompiledFilter` whose applicability key it matches (or by every null-key filter
+in the registration, per §6.1). Collapsing the registration to a single retained filter would misapply one
+template's predicate/applicability to another template's candidates.
+
 The exact `SelectorPath` / `ProjectedValue` shapes are B2's to finalize; B1 commits only to (a) `CompiledFilter`
-as the verified-predicate carrier, (b) `entrySchemaDigest` as the applicability key, and (c) a class-free,
-fail-closed, schema-driven, decode-on-demand projection contract.
+as the verified-predicate carrier, (b) `entrySchemaDigest` as the applicability key with the null-key
+all-candidates rule of §6.1, and (c) a class-free, fail-closed, schema-driven, decode-on-demand projection
+contract.
 
 ---
 
@@ -268,10 +303,10 @@ own (B4). B1 stops at "a verified filter exists".
 
 ## 10. Open questions carried to the board
 
-1. **`FilteredJavaSpace` name/home** (§2) — permanent client API surface; confirm the name and whether it
-   promotes to `net.jini.space`.
-2. **Observability audience** (§5) — operator-only (shipped) vs an optional client-visible fail-closed
-   exclusion count.
+1. **[RESOLVED — Peter]** `FilteredJavaSpace` name/home (§2): keep the name, keep it in
+   `org.apache.river.outrigger.proxy`, do not promote to `net.jini.space` (the interface's methods declare
+   the Outrigger `FilterRejectedException`).
+2. **[RESOLVED — Peter]** Observability audience (§5): operator-only; no client-visible exclusion count.
 3. **Envelope `version` forward-compatibility** — B1 refuses any `version ≠ 1` (fail-closed). If a future
    version must be introduced without a flag-day, the negotiation rule (advertise supported versions? refuse
    loudly and require redeploy?) is a decision to take when a v2 envelope is actually needed, not now.

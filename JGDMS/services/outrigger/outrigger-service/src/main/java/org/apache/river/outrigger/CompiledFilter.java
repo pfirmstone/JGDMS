@@ -70,8 +70,15 @@ public final class CompiledFilter {
     /**
      * The applicability key: the {@code entrySchemaDigest} of the template this
      * filter was admitted against, or {@code null} if it was admitted
-     * schema-lessly (a match-any / null template). Unit&nbsp;B3 uses this to
-     * fail closed against candidates of a different schema.
+     * schema-lessly (a match-any / null template).
+     *
+     * <p><b>Non-null key</b> — the filter applies only to candidates whose
+     * {@code entrySchemaDigest} equals this key; a candidate of a different
+     * schema is a non-match (B3).
+     *
+     * <p><b>Null key</b> — the filter applies to <em>all</em> candidates
+     * (Peter's ruling, OPTION&nbsp;(b)); see {@link #isSchemaLess()} for the
+     * per-candidate field-resolution rule this implies.
      *
      * @return a copy of the applicability digest, or {@code null}
      */
@@ -80,8 +87,22 @@ public final class CompiledFilter {
     }
 
     /**
-     * @return {@code true} if this filter was admitted schema-lessly (a
-     *         match-any template); such a filter references no fields
+     * Whether this filter was admitted <em>schema-lessly</em> — against a null /
+     * match-any template, for which there was no single template schema to
+     * type-check the predicate against.
+     *
+     * <p><b>Schema-less does NOT mean "references no fields".</b> The verifier
+     * soundly <em>defers</em> unknown field references to a dynamic outcome
+     * (never a static rejection), so a schema-less filter MAY reference fields.
+     * Per Peter's ruling (OPTION&nbsp;(b)), a schema-less (null-applicability-key)
+     * filter applies to ALL candidates, and each referenced field name is
+     * resolved <b>per candidate</b>, against that candidate's own v2 schema, at
+     * evaluation time (B3). A candidate whose schema lacks a referenced field is
+     * a FAIL-CLOSED exclusion (counted in
+     * {@code filter.failClosedExclusions}), never a match and never an error.
+     *
+     * @return {@code true} if this filter has a null applicability key (admitted
+     *         against a null / match-any template)
      */
     public boolean isSchemaLess() {
         return applicabilitySchemaDigest == null;

@@ -126,9 +126,10 @@ public final class FilterEnvelope {
 
     /**
      * Encodes a canonical filter envelope with an explicit {@code version}.
-     * Package-visible ceiling checks apply; producing an unsupported version is
-     * permitted here (the decoder rejects it) so tests can exercise the
-     * version-mismatch path.
+     * <b>Package-private test knob only</b>: producing an unsupported version is
+     * permitted here (the decoder rejects it) so in-package tests can exercise
+     * the version-mismatch path. Not a shipped API — production callers must use
+     * {@link #encode(byte[])}, which always writes the current {@link #VERSION}.
      *
      * @param version the {@code version} field to encode
      * @param celWire the opaque CEL wire bytes
@@ -137,7 +138,7 @@ public final class FilterEnvelope {
      * @throws IllegalArgumentException if {@code celWire} exceeds
      *         {@link #MAX_CEL_WIRE_BYTES}
      */
-    public static byte[] encode(int version, byte[] celWire) {
+    static byte[] encode(int version, byte[] celWire) {
         if (celWire == null) throw new NullPointerException("celWire");
         if (celWire.length > MAX_CEL_WIRE_BYTES) {
             throw new IllegalArgumentException("celWire length " + celWire.length

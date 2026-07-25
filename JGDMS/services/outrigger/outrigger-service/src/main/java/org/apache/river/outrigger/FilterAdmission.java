@@ -161,19 +161,33 @@ public final class FilterAdmission {
             applicabilityDigest = esc.entrySchemaDigest();
         }
 
-        // 3. Verify the CEL wire bytes (never throws; returns a VerificationResult).
-        final VerificationResult vr = (schemaView == null)
-                ? CelVerifier.verify(celWire)
-                : CelVerifier.verify(celWire, schemaView);
+        // 3. Verify the CEL wire bytes. CelVerifier.verify is documented to never
+        //    throw (it returns a VerificationResult for every outcome), but a
+        //    latent bug in the verifier MUST NOT escape admit() as anything other
+        //    than a loud FilterRejectedException -- belt-and-braces fail-closed.
+        final VerificationResult vr;
+        try {
+            vr = (schemaView == null)
+                    ? CelVerifier.verify(celWire)
+                    : CelVerifier.verify(celWire, schemaView);
+        } catch (RuntimeException unexpected) {
+            REJECTED_DECODE.incrementAndGet();
+            throw new FilterRejectedException(
+                    FilterRejectedException.Reason.FILTER_DECODE_REJECTED,
+                    "CEL verification raised an unexpected runtime exception (fail-closed): "
+                    + unexpected, unexpected);
+        }
         if (!vr.accepted()) {
             throw rejectVerification(vr);
         }
 
         // 4. Only a Predicate may gate a query; a Transform is refused.
-        final CelFilterRecord record = vr.record().orElseThrow(
-                () -> new FilterRejectedException(
-                        FilterRejectedException.Reason.FILTER_DECODE_REJECTED,
-                        "accepted verification carried no record (internal invariant)"));
+        final CelFilterRecord record = vr.record().orElseThrow(() -> {
+            REJECTED_DECODE.incrementAndGet();
+            return new FilterRejectedException(
+                    FilterRejectedException.Reason.FILTER_DECODE_REJECTED,
+                    "accepted verification carried no record (internal invariant)");
+        });
         if (!(record.context() instanceof EvaluationContext.Predicate)) {
             REJECTED_NOT_PREDICATE.incrementAndGet();
             throw new FilterRejectedException(

@@ -123,6 +123,36 @@ public class FilterAdmissionTest {
         assertTrue(cf.isSchemaLess());
     }
 
+    @Test
+    public void fieldReferencingPredicateAgainstNullTemplateIsAdmittedSchemaLess() throws Exception {
+        // OPTION (b): a null / match-any template has no schema to type-check
+        // against, so field references DEFER (the verifier soundly treats an
+        // unknown field type as UNKNOWN, never a static rejection). The filter
+        // IS admitted schema-lessly and MAY reference fields; per-candidate
+        // resolution (and fail-closed exclusion for a missing field) is B3.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("a"), new ExprNode.LitString("x")));
+        CompiledFilter cf = FilterAdmission.admit(env, null);
+        assertNotNull(cf);
+        assertTrue("schema-less must NOT mean 'references no fields'", cf.isSchemaLess());
+        assertNull(cf.applicabilitySchemaDigest());
+    }
+
+    @Test
+    public void unknownFieldNameAgainstConcreteTemplateIsAdmitted() throws Exception {
+        // Opus F2 safe direction: a reference to a field NAME absent from the
+        // template's schema DEFERS (UNKNOWN), so the filter is admitted and the
+        // candidate that lacks the field is fail-closed-excluded at eval (B3) --
+        // NOT loudly rejected at admission. Contrast rejectsStaticTypeMismatch:
+        // a WRONG TYPE on an EXISTING field IS loudly rejected.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("nonexistentField"), new ExprNode.LitString("x")));
+        CompiledFilter cf = FilterAdmission.admit(env, tmpl(new Doc("x", "y")));
+        assertNotNull(cf);
+        assertFalse(cf.isSchemaLess());
+        assertNotNull(cf.applicabilitySchemaDigest());
+    }
+
     // ---- Verify-reject matrix ------------------------------------------
 
     @Test
