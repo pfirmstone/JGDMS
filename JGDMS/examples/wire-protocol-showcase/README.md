@@ -1,51 +1,57 @@
 # The wire format, shown six ways
 
-This is a small set of runnable demonstrations. Each one takes a claim about how
-this project puts objects onto the wire, and shows it happening, with real bytes,
-in about fifteen seconds of terminal output. Each demonstration also checks itself,
-so a person watching — or a build server — can confirm the claim actually held.
+**The same object always turns into exactly the same bytes — so a checksum of the
+bytes becomes a real identity for the value, and a signature over them keeps working
+after the object travels.** Java's own serialization does not do this. Everything else
+here builds on it.
 
-There is no jargon in what you see on screen. The six claims, in plain terms:
+Each demonstration below is a tiny program that shows one such claim happening, with
+real bytes, in about fifteen seconds — and checks itself, so you (or a build server)
+can confirm the claim actually held.
 
-1. **Same object, same bytes — everywhere.** The same value always turns into exactly
-   the same bytes. That makes a plain checksum of the bytes a real identity for the
-   value, and it lets a signature over the bytes keep working after the object travels.
+### See it in one file (30 seconds)
 
-2. **Match a record without ever loading its class.** A server can hold records and
-   answer "does this template match?" by comparing bytes — without the record's class,
-   and without ever rebuilding the object. If it never rebuilds the object, a hostile
-   record has nothing to attack.
+The shortest way in is one self-contained source file — read it top to bottom, no
+project knowledge needed:
 
-3. **The shape description travels in the stream, and you pay for it once.** When many
-   records of the same type go down one stream, the description of their shape is sent
-   with the first one; every record after that just points back to it.
+**→ [`SameObjectSameBytesDemo.java`](src/main/java/au/net/zeus/jgdms/showcase/demo/SameObjectSameBytesDemo.java)** — 138 lines. It builds a value, prints its
+bytes and checksum, does it again from a different object, and shows the bytes are
+identical while Java's built-in serialization's are not. ([short walk-through](README-demo1-same-object-same-bytes.md).)
 
-4. **Feed it garbage, it stops politely.** A message that is cut off partway through, one
-   whose structure markers are scrambled, one nested inside itself far deeper than
-   allowed, or a tiny one crafted to balloon into gigabytes when unpacked — each is
-   refused cleanly, with bounded memory, no crash, and no attacker code ever running.
-
-5. **Select records by a rule, without loading their class.** A reader picks the records
-   it wants by evaluating a rule over their fields — comparing values, not just exact
-   matches — over the bytes, without ever loading the record's class.
-
-6. **Two different collection classes, one value, one set of bytes.** A `HashSet` and a
-   `TreeSet` holding the same elements produce identical bytes — so they match and share a
-   checksum — while standard Java serialization gives them different bytes. The same holds
-   for the corresponding collection types in Rust and Haskell.
+Prefer to run everything? Jump to [running them](#running-them) — one command, all six.
 
 ---
 
-## What you need
+## The six demonstrations
 
-The demonstrations use two small libraries from this project. A normal build of the
-project puts them in your local build cache, which is all these need. Use a Java 25 or
-newer runtime (this project's own runtime is fine).
+Every row links to the source you can read and the short walk-through beside it.
+**Start with demo 1.**
 
-If you have never built the project, run a build of it once first, so the two libraries
-are available locally.
+| # | Demo (read the source) | What it shows | Walk-through | Self-check |
+|---|---|---|---|---|
+| 1 | [`SameObjectSameBytesDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/SameObjectSameBytesDemo.java) **← start here** | equal values → identical bytes → identical checksum; a signature survives a round trip; Java's built-in serialization does **not** give equal values identical bytes | [demo 1](README-demo1-same-object-same-bytes.md) | `SameObjectSameBytesTest` |
+| 2 | [`demo2` server](demo2-match-without-the-class/src/au/net/zeus/jgdms/showcase/match/Server.java) | a server matches a template against a stored record by comparing bytes, with the record's class **absent** from its classpath | [demo 2](demo2-match-without-the-class/README.md) | server exits non-zero on any failed claim; the launcher checks that |
+| 3 | [`SchemaSentOnceDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/SchemaSentOnceDemo.java) | writing 100 records to one stream sends the shape description once; the total stays far below sending it every time | [demo 3](README-demo3-shape-sent-once.md) | `SchemaSentOnceTest` |
+| 4 | [`HostileInputDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/HostileInputDemo.java) | truncated, scrambled, over-nested, and expansion-bomb inputs are each refused cleanly, with bounded memory and no crash | [demo 4](README-demo4-feed-it-garbage.md) | `HostileInputStopsPolitelyTest` |
+| 5 | [`demo5` reader](demo5-filter-by-a-rule/src/au/net/zeus/jgdms/showcase/rule/Reader.java) | a reader selects records matching a rule, evaluated over their fields, with the record's class **absent** from its classpath | [demo 5](demo5-filter-by-a-rule/README.md) | reader exits non-zero on any failed claim; the launcher checks that |
+| 6 | [`CollectionEqualityDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/CollectionEqualityDemo.java) | two different collection classes holding the same value → identical bytes and checksum, while standard Java serialization gives them different bytes; plus the matching Rust/Haskell types | [demo 6](README-demo6-collection-equality.md) | self-checks — exits non-zero on any failed claim |
+
+The six claims in one line each:
+
+1. **Same object, same bytes — everywhere.** (the file above)
+2. **Match a record without ever loading its class** — so a hostile record has nothing to attack, because the object is never rebuilt.
+3. **The shape description travels in the stream, and you pay for it once** — many records of one type share the first one's shape.
+4. **Feed it garbage, it stops politely** — cut-off, scrambled, over-nested, or bomb inputs are refused cleanly, bounded memory, no attacker code runs.
+5. **Select records by a rule, without loading their class** — pick records by comparing field *values*, not just exact matches, over the bytes.
+6. **Two collection classes, one value, one set of bytes** — a `HashSet` and a `TreeSet` of the same elements produce identical bytes; standard Java serialization does not.
+
+---
 
 ## Running them
+
+You need two small libraries from this project in your local build cache (a normal
+build of the project puts them there) and a Java 25+ runtime (this project's own
+runtime is fine). If you have never built the project, build it once first.
 
 From this folder:
 
@@ -57,37 +63,23 @@ From this folder:
 ./run-demos.sh
 ```
 
-That builds the two libraries from the current source first (so nothing runs against a
-stale cache), then runs all six demonstrations and the automated checks.
-Demonstration 4 runs inside a small 128-megabyte memory ceiling on purpose — the
-expansion bomb would want gigabytes, and you get to watch it refused without ever
-reaching that ceiling.
+That rebuilds the two libraries from current source first (so nothing runs against a
+stale cache), then runs all six demonstrations and their checks. Demonstration 4 runs
+inside a 128-megabyte memory ceiling on purpose — the expansion bomb would want
+gigabytes, and you watch it refused without ever reaching that ceiling.
 
-Two of them (demonstrations 2 and 5) live in their own folders because they need two
-separate processes with different classpaths — that difference is the whole point. The
-parent script above runs them for you; you can also run either on its own:
+Demonstrations 2 and 5 live in their own folders because they need two processes with
+different classpaths — that difference is the whole point. The parent script runs them
+for you; you can also run either alone:
 
 ```
 cd demo2-match-without-the-class
 ./run.ps1          # or ./run.sh
 ```
 
-Each demonstration also has its own short README next to its code.
-
 ---
 
-## The six demonstrations
-
-| Folder / file | What it shows | The automated check |
-|---|---|---|
-| `SameObjectSameBytesDemo` | equal values → identical bytes → identical checksum; a signature survives a round trip; Java's built-in serialization does **not** give equal values identical bytes | `SameObjectSameBytesTest` |
-| `demo2-match-without-the-class/` | a server matches a template against a stored record by comparing bytes, with the record's class absent from its classpath | the server program exits non-zero if any claim fails; the launcher checks that |
-| `SchemaSentOnceDemo` | writing 100 records to one stream sends the shape description once; the total stays far below sending it every time | `SchemaSentOnceTest` |
-| `HostileInputDemo` | truncated, scrambled, over-nested, and expansion-bomb inputs are each refused cleanly, with bounded memory and no crash (see `README-demo4-feed-it-garbage.md`) | `HostileInputStopsPolitelyTest` |
-| `demo5-filter-by-a-rule/` | a reader selects the records matching a rule, evaluated over their fields, with the record's class absent from its classpath | the reader program exits non-zero if any claim fails; the launcher checks that |
-| `CollectionEqualityDemo` | two different collection classes holding the same value → identical bytes and checksum, while standard Java serialization gives them different bytes; plus the corresponding Rust/Haskell types (see `README-demo6-collection-equality.md`) | self-checks — exits non-zero on any failed claim |
-
-### The real numbers this produced
+## The real numbers this produced
 
 These came out of an actual run on the sample record type used here (a three-level
 record with descriptive field names, so its shape description is a real fraction of
