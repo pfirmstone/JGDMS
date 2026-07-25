@@ -107,9 +107,107 @@ public final class FilterAdmission {
      */
     static final AtomicLong FAIL_CLOSED_EXCLUSIONS = new AtomicLong();
 
+    /* ---- Multi-template admission ceiling (fail-closed DoS defence) -------- */
+
+    /**
+     * The maximum number of templates a single multi-template filtered operation
+     * may carry. A shared, fail-closed admission ceiling for the three
+     * multi-template ops — {@code registerForAvailabilityEvent}, filtered
+     * {@code contents}, and filtered bulk {@code take} — each of which admits the
+     * ONE filter against EACH template's own schema. Without a ceiling, an
+     * authenticated-but-hostile client could send an enormous template array and
+     * force one per-template schema build + {@code CelVerifier.verify} for every
+     * element (the envelope decode is now hoisted out once via {@link #prepare},
+     * but the schema-dependent admission genuinely must run per distinct template
+     * — so its COUNT is what is bounded here). {@value} is generous for any
+     * legitimate multi-type query — realistic entry-type cardinality is a handful
+     * to a few dozen — while capping the admission amplification at a fixed factor
+     * instead of leaving it unbounded. Tunable by a deployment that genuinely
+     * needs more.
+     *
+     * @see #checkTemplateCount(int)
+     */
+    public static final int MAX_TEMPLATES = 1024;
+
+    /**
+     * Fail-closed guard for the multi-template filtered ops: rejects a template
+     * collection larger than {@link #MAX_TEMPLATES} LOUDLY, before any envelope
+     * decode or per-template admission runs, so an oversized array can never drive
+     * the admission loop. It rejects rather than truncates — silently dropping
+     * templates would under-filter the query, exactly the "never downgrade" hazard
+     * the whole filter feature exists to prevent.
+     *
+     * @param count the number of templates the operation was invoked with
+     * @throws IllegalArgumentException if {@code count > MAX_TEMPLATES} (the
+     *         codebase's established loud pre-side-effect arg-validation idiom,
+     *         matching {@code checkForEmpty}/{@code checkLimit})
+     */
+    public static void checkTemplateCount(int count) {
+        if (count > MAX_TEMPLATES) {
+            throw new IllegalArgumentException(
+                    "filtered operation template count " + count
+                    + " exceeds the maximum " + MAX_TEMPLATES
+                    + " (admission DoS ceiling); reduce the number of templates");
+        }
+    }
+
+    /* ---- Decode-once seam -------------------------------------------------- */
+
+    /**
+     * A filter envelope decoded EXACTLY ONCE. The opaque {@code byte[]
+     * filterEnvelope} is identical across every template of a multi-template
+     * operation, so decoding it per template is pure wasted work (and, unbounded,
+     * an amplification vector). {@link #prepare} unwraps the envelope a single
+     * time into this immutable token; {@link #admit(PreparedFilter, EntryRep)}
+     * then admits it against each template's own schema without re-decoding.
+     *
+     * <p>Holds the inner CEL wire bytes only — it carries no schema and no
+     * compiled predicate, because both are per-template. (The CEL AST itself is
+     * still decoded per template inside {@code CelVerifier.verify}: reusing the
+     * decoded AST across schemas would mean bypassing the verifier's single
+     * byte[]-only admission gate, which is out of scope here; the {@link
+     * #MAX_TEMPLATES} ceiling bounds that per-template cost instead.)
+     */
+    public static final class PreparedFilter {
+        private final byte[] celWire;
+        private PreparedFilter(byte[] celWire) { this.celWire = celWire; }
+    }
+
+    /**
+     * Decode-once seam: unwrap the opaque {@link FilterEnvelope} a SINGLE time,
+     * failing closed with {@code ENVELOPE_MALFORMED} on a null or malformed
+     * envelope. A multi-template op calls this once and reuses the result across
+     * its template loop via {@link #admit(PreparedFilter, EntryRep)}.
+     *
+     * @param filterEnvelope the opaque canonical {@link FilterEnvelope} bytes
+     *                       (must not be null)
+     * @return the decoded, reusable envelope token
+     * @throws FilterRejectedException {@code ENVELOPE_MALFORMED} on a null or
+     *                                 defective envelope (loud; never a downgrade)
+     */
+    public static PreparedFilter prepare(byte[] filterEnvelope)
+            throws FilterRejectedException {
+        if (filterEnvelope == null) {
+            REJECTED_ENVELOPE.incrementAndGet();
+            throw new FilterRejectedException(
+                    FilterRejectedException.Reason.ENVELOPE_MALFORMED,
+                    "filter envelope is null");
+        }
+        // Envelope decode (throws ENVELOPE_MALFORMED on any defect).
+        final FilterEnvelope env;
+        try {
+            env = FilterEnvelope.decode(filterEnvelope);
+        } catch (FilterRejectedException e) {
+            REJECTED_ENVELOPE.incrementAndGet();
+            throw e;
+        }
+        return new PreparedFilter(env.celWire());
+    }
+
     /**
      * Admits a filter envelope against a query template, returning a verified
-     * immutable predicate or throwing loudly.
+     * immutable predicate or throwing loudly. A single-template convenience:
+     * equivalent to {@code admit(prepare(filterEnvelope), tmpl)}.
      *
      * @param filterEnvelope the opaque canonical {@link FilterEnvelope} bytes
      *                       (must not be null)
@@ -121,22 +219,27 @@ public final class FilterAdmission {
      */
     public static CompiledFilter admit(byte[] filterEnvelope, EntryRep tmpl)
             throws FilterRejectedException {
-        if (filterEnvelope == null) {
-            REJECTED_ENVELOPE.incrementAndGet();
-            throw new FilterRejectedException(
-                    FilterRejectedException.Reason.ENVELOPE_MALFORMED,
-                    "filter envelope is null");
-        }
+        return admit(prepare(filterEnvelope), tmpl);
+    }
 
-        // 1. Envelope (throws ENVELOPE_MALFORMED on any defect).
-        final FilterEnvelope env;
-        try {
-            env = FilterEnvelope.decode(filterEnvelope);
-        } catch (FilterRejectedException e) {
-            REJECTED_ENVELOPE.incrementAndGet();
-            throw e;
-        }
-        final byte[] celWire = env.celWire();
+    /**
+     * Admits an already-decoded filter ({@link #prepare}) against ONE template's
+     * own v2 schema — steps 2–5 of the admission pipeline (schema build, CEL
+     * verify, {@code Predicate} check, compile). The envelope decode (step 1) has
+     * already happened once in {@link #prepare}; the schema-dependent work here
+     * genuinely must run per template. Fail-closed at every step.
+     *
+     * @param prepared the once-decoded envelope (must not be null)
+     * @param tmpl     the query template (may be null / match-any ⇒ schema-less
+     *                 verification)
+     * @return the verified compiled filter
+     * @throws FilterRejectedException on any rejection (loud; never a downgrade
+     *                                 to an unfiltered query)
+     */
+    public static CompiledFilter admit(PreparedFilter prepared, EntryRep tmpl)
+            throws FilterRejectedException {
+        if (prepared == null) throw new NullPointerException("prepared");
+        final byte[] celWire = prepared.celWire;
 
         // 2. Schema view from the template's own v2 wire body (class-free).
         final byte[] body = (tmpl == null) ? new byte[0] : tmpl.bodyBytes();

@@ -174,8 +174,10 @@ public class FilterAdmissionTest {
 
     @Test
     public void rejectsNullEnvelope() throws Exception {
+        // Cast disambiguates the byte[] overload from admit(PreparedFilter, ...);
+        // this asserts the byte[]-envelope path rejects a null envelope loudly.
         assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
-                () -> FilterAdmission.admit(null, tmpl(new Doc("x", "y"))));
+                () -> FilterAdmission.admit((byte[]) null, tmpl(new Doc("x", "y"))));
     }
 
     @Test
@@ -262,15 +264,17 @@ public class FilterAdmissionTest {
     // own schema and rejects the whole op if admission fails against any of them.
     // These tests exercise that loop at the seam it is built from.
 
-    /** Mirrors the server's per-template admission loop: admit the one filter
-     *  against each template in turn; any rejection fails the whole op. Returns
-     *  the last admitted filter (matching the impl, which then throws
-     *  EVALUATION_NOT_WIRED). */
+    /** Mirrors the server's fixed per-template admission loop: decode the
+     *  (template-invariant) envelope ONCE via {@link FilterAdmission#prepare},
+     *  then admit that one prepared filter against each template in turn; any
+     *  rejection fails the whole op. Returns the last admitted filter (matching
+     *  the impl, which then throws EVALUATION_NOT_WIRED). */
     private CompiledFilter admitAgainstEach(byte[] env, EntryRep... tmpls)
             throws FilterRejectedException {
+        FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(env);
         CompiledFilter cf = null;
         for (EntryRep t : tmpls) {
-            cf = FilterAdmission.admit(env, t);
+            cf = FilterAdmission.admit(prepared, t);
         }
         return cf;
     }
@@ -315,6 +319,121 @@ public class FilterAdmissionTest {
         assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
                 () -> admitAgainstEach(new byte[] { 0x31, 0x00 },
                         tmpl(new Doc("x", "y")), tmpl(new Other("z"))));
+    }
+
+    // ---- Multi-template admission ceiling (MAX_TEMPLATES, DoS defence) ----
+    //
+    // The three multi-template filtered ops admit the ONE filter against EACH
+    // template, so an unbounded template array is an admission-amplification
+    // vector. checkTemplateCount() is the shared fail-closed ceiling every one of
+    // them calls before its loop.
+
+    @Test
+    public void checkTemplateCountAdmitsAtAndBelowMax() {
+        // The boundary and below must NOT throw.
+        FilterAdmission.checkTemplateCount(0);
+        FilterAdmission.checkTemplateCount(1);
+        FilterAdmission.checkTemplateCount(FilterAdmission.MAX_TEMPLATES);
+    }
+
+    @Test
+    public void checkTemplateCountRejectsAboveMaxLoudly() {
+        try {
+            FilterAdmission.checkTemplateCount(FilterAdmission.MAX_TEMPLATES + 1);
+            fail("expected IllegalArgumentException for template count "
+                    + (FilterAdmission.MAX_TEMPLATES + 1));
+        } catch (IllegalArgumentException expected) {
+            // Loud, and the diagnostic names the ceiling it breached.
+            assertTrue("diagnostic should name the maximum",
+                    expected.getMessage().contains(String.valueOf(FilterAdmission.MAX_TEMPLATES)));
+        }
+    }
+
+    @Test
+    public void checkTemplateCountRejectsGrosslyOversizedArray() {
+        // The concrete attack the board flagged: ~10^4 templates.
+        try {
+            FilterAdmission.checkTemplateCount(10_000);
+            fail("expected IllegalArgumentException for 10000 templates");
+        } catch (IllegalArgumentException expected) {
+            // expected — fail-closed before any envelope decode / admission loop.
+        }
+    }
+
+    // ---- Decode-once seam (prepare + admit(PreparedFilter, EntryRep)) -----
+    //
+    // The envelope is identical across every template, so it is decoded ONCE via
+    // prepare() and the resulting PreparedFilter is reused across the loop. The
+    // decode-once path must be behaviourally identical to admit(byte[], tmpl).
+
+    @Test
+    public void prepareThenAdmitEqualsSingleShotAdmit() throws Exception {
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("a"), new ExprNode.LitString("x")));
+        EntryRep t = tmpl(new Doc("x", "y"));
+
+        CompiledFilter oneShot = FilterAdmission.admit(env, t);
+        FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(env);
+        CompiledFilter viaPrepared = FilterAdmission.admit(prepared, t);
+
+        assertNotNull(viaPrepared);
+        assertEquals(oneShot.isSchemaLess(), viaPrepared.isSchemaLess());
+        // Same template ⇒ same applicability key on both admission paths.
+        assertArrayEquals(oneShot.applicabilitySchemaDigest(),
+                viaPrepared.applicabilitySchemaDigest());
+    }
+
+    @Test
+    public void prepareOnceReusedAcrossManyTemplates() throws Exception {
+        // One prepared envelope admits against each of many templates without
+        // re-decoding the envelope — exactly the server's post-fix loop.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("a"), new ExprNode.LitString("x")));
+        FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(env);
+        for (int i = 0; i < 5; i++) {
+            CompiledFilter cf = FilterAdmission.admit(prepared, tmpl(new Doc("x" + i, "y")));
+            assertNotNull(cf);
+            assertFalse(cf.isSchemaLess());
+        }
+    }
+
+    @Test
+    public void preparedReuseStillRejectsTypeMismatchTemplateLoudly() throws Exception {
+        // Reusing a PreparedFilter must NOT weaken the "every template must pass"
+        // contract: a > 5 defers against Other (no field 'a') but is a loud
+        // STATIC_TYPE_MISMATCH against Doc (a:STRING) — even via the reused token,
+        // never downgraded to unfiltered.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Gt(fieldRef("a"), new ExprNode.LitInt(5)));
+        FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(env);
+        assertNotNull(FilterAdmission.admit(prepared, tmpl(new Other("z"))));
+        assertRejected(FilterRejectedException.Reason.FILTER_TYPE_MISMATCH,
+                () -> FilterAdmission.admit(prepared, tmpl(new Doc("x", "y"))));
+    }
+
+    @Test
+    public void prepareRejectsNullEnvelopeLoudly() {
+        assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
+                () -> FilterAdmission.prepare(null));
+    }
+
+    @Test
+    public void prepareRejectsMalformedEnvelopeLoudly() {
+        assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
+                () -> FilterAdmission.prepare(new byte[] { 0x31, 0x00 }));
+    }
+
+    @Test
+    public void admitRejectsNullPreparedFilter() {
+        try {
+            FilterAdmission.admit((FilterAdmission.PreparedFilter) null,
+                    EntryRep.matchAnyEntryRep());
+            fail("expected NullPointerException for a null PreparedFilter");
+        } catch (NullPointerException expected) {
+            // expected — a null prepared token is a programming error.
+        } catch (FilterRejectedException e) {
+            fail("expected NullPointerException, got " + e);
+        }
     }
 
     // ---- Observability --------------------------------------------------

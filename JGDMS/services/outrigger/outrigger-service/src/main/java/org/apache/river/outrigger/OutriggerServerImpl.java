@@ -2345,13 +2345,16 @@ public class OutriggerServerImpl
     {
 	checkForNull(listener, "Passed null listener for event registration");
 	checkForEmpty(tmpls, "Must provide at least one template");
+	FilterAdmission.checkTemplateCount(tmpls.length);
 	checkHandbackFormat(handback);
-	// Admit the one filter against each template's own schema; any failure
-	// rejects the whole registration loudly.
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole registration loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
 	CompiledFilter filter = null;
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(filterEnvelope, tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
 	}
 	throw FilterAdmission.evaluationNotWired("registerForAvailabilityEvent", filter);
     }
@@ -2361,12 +2364,15 @@ public class OutriggerServerImpl
 	throws TransactionException, RemoteException, FilterRejectedException
     {
 	checkForEmpty(tmpls, "Must provide at least one template");
-	// Admit the one filter against each template's own schema; any failure
-	// rejects the whole query loudly.
+	FilterAdmission.checkTemplateCount(tmpls.length);
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole query loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
 	CompiledFilter filter = null;
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(filterEnvelope, tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
 	}
 	throw FilterAdmission.evaluationNotWired("contents", filter);
     }
@@ -2376,12 +2382,15 @@ public class OutriggerServerImpl
 	throws TransactionException, RemoteException, FilterRejectedException
     {
 	checkForEmpty(tmpls, "Must provide at least one template");
-	// Admit the one filter against each template's own schema; any failure
-	// rejects the whole query loudly.
+	FilterAdmission.checkTemplateCount(tmpls.length);
+	// Decode the (template-invariant) envelope ONCE, then admit that one
+	// filter against each template's own schema; any failure rejects the
+	// whole query loudly.
+	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
 	CompiledFilter filter = null;
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(filterEnvelope, tmpls[i]);
+	    filter = FilterAdmission.admit(prepared, tmpls[i]);
 	}
 	throw FilterAdmission.evaluationNotWired("take<multiple>", filter);
     }
