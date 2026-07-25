@@ -124,6 +124,10 @@ FilterEnvelope ::= SEQUENCE {
   inside it, wrong element tags, unsupported `version`, or a ceiling breach.
 - **Ceilings.** `MAX_ENVELOPE_BYTES = 1 MiB`, `MAX_CEL_WIRE_BYTES = 64 KiB` — coarse pre-verification DoS
   bounds only. The authoritative CEL size/cost ceilings are the verifier's, enforced at admission.
+- **Multi-template ceiling.** `FilterAdmission.MAX_TEMPLATES = 256` (a fixed compile-time constant, not a
+  runtime knob) bounds the number of templates a single multi-template filtered op may carry — see §4.2. This
+  caps the admission-amplification factor; without it an unbounded template array forces one schema build +
+  CEL verification per element.
 
 ---
 
@@ -152,8 +156,9 @@ If the template body is present but does not decode as a v2 body, admission fail
 **Every rejection fails the operation loudly.** A bad filter is never downgraded to an unfiltered query.
 `FilterAdmission.admit` does **not** evaluate the predicate against any entry.
 
-For `registerForAvailabilityEvent` (multiple templates), the one filter is admitted against **every**
-template's schema; any failure refuses the whole registration.
+Three filtered ops are multi-template (see §4.2): `registerForAvailabilityEvent`, filtered `contents`, and
+filtered bulk `take`. Each admits the one filter against **every** template's own schema; any failure refuses
+the whole op.
 
 ### 4.1 The unwired-chokepoint loud reject (why filtered ops fail in B1)
 
@@ -164,14 +169,34 @@ lands, the `FilterAdmission.evaluationNotWired(...)` call at each chokepoint is 
 `CompiledFilter` into `EntryRep.matches`/`TemplateHandle.matches`. This keeps B1 shippable and safe: a
 filtered query is never silently unfiltered, at any layer.
 
+### 4.2 Multi-template ops: decode-once seam + admission ceiling
+
+Three filtered ops are **multi-template with a single filter**: `registerForAvailabilityEvent`, filtered
+`contents(EntryRep[], …, byte[] filterEnvelope)`, and filtered bulk `take(EntryRep[], …, byte[] filterEnvelope)`.
+Each admits the one filter against **every** template's own schema; any failure refuses the whole op. Two
+properties keep that loop from becoming a DoS amplifier:
+
+- **Shared ceiling.** Each op calls `FilterAdmission.checkTemplateCount(tmpls.length)` immediately after
+  `checkForEmpty`, before any admission work. A collection larger than `MAX_TEMPLATES` (256) is rejected
+  loudly with `FilterRejectedException(TEMPLATE_COUNT_EXCEEDED)` and counted in `filter.rejected.templateCount`
+  — never truncated (silent truncation would under-filter, the "never downgrade" hazard). Worst-case admission
+  work for one op is thus bounded by 256 × (one schema build + one CEL verify of a ≤64 KiB filter).
+- **Decode-once seam.** The envelope is **template-invariant**, so decoding it per template is wasted work.
+  `FilterAdmission.prepare(byte[])` unwraps it once into an immutable `PreparedFilter` (holding only the opaque
+  `celWire`), and the op loops `admit(PreparedFilter, tmpl)` — the schema build + CEL verify are the only
+  per-template steps. `admit(byte[], tmpl)` remains as a single-template convenience delegating to
+  `admit(prepare(env), tmpl)`. **Scope note:** only the *envelope* decode is hoisted; the CEL AST is still
+  decoded per template inside `CelVerifier.verify`, because reusing the decoded AST would bypass the verifier's
+  deliberate byte[]-only admission gate (see `CelVerifier` class javadoc). The ceiling bounds that residual.
+
 ---
 
 ## 5. Observability (operator-only by default)
 
 `FilterAdmission` maintains transport-neutral counters, snapshot via `metrics()` / `METRIC_NAMES`:
 
-- `filter.admitted`, and one `filter.rejected.*` per rejection reason (envelope, schemaUnavailable, decode,
-  cost, typeMismatch, resultTypeMismatch, notPredicate);
+- `filter.admitted`, and one `filter.rejected.*` per rejection reason (envelope, templateCount,
+  schemaUnavailable, decode, cost, typeMismatch, resultTypeMismatch, notPredicate);
 - `filter.evaluationNotWired` (B1's unwired-chokepoint rejections);
 - **`filter.failClosedExclusions`** — the SOW §5 B1 observability requirement: a candidate silently excluded
   during evaluation by a fail-closed rule (undecodable / wrong-format / **missing referenced field**), as

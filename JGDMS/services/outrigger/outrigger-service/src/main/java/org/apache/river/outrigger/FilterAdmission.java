@@ -82,6 +82,8 @@ public final class FilterAdmission {
     static final AtomicLong ADMITTED = new AtomicLong();
     /** Rejections: malformed / over-ceiling / wrong-version envelope. */
     static final AtomicLong REJECTED_ENVELOPE = new AtomicLong();
+    /** Rejections: a multi-template op exceeded {@link #MAX_TEMPLATES} (DoS ceiling). */
+    static final AtomicLong REJECTED_TEMPLATE_COUNT = new AtomicLong();
     /** Rejections: template v2 schema could not be resolved. */
     static final AtomicLong REJECTED_SCHEMA_UNAVAILABLE = new AtomicLong();
     /** Rejections: CEL verifier DECODE_REJECTED. */
@@ -122,12 +124,19 @@ public final class FilterAdmission {
      * — so its COUNT is what is bounded here). {@value} is generous for any
      * legitimate multi-type query — realistic entry-type cardinality is a handful
      * to a few dozen — while capping the admission amplification at a fixed factor
-     * instead of leaving it unbounded. Tunable by a deployment that genuinely
-     * needs more.
+     * instead of leaving it unbounded.
+     *
+     * <p><b>This is a fixed compile-time constant, not a runtime/deployment knob.</b>
+     * There is no configuration or system-property override; raising it requires
+     * editing this source and recompiling {@code outrigger-service} (the value is
+     * additionally inlined into its call sites, so replacing the class alone would
+     * not retune it). Worst-case admission work for one operation is therefore
+     * bounded by {@code MAX_TEMPLATES} × (one template schema build + one CEL
+     * verification of a ≤{@code MAX_CEL_WIRE_BYTES} filter).
      *
      * @see #checkTemplateCount(int)
      */
-    public static final int MAX_TEMPLATES = 1024;
+    public static final int MAX_TEMPLATES = 256;
 
     /**
      * Fail-closed guard for the multi-template filtered ops: rejects a template
@@ -137,14 +146,23 @@ public final class FilterAdmission {
      * templates would under-filter the query, exactly the "never downgrade" hazard
      * the whole filter feature exists to prevent.
      *
+     * <p>The breach is signalled as a {@link FilterRejectedException} of reason
+     * {@link FilterRejectedException.Reason#TEMPLATE_COUNT_EXCEEDED} — uniform with
+     * every other filter-admission rejection on the same operation signatures, so a
+     * client catching {@code FilterRejectedException} catches this too — and is
+     * counted in {@link #REJECTED_TEMPLATE_COUNT} so the very flood this defends
+     * against is visible in {@link #metrics()}.
+     *
      * @param count the number of templates the operation was invoked with
-     * @throws IllegalArgumentException if {@code count > MAX_TEMPLATES} (the
-     *         codebase's established loud pre-side-effect arg-validation idiom,
-     *         matching {@code checkForEmpty}/{@code checkLimit})
+     * @throws FilterRejectedException {@code TEMPLATE_COUNT_EXCEEDED} if
+     *         {@code count > MAX_TEMPLATES} (loud; never a downgrade to a smaller
+     *         or unfiltered query)
      */
-    public static void checkTemplateCount(int count) {
+    public static void checkTemplateCount(int count) throws FilterRejectedException {
         if (count > MAX_TEMPLATES) {
-            throw new IllegalArgumentException(
+            REJECTED_TEMPLATE_COUNT.incrementAndGet();
+            throw new FilterRejectedException(
+                    FilterRejectedException.Reason.TEMPLATE_COUNT_EXCEEDED,
                     "filtered operation template count " + count
                     + " exceeds the maximum " + MAX_TEMPLATES
                     + " (admission DoS ceiling); reduce the number of templates");
@@ -369,6 +387,7 @@ public final class FilterAdmission {
         return new long[] {
             ADMITTED.get(),
             REJECTED_ENVELOPE.get(),
+            REJECTED_TEMPLATE_COUNT.get(),
             REJECTED_SCHEMA_UNAVAILABLE.get(),
             REJECTED_DECODE.get(),
             REJECTED_COST.get(),
@@ -384,6 +403,7 @@ public final class FilterAdmission {
     public static final String[] METRIC_NAMES = {
         "filter.admitted",
         "filter.rejected.envelope",
+        "filter.rejected.templateCount",
         "filter.rejected.schemaUnavailable",
         "filter.rejected.decode",
         "filter.rejected.cost",

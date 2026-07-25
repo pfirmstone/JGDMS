@@ -327,9 +327,17 @@ public class FilterAdmissionTest {
     // template, so an unbounded template array is an admission-amplification
     // vector. checkTemplateCount() is the shared fail-closed ceiling every one of
     // them calls before its loop.
+    //
+    // TEST-SCOPE GAP (board finding, recorded honestly): these tests exercise
+    // checkTemplateCount() directly, NOT the three real OutriggerServerImpl ops.
+    // OutriggerServerImpl is a full activatable server (ActivationID/LifeCycle
+    // ctor) and is not instantiable in unit scope, so nothing here would fail if
+    // the checkTemplateCount call were dropped from an op. That server-call-site
+    // wiring is verified by the qa deployment matching suite + code review, not by
+    // this unit test. See memory: grep-count != verify / mirror != real path.
 
     @Test
-    public void checkTemplateCountAdmitsAtAndBelowMax() {
+    public void checkTemplateCountAdmitsAtAndBelowMax() throws Exception {
         // The boundary and below must NOT throw.
         FilterAdmission.checkTemplateCount(0);
         FilterAdmission.checkTemplateCount(1);
@@ -338,26 +346,42 @@ public class FilterAdmissionTest {
 
     @Test
     public void checkTemplateCountRejectsAboveMaxLoudly() {
-        try {
-            FilterAdmission.checkTemplateCount(FilterAdmission.MAX_TEMPLATES + 1);
-            fail("expected IllegalArgumentException for template count "
-                    + (FilterAdmission.MAX_TEMPLATES + 1));
-        } catch (IllegalArgumentException expected) {
-            // Loud, and the diagnostic names the ceiling it breached.
-            assertTrue("diagnostic should name the maximum",
-                    expected.getMessage().contains(String.valueOf(FilterAdmission.MAX_TEMPLATES)));
-        }
+        // A breach is a loud FilterRejectedException(TEMPLATE_COUNT_EXCEEDED) --
+        // uniform with every other filter rejection on the same op signatures.
+        assertRejected(FilterRejectedException.Reason.TEMPLATE_COUNT_EXCEEDED,
+                () -> FilterAdmission.checkTemplateCount(FilterAdmission.MAX_TEMPLATES + 1));
     }
 
     @Test
     public void checkTemplateCountRejectsGrosslyOversizedArray() {
         // The concrete attack the board flagged: ~10^4 templates.
+        assertRejected(FilterRejectedException.Reason.TEMPLATE_COUNT_EXCEEDED,
+                () -> FilterAdmission.checkTemplateCount(10_000));
+    }
+
+    @Test
+    public void templateCountRejectionIsCounted() throws Exception {
+        // The DoS defence must be observable: a breach increments the operator
+        // metric, so the flood this guard exists to stop is not invisible.
+        long[] before = FilterAdmission.metrics();
+        int slot = indexOf(FilterAdmission.METRIC_NAMES, "filter.rejected.templateCount");
+        assertTrue("metric slot must exist", slot >= 0);
         try {
-            FilterAdmission.checkTemplateCount(10_000);
-            fail("expected IllegalArgumentException for 10000 templates");
-        } catch (IllegalArgumentException expected) {
-            // expected — fail-closed before any envelope decode / admission loop.
+            FilterAdmission.checkTemplateCount(FilterAdmission.MAX_TEMPLATES + 1);
+            fail("expected TEMPLATE_COUNT_EXCEEDED");
+        } catch (FilterRejectedException expected) {
+            // expected
         }
+        long[] after = FilterAdmission.metrics();
+        assertEquals("templateCount rejection must be counted",
+                before[slot] + 1, after[slot]);
+    }
+
+    private static int indexOf(String[] names, String name) {
+        for (int i = 0; i < names.length; i++) {
+            if (names[i].equals(name)) return i;
+        }
+        return -1;
     }
 
     // ---- Decode-once seam (prepare + admit(PreparedFilter, EntryRep)) -----

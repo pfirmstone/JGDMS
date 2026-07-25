@@ -68,6 +68,18 @@ public class FilterRejectedException extends Exception {
         ENVELOPE_MALFORMED,
 
         /**
+         * A multi-template filtered operation
+         * ({@code registerForAvailabilityEvent}, filtered {@code contents}, or
+         * filtered bulk {@code take}) was called with more templates than the
+         * server's admission ceiling permits. Each template forces an independent
+         * schema build and CEL verification of the one filter, so an unbounded
+         * template collection is a denial-of-service amplification vector;
+         * exceeding the ceiling fails the whole operation loudly (fail-closed)
+         * before any admission work, and is never truncated to a smaller query.
+         */
+        TEMPLATE_COUNT_EXCEEDED,
+
+        /**
          * The CEL wire bytes failed canonical decode
          * ({@code VerificationResult.Reason.DECODE_REJECTED}).
          */
