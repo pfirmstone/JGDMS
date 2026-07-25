@@ -548,6 +548,27 @@ public interface OutriggerServer extends TransactionParticipant, Landlord,
         throws TransactionException, RemoteException, FilterRejectedException;
 
     /**
+     * Filtered variant of {@link #contents(EntryRep[], Transaction, long, long)}.
+     * The one filter is admitted against every template's schema.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+                                 long leaseTime, long limit, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of
+     * {@link #take(EntryRep[], Transaction, long, int, QueryCookie)}.
+     * The one filter is admitted against every template's schema.
+     * @param filterEnvelope a canonical {@link FilterEnvelope} (must not be null)
+     * @throws FilterRejectedException if the filter is refused (loud)
+     */
+    Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+                int limit, QueryCookie cookie, byte[] filterEnvelope)
+        throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
      * Start a new contents query. Returns a
      * <code>MatchSetData</code> with the initial batch of
      * entries and (if applicable) the <code>Uuid</code> and initial

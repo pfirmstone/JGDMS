@@ -2356,6 +2356,36 @@ public class OutriggerServerImpl
 	throw FilterAdmission.evaluationNotWired("registerForAvailabilityEvent", filter);
     }
 
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+	    long leaseTime, long limit, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	checkForEmpty(tmpls, "Must provide at least one template");
+	// Admit the one filter against each template's own schema; any failure
+	// rejects the whole query loudly.
+	CompiledFilter filter = null;
+	for (int i = 0; i < tmpls.length; i++) {
+	    typeCheck(tmpls[i]);
+	    filter = FilterAdmission.admit(filterEnvelope, tmpls[i]);
+	}
+	throw FilterAdmission.evaluationNotWired("contents", filter);
+    }
+
+    public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+	    int limit, QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	checkForEmpty(tmpls, "Must provide at least one template");
+	// Admit the one filter against each template's own schema; any failure
+	// rejects the whole query loudly.
+	CompiledFilter filter = null;
+	for (int i = 0; i < tmpls.length; i++) {
+	    typeCheck(tmpls[i]);
+	    filter = FilterAdmission.admit(filterEnvelope, tmpls[i]);
+	}
+	throw FilterAdmission.evaluationNotWired("take<multiple>", filter);
+    }
+
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
 		       int limit, QueryCookie queryCookieFromClient)
 	throws TransactionException, RemoteException

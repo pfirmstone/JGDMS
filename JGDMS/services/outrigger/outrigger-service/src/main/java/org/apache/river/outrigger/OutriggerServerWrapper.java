@@ -342,6 +342,22 @@ public class OutriggerServerWrapper
 	    listener, leaseTime, handback, filterEnvelope);
     }
 
+    public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
+	    long leaseTime, long limit, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.contents(tmpls, tr, leaseTime, limit, filterEnvelope);
+    }
+
+    public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
+	    int limit, QueryCookie cookie, byte[] filterEnvelope)
+	throws TransactionException, RemoteException, FilterRejectedException
+    {
+	gate();
+	return delegate.take(tmpls, tr, timeout, limit, cookie, filterEnvelope);
+    }
+
     public long[] write(EntryRep[] entries, Transaction txn, long[] leaseTimes)
         throws TransactionException, RemoteException
     {

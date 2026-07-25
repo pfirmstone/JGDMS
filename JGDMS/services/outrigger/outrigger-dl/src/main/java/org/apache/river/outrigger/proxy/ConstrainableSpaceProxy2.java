@@ -291,6 +291,33 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 RemoteEventListener.class,
 					 long.class,
 					 MarshalledInstance.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "contents",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "contents",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+
+	ProxyUtil.getMethod(FilteredJavaSpace.class, "take",
+			    new Class[] {Collection.class,
+					 Transaction.class,
+					 long.class,
+					 long.class,
+					 byte[].class}),
+	ProxyUtil.getMethod(OutriggerServer.class, "take",
+			    new Class[] {EntryRep[].class,
+					 Transaction.class,
+					 long.class,
+					 int.class,
+					 OutriggerServer.QueryCookie.class,
 					 byte[].class})
     };//end methodMapArray
 

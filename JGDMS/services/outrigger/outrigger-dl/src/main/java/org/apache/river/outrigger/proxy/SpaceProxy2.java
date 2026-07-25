@@ -993,6 +993,104 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
 	    leaseDuration, handback, filter);
     }
 
+    public MatchSet contents(Collection tmpls, Transaction txn,
+			     long leaseDuration, long maxEntries, byte[] filter)
+	throws RemoteException, TransactionException, FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	final MatchSetData msd =
+	    space.contents(repFor(tmpls, "tmpls", entryFormat), txn,
+			   leaseDuration, maxEntries, filter);
+	return new MatchSetProxy(msd, this, space, tmpls);
+    }
+
+    public Collection take(Collection tmpls, Transaction txn,
+			   long timeout, long maxEntries, byte[] filter)
+	throws UnusableEntriesException, TransactionException, RemoteException,
+	       FilterRejectedException
+    {
+	if (filter == null) throw new NullPointerException("filter");
+	// Figure out the max time this query should last
+	final long endTime = calcEndTime(timeout);
+
+	long remaining = timeout;
+	OutriggerServer.QueryCookie queryCookie = null;
+	final EntryRep[] treps = repFor(tmpls, "tmpls", entryFormat);
+
+	final int limit;
+	if (maxEntries < 1) {
+	    throw new IllegalArgumentException("maxEntries must be positive");
+	} else if (maxEntries <= Integer.MAX_VALUE) {
+	    limit = (int)maxEntries;
+	} else {
+	    limit = Integer.MAX_VALUE; // ok to return fewer than requested
+	}
+
+	// Loop util timeout or we get an answer (call at least once!)
+	do {
+	    final long serverTimeout =
+		Math.min(remaining, maxServerQueryTimeout);
+	    logQuery("take(multiple,filtered)", serverTimeout, queryCookie, remaining);
+
+	    final Object rslt =
+		space.take(treps, txn, serverTimeout, limit, queryCookie, filter);
+	    if (rslt == null) {
+		// should never get null from a non-ifExists query
+		throw new AssertionError("space.take<multiple>(filtered) returned null");
+	    } else if (rslt instanceof EntryRep[]) {
+		EntryRep[] reps = (EntryRep[])rslt;
+		// Got an answer, return it
+		final Collection entries = new LinkedList();
+		Collection exceptions = null;
+
+		for (int i=0,l=reps.length; i<l ; i++) {
+		    try {
+			Iterator tmplsIt = tmpls.iterator();
+			while (tmplsIt.hasNext()){ // Try each template for class resolution.
+			    Entry tmpl = (Entry) tmplsIt.next();
+			    Entry e = entryFrom(reps[i], tmpl);
+			    if (e != null) {
+				entries.add(e);
+				break;
+			    }
+			}
+		    } catch (UnusableEntryException e) {
+			if (exceptions == null)
+			    exceptions = new LinkedList();
+
+			exceptions.add(e);
+		    }
+		}
+
+		if (exceptions == null) {
+		    return entries;
+		} else {
+		    throw new UnusableEntriesException(
+			"some of the removed entries could not be unmarshalled",
+			entries, exceptions);
+		}
+	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
+		/* Will still want to go on if there is time, but pass
+		 * the new cookie
+		 */
+		queryCookie = (OutriggerServer.QueryCookie)rslt;
+	    } else {
+		throw new AssertionError(
+		    "Unexpected return type from space.take<multiple>(filtered)");
+	    }
+
+	    /* Update remaining and loop, checking to see if the timeout has
+	     * expired.
+	     */
+	    remaining = endTime - System.currentTimeMillis();
+	} while (remaining > 0);
+
+	/* If we get here then there must not have been any entries available
+	 * to us before the endTime.
+	 */
+	return Collections.EMPTY_LIST;
+    }
+
     /* We break up lease creation into two methods. newLease takes
      * care of converting from duration to expiration and we should
      * never need to override (so we make it final), while

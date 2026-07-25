@@ -57,6 +57,17 @@ public class FilterAdmissionTest {
         public Doc(String a, String b) { this.a = a; this.b = b; }
     }
 
+    /** A differently-shaped entry: single String field {@code z}, and crucially
+     *  NO field named {@code a}. A filter referencing {@code a} therefore DEFERS
+     *  (UNKNOWN) against this schema and is admitted, whereas against {@link Doc}
+     *  (whose {@code a} is a STRING) a numeric comparison on {@code a} is a loud
+     *  STATIC_TYPE_MISMATCH. */
+    public static class Other implements Entry {
+        public String z;
+        public Other() {}
+        public Other(String z) { this.z = z; }
+    }
+
     private static ExprNode fieldRef(String name) {
         return new ExprNode.FieldRef(
                 Collections.<ExprNode.SelectorStep>singletonList(
@@ -228,6 +239,82 @@ public class FilterAdmissionTest {
         CompiledFilter cf = FilterAdmission.admit(env, tmpl(new Doc("x", "y")));
         FilterRejectedException e = FilterAdmission.evaluationNotWired("read", cf);
         assertEquals(FilterRejectedException.Reason.EVALUATION_NOT_WIRED, e.reason());
+    }
+
+    /** The unwired-chokepoint loud reject is op-name agnostic: the two multi-
+     *  template query ops folded into B1 (filtered contents + filtered bulk take)
+     *  reach the same EVALUATION_NOT_WIRED break as the single-entry ops. */
+    @Test
+    public void evaluationNotWiredIsLoudForContentsAndBulkTake() throws Exception {
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("a"), new ExprNode.LitString("x")));
+        CompiledFilter cf = FilterAdmission.admit(env, tmpl(new Doc("x", "y")));
+        assertEquals(FilterRejectedException.Reason.EVALUATION_NOT_WIRED,
+                FilterAdmission.evaluationNotWired("contents", cf).reason());
+        assertEquals(FilterRejectedException.Reason.EVALUATION_NOT_WIRED,
+                FilterAdmission.evaluationNotWired("take<multiple>", cf).reason());
+    }
+
+    // ---- Multi-template admission (one filter, "all templates must pass") ----
+    //
+    // The filtered contents and bulk-take ops are MULTI-template with a SINGLE
+    // filter. OutriggerServerImpl admits the one filter against EACH template's
+    // own schema and rejects the whole op if admission fails against any of them.
+    // These tests exercise that loop at the seam it is built from.
+
+    /** Mirrors the server's per-template admission loop: admit the one filter
+     *  against each template in turn; any rejection fails the whole op. Returns
+     *  the last admitted filter (matching the impl, which then throws
+     *  EVALUATION_NOT_WIRED). */
+    private CompiledFilter admitAgainstEach(byte[] env, EntryRep... tmpls)
+            throws FilterRejectedException {
+        CompiledFilter cf = null;
+        for (EntryRep t : tmpls) {
+            cf = FilterAdmission.admit(env, t);
+        }
+        return cf;
+    }
+
+    @Test
+    public void multiTemplateAdmitsWhenFilterTypeChecksAgainstEverySchema() throws Exception {
+        // a == "x" : STRING == STRING -> bool. Type-checks against every Doc
+        // template, so admission against each succeeds.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Eq(fieldRef("a"), new ExprNode.LitString("x")));
+        CompiledFilter cf = admitAgainstEach(env, tmpl(new Doc("x", "y")), tmpl(new Doc("p", "q")));
+        assertNotNull(cf);
+        assertFalse(cf.isSchemaLess());
+    }
+
+    @Test
+    public void multiTemplateRejectsWhenFilterFailsAnyOneSchema() throws Exception {
+        // a > 5 DEFERS against Other (no field 'a' -> UNKNOWN -> admitted) but is
+        // a loud STATIC_TYPE_MISMATCH against Doc (a:STRING). "All templates must
+        // pass" => admitting against Other first does NOT let the op through; the
+        // Doc template rejects it loudly. It is never admitted schema-lessly and
+        // never downgraded to an unfiltered query.
+        byte[] env = envelopeOfPredicate(
+                new ExprNode.Gt(fieldRef("a"), new ExprNode.LitInt(5)));
+        // Sanity: the filter really is admitted against Other on its own.
+        assertNotNull(FilterAdmission.admit(env, tmpl(new Other("z"))));
+        assertRejected(FilterRejectedException.Reason.FILTER_TYPE_MISMATCH,
+                () -> admitAgainstEach(env, tmpl(new Other("z")), tmpl(new Doc("x", "y"))));
+    }
+
+    @Test
+    public void multiTemplateRejectsNullEnvelopeAgainstEverySchema() throws Exception {
+        // A null filter is invalid on the filtered multi-template ops (unfiltered
+        // callers use ordinary JavaSpace05); admission fails closed on the first
+        // template.
+        assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
+                () -> admitAgainstEach(null, tmpl(new Doc("x", "y")), tmpl(new Other("z"))));
+    }
+
+    @Test
+    public void multiTemplateRejectsMalformedEnvelopeAgainstEverySchema() throws Exception {
+        assertRejected(FilterRejectedException.Reason.ENVELOPE_MALFORMED,
+                () -> admitAgainstEach(new byte[] { 0x31, 0x00 },
+                        tmpl(new Doc("x", "y")), tmpl(new Other("z"))));
     }
 
     // ---- Observability --------------------------------------------------

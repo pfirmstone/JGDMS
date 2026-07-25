@@ -21,6 +21,7 @@ import java.rmi.RemoteException;
 import java.util.Collection;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
+import net.jini.entry.UnusableEntriesException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.transaction.Transaction;
@@ -153,4 +154,58 @@ public interface FilteredJavaSpace {
             RemoteEventListener listener, long leaseDuration,
             MarshalledInstance handback, byte[] filter)
             throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link JavaSpace05#contents}: the returned
+     * {@linkplain MatchSet match set} contains only entries that match one of
+     * {@code tmpls} <b>and</b> satisfy the filter. This is the class-free
+     * filtered iterator — the server projects each candidate's DER field values
+     * against its own v2 schema and never loads the entry class.
+     *
+     * <p>This is a multi-template operation with a single filter: the one filter
+     * is admitted against every template's schema (all templates must pass); if
+     * it fails to type-check against any of them, the operation is refused. The
+     * "all templates pass" narrowing at match time is implemented in unit&nbsp;B3.
+     *
+     * @param tmpls         the query templates
+     * @param txn           the transaction, or {@code null}
+     * @param leaseDuration the requested initial lease on the match set, in
+     *                      milliseconds
+     * @param maxEntries    the maximum number of entries to remove from the set
+     *                      via {@link MatchSet#next MatchSet.next}
+     * @param filter        a canonical filter envelope (must not be {@code null})
+     * @return a proxy to the newly created {@linkplain MatchSet match set}
+     * @throws FilterRejectedException if the filter is refused (loud; never an
+     *         unfiltered fallback)
+     */
+    MatchSet contents(Collection tmpls, Transaction txn, long leaseDuration,
+                      long maxEntries, byte[] filter)
+            throws TransactionException, RemoteException, FilterRejectedException;
+
+    /**
+     * Filtered variant of {@link JavaSpace05#take(Collection, Transaction, long, long)}:
+     * removes and returns up to {@code maxEntries} entries that each match one of
+     * {@code tmpls} <b>and</b> satisfy the filter.
+     *
+     * <p>This is a multi-template operation with a single filter: the one filter
+     * is admitted against every template's schema (all templates must pass); if
+     * it fails to type-check against any of them, the operation is refused. The
+     * "all templates pass" narrowing at match time is implemented in unit&nbsp;B3.
+     *
+     * @param tmpls      the query templates
+     * @param txn        the transaction, or {@code null}
+     * @param timeout    the maximum wait, in milliseconds
+     * @param maxEntries the maximum number of entries to take
+     * @param filter     a canonical filter envelope (must not be {@code null})
+     * @return a {@code Collection} of the entries taken (may be immutable);
+     *         empty if none matched before the timeout
+     * @throws UnusableEntriesException if one or more taken entries can't be
+     *         unmarshalled in the client
+     * @throws FilterRejectedException if the filter is refused (loud; never an
+     *         unfiltered fallback)
+     */
+    Collection take(Collection tmpls, Transaction txn, long timeout,
+                    long maxEntries, byte[] filter)
+            throws UnusableEntriesException, TransactionException,
+                   RemoteException, FilterRejectedException;
 }
