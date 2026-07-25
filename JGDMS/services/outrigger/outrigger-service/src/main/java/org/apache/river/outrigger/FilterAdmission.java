@@ -17,7 +17,6 @@
  */
 package org.apache.river.outrigger;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.river.outrigger.proxy.EntryRep;
@@ -158,11 +157,7 @@ public final class FilterAdmission {
                         "could not resolve the template's v2 schema to type-check the filter against",
                         e);
             }
-            final List<?> chain = esc.chain();
-            @SuppressWarnings("unchecked")
-            final SchemaView view = new DerSchemaChainView(
-                    (List<au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord>) chain);
-            schemaView = view;
+            schemaView = new DerSchemaChainView(esc.chain());
             applicabilityDigest = esc.entrySchemaDigest();
         }
 
