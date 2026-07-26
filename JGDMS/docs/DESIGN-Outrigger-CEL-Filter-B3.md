@@ -787,7 +787,7 @@ Following the demo5/demo6 born-DER Outrigger pattern; the class-free property is
 
 ### 8.2 Class-free server-side filtering (the headline assertion)
 
-- Cast the space proxy to `FilteredJavaSpace`; call filtered `contents(Collections.singletonList(matchAny),
+- Cast the space proxy to `FilteredTupleSpace`; call filtered `contents(Collections.singletonList(matchAny),
   txn, lease, limit, filterEnvelope)` and filtered `take(..., filterEnvelope)`.
 - **Assert:** exactly the warm-northern entries are returned — computed **server-side, class-free** (the server
   evaluated `temperatureCelsius > 20.0 && stationName.startsWith("North")` against each candidate's own v2
