@@ -526,6 +526,56 @@ public final class EntryRepV2Codec {
     }
 
     // =========================================================================
+    // Class-free scalar slice decode (STD-011 §B2 candidate projection)
+    // =========================================================================
+
+    /**
+     * Fail-closed sentinel returned by {@link #decodeScalarSliceValueClassFree} when a
+     * {@code FieldSlice} value is NOT a class-free-decodable scalar of the declared type.
+     * Distinct from {@code null}, which is the legitimate wire-null value. Reference-identity
+     * comparison ({@code ==}) only.
+     */
+    public static final Object NON_SCALAR_SLICE = new Object();
+
+    /**
+     * Decodes a {@code FieldSlice} {@code value.payload} as a <b>class-free scalar</b> gated on the
+     * field's DECLARED {@code wireType}, reconstructing NO object and loading NO class (STD-011 §B2
+     * class-free candidate projection). The payload of a scalar slice is a single self-describing DER
+     * object-stream item (the empty-{@code valueSchemaDigest} form); this decodes it via
+     * {@link DerMarshalInputStream#readScalarClassFree} with {@link ResolutionContext#NONE}, so:
+     * <ul>
+     *   <li>only the inert scalar kinds decode ({@code boolean}/int-family/{@code float}/{@code
+     *       double}/{@code java.lang.String}/{@code byte[]}, plus wire-null &rarr; {@code null});</li>
+     *   <li>a declared non-scalar type, an item whose actual context tag does not match the declared
+     *       scalar type (a constructed {@code [1]} {@code @AtomicSerial} / {@code [7]} enum / {@code
+     *       [8]} proxy / {@code [9]} array / {@code [16]} collection item, or a mismatched scalar
+     *       tag), trailing bytes, or any malformed content yields the {@link #NON_SCALAR_SLICE}
+     *       sentinel -- <b>never</b> a class load, a constructor, or a lenient/guessed value.</li>
+     * </ul>
+     *
+     * @param declaredWireType the field's declared wire type (from its schema record)
+     * @param valuePayload     the {@code FieldSlice.value.payload} bytes (the self-describing item)
+     * @return the decoded scalar (boxed) value, {@code null} for a wire-null, or
+     *         {@link #NON_SCALAR_SLICE} if it is not a class-free scalar of the declared type
+     */
+    public static Object decodeScalarSliceValueClassFree(String declaredWireType, byte[] valuePayload) {
+        Objects.requireNonNull(declaredWireType, "declaredWireType");
+        Objects.requireNonNull(valuePayload, "valuePayload");
+        try {
+            DerMarshalInputStream in = DerMarshalInputStream.recordLevelCapture(
+                    new ByteArrayInputStream(valuePayload), ResolutionContext.NONE);
+            Object v = in.readScalarClassFree(declaredWireType);
+            if (in.available() != 0) {
+                // A scalar slice is exactly one item; trailing bytes are fail-closed.
+                return NON_SCALAR_SLICE;
+            }
+            return v;
+        } catch (IOException | RuntimeException e) {
+            return NON_SCALAR_SLICE;
+        }
+    }
+
+    // =========================================================================
     // Value reconstruction (for EntryRep.entry())
     // =========================================================================
 

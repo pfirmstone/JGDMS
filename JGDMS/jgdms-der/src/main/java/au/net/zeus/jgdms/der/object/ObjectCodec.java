@@ -996,6 +996,81 @@ public final class ObjectCodec {
         return result;
     }
 
+    /**
+     * Decodes a DER hierarchy payload into a named field map <b>class-free and scalar-only</b>,
+     * loading NO class from any codebase and reconstructing NO object (STD-011 §B2 class-free
+     * candidate projection). This is the fail-closed, non-class-loading counterpart of
+     * {@link #decodeToFieldMap}: it walks the same {@code SEQUENCE {per-class SEQUENCE ...}}
+     * structure, but decodes each field via {@link DerFieldStore#decodeScalarFieldClassFree}
+     * (which reaches only the inert scalar {@link au.net.zeus.jgdms.der.getarg.ResolutionContext}-free
+     * decoders) and <b>fail-closes any non-scalar field</b> ({@code enum:} / {@code array:} /
+     * collection / nested {@code @AtomicSerial} / {@code char} / {@code Class} / {@code any}) with a
+     * {@link DerException}.
+     *
+     * <p>The critical difference from {@link #decodeToFieldMap}: that method builds a
+     * {@link DerFieldStore} whose decode routes an {@code enum:} field through
+     * {@code WireTypes.decodeEnum -> loadClass}, i.e. it resolves an attacker-declared class name.
+     * This method never does -- a hostile nested schema that declares an {@code enum:com.evil.X}
+     * sub-field is fail-closed <em>without</em> {@code com.evil.X} ever being named to a loader. It
+     * supports exactly the one-level-deep, scalar-sub-field {@code @AtomicSerial} projection the
+     * candidate projector needs; deeper nesting is deferred (fail-closed).
+     *
+     * @param chain            the nested value's schema chain (leaf-first)
+     * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
+     * @return an ordered map: className -&gt; (fieldName -&gt; decoded scalar value), superclass-first
+     * @throws DerException         if the encoding is malformed OR any field is a non-scalar
+     *                              (fail-closed; no class is loaded)
+     * @throws NullPointerException if any argument is {@code null}
+     */
+    public static LinkedHashMap<String, Map<String, Object>>
+            decodeToScalarFieldMapClassFree(SchemaChain.Result chain,
+                                            byte[] hierarchyPayload) throws DerException {
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(hierarchyPayload, "hierarchyPayload");
+
+        // chain.chain() is leaf-first; the wire is superclass-first (root-first).
+        List<AtomicSerialSchemaRecord> leafFirst = chain.chain();
+        List<AtomicSerialSchemaRecord> rootFirst = new ArrayList<>(leafFirst);
+        Collections.reverse(rootFirst);
+
+        DerReader outer = new DerReader(hierarchyPayload);
+        DerReader outerSeq = outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException(
+                    "decodeToScalarFieldMapClassFree: trailing bytes after outer SEQUENCE");
+        }
+
+        LinkedHashMap<String, Map<String, Object>> result =
+                new LinkedHashMap<>(rootFirst.size() * 2);
+        for (AtomicSerialSchemaRecord rec : rootFirst) {
+            DerReader classSeq = outerSeq.readSequence();
+            LinkedHashMap<String, Object> vals = new LinkedHashMap<>(rec.fields().size() * 2);
+            for (AtomicSerialFieldDef f : rec.fields()) {
+                if (!classSeq.hasMore()) {
+                    throw new DerException(
+                            "decodeToScalarFieldMapClassFree: class '" + rec.className()
+                            + "' payload SEQUENCE has fewer TLVs than its schema declares"
+                            + " (missing field '" + f.wireName() + "')");
+                }
+                // Class-free, scalar-only: a non-scalar sub-field fail-closes here (no loadClass).
+                Object v = DerFieldStore.decodeScalarFieldClassFree(classSeq, f.wireType());
+                vals.put(f.wireName(), v);
+            }
+            if (classSeq.hasMore()) {
+                throw new DerException(
+                        "decodeToScalarFieldMapClassFree: class '" + rec.className()
+                        + "' payload SEQUENCE has more TLVs than its schema declares");
+            }
+            result.put(rec.className(), Collections.unmodifiableMap(vals));
+        }
+        if (outerSeq.hasMore()) {
+            throw new DerException(
+                    "decodeToScalarFieldMapClassFree: trailing per-class SEQUENCEs"
+                    + " (more SEQUENCEs than schema records)");
+        }
+        return result;
+    }
+
     // =========================================================================
     // Private helpers
     // =========================================================================

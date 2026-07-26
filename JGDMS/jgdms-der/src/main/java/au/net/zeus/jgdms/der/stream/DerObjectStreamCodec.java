@@ -1401,6 +1401,148 @@ final class DerObjectStreamCodec {
     }
 
     /**
+     * Reads the next self-describing object-stream item as a <b>class-free scalar</b> gated on the
+     * caller-supplied DECLARED {@code wireType}, reconstructing NO object and loading NO class
+     * (STD-011 §B2 class-free candidate projection). This is a strict, non-reconstructing subset of
+     * {@link #readObject}:
+     * <ul>
+     *   <li>The declared type must be one of the inert scalar kinds
+     *       ({@code boolean}/int-family/{@code float}/{@code double}/{@code java.lang.String}/{@code
+     *       byte[]}); any other declared type ({@code enum:}/{@code array:}/collection/{@code
+     *       @AtomicSerial}/{@code char}/{@code Class}/{@code any}) is fail-closed up front.</li>
+     *   <li>The item's ACTUAL context tag is cross-checked against the tag the declared scalar type
+     *       implies. A constructed/object item ({@code [1]} {@code @AtomicSerial}, {@code [7]} enum,
+     *       {@code [8]} proxy, {@code [9]} array, {@code [16]} collection) -- or a mismatched scalar
+     *       tag -- sitting in a scalar slot is rejected here <b>before</b> its bytes could reach any
+     *       reconstructor. The {@code [1]/[7]/[8]/[9]/[16]} branches of {@link #readObject}
+     *       (the only ones that call {@code loadClass} / {@code decodeAtomicRecord} /
+     *       {@code enumValueOf} / {@code Proxy.newProxyInstance}) are never entered.</li>
+     *   <li>A {@code [0]} NULL item decodes to {@code null} (wire-null) for any scalar slot.</li>
+     * </ul>
+     * The matched scalar content is decoded with the SAME canonical parsers {@link #readObject}
+     * uses, so a value has one decoding whichever path reads it.
+     *
+     * @param declaredWireType the field's declared wire type (drives the expected scalar tag)
+     * @return the decoded scalar (boxed) value, or {@code null} for a {@code [0]} NULL item
+     * @throws IOException if the declared type is not a class-free scalar, the actual item tag does
+     *                     not match the declared scalar type, or the content is malformed/out of
+     *                     range (fail-closed; no class is ever loaded)
+     */
+    Object readScalarClassFree(String declaredWireType) throws IOException {
+        Tag expected = expectedScalarTag(declaredWireType);
+        if (expected == null) {
+            throw new IOException("readScalarClassFree: declared wire type '" + declaredWireType
+                    + "' is not a class-free scalar (enum/array/collection/@AtomicSerial/char/Class/"
+                    + "any are fail-closed -- no reconstruction, no class load)");
+        }
+        DerReader.TlvHeader hdr;
+        try {
+            hdr = reader.readTlvHeader();
+        } catch (DerException e) {
+            throw new IOException("readScalarClassFree: failed to read item TLV header: "
+                    + e.getMessage(), e);
+        }
+        Tag tag = hdr.tag();
+        // Wire-null: a [0] NULL item is null for any scalar slot (no reconstruction).
+        if (CTX_NULL.equals(tag)) {
+            if (hdr.contentLength() != 0) {
+                throw new IOException("readScalarClassFree: [0] NULL item must have length 0, got "
+                        + hdr.contentLength());
+            }
+            return null;
+        }
+        // Declared/actual cross-check: the item's tag MUST be exactly the scalar tag the declared
+        // type implies. This rejects a constructed/object item ([1]/[7]/[8]/[9]/[16]) or a
+        // mismatched scalar tag in a scalar slot -- WITHOUT ever routing those bytes to a
+        // reconstructor (no loadClass, no constructor, no Proxy).
+        if (!expected.equals(tag)) {
+            throw new IOException("readScalarClassFree: declared '" + declaredWireType
+                    + "' expects context tag " + expected + " but the slice carries " + tag
+                    + " -- fail-closed (no reconstruction, no class load)");
+        }
+        if (CTX_BOOLEAN.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [2] Boolean");
+            if (content.length != 1) {
+                throw new IOException("readScalarClassFree: [2] Boolean content length must be 1, got "
+                        + content.length);
+            }
+            int b = content[0] & 0xFF;
+            if (b == 0x00) return Boolean.FALSE;
+            if (b == 0xFF) return Boolean.TRUE;
+            throw new IOException("readScalarClassFree: [2] Boolean content must be 0x00/0xFF, got 0x"
+                    + Integer.toHexString(b));
+        }
+        if (CTX_STRING.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [3] String");
+            return new String(content, StandardCharsets.UTF_8);
+        }
+        if (CTX_BYTES.equals(tag)) {
+            return readTagContent(hdr, "readScalarClassFree: [5] byte[]");
+        }
+        if (CTX_BYTE.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [4] Byte");
+            long lv = exactLongOrThrow(parseCanonicalIntegerContent(content,
+                    "readScalarClassFree: [4] Byte"), "readScalarClassFree: [4] Byte");
+            if (lv < Byte.MIN_VALUE || lv > Byte.MAX_VALUE) {
+                throw new IOException("readScalarClassFree: [4] Byte value " + lv + " out of range");
+            }
+            return Byte.valueOf((byte) lv);
+        }
+        if (CTX_SHORT.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [6] Short");
+            long lv = exactLongOrThrow(parseCanonicalIntegerContent(content,
+                    "readScalarClassFree: [6] Short"), "readScalarClassFree: [6] Short");
+            if (lv < Short.MIN_VALUE || lv > Short.MAX_VALUE) {
+                throw new IOException("readScalarClassFree: [6] Short value " + lv + " out of range");
+            }
+            return Short.valueOf((short) lv);
+        }
+        if (CTX_INTEGER.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [10] Integer");
+            BigInteger v = parseCanonicalIntegerContent(content, "readScalarClassFree: [10] Integer");
+            return Integer.valueOf(exactIntOrThrow(v, "readScalarClassFree: [10] Integer"));
+        }
+        if (CTX_LONG.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [11] Long");
+            BigInteger v = parseCanonicalIntegerContent(content, "readScalarClassFree: [11] Long");
+            return Long.valueOf(exactLongOrThrow(v, "readScalarClassFree: [11] Long"));
+        }
+        if (CTX_FLOAT.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [12] Float");
+            return Float.valueOf(Float.intBitsToFloat(
+                    decodeCanonicalFloatBits(content, "readScalarClassFree: [12] Float")));
+        }
+        if (CTX_DOUBLE.equals(tag)) {
+            byte[] content = readTagContent(hdr, "readScalarClassFree: [13] Double");
+            return Double.valueOf(Double.longBitsToDouble(
+                    decodeCanonicalDoubleBits(content, "readScalarClassFree: [13] Double")));
+        }
+        // expectedScalarTag admits no other tag (char [14]/Class are non-scalar); defensive.
+        throw new IOException("readScalarClassFree: unreachable scalar tag " + tag);
+    }
+
+    /**
+     * The self-describing object-stream context tag a declared scalar {@code wireType} implies, or
+     * {@code null} if the declared type is NOT a class-free scalar ({@code enum:} / {@code array:} /
+     * collection / {@code @AtomicSerial} / {@code char} / {@code java.lang.Character} /
+     * {@code java.lang.Class} / {@code any}). {@code char} and {@code Class} are deliberately excluded.
+     */
+    private static Tag expectedScalarTag(String wireType) {
+        return switch (wireType) {
+            case "boolean", "java.lang.Boolean" -> CTX_BOOLEAN;
+            case "byte", "java.lang.Byte"       -> CTX_BYTE;
+            case "short", "java.lang.Short"     -> CTX_SHORT;
+            case "int", "java.lang.Integer"     -> CTX_INTEGER;
+            case "long", "java.lang.Long"       -> CTX_LONG;
+            case "float", "java.lang.Float"     -> CTX_FLOAT;
+            case "double", "java.lang.Double"   -> CTX_DOUBLE;
+            case "java.lang.String"             -> CTX_STRING;
+            case "byte[]", "[B"                 -> CTX_BYTES;
+            default                              -> null;
+        };
+    }
+
+    /**
      * Reads {@code hdr}'s content bytes (TLV header already consumed via {@link
      * DerReader#readTlvHeader()}), wrapping a {@link DerException} as a fail-secure
      * {@link IOException}. Shared by every context-tagged item's content read in
