@@ -78,6 +78,51 @@ final class FilterEval {
 
     private FilterEval() { throw new AssertionError("no instances"); }
 
+    // --- Operator-only JFR outcome tags (see FilterEvaluationEvent) ----------
+    // These string values are the stable event contract the demo/operator reads;
+    // keep them in sync with the counters bumped alongside each return below.
+    static final String OUTCOME_PASSED = "PASSED";
+    static final String OUTCOME_EXCLUDED_FALSE = "EXCLUDED_FALSE";
+    static final String OUTCOME_FAIL_CLOSED = "FAIL_CLOSED";
+    static final String OUTCOME_PROJECTION_BUDGET = "PROJECTION_BUDGET";
+
+    // A never-committed probe instance whose isEnabled() gives a cheap, allocation-free
+    // "is any recording capturing FilterEvaluation?" check on the disabled hot path.
+    private static final FilterEvaluationEvent ENABLED_PROBE = new FilterEvaluationEvent();
+
+    private static final char[] HEX = "0123456789abcdef".toCharArray();
+
+    private static String hex(byte[] b) {
+        if (b == null) return null;
+        final char[] out = new char[b.length * 2];
+        for (int i = 0; i < b.length; i++) {
+            out[i * 2] = HEX[(b[i] >> 4) & 0xf];
+            out[i * 2 + 1] = HEX[b[i] & 0xf];
+        }
+        return new String(out);
+    }
+
+    /**
+     * Commit one operator-only {@link FilterEvaluationEvent} for a candidate the
+     * predicate actually ran against. A {@code null} outcome (the unfiltered no-op
+     * and the VirtualMachineError re-throw) records nothing — "no event" is itself the
+     * confused-deputy signal (memo &sect;8.3). Inert and allocation-free unless a
+     * recording has explicitly enabled the event.
+     */
+    private static void emit(String outcome, EntryRep candidate) {
+        if (outcome == null || !ENABLED_PROBE.isEnabled()) {
+            return; // unfiltered/VME path, or event disabled by default → nothing
+        }
+        final FilterEvaluationEvent event = new FilterEvaluationEvent();
+        event.outcome = outcome;
+        try {
+            event.schemaDigestHex = hex(candidate.entrySchemaDigest());
+        } catch (Throwable ignore) {
+            event.schemaDigestHex = null; // never let telemetry perturb the verdict
+        }
+        event.commit();
+    }
+
     /**
      * Evaluate the operation's filters against one entitled candidate. Convenience
      * overload with no byte-matched-template hint (correct for single-template ops
@@ -106,8 +151,12 @@ final class FilterEval {
      */
     static boolean matches(FilterSet filters, EntryRep candidate, byte[] matchedTemplateDigest) {
         if (filters == null || filters.isEmpty()) {
-            return true; // unfiltered no-op
+            return true; // unfiltered no-op — no evaluation, no event
         }
+        // Terminal outcome tag for the operator-only JFR event, set on every real
+        // verdict below. Stays null on the VirtualMachineError re-throw (not a verdict)
+        // so no event is emitted there; emitted once in the finally otherwise.
+        String outcome = null;
         try {
             // Applicability selection off the STORED (pre-decode) digest — no field
             // is decoded to drop a wrong-schema concrete filter (§3 nit).
@@ -118,11 +167,12 @@ final class FilterEval {
                 // Ambiguous subclass / cross-schema — cannot recover the originating
                 // filter; fail closed (over-exclusion is safe, §5/§7).
                 FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+                outcome = OUTCOME_FAIL_CLOSED;
                 return false;
             }
             if (applicable.isEmpty()) {
                 // Only possible when the FilterSet is empty, handled above; defensive.
-                return true;
+                return true; // no predicate ran → leave outcome null (no event)
             }
 
             FilterAdmission.EVALUATED.incrementAndGet();
@@ -138,6 +188,9 @@ final class FilterEval {
             if (projection.isUndecodable()) {
                 if (projection.budgetExceeded()) {
                     FilterAdmission.REJECTED_PROJECTION_BUDGET.incrementAndGet();
+                    outcome = OUTCOME_PROJECTION_BUDGET;
+                } else {
+                    outcome = OUTCOME_FAIL_CLOSED;
                 }
                 FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
                 return false;
@@ -147,11 +200,12 @@ final class FilterEval {
             // must return BoolV(true); short-circuit on the first non-pass.
             final Evaluator evaluator = new Evaluator();
             for (CompiledFilter f : applicable) {
-                final EvalOutcome outcome = evaluator.evaluate(f.expr(), projection);
-                if (outcome instanceof EvalOutcome.Value v) {
+                final EvalOutcome evalOutcome = evaluator.evaluate(f.expr(), projection);
+                if (evalOutcome instanceof EvalOutcome.Value v) {
                     if (v.value() instanceof CelValue.BoolV b) {
                         if (!b.value()) {
                             FilterAdmission.EXCLUDED_FALSE.incrementAndGet();
+                            outcome = OUTCOME_EXCLUDED_FALSE;
                             return false; // honest predicate-false
                         }
                         // this filter passed; continue to the next
@@ -159,19 +213,23 @@ final class FilterEval {
                         // A Predicate is verified to yield boolean; a non-bool here is
                         // an internal inconsistency — fail closed, never let through.
                         FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+                        outcome = OUTCOME_FAIL_CLOSED;
                         return false;
                     }
                 } else {
                     // EvalOutcome.Error: undecodable / absent / ambiguous / type /
                     // arithmetic — the closed error set, uniformly fail-closed (§7).
                     FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+                    outcome = OUTCOME_FAIL_CLOSED;
                     return false;
                 }
             }
             FilterAdmission.PASSED.incrementAndGet();
+            outcome = OUTCOME_PASSED;
             return true;
         } catch (VirtualMachineError vme) {
-            // OOME / StackOverflow is not a candidate verdict — never swallow it.
+            // OOME / StackOverflow is not a candidate verdict — never swallow it, and
+            // never record it as one (outcome stays null ⇒ no event).
             throw vme;
         } catch (Throwable t) {
             // Any escaping Throwable (a latent projection/evaluator bug, the
@@ -179,7 +237,11 @@ final class FilterEval {
             // MathProvider, ...) => fail-closed no-match + counted, so it can never
             // kill the caller thread (§2.3).
             FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+            outcome = OUTCOME_FAIL_CLOSED;
             return false;
+        } finally {
+            // One operator-only event per candidate the predicate actually ran against.
+            emit(outcome, candidate);
         }
     }
 }
