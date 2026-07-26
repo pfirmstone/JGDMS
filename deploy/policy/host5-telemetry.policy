@@ -14,19 +14,17 @@
  *   ${trust.domain}  — SPIFFE trust domain
  */
 
-/* ── JRE bootstrap modules ────────────────────────────────────────────── */
-grant codebase "jrt:/java.base"              { permission java.security.AllPermission; };
-grant codebase "jrt:/java.logging"           { permission java.security.AllPermission; };
-grant codebase "jrt:/jdk.localedata"         { permission java.security.AllPermission; };
-grant codebase "jrt:/java.security.jgss"     { permission java.security.AllPermission; };
-grant codebase "jrt:/jdk.crypto.cryptoki"    { permission java.security.AllPermission; };
-grant codebase "jrt:/jdk.crypto.ec"          { permission java.security.AllPermission; };
-grant codebase "jrt:/java.xml.crypto"        { permission java.security.AllPermission; };
-
-/* ── JGDMS service JARs ──────────────────────────────────────────────── */
-grant codebase "file:${jgdms.lib}/*" {
-    permission java.security.AllPermission;
-};
+/* ── JRE platform modules & JGDMS service JARs ────────────────────────────
+ *
+ * Least-privilege grants for the jrt:/ platform modules and
+ * file:${jgdms.lib}/* are intentionally omitted. Do NOT grant AllPermission
+ * to any codebase here: polpAudit only ADDS missing permissions, so an
+ * AllPermission grant would mask everything and permanently defeat least
+ * privilege -- and a codebase-only grant is remotely assertable through the
+ * JERI reducing-context (Gate-1). Generate the grants this host actually
+ * needs by running the service under polpAudit and adding only the reported
+ * permissions.
+ */
 
 /* ── Download JARs ───────────────────────────────────────────────────── */
 grant codebase "file:${jgdms.lib-dl}/*" {
