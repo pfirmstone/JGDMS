@@ -17,6 +17,11 @@
  */
 package net.jini.space;
 
+import java.io.NotSerializableException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
+
 /**
  * Thrown, LOUDLY, when a CEL filter attached to a filtered space operation is
  * refused. A refused filter is <em>never</em> downgraded to an unfiltered
@@ -158,5 +163,25 @@ public class FilterRejectedException extends Exception {
      */
     public Reason reason() {
         return reason;
+    }
+
+    /**
+     * Refuses legacy Java (JOSS) serialization. This exception crosses a remote
+     * boundary only through the atomic/DER invocation layer
+     * ({@code AtomicDerILFactory}), which reconstructs it without invoking these
+     * methods; it is never written to or read from a
+     * {@link java.io.ObjectOutputStream}. Failing every JOSS path keeps the type
+     * off any legacy-serialization gadget surface.
+     */
+    private void writeObject(ObjectOutputStream out) throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
+    }
+
+    private void readObject(ObjectInputStream in) throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
     }
 }
