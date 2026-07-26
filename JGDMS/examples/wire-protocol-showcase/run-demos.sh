@@ -158,6 +158,20 @@ if [[ $rc -eq 0 ]]; then add_result "Demo 6: Collection equality" pass; else
 fi
 
 # ---------------------------------------------------------------------------
+# Demonstration 7: Filter records inside a live space, server-side, without the class
+# ---------------------------------------------------------------------------
+# demo7 starts a live transient Outrigger space + Mahalo transaction manager and
+# filters by a CEL value rule pushed down to the space, class-free. Its run.sh
+# builds the wider set of modules it needs (services, service-starter, jeri, ...)
+# from the current source tree on first run.
+header "Demonstration 7: Filter records inside a live space, server-side, without the class"
+bash "$showcase/demo7-filter-pushdown/run.sh"
+rc=$?
+if [[ $rc -eq 0 ]]; then add_result "Demo 7: Filter pushdown into a live space" pass; else
+    echo "DEMO 7 FAILED (exit $rc)"; add_result "Demo 7: Filter pushdown into a live space" fail
+fi
+
+# ---------------------------------------------------------------------------
 # Automated checks (a build server can run these) -- not one of the 6 demos,
 # but the existing regression coverage for all of them; kept as a bonus step.
 # ---------------------------------------------------------------------------
