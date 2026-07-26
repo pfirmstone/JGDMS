@@ -2328,17 +2328,21 @@ public class OutriggerServerImpl
     }
 
     /* ======================================================================
-     * Filtered (CEL predicate pushdown) operations — SOW Part B, unit B1.
+     * Filtered (CEL predicate pushdown) operations — SOW Part B, units B1+B3.
      *
      * Each admits the filter at operation entry, BEFORE matching
      * (FilterAdmission.admit: envelope decode -> CEL verify against the
      * template's own v2 schema -> require a Predicate -> compile), throwing
-     * FilterRejectedException loudly on any rejection. Because predicate
-     * EVALUATION at the match chokepoints is unit B3, an admitted filter here
-     * does not yet run: the operation fails loudly with EVALUATION_NOT_WIRED
-     * rather than execute the query unfiltered. When B3 lands, the
-     * evaluationNotWired() call is replaced by threading the CompiledFilter
-     * into the matching chokepoint.
+     * FilterRejectedException loudly on any rejection. B3 then threads the
+     * admitted filter(s) as a FilterSet into the SAME query machinery as the
+     * unfiltered sibling, so the predicate is evaluated confused-deputy-safely
+     * at every match chokepoint: the confirm window on the capture path (INV-1
+     * then INV-2) and the per-watcher process() on the fan-out path (after the
+     * txn entitlement gate). Multi-template ops retain one CompiledFilter per
+     * template (FilterSet, §5). A candidate that fails the predicate or any
+     * fail-closed rule is excluded and counted (FilterAdmission §7 metrics);
+     * FilterAdmission.evaluationNotWired remains only as a dead-safe helper (its
+     * metric pinned permanently at 0 — no wired op reaches it).
      * ==================================================================== */
 
     public Object read(EntryRep tmpl, Transaction txn, long timeout,
