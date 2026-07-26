@@ -139,7 +139,26 @@ class EntryHolder implements TransactionConstants {
             Set conflictSet, Set lockedEntrySet,
             Set provisionallyRemovedEntrySet)
             throws CannotJoinException {
+        return hasMatch(tmpl, txn, takeIt, conflictSet, lockedEntrySet,
+                provisionallyRemovedEntrySet, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #hasMatch(EntryRep, TransactableMgr, boolean, Set, Set, Set)},
+     * but additionally gating each byte-matched candidate on the query's
+     * server-side CEL {@code filters} (SOW Part&nbsp;B, unit&nbsp;B3, site&nbsp;A).
+     * The filter runs inside the confirm window (after {@code canPerform}, before
+     * {@code grab}); {@code tmpl}'s own {@code entrySchemaDigest} is the
+     * byte-matched template digest passed to the evaluation core.
+     * {@code FilterSet.EMPTY} is a no-op (unfiltered scan unchanged).
+     */
+    EntryHandle hasMatch(EntryRep tmpl, TransactableMgr txn, boolean takeIt,
+            Set conflictSet, Set lockedEntrySet,
+            Set provisionallyRemovedEntrySet, FilterSet filters)
+            throws CannotJoinException {
         matchingLogger.entering("EntryHolder", "hasMatch");
+        final byte[] matchedTemplateDigest =
+                (filters == null || filters.isEmpty()) ? null : tmpl.entrySchemaDigest();
         EntryHandleTmplDesc desc = null;
         long startTime = 0;
 
@@ -179,7 +198,7 @@ class EntryHolder implements TransactionConstants {
 
             final boolean available = confirmAvailabilityWithTxn(rep, handle,
                     txn, takeIt, startTime, conflictSet, lockedEntrySet,
-                    provisionallyRemovedEntrySet);
+                    provisionallyRemovedEntrySet, filters, matchedTemplateDigest);
 
             if (available)
                 return handle;
@@ -247,13 +266,31 @@ class EntryHolder implements TransactionConstants {
      * @throws NullPointerException if entry is <code>null</code>.  
      */
     boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
-	boolean takeIt, Set conflictSet, Set lockedEntrySet, 
+	boolean takeIt, Set conflictSet, Set lockedEntrySet,
         Set provisionallyRemovedEntrySet, long now)
+    {
+	return attemptCapture(handle, txn, takeIt, conflictSet, lockedEntrySet,
+		provisionallyRemovedEntrySet, now, FilterSet.EMPTY, null);
+    }
+
+    /**
+     * As {@link #attemptCapture(EntryHandle, TransactableMgr, boolean, Set, Set,
+     * Set, long)}, but additionally gating capture on the query's server-side CEL
+     * {@code filters} (SOW Part&nbsp;B, unit&nbsp;B3). This is the blocking-capture
+     * entry (a {@code QueryWatcher} that woke on a later transition) into the very
+     * same confirm window the immediate scan uses, so a blocked filtered
+     * read/take is filtered by the identical INV-2 insertion point.
+     * {@code FilterSet.EMPTY} is a no-op.
+     */
+    boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
+	boolean takeIt, Set conflictSet, Set lockedEntrySet,
+        Set provisionallyRemovedEntrySet, long now,
+	FilterSet filters, byte[] matchedTemplateDigest)
     {
 	try {
 	    return confirmAvailabilityWithTxn(handle.rep(), handle,
-		txn, takeIt, now, conflictSet, lockedEntrySet, 
-		provisionallyRemovedEntrySet);
+		txn, takeIt, now, conflictSet, lockedEntrySet,
+		provisionallyRemovedEntrySet, filters, matchedTemplateDigest);
 	} catch (CannotJoinException e) {
 	    return false;
 	}

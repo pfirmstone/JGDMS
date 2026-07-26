@@ -1855,9 +1855,13 @@ public class OutriggerServerImpl
      {
 	 final EntryHolder holder = contents.holderFor(handle.rep());
 	 final Set conflictSet = new java.util.HashSet();
+	 // B3: a blocked filtered query carries its FilterSet on the watcher; the
+	 // confirm window re-makes the authoritative predicate decision at capture
+	 // (design memo §1.4). FilterSet.EMPTY (unfiltered) is a no-op.
 	 if (holder.attemptCapture(handle, txn, takeIt,
-				   conflictSet, lockedEntrySet, 
-				   provisionallyRemovedEntrySet, now))
+				   conflictSet, lockedEntrySet,
+				   provisionallyRemovedEntrySet, now,
+				   watcher.filters(), null))
 	     return true;
 
 	 monitor(watcher, conflictSet);
@@ -2293,7 +2297,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("read", filter);
+	return getMatch(tmpl, txn, timeout, false, false, cookie,
+			FilterSet.of(filter));
     }
 
     public Object readIfExists(EntryRep tmpl, Transaction txn, long timeout,
@@ -2303,7 +2308,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("readIfExists", filter);
+	return getMatch(tmpl, txn, timeout, false, true, cookie,
+			FilterSet.of(filter));
     }
 
     public Object take(EntryRep tmpl, Transaction txn, long timeout,
@@ -2313,7 +2319,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("take", filter);
+	return getMatch(tmpl, txn, timeout, true, false, cookie,
+			FilterSet.of(filter));
     }
 
     public Object takeIfExists(EntryRep tmpl, Transaction txn, long timeout,
@@ -2323,7 +2330,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("takeIfExists", filter);
+	return getMatch(tmpl, txn, timeout, true, true, cookie,
+			FilterSet.of(filter));
     }
 
     public EventRegistration notify(EntryRep tmpl, Transaction tr,
@@ -2798,6 +2806,27 @@ public class OutriggerServerImpl
 		 boolean ifExists, QueryCookie queryCookieFromClient)
 	throws RemoteException, InterruptedException, TransactionException
     {
+	return getMatch(tmpl, tr, timeout, takeIt, ifExists,
+			queryCookieFromClient, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #getMatch(EntryRep, Transaction, long, boolean, boolean,
+     * QueryCookie)}, but additionally gating every returned candidate on the
+     * query's server-side CEL {@code filters} (SOW Part&nbsp;B, unit&nbsp;B3).
+     * The {@code filters} are threaded into the immediate scan (site&nbsp;A, via
+     * {@code find}/{@code hasMatch} &rarr; the confirm window) and installed on
+     * the blocking watcher, so a blocked filtered read/take is filtered at
+     * capture (consuming watchers, via {@code attemptCapture}) or before resolve
+     * (the non-transactional blocking-read watchers, sites&nbsp;G/H).
+     * {@code FilterSet.EMPTY} is a no-op (the unfiltered path is unchanged).
+     */
+    private Object
+        getMatch(EntryRep tmpl, Transaction tr, long timeout, boolean takeIt,
+		 boolean ifExists, QueryCookie queryCookieFromClient,
+		 FilterSet filters)
+	throws RemoteException, InterruptedException, TransactionException
+    {
 	typeCheck(tmpl);
 	checkTimeout(timeout);
 
@@ -2860,7 +2889,7 @@ public class OutriggerServerImpl
 	 * First we do the straight search
 	 */
 	handle = find(tmpl, txn, takeIt, conflictSet, lockedEntrySet,
-		      provisionallyRemovedEntrySet);
+		      provisionallyRemovedEntrySet, filters);
 	opsLogger.log(Level.FINEST, "getMatch, initial search found {0}", handle);
 
 	if (handle != null) {	// found it
@@ -2949,6 +2978,12 @@ public class OutriggerServerImpl
 	} else {
 	    throw new AssertionError("Can't create watcher for query");
 	}
+
+	/* B3: install the query's CEL FilterSet on the watcher BEFORE it is made
+	 * visible to the journal, so the confirm window (consuming watchers, via
+	 * attemptCapture) and the direct-resolve blocking-read watchers (sites
+	 * G/H) filter the blocked capture. EMPTY is a no-op. */
+	watcher.setFilters(filters);
 
 	/* If this query is under a transaction, make sure it still
 	 * active and add the watcher to the Txn. Do this before
@@ -3085,8 +3120,9 @@ public class OutriggerServerImpl
      * is removed (perhaps provisionally).
      */
     private EntryHandle
-	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet, 
-	     Set lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet)
+	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet,
+	     Set lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet,
+	     FilterSet filters)
 	throws TransactionException
     {
 	final String whichClass = tmplRep.classFor();
@@ -3108,7 +3144,8 @@ public class OutriggerServerImpl
 
 	    holder = contents.holderFor(className);
 	    result = holder.hasMatch(tmplRep, txn, takeIt, conflictSet,
-				     lockedEntrySet, provisionallyRemovedEntrySet);
+				     lockedEntrySet, provisionallyRemovedEntrySet,
+				     filters);
 	    if (result != null) {
 		return result;
 	    }
