@@ -65,10 +65,29 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      */
     long eventID;
 
-    /** 
-     * The current sequence number. 
+    /**
+     * The current sequence number.
      */
     private long currentSeqNum = 0;
+
+    /**
+     * The server-side CEL filter set gating this registration's deliveries (SOW
+     * Part&nbsp;B, unit&nbsp;B3, site&nbsp;E). {@link FilterSet#EMPTY} for an
+     * unfiltered registration. Consulted in {@link #process} <em>after</em> the
+     * per-registration txn entitlement gate (the subclass {@code isInterested}
+     * already established it, and {@code process} runs only for interested
+     * watchers), so a client's predicate never runs against an entry it is not
+     * entitled to observe (INV-1). {@code volatile} for safe publication to the
+     * single {@code OperationJournal} delivery thread.
+     *
+     * <p><b>Durability note (B3 fail-closed):</b> the filter is <em>not</em>
+     * persisted, so a filtered registration is registered in-memory only; the
+     * durable {@code log.registerOp} is skipped for a filtered registration, so
+     * a restart drops it (the client's lease lapses) rather than resurrecting it
+     * <em>unfiltered</em> (which would be a fail-open). Persisting the envelope
+     * to restore durability is a follow-up.
+     */
+    private volatile FilterSet filters = FilterSet.EMPTY;
 
 //    /**
 //     * The sequence number of the last event successfully 
@@ -164,15 +183,26 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 
 	// lock before checking the time and so we can update currentSeqNum
 	synchronized (this) {
-	    if (owner == null) 
+	    if (owner == null)
 		return; // Must have been removed
 
 	    if (now > expiration) {
 		doneFor = true;
 	    } else {
-		currentSeqNum++;
-		owner.getServer().enqueueDelivery(
-			new BasicEventSender(currentSeqNum, eventID, handback));
+		/* B3 (site E): process() runs only for an interested watcher, so the
+		 * subclass's txn entitlement gate already holds (INV-1). If a CEL
+		 * filter is in force, evaluate it against the transitioning entry
+		 * here, BEFORE consuming a sequence number or enqueueing delivery --
+		 * predicate-false / fail-closed => no delivery to this registrant and
+		 * no seqnum consumed. FilterEval is wrapped catch-everything, so an
+		 * escaping fault can never kill this (the single journal) thread. */
+		final FilterSet f = filters;
+		if (f.isEmpty()
+			|| FilterEval.matches(f, transition.getHandle().rep())) {
+		    currentSeqNum++;
+		    owner.getServer().enqueueDelivery(
+			    new BasicEventSender(currentSeqNum, eventID, handback));
+		}
 	    }
 	}
 
@@ -238,6 +268,20 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 
     public long getExpiration() {
 	return expiration;
+    }
+
+    /**
+     * Install the CEL {@link FilterSet} gating this registration's deliveries
+     * (B3, site&nbsp;E). Called once at registration, before the watcher is made
+     * visible to the journal. {@code null}/EMPTY leaves it unfiltered.
+     */
+    void setFilters(FilterSet filters) {
+	this.filters = (filters == null) ? FilterSet.EMPTY : filters;
+    }
+
+    /** @return the CEL {@link FilterSet} gating this registration ({@link FilterSet#EMPTY} if unfiltered). */
+    FilterSet filters() {
+	return filters;
     }
 
     /**

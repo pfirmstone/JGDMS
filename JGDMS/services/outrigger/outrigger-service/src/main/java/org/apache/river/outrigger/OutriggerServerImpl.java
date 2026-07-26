@@ -1917,6 +1917,22 @@ public class OutriggerServerImpl
 	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
+	return doNotify(tmpl, tr, listener, leaseTime, handback, FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered {@code notify}. When
+     * {@code filters} is non-empty the resulting watcher gates every delivery on
+     * the CEL predicate (site&nbsp;E, in {@code process} after the txn gate), and
+     * the durable {@code log.registerOp} is skipped so the filtered registration
+     * is in-memory only (fail-closed on restart rather than resurrected
+     * unfiltered — see {@link EventRegistrationWatcher}).
+     */
+    private EventRegistration
+	doNotify(EntryRep tmpl, Transaction tr, RemoteEventListener listener,
+		 long leaseTime, MarshalledInstance handback, FilterSet filters)
+	throws TransactionException, RemoteException
+    {
 	opsLogger.entering("OutriggerServerImpl", "notify");
 
 	typeCheck(tmpl);
@@ -1954,6 +1970,10 @@ public class OutriggerServerImpl
 		handback, eventID, listener, txn);
 	}
 
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path).
+	reg.setFilters(filters);
+	final boolean persist = filters.isEmpty();
+
 	// Get the expiration times
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
 	
@@ -1974,16 +1994,18 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates
-	    if (log != null)
-		log.registerOp((StorableResource)reg, 
+	    // log before adding to templates (skipped for a filtered registration:
+	    // the filter is not persisted, so persisting the watcher would resurrect
+	    // it UNFILTERED on recovery -- fail-open. B3 keeps it in-memory only.)
+	    if (log != null && persist)
+		log.registerOp((StorableResource)reg,
 			       "StorableEventWatcher",
 			       new StorableObject[]{tmpl});
 
 	    templates.add(reg, tmpl);
 	}
 
-	return new EventRegistration(eventID, spaceProxy, 
+	return new EventRegistration(eventID, spaceProxy,
 	    leaseFactory.newLease(cookie, reg.getExpiration()),
 	    0);
     }
@@ -1997,6 +2019,29 @@ public class OutriggerServerImpl
 	    RemoteEventListener listener,
 	    long leaseTime,
 	    MarshalledInstance handback)
+        throws TransactionException, RemoteException
+    {
+	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
+		listener, leaseTime, handback, FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered
+     * {@code registerForAvailabilityEvent}. When {@code filters} is non-empty the
+     * resulting watcher gates every delivery on the applicable CEL predicate
+     * (site&nbsp;E, in {@code process} after the per-registration txn gate), and
+     * the durable {@code log.registerOp} is skipped so the filtered registration
+     * is in-memory only (fail-closed on restart rather than resurrected
+     * unfiltered).
+     */
+    private EventRegistration doRegisterForAvailabilityEvent(
+	    EntryRep[] tmpls,
+	    Transaction tr,
+	    boolean visibilityOnly,
+	    RemoteEventListener listener,
+	    long leaseTime,
+	    MarshalledInstance handback,
+	    FilterSet filters)
         throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "registeForAvailabilityEvent");
@@ -2040,9 +2085,13 @@ public class OutriggerServerImpl
 	    reg = new StorableAvailabilityWatcher(now, currentOrdinal, cookie,
                 visibilityOnly, handback, eventID, listener);
 	} else {
-	    reg = new TransactableAvailabilityWatcher(now, currentOrdinal, 
+	    reg = new TransactableAvailabilityWatcher(now, currentOrdinal,
 		cookie, visibilityOnly,	handback, eventID, listener, txn);
 	}
+
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path).
+	reg.setFilters(filters);
+	final boolean persist = filters.isEmpty();
 
 	// Get the expiration time
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
@@ -2063,12 +2112,14 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates
-	    if (log != null)
+	    // log before adding to templates (skipped for a filtered registration:
+	    // the filter is not persisted, so persisting would resurrect it
+	    // UNFILTERED on recovery -- fail-open. B3 keeps it in-memory only.)
+	    if (log != null && persist)
 		log.registerOp((StorableResource)reg,
 			       "StorableAvailabilityWatcher",
 			       tmpls);
-	    
+
 	    for (int i=0; i<tmpls.length; i++) {
 		templates.add(reg, tmpls[i]);
 	    }
@@ -2343,7 +2394,10 @@ public class OutriggerServerImpl
 	checkForNull(listener, "Passed null listener for event registration");
 	checkHandbackFormat(handback);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("notify", filter);
+	// Site E: run the SAME registration machinery (full validation, N-1) with
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery.
+	return doNotify(tmpl, tr, listener, leaseTime, handback,
+			FilterSet.of(filter));
     }
 
     public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
@@ -2357,14 +2411,19 @@ public class OutriggerServerImpl
 	checkHandbackFormat(handback);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
 	// filter against each template's own schema; any failure rejects the
-	// whole registration loudly.
+	// whole registration loudly. Per-template plurality (§5): each admitted
+	// filter is keyed by its own template's digest (or schema-less for a
+	// match-any template) so a candidate is filtered by ITS template's predicate.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("registerForAvailabilityEvent", filter);
+	// Site E: run the SAME registration machinery (full validation, N-1) with
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery.
+	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
+		listener, leaseTime, handback, fb.build());
     }
 
     public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
