@@ -32,8 +32,8 @@ import org.apache.river.landlord.LeasedResource;
  * Subclass of <code>TransitionWatcher</code> for event
  * registrations. Also represents the registration itself.
  */
-abstract class EventRegistrationWatcher extends TransitionWatcher 
-    implements EventRegistrationRecord
+abstract class EventRegistrationWatcher extends TransitionWatcher
+    implements EventRegistrationRecord, FilteredWatcher
 {
     /** 
      * The current expiration time of the registration
@@ -80,14 +80,29 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * entitled to observe (INV-1). {@code volatile} for safe publication to the
      * single {@code OperationJournal} delivery thread.
      *
-     * <p><b>Durability note (B3 fail-closed):</b> the filter is <em>not</em>
-     * persisted, so a filtered registration is registered in-memory only; the
-     * durable {@code log.registerOp} is skipped for a filtered registration, so
-     * a restart drops it (the client's lease lapses) rather than resurrecting it
-     * <em>unfiltered</em> (which would be a fail-open). Persisting the envelope
-     * to restore durability is a follow-up.
+     * <p><b>Durability note (B3 fail-closed):</b> this compiled set is <em>not</em>
+     * itself persisted (an AST is not a safe thing to deserialize from the store).
+     * Instead the raw {@linkplain #filterEnvelope() filter envelope} it was
+     * admitted from is persisted alongside the template(s) in the durable log, and
+     * on recovery the {@code FilterSet} is <em>rebuilt by re-admitting</em> that
+     * envelope against the recovered template(s) — re-running the full CEL
+     * verification pipeline. Recovery is fail-closed by construction: if the filter
+     * cannot be faithfully reconstructed the registration is dropped (the client's
+     * lease lapses), never resurrected <em>unfiltered</em> (which would be a
+     * fail-open). See {@code OutriggerServerImpl.recoverRegister} /
+     * {@code rebuildFilterSet}.
      */
     private volatile FilterSet filters = FilterSet.EMPTY;
+
+    /**
+     * The raw, opaque canonical {@code FilterEnvelope} bytes this registration was
+     * admitted from — the <b>durable seed</b> for {@link #filters}. Persisted by
+     * the {@code Storable*Watcher} {@code store}/{@code restore} and re-admitted on
+     * recovery to rebuild the compiled {@link FilterSet} fail-closed (see the
+     * durability note above). {@code null} for an unfiltered registration.
+     * {@code volatile} for the same safe-publication reason as {@link #filters}.
+     */
+    private volatile byte[] filterEnvelope;
 
 //    /**
 //     * The sequence number of the last event successfully 
@@ -275,13 +290,28 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * (B3, site&nbsp;E). Called once at registration, before the watcher is made
      * visible to the journal. {@code null}/EMPTY leaves it unfiltered.
      */
-    void setFilters(FilterSet filters) {
+    public void setFilters(FilterSet filters) {
 	this.filters = (filters == null) ? FilterSet.EMPTY : filters;
     }
 
     /** @return the CEL {@link FilterSet} gating this registration ({@link FilterSet#EMPTY} if unfiltered). */
-    FilterSet filters() {
+    public FilterSet filters() {
 	return filters;
+    }
+
+    /**
+     * Record the durable filter envelope (the seed re-admitted on recovery to
+     * rebuild {@link #filters}). A defensive copy is retained. {@code null} leaves
+     * the registration unfiltered.
+     */
+    public void setFilterEnvelope(byte[] filterEnvelope) {
+	this.filterEnvelope = (filterEnvelope == null) ? null : filterEnvelope.clone();
+    }
+
+    /** @return a copy of the durable filter envelope, or {@code null} if unfiltered. */
+    public byte[] filterEnvelope() {
+	final byte[] env = filterEnvelope;
+	return (env == null) ? null : env.clone();
     }
 
     /**

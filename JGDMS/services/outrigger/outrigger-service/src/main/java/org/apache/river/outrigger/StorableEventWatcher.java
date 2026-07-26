@@ -17,6 +17,7 @@
  */
 package org.apache.river.outrigger;
 
+import java.io.EOFException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.outrigger.proxy.FilterEnvelope;
 import org.apache.river.outrigger.proxy.StorableResource;
 
 /**
@@ -135,6 +137,20 @@ class StorableEventWatcher extends EventRegistrationWatcher
 	out.writeLong(eventID);
 	out.writeObject(handback);
 	out.writeObject(listener);
+	/* B3 durability: the raw filter envelope this registration was admitted
+	 * from, so recovery can rebuild the CEL FilterSet by re-admission
+	 * (fail-closed). A length-prefixed trailing block: -1 == unfiltered (no
+	 * envelope). This is a self-contained per-resource blob (snaplogstore
+	 * BaseObject), so appending here never disturbs any other record; an older
+	 * blob without this block is handled by the EOF guard in restore().
+	 */
+	final byte[] env = filterEnvelope();
+	if (env == null) {
+	    out.writeInt(-1);
+	} else {
+	    out.writeInt(env.length);
+	    out.write(env);
+	}
     }
 
     /**
@@ -165,6 +181,27 @@ class StorableEventWatcher extends EventRegistrationWatcher
 	if (listener == null)
 	    throw new StreamCorruptedException(
 		"Stream corrupted, should not be null");
+	/* B3 durability: read the trailing filter-envelope block written by store().
+	 * A blob written before this field existed (a pre-B3-durability unfiltered
+	 * registration) simply ends after the listener, so the readInt below hits a
+	 * clean EOF on this resource's own byte[] blob -- treat that as "unfiltered".
+	 */
+	try {
+	    final int envLen = in.readInt();
+	    if (envLen > FilterEnvelope.MAX_ENVELOPE_BYTES) {
+		throw new StreamCorruptedException(
+		    "Persisted filter envelope length " + envLen
+		    + " exceeds FilterEnvelope.MAX_ENVELOPE_BYTES ("
+		    + FilterEnvelope.MAX_ENVELOPE_BYTES + "); store is corrupt.");
+	    }
+	    if (envLen >= 0) {
+		final byte[] env = new byte[envLen];
+		in.readFully(env);
+		setFilterEnvelope(env);
+	    }
+	} catch (EOFException eof) {
+	    // Older blob without the envelope block: unfiltered. Backward compatible.
+	}
         return this;
     }
 }

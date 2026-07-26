@@ -37,8 +37,8 @@ import org.apache.river.outrigger.proxy.OutriggerAvailabilityEvent;
  * Subclass of <code>TransitionWatcher</code> for availability event
  * registrations. Also represents the event registration itself.
  */
-abstract class AvailabilityRegistrationWatcher extends TransitionWatcher 
-    implements EventRegistrationRecord
+abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
+    implements EventRegistrationRecord, FilteredWatcher
 {
     /** 
      * The current expiration time of the registration
@@ -89,12 +89,22 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * Part&nbsp;B, unit&nbsp;B3, site&nbsp;E). {@link FilterSet#EMPTY} for an
      * unfiltered registration. Consulted in {@link #process} <em>after</em> the
      * per-registration txn entitlement gate (the subclass {@code isInterested}
-     * already established it), so INV-1 holds. Not persisted — see the durability
-     * note on {@link EventRegistrationWatcher} (a filtered registration is
-     * in-memory only and drops on restart, fail-closed, rather than resurrecting
-     * unfiltered). {@code volatile} for safe publication to the journal thread.
+     * already established it), so INV-1 holds. The compiled set is not itself
+     * persisted; the raw {@linkplain #filterEnvelope() filter envelope} it was
+     * admitted from is, and recovery rebuilds this set by re-admitting that
+     * envelope (fail-closed) — see the durability note on
+     * {@link EventRegistrationWatcher}. {@code volatile} for safe publication to
+     * the journal thread.
      */
     private volatile FilterSet filters = FilterSet.EMPTY;
+
+    /**
+     * The raw, opaque canonical {@code FilterEnvelope} bytes this registration was
+     * admitted from — the durable seed for {@link #filters}, persisted by
+     * {@code StorableAvailabilityWatcher} and re-admitted on recovery to rebuild
+     * the compiled {@link FilterSet} fail-closed. {@code null} if unfiltered.
+     */
+    private volatile byte[] filterEnvelope;
 
     /**
      * The <code>TemplateHandle</code>s associated with this
@@ -278,13 +288,28 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * (B3, site&nbsp;E). Called once at registration, before the watcher is made
      * visible to the journal. {@code null}/EMPTY leaves it unfiltered.
      */
-    void setFilters(FilterSet filters) {
+    public void setFilters(FilterSet filters) {
 	this.filters = (filters == null) ? FilterSet.EMPTY : filters;
     }
 
     /** @return the CEL {@link FilterSet} gating this registration ({@link FilterSet#EMPTY} if unfiltered). */
-    FilterSet filters() {
+    public FilterSet filters() {
 	return filters;
+    }
+
+    /**
+     * Record the durable filter envelope (the seed re-admitted on recovery to
+     * rebuild {@link #filters}). A defensive copy is retained. {@code null} leaves
+     * the registration unfiltered.
+     */
+    public void setFilterEnvelope(byte[] filterEnvelope) {
+	this.filterEnvelope = (filterEnvelope == null) ? null : filterEnvelope.clone();
+    }
+
+    /** @return a copy of the durable filter envelope, or {@code null} if unfiltered. */
+    public byte[] filterEnvelope() {
+	final byte[] env = filterEnvelope;
+	return (env == null) ? null : env.clone();
     }
 
     /**

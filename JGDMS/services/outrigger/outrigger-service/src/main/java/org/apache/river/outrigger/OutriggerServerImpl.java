@@ -1917,20 +1917,26 @@ public class OutriggerServerImpl
 	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
-	return doNotify(tmpl, tr, listener, leaseTime, handback, FilterSet.EMPTY);
+	return doNotify(tmpl, tr, listener, leaseTime, handback,
+			FilterSet.EMPTY, null);
     }
 
     /**
      * Shared implementation of unfiltered and B3-filtered {@code notify}. When
      * {@code filters} is non-empty the resulting watcher gates every delivery on
-     * the CEL predicate (site&nbsp;E, in {@code process} after the txn gate), and
-     * the durable {@code log.registerOp} is skipped so the filtered registration
-     * is in-memory only (fail-closed on restart rather than resurrected
-     * unfiltered — see {@link EventRegistrationWatcher}).
+     * the CEL predicate (site&nbsp;E, in {@code process} after the txn gate). The
+     * raw {@code filterEnvelope} (the seed {@code filters} was admitted from) is
+     * recorded on the watcher and persisted with the durable {@code
+     * log.registerOp} record, so recovery can rebuild the {@code FilterSet} by
+     * re-admission (fail-closed) — {@code null} for the unfiltered path.
+     *
+     * @param filterEnvelope the raw opaque envelope the {@code filters} were
+     *        admitted from (durable seed), or {@code null} if unfiltered
      */
     private EventRegistration
 	doNotify(EntryRep tmpl, Transaction tr, RemoteEventListener listener,
-		 long leaseTime, MarshalledInstance handback, FilterSet filters)
+		 long leaseTime, MarshalledInstance handback, FilterSet filters,
+		 byte[] filterEnvelope)
 	throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "notify");
@@ -1970,9 +1976,11 @@ public class OutriggerServerImpl
 		handback, eventID, listener, txn);
 	}
 
-	// B3: install the CEL FilterSet (EMPTY for the unfiltered path).
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path) and record
+	// the durable envelope seed (null when unfiltered) so recovery can rebuild
+	// the FilterSet by re-admission.
 	reg.setFilters(filters);
-	final boolean persist = filters.isEmpty();
+	reg.setFilterEnvelope(filterEnvelope);
 
 	// Get the expiration times
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
@@ -1994,10 +2002,11 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates (skipped for a filtered registration:
-	    // the filter is not persisted, so persisting the watcher would resurrect
-	    // it UNFILTERED on recovery -- fail-open. B3 keeps it in-memory only.)
-	    if (log != null && persist)
+	    // Log before adding to templates. The filter envelope rides on the
+	    // watcher's own store()/restore(), so a filtered registration is now
+	    // durable too: recovery re-admits the envelope against the persisted
+	    // template to rebuild the FilterSet, fail-closed (never unfiltered).
+	    if (log != null)
 		log.registerOp((StorableResource)reg,
 			       "StorableEventWatcher",
 			       new StorableObject[]{tmpl});
@@ -2022,17 +2031,21 @@ public class OutriggerServerImpl
         throws TransactionException, RemoteException
     {
 	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
-		listener, leaseTime, handback, FilterSet.EMPTY);
+		listener, leaseTime, handback, FilterSet.EMPTY, null);
     }
 
     /**
      * Shared implementation of unfiltered and B3-filtered
      * {@code registerForAvailabilityEvent}. When {@code filters} is non-empty the
      * resulting watcher gates every delivery on the applicable CEL predicate
-     * (site&nbsp;E, in {@code process} after the per-registration txn gate), and
-     * the durable {@code log.registerOp} is skipped so the filtered registration
-     * is in-memory only (fail-closed on restart rather than resurrected
-     * unfiltered).
+     * (site&nbsp;E, in {@code process} after the per-registration txn gate). The
+     * raw {@code filterEnvelope} the {@code filters} were admitted from is recorded
+     * on the watcher and persisted with the durable {@code log.registerOp} record,
+     * so recovery rebuilds the {@code FilterSet} by re-admitting the envelope
+     * against every recovered template (fail-closed) — {@code null} unfiltered.
+     *
+     * @param filterEnvelope the raw opaque envelope the {@code filters} were
+     *        admitted from (durable seed), or {@code null} if unfiltered
      */
     private EventRegistration doRegisterForAvailabilityEvent(
 	    EntryRep[] tmpls,
@@ -2041,7 +2054,8 @@ public class OutriggerServerImpl
 	    RemoteEventListener listener,
 	    long leaseTime,
 	    MarshalledInstance handback,
-	    FilterSet filters)
+	    FilterSet filters,
+	    byte[] filterEnvelope)
         throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "registeForAvailabilityEvent");
@@ -2089,9 +2103,11 @@ public class OutriggerServerImpl
 		cookie, visibilityOnly,	handback, eventID, listener, txn);
 	}
 
-	// B3: install the CEL FilterSet (EMPTY for the unfiltered path).
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path) and record
+	// the durable envelope seed (null when unfiltered) so recovery can rebuild
+	// the FilterSet by re-admission.
 	reg.setFilters(filters);
-	final boolean persist = filters.isEmpty();
+	reg.setFilterEnvelope(filterEnvelope);
 
 	// Get the expiration time
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
@@ -2112,10 +2128,11 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates (skipped for a filtered registration:
-	    // the filter is not persisted, so persisting would resurrect it
-	    // UNFILTERED on recovery -- fail-open. B3 keeps it in-memory only.)
-	    if (log != null && persist)
+	    // Log before adding to templates. The filter envelope rides on the
+	    // watcher's own store()/restore(), so a filtered registration is durable:
+	    // recovery re-admits the envelope against each persisted template to
+	    // rebuild the FilterSet, fail-closed (never unfiltered).
+	    if (log != null)
 		log.registerOp((StorableResource)reg,
 			       "StorableAvailabilityWatcher",
 			       tmpls);
@@ -2399,9 +2416,10 @@ public class OutriggerServerImpl
 	checkHandbackFormat(handback);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
 	// Site E: run the SAME registration machinery (full validation, N-1) with
-	// the CEL FilterSet threaded onto the watcher; process() gates delivery.
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery. The
+	// raw envelope is the durable seed persisted for fail-closed recovery.
 	return doNotify(tmpl, tr, listener, leaseTime, handback,
-			FilterSet.of(filter));
+			FilterSet.of(filter), filterEnvelope);
     }
 
     public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
@@ -2425,9 +2443,47 @@ public class OutriggerServerImpl
 	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
 	// Site E: run the SAME registration machinery (full validation, N-1) with
-	// the CEL FilterSet threaded onto the watcher; process() gates delivery.
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery. The
+	// raw envelope is the durable seed persisted for fail-closed recovery.
 	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
-		listener, leaseTime, handback, fb.build());
+		listener, leaseTime, handback, fb.build(), filterEnvelope);
+    }
+
+    /**
+     * Rebuild an operation's CEL {@link FilterSet} from its persisted raw envelope
+     * on recovery (B3 durability), by RE-ADMITTING the envelope against the
+     * recovered template(s) — the exact forward-path admission
+     * ({@link FilterAdmission#prepare} once, then {@link FilterAdmission#admit}
+     * against each template, {@link FilterSet.Builder#build}). Re-admission
+     * re-verifies the filter, so recovery is fail-closed by construction: a filter
+     * that cannot be faithfully reconstructed throws {@link FilterRejectedException}
+     * here and the caller drops the registration rather than recovering it
+     * unfiltered.
+     *
+     * <p>Faithful by construction: {@code setupTmpl} only substitutes an
+     * empty-body match-any rep for a null template, so re-admitting against the
+     * persisted (post-{@code setupTmpl}) template reproduces the same applicability
+     * digest — including the schema-less (null-template) case — as the original
+     * admission.
+     *
+     * @param filterEnvelope the persisted opaque envelope (must not be null; the
+     *        caller only calls this for a filtered registration)
+     * @param tmpls          the recovered templates the registration was admitted
+     *        against (post-{@code setupTmpl})
+     * @return the rebuilt {@link FilterSet}
+     * @throws FilterRejectedException if the envelope cannot be re-admitted against
+     *         any template (fail-closed)
+     */
+    static FilterSet rebuildFilterSet(byte[] filterEnvelope, EntryRep[] tmpls)
+	throws FilterRejectedException
+    {
+	final FilterAdmission.PreparedFilter prepared =
+	    FilterAdmission.prepare(filterEnvelope);
+	final FilterSet.Builder fb = new FilterSet.Builder();
+	for (int i = 0; i < tmpls.length; i++) {
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
+	}
+	return fb.build();
     }
 
     public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
@@ -4357,12 +4413,46 @@ public class OutriggerServerImpl
 				     ") while recovering event registration");
 	}
 
-	registration.restore(reg);	
+	registration.restore(reg);
 
+	/* Restore the templates into an array, but do NOT make the watcher visible
+	 * to the journal yet: a filtered registration must have its CEL FilterSet
+	 * rebuilt and installed BEFORE it can ever be handed a transition, or there
+	 * would be an unfiltered-delivery window (fail-open). */
+	final EntryRep[] tmpls = new EntryRep[storedTemplates.length];
 	for (int i=0; i<storedTemplates.length; i++) {
 	    final EntryRep templ = new EntryRep();
 	    storedTemplates[i].restore(templ);
-	    templates.add((TransitionWatcher)reg, setupTmpl(templ));
+	    tmpls[i] = setupTmpl(templ);
+	}
+
+	/* B3 durability: if this registration carried a CEL filter, rebuild its
+	 * FilterSet by RE-ADMITTING the persisted envelope against the recovered
+	 * templates (re-verify => fail-closed). If it cannot be faithfully
+	 * reconstructed, DROP the registration (the client's lease lapses) rather
+	 * than recover it UNFILTERED; the durable record is left in place (not
+	 * cancelled). */
+	final FilteredWatcher fw = (FilteredWatcher) reg;
+	final byte[] env = fw.filterEnvelope();
+	if (env != null) {
+	    final FilterSet fs;
+	    try {
+		fs = rebuildFilterSet(env, tmpls);
+	    } catch (FilterRejectedException | RuntimeException e) {
+		opsLogger.log(Level.SEVERE,
+		    "Dropping filtered event registration {0} on recovery: its CEL "
+		    + "filter could not be reconstructed ({1}). The registration is "
+		    + "NOT recovered (fail-closed; never delivered unfiltered); the "
+		    + "client''s lease will lapse. The durable record is retained.",
+		    new Object[]{reg.getCookie(), e});
+		return; // not added to templates, not put in eventRegistrations
+	    }
+	    fw.setFilters(fs);
+	}
+
+	// Only now make the watcher visible to the journal.
+	for (int i=0; i<tmpls.length; i++) {
+	    templates.add((TransitionWatcher)reg, tmpls[i]);
 	}
 
 	eventRegistrations.put(reg.getCookie(), reg);
