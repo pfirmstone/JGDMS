@@ -2433,15 +2433,18 @@ public class OutriggerServerImpl
 	checkForEmpty(tmpls, "Must provide at least one template");
 	FilterAdmission.checkTemplateCount(tmpls.length);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
-	// filter against each template's own schema; any failure rejects the
-	// whole query loudly.
+	// filter against each template's own schema (per-template plurality §5);
+	// any failure rejects the whole query loudly.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("contents", filter);
+	// Site B: run the SAME contents machinery (full validation, N-1) with the
+	// CEL FilterSet threaded into the retained ContentsQuery, so the first
+	// batch and every continuation batch are filtered by construction.
+	return doContents(tmpls, tr, leaseTime, limit, fb.build());
     }
 
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
@@ -2451,28 +2454,49 @@ public class OutriggerServerImpl
 	checkForEmpty(tmpls, "Must provide at least one template");
 	FilterAdmission.checkTemplateCount(tmpls.length);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
-	// filter against each template's own schema; any failure rejects the
-	// whole query loudly.
+	// filter against each template's own schema (per-template plurality §5);
+	// any failure rejects the whole query loudly.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("take<multiple>", filter);
+	// Sites B/C: run the SAME bulk-take machinery (full validation, N-1) with
+	// the CEL FilterSet threaded into the scan, journal catch-up, and blocking
+	// capture -- no consuming delivery escapes the confirm-window evaluation.
+	return doTakeMultiple(tmpls, tr, timeout, limit, cookie, fb.build());
     }
 
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
 		       int limit, QueryCookie queryCookieFromClient)
 	throws TransactionException, RemoteException
     {
+	return doTakeMultiple(tmpls, tr, timeout, limit, queryCookieFromClient,
+			      FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered bulk
+     * {@code take(EntryRep[])}. When {@code filters} is non-empty every candidate
+     * is gated on the applicable CEL predicate at the confirm window — on the
+     * immediate scan (via {@code createQuery}, site&nbsp;B), on the journal
+     * catch-up and the blocking resolution (via the watcher's FilterSet flowing
+     * into {@code attemptCapture}, site&nbsp;C). {@code FilterSet.EMPTY} is a
+     * no-op (the unfiltered path unchanged).
+     */
+    private Object doTakeMultiple(EntryRep[] tmpls, Transaction tr, long timeout,
+		       int limit, QueryCookie queryCookieFromClient,
+		       FilterSet filters)
+	throws TransactionException, RemoteException
+    {
 	if (opsLogger.isLoggable(Level.FINER)) {
-	    opsLogger.log(Level.FINER, 
+	    opsLogger.log(Level.FINER,
 		"take<multiple>:timeout = {1}, limit{2} = cookie = {3}",
-		new Object[]{Long.valueOf(timeout), Integer.valueOf(limit), 
+		new Object[]{Long.valueOf(timeout), Integer.valueOf(limit),
 			     queryCookieFromClient});
 	}
-	
+
 	checkForEmpty(tmpls, "Must provide at least one template");
 
 	for (int i=0; i<tmpls.length; i++) {
@@ -2554,8 +2578,8 @@ public class OutriggerServerImpl
 	     i.hasNext() && found < handles.length;) 
         {
 	    final String clazz = i.next();
-	    final EntryHolder.ContinuingQuery query = 
-		createQuery(tmpls, clazz, txn, true, start);
+	    final EntryHolder.ContinuingQuery query =
+		createQuery(tmpls, clazz, txn, true, start, filters);
 
 	    if (query == null)
 		continue;
@@ -2602,8 +2626,13 @@ public class OutriggerServerImpl
 	final long startOrdinal = 
 	    transitionIterator.currentOrdinalAtCreation();
 	final TakeMultipleWatcher watcher = new TakeMultipleWatcher(limit, endTime,
-            queryCookie.startTime, startOrdinal, provisionallyRemovedEntrySet, 
-	    txn);    
+            queryCookie.startTime, startOrdinal, provisionallyRemovedEntrySet,
+	    txn);
+
+	/* B3: install the CEL FilterSet so the journal catch-up (site C) and the
+	 * blocking resolution filter the captured entries at the confirm window
+	 * (via attemptCapture -> watcher.filters()). EMPTY is a no-op. */
+	watcher.setFilters(filters);
 
 	/* If this query is under a transaction, make sure it still
 	 * active and add the watcher to the Txn. Do this before
@@ -2776,7 +2805,19 @@ public class OutriggerServerImpl
      * Crerate a ContinuingQuery for the holder of the specified class.
      */
     private EntryHolder.ContinuingQuery createQuery(EntryRep[] tmpls,
-	String clazz, Txn txn, boolean takeIt, long now) 
+	String clazz, Txn txn, boolean takeIt, long now)
+    {
+	return createQuery(tmpls, clazz, txn, takeIt, now, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #createQuery(EntryRep[], String, Txn, boolean, long)}, but the
+     * resulting {@code ContinuingQuery} gates every yielded entry on the
+     * server-side CEL {@code filters} (B3, site&nbsp;B). {@code FilterSet.EMPTY}
+     * is a no-op.
+     */
+    private EntryHolder.ContinuingQuery createQuery(EntryRep[] tmpls,
+	String clazz, Txn txn, boolean takeIt, long now, FilterSet filters)
     {
 	final EntryHolder holder = contents.holderFor(clazz);
 	final String[] supertypes = holder.supertypes();
@@ -2802,7 +2843,7 @@ public class OutriggerServerImpl
 
 	return holder.continuingQuery(
             tmplsToCheck.toArray(new EntryRep[tmplsToCheck.size()]),
-	    txn, takeIt, now);				       
+	    txn, takeIt, now, filters);
     }
 
 		
@@ -3231,10 +3272,24 @@ public class OutriggerServerImpl
 				 long leaseTime, long limit)
         throws TransactionException, RemoteException
     {
+	return doContents(tmpls, tr, leaseTime, limit, FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered {@code contents}. When
+     * {@code filters} is non-empty the retained {@code ContentsQuery} gates every
+     * batch — including every continuation batch via {@code nextBatch} — on the
+     * applicable CEL predicate at the confirm window (site&nbsp;B, design memo
+     * §1.4). {@code FilterSet.EMPTY} is a no-op (the unfiltered path unchanged).
+     */
+    private MatchSetData doContents(EntryRep[] tmpls, Transaction tr,
+				 long leaseTime, long limit, FilterSet filters)
+        throws TransactionException, RemoteException
+    {
 	if (opsLogger.isLoggable(Level.FINER)) {
-	     opsLogger.log(Level.FINER, 
+	     opsLogger.log(Level.FINER,
 		"contents:tmpls = {0}, tr = {1}, leaseTime = {2}, " +
-		"limit = {3}", 
+		"limit = {3}",
 	        new Object[]{tmpls, tr, Long.valueOf(leaseTime), Long.valueOf(limit)});
 	}
 
@@ -3271,9 +3326,9 @@ public class OutriggerServerImpl
 	}
 
 	final Uuid uuid = UuidFactory.generate();
-	final ContentsQuery contentsQuery = new ContentsQuery(uuid, tmpls, 
-							      txn, limit);
-	final EntryRep[] reps = contentsQuery.nextBatch(null, 
+	final ContentsQuery contentsQuery = new ContentsQuery(uuid, tmpls,
+							      txn, limit, filters);
+	final EntryRep[] reps = contentsQuery.nextBatch(null,
    	    System.currentTimeMillis());
 
 	if (reps[reps.length-1] == null) {
@@ -3338,6 +3393,15 @@ public class OutriggerServerImpl
 	/** The transaction the query is being performed under */
 	final private Txn txn;
 
+	/**
+	 * The server-side CEL filter set gating every batch (B3, site&nbsp;B).
+	 * {@link FilterSet#EMPTY} for an unfiltered contents query. Held in the
+	 * retained query state so every continuation batch (via {@code nextBatch})
+	 * re-enters the SAME filtered query by construction (design memo §1.4) —
+	 * there is no separate unfiltered re-fetch to drop the filter on.
+	 */
+	final private FilterSet filters;
+
 	/** Lock to prevent concurrent calls to <code>nextBatch</code> */
 	final private Object lock = new Object();
 
@@ -3374,9 +3438,15 @@ public class OutriggerServerImpl
                 )) ;
 
 	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit) {
+	    this(uuid, tmpls, txn, limit, FilterSet.EMPTY);
+	}
+
+	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit,
+			      FilterSet filters) {
 	    this.uuid = uuid;
 	    this.tmpls = tmpls;
 	    this.txn = txn;
+	    this.filters = (filters == null) ? FilterSet.EMPTY : filters;
 	    remaining = limit;
             Set classes = new java.util.HashSet(128);
 	    for (int i=0; i<tmpls.length; i++) {
@@ -3393,7 +3463,7 @@ public class OutriggerServerImpl
 	private boolean advanceCurrentQuery(long now) {
 	    while (classesIterator.hasNext()) {
 		currentQuery = createQuery(tmpls, (String)classesIterator.next(),
-					   txn, false, now);
+					   txn, false, now, filters);
 		if (currentQuery == null)
 		    continue;
 

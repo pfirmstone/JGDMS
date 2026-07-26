@@ -724,7 +724,21 @@ class EntryHolder implements TransactionConstants {
     ContinuingQuery continuingQuery(EntryRep[] tmpls, TransactableMgr txn,
 				    boolean takeThem, long now)
     {
-	return new ContinuingQuery(tmpls, txn, takeThem, now);
+	return new ContinuingQuery(tmpls, txn, takeThem, now, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #continuingQuery(EntryRep[], TransactableMgr, boolean, long)},
+     * but the resulting query gates every yielded entry on the server-side CEL
+     * {@code filters} at the confirm window (SOW Part&nbsp;B, unit&nbsp;B3,
+     * site&nbsp;B). Used by filtered {@code contents} and bulk {@code take}, whose
+     * continuation batches re-enter this same query state so every batch is
+     * filtered by construction. {@code FilterSet.EMPTY} is a no-op.
+     */
+    ContinuingQuery continuingQuery(EntryRep[] tmpls, TransactableMgr txn,
+				    boolean takeThem, long now, FilterSet filters)
+    {
+	return new ContinuingQuery(tmpls, txn, takeThem, now, filters);
     }
 
     /**
@@ -754,11 +768,17 @@ class EntryHolder implements TransactionConstants {
 	/** Time used to weed out expired entries, ok if old */
 	volatile long now;
 
-	/** 
+	/**
 	 * Current position in parent <code>EntryHolder</code>'s
-	 * <code>contents</code> 
+	 * <code>contents</code>
 	 */
 	private final Iterator<EntryHandle> contentsIterator;
+
+	/**
+	 * The server-side CEL filter set gating yielded entries (B3, site&nbsp;B).
+	 * {@link FilterSet#EMPTY} for an unfiltered query.
+	 */
+	private final FilterSet filters;
 
 	/**
 	 * Create a new <code>ContinuingQuery</code> object.
@@ -776,12 +796,13 @@ class EntryHolder implements TransactionConstants {
 	 */
         // 	 * @return a new ContinuingQuery object. (?)
 	private ContinuingQuery(EntryRep[] tmpls, TransactableMgr txn,
-				boolean takeThem, long now)
+				boolean takeThem, long now, FilterSet filters)
 	{
 	    this.tmpls = tmpls;
 	    this.txn = txn;
 	    this.takeThem = takeThem;
 	    this.now = now;
+	    this.filters = (filters == null) ? FilterSet.EMPTY : filters;
 	    contentsIterator = content.iterator();
             descLocal = new ThreadLocal<EntryHandleTmplDesc[]>();
 	}
@@ -866,9 +887,9 @@ class EntryHolder implements TransactionConstants {
 	        }
 		if (handleMatch(handle, descs)) {
 		    final boolean available =
-			confirmAvailabilityWithTxn(handle.rep(), handle, txn, 
-			    takeThem, now, conflictSet, lockedEntrySet, 
-			    provisionallyRemovedEntrySet);
+			confirmAvailabilityWithTxn(handle.rep(), handle, txn,
+			    takeThem, now, conflictSet, lockedEntrySet,
+			    provisionallyRemovedEntrySet, filters, null);
 
 		    if (available) return handle;
 		}
