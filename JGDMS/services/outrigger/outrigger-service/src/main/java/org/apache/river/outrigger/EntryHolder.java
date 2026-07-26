@@ -263,10 +263,31 @@ class EntryHolder implements TransactionConstants {
      * item in question is still in the space and hasn't been
      * subject to other transactional-interference...
      */
-    private boolean confirmAvailabilityWithTxn(EntryRep rep, 
-	      EntryHandle handle, TransactableMgr txnMgr, boolean takeIt, 
+    private boolean confirmAvailabilityWithTxn(EntryRep rep,
+	      EntryHandle handle, TransactableMgr txnMgr, boolean takeIt,
 	      long time, Set conflictSet, Set<Uuid> lockedEntrySet,
 	      Set<EntryHandle> provisionallyRemovedEntrySet)
+	throws CannotJoinException
+    {
+	return confirmAvailabilityWithTxn(rep, handle, txnMgr, takeIt, time,
+		conflictSet, lockedEntrySet, provisionallyRemovedEntrySet,
+		FilterSet.EMPTY, null);
+    }
+
+    /**
+     * As {@link #confirmAvailabilityWithTxn(EntryRep, EntryHandle,
+     * TransactableMgr, boolean, long, Set, Set, Set)}, but additionally gating
+     * capture on a server-side CEL {@code filters} predicate (SOW Part&nbsp;B,
+     * unit&nbsp;B3). {@code FilterSet.EMPTY} is a no-op (the unfiltered path is
+     * byte-for-byte unchanged). {@code matchedTemplateDigest} is the applicability
+     * digest of the template the candidate byte-matched, or {@code null} if the
+     * caller does not know it (single-template ops resolve correctly either way).
+     */
+    private boolean confirmAvailabilityWithTxn(EntryRep rep,
+	      EntryHandle handle, TransactableMgr txnMgr, boolean takeIt,
+	      long time, Set conflictSet, Set<Uuid> lockedEntrySet,
+	      Set<EntryHandle> provisionallyRemovedEntrySet,
+	      FilterSet filters, byte[] matchedTemplateDigest)
 	throws CannotJoinException
     {
 	// Now that we know we have a match, make sure that the the
@@ -289,10 +310,10 @@ class EntryHolder implements TransactionConstants {
 		txn.ensureActive();
 
 	    return confirmAvailability(rep, handle, txn,
-		takeIt, time, conflictSet, lockedEntrySet, 
-		provisionallyRemovedEntrySet);
+		takeIt, time, conflictSet, lockedEntrySet,
+		provisionallyRemovedEntrySet, filters, matchedTemplateDigest);
 	} finally {
-	    if (txn != null) 
+	    if (txn != null)
 		txn.allowStateChange();
 	}
     }
@@ -310,7 +331,8 @@ class EntryHolder implements TransactionConstants {
 	confirmAvailability(EntryRep rep, EntryHandle handle,
 	      TransactableMgr txn, boolean takeIt, long time,
 	      Set conflictSet, Set<Uuid> lockedEntrySet,
-	      Set<EntryHandle> provisionallyRemovedEntrySet)
+	      Set<EntryHandle> provisionallyRemovedEntrySet,
+	      FilterSet filters, byte[] matchedTemplateDigest)
     {
 	synchronized (handle) {
             if (handle.removed()) return false;
@@ -352,10 +374,27 @@ class EntryHolder implements TransactionConstants {
 		return false;
 	    }
 
+	    /*
+	     * B3 INSERTION POINT (design memo §1.4, INV-2). The entry is proven
+	     * available-and-entitled (canPerform passed) but NOT yet captured. If a
+	     * server-side CEL filter is in force and the candidate does not satisfy
+	     * it (predicate-false OR any fail-closed reason), return "not this one"
+	     * WITHOUT grabbing — nothing is taken/locked, exactly like a conflict,
+	     * so a consuming op never captures a predicate-false candidate and there
+	     * is no un-take to undo. Placed AFTER canPerform (INV-1: never evaluate a
+	     * client predicate against an entry the client cannot see) and BEFORE
+	     * grab (INV-2: no captured false-positive). FilterSet.EMPTY short-circuits
+	     * so the unfiltered path is unchanged.
+	     */
+	    if (filters != null && !filters.isEmpty()
+		    && !FilterEval.matches(filters, rep, matchedTemplateDigest)) {
+		return false;
+	    }
+
 	    if (grab(handle, txn, op, takeIt, false))
 		return true;
-	    else 
-		throw 
+	    else
+		throw
 		    new AssertionError("entry became non-available while locked");
 	}
     }

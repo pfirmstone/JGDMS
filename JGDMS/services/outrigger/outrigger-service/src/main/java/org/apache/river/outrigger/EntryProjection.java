@@ -126,18 +126,43 @@ public final class EntryProjection implements CandidateProjection {
     private static final Tag SLICE_ABSENT = new Tag(Tag.CLASS_CONTEXT, false, 0);
     private static final Tag SLICE_VALUE  = new Tag(Tag.CLASS_CONTEXT, true, 1);
 
-    /** The single fail-closed sentinel: an undecodable candidate. */
-    private static final EntryProjection UNDECODABLE = new EntryProjection();
+    /**
+     * The per-candidate projection-decode byte budget (design memo B3 &sect;4.3
+     * Option&nbsp;B, {@code [RATIFIED Peter 2026-07-26]}). Bounds the total
+     * candidate-<em>value</em> bytes this projection will decode/scan for one
+     * candidate: every referenced field's decoded payload (including the whole
+     * payload of a nested {@code @AtomicSerial} object, which
+     * {@link ObjectCodec#decodeToScalarFieldMapClassFree} decodes in full — the
+     * {@code has(obj)} amplifier the memo calls out) is charged against it.
+     * Exceeding it renders the projection {@link #isUndecodable()} with
+     * {@link #budgetExceeded()} {@code == true}, so B3 fail-closed-excludes the
+     * candidate and counts it in {@code filter.rejected.projectionBudget}
+     * (a sub-category of {@code filter.failClosedExclusions}).
+     *
+     * <p>{@value} = {@code 64 KiB} — deliberately equal to {@code
+     * CostModel.MAX_SCALAR_BYTES}, the same ceiling the admission cost gate uses
+     * for a <em>literal</em> operand, so both sides of every comparison the cost
+     * gate reasons about live under one ceiling (memo &sect;4.4). Fixed
+     * compile-time constant; no runtime/deployment knob.
+     */
+    public static final int MAX_PROJECTION_DECODE_BYTES = 64 * 1024;
+
+    /** The fail-closed sentinel: an undecodable candidate (non-budget). */
+    private static final EntryProjection UNDECODABLE = new EntryProjection(false);
+    /** The fail-closed sentinel: a candidate that blew the {@link #MAX_PROJECTION_DECODE_BYTES} budget. */
+    private static final EntryProjection UNDECODABLE_BUDGET = new EntryProjection(true);
 
     private final boolean undecodable;
+    private final boolean budgetExceeded;                       // true iff undecodable BECAUSE the byte budget was exceeded
     private final byte[] entrySchemaDigest;                     // 32 bytes; null iff undecodable
     private final List<String> namespaceChain;                  // leaf-first; empty iff undecodable
     private final Map<String, Set<String>> declaredByClass;     // className -> declared field names (SCHEMA presence)
     private final Map<String, Map<String, CelValue>> decoded;   // className -> fieldName -> decoded value (referenced only)
 
     /** The fail-closed sentinel constructor. */
-    private EntryProjection() {
+    private EntryProjection(boolean budgetExceeded) {
         this.undecodable = true;
+        this.budgetExceeded = budgetExceeded;
         this.entrySchemaDigest = null;
         this.namespaceChain = List.of();
         this.declaredByClass = Map.of();
@@ -149,10 +174,22 @@ public final class EntryProjection implements CandidateProjection {
                             Map<String, Set<String>> declaredByClass,
                             Map<String, Map<String, CelValue>> decoded) {
         this.undecodable = false;
+        this.budgetExceeded = false;
         this.entrySchemaDigest = entrySchemaDigest;
         this.namespaceChain = namespaceChain;
         this.declaredByClass = declaredByClass;
         this.decoded = decoded;
+    }
+
+    /**
+     * A signal, internal to this class, that the per-candidate
+     * {@link #MAX_PROJECTION_DECODE_BYTES} budget was exhausted mid-decode.
+     * Caught in {@link #projectFields} and mapped to {@link #UNDECODABLE_BUDGET}
+     * (fail-closed exclusion, counted separately from ordinary undecodables).
+     */
+    private static final class ProjectionBudgetExceeded extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        ProjectionBudgetExceeded() { super(null, null, false, false); }
     }
 
     // =====================================================================
@@ -240,6 +277,10 @@ public final class EntryProjection implements CandidateProjection {
             // 4. Eagerly decode ONLY the referenced fields. A decode failure of any
             //    one referenced field fails the whole candidate closed (a candidate
             //    whose referenced bytes will not decode canonically is a no-match).
+            //    The per-candidate byte budget (§4.3 Option B) is charged cumulatively
+            //    across every referenced field's value bytes; exhausting it fails the
+            //    whole candidate closed as a (separately-counted) budget exclusion.
+            final long[] budgetRemaining = { MAX_PROJECTION_DECODE_BYTES };
             Map<String, Map<String, CelValue>> decoded = new LinkedHashMap<>();
             for (AtomicSerialSchemaRecord rec : chain) {
                 Map<String, Integer> perClass = indexByClass.get(rec.className());
@@ -249,7 +290,7 @@ public final class EntryProjection implements CandidateProjection {
                     int i = perClass.get(f.wireName());
                     CelValue v = absent[i]
                             ? CelValue.NullV.INSTANCE
-                            : decodeSliceValue(slices[i], schemaTable, f.wireType());
+                            : decodeSliceValue(slices[i], schemaTable, f.wireType(), budgetRemaining);
                     if (vals == null) {
                         vals = new LinkedHashMap<>();
                         decoded.put(rec.className(), vals);
@@ -263,6 +304,10 @@ public final class EntryProjection implements CandidateProjection {
                     Collections.unmodifiableList(nsChain),
                     Collections.unmodifiableMap(declaredByClass),
                     decoded);
+        } catch (ProjectionBudgetExceeded budget) {
+            // Exceeded MAX_PROJECTION_DECODE_BYTES => fail-closed, but counted
+            // separately so lock-hold-DoS attempts are visible (§4.3 / §7).
+            return UNDECODABLE_BUDGET;
         } catch (VirtualMachineError vme) {
             // A JVM error (OOME/StackOverflow) is NOT an undecodable candidate; never swallow it.
             throw vme;
@@ -280,6 +325,20 @@ public final class EntryProjection implements CandidateProjection {
     @Override
     public boolean isUndecodable() {
         return undecodable;
+    }
+
+    /**
+     * Whether this projection is undecodable specifically because the candidate
+     * exceeded the {@link #MAX_PROJECTION_DECODE_BYTES} per-candidate decode
+     * budget (as opposed to an ordinary canonical-decode failure). B3 uses this
+     * to split {@code filter.rejected.projectionBudget} out of the general
+     * {@code filter.failClosedExclusions} count (design memo B3 &sect;7). Only
+     * meaningful when {@link #isUndecodable()} is {@code true}.
+     *
+     * @return {@code true} iff this candidate was excluded for blowing the byte budget
+     */
+    public boolean budgetExceeded() {
+        return budgetExceeded;
     }
 
     @Override
@@ -434,7 +493,7 @@ public final class EntryProjection implements CandidateProjection {
      * class-freely map — the caller turns that into a fail-closed no-match.
      */
     private static CelValue decodeSliceValue(byte[] sliceBytes, Map<String, byte[]> schemaTable,
-                                             String declaredWireType) throws Exception {
+                                             String declaredWireType, long[] budgetRemaining) throws Exception {
         DerReader r = new DerReader(sliceBytes);
         Tag tag = r.peekTag();
         if (SLICE_ABSENT.equals(tag)) {
@@ -447,6 +506,15 @@ public final class EntryProjection implements CandidateProjection {
         r.readTlvHeader(); // step into the [1] IMPLICIT SEQUENCE content
         byte[] valueSchemaDigest = r.readOctetString();
         byte[] payload = r.readOctetString();
+
+        // Charge the candidate-value bytes against the per-candidate budget (§4.3
+        // Option B). For a nested @AtomicSerial object `payload` is the entire
+        // nested body, so charging its length here cumulatively bounds the full
+        // decodeToScalarFieldMapClassFree descent below (the has(obj) amplifier).
+        budgetRemaining[0] -= payload.length;
+        if (budgetRemaining[0] < 0) {
+            throw new ProjectionBudgetExceeded();
+        }
 
         if (valueSchemaDigest.length == 0) {
             // Self-describing scalar slice. A field DECLARED @AtomicSerial must carry a nested
