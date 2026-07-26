@@ -118,8 +118,7 @@ media-types@iana.org list; respond to reviewer feedback on-list to keep the tick
   ASN.1 module accompanies the specification.
 - **Published specification:** JGDMS-STD-006 — ATOMIC DER Wire Format,
   `«stable public URL, e.g. the GitHub blob URL for the ratified revision»`
-- **Applications that use this media type:** JGDMS (Java/Jini Group Data Management
-  System) service marshalling, discovery, and persistent storage; DirtyChai;
+- **Applications that use this media type:** JGDMS (Jini Global Distributed Micro Services) service marshalling, discovery, and persistent storage; DirtyChai;
   archival/forensic tooling reading stored `MarshalledInstanceRecord`s.
 - **Fragment identifier considerations:** none
 - **Additional information:**

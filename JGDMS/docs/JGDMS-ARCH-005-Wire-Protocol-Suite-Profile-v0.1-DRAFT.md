@@ -72,7 +72,7 @@ without re-specifying any of them). This document is that, for the JGDMS wire st
 
 ## Abstract
 
-JGDMS ("Juxtaposition of Grouped Distributed Method Semantics") is a security-first
+JGDMS (Jini Global Distributed Micro Services) is a security-first
 rewrite of the wire stack that Jini / Apache River used to distribute Java objects and
 remote calls. Its 4.0 wire protocol is not one format but a suite of three composed
 layers, each with its own ratified standard:
