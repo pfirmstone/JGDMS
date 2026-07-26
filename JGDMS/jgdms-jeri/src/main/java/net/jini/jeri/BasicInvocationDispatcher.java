@@ -1554,8 +1554,23 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * exists at the other end of the remote call (on the client side), and so
      * cannot meaningfully enter into the access control decision.
      *
+     * <p>This principal-only rule governs this one-argument overload, which is
+     * the fallback used when no caller reducing-context was transmitted. The
+     * {@link #checkClientPermission(Permission, AccessControlContext)} overload
+     * additionally evaluates the permission against the caller's reconstructed
+     * reducing domains. Those domains carry codebases, but they can only
+     * <em>reduce</em> the authenticated worker principals' authority, never
+     * extend it: the principals are taken from the verified mTLS connection
+     * (never the wire) and the reducing-context AND semantics require every
+     * domain to imply the permission. That reduction is sound only over an
+     * authenticated, encrypted connection and under principal-scoped policy;
+     * a codebase-only grant (for example an <code>AllPermission</code> grant to
+     * a module or library codebase) would let a caller assert a privileged
+     * codebase to satisfy the check, so deployment policies must not retain
+     * such grants.
+     *
      * @param	permission the requested permission
-     * @throws	SecurityException if the current client subject has not 
+     * @throws	SecurityException if the current client subject has not
      *		been granted the specified permission
      * @throws	IllegalStateException if the current thread is not executing
      *		an incoming remote method for a remote object
