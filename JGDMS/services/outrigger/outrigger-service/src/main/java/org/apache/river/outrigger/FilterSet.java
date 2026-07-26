@@ -23,6 +23,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import au.net.zeus.jgdms.cel.ast.ExprNode;
+
 /**
  * The immutable per-template plurality carrier for a filtered operation (design
  * memo B3 &sect;1.2/&sect;5). Built once, at admission, from an operation's
@@ -56,20 +58,24 @@ import java.util.Map;
  *       identity trusted by construction (digest == key).</li>
  *   <li>Otherwise (a digest mismatch — dominantly a <b>subclass entry</b> whose
  *       own chain is longer than the template it byte-matched): the candidate is
- *       resolved schema-lessly against the <em>originating</em> concrete filter —
- *       the one whose template it byte-matched. When the operation carries
- *       exactly one concrete filter that association is immediate (it IS the
- *       originating filter). When the operation carries several concrete filters
- *       of distinct schemas, the digest alone cannot recover which template
- *       produced the byte-match, so this carrier fails <b>closed</b> (excludes
- *       the candidate) rather than guess — over-exclusion is a correctness
- *       annoyance, never a security failure (memo &sect;7); the caller may pass
- *       the byte-matched template's own digest to
- *       {@link #applicableTo(byte[], byte[])} to resolve it precisely.</li>
+ *       resolved schema-lessly against the shared predicate expression. By the
+ *       <b>one-envelope-per-op invariant</b> (B1, enforced at construction by
+ *       {@link Builder#build()}'s shared-expression guard) every filter in this
+ *       set carries the SAME predicate expression, so any concrete filter is a
+ *       correct representative: if the caller supplies the byte-matched template's
+ *       digest that filter is used precisely, otherwise the first concrete filter
+ *       is used (identical expression). The referenced field names are then
+ *       resolved against the candidate's <em>own</em> v2 schema at evaluation time
+ *       — present-and-unambiguous ⇒ evaluated against the candidate's own value;
+ *       absent-or-ambiguous ⇒ fail-closed exclusion downstream (memo &sect;3/&sect;5
+ *       amendment, {@code [RATIFIED Peter 2026-07-26]}). This carrier no longer
+ *       fails closed on a bare digest mismatch — the prior "&ge;2 distinct schemas
+ *       ⇒ exclude" rule was a fail-<em>open</em> that silently over-excluded every
+ *       legitimate subclass result at a multi-template site.</li>
  * </ol>
  * An empty combined list is <b>never</b> treated as "no constraint" (memo
- * &sect;5): a non-empty {@code FilterSet} that resolves to no applicable filter
- * for a candidate is the ambiguous-subclass fail-closed case above.
+ * &sect;5); a non-empty {@code FilterSet} always resolves to at least one
+ * applicable filter (a {@code schemaLess} filter, or a concrete representative).
  *
  * @since JGDMS 4.0.0
  */
@@ -133,31 +139,36 @@ final class FilterSet {
                 concrete = byDigest.get(hex(candidateDigest));
             }
             if (concrete == null) {
-                // Digest mismatch: subclass / cross-schema candidate. Resolve to the
-                // ORIGINATING filter (the template the candidate byte-matched),
-                // schema-lessly, per the ratified §3 amendment.
+                // Digest mismatch: dominantly a SUBCLASS candidate — it byte-matched a
+                // (superclass) template on that template's own declared fields, but its
+                // own schema chain is longer, so its digest matches no byDigest key.
+                // Prefer the byte-matched template's own filter when the caller knows it.
                 if (matchedTemplateDigest != null && matchedTemplateDigest.length > 0) {
                     concrete = byDigest.get(hex(matchedTemplateDigest));
                 }
-                if (concrete == null && byDigest.size() == 1) {
-                    // Exactly one concrete filter for the whole op => it IS the
-                    // originating filter (single-template ops, and multi-template
-                    // ops whose templates share one schema).
-                    concrete = byDigest.values().iterator().next();
-                }
                 if (concrete == null) {
-                    // Several distinct concrete schemas and no matched-template hint:
-                    // cannot recover which template's predicate to apply. Fail closed
-                    // rather than guess (over-exclusion is safe; §5/§7).
-                    return null;
+                    // No exact hint (every multi-template capture/fan-out site passes
+                    // null). By the one-envelope-per-op invariant (B1) — enforced at
+                    // construction by Builder.build()'s shared-expression guard — every
+                    // filter in this set carries the SAME predicate expression, so ANY
+                    // concrete filter is a correct representative to resolve SCHEMA-LESS
+                    // against the candidate's own schema chain (§3/§5 amendment). Pick
+                    // the first deterministically. This REPLACES the former ">=2 distinct
+                    // schemas => return null" behaviour, which was a fail-open: it
+                    // silently over-excluded every legitimate subclass result at a
+                    // multi-template site. A genuinely unresolvable referenced field is
+                    // still caught fail-closed DOWNSTREAM at projection/eval
+                    // (ABSENT_FIELD / AMBIGUOUS_FIELD), not by dropping the candidate here.
+                    concrete = byDigest.values().iterator().next();
                 }
             }
             out.add(concrete);
         }
 
         // A non-empty FilterSet always yields at least one applicable filter here
-        // (schemaLess non-empty, or a concrete resolved above); an empty result
-        // would be the "no constraint" fail-open §5 forbids, so guard it.
+        // (schemaLess non-empty, or a concrete representative resolved above); an empty
+        // result would be the "no constraint" fail-open §5 forbids, so guard it
+        // defensively (unreachable for a non-empty set after the §5 amendment).
         if (out.isEmpty()) {
             return null;
         }
@@ -202,9 +213,47 @@ final class FilterSet {
             if (byDigest.isEmpty() && schemaLess.isEmpty()) {
                 return EMPTY;
             }
+            assertOneEnvelope();
             return new FilterSet(
                     Collections.unmodifiableMap(new LinkedHashMap<>(byDigest)),
                     Collections.unmodifiableList(new ArrayList<>(schemaLess)));
+        }
+
+        /**
+         * Guards the <b>one-envelope-per-op invariant</b> (B1): every
+         * {@link CompiledFilter} admitted for a single filtered operation is the
+         * SAME filter envelope admitted against each template, so all carry the
+         * SAME predicate expression. &sect;5's subclass resolution
+         * ({@link FilterSet#applicableTo(byte[], byte[])}) relies on this — on a
+         * digest mismatch it applies <em>any</em> filter's expression to the
+         * candidate. A future multi-envelope change that broke this would silently
+         * misapply one template's predicate to another template's candidates (the
+         * &sect;6.2 / N-6 hazard). We fail LOUDLY at construction rather than let
+         * that be a silent evaluation bug (G7: construction beats a check). Cheap:
+         * a structural {@link ExprNode#equals} over a bounded AST, once per op.
+         */
+        private void assertOneEnvelope() {
+            ExprNode ref = null;
+            for (CompiledFilter f : byDigest.values()) { ref = f.expr(); break; }
+            if (ref == null) {
+                for (CompiledFilter f : schemaLess) { ref = f.expr(); break; }
+            }
+            if (ref == null) return;
+            for (CompiledFilter f : byDigest.values()) {
+                if (!ref.equals(f.expr())) throw multiEnvelope();
+            }
+            for (CompiledFilter f : schemaLess) {
+                if (!ref.equals(f.expr())) throw multiEnvelope();
+            }
+        }
+
+        private static IllegalStateException multiEnvelope() {
+            return new IllegalStateException(
+                    "FilterSet invariant violated: a filtered operation must carry"
+                    + " exactly ONE filter envelope, so every CompiledFilter must share"
+                    + " the same predicate expression (B1 one-envelope-per-op; §6.2/N-6)."
+                    + " Multiple distinct expressions in one FilterSet would silently"
+                    + " misapply one template's predicate to another template's candidates.");
         }
     }
 

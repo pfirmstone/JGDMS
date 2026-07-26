@@ -162,15 +162,44 @@ public class FilterEvalTest {
     }
 
     @Test
-    public void allApplicableMustPass() throws Exception {
-        EntryRep cand = new EntryRep(new Reading(25.0, "North"));
-        // Two schema-less filters: one true, one false => all-must-pass => excluded.
+    public void filterSetGuardsSharedExpression() {
+        // The one-envelope-per-op invariant (§6.2/N-6): a FilterSet whose filters
+        // carry DIFFERENT predicate expressions cannot be built — that would let one
+        // template's predicate be silently misapplied to another's candidates, and
+        // §5's subclass resolution (which applies ANY filter's expression on a digest
+        // mismatch) would be unsound. Rejected LOUDLY at construction.
         CompiledFilter t = schemaLess(
                 new ExprNode.Gt(ref("temperatureCelsius"), new ExprNode.LitDouble(20.0)));
         CompiledFilter f = schemaLess(
                 new ExprNode.Eq(ref("stationName"), new ExprNode.LitString("South")));
-        FilterSet fs = new FilterSet.Builder().add(t).add(f).build();
-        assertFalse(FilterEval.matches(fs, cand));
+        try {
+            new FilterSet.Builder().add(t).add(f).build();
+            org.junit.Assert.fail("expected IllegalStateException for mixed expressions");
+        } catch (IllegalStateException expected) {
+            // one-envelope-per-op invariant enforced at construction
+        }
+    }
+
+    @Test
+    public void allMustPassAcrossSchemaLessAndConcreteSameEnvelope() throws Exception {
+        // A legitimate multi-entry applicable list (§5 all-must-pass): a match-any
+        // template (schema-less) AND a concrete template, from the SAME envelope so
+        // both carry the same predicate. A candidate matching the concrete digest is
+        // subject to BOTH; the all-must-pass loop evaluates each. Both agree (one
+        // envelope), so a matching candidate passes and a non-matching one is excluded.
+        EntryRep cand = new EntryRep(new Reading(25.0, "North"));
+        FilterSet fs = new FilterSet.Builder()
+                .add(schemaLess(warmNorth()))
+                .add(concrete(warmNorth(), cand.entrySchemaDigest()))
+                .build();
+        assertTrue(FilterEval.matches(fs, cand));
+
+        EntryRep cold = new EntryRep(new Reading(10.0, "North"));
+        FilterSet fs2 = new FilterSet.Builder()
+                .add(schemaLess(warmNorth()))
+                .add(concrete(warmNorth(), cold.entrySchemaDigest()))
+                .build();
+        assertFalse(FilterEval.matches(fs2, cold));
     }
 
     @Test
@@ -206,20 +235,33 @@ public class FilterEvalTest {
     }
 
     @Test
-    public void ambiguousMultiSchemaSubclassFailsClosed() throws Exception {
-        // Two concrete filters of DISTINCT schemas + a subclass candidate whose
-        // digest matches neither and no matched-template hint => fail-closed (never
-        // a guess, never a fail-open).
+    public void multiSchemaSubclassResolvedViaSharedExpression() throws Exception {
+        // FIX 2 (recall): two concrete filters keyed to DISTINCT schemas but sharing
+        // the SAME predicate (the one-envelope-per-op invariant) + a subclass candidate
+        // whose digest matches neither key and no matched-template hint. The OLD rule
+        // returned null => fail-closed, silently over-excluding EVERY legitimate subclass
+        // result at a multi-template site (contents/register/fan-out all pass null). Now
+        // the candidate is resolved schema-lessly against the shared expression, exactly
+        // like a directly-matching candidate: warm-north matches by its inherited fields,
+        // cold is an honest predicate-false, and neither is a fault-driven exclusion.
         EntryRep other = new EntryRep(new Reading(1.0, "z"));
         byte[] d2 = other.entrySchemaDigest().clone();
         d2[0] ^= 0x5A; // a different, non-matching digest
         CompiledFilter f1 = concrete(warmNorth(), other.entrySchemaDigest());
         CompiledFilter f2 = concrete(warmNorth(), d2);
         FilterSet fs = new FilterSet.Builder().add(f1).add(f2).build();
-        EntryRep sub = new EntryRep(new DetailedReading(25.0, "North", "s1"));
+
+        EntryRep warm = new EntryRep(new DetailedReading(25.0, "North", "s1"));
+        EntryRep cold = new EntryRep(new DetailedReading(10.0, "North", "s1"));
         long fc = metric("filter.failClosedExclusions");
-        assertFalse(FilterEval.matches(fs, sub));
-        assertEquals(fc + 1, metric("filter.failClosedExclusions"));
+        long xf = metric("filter.excludedFalse");
+        assertTrue("subclass warm-north matches via the shared inherited predicate",
+                FilterEval.matches(fs, warm));
+        assertFalse("subclass cold is an honest predicate-false, not fail-closed",
+                FilterEval.matches(fs, cold));
+        assertEquals("cold is an honest-false", xf + 1, metric("filter.excludedFalse"));
+        assertEquals("neither subclass is a fault-driven exclusion", fc,
+                metric("filter.failClosedExclusions"));
     }
 
     // =====================================================================

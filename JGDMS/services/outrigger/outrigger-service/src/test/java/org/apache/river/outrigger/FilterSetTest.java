@@ -19,7 +19,6 @@ package org.apache.river.outrigger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -106,12 +105,19 @@ public class FilterSetTest {
     }
 
     @Test
-    public void multipleDistinctSchemasSubclassWithoutHintFailsClosed() {
+    public void multipleDistinctSchemasSubclassWithoutHintResolvesViaSharedExpression() {
         CompiledFilter f1 = filter(digest(1)), f2 = filter(digest(50));
         FilterSet fs = new FilterSet.Builder().add(f1).add(f2).build();
-        // Unknown digest, no matched-template hint => cannot recover the
-        // originating filter => null (fail-closed exclusion), never a guess.
-        assertNull(fs.applicableTo(digest(99)));
+        // FIX 2 (recall): unknown digest, no matched-template hint. Every filter in the
+        // set shares the SAME predicate expression (the one-envelope-per-op invariant,
+        // guarded at build()), so a representative concrete filter is used to resolve the
+        // candidate SCHEMA-LESS against its own schema — NEVER null. The old "return null"
+        // was a fail-OPEN: it silently over-excluded every legitimate subclass result at a
+        // multi-template site (contents / register / fan-out all pass a null hint). The
+        // representative is the first byDigest entry, chosen deterministically.
+        List<CompiledFilter> a = fs.applicableTo(digest(99));
+        assertEquals(1, a.size());
+        assertSame(f1, a.get(0));
     }
 
     @Test
