@@ -52,12 +52,13 @@ public final class ConstrainableAdminProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static MethodConstraints checkConstraints(GetArg arg)
+    private static MethodConstraints check(GetArg arg, Registrar server)
 	    throws IOException, ClassNotFoundException{
+	// The server field is private to AdminProxy's serialForm namespace:
+	// a subclass cannot read it from its own GetArg frame (that resolves
+	// against this class's namespace, which holds only CONSTRAINTS), so it
+	// is passed in from the inherited field after super(arg) has populated it.
 	MethodConstraints constraints = arg.get(CONSTRAINTS, null, MethodConstraints.class);
-	// Read the superclass field directly rather than constructing a plain
-	// AdminProxy (now abstract); super(arg) still runs its validation.
-	Registrar server = (Registrar) arg.get("server", null);
 	MethodConstraints proxyCon = null;
 	if (server instanceof RemoteMethodControl &&
 	    (proxyCon = ((RemoteMethodControl)server).getConstraints()) != null) {
@@ -67,15 +68,14 @@ public final class ConstrainableAdminProxy
 	verifyConsistentConstraints(constraints, server);
 	return constraints;
     }
-    
+
     public ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg, checkConstraints(arg));
-    }
-    
-    ConstrainableAdminProxy(GetArg arg, MethodConstraints constraints) 
-	    throws IOException, ClassNotFoundException{
+	// super(arg) reads and validates the inherited server field in
+	// AdminProxy's own namespace; only then can constraints be checked
+	// against it.  Reading server pre-super (arg.get("server") in this
+	// class's frame) yielded null -> verifyConsistentConstraints NPE.
 	super(arg);
-	this.constraints = constraints;
+	this.constraints = check(arg, server);
     }
 
     /**
