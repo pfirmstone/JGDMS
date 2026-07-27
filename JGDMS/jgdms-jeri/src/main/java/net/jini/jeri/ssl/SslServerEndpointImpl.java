@@ -68,6 +68,7 @@ import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.InboundRequest;
@@ -443,10 +444,21 @@ class SslServerEndpointImpl extends Utilities {
     {
 		List<InvocationConstraint> requiredConstraints = new ArrayList<InvocationConstraint>(2);
 		List<InvocationConstraint> preferredConstraints = new ArrayList<InvocationConstraint>(2);
+		// MarshallingFormat constraints deferred by the transport, collected
+		// INDEPENDENTLY of the integrity/atomicity else-if chain so a required
+		// format is NEVER dropped when integrity/atomicity is also present --
+		// dropping it would skip the JOSS-prevention check (JGDMS-STD-008
+		// sec.18.3). NOTE: on the dispatch path the dispatcher already strips
+		// and verifies MarshallingFormat (BasicInvocationDispatcher.
+		// verifyAndStripMarshallingFormat) before this transport check, so this
+		// normally collects nothing; it is a correct defensive mirror of the
+		// client-side deferral and NEVER returns "OK" for a MarshallingFormat.
+		Set<MarshallingFormat> marshallingRequired = new java.util.LinkedHashSet<MarshallingFormat>();
+		Set<MarshallingFormat> marshallingPreferred = new java.util.LinkedHashSet<MarshallingFormat>();
 		boolean supported = false;
 		for (int i = 2; --i >= 0; ) {
 			boolean upperLayerConstraints = i == 1;
-			ConnectionContext context = 
+			ConnectionContext context =
 				ConnectionContext.getInstance(cipherSuite,
 					client,
 					server,
@@ -454,6 +466,8 @@ class SslServerEndpointImpl extends Utilities {
 					false /* clientSide */,
 					constraints);
 			if (context != null) {
+				marshallingRequired.addAll(context.getMarshallingRequired());
+				marshallingPreferred.addAll(context.getMarshallingPreferred());
 				if (context.getIntegrityRequired()) {
 					requiredConstraints.add(Integrity.YES);
 				} else if (context.getIntegrityPreferred()) {
@@ -465,6 +479,14 @@ class SslServerEndpointImpl extends Utilities {
 				} else {
 					supported = true;
 				}
+			}
+		}
+		for (MarshallingFormat mf : marshallingRequired) {
+			requiredConstraints.add(mf);
+		}
+		for (MarshallingFormat mf : marshallingPreferred) {
+			if (!marshallingRequired.contains(mf)) {
+				preferredConstraints.add(mf);
 			}
 		}
 		if (!requiredConstraints.isEmpty() || !preferredConstraints.isEmpty()){
