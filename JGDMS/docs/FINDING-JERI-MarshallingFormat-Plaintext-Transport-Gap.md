@@ -1,9 +1,13 @@
 # Board Finding — `MarshallingFormat` is unsatisfiable over EVERY JERI transport (incomplete STD-008 rollout)
 
-**Status:** SUBMITTED to the board 2026-07-26; **corrected 2026-07-27** (scope is broader than first filed — see
-§0). Open-question 1 **RATIFIED (Peter, 2026-07-26): plaintext-transport DER is supported for TESTING PURPOSES
-ONLY.** Surfaced by the Outrigger CEL-filter demo7 (§8), the first end-to-end exercise of a **DER-only proxy
-making real invocations over a JERI endpoint.** Not a filter defect — a pre-existing transport-layer gap.
+**Status:** **RESOLVED 2026-07-27 — fix implemented and merged to trunk (merge `a96e677d7`).** All three
+questions ratified by Peter; Q3 implemented. `MarshallingFormat` is now DEFERRED (never claimed) by all four
+JERI transports — `tcp`/`http`/`uds` via `supportedClasses` `PARTIAL_SUPPORT`, `ssl` via a `ConnectionContext`
+`MARSHALLING` verdict carrying the actual constraint — with regression coverage (`MarshallingFormatDeferralTest`:
+per-transport positive DER round-trip + JOSS-prevention, 8/8; full jgdms-jeri suite 69 green). Originally
+submitted to the board 2026-07-26; scope corrected 2026-07-27 (see §0). Surfaced by the Outrigger CEL-filter
+demo7 (§8), the first end-to-end exercise of a **DER-only proxy making real invocations over a JERI endpoint.**
+Not a filter defect — a pre-existing transport-layer gap, now closed.
 
 ## 0. Correction to the first draft
 
@@ -64,9 +68,15 @@ For `tcp`/`http`/`uds`, add to the `supportedClasses` static block (import `Mars
 // PARTIAL_SUPPORT puts it in the unfulfilled-requirements set instead of throwing at distill.
 supportedClasses.put(MarshallingFormat.class, Boolean.TRUE); // PARTIAL_SUPPORT
 ```
-For `ssl`/`https`, the analogous change is a `MarshallingFormat` case in `ConnectionContext.supported()` that
-returns the "defer to higher layer" verdict (not `NOT_SUPPORTED`). Both changes were validated in demo7; the
-jgdms-jeri suite (61 tests) stays green with them.
+For `ssl`/`https`, `ConnectionContext.supported()` gains a `MarshallingFormat` case returning a new `MARSHALLING`
+"defer to higher layer" verdict (never `OK`); the actual constraint(s) are collected and carried verbatim into
+the client's unfulfilled requirements (`CallContext`/`SslEndpointImpl`), because `MarshallingFormat` is not a
+singleton and its format must reach the invocation-layer check. A `MarshallingFormat` inside a
+`ConstraintAlternatives` is fail-closed to `NOT_SUPPORTED` (a choice cannot be deferred through the single-format
+check). **As implemented (merge `a96e677d7`):** `tcp`/`http`/`uds` use the one-line `PARTIAL_SUPPORT` entry above;
+`ssl` uses the `ConnectionContext` deferral. No transport returns a "supported/OK" verdict for `MarshallingFormat`
+— that would skip the invocation-layer check and let an Atomic-JOSS codec bypass a required `ATOMIC_DER`.
+Regression: `MarshallingFormatDeferralTest` (8/8); full `jgdms-jeri` suite 69 green.
 
 ## 4. Questions carried to the board
 
@@ -75,12 +85,18 @@ jgdms-jeri suite (61 tests) stays green with them.
    plaintext path, `uds` local-trust, and demos work); "production DER over TLS" is a **policy/deployment**
    expectation, **not** a `distill`-time rejection — the transports must be able to negotiate `MarshallingFormat`
    for the test-only path.
-2. **[OPEN] Is deferral (PARTIAL_SUPPORT) the right level** vs FULL_SUPPORT? The invocation layer already enforces
-   the format (`verifyAndStripMarshallingFormat`), so deferral is consistent — board to confirm no
-   security-relevant check is skipped by deferring rather than rejecting.
-3. **[OPEN] Fix all four transports together + add regression coverage:** a DER-proxy round-trip invocation over
-   a plaintext endpoint (`uds` is the natural home) and over `ssl`, so the gap cannot silently reopen. Confirm the
-   SSL path deliberately (not incidentally) handles it.
+2. **[RATIFIED — Peter 2026-07-27] Is deferral (PARTIAL_SUPPORT) the right level** vs FULL_SUPPORT? **Ruling:
+   PARTIAL_SUPPORT (defer).** FULL_SUPPORT would drop the constraint so the invocation-layer check never runs —
+   a required `ATOMIC_DER` would no longer prevent an Atomic-JOSS codec. Deferral keeps `requireMarshallingFormat`
+   /`verifyAndStripMarshallingFormat` as the enforcement point, matching the existing `Integrity`/
+   `AtomicInputValidation` deferral precedent. The JOSS-prevention regression test is the guard (it would fail
+   under FULL_SUPPORT).
+3. **[RATIFIED + IMPLEMENTED — Peter 2026-07-27] Fix all four transports together + add regression coverage.**
+   Done in merge `a96e677d7`: `tcp`/`http`/`uds` (`supportedClasses` PARTIAL_SUPPORT) and `ssl` (`ConnectionContext`
+   `MARSHALLING` deferral carrying the constraint), plus `MarshallingFormatDeferralTest` — per-transport positive
+   DER round-trip and JOSS-prevention (JOSS codec + required `ATOMIC_DER` → `UnsupportedConstraintException`), 8/8.
+   The ssl path handles it deliberately (a dedicated `MARSHALLING` verdict, never `OK`), and a `MarshallingFormat`
+   in a `ConstraintAlternatives` is fail-closed. Full `jgdms-jeri` suite 69 green.
 
 ## 5. References
 
