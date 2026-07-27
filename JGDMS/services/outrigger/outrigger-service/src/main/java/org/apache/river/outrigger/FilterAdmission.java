@@ -104,10 +104,32 @@ public final class FilterAdmission {
     static final AtomicLong EVALUATION_NOT_WIRED = new AtomicLong();
     /**
      * Candidates silently excluded by a fail-closed rule during evaluation
-     * (undecodable / wrong-format / missing referenced field). Populated by
-     * unit&nbsp;B3; declared here so the metric name is fixed as permanent API.
+     * (undecodable / wrong-format / missing referenced field / budget / escaping
+     * Throwable). Populated by unit&nbsp;B3; declared here so the metric name is
+     * fixed as permanent API. Distinguishes a fault-driven exclusion from an
+     * honest predicate-false ({@link #EXCLUDED_FALSE}) or a genuine empty result.
      */
     static final AtomicLong FAIL_CLOSED_EXCLUSIONS = new AtomicLong();
+    /**
+     * Candidates that reached CEL evaluation (post-entitlement, post-byte-match)
+     * — the denominator for the two verdict counters below (design memo B3
+     * &sect;7). Populated by unit&nbsp;B3.
+     */
+    static final AtomicLong EVALUATED = new AtomicLong();
+    /** Candidates that evaluated to {@code BoolV(true)} — a genuine predicate pass (B3 &sect;7). */
+    static final AtomicLong PASSED = new AtomicLong();
+    /**
+     * Candidates that cleanly evaluated to {@code BoolV(false)} — an HONEST
+     * predicate rejection, distinct from a fail-closed exclusion (B3 &sect;7).
+     */
+    static final AtomicLong EXCLUDED_FALSE = new AtomicLong();
+    /**
+     * Candidates excluded because they blew the per-candidate
+     * {@code MAX_PROJECTION_DECODE_BYTES} budget (a broken-out sub-category of
+     * {@link #FAIL_CLOSED_EXCLUSIONS}, so lock-hold-DoS attempts are visible;
+     * B3 &sect;4.3/&sect;7). Populated by unit&nbsp;B3.
+     */
+    static final AtomicLong REJECTED_PROJECTION_BUDGET = new AtomicLong();
 
     /* ---- Multi-template admission ceiling (fail-closed DoS defence) -------- */
 
@@ -395,7 +417,11 @@ public final class FilterAdmission {
             REJECTED_RESULT_TYPE.get(),
             REJECTED_NOT_PREDICATE.get(),
             EVALUATION_NOT_WIRED.get(),
-            FAIL_CLOSED_EXCLUSIONS.get()
+            FAIL_CLOSED_EXCLUSIONS.get(),
+            EVALUATED.get(),
+            PASSED.get(),
+            EXCLUDED_FALSE.get(),
+            REJECTED_PROJECTION_BUDGET.get()
         };
     }
 
@@ -411,6 +437,10 @@ public final class FilterAdmission {
         "filter.rejected.resultTypeMismatch",
         "filter.rejected.notPredicate",
         "filter.evaluationNotWired",
-        "filter.failClosedExclusions"
+        "filter.failClosedExclusions",
+        "filter.evaluated",
+        "filter.passed",
+        "filter.excludedFalse",
+        "filter.rejected.projectionBudget"
     };
 }

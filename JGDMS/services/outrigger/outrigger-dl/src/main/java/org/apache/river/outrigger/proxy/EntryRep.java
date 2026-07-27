@@ -984,6 +984,25 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
+     * The 32-byte {@code entrySchemaDigest} of this rep's own v2 schema chain —
+     * the stored, pre-decode routing/identity digest installed once at
+     * write-time decode (it is <em>excluded</em> from byte-equality matching).
+     * Returned directly off the rep without invoking any body decode, so the
+     * server-side CEL filter evaluation (SOW Part&nbsp;B, unit&nbsp;B3) can
+     * select a candidate's applicable filter(s) by digest <em>before</em> any
+     * field projection is decoded (design memo B3 &sect;3, the pre-decode digest
+     * source). A zero-length or {@code null} result signals a schema-less
+     * match-any stand-in (no concrete schema to key applicability on).
+     *
+     * @return a copy of the 32-byte digest, or an empty array for a schema-less
+     *         / match-any rep (never {@code null})
+     */
+    public byte[] entrySchemaDigest() {
+	final byte[] d = entrySchemaDigest;
+	return (d == null) ? new byte[0] : d.clone();
+    }
+
+    /**
      * @return the array names of superclasses of this entry type.
      */
     public String[] superclasses() {

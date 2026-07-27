@@ -33,7 +33,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
-import net.jini.space.FilteredJavaSpace;
+import net.jini.space.FilteredTupleSpace;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import net.jini.space.TupleSpace;
@@ -208,12 +208,12 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 Uuid.class}),
 
 	/* Filtered (CEL pushdown) operations — SOW Part B, unit B1. Each
-	 * client-facing FilteredJavaSpace method is paired with its filtered
+	 * client-facing FilteredTupleSpace method is paired with its filtered
 	 * OutriggerServer backend method so a client's per-method constraints
 	 * (including the space's ATOMIC_DER MarshallingFormat requirement) map
 	 * onto the filtered call exactly as they do for the unfiltered siblings.
 	 */
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "read",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "read",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 long.class,
@@ -225,7 +225,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 OutriggerServer.QueryCookie.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "take",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "take",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 long.class,
@@ -237,7 +237,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 OutriggerServer.QueryCookie.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "readIfExists",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "readIfExists",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 long.class,
@@ -249,7 +249,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 OutriggerServer.QueryCookie.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "takeIfExists",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "takeIfExists",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 long.class,
@@ -261,7 +261,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 OutriggerServer.QueryCookie.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "notify",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "notify",
 			    new Class[] {Entry.class,
 					 Transaction.class,
 					 RemoteEventListener.class,
@@ -276,7 +276,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 MarshalledInstance.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "registerForAvailabilityEvent",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "registerForAvailabilityEvent",
 			    new Class[] {Collection.class,
 					 Transaction.class,
 					 boolean.class,
@@ -293,7 +293,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 MarshalledInstance.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "contents",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "contents",
 			    new Class[] {Collection.class,
 					 Transaction.class,
 					 long.class,
@@ -306,7 +306,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 long.class,
 					 byte[].class}),
 
-	ProxyUtil.getMethod(FilteredJavaSpace.class, "take",
+	ProxyUtil.getMethod(FilteredTupleSpace.class, "take",
 			    new Class[] {Collection.class,
 					 Transaction.class,
 					 long.class,

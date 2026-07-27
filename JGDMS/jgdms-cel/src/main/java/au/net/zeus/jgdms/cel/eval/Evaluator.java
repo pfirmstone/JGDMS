@@ -52,8 +52,10 @@ import java.util.List;
  *       total-order comparator, are correct here.</li>
  *   <li>{@code int}x{@code double} comparison: the exact algorithm of
  *       §4.3.3, never a lossy {@code (double) intValue} widening.</li>
- *   <li>String ordering: by Unicode code point via {@code
- *       String#codePoints()}, never {@code String#compareTo} (§4.4).</li>
+ *   <li>String ordering: by Unicode code point (a lazy, {@code O(min)}
+ *       lockstep {@code codePointAt} scan -- see {@link #compareCodePoints}),
+ *       never {@code String#compareTo} (UTF-16 code-unit order) and never a
+ *       full {@code codePoints().toArray()} materialisation (§4.4).</li>
  *   <li>{@code int(x: double)}: NaN/±Inf and out-of-range magnitude checked
  *       explicitly before narrowing, never a bare {@code (long) x} cast
  *       (§7.2 row 4's saturating-cast trap).</li>
@@ -65,6 +67,40 @@ import java.util.List;
 public final class Evaluator {
 
     private final MathProvider mathProvider;
+
+    /**
+     * Per-candidate memo for {@code size(string)} code-point counts (B3 §4.4
+     * lock-hold fix). {@link String#codePointCount} is inherently {@code
+     * O(len)}; an admitted AST may reference {@code size(field)} for the same
+     * field many times, and the {@link CandidateProjection} contract guarantees
+     * a given {@code (className, fieldName)} query returns the identical value
+     * (hence the identical {@code String} instance) throughout one evaluation,
+     * so a mismatch-free identity memo computes each field's count at most once
+     * per candidate rather than once per AST occurrence. Keyed by {@code String}
+     * identity: two distinct {@code String} instances with equal content are
+     * counted independently (correct -- the value is a pure function of content,
+     * so the memo is referentially transparent and never changes a result).
+     * <p>
+     * An {@code Evaluator} is intended to be constructed per candidate
+     * evaluation (the B3 confirm-window/fan-out usage does exactly this), which
+     * bounds this map's lifetime and size to one candidate and keeps single-
+     * threaded use; the map is not synchronised. Reusing one instance across
+     * candidates stays correct but retains counts for every distinct field
+     * {@code String} seen.
+     */
+    private final java.util.IdentityHashMap<String, Integer> sizeStringCache = new java.util.IdentityHashMap<>();
+
+    /**
+     * Test-observable count of how many times an {@code O(len)} {@code
+     * codePointCount} scan was actually performed for {@code size(string)} --
+     * one per distinct field {@code String}, not one per AST occurrence.
+     * Package-private; not part of the public API.
+     */
+    private int sizeStringComputations = 0;
+
+    int sizeStringComputationCountForTesting() {
+        return sizeStringComputations;
+    }
 
     /** An evaluator with no transcendental provider installed -- any {@code sin}/{@code cos}/... CALL throws. */
     public Evaluator() {
@@ -442,15 +478,45 @@ public final class Evaluator {
         return c != null && c == 0;
     }
 
-    /** Lexicographic Unicode code-point comparison (§4.4) -- never {@code String#compareTo} (UTF-16 code-unit order). */
+    /**
+     * Lexicographic Unicode code-point comparison (§4.4) -- never {@code
+     * String#compareTo} (UTF-16 code-unit order).
+     * <p>
+     * <b>Lazy and {@code O(min)} (B3 §4.4 lock-hold fix).</b> The two operands
+     * are scanned in lockstep <em>by code point</em> ({@code codePointAt} +
+     * advance by {@link Character#charCount}), returning at the first differing
+     * code point, so the work is {@code O(index of first difference)} in time
+     * and {@code O(1)} in extra allocation -- neither operand is ever
+     * materialised via {@code codePoints().toArray()}. This is what makes the
+     * {@code CostModel} string-ordering tightening ({@code 1 + min(S,
+     * literalLen)}) sound: a one-character literal no longer forces a full scan
+     * of a large candidate field. The result is byte-for-byte identical to the
+     * former eager array walk: equal code points up to the shorter operand's
+     * length compare by remaining length, i.e. the operand with fewer code
+     * points sorts first. {@code codePointAt}/{@code charCount} reproduce the
+     * exact code-point sequence of {@link String#codePoints()} (including for
+     * astral pairs, and identically even for the contract-forbidden lone
+     * surrogate, which both treat as its own code point), so equivalence holds
+     * for all inputs.
+     */
     private static int compareCodePoints(String a, String b) {
-        int[] ca = a.codePoints().toArray();
-        int[] cb = b.codePoints().toArray();
-        int n = Math.min(ca.length, cb.length);
-        for (int i = 0; i < n; i++) {
-            if (ca[i] != cb[i]) return Integer.compare(ca[i], cb[i]);
+        int lenA = a.length();
+        int lenB = b.length();
+        int ia = 0;
+        int ib = 0;
+        while (ia < lenA && ib < lenB) {
+            int cpA = a.codePointAt(ia);
+            int cpB = b.codePointAt(ib);
+            if (cpA != cpB) return Integer.compare(cpA, cpB);
+            ia += Character.charCount(cpA);
+            ib += Character.charCount(cpB);
         }
-        return Integer.compare(ca.length, cb.length);
+        // Every compared code point was equal and consumed one code point from
+        // each side, so the side with characters still remaining has strictly
+        // more code points and therefore sorts after the exhausted side.
+        if (ia < lenA) return 1;   // a has more code points => a > b
+        if (ib < lenB) return -1;  // b has more code points => a < b
+        return 0;                  // identical code-point sequences
     }
 
     /** Unsigned-octet lexicographic comparison (§4.5). */
@@ -648,9 +714,16 @@ public final class Evaluator {
         };
     }
 
-    private static EvalOutcome callSizeString(CelValue v) {
+    private EvalOutcome callSizeString(CelValue v) {
         if (!(v instanceof CelValue.StringV s)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
-        return EvalOutcome.of(new CelValue.IntV(s.value().codePointCount(0, s.value().length())));
+        String str = s.value();
+        Integer count = sizeStringCache.get(str);
+        if (count == null) {
+            sizeStringComputations++;
+            count = str.codePointCount(0, str.length()); // O(len), computed at most once per field per candidate
+            sizeStringCache.put(str, count);
+        }
+        return EvalOutcome.of(new CelValue.IntV(count.longValue())); // identical value to the former unmemoized codePointCount
     }
 
     private static EvalOutcome callSizeBytes(CelValue v) {

@@ -186,6 +186,19 @@ try {
 }
 
 # ---------------------------------------------------------------------------
+# Demonstration 7: Filter records inside a live space, server-side, without the class
+# ---------------------------------------------------------------------------
+Write-Header "Demonstration 7: Filter records inside a live space, server-side, without the class"
+try {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $showcase "demo7-filter-pushdown\run.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+    Add-Result "Demo 7: Filter pushdown into a live space" $true
+} catch {
+    Write-Host "DEMO 7 FAILED: $_"
+    Add-Result "Demo 7: Filter pushdown into a live space" $false
+}
+
+# ---------------------------------------------------------------------------
 # Automated checks (a build server can run these) -- not one of the 6 demos,
 # but the existing regression coverage for all of them; kept as a bonus step.
 # ---------------------------------------------------------------------------
