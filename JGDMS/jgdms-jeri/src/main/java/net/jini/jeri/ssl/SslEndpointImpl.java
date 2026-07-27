@@ -52,6 +52,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequest;
@@ -527,6 +528,12 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	boolean integrityPreferred = false;
 	boolean atomicityRequired = false;
 	boolean atomicityPreferred = false;
+	// MarshallingFormat constraints deferred by the transport; carried up so
+	// BasicInvocationHandler.requireMarshallingFormat enforces the format
+	// (JGDMS-STD-008 sec.18.3). Collected independently of integrity/atomicity
+	// so a required format is never dropped.
+	Set<MarshallingFormat> marshallingRequired = new HashSet<MarshallingFormat>();
+	Set<MarshallingFormat> marshallingPreferred = new HashSet<MarshallingFormat>();
 	long connectionTimeout = -1;
 	int max = contexts.size();
 	for (int i = 0; i < max; i++) {
@@ -568,6 +575,8 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    } else if (context.getAtomicityPreferred()) {
 		atomicityPreferred = true;
 	    }
+	    marshallingRequired.addAll(context.getMarshallingRequired());
+	    marshallingPreferred.addAll(context.getMarshallingPreferred());
 	    if (context.getConnectionTime() != -1 &&
 		(connectionTimeout == -1 ||
 		 connectionTimeout > context.getConnectionTime()))
@@ -579,8 +588,9 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    endpoint, this,
 	    clientAuthPermitted ? clientSubject : null,
 	    clientAuthRequired, clientPrincipals, serverPrincipals, suites,
-	    integrityRequired, integrityPreferred, atomicityRequired, 
-	    atomicityPreferred, connectionTimeout);
+	    integrityRequired, integrityPreferred, atomicityRequired,
+	    atomicityPreferred, marshallingRequired, marshallingPreferred,
+	    connectionTimeout);
     }
 
     /**
