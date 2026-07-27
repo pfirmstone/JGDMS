@@ -6,7 +6,7 @@
 **Date:** 2026-07-24
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Profiles (binds, does not restate):**
-- **JERI** — the JGDMS Extensible Remote Invocation transport & invocation stack
+- **JERI** — the Jini Extensible Remote Invocation transport & invocation stack
   *(cited here as [JERI] = **JGDMS-STD-012** (JERI Transport & Invocation Standard),
   in preparation — v0.1-DRAFT skeleton)*
 - **ATOMIC DER** — `JGDMS-STD-006` (ATOMIC DER Wire Format, v0.13-DRAFT) **including its
