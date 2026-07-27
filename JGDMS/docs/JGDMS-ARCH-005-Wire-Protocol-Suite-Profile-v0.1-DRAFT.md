@@ -197,7 +197,7 @@ in reverse on the way out.
                    │ (validated, typed)                        │ verdict / value
    ┌───────────────┴───────────────┐        ┌──────────────────┴───────────────┐
    │  Entry model & byte-matching  │        │  DETERMINISTIC CEL  [STD-011]    │
-   │  @SerialEntry / EntryRep      │◀──────▶│  predicate (filter) /            │
+   │  @SerialEntry / EntryRep      │◀─────▶│  predicate (filter) /            │
    │  byte-equality template match │        │  transform over the projection   │
    │  [STD-005, ATOMIC DER §7.7.2] │        │  (bounded-by-construction)       │
    └───────────────▲───────────────┘        └──────────────────────────────────┘
