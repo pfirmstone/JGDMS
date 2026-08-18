@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.river.api.io.EntryV2Codec;
 import org.apache.river.outrigger.proxy.EntryRep;
 
 import au.net.zeus.jgdms.cel.CelValue;
@@ -54,7 +55,12 @@ import au.net.zeus.jgdms.cel.eval.Evaluator;
  *   <li>Project the union of the applicable filters' referenced fields <b>once</b>,
  *       against the candidate's own v2 schema, under the per-candidate
  *       {@link EntryProjection#MAX_PROJECTION_DECODE_BYTES} budget (&sect;4.3
- *       Option&nbsp;B). An undecodable / over-budget projection ⇒ fail-closed.</li>
+ *       Option&nbsp;B), <b>reusing the candidate rep's already-decoded body</b>
+ *       ({@link EntryRep#decoded()} &rarr;
+ *       {@link EntryProjection#projectReusing}, the ratified &sect;4.2/&sect;4.4
+ *       slice reuse) so no {@code O(body)} structural re-decode runs under the
+ *       {@code handle} lock or on the journal thread. An undecodable /
+ *       over-budget projection ⇒ fail-closed.</li>
  *   <li>With a FRESH {@link Evaluator} per candidate, evaluate every applicable
  *       filter against that one projection; <b>all must return {@code BoolV(true)}</b>.
  *       Any {@code BoolV(false)} is an honest exclusion; any {@code EvalOutcome.Error}
@@ -178,13 +184,32 @@ final class FilterEval {
             FilterAdmission.EVALUATED.incrementAndGet();
 
             // Project the UNION of referenced fields once, one shared per-candidate
-            // budget (§4.3). Reuses the candidate's already-canonical v2 body bytes.
+            // budget (§4.3).
             final Set<String> referenced = new HashSet<>();
             for (CompiledFilter f : applicable) {
                 referenced.addAll(EntryProjection.referencedFieldNames(f.expr()));
             }
-            final EntryProjection projection =
-                    EntryProjection.projectFields(candidate.bodyBytes(), referenced);
+            // §4.2/§4.4 SLICE REUSE (ratified). Every server-side candidate reaches here
+            // having been decode-constructed — the @AtomicSerial GetArg unmarshal on the
+            // write path, or restore() on the recovery path — each of which already ran the
+            // one full, fully-validating EntryRepV2Codec.decode of the body and retained its
+            // result. Consuming that here removes an O(body) STRUCTURAL re-decode per
+            // candidate from inside EntryHolder.confirmAvailability's synchronized(handle)
+            // window and from the single OperationJournal fan-out thread. That term was
+            // charged against nothing: MAX_PROJECTION_DECODE_BYTES (64 KiB) bounds per-field
+            // VALUE decode only, so the structural term was bounded solely by the 8 MiB
+            // EntryRep-v2 body ceiling — attacker-controlled at write time.
+            //
+            // FALLBACK: a rep that was never decode-constructed (decoded() == null) — the
+            // client write path's locally-built rep, the schema-less match-any stand-in, and
+            // unit tests that construct an EntryRep straight from an Entry. Those still pay
+            // the structural decode of bodyBytes(), which remains bounded only by the 8 MiB
+            // body ceiling (noted in the design memo §4.4). No fail-open either way: the
+            // fallback is the pre-existing, identically fail-closed factory.
+            final EntryV2Codec.Decoded reusable = candidate.decoded();
+            final EntryProjection projection = (reusable != null)
+                    ? EntryProjection.projectReusing(reusable, referenced)
+                    : EntryProjection.projectFields(candidate.bodyBytes(), referenced);
             if (projection.isUndecodable()) {
                 if (projection.budgetExceeded()) {
                     FilterAdmission.REJECTED_PROJECTION_BUDGET.incrementAndGet();

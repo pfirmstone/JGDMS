@@ -91,6 +91,26 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     /** Per-field wildcard/null marker (true = {@code absent [0]} slice). Transient (derived). */
     private volatile transient boolean[] absent;
 
+    /**
+     * The whole {@link EntryV2Codec.Decoded} that {@link #body} decoded to, retained as the
+     * <b>design memo B3 &sect;4.2 slice-reuse source</b> (ratified as part of the &sect;4.4
+     * package). {@link #sliceBytes} / {@link #absent} alone are not enough to project a
+     * candidate's fields: the decode's opaque <em>schema table</em> is required to resolve the
+     * candidate's own v2 schema chain, and it used to be discarded — forcing the server-side
+     * CEL filter projection to re-run a full {@code O(body)} structural decode per candidate,
+     * inside the confirm window's {@code synchronized(handle)} lock and on the single
+     * {@code OperationJournal} fan-out thread. Retaining the {@code Decoded} lets
+     * {@code EntryProjection.projectReusing} skip that re-decode entirely.
+     *
+     * <p>Transient and purely derived from {@link #body} — <b>no wire-format change</b>. It is
+     * populated only on the two <em>decode</em> constructions (the {@code @AtomicSerial}
+     * {@code GetArg} unmarshal ctor and {@link #restore}), i.e. exactly the paths every
+     * server-side candidate arrives by; a rep built locally from an {@link Entry} (the client
+     * write path, {@link #installBody}) leaves it {@code null} and the projection falls back to
+     * decoding {@link #body}.
+     */
+    private volatile transient EntryV2Codec.Decoded decoded;
+
     /** The 32-byte {@code entrySchemaDigest} (routing/identity; EXCLUDED from matching). */
     private volatile byte[] entrySchemaDigest;
 
@@ -590,6 +610,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    EntryV2Codec.Decoded dec = codec().decode(body);
 	    this.sliceBytes = dec.sliceBytes;
 	    this.absent = dec.absent;
+	    this.decoded = dec;	// B3 §4.2 slice-reuse source (see the field doc)
 	}
     }
 
@@ -984,6 +1005,33 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
     }
 
     /**
+     * This rep's already-decoded {@code EntryRepV2Body} parts — the
+     * <b>design memo B3 &sect;4.2 slice-reuse source</b>, ratified in the &sect;4.4 package.
+     *
+     * <p>Every candidate the server-side CEL filter evaluates arrived here by a decode
+     * construction (the {@code @AtomicSerial} {@code GetArg} unmarshal on the write path, or
+     * {@link #restore} on the recovery path), each of which already ran the one full,
+     * fully-validating structural decode of {@link #body}. Handing that {@code Decoded} back
+     * lets {@code EntryProjection.projectReusing} build a projection <em>without</em> re-running
+     * an {@code O(body)} structural decode per candidate — a decode that would otherwise run
+     * inside {@code EntryHolder.confirmAvailability}'s {@code synchronized(handle)} window and
+     * on the single {@code OperationJournal} fan-out thread, charged against nothing but the
+     * 8&nbsp;MiB (attacker-controlled, write-time) body ceiling.
+     *
+     * <p>Returned <b>by reference, not copied</b>: copying it would reinstate the very cost this
+     * exists to remove. The returned object and its arrays are shared, effectively-immutable
+     * decode output and MUST NOT be mutated by the caller.
+     *
+     * @return the retained decode result, or {@code null} for a rep that was never decode-
+     *         constructed (the client write path, the schema-less match-any stand-in, or a
+     *         default-constructed rep not yet restored) — callers MUST fall back to decoding
+     *         {@link #bodyBytes()} in that case
+     */
+    public EntryV2Codec.Decoded decoded() {
+	return decoded;
+    }
+
+    /**
      * The 32-byte {@code entrySchemaDigest} of this rep's own v2 schema chain —
      * the stored, pre-decode routing/identity digest installed once at
      * write-time decode (it is <em>excluded</em> from byte-equality matching).
@@ -1173,6 +1221,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    EntryV2Codec.Decoded dec = codec().decode(body);
 	    this.sliceBytes = dec.sliceBytes;
 	    this.absent = dec.absent;
+	    this.decoded = dec;	// B3 §4.2 slice-reuse source (see the field doc)
 	}
         return this;
     }

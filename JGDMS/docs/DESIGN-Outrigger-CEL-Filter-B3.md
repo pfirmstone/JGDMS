@@ -621,6 +621,33 @@ sub-millisecond, and the admission cost gate does not prevent it because it was 
    re-running `EntryRepV2Codec.decode(candidateBody)` from scratch, removing the 8 MiB body-structural-decode term
    from the lock-hold.
 
+**§4.2 slice reuse — as-built note (`[IMPLEMENTED 2026-08-18]`, board finding FIX 1).** Item 3 above shipped in the
+merged B3 code *unimplemented*: `FilterEval` called `EntryProjection.projectFields(candidate.bodyBytes(), …)`, which
+re-ran a full `EntryRepV2Codec.decode(body)` — an `O(body)` **structural** decode — **per candidate**, inside
+`EntryHolder.confirmAvailability`'s `synchronized(handle)` window and on the single `OperationJournal` fan-out
+thread. That term is **not** charged against `MAX_PROJECTION_DECODE_BYTES`, which meters per-field *value* decode
+only; it was bounded solely by the 8 MiB EntryRep-v2 body ceiling, i.e. by a *storage* ceiling the writer fixes at
+write time. It is now built:
+
+- `EntryRep` retains the whole `EntryV2Codec.Decoded` (a `private volatile transient` field, purely derived from
+  `body` — **no wire-format change**) and exposes it as `EntryRep.decoded()`. The `sliceBytes[]`/`absent[]` it
+  already kept were insufficient on their own: projecting a field needs the decode's **schema table** to resolve
+  the candidate's own v2 schema chain, and that was the part being discarded.
+- `EntryProjection.projectReusing(EntryV2Codec.Decoded, Set<String>)` builds the projection directly from those
+  parts, sharing one private helper with `projectFields` so the 64 KiB value budget and the fail-closed semantics
+  are identical on both paths. It runs **no** `EntryRepV2Codec.decode`.
+- `FilterEval` takes the reuse path whenever `candidate.decoded() != null`. That covers **both** evaluation frames:
+  the confirm-window candidate and the fan-out candidate are the *same* stored `EntryHandle` rep, and every
+  server-side rep is decode-constructed (the `@AtomicSerial` `GetArg` unmarshal on the write path, `restore()` on
+  the recovery path), each of which already ran the one full, fully-validating structural decode.
+- **Retained fallback, and its bound.** A rep that was never decode-constructed — the client-side write path's
+  locally built rep (`installBody`), the schema-less match-any stand-in, and unit tests constructing an `EntryRep`
+  straight from an `Entry` — has `decoded() == null` and still goes through `projectFields`. **On that fallback the
+  structural decode remains bounded only by the 8 MiB body ceiling**, exactly as before. This is accepted: those
+  reps are not adversary-supplied candidates being scanned under the `handle` lock on a server. The bound stated in
+  this section — sub-millisecond, independent of stored-entry size — is therefore a property of the *server-side
+  candidate* path, not of `projectFields` in isolation.
+
 With all three, the worst-case per-candidate lock-hold is genuinely `O(64 KiB decode + bounded-AST-node-count ×
 min-bounded walk)` — sub-millisecond, independent of stored-entry size — and, critically, **no `jgdms-cel` public
 API surface changes and no STD-011 §9.1 closed-error-set amendment is incurred**, because both the byte budget
