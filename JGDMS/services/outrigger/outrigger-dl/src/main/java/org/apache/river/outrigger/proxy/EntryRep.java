@@ -504,6 +504,11 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	this.absent = a;
 	this.body = body;
 	this.entrySchemaDigest = entrySchemaDigest;
+	// The retained decode must never outlive the body it was derived from: this
+	// path installs a body with no accompanying validating decode, so any decode
+	// retained from a prior body (there is none on the current call sites, but
+	// this makes it true by construction rather than by call-site discipline).
+	this.decoded = null;
     }
 
     /**
@@ -997,6 +1002,11 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * class. A zero-length result signals a schema-less template (match-any or
      * a null client template), for which a filter is verified schema-lessly.
      *
+     * <p>Not {@code final}: {@code FilterAdmissionTest.rejectsUnresolvableTemplateSchema}
+     * relies on an anonymous {@code EntryRep} subclass overriding this method to synthesize
+     * an unresolvable body, so it is left overridable (unlike {@link #decoded()},
+     * {@link #entrySchemaDigest()} and {@link #matches}).
+     *
      * @return a copy of the DER body bytes (never {@code null})
      */
     public byte[] bodyBytes() {
@@ -1022,12 +1032,16 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * exists to remove. The returned object and its arrays are shared, effectively-immutable
      * decode output and MUST NOT be mutated by the caller.
      *
+     * <p>{@code final}: this accessor is the sole binding of "this {@code Decoded} came from a
+     * validating decode" that {@code EntryProjection.projectReusing} relies on. A subclass
+     * override would be the one non-reflective way to hand back an unvalidated {@code Decoded}.
+     *
      * @return the retained decode result, or {@code null} for a rep that was never decode-
      *         constructed (the client write path, the schema-less match-any stand-in, or a
      *         default-constructed rep not yet restored) — callers MUST fall back to decoding
      *         {@link #bodyBytes()} in that case
      */
-    public EntryV2Codec.Decoded decoded() {
+    public final EntryV2Codec.Decoded decoded() {
 	return decoded;
     }
 
@@ -1045,7 +1059,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * @return a copy of the 32-byte digest, or an empty array for a schema-less
      *         / match-any rep (never {@code null})
      */
-    public byte[] entrySchemaDigest() {
+    public final byte[] entrySchemaDigest() {
 	final byte[] d = entrySchemaDigest;
 	return (d == null) ? new byte[0] : d.clone();
     }
@@ -1085,7 +1099,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      * @param other object to check if it matches this objects template.
      * @return true if matches the template object this EntryRep represents.
      */
-    public boolean matches(EntryRep other) {
+    public final boolean matches(EntryRep other) {
         synchronized (this){
             if (EntryRep.isMatchAny(this)) return true;
 
@@ -1222,6 +1236,13 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    this.sliceBytes = dec.sliceBytes;
 	    this.absent = dec.absent;
 	    this.decoded = dec;	// B3 §4.2 slice-reuse source (see the field doc)
+	} else {
+	    // The retained decode must never outlive the body it was derived from:
+	    // a null body here means no validating decode was run, so any decode
+	    // this rep might otherwise carry (there is none -- restore() only runs
+	    // on a freshly-allocated rep -- but this makes it true by construction)
+	    // must not be retained.
+	    this.decoded = null;
 	}
         return this;
     }

@@ -75,11 +75,16 @@ import au.net.zeus.jgdms.cel.eval.Evaluator;
  * Every non-{@code true} outcome is <b>counted</b> in the operator-only
  * {@link FilterAdmission} metrics (&sect;7): {@code filter.evaluated} (the
  * denominator — bumped only once a candidate genuinely <em>reaches</em> the
- * evaluator, i.e. post-projection, so the &sect;8.2 happy-path identity
- * {@code evaluated == passed + excludedFalse} holds), {@code filter.passed},
+ * evaluator, i.e. post-projection), {@code filter.passed},
  * {@code filter.excludedFalse} (honest false),
  * {@code filter.failClosedExclusions} (fault-driven), and its broken-out
- * sub-category {@code filter.rejected.projectionBudget}.
+ * sub-category {@code filter.rejected.projectionBudget}. The &sect;8.2
+ * happy-path identity {@code evaluated == passed + excludedFalse} holds only
+ * when {@code failClosedExclusions == 0}: a <em>post</em>-projection fault
+ * inside this evaluator loop (an {@code EvalOutcome.Error}, a non-bool value,
+ * or an escaping {@code Throwable}) is counted in both {@code evaluated}
+ * (already bumped before the loop) and {@code failClosedExclusions} — see
+ * {@link FilterAdmission#EVALUATED} for the full qualifier.
  *
  * @since JGDMS 4.0.0
  */

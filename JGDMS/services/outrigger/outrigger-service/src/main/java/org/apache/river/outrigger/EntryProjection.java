@@ -277,12 +277,33 @@ public final class EntryProjection implements CandidateProjection {
      * &sect;A.9) that structural decode exactly once; this factory consumes its result instead
      * of paying it again.
      *
-     * <p><b>Security posture is unchanged.</b> The {@code Decoded} handed in is the output of
-     * the same fail-closed, fully-validating {@code EntryRepV2Codec.decode} that
-     * {@link #projectFields} would re-run — same bytes, same validation, same canonical form.
+     * <p><b>Security posture, precisely.</b> The {@code Decoded} handed in is the output of the
+     * same fail-closed, fully-validating {@code EntryRepV2Codec.decode} that {@link
+     * #projectFields} would re-run — same bytes, same validation, same canonical form. A
+     * defective or foreign-shaped {@code Decoded} (wrong types, {@code null} arrays, an
+     * incompatible {@code schemaTable}) is refused here rather than trusted — see the guard
+     * below. Two specific checks split differently between the two paths:
+     * <ul>
+     *   <li><b>Re-derived here.</b> {@code buildProjection}'s &sect;A.8 field-count / positional
+     *       guard ({@code idx != slices.length}) is recomputed on every call, including this
+     *       reuse path, and is load-bearing here: it is the only check standing between a
+     *       {@code schemaTable} chain whose field count disagrees with {@code slices} and an
+     *       out-of-bounds / misaligned projection.</li>
+     *   <li><b>Inherited, not re-checked.</b> The digest&harr;chain binding — that
+     *       {@code schemaTable.get(hex(entryDigest))} actually returns the chain whose own leaf
+     *       digest equals {@code entryDigest} — is proved by the caller's validating {@code
+     *       decode()} and is a <em>precondition</em> of this method, not re-derived by it.
+     *       {@code buildProjection} looks the chain up by digest and decodes it without
+     *       recomputing the chain's leaf digest and comparing it to {@code entryDigest}. On
+     *       every real path (both decode constructors) that binding was already proved once by
+     *       the validating decode; re-proving it per candidate here would cost a SHA-256 under
+     *       the confirm window's {@code synchronized(handle)} lock — exactly the per-candidate
+     *       cost the ratified &sect;4.4 ceiling exists to avoid. A caller that hands in a
+     *       {@code Decoded} which is well-shaped but was never actually produced by a validating
+     *       decode (not reachable from any in-tree call site) would not be caught by this method.</li>
+     * </ul>
      * Only the per-field value decode happens here, under the same 64&nbsp;KiB budget and the
-     * same fail-closed semantics; a defective or foreign-shaped {@code Decoded} is refused
-     * rather than trusted.
+     * same fail-closed semantics as {@link #projectFields}.
      *
      * <p><b>Flag-day single-provider coupling (documented).</b> {@link EntryV2Codec.Decoded}
      * declares {@code schemaTable} as an opaque {@code Object} because {@code outrigger-dl} is
@@ -350,6 +371,12 @@ public final class EntryProjection implements CandidateProjection {
             throws Exception {
         // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest, derived from
         //    the already-decoded body (never a second full decode of the body).
+        //    NOTE (documentation only -- see the projectReusing javadoc "Security posture,
+        //    precisely" section): this lookup trusts that schemaTable.get(hex(entryDigest))
+        //    returns the chain whose OWN leaf digest equals entryDigest. That digest<->chain
+        //    binding is proved by the caller's validating decode() and is a PRECONDITION of
+        //    this method on the projectReusing path, not re-derived here -- unlike the
+        //    idx != slices.length guard below, which IS recomputed on every call.
         byte[] entryChainBytes = schemaTable.get(hex(entryDigest));
         List<AtomicSerialSchemaRecord> chain =
                 SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"); // leaf-first
@@ -380,7 +407,10 @@ public final class EntryProjection implements CandidateProjection {
             indexByClass.put(rec.className(), perClass);
         }
         if (idx != slices.length) {
-            // decode()'s A.8 field-count guard already proves this; defensive.
+            // Re-derived on every call (both projectFields and projectReusing): decode()'s A.8
+            // field-count guard already proves this on the projectFields path, but on the
+            // projectReusing path (no fresh decode of body) this IS the field-count check --
+            // load-bearing here, not merely defensive.
             return UNDECODABLE;
         }
 

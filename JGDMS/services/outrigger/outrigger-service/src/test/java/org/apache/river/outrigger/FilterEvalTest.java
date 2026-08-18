@@ -458,6 +458,13 @@ public class FilterEvalTest {
         // Decoded intact. Any structural re-decode of the body would now fail closed; the
         // verdict must still be correct, which is only possible if the body is never
         // re-decoded (§4.2/§4.4 slice reuse).
+        //
+        // Scope of what this proves (and does not): this is a reuse-path DETECTOR, not a
+        // license to stop maintaining the body<->decoded coupling. It works by corrupting
+        // `body`, which after this change is an input to neither the matcher nor the
+        // evaluator -- but `body` is still what store() persists and what is marshalled back
+        // to the reading client, so a rep whose `body` and `decoded` disagree is still a real
+        // defect on those paths even though this test cannot see it.
         final EntryRep warm = storeRestore(new EntryRep(new Reading(25.0, "North")));
         final EntryRep cold = storeRestore(new EntryRep(new Reading(10.0, "North")));
         org.junit.Assert.assertNotNull(warm.decoded());

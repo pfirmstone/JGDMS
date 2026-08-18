@@ -780,7 +780,7 @@ result path — an exclusion count is itself a mild info-channel about data the 
 
 | Metric | Increment when |
 |---|---|
-| `filter.evaluated` | a candidate reached CEL evaluation (post-entitlement, post-byte-match) — the denominator |
+| `filter.evaluated` | a candidate reached CEL evaluation (post-entitlement, post-byte-match) — the denominator (see qualifier below) |
 | `filter.passed` | a candidate evaluated to `BoolV(true)` |
 | `filter.failClosedExclusions` | a candidate excluded by a fail-closed rule (undecodable / missing-or-ambiguous field / CelError / budget / escaping Throwable) — **distinguishes a fail-closed no-match from an honest empty result** |
 | `filter.excludedFalse` | a candidate cleanly evaluated to `BoolV(false)` (an honest predicate rejection, distinct from a fail-closed exclusion) |
@@ -789,6 +789,15 @@ result path — an exclusion count is itself a mild info-channel about data the 
 Separating `filter.excludedFalse` (honest predicate false) from `filter.failClosedExclusions` (fault-driven
 exclusion) is what lets an operator tell "the predicate is working and rejecting non-matches" from "candidates
 are being dropped because they won't decode / lack the field" — the diagnostic B1 §5 asked for, made concrete.
+
+**Qualifier on `filter.evaluated == filter.passed + filter.excludedFalse`.** This identity is a *happy-path*
+identity, not an unconditional one, and the qualifier travels with the figure wherever it is quoted (§8.2
+below states it explicitly via `filter.failClosedExclusions == 0`). `filter.evaluated` is incremented before
+the per-candidate evaluator loop runs, not after it succeeds; a *post*-projection fault inside that loop
+(`EvalOutcome.Error`, a verified-boolean predicate yielding a non-bool value, or an escaping `Throwable`) is
+counted in `filter.failClosedExclusions` in addition to having already been counted in `filter.evaluated`. So
+the identity holds only when `filter.failClosedExclusions == 0`; whenever that counter is nonzero,
+`filter.evaluated` may exceed `filter.passed + filter.excludedFalse` by the post-projection fault count.
 **[OPEN — BOARD]:** confirm these five names as permanent API now (they extend `METRIC_NAMES`), matching B1's
 practice of fixing metric names before the code that populates them.
 
