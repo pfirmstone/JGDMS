@@ -111,6 +111,121 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
      */
     private volatile transient EntryV2Codec.Decoded decoded;
 
+    /**
+     * The cached decoded v2 <em>schema chain</em>, paired with the exact {@link #decoded}
+     * it was derived from. Immutable, all-{@code final}, published only as a
+     * fully-constructed whole through the {@code volatile} {@link #entryChainCache} write,
+     * so a partially-initialised holder can never be observed.
+     *
+     * <p>The pairing is the cache's <b>validity proof</b>, not merely a convenience. The
+     * chain is a pure function of the {@code Decoded} it came from — it is
+     * {@code schemaTable.get(hex(entrySchemaDigest))} decoded, and both of those are
+     * {@code final} fields of the (never-mutated) {@code Decoded}. So "this chain belongs to
+     * that {@code Decoded}" is exactly "this chain belongs to that body and that
+     * {@code entrySchemaDigest}". Validity is therefore <em>re-derived on every read</em>
+     * (the {@code source == decoded} identity test in {@link #cachedEntryChain}) rather than
+     * merely maintained by clear-site discipline: the instant {@link #decoded} is reassigned
+     * or cleared, every previously cached chain stops being served, whether or not the
+     * clearing site remembered to null this field. The clears are still written at every
+     * such site (belt and braces, and to release the reference).
+     */
+    private static final class ChainCache {
+	/** The {@code Decoded} this chain was derived from; identity-compared, never dereferenced. */
+	private final EntryV2Codec.Decoded source;
+	/** The decoded chain, OPAQUE: {@code outrigger-dl} is {@code --release 8} and may not name a {@code jgdms-der} type. */
+	private final Object chain;
+
+	ChainCache(EntryV2Codec.Decoded source, Object chain) {
+	    this.source = source;
+	    this.chain = chain;
+	}
+    }
+
+    /**
+     * Lazily-populated memo for the decoded v2 schema chain of {@link #body} — the
+     * per-candidate work that survived the design memo B3 &sect;4.2 slice-reuse change.
+     *
+     * <p>With the {@code Decoded} retained, {@code EntryProjection.buildProjection}'s
+     * remaining per-candidate cost is {@code SchemaChain.decodeChain(entryChainBytes)}. That
+     * decode is already bounded by the STD-006 &sect;4.5 chain ceilings
+     * ({@code maxChainBytes} 64&nbsp;KiB / {@code maxChainRecords} 64), so the ratified
+     * &sect;4.4 ceiling holds without this memo — but it re-ran <em>per candidate, per
+     * evaluation, over byte-identical input</em>, inside {@code
+     * EntryHolder.confirmAvailability}'s {@code synchronized(handle)} window and on the single
+     * {@code OperationJournal} fan-out thread. Memoising it makes it once-per-rep.
+     *
+     * <p><b>Transient and purely derived from {@link #body} — no wire-format change</b>,
+     * exactly like {@link #decoded}. {@code volatile}: the rep is read concurrently from the
+     * confirm window and the journal fan-out thread. There is deliberately <b>no lock</b>: two
+     * threads racing to populate it both perform the same idempotent decode of the same bytes
+     * and install equivalent chains, and each installs a fully-built {@link ChainCache}, so the
+     * race is benign and costs at most one redundant (already-bounded) decode.
+     */
+    private volatile transient ChainCache entryChainCache;
+
+    /**
+     * The memoised decoded schema chain for {@code source}, or {@code null} if nothing valid
+     * is cached — in which case the caller decodes it and offers the result to
+     * {@link #cacheEntryChain}.
+     *
+     * <p>Returns a value only when the cached chain was derived from <b>this rep's own
+     * current</b> {@link #decoded} AND that is the very {@code Decoded} the caller names.
+     * Both conditions are re-tested here on every read, so a chain can never outlive, nor be
+     * served across, a body/{@code decoded} (re)assignment — and never for a different
+     * {@code entrySchemaDigest}, since the digest is a {@code final} field of the identity-
+     * compared {@code Decoded} (see {@link ChainCache}).
+     *
+     * <p>Opaque {@code Object}: {@code outrigger-dl} compiles {@code --release 8} and may not
+     * name {@code jgdms-der}'s {@code SchemaChain} types; the cast lives in the DER-capable
+     * {@code EntryProjection}, mirroring {@link EntryV2Codec.Decoded#schemaTable}.
+     *
+     * <p>{@code final} for the same reason as {@link #decoded()}: a subclass override would be
+     * a non-reflective way to hand back a chain that never came from this rep's own body.
+     *
+     * @param source the {@code Decoded} the caller is projecting from (normally
+     *               {@link #decoded()}); {@code null} always yields {@code null}
+     * @return the cached chain by reference (MUST NOT be mutated), or {@code null}
+     */
+    public final Object cachedEntryChain(EntryV2Codec.Decoded source) {
+	if (source == null) return null;
+	final ChainCache c = entryChainCache;
+	if (c == null) return null;
+	// Bound to the caller's Decoded ...
+	if (c.source != source) return null;
+	// ... and to this rep's CURRENT Decoded (so a stale entry is never served even if a
+	// clear site were ever missed). Read once; `decoded` is volatile.
+	if (c.source != this.decoded) return null;
+	return c.chain;
+    }
+
+    /**
+     * Offers a decoded schema chain for memoisation. Stored only if {@code source} is this
+     * rep's own current {@link #decoded} — a chain for anything else is silently refused
+     * rather than trusted, so the memo cannot be bound to a foreign body/digest.
+     *
+     * <p><b>Only successes are offered.</b> The caller must not call this for a failed decode:
+     * there is no negative/poisoned entry, so a chain that will not decode fails closed
+     * identically on every attempt (never "succeeds" from cache, never serves stale state).
+     *
+     * <p><b>Trust boundary (documented).</b> Like {@link #decoded()} — which hands back the
+     * live decode result by reference — this is an in-JVM, same-trust-domain API for the
+     * server-side projection. It is not a validation seam: it does not (and at
+     * {@code --release 8} cannot) inspect the chain. A caller able to reach this method
+     * already holds {@link #decoded()} itself. The projection's own STD-006 &sect;A.8
+     * field-count guard ({@code idx != slices.length}) is nevertheless recomputed from the
+     * chain on <em>every</em> projection, cached or not, so a mis-shaped chain still fails
+     * closed there rather than mis-projecting.
+     *
+     * @param source the {@code Decoded} the chain was derived from
+     * @param chain  the decoded chain, opaque to this module (see {@link #cachedEntryChain})
+     */
+    public final void cacheEntryChain(EntryV2Codec.Decoded source, Object chain) {
+	if (source == null || chain == null) return;
+	if (source != this.decoded) return;	// not derived from our current body => refuse
+	// Fully-constructed, all-final holder published by this single volatile write.
+	this.entryChainCache = new ChainCache(source, chain);
+    }
+
     /** The 32-byte {@code entrySchemaDigest} (routing/identity; EXCLUDED from matching). */
     private volatile byte[] entrySchemaDigest;
 
@@ -508,6 +623,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	// path installs a body with no accompanying validating decode, so any decode
 	// retained from a prior body (there is none on the current call sites, but
 	// this makes it true by construction rather than by call-site discipline).
+	// The memoised schema chain is derived from that decode, so it goes with it.
+	this.entryChainCache = null;
 	this.decoded = null;
     }
 
@@ -615,6 +732,9 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    EntryV2Codec.Decoded dec = codec().decode(body);
 	    this.sliceBytes = dec.sliceBytes;
 	    this.absent = dec.absent;
+	    // A memoised chain must never outlive the Decoded it was derived from; this
+	    // assigns a NEW Decoded, so anything cached against a prior one goes first.
+	    this.entryChainCache = null;
 	    this.decoded = dec;	// B3 §4.2 slice-reuse source (see the field doc)
 	}
     }
@@ -1235,13 +1355,17 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    EntryV2Codec.Decoded dec = codec().decode(body);
 	    this.sliceBytes = dec.sliceBytes;
 	    this.absent = dec.absent;
+	    // A memoised chain must never outlive the Decoded it was derived from; this
+	    // assigns a NEW Decoded, so anything cached against a prior one goes first.
+	    this.entryChainCache = null;
 	    this.decoded = dec;	// B3 §4.2 slice-reuse source (see the field doc)
 	} else {
 	    // The retained decode must never outlive the body it was derived from:
 	    // a null body here means no validating decode was run, so any decode
 	    // this rep might otherwise carry (there is none -- restore() only runs
 	    // on a freshly-allocated rep -- but this makes it true by construction)
-	    // must not be retained.
+	    // must not be retained. Likewise the chain memoised from that decode.
+	    this.entryChainCache = null;
 	    this.decoded = null;
 	}
         return this;

@@ -27,6 +27,7 @@ import java.util.Arrays;
 import org.junit.Test;
 
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.EntryV2Codec;
 import org.apache.river.outrigger.proxy.EntryRep;
 
 import au.net.zeus.jgdms.cel.CelValue;
@@ -513,6 +514,262 @@ public class FilterEvalTest {
         assertTrue("null slices are refused",
                 EntryProjection.projectReusing(noSlices, java.util.Set.of("stationName"))
                         .isUndecodable());
+    }
+
+    // =====================================================================
+    // Chain memo: after the §4.2 slice reuse, the surviving per-candidate work was
+    // SchemaChain.decodeChain(entryChainBytes) -- re-run per candidate PER EVALUATION
+    // over byte-identical input. It is memoised on the rep, bound to the very Decoded
+    // it was derived from.
+    // =====================================================================
+
+    /** Reflective read of the rep's private chain-memo holder (the invariant asserted directly). */
+    private static Object chainMemoOf(EntryRep rep) throws Exception {
+        final java.lang.reflect.Field f = EntryRep.class.getDeclaredField("entryChainCache");
+        f.setAccessible(true);
+        return f.get(rep);
+    }
+
+    /** Reflectively installs a {@code Decoded} as the rep's own, so the memo path engages for it. */
+    private static void setDecoded(EntryRep rep, EntryV2Codec.Decoded d) throws Exception {
+        final java.lang.reflect.Field f = EntryRep.class.getDeclaredField("decoded");
+        f.setAccessible(true);
+        f.set(rep, d);
+    }
+
+    private static final char[] HEXC = "0123456789abcdef".toCharArray();
+
+    /** Lowercase hex, matching EntryRepV2Codec.decode's schemaTable keying. */
+    private static String hex(byte[] b) {
+        final char[] c = new char[b.length * 2];
+        for (int i = 0; i < b.length; i++) {
+            c[i * 2] = HEXC[(b[i] >> 4) & 0xF];
+            c[i * 2 + 1] = HEXC[b[i] & 0xF];
+        }
+        return new String(c);
+    }
+
+    @Test
+    public void chainMemoYieldsAnIdenticalProjection() throws Exception {
+        // The memo is a pure cost reduction: memo-off, memo-on-cold and memo-on-warm must
+        // all observe exactly the same projection (same schema presence, same values).
+        final EntryRep rep = storeRestore(new EntryRep(new DetailedReading(25.0, "North", "s1")));
+        final java.util.Set<String> referenced =
+                java.util.Set.of("temperatureCelsius", "stationName", "sensorId");
+
+        final EntryProjection noMemo = EntryProjection.projectReusing(rep.decoded(), referenced);
+        final EntryProjection cold =
+                EntryProjection.projectReusing(rep, rep.decoded(), referenced);   // populates
+        final EntryProjection warm =
+                EntryProjection.projectReusing(rep, rep.decoded(), referenced);   // hits
+        org.junit.Assert.assertNotNull("the cold call populated the memo", chainMemoOf(rep));
+
+        for (EntryProjection p : new EntryProjection[] { noMemo, cold, warm }) {
+            assertFalse(p.isUndecodable());
+            assertEquals(noMemo.namespaceChain(), p.namespaceChain());
+            org.junit.Assert.assertArrayEquals(
+                    noMemo.entrySchemaDigest(), p.entrySchemaDigest());
+            for (String cls : noMemo.namespaceChain()) {
+                for (String field : referenced) {
+                    assertEquals(cls + "#" + field + " schema presence",
+                            noMemo.declaresField(cls, field), p.declaresField(cls, field));
+                    if (noMemo.declaresField(cls, field)) {
+                        assertEquals(cls + "#" + field + " value",
+                                noMemo.fieldValue(cls, field), p.fieldValue(cls, field));
+                    }
+                }
+            }
+        }
+
+        // ... and the same VERDICT through the real evaluation path, repeatedly.
+        final FilterSet fs = FilterSet.of(schemaLess(warmNorth()));
+        final EntryRep hot = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        assertTrue(FilterEval.matches(fs, hot));
+        assertTrue("a memo hit must not change the verdict", FilterEval.matches(fs, hot));
+        final EntryRep cold2 = storeRestore(new EntryRep(new Reading(10.0, "North")));
+        assertFalse(FilterEval.matches(fs, cold2));
+        assertFalse("still an honest false on the memo hit", FilterEval.matches(fs, cold2));
+    }
+
+    @Test
+    public void entryChainIsDecodedOncePerRepNotOncePerEvaluation() throws Exception {
+        // THE before/after evidence, off the EntryProjection decode seam (the same shape as
+        // Evaluator.sizeStringComputationCountForTesting).
+        final FilterSet fs = FilterSet.of(schemaLess(warmNorth()));
+
+        // BEFORE (and the still-unchanged fallback): a rep with no retained Decoded takes
+        // projectFields, which has nothing to memo against -- one chain decode PER evaluation.
+        final EntryRep writePath = new EntryRep(new Reading(25.0, "North"));
+        org.junit.Assert.assertNull("control: the projectFields fallback", writePath.decoded());
+        final long b0 = EntryProjection.entryChainDecodeCountForTesting();
+        assertTrue(FilterEval.matches(fs, writePath));
+        assertTrue(FilterEval.matches(fs, writePath));
+        assertTrue(FilterEval.matches(fs, writePath));
+        assertEquals("BEFORE: the chain is re-decoded on every evaluation",
+                3L, EntryProjection.entryChainDecodeCountForTesting() - b0);
+
+        // AFTER: a decode-constructed rep (what every server-side candidate actually is)
+        // decodes its chain ONCE, however many times it is evaluated.
+        final EntryRep candidate = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        org.junit.Assert.assertNotNull(candidate.decoded());
+        org.junit.Assert.assertNull("memo starts empty", chainMemoOf(candidate));
+        final long a0 = EntryProjection.entryChainDecodeCountForTesting();
+        assertTrue(FilterEval.matches(fs, candidate));
+        assertTrue(FilterEval.matches(fs, candidate));
+        assertTrue(FilterEval.matches(fs, candidate));
+        assertEquals("AFTER: once per rep, not once per evaluation",
+                1L, EntryProjection.entryChainDecodeCountForTesting() - a0);
+        org.junit.Assert.assertNotNull("and the memo is populated", chainMemoOf(candidate));
+    }
+
+    @Test
+    public void chainMemoIsClearedWhereverTheBodyOrDecodedIsReassigned() throws Exception {
+        // INVARIANT 1, asserted directly at each site that (re)assigns or clears `decoded`.
+
+        // (a) installBody -- the client write path installs a body with NO validating decode.
+        final EntryRep viaInstall = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        EntryProjection.projectReusing(viaInstall, viaInstall.decoded(),
+                java.util.Set.of("stationName"));
+        org.junit.Assert.assertNotNull("pre-condition: memo warm", chainMemoOf(viaInstall));
+        final java.lang.reflect.Method installBody = EntryRep.class.getDeclaredMethod(
+                "installBody", byte[].class, byte[][].class, byte[].class);
+        installBody.setAccessible(true);
+        installBody.invoke(viaInstall, new byte[0], new byte[0][], new byte[0]);
+        org.junit.Assert.assertNull("installBody must clear the chain memo with the decode",
+                chainMemoOf(viaInstall));
+
+        // (b) restore(), decode branch -- a NEW body and a NEW Decoded.
+        final EntryRep viaRestore = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        EntryProjection.projectReusing(viaRestore, viaRestore.decoded(),
+                java.util.Set.of("stationName"));
+        final EntryV2Codec.Decoded before = viaRestore.decoded();
+        org.junit.Assert.assertNotNull("pre-condition: memo warm", chainMemoOf(viaRestore));
+        final java.io.ByteArrayOutputStream bout = new java.io.ByteArrayOutputStream();
+        final java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(bout);
+        new EntryRep(new DetailedReading(1.0, "South", "s9")).store(oos);
+        oos.flush();
+        viaRestore.restore(new java.io.ObjectInputStream(
+                new java.io.ByteArrayInputStream(bout.toByteArray())));
+        org.junit.Assert.assertNull("restore() must clear the memo of the PREVIOUS body",
+                chainMemoOf(viaRestore));
+        org.junit.Assert.assertNotSame(before, viaRestore.decoded());
+        org.junit.Assert.assertNull("and the old Decoded is never served again",
+                viaRestore.cachedEntryChain(before));
+
+        // (c) restore(), null-body branch -- no validating decode ran, so nothing may survive.
+        final EntryRep viaNullBody = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        EntryProjection.projectReusing(viaNullBody, viaNullBody.decoded(),
+                java.util.Set.of("stationName"));
+        org.junit.Assert.assertNotNull("pre-condition: memo warm", chainMemoOf(viaNullBody));
+        viaNullBody.restore(new java.io.ObjectInputStream(
+                new java.io.ByteArrayInputStream(nullBodyStoreImage())));
+        org.junit.Assert.assertNull("the null-body branch must clear the chain memo",
+                chainMemoOf(viaNullBody));
+        org.junit.Assert.assertNull(viaNullBody.decoded());
+
+        // (d) the @AtomicSerial GetArg decode ctor assigns a fresh Decoded on a fresh rep,
+        //     so there is nothing to clear; the derived check covers it either way -- a memo
+        //     is served only while its source IS the rep's current `decoded`.
+        final EntryRep fresh = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        EntryProjection.projectReusing(fresh, fresh.decoded(), java.util.Set.of("stationName"));
+        final EntryV2Codec.Decoded live = fresh.decoded();
+        org.junit.Assert.assertNotNull("warm", fresh.cachedEntryChain(live));
+        setDecoded(fresh, null);
+        org.junit.Assert.assertNull(
+                "a memo whose source is no longer the rep's current Decoded is not served,"
+                + " even though the holder field itself was not touched",
+                fresh.cachedEntryChain(live));
+    }
+
+    /** A {@code store()}-shaped image whose {@code body} is {@code null} (restore's else branch). */
+    private static byte[] nullBodyStoreImage() throws Exception {
+        final java.io.ByteArrayOutputStream bout = new java.io.ByteArrayOutputStream();
+        final java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bout);
+        out.writeLong(0L);                      // id msb
+        out.writeLong(0L);                      // id lsb
+        out.writeLong(0L);                      // expires
+        out.writeObject(null);                  // codebase
+        out.writeObject(Reading.class.getName());
+        out.writeObject(new String[0]);         // superclasses
+        out.writeObject(null);                  // body  <-- the null-body branch
+        out.writeObject(new byte[0]);           // entrySchemaDigest
+        out.writeLong(0L);                      // hash
+        out.writeObject(new long[0]);           // hashes
+        out.flush();
+        return bout.toByteArray();
+    }
+
+    @Test
+    public void chainMemoIsNeverServedForADifferentDecodedOrDigest() throws Exception {
+        // INVARIANT 2. The memo is keyed by the Decoded it was derived from, and the chain is
+        // a pure function of that Decoded (schemaTable.get(hex(entrySchemaDigest))), whose
+        // digest is a final field. So "bound to this Decoded" IS "bound to this digest".
+        final EntryRep reading =
+                storeRestore(new EntryRep(new Reading(25.0, "North")));
+        final EntryRep detailed =
+                storeRestore(new EntryRep(new DetailedReading(25.0, "North", "s1")));
+        org.junit.Assert.assertFalse("pre-condition: genuinely different schemas",
+                Arrays.equals(reading.entrySchemaDigest(), detailed.entrySchemaDigest()));
+
+        EntryProjection.projectReusing(reading, reading.decoded(),
+                java.util.Set.of("stationName"));
+        org.junit.Assert.assertNotNull("warm for its own Decoded",
+                reading.cachedEntryChain(reading.decoded()));
+        org.junit.Assert.assertNull("never served for ANOTHER rep's (different-digest) Decoded",
+                reading.cachedEntryChain(detailed.decoded()));
+        org.junit.Assert.assertNull("nor does the other rep serve it",
+                detailed.cachedEntryChain(reading.decoded()));
+        org.junit.Assert.assertNull("null source is never a hit",
+                reading.cachedEntryChain(null));
+
+        // A chain offered for a Decoded that is not this rep's own is REFUSED, not stored.
+        final Object chain = reading.cachedEntryChain(reading.decoded());
+        detailed.cacheEntryChain(reading.decoded(), chain);
+        org.junit.Assert.assertNull("a foreign-sourced chain is refused outright",
+                detailed.cachedEntryChain(reading.decoded()));
+        org.junit.Assert.assertNull("and does not displace the rep's own (empty) memo",
+                chainMemoOf(detailed));
+    }
+
+    @Test
+    public void aFailingChainDecodeIsNotCachedAndFailsClosedEveryTime() throws Exception {
+        // INVARIANT 3. No negative/poisoned entry: a chain that will not decode fails closed
+        // identically on EVERY attempt, and is genuinely re-attempted (not served from cache).
+        final EntryRep rep = storeRestore(new EntryRep(new Reading(25.0, "North")));
+        final EntryV2Codec.Decoded good = rep.decoded();
+
+        @SuppressWarnings("unchecked")
+        final java.util.Map<String, byte[]> table =
+                new java.util.LinkedHashMap<>((java.util.Map<String, byte[]>) good.schemaTable);
+        // Same shape, same digest, but the ENTRY chain bytes will not decode.
+        table.put(hex(good.entrySchemaDigest), new byte[] { 0x30, 0x7F, (byte) 0xDE, (byte) 0xAD });
+        final EntryV2Codec.Decoded broken = new EntryV2Codec.Decoded(
+                good.entrySchemaDigest, good.sliceBytes, good.absent, table);
+        setDecoded(rep, broken);   // now the memo path engages for `broken`
+
+        final long d0 = EntryProjection.entryChainDecodeCountForTesting();
+        assertTrue("first attempt fails closed", EntryProjection
+                .projectReusing(rep, rep.decoded(), java.util.Set.of("stationName"))
+                .isUndecodable());
+        org.junit.Assert.assertNull("a FAILURE is never cached", chainMemoOf(rep));
+        assertTrue("second attempt fails closed the SAME way -- never 'succeeds' from cache",
+                EntryProjection
+                        .projectReusing(rep, rep.decoded(), java.util.Set.of("stationName"))
+                        .isUndecodable());
+        org.junit.Assert.assertNull("still nothing cached", chainMemoOf(rep));
+        assertEquals("both attempts genuinely re-ran the decode (no negative memo)",
+                2L, EntryProjection.entryChainDecodeCountForTesting() - d0);
+
+        // And it is an ordinary fail-closed exclusion, not a budget one (shape unchanged).
+        assertFalse(EntryProjection
+                .projectReusing(rep, rep.decoded(), java.util.Set.of("stationName"))
+                .budgetExceeded());
+
+        // Restoring a sound Decoded lets it succeed again -- no poisoned state left behind.
+        setDecoded(rep, good);
+        assertFalse("no residue: the sound Decoded still projects",
+                EntryProjection.projectReusing(rep, rep.decoded(),
+                        java.util.Set.of("stationName")).isUndecodable());
     }
 
     // =====================================================================
