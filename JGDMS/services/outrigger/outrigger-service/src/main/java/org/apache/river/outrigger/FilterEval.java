@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.river.api.io.EntryV2Codec;
 import org.apache.river.outrigger.proxy.EntryRep;
 
 import au.net.zeus.jgdms.cel.CelValue;
@@ -54,7 +55,12 @@ import au.net.zeus.jgdms.cel.eval.Evaluator;
  *   <li>Project the union of the applicable filters' referenced fields <b>once</b>,
  *       against the candidate's own v2 schema, under the per-candidate
  *       {@link EntryProjection#MAX_PROJECTION_DECODE_BYTES} budget (&sect;4.3
- *       Option&nbsp;B). An undecodable / over-budget projection ⇒ fail-closed.</li>
+ *       Option&nbsp;B), <b>reusing the candidate rep's already-decoded body</b>
+ *       ({@link EntryRep#decoded()} &rarr;
+ *       {@link EntryProjection#projectReusing}, the ratified &sect;4.2/&sect;4.4
+ *       slice reuse) so no {@code O(body)} structural re-decode runs under the
+ *       {@code handle} lock or on the journal thread. An undecodable /
+ *       over-budget projection ⇒ fail-closed.</li>
  *   <li>With a FRESH {@link Evaluator} per candidate, evaluate every applicable
  *       filter against that one projection; <b>all must return {@code BoolV(true)}</b>.
  *       Any {@code BoolV(false)} is an honest exclusion; any {@code EvalOutcome.Error}
@@ -67,10 +73,18 @@ import au.net.zeus.jgdms.cel.eval.Evaluator;
  *       single {@code OperationJournal} delivery thread).</li>
  * </ol>
  * Every non-{@code true} outcome is <b>counted</b> in the operator-only
- * {@link FilterAdmission} metrics (&sect;7): {@code filter.evaluated} (denominator),
- * {@code filter.passed}, {@code filter.excludedFalse} (honest false),
+ * {@link FilterAdmission} metrics (&sect;7): {@code filter.evaluated} (the
+ * denominator — bumped only once a candidate genuinely <em>reaches</em> the
+ * evaluator, i.e. post-projection), {@code filter.passed},
+ * {@code filter.excludedFalse} (honest false),
  * {@code filter.failClosedExclusions} (fault-driven), and its broken-out
- * sub-category {@code filter.rejected.projectionBudget}.
+ * sub-category {@code filter.rejected.projectionBudget}. The &sect;8.2
+ * happy-path identity {@code evaluated == passed + excludedFalse} holds only
+ * when {@code failClosedExclusions == 0}: a <em>post</em>-projection fault
+ * inside this evaluator loop (an {@code EvalOutcome.Error}, a non-bool value,
+ * or an escaping {@code Throwable}) is counted in both {@code evaluated}
+ * (already bumped before the loop) and {@code failClosedExclusions} — see
+ * {@link FilterAdmission#EVALUATED} for the full qualifier.
  *
  * @since JGDMS 4.0.0
  */
@@ -171,20 +185,49 @@ final class FilterEval {
                 return false;
             }
             if (applicable.isEmpty()) {
-                // Only possible when the FilterSet is empty, handled above; defensive.
-                return true; // no predicate ran → leave outcome null (no event)
+                // DEFENSIVE DEFAULT — must EXCLUDE, never admit (board FIX 3).
+                // Unreachable through the public API today: an empty FilterSet
+                // short-circuits above, and FilterSet.applicableTo already maps its own
+                // empty result to null. But this is a fail-closed component, and "no
+                // filter was selected" is a SELECTION FAULT, not a licence to let the
+                // candidate through unfiltered. The prior `return true` meant a future
+                // applicableTo change that returned an empty list would SILENTLY admit
+                // every candidate with no predicate ever running — a fail-OPEN reachable
+                // by editing a different file. Exclude, and count it as a fail-closed
+                // exclusion so the fault is VISIBLE (§7: every non-pass outcome is
+                // counted) rather than a silent drop.
+                FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+                outcome = OUTCOME_FAIL_CLOSED;
+                return false;
             }
 
-            FilterAdmission.EVALUATED.incrementAndGet();
-
             // Project the UNION of referenced fields once, one shared per-candidate
-            // budget (§4.3). Reuses the candidate's already-canonical v2 body bytes.
+            // budget (§4.3).
             final Set<String> referenced = new HashSet<>();
             for (CompiledFilter f : applicable) {
                 referenced.addAll(EntryProjection.referencedFieldNames(f.expr()));
             }
-            final EntryProjection projection =
-                    EntryProjection.projectFields(candidate.bodyBytes(), referenced);
+            // §4.2/§4.4 SLICE REUSE (ratified). Every server-side candidate reaches here
+            // having been decode-constructed — the @AtomicSerial GetArg unmarshal on the
+            // write path, or restore() on the recovery path — each of which already ran the
+            // one full, fully-validating EntryRepV2Codec.decode of the body and retained its
+            // result. Consuming that here removes an O(body) STRUCTURAL re-decode per
+            // candidate from inside EntryHolder.confirmAvailability's synchronized(handle)
+            // window and from the single OperationJournal fan-out thread. That term was
+            // charged against nothing: MAX_PROJECTION_DECODE_BYTES (64 KiB) bounds per-field
+            // VALUE decode only, so the structural term was bounded solely by the 8 MiB
+            // EntryRep-v2 body ceiling — attacker-controlled at write time.
+            //
+            // FALLBACK: a rep that was never decode-constructed (decoded() == null) — the
+            // client write path's locally-built rep, the schema-less match-any stand-in, and
+            // unit tests that construct an EntryRep straight from an Entry. Those still pay
+            // the structural decode of bodyBytes(), which remains bounded only by the 8 MiB
+            // body ceiling (noted in the design memo §4.4). No fail-open either way: the
+            // fallback is the pre-existing, identically fail-closed factory.
+            final EntryV2Codec.Decoded reusable = candidate.decoded();
+            final EntryProjection projection = (reusable != null)
+                    ? EntryProjection.projectReusing(reusable, referenced)
+                    : EntryProjection.projectFields(candidate.bodyBytes(), referenced);
             if (projection.isUndecodable()) {
                 if (projection.budgetExceeded()) {
                     FilterAdmission.REJECTED_PROJECTION_BUDGET.incrementAndGet();
@@ -195,6 +238,20 @@ final class FilterEval {
                 FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
                 return false;
             }
+
+            // N-4 (§7 counter placement). `filter.evaluated` is DEFINED as "a candidate
+            // reached CEL evaluation" — the denominator for filter.passed and
+            // filter.excludedFalse. It is therefore incremented HERE, immediately before
+            // the Evaluator loop and only after a SUCCESSFUL projection, never earlier:
+            // counting it before projection folded in candidates that never reached CEL
+            // at all (projection-undecodable, over-budget, applicability faults),
+            // inflating the denominator and breaking the §8.2 happy-path identity
+            // `evaluated == passed + excludedFalse` that demo7 asserts against. Every
+            // exclusion taken before this point is already counted in
+            // filter.failClosedExclusions (and, for the budget case, additionally in
+            // filter.rejected.projectionBudget), so nothing goes uncounted — the
+            // exclusion simply stops being miscounted as an evaluation.
+            FilterAdmission.EVALUATED.incrementAndGet();
 
             // Fresh Evaluator per candidate (§1.4 step c). All applicable filters
             // must return BoolV(true); short-circuit on the first non-pass.

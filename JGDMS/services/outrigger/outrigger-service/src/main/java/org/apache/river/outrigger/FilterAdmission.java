@@ -111,9 +111,25 @@ public final class FilterAdmission {
      */
     static final AtomicLong FAIL_CLOSED_EXCLUSIONS = new AtomicLong();
     /**
-     * Candidates that reached CEL evaluation (post-entitlement, post-byte-match)
-     * — the denominator for the two verdict counters below (design memo B3
-     * &sect;7). Populated by unit&nbsp;B3.
+     * Candidates that reached CEL evaluation (post-entitlement, post-byte-match,
+     * <b>post-successful-projection</b>) — the denominator for the two verdict
+     * counters below (design memo B3 &sect;7). Populated by unit&nbsp;B3.
+     *
+     * <p>Incremented immediately before the evaluator loop, so a candidate excluded
+     * <em>before</em> CEL ever ran (an applicability fault, an undecodable
+     * projection, an over-budget projection) is counted in
+     * {@link #FAIL_CLOSED_EXCLUSIONS} but <b>not</b> here (finding N-4).
+     *
+     * <p><b>The memo &sect;8.2 identity {@code evaluated == passed + excludedFalse} is a
+     * happy-path identity, not an unconditional one.</b> A <em>post</em>-projection fault
+     * inside the evaluator loop itself — {@code EvalOutcome.Error}, a verified-boolean
+     * predicate that yields a non-bool value, or a {@code Throwable} escaping the loop — is
+     * counted in {@link #FAIL_CLOSED_EXCLUSIONS} in addition to already having been counted
+     * here (this counter is incremented before the loop runs, not after it succeeds). So the
+     * identity holds only when {@link #FAIL_CLOSED_EXCLUSIONS} is {@code 0}; whenever it is
+     * nonzero, {@code evaluated} may exceed {@code passed + excludedFalse} by the
+     * post-projection fault count. Keep this qualifier attached to the figure wherever it is
+     * quoted.
      */
     static final AtomicLong EVALUATED = new AtomicLong();
     /** Candidates that evaluated to {@code BoolV(true)} — a genuine predicate pass (B3 &sect;7). */
