@@ -183,6 +183,56 @@ public class MultiSubjectGrantAuthorizationTest {
         assertTrue("BOB merged onto the domain", seen.contains(BOB));
     }
 
+    /**
+     * The same n-party unification, but driven through the <em>production</em>
+     * entry point ({@link UserSubjectSupport#callAsAll}) instead of a reflective
+     * handle derived locally by this test.
+     *
+     * <p>This is precisely the gap the original defect fell through: the test's
+     * own (correct) {@code callAs(Callable, UserSubject...)} lookup kept passing,
+     * while production's (wrong) {@code callAs(Callable, Subject[])} lookup never
+     * resolved, so every dispatch silently bound only the first Subject.  An
+     * assertion about the JDK's method is not an assertion about production's
+     * use of it.
+     */
+    @Test
+    public void productionCallAsAllUnifiesPrincipals() throws Exception {
+        Method currentAll = currentAllCombiner();
+        Assume.assumeTrue("requires the DirtyChai multi-Subject API",
+                UserSubjectSupport.isMultiSubjectSupported() && currentAll != null);
+
+        final DynamicPolicyProvider policy = newPolicy();
+        policy.grant(principalGrant(new Principal[]{ALICE, BOB}, BOTH_REQUIRED));
+
+        final Callable<Boolean> grantedByMergedDomain = () -> {
+            for (ProtectionDomain pd : mergedDomains(currentAll)) {
+                if (policy.implies(pd, BOTH_REQUIRED)) return Boolean.TRUE;
+            }
+            return Boolean.FALSE;
+        };
+
+        Subject alice = productionUserSubject(ALICE);
+        Subject bob   = productionUserSubject(BOB);
+        Subject carol = productionUserSubject(CAROL);
+
+        assertTrue("production callAsAll(A,B): both principals merged => granted",
+                UserSubjectSupport.callAsAll(new Subject[]{alice, bob}, grantedByMergedDomain));
+        assertFalse("production callAsAll(A): only one principal => denied",
+                UserSubjectSupport.callAsAll(new Subject[]{alice}, grantedByMergedDomain));
+        assertTrue("production callAsAll(A,B,C): superset still satisfies ALICE and BOB",
+                UserSubjectSupport.callAsAll(new Subject[]{alice, bob, carol},
+                        grantedByMergedDomain));
+        assertTrue("production callAsAll(B,A): the merge is order-independent",
+                UserSubjectSupport.callAsAll(new Subject[]{bob, alice}, grantedByMergedDomain));
+    }
+
+    /** A read-only user Subject built the way production builds them. */
+    private static Subject productionUserSubject(Principal... principals) {
+        Set<Principal> ps = new LinkedHashSet<>(Arrays.asList(principals));
+        return UserSubjectSupport.newUserSubject(
+                true, ps, Collections.emptySet(), Collections.emptySet());
+    }
+
     // ---- three-axis conjunction: verified code AND process AND user ---------
 
     /**
