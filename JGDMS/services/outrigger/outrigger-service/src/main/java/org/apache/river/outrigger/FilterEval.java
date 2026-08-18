@@ -73,8 +73,11 @@ import au.net.zeus.jgdms.cel.eval.Evaluator;
  *       single {@code OperationJournal} delivery thread).</li>
  * </ol>
  * Every non-{@code true} outcome is <b>counted</b> in the operator-only
- * {@link FilterAdmission} metrics (&sect;7): {@code filter.evaluated} (denominator),
- * {@code filter.passed}, {@code filter.excludedFalse} (honest false),
+ * {@link FilterAdmission} metrics (&sect;7): {@code filter.evaluated} (the
+ * denominator — bumped only once a candidate genuinely <em>reaches</em> the
+ * evaluator, i.e. post-projection, so the &sect;8.2 happy-path identity
+ * {@code evaluated == passed + excludedFalse} holds), {@code filter.passed},
+ * {@code filter.excludedFalse} (honest false),
  * {@code filter.failClosedExclusions} (fault-driven), and its broken-out
  * sub-category {@code filter.rejected.projectionBudget}.
  *
@@ -177,11 +180,21 @@ final class FilterEval {
                 return false;
             }
             if (applicable.isEmpty()) {
-                // Only possible when the FilterSet is empty, handled above; defensive.
-                return true; // no predicate ran → leave outcome null (no event)
+                // DEFENSIVE DEFAULT — must EXCLUDE, never admit (board FIX 3).
+                // Unreachable through the public API today: an empty FilterSet
+                // short-circuits above, and FilterSet.applicableTo already maps its own
+                // empty result to null. But this is a fail-closed component, and "no
+                // filter was selected" is a SELECTION FAULT, not a licence to let the
+                // candidate through unfiltered. The prior `return true` meant a future
+                // applicableTo change that returned an empty list would SILENTLY admit
+                // every candidate with no predicate ever running — a fail-OPEN reachable
+                // by editing a different file. Exclude, and count it as a fail-closed
+                // exclusion so the fault is VISIBLE (§7: every non-pass outcome is
+                // counted) rather than a silent drop.
+                FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
+                outcome = OUTCOME_FAIL_CLOSED;
+                return false;
             }
-
-            FilterAdmission.EVALUATED.incrementAndGet();
 
             // Project the UNION of referenced fields once, one shared per-candidate
             // budget (§4.3).
@@ -220,6 +233,20 @@ final class FilterEval {
                 FilterAdmission.FAIL_CLOSED_EXCLUSIONS.incrementAndGet();
                 return false;
             }
+
+            // N-4 (§7 counter placement). `filter.evaluated` is DEFINED as "a candidate
+            // reached CEL evaluation" — the denominator for filter.passed and
+            // filter.excludedFalse. It is therefore incremented HERE, immediately before
+            // the Evaluator loop and only after a SUCCESSFUL projection, never earlier:
+            // counting it before projection folded in candidates that never reached CEL
+            // at all (projection-undecodable, over-budget, applicability faults),
+            // inflating the denominator and breaking the §8.2 happy-path identity
+            // `evaluated == passed + excludedFalse` that demo7 asserts against. Every
+            // exclusion taken before this point is already counted in
+            // filter.failClosedExclusions (and, for the budget case, additionally in
+            // filter.rejected.projectionBudget), so nothing goes uncounted — the
+            // exclusion simply stops being miscounted as an evaluation.
+            FilterAdmission.EVALUATED.incrementAndGet();
 
             // Fresh Evaluator per candidate (§1.4 step c). All applicable filters
             // must return BoolV(true); short-circuit on the first non-pass.

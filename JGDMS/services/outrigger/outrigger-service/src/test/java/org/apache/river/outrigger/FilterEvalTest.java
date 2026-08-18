@@ -265,6 +265,116 @@ public class FilterEvalTest {
     }
 
     // =====================================================================
+    // FIX 3: the defensive "no applicable filter" default must EXCLUDE.
+    // =====================================================================
+
+    /**
+     * A map that reports non-empty on its FIRST {@code isEmpty()} look and empty on every
+     * one after. It exists to drive {@link FilterEval} to the {@code applicable.isEmpty()}
+     * branch that {@link FilterSet}, as written, makes unreachable — modelling exactly the
+     * hazard FIX 3 defends against: a future {@code applicableTo} that hands back an empty
+     * list. With the old {@code return true} this test would prove a silent, unfiltered
+     * admission of every candidate.
+     */
+    private static final class EmptyAfterFirstLookMap
+            extends java.util.AbstractMap<String, CompiledFilter> {
+        private int looks;
+        @Override public boolean isEmpty() { return looks++ > 0; }
+        @Override public java.util.Set<java.util.Map.Entry<String, CompiledFilter>> entrySet() {
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    private static FilterSet filterSetThatSelectsNothing() throws Exception {
+        final java.lang.reflect.Constructor<FilterSet> c = FilterSet.class
+                .getDeclaredConstructor(java.util.Map.class, java.util.List.class);
+        c.setAccessible(true);
+        return c.newInstance(new EmptyAfterFirstLookMap(), java.util.List.of());
+    }
+
+    @Test
+    public void emptyApplicableListFailsClosedNotOpen() throws Exception {
+        final EntryRep cand = new EntryRep(new Reading(25.0, "North"));
+        final FilterSet selectsNothing = filterSetThatSelectsNothing();
+        final long fc = metric("filter.failClosedExclusions");
+        final long ev = metric("filter.evaluated");
+
+        assertFalse("a non-empty FilterSet that selects NO applicable filter is a fault:"
+                + " exclude, never admit the candidate unfiltered",
+                FilterEval.matches(selectsNothing, cand));
+        assertEquals("and the fault is counted, not silently dropped",
+                fc + 1, metric("filter.failClosedExclusions"));
+        assertEquals("no predicate ran, so nothing 'reached CEL evaluation'",
+                ev, metric("filter.evaluated"));
+    }
+
+    // =====================================================================
+    // N-4: filter.evaluated counts only candidates that REACHED CEL evaluation.
+    // =====================================================================
+
+    @Test
+    public void evaluatedExcludesOverBudgetExclusions() throws Exception {
+        final char[] big = new char[EntryProjection.MAX_PROJECTION_DECODE_BYTES + 8];
+        Arrays.fill(big, 'N');
+        final EntryRep over = new EntryRep(new Reading(25.0, new String(big)));
+        final FilterSet fs = FilterSet.of(schemaLess(
+                new ExprNode.Eq(ref("stationName"), new ExprNode.LitString("x"))));
+        final long ev = metric("filter.evaluated");
+        final long pb = metric("filter.rejected.projectionBudget");
+
+        assertFalse(FilterEval.matches(fs, over));
+        assertEquals("an over-budget candidate is excluded BEFORE the evaluator runs,"
+                + " so it must not inflate the denominator",
+                ev, metric("filter.evaluated"));
+        assertEquals(pb + 1, metric("filter.rejected.projectionBudget"));
+    }
+
+    @Test
+    public void evaluatedExcludesUndecodableProjections() throws Exception {
+        // A write-path rep (no retained Decoded => the projectFields fallback) whose body
+        // has been corrupted: the projection is undecodable, so CEL never runs.
+        final EntryRep cand = new EntryRep(new Reading(25.0, "North"));
+        corruptBody(cand);
+        org.junit.Assert.assertNull("write-path rep: the projectFields fallback is taken",
+                cand.decoded());
+        final FilterSet fs = FilterSet.of(schemaLess(warmNorth()));
+        final long ev = metric("filter.evaluated");
+        final long fc = metric("filter.failClosedExclusions");
+
+        assertFalse(FilterEval.matches(fs, cand));
+        assertEquals("an undecodable candidate never reached CEL evaluation",
+                ev, metric("filter.evaluated"));
+        assertEquals("but it IS counted as a fail-closed exclusion",
+                fc + 1, metric("filter.failClosedExclusions"));
+    }
+
+    @Test
+    public void happyPathIdentityEvaluatedEqualsPassedPlusExcludedFalse() throws Exception {
+        // §8.2's identity, with a pre-CEL (budget) exclusion mixed in to prove the
+        // exclusion no longer perturbs the denominator.
+        final long ev0 = metric("filter.evaluated");
+        final long pa0 = metric("filter.passed");
+        final long xf0 = metric("filter.excludedFalse");
+        final long fc0 = metric("filter.failClosedExclusions");
+
+        final FilterSet fs = FilterSet.of(schemaLess(warmNorth()));
+        assertTrue(FilterEval.matches(fs, new EntryRep(new Reading(25.0, "North"))));
+        assertFalse(FilterEval.matches(fs, new EntryRep(new Reading(10.0, "North"))));
+
+        final char[] big = new char[EntryProjection.MAX_PROJECTION_DECODE_BYTES + 8];
+        Arrays.fill(big, 'N');
+        assertFalse(FilterEval.matches(fs, new EntryRep(new Reading(25.0, new String(big)))));
+
+        final long dEv = metric("filter.evaluated") - ev0;
+        final long dPa = metric("filter.passed") - pa0;
+        final long dXf = metric("filter.excludedFalse") - xf0;
+        assertEquals("two candidates reached CEL evaluation (the third never did)", 2L, dEv);
+        assertEquals("§8.2: evaluated == passed + excludedFalse", dEv, dPa + dXf);
+        assertEquals("the budget exclusion is accounted for separately",
+                fc0 + 1, metric("filter.failClosedExclusions"));
+    }
+
+    // =====================================================================
     // B3 §4.2/§4.4 slice reuse (board FIX 1): the projection must NOT re-run an
     // O(body) structural decode per candidate under the handle lock.
     // =====================================================================

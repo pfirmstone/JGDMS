@@ -111,9 +111,16 @@ public final class FilterAdmission {
      */
     static final AtomicLong FAIL_CLOSED_EXCLUSIONS = new AtomicLong();
     /**
-     * Candidates that reached CEL evaluation (post-entitlement, post-byte-match)
-     * — the denominator for the two verdict counters below (design memo B3
-     * &sect;7). Populated by unit&nbsp;B3.
+     * Candidates that reached CEL evaluation (post-entitlement, post-byte-match,
+     * <b>post-successful-projection</b>) — the denominator for the two verdict
+     * counters below (design memo B3 &sect;7). Populated by unit&nbsp;B3.
+     *
+     * <p>Incremented immediately before the evaluator loop, so a candidate excluded
+     * <em>before</em> CEL ever ran (an applicability fault, an undecodable
+     * projection, an over-budget projection) is counted in
+     * {@link #FAIL_CLOSED_EXCLUSIONS} but <b>not</b> here — which is what makes the
+     * memo &sect;8.2 happy-path identity {@code evaluated == passed + excludedFalse}
+     * hold (finding N-4).
      */
     static final AtomicLong EVALUATED = new AtomicLong();
     /** Candidates that evaluated to {@code BoolV(true)} — a genuine predicate pass (B3 &sect;7). */
