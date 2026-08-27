@@ -1,6 +1,6 @@
 # STD-006 Implementation — Task Breakdown for Claude Code
 
-*Companion to JGDMS-STD-006-DER-WireFormat-v0.11-DRAFT.md*
+*Companion to JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md*
 *Each task is scoped to a single, verifiable Claude Code session.*
 
 ---

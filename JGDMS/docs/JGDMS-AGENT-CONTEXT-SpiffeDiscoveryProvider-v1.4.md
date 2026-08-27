@@ -508,7 +508,7 @@ for this (likely `SslEndpoint` + `AtomicILFactory`).
 | `Constants.java` (sha256withdsa) | Template for new Constants class |
 | `SECURITY_MODEL.md` §8.3 | `SpiffeCredentialManager` internals; trust bundle access; `SvidRotationListener` |
 | `blog-post-3a-identity-model.md` | `WorkerSubject` ambient identity; `SpiffeCredentialManager.start()` and `LocalPrincipalProvider` registration |
-| `JGDMS-STD-006-DER-WireFormat-v0.4-DRAFT.md` §7.7 | Normative ASN.1 for `MulticastAnnouncementRecord`, `MulticastRequestRecord`, `UnicastResponseRecord`, `ProxyDescriptor` |
+| `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md` §7.7 | Normative ASN.1 for `MulticastAnnouncementRecord`, `MulticastRequestRecord`, `UnicastResponseRecord`, `ProxyDescriptor` |
 
 ---
 
