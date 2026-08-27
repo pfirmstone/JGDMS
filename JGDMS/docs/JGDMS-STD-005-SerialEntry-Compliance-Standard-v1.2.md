@@ -1,6 +1,6 @@
 # JGDMS-STD-005 — SerialEntry Compliance Standard
 
-**Version:** 1.0  
+**Version:** 1.2  
 **Status:** Active  
 **Package:** `net.jini.core.entry`  
 **Scope:** All `Entry` classes that adopt the
