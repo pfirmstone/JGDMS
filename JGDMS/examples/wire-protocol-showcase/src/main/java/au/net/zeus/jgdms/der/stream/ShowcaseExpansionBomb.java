@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.stream;
 
 import au.net.zeus.jgdms.der.DerException;
+import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
@@ -51,8 +52,8 @@ public final class ShowcaseExpansionBomb {
     public static final int PER_ITEM_FACTOR = StreamSchemaDedup.RECONSTITUTION_EXPANSION_FACTOR;
     /** The library's cumulative expansion factor (ceiling = input budget x this). */
     public static final int CUMULATIVE_FACTOR = StreamSchemaDedup.STREAM_RECONSTITUTION_EXPANSION_FACTOR;
-    /** The library's default input budget (the normal deployment posture), in bytes. */
-    public static final int DEFAULT_INPUT_BUDGET = 16 * 1024 * 1024;
+    /** The deployment's effective default input budget (the normal deployment posture), in bytes. */
+    public static final int DEFAULT_INPUT_BUDGET = DerInputLimits.DEFAULT.maxInputBytes();
 
     private static final Tag FULL = new Tag(Tag.CLASS_CONTEXT, false, 0);  // first, full shape
     private static final Tag REF  = new Tag(Tag.CLASS_CONTEXT, false, 1);  // later, a back-reference

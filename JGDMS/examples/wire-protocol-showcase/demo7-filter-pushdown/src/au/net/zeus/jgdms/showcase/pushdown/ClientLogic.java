@@ -167,7 +167,7 @@ public final class ClientLogic {
     // =====================================================================
     public void registerP() throws Exception {
         listenerExporter = new BasicJeriExporter(
-                TcpServerEndpoint.getInstance(0),
+                TcpServerEndpoint.getInstance("127.0.0.1", 0),
                 new AtomicILFactory(null, null, RemoteEventListener.class.getClassLoader()),
                 false, true);
         RemoteEventListener pStub = (RemoteEventListener) listenerExporter.export(

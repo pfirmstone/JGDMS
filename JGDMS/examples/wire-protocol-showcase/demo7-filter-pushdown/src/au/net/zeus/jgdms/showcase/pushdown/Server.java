@@ -157,8 +157,9 @@ public final class Server {
             System.out.println("  Starting transient Outrigger (JavaSpace) ...");
             Object space = startService(
                     "org.apache.river.outrigger.TransientOutriggerImpl", args[1]);
-            System.out.println("  Exported over plaintext TCP JERI (TcpServerEndpoint, integrity-only "
-                    + "constraints): Outrigger=AtomicDerILFactory, Mahalo=AtomicILFactory; no TLS.");
+            System.out.println("  Exported over plaintext TCP JERI (TcpServerEndpoint, no constraints -- "
+                    + "plaintext cannot satisfy Integrity.YES): Outrigger=AtomicDerILFactory, "
+                    + "Mahalo=AtomicILFactory; no TLS.");
             System.out.println();
 
             // --------------------------------------------------------------

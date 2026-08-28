@@ -1,6 +1,6 @@
 <#
   Single-command parent: builds the JGDMS modules the showcase depends on from the
-  CURRENT source tree, then runs all six wire-protocol-showcase demonstrations in
+  CURRENT source tree, then runs all seven wire-protocol-showcase demonstrations in
   sequence, then the automated checks, and prints a pass/fail summary.
 
   Demonstrations:
@@ -10,6 +10,7 @@
     4. Feed it garbage, it stops politely             (in-process, main module)
     5. Filter records by a written rule, without the class (two processes, demo5 subdir)
     6. Two different collection classes, one value, one encoding (in-process, main module)
+    7. Filter records inside a live space, server-side, without the class (demo7 subdir)
 
   Demonstration 4 (the cumulative-bomb refusal) only proves anything if the
   jgdms-der it runs against is built from the CURRENT source tree: an installed

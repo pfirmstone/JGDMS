@@ -129,9 +129,7 @@ public final class Server {
     }
 
     private static boolean isClassAbsence(Throwable c) {
-        if (c instanceof ClassNotFoundException || c instanceof NoClassDefFoundError) return true;
-        String m = c.getMessage();
-        return m != null && m.contains(RECORD_CLASS);
+        return c instanceof ClassNotFoundException || c instanceof NoClassDefFoundError;
     }
 
     /** A short " (because ...)" note naming the underlying missing-class reason, if any. */

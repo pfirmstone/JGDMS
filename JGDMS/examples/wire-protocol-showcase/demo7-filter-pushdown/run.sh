@@ -92,7 +92,7 @@ src="$demo/src/au/net/zeus/jgdms/showcase/pushdown"
 # orchestrator, whose loader deliberately does NOT have out/entry, so
 # WeatherReading is provably absent from the space's class loader.
 entry_win="$(to_win "$src/records/WeatherReading.java") $(to_win "$src/records/NorthStationReading.java") $(to_win "$src/ClientLogic.java")"
-app_win="$(to_win "$src/Rendezvous.java") $(to_win "$src/Server.java")"
+app_win="$(to_win "$src/Server.java")"
 
 echo "Compiling the entry+client classes (out/entry) and the orchestrator (out/app)..."
 javac -d "$out_entry_win" -cp "$cp_lib" $entry_win

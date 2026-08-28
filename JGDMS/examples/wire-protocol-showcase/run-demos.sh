@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Single-command parent: builds the JGDMS modules the showcase depends on from the
-# CURRENT source tree, then runs all six wire-protocol-showcase demonstrations in
+# CURRENT source tree, then runs all seven wire-protocol-showcase demonstrations in
 # sequence, then the automated checks, and prints a pass/fail summary.
 # See run-demos.ps1 for the annotated version and for why demo2/demo5 are invoked
 # as their own scripts (both launch two separate JVMs with different classpaths).

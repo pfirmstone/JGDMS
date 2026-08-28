@@ -95,7 +95,6 @@ Write-Host "Compiling the entry+client classes (out\entry) and the orchestrator 
     (Join-Path $src "ClientLogic.java")
 if ($LASTEXITCODE -ne 0) { throw "entry+client classes did not compile" }
 & javac -d $outApp -cp $cpLib `
-    (Join-Path $src "Rendezvous.java") `
     (Join-Path $src "Server.java")
 if ($LASTEXITCODE -ne 0) { throw "orchestrator did not compile" }
 
