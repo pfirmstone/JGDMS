@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Single-command parent: builds the JGDMS modules the showcase depends on from the
-# CURRENT source tree, then runs all six wire-protocol-showcase demonstrations in
+# CURRENT source tree, then runs all seven wire-protocol-showcase demonstrations in
 # sequence, then the automated checks, and prints a pass/fail summary.
 # See run-demos.ps1 for the annotated version and for why demo2/demo5 are invoked
 # as their own scripts (both launch two separate JVMs with different classpaths).
@@ -155,6 +155,20 @@ java -cp "$cp" au.net.zeus.jgdms.showcase.demo.CollectionEqualityDemo
 rc=$?
 if [[ $rc -eq 0 ]]; then add_result "Demo 6: Collection equality" pass; else
     echo "DEMO 6 FAILED (exit $rc)"; add_result "Demo 6: Collection equality" fail
+fi
+
+# ---------------------------------------------------------------------------
+# Demonstration 7: Filter records inside a live space, server-side, without the class
+# ---------------------------------------------------------------------------
+# demo7 starts a live transient Outrigger space + Mahalo transaction manager and
+# filters by a CEL value rule pushed down to the space, class-free. Its run.sh
+# builds the wider set of modules it needs (services, service-starter, jeri, ...)
+# from the current source tree on first run.
+header "Demonstration 7: Filter records inside a live space, server-side, without the class"
+bash "$showcase/demo7-filter-pushdown/run.sh"
+rc=$?
+if [[ $rc -eq 0 ]]; then add_result "Demo 7: Filter pushdown into a live space" pass; else
+    echo "DEMO 7 FAILED (exit $rc)"; add_result "Demo 7: Filter pushdown into a live space" fail
 fi
 
 # ---------------------------------------------------------------------------

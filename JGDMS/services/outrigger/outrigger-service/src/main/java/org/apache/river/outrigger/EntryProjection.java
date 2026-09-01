@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.river.api.io.EntryV2Codec;
+
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.eval.CandidateProjection;
@@ -126,18 +128,43 @@ public final class EntryProjection implements CandidateProjection {
     private static final Tag SLICE_ABSENT = new Tag(Tag.CLASS_CONTEXT, false, 0);
     private static final Tag SLICE_VALUE  = new Tag(Tag.CLASS_CONTEXT, true, 1);
 
-    /** The single fail-closed sentinel: an undecodable candidate. */
-    private static final EntryProjection UNDECODABLE = new EntryProjection();
+    /**
+     * The per-candidate projection-decode byte budget (design memo B3 &sect;4.3
+     * Option&nbsp;B, {@code [RATIFIED Peter 2026-07-26]}). Bounds the total
+     * candidate-<em>value</em> bytes this projection will decode/scan for one
+     * candidate: every referenced field's decoded payload (including the whole
+     * payload of a nested {@code @AtomicSerial} object, which
+     * {@link ObjectCodec#decodeToScalarFieldMapClassFree} decodes in full — the
+     * {@code has(obj)} amplifier the memo calls out) is charged against it.
+     * Exceeding it renders the projection {@link #isUndecodable()} with
+     * {@link #budgetExceeded()} {@code == true}, so B3 fail-closed-excludes the
+     * candidate and counts it in {@code filter.rejected.projectionBudget}
+     * (a sub-category of {@code filter.failClosedExclusions}).
+     *
+     * <p>{@value} = {@code 64 KiB} — deliberately equal to {@code
+     * CostModel.MAX_SCALAR_BYTES}, the same ceiling the admission cost gate uses
+     * for a <em>literal</em> operand, so both sides of every comparison the cost
+     * gate reasons about live under one ceiling (memo &sect;4.4). Fixed
+     * compile-time constant; no runtime/deployment knob.
+     */
+    public static final int MAX_PROJECTION_DECODE_BYTES = 64 * 1024;
+
+    /** The fail-closed sentinel: an undecodable candidate (non-budget). */
+    private static final EntryProjection UNDECODABLE = new EntryProjection(false);
+    /** The fail-closed sentinel: a candidate that blew the {@link #MAX_PROJECTION_DECODE_BYTES} budget. */
+    private static final EntryProjection UNDECODABLE_BUDGET = new EntryProjection(true);
 
     private final boolean undecodable;
+    private final boolean budgetExceeded;                       // true iff undecodable BECAUSE the byte budget was exceeded
     private final byte[] entrySchemaDigest;                     // 32 bytes; null iff undecodable
     private final List<String> namespaceChain;                  // leaf-first; empty iff undecodable
     private final Map<String, Set<String>> declaredByClass;     // className -> declared field names (SCHEMA presence)
     private final Map<String, Map<String, CelValue>> decoded;   // className -> fieldName -> decoded value (referenced only)
 
     /** The fail-closed sentinel constructor. */
-    private EntryProjection() {
+    private EntryProjection(boolean budgetExceeded) {
         this.undecodable = true;
+        this.budgetExceeded = budgetExceeded;
         this.entrySchemaDigest = null;
         this.namespaceChain = List.of();
         this.declaredByClass = Map.of();
@@ -149,10 +176,22 @@ public final class EntryProjection implements CandidateProjection {
                             Map<String, Set<String>> declaredByClass,
                             Map<String, Map<String, CelValue>> decoded) {
         this.undecodable = false;
+        this.budgetExceeded = false;
         this.entrySchemaDigest = entrySchemaDigest;
         this.namespaceChain = namespaceChain;
         this.declaredByClass = declaredByClass;
         this.decoded = decoded;
+    }
+
+    /**
+     * A signal, internal to this class, that the per-candidate
+     * {@link #MAX_PROJECTION_DECODE_BYTES} budget was exhausted mid-decode.
+     * Caught in {@link #projectFields} and mapped to {@link #UNDECODABLE_BUDGET}
+     * (fail-closed exclusion, counted separately from ordinary undecodables).
+     */
+    private static final class ProjectionBudgetExceeded extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        ProjectionBudgetExceeded() { super(null, null, false, false); }
     }
 
     // =====================================================================
@@ -196,73 +235,21 @@ public final class EntryProjection implements CandidateProjection {
             //    decode also proves entrySchemaDigest is present in the schemaTable and its
             //    chain binds the digest, so the entry chain bytes below are guaranteed present
             //    and consistent (no need to decode the body a second time).
+            //
+            //    NOTE (B3 §4.2/§4.4): this O(body) STRUCTURAL decode is exactly the term the
+            //    ratified slice-reuse package removes. It is bounded only by the EntryRep-v2
+            //    8 MiB body ceiling — a *storage* ceiling the writer controls, NOT the 64 KiB
+            //    MAX_PROJECTION_DECODE_BYTES budget (which charges per-field VALUE decode
+            //    only). Callers holding a decode-constructed rep MUST prefer
+            //    {@link #projectReusing}; this factory is the fallback for a rep that was
+            //    never decode-constructed (e.g. the client write path).
             EntryRepV2Codec.DecodedBody db = EntryRepV2Codec.decode(candidateBody);
-            // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest, derived from
-            //    the already-decoded body (avoids a second full decode of candidateBody).
-            byte[] entryDigest = db.entrySchemaDigest();
-            byte[] entryChainBytes = db.schemaTable().get(hex(entryDigest));
-            List<AtomicSerialSchemaRecord> chain =
-                    SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"); // leaf-first
-
-            List<String> nsChain = new ArrayList<>(chain.size());
-            Map<String, Set<String>> declaredByClass = new LinkedHashMap<>();
-            for (AtomicSerialSchemaRecord rec : chain) {
-                nsChain.add(rec.className());
-                Set<String> names = new LinkedHashSet<>();
-                for (AtomicSerialFieldDef f : rec.fields()) {
-                    names.add(f.wireName());
-                }
-                declaredByClass.put(rec.className(), Collections.unmodifiableSet(names));
-            }
-
-            // 3. (className, fieldName) -> global slice index, in FieldComparator
-            //    order: superclass-first (root-first = reverse of the leaf-first
-            //    chain), then declared order within each class. This reproduces the
-            //    positional slice order EntryRepV2Codec.encode laid down.
-            byte[][] slices = db.sliceBytes();
-            boolean[] absent = db.absent();
-            Map<String, byte[]> schemaTable = db.schemaTable();
-            Map<String, Map<String, Integer>> indexByClass = new LinkedHashMap<>();
-            int idx = 0;
-            for (int c = chain.size() - 1; c >= 0; c--) { // root-first
-                AtomicSerialSchemaRecord rec = chain.get(c);
-                Map<String, Integer> perClass = new LinkedHashMap<>();
-                for (AtomicSerialFieldDef f : rec.fields()) {
-                    perClass.put(f.wireName(), idx++);
-                }
-                indexByClass.put(rec.className(), perClass);
-            }
-            if (idx != slices.length) {
-                // decode()'s A.8 field-count guard already proves this; defensive.
-                return UNDECODABLE;
-            }
-
-            // 4. Eagerly decode ONLY the referenced fields. A decode failure of any
-            //    one referenced field fails the whole candidate closed (a candidate
-            //    whose referenced bytes will not decode canonically is a no-match).
-            Map<String, Map<String, CelValue>> decoded = new LinkedHashMap<>();
-            for (AtomicSerialSchemaRecord rec : chain) {
-                Map<String, Integer> perClass = indexByClass.get(rec.className());
-                Map<String, CelValue> vals = null;
-                for (AtomicSerialFieldDef f : rec.fields()) {
-                    if (!referencedFieldNames.contains(f.wireName())) continue;
-                    int i = perClass.get(f.wireName());
-                    CelValue v = absent[i]
-                            ? CelValue.NullV.INSTANCE
-                            : decodeSliceValue(slices[i], schemaTable, f.wireType());
-                    if (vals == null) {
-                        vals = new LinkedHashMap<>();
-                        decoded.put(rec.className(), vals);
-                    }
-                    vals.put(f.wireName(), v);
-                }
-            }
-
-            return new EntryProjection(
-                    entryDigest,
-                    Collections.unmodifiableList(nsChain),
-                    Collections.unmodifiableMap(declaredByClass),
-                    decoded);
+            return buildProjection(db.entrySchemaDigest(), db.sliceBytes(), db.absent(),
+                                   db.schemaTable(), referencedFieldNames);
+        } catch (ProjectionBudgetExceeded budget) {
+            // Exceeded MAX_PROJECTION_DECODE_BYTES => fail-closed, but counted
+            // separately so lock-hold-DoS attempts are visible (§4.3 / §7).
+            return UNDECODABLE_BUDGET;
         } catch (VirtualMachineError vme) {
             // A JVM error (OOME/StackOverflow) is NOT an undecodable candidate; never swallow it.
             throw vme;
@@ -273,6 +260,192 @@ public final class EntryProjection implements CandidateProjection {
         }
     }
 
+    /**
+     * Projects a candidate for an explicit set of referenced field names <b>reusing the
+     * candidate rep's already-decoded body</b> — the design memo B3 &sect;4.2 slice reuse,
+     * ratified as part of the &sect;4.4 package.
+     *
+     * <p><b>What this removes.</b> {@link #projectFields} re-runs a full
+     * {@code EntryRepV2Codec.decode(body)} — an {@code O(body)} <em>structural</em> decode —
+     * for every candidate, inside {@code EntryHolder.confirmAvailability}'s
+     * {@code synchronized(handle)} window and on the single {@code OperationJournal} fan-out
+     * thread. That term is charged against <b>nothing</b>: the per-candidate
+     * {@link #MAX_PROJECTION_DECODE_BYTES} budget charges only per-field <em>value</em>
+     * decode, so the structural term was bounded solely by the EntryRep-v2 8&nbsp;MiB body
+     * ceiling — a storage ceiling an attacker fixes at write time. Every server-side candidate
+     * arrived via a decode construction that already paid (and fully validated, amendment
+     * &sect;A.9) that structural decode exactly once; this factory consumes its result instead
+     * of paying it again.
+     *
+     * <p><b>Security posture, precisely.</b> The {@code Decoded} handed in is the output of the
+     * same fail-closed, fully-validating {@code EntryRepV2Codec.decode} that {@link
+     * #projectFields} would re-run — same bytes, same validation, same canonical form. A
+     * defective or foreign-shaped {@code Decoded} (wrong types, {@code null} arrays, an
+     * incompatible {@code schemaTable}) is refused here rather than trusted — see the guard
+     * below. Two specific checks split differently between the two paths:
+     * <ul>
+     *   <li><b>Re-derived here.</b> {@code buildProjection}'s &sect;A.8 field-count / positional
+     *       guard ({@code idx != slices.length}) is recomputed on every call, including this
+     *       reuse path, and is load-bearing here: it is the only check standing between a
+     *       {@code schemaTable} chain whose field count disagrees with {@code slices} and an
+     *       out-of-bounds / misaligned projection.</li>
+     *   <li><b>Inherited, not re-checked.</b> The digest&harr;chain binding — that
+     *       {@code schemaTable.get(hex(entryDigest))} actually returns the chain whose own leaf
+     *       digest equals {@code entryDigest} — is proved by the caller's validating {@code
+     *       decode()} and is a <em>precondition</em> of this method, not re-derived by it.
+     *       {@code buildProjection} looks the chain up by digest and decodes it without
+     *       recomputing the chain's leaf digest and comparing it to {@code entryDigest}. On
+     *       every real path (both decode constructors) that binding was already proved once by
+     *       the validating decode; re-proving it per candidate here would cost a SHA-256 under
+     *       the confirm window's {@code synchronized(handle)} lock — exactly the per-candidate
+     *       cost the ratified &sect;4.4 ceiling exists to avoid. A caller that hands in a
+     *       {@code Decoded} which is well-shaped but was never actually produced by a validating
+     *       decode (not reachable from any in-tree call site) would not be caught by this method.</li>
+     * </ul>
+     * Only the per-field value decode happens here, under the same 64&nbsp;KiB budget and the
+     * same fail-closed semantics as {@link #projectFields}.
+     *
+     * <p><b>Flag-day single-provider coupling (documented).</b> {@link EntryV2Codec.Decoded}
+     * declares {@code schemaTable} as an opaque {@code Object} because {@code outrigger-dl} is
+     * compiled {@code --release 8} and may not name any {@code jgdms-der} type. This class runs
+     * only on the DER-capable JVM the v2 flag-day already requires, where the single
+     * {@code ServiceLoader}-discovered provider is
+     * {@code au.net.zeus.jgdms.der.entry.DerEntryV2Codec}, whose {@code schemaTable} is the
+     * {@code Map<String,byte[]>} of {@code EntryRepV2Codec.DecodedBody}. That coupling is
+     * asserted defensively here, not assumed: a {@code null} {@code Decoded}, {@code null}
+     * digest/slices/absent arrays, or a {@code schemaTable} that is not a {@code Map} yields
+     * the fail-closed {@link #isUndecodable()} sentinel, and a {@code Map} carrying non-{@code
+     * byte[]} values fails closed through the same {@code Throwable} guard below.
+     *
+     * @param decoded              the candidate rep's retained decode result (e.g. from
+     *                             {@code EntryRep.decoded()}); {@code null} yields the
+     *                             fail-closed sentinel
+     * @param referencedFieldNames the field names the predicate references (only these are
+     *                             decoded); may be empty
+     * @return a fail-closed projection (never {@code null}), identical to what
+     *         {@link #projectFields} would return for the same candidate's body
+     */
+    public static EntryProjection projectReusing(EntryV2Codec.Decoded decoded,
+                                                 Set<String> referencedFieldNames) {
+        if (decoded == null || referencedFieldNames == null) {
+            return UNDECODABLE;
+        }
+        try {
+            final byte[] entryDigest = decoded.entrySchemaDigest;
+            final byte[][] slices = decoded.sliceBytes;
+            final boolean[] absent = decoded.absent;
+            final Object table = decoded.schemaTable;
+            if (entryDigest == null || slices == null || absent == null
+                    || absent.length != slices.length || !(table instanceof Map)) {
+                // A Decoded this projection cannot soundly consume (no reuse contract with a
+                // foreign provider) => fail closed rather than guess. The caller's fallback to
+                // projectFields is a CALLER decision, never a silent downgrade here.
+                return UNDECODABLE;
+            }
+            @SuppressWarnings("unchecked")
+            final Map<String, byte[]> schemaTable = (Map<String, byte[]>) table;
+            return buildProjection(entryDigest, slices, absent, schemaTable, referencedFieldNames);
+        } catch (ProjectionBudgetExceeded budget) {
+            return UNDECODABLE_BUDGET;
+        } catch (VirtualMachineError vme) {
+            throw vme;
+        } catch (Throwable t) {
+            return UNDECODABLE;
+        }
+    }
+
+    /**
+     * The shared projection build, driven purely by an already-decoded body's parts. Reached
+     * from {@link #projectFields} (which decodes the body first) and from
+     * {@link #projectReusing} (which does not decode anything). Throws on any failure — both
+     * callers wrap it in the identical {@code ProjectionBudgetExceeded} /
+     * {@code VirtualMachineError}-rethrow / {@code Throwable}-to-{@link #UNDECODABLE} guard, so
+     * the fail-closed semantics and the {@link #MAX_PROJECTION_DECODE_BYTES} value budget are
+     * byte-for-byte the same on both paths.
+     */
+    private static EntryProjection buildProjection(byte[] entryDigest,
+                                                   byte[][] slices,
+                                                   boolean[] absent,
+                                                   Map<String, byte[]> schemaTable,
+                                                   Set<String> referencedFieldNames)
+            throws Exception {
+        // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest, derived from
+        //    the already-decoded body (never a second full decode of the body).
+        //    NOTE (documentation only -- see the projectReusing javadoc "Security posture,
+        //    precisely" section): this lookup trusts that schemaTable.get(hex(entryDigest))
+        //    returns the chain whose OWN leaf digest equals entryDigest. That digest<->chain
+        //    binding is proved by the caller's validating decode() and is a PRECONDITION of
+        //    this method on the projectReusing path, not re-derived here -- unlike the
+        //    idx != slices.length guard below, which IS recomputed on every call.
+        byte[] entryChainBytes = schemaTable.get(hex(entryDigest));
+        List<AtomicSerialSchemaRecord> chain =
+                SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"); // leaf-first
+
+        List<String> nsChain = new ArrayList<>(chain.size());
+        Map<String, Set<String>> declaredByClass = new LinkedHashMap<>();
+        for (AtomicSerialSchemaRecord rec : chain) {
+            nsChain.add(rec.className());
+            Set<String> names = new LinkedHashSet<>();
+            for (AtomicSerialFieldDef f : rec.fields()) {
+                names.add(f.wireName());
+            }
+            declaredByClass.put(rec.className(), Collections.unmodifiableSet(names));
+        }
+
+        // 3. (className, fieldName) -> global slice index, in FieldComparator
+        //    order: superclass-first (root-first = reverse of the leaf-first
+        //    chain), then declared order within each class. This reproduces the
+        //    positional slice order EntryRepV2Codec.encode laid down.
+        Map<String, Map<String, Integer>> indexByClass = new LinkedHashMap<>();
+        int idx = 0;
+        for (int c = chain.size() - 1; c >= 0; c--) { // root-first
+            AtomicSerialSchemaRecord rec = chain.get(c);
+            Map<String, Integer> perClass = new LinkedHashMap<>();
+            for (AtomicSerialFieldDef f : rec.fields()) {
+                perClass.put(f.wireName(), idx++);
+            }
+            indexByClass.put(rec.className(), perClass);
+        }
+        if (idx != slices.length) {
+            // Re-derived on every call (both projectFields and projectReusing): decode()'s A.8
+            // field-count guard already proves this on the projectFields path, but on the
+            // projectReusing path (no fresh decode of body) this IS the field-count check --
+            // load-bearing here, not merely defensive.
+            return UNDECODABLE;
+        }
+
+        // 4. Eagerly decode ONLY the referenced fields. A decode failure of any
+        //    one referenced field fails the whole candidate closed (a candidate
+        //    whose referenced bytes will not decode canonically is a no-match).
+        //    The per-candidate byte budget (§4.3 Option B) is charged cumulatively
+        //    across every referenced field's value bytes; exhausting it fails the
+        //    whole candidate closed as a (separately-counted) budget exclusion.
+        final long[] budgetRemaining = { MAX_PROJECTION_DECODE_BYTES };
+        Map<String, Map<String, CelValue>> decoded = new LinkedHashMap<>();
+        for (AtomicSerialSchemaRecord rec : chain) {
+            Map<String, Integer> perClass = indexByClass.get(rec.className());
+            Map<String, CelValue> vals = null;
+            for (AtomicSerialFieldDef f : rec.fields()) {
+                if (!referencedFieldNames.contains(f.wireName())) continue;
+                int i = perClass.get(f.wireName());
+                CelValue v = absent[i]
+                        ? CelValue.NullV.INSTANCE
+                        : decodeSliceValue(slices[i], schemaTable, f.wireType(), budgetRemaining);
+                if (vals == null) {
+                    vals = new LinkedHashMap<>();
+                    decoded.put(rec.className(), vals);
+                }
+                vals.put(f.wireName(), v);
+            }
+        }
+
+        return new EntryProjection(
+                entryDigest,
+                Collections.unmodifiableList(nsChain),
+                Collections.unmodifiableMap(declaredByClass),
+                decoded);
+    }
+
     // =====================================================================
     // CandidateProjection
     // =====================================================================
@@ -280,6 +453,20 @@ public final class EntryProjection implements CandidateProjection {
     @Override
     public boolean isUndecodable() {
         return undecodable;
+    }
+
+    /**
+     * Whether this projection is undecodable specifically because the candidate
+     * exceeded the {@link #MAX_PROJECTION_DECODE_BYTES} per-candidate decode
+     * budget (as opposed to an ordinary canonical-decode failure). B3 uses this
+     * to split {@code filter.rejected.projectionBudget} out of the general
+     * {@code filter.failClosedExclusions} count (design memo B3 &sect;7). Only
+     * meaningful when {@link #isUndecodable()} is {@code true}.
+     *
+     * @return {@code true} iff this candidate was excluded for blowing the byte budget
+     */
+    public boolean budgetExceeded() {
+        return budgetExceeded;
     }
 
     @Override
@@ -434,7 +621,7 @@ public final class EntryProjection implements CandidateProjection {
      * class-freely map — the caller turns that into a fail-closed no-match.
      */
     private static CelValue decodeSliceValue(byte[] sliceBytes, Map<String, byte[]> schemaTable,
-                                             String declaredWireType) throws Exception {
+                                             String declaredWireType, long[] budgetRemaining) throws Exception {
         DerReader r = new DerReader(sliceBytes);
         Tag tag = r.peekTag();
         if (SLICE_ABSENT.equals(tag)) {
@@ -447,6 +634,15 @@ public final class EntryProjection implements CandidateProjection {
         r.readTlvHeader(); // step into the [1] IMPLICIT SEQUENCE content
         byte[] valueSchemaDigest = r.readOctetString();
         byte[] payload = r.readOctetString();
+
+        // Charge the candidate-value bytes against the per-candidate budget (§4.3
+        // Option B). For a nested @AtomicSerial object `payload` is the entire
+        // nested body, so charging its length here cumulatively bounds the full
+        // decodeToScalarFieldMapClassFree descent below (the has(obj) amplifier).
+        budgetRemaining[0] -= payload.length;
+        if (budgetRemaining[0] < 0) {
+            throw new ProjectionBudgetExceeded();
+        }
 
         if (valueSchemaDigest.length == 0) {
             // Self-describing scalar slice. A field DECLARED @AtomicSerial must carry a nested

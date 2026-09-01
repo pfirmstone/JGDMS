@@ -36,7 +36,7 @@ import net.jini.io.MarshalledInstance;
  * client-compile-time API a client programs against, not a codebase-download
  * proxy type. The Outrigger space proxy implements this interface in addition to
  * {@link TupleSpace}; a client that wants filtered semantics casts its space
- * proxy to {@code FilteredJavaSpace}.
+ * proxy to {@code FilteredTupleSpace}.
  *
  * <h3>The filter is an explicit operation parameter</h3>
  * Every method here takes a {@code byte[] filter} — a canonical
@@ -44,7 +44,7 @@ import net.jini.io.MarshalledInstance;
  * ({@code EntryFilter.compile}). The filter is a genuine operation parameter,
  * <b>never</b> a field smuggled onto the template entry. This makes version skew
  * a <em>loud break</em>: a proxy from an older server that does not implement
- * these methods simply cannot be cast to {@code FilteredJavaSpace}, and the
+ * these methods simply cannot be cast to {@code FilteredTupleSpace}, and the
  * corresponding backend overloads are absent, so a filtered call fails outright
  * rather than silently running unfiltered and over-returning.
  *
@@ -72,7 +72,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @since JGDMS 4.0.0
  */
-public interface FilteredJavaSpace {
+public interface FilteredTupleSpace {
 
     /**
      * Filtered variant of {@link JavaSpace#read}.

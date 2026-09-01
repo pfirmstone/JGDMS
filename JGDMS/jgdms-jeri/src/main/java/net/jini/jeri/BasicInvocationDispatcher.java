@@ -102,6 +102,7 @@ import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AtomicObjectInput;
+import org.apache.river.api.security.UserSubjectSupport;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -377,24 +378,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** Cached getClassLoader permission */
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
-
-    /**
-     * DirtyChai JDK extension: {@code Subject.callAs(Callable, Subject...)}
-     * varargs method, or {@code null} on a standard JDK.  Cached once at
-     * class-load time via reflection.
-     */
-    private static final Method CALL_AS_MULTI_SUBJECT;
-    static {
-	Method m = null;
-	try {
-	    m = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
-	} catch (NoSuchMethodException ignored) {
-	    // Standard JDK — multi-Subject callAs not available
-	} catch (SecurityException ignored) {
-	    // Security manager denied reflective access — treat as not available
-	}
-	CALL_AS_MULTI_SUBJECT = m;
-    }
 
     /**
      * DirtyChai JDK extension: {@code javax.security.auth.WorkerSubject}, or
@@ -1554,8 +1537,23 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * exists at the other end of the remote call (on the client side), and so
      * cannot meaningfully enter into the access control decision.
      *
+     * <p>This principal-only rule governs this one-argument overload, which is
+     * the fallback used when no caller reducing-context was transmitted. The
+     * {@link #checkClientPermission(Permission, AccessControlContext)} overload
+     * additionally evaluates the permission against the caller's reconstructed
+     * reducing domains. Those domains carry codebases, but they can only
+     * <em>reduce</em> the authenticated worker principals' authority, never
+     * extend it: the principals are taken from the verified mTLS connection
+     * (never the wire) and the reducing-context AND semantics require every
+     * domain to imply the permission. That reduction is sound only over an
+     * authenticated, encrypted connection and under principal-scoped policy;
+     * a codebase-only grant (for example an <code>AllPermission</code> grant to
+     * a module or library codebase) would let a caller assert a privileged
+     * codebase to satisfy the check, so deployment policies must not retain
+     * such grants.
+     *
      * @param	permission the requested permission
-     * @throws	SecurityException if the current client subject has not 
+     * @throws	SecurityException if the current client subject has not
      *		been granted the specified permission
      * @throws	IllegalStateException if the current thread is not executing
      *		an incoming remote method for a remote object
@@ -2085,7 +2083,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * Invokes the specified method under the server's worker Subject and, where
      * present, the client's user Subject(s).
      *
-     * <p>On <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable, Subject...)}
+     * <p>On <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable, UserSubject...)}
      * exists), all user Subjects are passed in a single call:
      * <pre>
      *   Subject.doAs(workerSubject, () -&gt; {              // ACC; inherited by virtual threads
@@ -2169,48 +2167,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
             dispatchWithContext = dispatchAction;
         }
 
-	// Build the Subject.callAs wrapper around dispatchWithContext.
+	// Bind the client's user identities around dispatchWithContext.
 	//
-	// On DirtyChai the varargs Subject.callAs(Callable, Subject...) method
-	// is available: invoke it once with all user Subjects so the JVM can
-	// establish them together rather than nesting single-Subject calls.
-	//
-	// On a standard JDK only Subject.callAs(Callable, Subject) exists.
-	// Nesting multiple callAs calls is incorrect because each inner call
-	// shadows the outer one; only the first (outermost) Subject is visible
-	// via Subject.current().  We therefore use only userSubjects[0].
-	final Callable<Void> dispatchWithUsers;
-	if (userSubjects.length == 0) {
-	    dispatchWithUsers = dispatchWithContext;
-	} else if (CALL_AS_MULTI_SUBJECT != null && userSubjects.length > 1) {
-	    // DirtyChai path: single varargs call with all subjects.
-	    // The single-Subject case (length == 1) is handled by the else branch
-	    // below, which is identical in effect whether or not DirtyChai is present.
-	    dispatchWithUsers = () -> {
-		try {
-		    CALL_AS_MULTI_SUBJECT.invoke(null, dispatchWithContext,
-						(Object) userSubjects);
-		} catch (InvocationTargetException ite) {
-		    Throwable cause = ite.getCause();
-		    if (cause instanceof Exception) throw (Exception) cause;
-		    if (cause instanceof Error)     throw (Error)     cause;
-		    // Rare: cause is a raw Throwable (neither Exception nor Error).
-		    // Wrap in InvocationTargetException (itself an Exception) so the
-		    // caller still receives a meaningful stack trace.
-		    throw ite;
-		} catch (IllegalAccessException iae) {
-		    // Should never happen: the method is public.
-		    // Re-wrap so the Callable's Exception contract is honoured.
-		    throw new IllegalStateException(
-			"Unexpected access denial invoking Subject.callAs", iae);
-		}
-		return null;
-	    };
-	} else {
-	    // Standard JDK path: use only the first Subject.
-	    final Subject first = userSubjects[0];
-	    dispatchWithUsers = () -> Subject.callAs(first, dispatchWithContext);
-	}
+	// All of the reflective multi-Subject machinery lives in exactly one
+	// place — UserSubjectSupport.callAsAll — because this defect was caused
+	// by that lookup being duplicated here and in SubjectAwareExecutor, with
+	// both copies wrong.  callAsAll binds every user Subject in a single
+	// Subject.callAs(Callable, UserSubject...) call on a DirtyChai JDK, falls
+	// back to the single-Subject Subject.callAs(Subject, Callable) for one
+	// Subject or on a stock OpenJDK, and calls the action directly when there
+	// are none.  Nesting single-Subject calls would be incorrect: each inner
+	// call shadows the outer one, leaving only one identity visible via
+	// Subject.current()/currentAll().
+	final Callable<Void> dispatchWithUsers =
+	    () -> UserSubjectSupport.callAsAll(userSubjects, dispatchWithContext);
 
 	if (workerSubject != null && !isAmbientWorkerSubject(workerSubject)) {
 	    /*
@@ -2337,7 +2307,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		String rawJwt = readJwtBytes(in);
 		verifyJwtWithCache(rawJwt, si, ji);
 	    }
-	    subjects.add(new Subject(true, principals,
+	    // A reconstructed remote client identity is a USER identity, so on a
+	    // DirtyChai JDK it must be a UserSubject — that is the type accepted
+	    // by Subject.callAs(Callable, UserSubject...).  (WorkerSubject is the
+	    // local workload identity and is deliberately not used here.)  On a
+	    // stock OpenJDK this yields a plain read-only Subject exactly as before.
+	    subjects.add(UserSubjectSupport.newUserSubject(true, principals,
 				     Collections.emptySet(), Collections.emptySet()));
 	}
 	return subjects;

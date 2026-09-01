@@ -74,7 +74,8 @@ public final class SameObjectSameBytesDemo {
         byte[] signatureBeforeSending = sign(first, key);
         CalibratedReading afterTrip = roundTrip(reading);
         byte[] bytesAfterTrip = ShowcaseSupport.canonicalBytes(afterTrip);
-        boolean stillVerifies = Arrays.equals(signatureBeforeSending, sign(bytesAfterTrip, key));
+        boolean stillVerifies = java.security.MessageDigest.isEqual(
+                signatureBeforeSending, sign(bytesAfterTrip, key));
         System.out.println("A signature made over the canonical bytes, checked after the reading has");
         System.out.println("been written out and read back in:");
         System.out.println("  bytes identical after the round trip? " + Arrays.equals(first, bytesAfterTrip));

@@ -56,14 +56,17 @@ public class SensorReading extends TelemetryRecord {
 
     public SensorReading(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
         super(check(arg));
-        this.measuredQuantityName = (String) arg.get("measuredQuantityName", null);
-        this.unitOfMeasurement    = (String) arg.get("unitOfMeasurement", null);
+        this.measuredQuantityName = arg.get("measuredQuantityName", null, String.class);
+        this.unitOfMeasurement    = arg.get("unitOfMeasurement", null, String.class);
     }
 
     public static AtomicSerial.GetArg check(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
-        if (arg.get("measuredQuantityName", null) == null) {
+        if (arg.get("measuredQuantityName", null, String.class) == null) {
             throw new InvalidObjectException("SensorReading: measuredQuantityName must not be null");
+        }
+        if (arg.get("unitOfMeasurement", null, String.class) == null) {
+            throw new InvalidObjectException("SensorReading: unitOfMeasurement must not be null");
         }
         return arg;
     }

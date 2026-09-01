@@ -35,6 +35,7 @@ import au.net.zeus.jgdms.der.schema.SchemaChain;
 
 import java.io.DataInputStream;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,6 +55,8 @@ public final class Reader {
 
     private static final String WEATHER_CLASS = "au.net.zeus.jgdms.showcase.rule.records.WeatherReading";
     private static final String SURVEY_CLASS  = "au.net.zeus.jgdms.showcase.rule.records.SurveyObservation";
+    private static final int MAX_WEATHER_READINGS = 10_000;
+    private static final int MAX_SCHEMA_RECORDS   = 64;
 
     private static boolean allHeld = true;
 
@@ -80,6 +83,9 @@ public final class Reader {
         Candidate survey;
         try (DataInputStream in = new DataInputStream(new FileInputStream(args[0]))) {
             int nWeather = in.readInt();
+            if (nWeather < 0 || nWeather > MAX_WEATHER_READINGS) {
+                throw new IOException("weather reading count out of bounds: " + nWeather);
+            }
             for (int i = 0; i < nWeather; i++) weather.add(readCandidate(in));
             survey = readCandidate(in);
         }
@@ -304,6 +310,9 @@ public final class Reader {
     /** Reads one record's travelling shape + payload, and decodes it to a class-free field view. */
     private static Candidate readCandidate(DataInputStream in) throws Exception {
         int nSchema = in.readInt();
+        if (nSchema < 0 || nSchema > MAX_SCHEMA_RECORDS) {
+            throw new IOException("schema record count out of bounds: " + nSchema);
+        }
         List<AtomicSerialSchemaRecord> chainRecords = new ArrayList<>(nSchema);
         for (int i = 0; i < nSchema; i++) {
             chainRecords.add(AtomicSerialSchemaRecord.decode(Blocks.readBlock(in)));

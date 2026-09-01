@@ -100,18 +100,21 @@ cell — read them; the single glyphs are lossy.
    schema). The *only reference implementation today is JVM/DirtyChai*; no non-JVM
    codec ships yet. The design removes the JOSS-specific barriers (§2.1), but
    first-class non-JVM participation is a design target, not a delivered artifact.
-2. **SecDec — gated capability, with two live caveats.** By design, decode is a
+2. **SecDec — gated capability, with one live caveat.** By design, decode is a
    single schema-defined path with no in-stream class-instantiation side channels; it
    is gated by `DeSerializationPermission("ATOMIC")`, checked against the
    `ProtectionDomain` of each `@AtomicSerial` class in the hierarchy *before*
    construction, and every value passes the STD-001 `check(GetArg)` invariant test
-   before field assignment. **Caveat (a):** STD-008 §4.4 records that enforcing this
-   gate in the DER engine (`ObjectCodec.decode()`) is *currently a gap* — the JOSS
-   path enforces it; the DER path is specified to but does not yet. **Caveat (b):**
-   the permission check is a no-op absent a SecurityManager/DirtyChai policy runtime.
-   The structural gadget-freedom (no `readObject`/`readResolve`, no arbitrary
-   instantiation, one decode path) holds regardless; the *permission* layer needs the
-   gate wired in and a policy runtime present.
+   before field assignment. **Caveat (a) resolved (`cdfd677e1`, 2026-06-18):** the
+   gate is now enforced directly in the DER engine's decode path
+   (`ObjectCodec.decode()` calls `checkAtomicDeSerializationPermitted` at step 3,
+   before construction — matching the JOSS path's per-class check). **Caveat (b),
+   still open:** the permission check
+   remains a no-op absent a SecurityManager/DirtyChai policy runtime (`sm == null`
+   short-circuits it by design — `-Djava.security.manager=allow` is required on modern
+   JVMs). The structural gadget-freedom (no `readObject`/`readResolve`, no arbitrary
+   instantiation, one decode path) holds regardless; the *permission* layer now only
+   needs a policy runtime present to bind.
 3. **Cyclic — intentionally unsupported (security requirement).** STD-006 mandates an
    **acyclic** object graph (§3.7): no handle table, no back-reference mechanism.
    This is a *feature* — it eliminates reference-theft-from-partial-construction and
@@ -442,11 +445,13 @@ better.
   Protobuf, Avro, Thrift, Cap'n Proto, FlatBuffers, MessagePack, CBOR, and Fory all
   ship mature multi-language implementations *now*. On delivered cross-language reach,
   they win outright.
-- **The security gate has enforcement gaps to close.** Per STD-008 §4.4, the
-  `DeSerializationPermission("ATOMIC")` gate is not yet enforced in the DER engine's
-  decode path, and the check is a no-op without a SecurityManager/policy runtime. The
-  *structural* gadget-freedom (no hooks, one decode path, acyclic) is real regardless;
-  the *permission* layer is not fully wired.
+- **The security gate's enforcement gap is closed; one dependency remains.** The
+  `DeSerializationPermission("ATOMIC")` gate is now enforced in the DER engine's
+  decode path (`ObjectCodec.decode()`, commit `cdfd677e1`), matching the JOSS path. The check is still a
+  no-op without a SecurityManager/policy runtime present — that is a deployment
+  dependency, not a missing implementation. The *structural* gadget-freedom (no
+  hooks, one decode path, acyclic) was always real regardless; the *permission* layer
+  is now fully wired, pending a policy runtime being present at deployment.
 - **Not optimised for the smallest wire.** DER's tag-length-value framing plus an
   embedded schema chain (carried in every `MarshalledInstance`) is more verbose than
   Protobuf/Avro/MessagePack/CBOR/FlatBuffers for the same payload. STD-006 optimises
@@ -490,9 +495,9 @@ Cells a domain reviewer should double-check before this doc is quoted externally
   (unreleased at time of writing) and whether the automatic schema generator still
   requires opt-in for plain `Set`/`Map` fields (auto-wiring deferred; the resolving type
   model is on branch `der-type-model`).
-- **STD-006 SecDec (footnote 2)** — confirm the DER-engine `DeSerializationPermission`
-  gap and the SecurityManager-dependence are still accurate against STD-008 and the
-  live `ObjectCodec`.
+- **STD-006 SecDec (footnote 2)** — the DER-engine `DeSerializationPermission` gap is
+  closed (`cdfd677e1`, verified against the live `ObjectCodec.decode()`); the
+  SecurityManager-dependence (caveat (b)) remains and should stay flagged.
 - **Avro Canon (footnote 18)** — the schema-canonical-form vs data-canonical-form
   distinction is subtle; confirm no Avro binding mandates canonical *data* bytes that
   would upgrade this to `~`/`✓`.

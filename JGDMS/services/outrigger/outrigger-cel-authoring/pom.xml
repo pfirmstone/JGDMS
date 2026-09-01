@@ -33,7 +33,7 @@
         class to the CEL verifier's SchemaView by REUSING jgdms-der's
         EntrySchemaGenerator field rules (no duplication), and EntryFilter
         compiles a CEL text rule against that schema into a canonical
-        FilterEnvelope byte[] ready to pass to a FilteredJavaSpace operation.
+        FilterEnvelope byte[] ready to pass to a FilteredTupleSpace operation.
         Depends on outrigger-dl (the opaque envelope codec) and
         jgdms-cel-authoring (parse/encode); it is a CLIENT authoring jar, kept
         out of both outrigger-dl (release-8, no CEL) and the outrigger-service

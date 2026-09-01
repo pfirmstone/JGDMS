@@ -18,7 +18,6 @@
 
 package net.jini.security;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -34,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.security.auth.Subject;
+import org.apache.river.api.security.UserSubjectSupport;
 
 /**
  * An {@link ExecutorService} decorator that captures the submitting thread's
@@ -69,7 +69,7 @@ import javax.security.auth.Subject;
  *   <li>If one or more user {@link Subject}s were captured:
  *     <ul>
  *       <li>On a <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable,
- *           Subject...)} is available), all subjects are established in a
+ *           UserSubject...)} is available), all subjects are established in a
  *           single varargs call so that {@code Subject.currentAll()} on the
  *           worker thread returns the same set that was active at
  *           submission time.</li>
@@ -111,7 +111,7 @@ import javax.security.auth.Subject;
  * executor with {@code SubjectAwareExecutor} prevents that loss, and on a
  * DirtyChai JDK also preserves multi-principal contexts (e.g. a distributed
  * transaction where several {@code Subject}s are simultaneously active via
- * {@code Subject.callAs(Callable, Subject...)}).
+ * {@code Subject.callAs(Callable, UserSubject...)}).
  *
  * @see Security#getContext()
  * @see Subject#callAs(Subject, java.util.concurrent.Callable)
@@ -127,28 +127,14 @@ public final class SubjectAwareExecutor implements ExecutorService {
      */
     private static final Method CURRENT_ALL_METHOD;
 
-    /**
-     * DirtyChai JDK extension: {@code Subject.callAs(Callable, Subject...)}
-     * varargs method that establishes multiple Subjects at once.  {@code null}
-     * on a standard JDK.  Cached once at class-load time.
-     */
-    private static final Method CALL_AS_MULTI_SUBJECT;
-
     static {
         Method currentAll = null;
-        Method callAsMulti = null;
         try {
             currentAll = Subject.class.getMethod("currentAll");
         } catch (NoSuchMethodException | SecurityException ignored) {
             // Standard JDK — Subject.currentAll() not available
         }
-        try {
-            callAsMulti = Subject.class.getMethod("callAs", Callable.class, Subject[].class);
-        } catch (NoSuchMethodException | SecurityException ignored) {
-            // Standard JDK — varargs Subject.callAs(Callable, Subject...) not available
-        }
         CURRENT_ALL_METHOD = currentAll;
-        CALL_AS_MULTI_SUBJECT = callAsMulti;
     }
 
     private final ExecutorService delegate;
@@ -214,32 +200,16 @@ public final class SubjectAwareExecutor implements ExecutorService {
     /**
      * Invokes {@code action} with all captured Subjects established.
      *
-     * <p>On a DirtyChai JDK (where {@link #CALL_AS_MULTI_SUBJECT} is available)
-     * and when more than one Subject was captured, a single varargs
-     * {@code Subject.callAs(Callable, Subject...)} call establishes them all so
-     * that {@code Subject.currentAll()} on the worker thread returns the full set.
-     * For a single Subject, or on a standard JDK, the standard
+     * <p>Delegates to {@link UserSubjectSupport#callAsAll}, which is the single
+     * caller site in JGDMS for the reflective multi-{@code Subject} API.  On a
+     * DirtyChai JDK with more than one captured Subject it makes one
+     * {@code Subject.callAs(Callable, UserSubject...)} call so that
+     * {@code Subject.currentAll()} on the worker thread returns the full set;
+     * for a single Subject, or on a stock OpenJDK, the standard
      * {@link Subject#callAs(Subject, Callable)} API is used.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private static <V> V callAsSubjects(Subject[] subjects, Callable<V> action) throws Exception {
-        if (CALL_AS_MULTI_SUBJECT != null && subjects.length > 1) {
-            // DirtyChai path: single varargs call with all subjects so that
-            // Subject.currentAll() on the worker thread returns the full set.
-            try {
-                return (V) CALL_AS_MULTI_SUBJECT.invoke(null, action, (Object) subjects);
-            } catch (InvocationTargetException ite) {
-                Throwable cause = ite.getCause();
-                if (cause instanceof Exception) throw (Exception) cause;
-                if (cause instanceof Error)     throw (Error)     cause;
-                throw ite;
-            } catch (IllegalAccessException iae) {
-                throw new IllegalStateException(
-                    "Unexpected access denial invoking Subject.callAs", iae);
-            }
-        }
-        // Standard JDK path or single Subject: use first subject only.
-        return Subject.callAs(subjects[0], action);
+        return UserSubjectSupport.callAsAll(subjects, action);
     }
 
     /**

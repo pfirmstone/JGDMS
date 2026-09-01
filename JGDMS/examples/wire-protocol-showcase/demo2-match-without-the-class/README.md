@@ -52,6 +52,11 @@ record to attack during a match. And because the stored bytes were produced by t
 canonical format rather than by Java's built-in serialization, they were never the
 output of the machinery those old attacks targeted in the first place.
 
+**Honesty note:** the server still atomically deserializes the `EntryRep` *container*
+(the class-name string and the field byte arrays) — that surface is bounded by the DER
+reader's input limits (see demonstration 4). The class-free claim covers the entry's
+*own* class, which is never loaded.
+
 ## A note on the transport used here
 
 To keep the demonstration to two small programs, the producer writes the on-the-wire

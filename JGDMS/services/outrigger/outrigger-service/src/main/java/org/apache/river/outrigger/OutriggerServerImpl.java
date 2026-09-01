@@ -1855,9 +1855,13 @@ public class OutriggerServerImpl
      {
 	 final EntryHolder holder = contents.holderFor(handle.rep());
 	 final Set conflictSet = new java.util.HashSet();
+	 // B3: a blocked filtered query carries its FilterSet on the watcher; the
+	 // confirm window re-makes the authoritative predicate decision at capture
+	 // (design memo §1.4). FilterSet.EMPTY (unfiltered) is a no-op.
 	 if (holder.attemptCapture(handle, txn, takeIt,
-				   conflictSet, lockedEntrySet, 
-				   provisionallyRemovedEntrySet, now))
+				   conflictSet, lockedEntrySet,
+				   provisionallyRemovedEntrySet, now,
+				   watcher.filters(), null))
 	     return true;
 
 	 monitor(watcher, conflictSet);
@@ -1913,6 +1917,28 @@ public class OutriggerServerImpl
 	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
+	return doNotify(tmpl, tr, listener, leaseTime, handback,
+			FilterSet.EMPTY, null);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered {@code notify}. When
+     * {@code filters} is non-empty the resulting watcher gates every delivery on
+     * the CEL predicate (site&nbsp;E, in {@code process} after the txn gate). The
+     * raw {@code filterEnvelope} (the seed {@code filters} was admitted from) is
+     * recorded on the watcher and persisted with the durable {@code
+     * log.registerOp} record, so recovery can rebuild the {@code FilterSet} by
+     * re-admission (fail-closed) — {@code null} for the unfiltered path.
+     *
+     * @param filterEnvelope the raw opaque envelope the {@code filters} were
+     *        admitted from (durable seed), or {@code null} if unfiltered
+     */
+    private EventRegistration
+	doNotify(EntryRep tmpl, Transaction tr, RemoteEventListener listener,
+		 long leaseTime, MarshalledInstance handback, FilterSet filters,
+		 byte[] filterEnvelope)
+	throws TransactionException, RemoteException
+    {
 	opsLogger.entering("OutriggerServerImpl", "notify");
 
 	typeCheck(tmpl);
@@ -1950,6 +1976,12 @@ public class OutriggerServerImpl
 		handback, eventID, listener, txn);
 	}
 
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path) and record
+	// the durable envelope seed (null when unfiltered) so recovery can rebuild
+	// the FilterSet by re-admission.
+	reg.setFilters(filters);
+	reg.setFilterEnvelope(filterEnvelope);
+
 	// Get the expiration times
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
 	
@@ -1970,16 +2002,19 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates
+	    // Log before adding to templates. The filter envelope rides on the
+	    // watcher's own store()/restore(), so a filtered registration is now
+	    // durable too: recovery re-admits the envelope against the persisted
+	    // template to rebuild the FilterSet, fail-closed (never unfiltered).
 	    if (log != null)
-		log.registerOp((StorableResource)reg, 
+		log.registerOp((StorableResource)reg,
 			       "StorableEventWatcher",
 			       new StorableObject[]{tmpl});
 
 	    templates.add(reg, tmpl);
 	}
 
-	return new EventRegistration(eventID, spaceProxy, 
+	return new EventRegistration(eventID, spaceProxy,
 	    leaseFactory.newLease(cookie, reg.getExpiration()),
 	    0);
     }
@@ -1993,6 +2028,34 @@ public class OutriggerServerImpl
 	    RemoteEventListener listener,
 	    long leaseTime,
 	    MarshalledInstance handback)
+        throws TransactionException, RemoteException
+    {
+	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
+		listener, leaseTime, handback, FilterSet.EMPTY, null);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered
+     * {@code registerForAvailabilityEvent}. When {@code filters} is non-empty the
+     * resulting watcher gates every delivery on the applicable CEL predicate
+     * (site&nbsp;E, in {@code process} after the per-registration txn gate). The
+     * raw {@code filterEnvelope} the {@code filters} were admitted from is recorded
+     * on the watcher and persisted with the durable {@code log.registerOp} record,
+     * so recovery rebuilds the {@code FilterSet} by re-admitting the envelope
+     * against every recovered template (fail-closed) — {@code null} unfiltered.
+     *
+     * @param filterEnvelope the raw opaque envelope the {@code filters} were
+     *        admitted from (durable seed), or {@code null} if unfiltered
+     */
+    private EventRegistration doRegisterForAvailabilityEvent(
+	    EntryRep[] tmpls,
+	    Transaction tr,
+	    boolean visibilityOnly,
+	    RemoteEventListener listener,
+	    long leaseTime,
+	    MarshalledInstance handback,
+	    FilterSet filters,
+	    byte[] filterEnvelope)
         throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "registeForAvailabilityEvent");
@@ -2036,9 +2099,15 @@ public class OutriggerServerImpl
 	    reg = new StorableAvailabilityWatcher(now, currentOrdinal, cookie,
                 visibilityOnly, handback, eventID, listener);
 	} else {
-	    reg = new TransactableAvailabilityWatcher(now, currentOrdinal, 
+	    reg = new TransactableAvailabilityWatcher(now, currentOrdinal,
 		cookie, visibilityOnly,	handback, eventID, listener, txn);
 	}
+
+	// B3: install the CEL FilterSet (EMPTY for the unfiltered path) and record
+	// the durable envelope seed (null when unfiltered) so recovery can rebuild
+	// the FilterSet by re-admission.
+	reg.setFilters(filters);
+	reg.setFilterEnvelope(filterEnvelope);
 
 	// Get the expiration time
 	grant(reg, leaseTime, eventLeasePolicy, "eventLeasePolicy");
@@ -2059,12 +2128,15 @@ public class OutriggerServerImpl
 		txn.allowStateChange();
 	    }	      
 	} else {
-	    // log before adding to templates
+	    // Log before adding to templates. The filter envelope rides on the
+	    // watcher's own store()/restore(), so a filtered registration is durable:
+	    // recovery re-admits the envelope against each persisted template to
+	    // rebuild the FilterSet, fail-closed (never unfiltered).
 	    if (log != null)
 		log.registerOp((StorableResource)reg,
 			       "StorableAvailabilityWatcher",
 			       tmpls);
-	    
+
 	    for (int i=0; i<tmpls.length; i++) {
 		templates.add(reg, tmpls[i]);
 	    }
@@ -2273,17 +2345,21 @@ public class OutriggerServerImpl
     }
 
     /* ======================================================================
-     * Filtered (CEL predicate pushdown) operations — SOW Part B, unit B1.
+     * Filtered (CEL predicate pushdown) operations — SOW Part B, units B1+B3.
      *
      * Each admits the filter at operation entry, BEFORE matching
      * (FilterAdmission.admit: envelope decode -> CEL verify against the
      * template's own v2 schema -> require a Predicate -> compile), throwing
-     * FilterRejectedException loudly on any rejection. Because predicate
-     * EVALUATION at the match chokepoints is unit B3, an admitted filter here
-     * does not yet run: the operation fails loudly with EVALUATION_NOT_WIRED
-     * rather than execute the query unfiltered. When B3 lands, the
-     * evaluationNotWired() call is replaced by threading the CompiledFilter
-     * into the matching chokepoint.
+     * FilterRejectedException loudly on any rejection. B3 then threads the
+     * admitted filter(s) as a FilterSet into the SAME query machinery as the
+     * unfiltered sibling, so the predicate is evaluated confused-deputy-safely
+     * at every match chokepoint: the confirm window on the capture path (INV-1
+     * then INV-2) and the per-watcher process() on the fan-out path (after the
+     * txn entitlement gate). Multi-template ops retain one CompiledFilter per
+     * template (FilterSet, §5). A candidate that fails the predicate or any
+     * fail-closed rule is excluded and counted (FilterAdmission §7 metrics);
+     * FilterAdmission.evaluationNotWired remains only as a dead-safe helper (its
+     * metric pinned permanently at 0 — no wired op reaches it).
      * ==================================================================== */
 
     public Object read(EntryRep tmpl, Transaction txn, long timeout,
@@ -2293,7 +2369,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("read", filter);
+	return getMatch(tmpl, txn, timeout, false, false, cookie,
+			FilterSet.of(filter));
     }
 
     public Object readIfExists(EntryRep tmpl, Transaction txn, long timeout,
@@ -2303,7 +2380,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("readIfExists", filter);
+	return getMatch(tmpl, txn, timeout, false, true, cookie,
+			FilterSet.of(filter));
     }
 
     public Object take(EntryRep tmpl, Transaction txn, long timeout,
@@ -2313,7 +2391,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("take", filter);
+	return getMatch(tmpl, txn, timeout, true, false, cookie,
+			FilterSet.of(filter));
     }
 
     public Object takeIfExists(EntryRep tmpl, Transaction txn, long timeout,
@@ -2323,7 +2402,8 @@ public class OutriggerServerImpl
     {
 	typeCheck(tmpl);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("takeIfExists", filter);
+	return getMatch(tmpl, txn, timeout, true, true, cookie,
+			FilterSet.of(filter));
     }
 
     public EventRegistration notify(EntryRep tmpl, Transaction tr,
@@ -2335,7 +2415,11 @@ public class OutriggerServerImpl
 	checkForNull(listener, "Passed null listener for event registration");
 	checkHandbackFormat(handback);
 	CompiledFilter filter = FilterAdmission.admit(filterEnvelope, tmpl);
-	throw FilterAdmission.evaluationNotWired("notify", filter);
+	// Site E: run the SAME registration machinery (full validation, N-1) with
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery. The
+	// raw envelope is the durable seed persisted for fail-closed recovery.
+	return doNotify(tmpl, tr, listener, leaseTime, handback,
+			FilterSet.of(filter), filterEnvelope);
     }
 
     public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
@@ -2349,14 +2433,57 @@ public class OutriggerServerImpl
 	checkHandbackFormat(handback);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
 	// filter against each template's own schema; any failure rejects the
-	// whole registration loudly.
+	// whole registration loudly. Per-template plurality (§5): each admitted
+	// filter is keyed by its own template's digest (or schema-less for a
+	// match-any template) so a candidate is filtered by ITS template's predicate.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("registerForAvailabilityEvent", filter);
+	// Site E: run the SAME registration machinery (full validation, N-1) with
+	// the CEL FilterSet threaded onto the watcher; process() gates delivery. The
+	// raw envelope is the durable seed persisted for fail-closed recovery.
+	return doRegisterForAvailabilityEvent(tmpls, tr, visibilityOnly,
+		listener, leaseTime, handback, fb.build(), filterEnvelope);
+    }
+
+    /**
+     * Rebuild an operation's CEL {@link FilterSet} from its persisted raw envelope
+     * on recovery (B3 durability), by RE-ADMITTING the envelope against the
+     * recovered template(s) — the exact forward-path admission
+     * ({@link FilterAdmission#prepare} once, then {@link FilterAdmission#admit}
+     * against each template, {@link FilterSet.Builder#build}). Re-admission
+     * re-verifies the filter, so recovery is fail-closed by construction: a filter
+     * that cannot be faithfully reconstructed throws {@link FilterRejectedException}
+     * here and the caller drops the registration rather than recovering it
+     * unfiltered.
+     *
+     * <p>Faithful by construction: {@code setupTmpl} only substitutes an
+     * empty-body match-any rep for a null template, so re-admitting against the
+     * persisted (post-{@code setupTmpl}) template reproduces the same applicability
+     * digest — including the schema-less (null-template) case — as the original
+     * admission.
+     *
+     * @param filterEnvelope the persisted opaque envelope (must not be null; the
+     *        caller only calls this for a filtered registration)
+     * @param tmpls          the recovered templates the registration was admitted
+     *        against (post-{@code setupTmpl})
+     * @return the rebuilt {@link FilterSet}
+     * @throws FilterRejectedException if the envelope cannot be re-admitted against
+     *         any template (fail-closed)
+     */
+    static FilterSet rebuildFilterSet(byte[] filterEnvelope, EntryRep[] tmpls)
+	throws FilterRejectedException
+    {
+	final FilterAdmission.PreparedFilter prepared =
+	    FilterAdmission.prepare(filterEnvelope);
+	final FilterSet.Builder fb = new FilterSet.Builder();
+	for (int i = 0; i < tmpls.length; i++) {
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
+	}
+	return fb.build();
     }
 
     public MatchSetData contents(EntryRep[] tmpls, Transaction tr,
@@ -2366,15 +2493,18 @@ public class OutriggerServerImpl
 	checkForEmpty(tmpls, "Must provide at least one template");
 	FilterAdmission.checkTemplateCount(tmpls.length);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
-	// filter against each template's own schema; any failure rejects the
-	// whole query loudly.
+	// filter against each template's own schema (per-template plurality §5);
+	// any failure rejects the whole query loudly.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("contents", filter);
+	// Site B: run the SAME contents machinery (full validation, N-1) with the
+	// CEL FilterSet threaded into the retained ContentsQuery, so the first
+	// batch and every continuation batch are filtered by construction.
+	return doContents(tmpls, tr, leaseTime, limit, fb.build());
     }
 
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
@@ -2384,28 +2514,49 @@ public class OutriggerServerImpl
 	checkForEmpty(tmpls, "Must provide at least one template");
 	FilterAdmission.checkTemplateCount(tmpls.length);
 	// Decode the (template-invariant) envelope ONCE, then admit that one
-	// filter against each template's own schema; any failure rejects the
-	// whole query loudly.
+	// filter against each template's own schema (per-template plurality §5);
+	// any failure rejects the whole query loudly.
 	FilterAdmission.PreparedFilter prepared = FilterAdmission.prepare(filterEnvelope);
-	CompiledFilter filter = null;
+	final FilterSet.Builder fb = new FilterSet.Builder();
 	for (int i = 0; i < tmpls.length; i++) {
 	    typeCheck(tmpls[i]);
-	    filter = FilterAdmission.admit(prepared, tmpls[i]);
+	    fb.add(FilterAdmission.admit(prepared, tmpls[i]));
 	}
-	throw FilterAdmission.evaluationNotWired("take<multiple>", filter);
+	// Sites B/C: run the SAME bulk-take machinery (full validation, N-1) with
+	// the CEL FilterSet threaded into the scan, journal catch-up, and blocking
+	// capture -- no consuming delivery escapes the confirm-window evaluation.
+	return doTakeMultiple(tmpls, tr, timeout, limit, cookie, fb.build());
     }
 
     public Object take(EntryRep[] tmpls, Transaction tr, long timeout,
 		       int limit, QueryCookie queryCookieFromClient)
 	throws TransactionException, RemoteException
     {
+	return doTakeMultiple(tmpls, tr, timeout, limit, queryCookieFromClient,
+			      FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered bulk
+     * {@code take(EntryRep[])}. When {@code filters} is non-empty every candidate
+     * is gated on the applicable CEL predicate at the confirm window — on the
+     * immediate scan (via {@code createQuery}, site&nbsp;B), on the journal
+     * catch-up and the blocking resolution (via the watcher's FilterSet flowing
+     * into {@code attemptCapture}, site&nbsp;C). {@code FilterSet.EMPTY} is a
+     * no-op (the unfiltered path unchanged).
+     */
+    private Object doTakeMultiple(EntryRep[] tmpls, Transaction tr, long timeout,
+		       int limit, QueryCookie queryCookieFromClient,
+		       FilterSet filters)
+	throws TransactionException, RemoteException
+    {
 	if (opsLogger.isLoggable(Level.FINER)) {
-	    opsLogger.log(Level.FINER, 
+	    opsLogger.log(Level.FINER,
 		"take<multiple>:timeout = {1}, limit{2} = cookie = {3}",
-		new Object[]{Long.valueOf(timeout), Integer.valueOf(limit), 
+		new Object[]{Long.valueOf(timeout), Integer.valueOf(limit),
 			     queryCookieFromClient});
 	}
-	
+
 	checkForEmpty(tmpls, "Must provide at least one template");
 
 	for (int i=0; i<tmpls.length; i++) {
@@ -2487,8 +2638,8 @@ public class OutriggerServerImpl
 	     i.hasNext() && found < handles.length;) 
         {
 	    final String clazz = i.next();
-	    final EntryHolder.ContinuingQuery query = 
-		createQuery(tmpls, clazz, txn, true, start);
+	    final EntryHolder.ContinuingQuery query =
+		createQuery(tmpls, clazz, txn, true, start, filters);
 
 	    if (query == null)
 		continue;
@@ -2535,8 +2686,13 @@ public class OutriggerServerImpl
 	final long startOrdinal = 
 	    transitionIterator.currentOrdinalAtCreation();
 	final TakeMultipleWatcher watcher = new TakeMultipleWatcher(limit, endTime,
-            queryCookie.startTime, startOrdinal, provisionallyRemovedEntrySet, 
-	    txn);    
+            queryCookie.startTime, startOrdinal, provisionallyRemovedEntrySet,
+	    txn);
+
+	/* B3: install the CEL FilterSet so the journal catch-up (site C) and the
+	 * blocking resolution filter the captured entries at the confirm window
+	 * (via attemptCapture -> watcher.filters()). EMPTY is a no-op. */
+	watcher.setFilters(filters);
 
 	/* If this query is under a transaction, make sure it still
 	 * active and add the watcher to the Txn. Do this before
@@ -2709,7 +2865,19 @@ public class OutriggerServerImpl
      * Crerate a ContinuingQuery for the holder of the specified class.
      */
     private EntryHolder.ContinuingQuery createQuery(EntryRep[] tmpls,
-	String clazz, Txn txn, boolean takeIt, long now) 
+	String clazz, Txn txn, boolean takeIt, long now)
+    {
+	return createQuery(tmpls, clazz, txn, takeIt, now, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #createQuery(EntryRep[], String, Txn, boolean, long)}, but the
+     * resulting {@code ContinuingQuery} gates every yielded entry on the
+     * server-side CEL {@code filters} (B3, site&nbsp;B). {@code FilterSet.EMPTY}
+     * is a no-op.
+     */
+    private EntryHolder.ContinuingQuery createQuery(EntryRep[] tmpls,
+	String clazz, Txn txn, boolean takeIt, long now, FilterSet filters)
     {
 	final EntryHolder holder = contents.holderFor(clazz);
 	final String[] supertypes = holder.supertypes();
@@ -2735,7 +2903,7 @@ public class OutriggerServerImpl
 
 	return holder.continuingQuery(
             tmplsToCheck.toArray(new EntryRep[tmplsToCheck.size()]),
-	    txn, takeIt, now);				       
+	    txn, takeIt, now, filters);
     }
 
 		
@@ -2796,6 +2964,27 @@ public class OutriggerServerImpl
     private Object
         getMatch(EntryRep tmpl, Transaction tr, long timeout, boolean takeIt,
 		 boolean ifExists, QueryCookie queryCookieFromClient)
+	throws RemoteException, InterruptedException, TransactionException
+    {
+	return getMatch(tmpl, tr, timeout, takeIt, ifExists,
+			queryCookieFromClient, FilterSet.EMPTY);
+    }
+
+    /**
+     * As {@link #getMatch(EntryRep, Transaction, long, boolean, boolean,
+     * QueryCookie)}, but additionally gating every returned candidate on the
+     * query's server-side CEL {@code filters} (SOW Part&nbsp;B, unit&nbsp;B3).
+     * The {@code filters} are threaded into the immediate scan (site&nbsp;A, via
+     * {@code find}/{@code hasMatch} &rarr; the confirm window) and installed on
+     * the blocking watcher, so a blocked filtered read/take is filtered at
+     * capture (consuming watchers, via {@code attemptCapture}) or before resolve
+     * (the non-transactional blocking-read watchers, sites&nbsp;G/H).
+     * {@code FilterSet.EMPTY} is a no-op (the unfiltered path is unchanged).
+     */
+    private Object
+        getMatch(EntryRep tmpl, Transaction tr, long timeout, boolean takeIt,
+		 boolean ifExists, QueryCookie queryCookieFromClient,
+		 FilterSet filters)
 	throws RemoteException, InterruptedException, TransactionException
     {
 	typeCheck(tmpl);
@@ -2860,7 +3049,7 @@ public class OutriggerServerImpl
 	 * First we do the straight search
 	 */
 	handle = find(tmpl, txn, takeIt, conflictSet, lockedEntrySet,
-		      provisionallyRemovedEntrySet);
+		      provisionallyRemovedEntrySet, filters);
 	opsLogger.log(Level.FINEST, "getMatch, initial search found {0}", handle);
 
 	if (handle != null) {	// found it
@@ -2949,6 +3138,12 @@ public class OutriggerServerImpl
 	} else {
 	    throw new AssertionError("Can't create watcher for query");
 	}
+
+	/* B3: install the query's CEL FilterSet on the watcher BEFORE it is made
+	 * visible to the journal, so the confirm window (consuming watchers, via
+	 * attemptCapture) and the direct-resolve blocking-read watchers (sites
+	 * G/H) filter the blocked capture. EMPTY is a no-op. */
+	watcher.setFilters(filters);
 
 	/* If this query is under a transaction, make sure it still
 	 * active and add the watcher to the Txn. Do this before
@@ -3085,8 +3280,9 @@ public class OutriggerServerImpl
      * is removed (perhaps provisionally).
      */
     private EntryHandle
-	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet, 
-	     Set lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet)
+	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet,
+	     Set lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet,
+	     FilterSet filters)
 	throws TransactionException
     {
 	final String whichClass = tmplRep.classFor();
@@ -3108,7 +3304,8 @@ public class OutriggerServerImpl
 
 	    holder = contents.holderFor(className);
 	    result = holder.hasMatch(tmplRep, txn, takeIt, conflictSet,
-				     lockedEntrySet, provisionallyRemovedEntrySet);
+				     lockedEntrySet, provisionallyRemovedEntrySet,
+				     filters);
 	    if (result != null) {
 		return result;
 	    }
@@ -3135,10 +3332,24 @@ public class OutriggerServerImpl
 				 long leaseTime, long limit)
         throws TransactionException, RemoteException
     {
+	return doContents(tmpls, tr, leaseTime, limit, FilterSet.EMPTY);
+    }
+
+    /**
+     * Shared implementation of unfiltered and B3-filtered {@code contents}. When
+     * {@code filters} is non-empty the retained {@code ContentsQuery} gates every
+     * batch — including every continuation batch via {@code nextBatch} — on the
+     * applicable CEL predicate at the confirm window (site&nbsp;B, design memo
+     * §1.4). {@code FilterSet.EMPTY} is a no-op (the unfiltered path unchanged).
+     */
+    private MatchSetData doContents(EntryRep[] tmpls, Transaction tr,
+				 long leaseTime, long limit, FilterSet filters)
+        throws TransactionException, RemoteException
+    {
 	if (opsLogger.isLoggable(Level.FINER)) {
-	     opsLogger.log(Level.FINER, 
+	     opsLogger.log(Level.FINER,
 		"contents:tmpls = {0}, tr = {1}, leaseTime = {2}, " +
-		"limit = {3}", 
+		"limit = {3}",
 	        new Object[]{tmpls, tr, Long.valueOf(leaseTime), Long.valueOf(limit)});
 	}
 
@@ -3175,9 +3386,9 @@ public class OutriggerServerImpl
 	}
 
 	final Uuid uuid = UuidFactory.generate();
-	final ContentsQuery contentsQuery = new ContentsQuery(uuid, tmpls, 
-							      txn, limit);
-	final EntryRep[] reps = contentsQuery.nextBatch(null, 
+	final ContentsQuery contentsQuery = new ContentsQuery(uuid, tmpls,
+							      txn, limit, filters);
+	final EntryRep[] reps = contentsQuery.nextBatch(null,
    	    System.currentTimeMillis());
 
 	if (reps[reps.length-1] == null) {
@@ -3242,6 +3453,15 @@ public class OutriggerServerImpl
 	/** The transaction the query is being performed under */
 	final private Txn txn;
 
+	/**
+	 * The server-side CEL filter set gating every batch (B3, site&nbsp;B).
+	 * {@link FilterSet#EMPTY} for an unfiltered contents query. Held in the
+	 * retained query state so every continuation batch (via {@code nextBatch})
+	 * re-enters the SAME filtered query by construction (design memo §1.4) —
+	 * there is no separate unfiltered re-fetch to drop the filter on.
+	 */
+	final private FilterSet filters;
+
 	/** Lock to prevent concurrent calls to <code>nextBatch</code> */
 	final private Object lock = new Object();
 
@@ -3278,9 +3498,15 @@ public class OutriggerServerImpl
                 )) ;
 
 	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit) {
+	    this(uuid, tmpls, txn, limit, FilterSet.EMPTY);
+	}
+
+	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit,
+			      FilterSet filters) {
 	    this.uuid = uuid;
 	    this.tmpls = tmpls;
 	    this.txn = txn;
+	    this.filters = (filters == null) ? FilterSet.EMPTY : filters;
 	    remaining = limit;
             Set classes = new java.util.HashSet(128);
 	    for (int i=0; i<tmpls.length; i++) {
@@ -3297,7 +3523,7 @@ public class OutriggerServerImpl
 	private boolean advanceCurrentQuery(long now) {
 	    while (classesIterator.hasNext()) {
 		currentQuery = createQuery(tmpls, (String)classesIterator.next(),
-					   txn, false, now);
+					   txn, false, now, filters);
 		if (currentQuery == null)
 		    continue;
 
@@ -4187,12 +4413,46 @@ public class OutriggerServerImpl
 				     ") while recovering event registration");
 	}
 
-	registration.restore(reg);	
+	registration.restore(reg);
 
+	/* Restore the templates into an array, but do NOT make the watcher visible
+	 * to the journal yet: a filtered registration must have its CEL FilterSet
+	 * rebuilt and installed BEFORE it can ever be handed a transition, or there
+	 * would be an unfiltered-delivery window (fail-open). */
+	final EntryRep[] tmpls = new EntryRep[storedTemplates.length];
 	for (int i=0; i<storedTemplates.length; i++) {
 	    final EntryRep templ = new EntryRep();
 	    storedTemplates[i].restore(templ);
-	    templates.add((TransitionWatcher)reg, setupTmpl(templ));
+	    tmpls[i] = setupTmpl(templ);
+	}
+
+	/* B3 durability: if this registration carried a CEL filter, rebuild its
+	 * FilterSet by RE-ADMITTING the persisted envelope against the recovered
+	 * templates (re-verify => fail-closed). If it cannot be faithfully
+	 * reconstructed, DROP the registration (the client's lease lapses) rather
+	 * than recover it UNFILTERED; the durable record is left in place (not
+	 * cancelled). */
+	final FilteredWatcher fw = (FilteredWatcher) reg;
+	final byte[] env = fw.filterEnvelope();
+	if (env != null) {
+	    final FilterSet fs;
+	    try {
+		fs = rebuildFilterSet(env, tmpls);
+	    } catch (FilterRejectedException | RuntimeException e) {
+		opsLogger.log(Level.SEVERE,
+		    "Dropping filtered event registration {0} on recovery: its CEL "
+		    + "filter could not be reconstructed ({1}). The registration is "
+		    + "NOT recovered (fail-closed; never delivered unfiltered); the "
+		    + "client''s lease will lapse. The durable record is retained.",
+		    new Object[]{reg.getCookie(), e});
+		return; // not added to templates, not put in eventRegistrations
+	    }
+	    fw.setFilters(fs);
+	}
+
+	// Only now make the watcher visible to the journal.
+	for (int i=0; i<tmpls.length; i++) {
+	    templates.add((TransitionWatcher)reg, tmpls[i]);
 	}
 
 	eventRegistrations.put(reg.getCookie(), reg);
