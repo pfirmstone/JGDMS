@@ -1,0 +1,26 @@
+// Hand-written seed policy for the jgdms-benchmarks policy-overhead benchmarks.
+// The run scripts set ${jgdms.bench.workload.url} to the workload jar's URL.
+//
+// This holds only the grant the benchmark is about: the code under measurement
+// (harness/target/lib/jgdms-bench-workload.jar) may read its own properties.
+//
+// Everything else - the grants JMH, the harness, the JDK and DirtyChai's class
+// loading need - is discovered by the audit step (BENCH_MODE=audit), which runs
+// DirtyChai's polpAudit and appends least-privilege grants to
+// conf/generated.policy, seeded from this file. Nothing here or there should
+// grant AllPermission; the harness refuses to measure if it finds that.
+// The scripts pass the policy with "==" so <java.home>'s default.policy, with
+// its broad AllPermission grants, is not included either.
+
+grant codeBase "${jgdms.bench.workload.url}" {
+    permission java.util.PropertyPermission "jgdms.bench.*", "read";
+};
+
+// JMH's forked JVM reports results back to the host JVM over a loopback
+// socket, on a port the host picks at random each run (the scripts pin the
+// address to 127.0.0.1 with -Djmh.link.address). An audited grant would name
+// one port and fail on the next run, so this one is written by hand: loopback
+// only, unprivileged ports, connect only.
+grant codeBase "${jgdms.bench.harness.url}" {
+    permission java.net.SocketPermission "127.0.0.1:1024-", "connect,resolve";
+};

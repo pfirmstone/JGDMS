@@ -1,0 +1,110 @@
+// Hand-written seed policy for the jgdms-benchmarks policy-overhead benchmarks.
+// The run scripts set ${jgdms.bench.workload.url} to the workload jar's URL.
+//
+// This holds only the grant the benchmark is about: the code under measurement
+// (harness/target/lib/jgdms-bench-workload.jar) may read its own properties.
+//
+// Everything else - the grants JMH, the harness, the JDK and DirtyChai's class
+// loading need - is discovered by the audit step (BENCH_MODE=audit), which runs
+// DirtyChai's polpAudit and appends least-privilege grants to
+// conf/generated.policy, seeded from this file. Nothing here or there should
+// grant AllPermission; the harness refuses to measure if it finds that.
+// The scripts pass the policy with "==" so <java.home>'s default.policy, with
+// its broad AllPermission grants, is not included either.
+
+grant codeBase "${jgdms.bench.workload.url}" {
+    permission java.util.PropertyPermission "jgdms.bench.*", "read";
+};
+
+// JMH's forked JVM reports results back to the host JVM over a loopback
+// socket, on a port the host picks at random each run (the scripts pin the
+// address to 127.0.0.1 with -Djmh.link.address). An audited grant would name
+// one port and fail on the next run, so this one is written by hand: loopback
+// only, unprivileged ports, connect only.
+grant codeBase "${jgdms.bench.harness.url}" {
+    permission java.net.SocketPermission "127.0.0.1:1024-", "connect,resolve";
+};
+grant codebase "${jgdms.bench.harness.url}"
+{
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.util.PropertyPermission "compilerBlackholesEnabled", "read";
+    permission java.util.PropertyPermission "jgdms.bench.audit", "read";
+    permission java.util.PropertyPermission "jgdms.bench.expectedPolicy", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p0", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p1", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p2", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p3", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p4", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p5", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p6", "read";
+    permission java.util.PropertyPermission "jgdms.bench.p7", "read";
+    permission java.util.PropertyPermission "jmh.executor", "read";
+    permission java.util.PropertyPermission "jmh.link.bufferSize", "read";
+    permission java.util.PropertyPermission "jmh.link.resetEach", "read";
+    permission java.util.PropertyPermission "jmh.separateClassLoader", "read";
+    permission java.util.PropertyPermission "jmh.shutdownTimeout", "read";
+    permission java.util.PropertyPermission "jmh.shutdownTimeout.step", "read";
+    permission java.util.PropertyPermission "line.separator", "read";
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}jgdms-benchmarks${/}harness${/}target${/}benchmarks.jar", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createPlatformThread";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission au.zeus.jdk.authorization.guards.DefineClassPermission "ALLOW";
+    permission java.net.SocketPermission "DESKTOP-LOI9FL7", "resolve";
+    permission java.security.SecurityPermission "getPolicy";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.lang.Integer";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.ArrayList";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.Collections$EmptyList";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.HashMap";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "java.util.TreeMap";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.infra.BenchmarkParams";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.infra.IterationParams";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.Action";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.ActionPlan";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.WorkloadParams";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.link.ActionPlanFrame";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.link.HandshakeResponseFrame";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.options.CommandLineOptions";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.options.TimeValue";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.util.HashMultimap";
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.util.Optional";
+};
+
+grant codebase "${jgdms.bench.workload.url}"
+{
+    permission java.io.FilePermission "C:${/}Users${/}peter${/}Documents${/}GitHub${/}JGDMS${/}JGDMS${/}jgdms-benchmarks${/}harness${/}target${/}lib${/}jgdms-bench-workload.jar", "read";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "jrt:/jdk.localedata"
+{
+    permission java.net.URLPermission "jrt:/jdk.localedata", "GET:";
+    permission java.lang.RuntimePermission "readModuleTopology";
+    permission au.zeus.jdk.authorization.guards.LoadClassPermission "ALLOW";
+};
+
+grant codebase "${jgdms.bench.harness.url}"
+{
+    permission au.zeus.jdk.authorization.guards.SerialObjectPermission "org.openjdk.jmh.runner.WorkloadParams$Value";
+};
+
+grant
+{
+    permission java.lang.RuntimePermission "createPlatformThread";
+};
+
+grant codebase "${jgdms.bench.harness.url}"
+{
+    permission java.lang.RuntimePermission "createVirtualThread";
+};
+
+grant
+{
+    permission java.lang.RuntimePermission "createPlatformThread";
+};
+

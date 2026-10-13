@@ -1,0 +1,5 @@
+conf/audit-paths.properties
+harness/dependency-reduced-pom.xml
+results*.json
+profiles/
+conf/profile.policy

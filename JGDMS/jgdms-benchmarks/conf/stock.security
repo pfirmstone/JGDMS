@@ -1,0 +1,4 @@
+# Security properties for comparison runs with the JDK's standard PolicyFile
+# (run with BENCH_POLICY=stock), or for smoke-testing on a stock JDK.
+policy.provider=sun.security.provider.PolicyFile
+policy.expandProperties=true
