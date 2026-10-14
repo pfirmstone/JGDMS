@@ -166,6 +166,29 @@ whether the surrounding request takes 1 µs or 1 ms. So report the per-check
 cost along with the percentage, and say what the request was. "Less than 1%"
 is a statement about a particular check-to-work ratio, not a constant.
 
+## Diagnostics
+
+Two further benchmark sets explain where a check's cost goes. They need a
+SecurityManager, run only under DirtyChai with the generated policy, and are
+ignored by `summarise.py`.
+
+- `CheckBreakdown` splits one check into capturing the context
+  (`getContext`), the SecurityManager's cached check against a fixed context,
+  and full policy evaluation of that context.
+- `ContextCaptureSplitPlatform` and `ContextCaptureSplitVirtual` split
+  `getContext()` itself: the native stack walk, `optimize()`, the
+  inherited-context native, and the Subject lookup, on a platform and on a
+  virtual thread. `stackWalkAtDepth` repeats the walk with 0, 32 and 128 extra
+  frames, so the slope gives the walk's cost per frame and the intercept its
+  fixed cost. These reach private JDK methods through
+  `MethodHandles.privateLookupIn`, so their forks carry `--add-opens` in
+  `@Fork(jvmArgsPrepend)` (a command-line `-jvmArgsPrepend` replaces it), and
+  the audit records the harness's `suppressAccessChecks` grant.
+
+Run them by name, for example:
+
+    run.cmd ContextCaptureSplit
+
 ## What these numbers do not cover
 
 - **Steady state only.** Every check is repeated many times, so DirtyChai's

@@ -87,6 +87,11 @@ set "AUDIT=-Djava.security.manager=polpAudit -DpolpAudit.path.properties=%PATHS%
 if errorlevel 1 exit /b
 %JMH% "PolicyOverheadVirtualSmOn\." -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "%AUDIT% -Djmh.executor=VIRTUAL"
 if errorlevel 1 exit /b
+rem The diagnostic split reaches private JDK methods; record its grants too.
+%JMH% "ContextCaptureSplitPlatform\." -f 1 -wi 1 -w 200ms -i 1 -r 200ms -p extraFrames=0 -jvmArgsAppend "%AUDIT%"
+if errorlevel 1 exit /b
+%JMH% "ContextCaptureSplitVirtual\." -f 1 -wi 1 -w 200ms -i 1 -r 200ms -p extraFrames=0 -jvmArgsAppend "%AUDIT% -Djmh.executor=VIRTUAL"
+if errorlevel 1 exit /b
 echo.
 echo Wrote %GENERATED%. Review it: every grant in it is one the benchmarks used.
 echo Then clear BENCH_MODE and run again to measure.

@@ -56,6 +56,9 @@ if [ "${BENCH_MODE:-run}" = audit ]; then
     AUDIT="-Djava.security.manager=polpAudit -DpolpAudit.path.properties=$PATHS -Djgdms.bench.audit=true"
     jmh 'PolicyOverheadSmOn\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "$AUDIT"
     jmh 'PolicyOverheadVirtualSmOn\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "$AUDIT -Djmh.executor=VIRTUAL"
+    # The diagnostic split reaches private JDK methods; record its grants too.
+    jmh 'ContextCaptureSplitPlatform\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -p extraFrames=0 -jvmArgsAppend "$AUDIT"
+    jmh 'ContextCaptureSplitVirtual\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -p extraFrames=0 -jvmArgsAppend "$AUDIT -Djmh.executor=VIRTUAL"
     echo
     echo "Wrote $GENERATED. Review it: every grant in it is one the benchmarks used."
     echo "Then run without BENCH_MODE to measure."

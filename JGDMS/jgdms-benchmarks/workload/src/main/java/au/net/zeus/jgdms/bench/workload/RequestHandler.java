@@ -98,6 +98,23 @@ public final class RequestHandler {
     }
 
     /**
+     * Invokes {@code target} with this class's frame on the stack, so that
+     * anything it captures from the stack sees the same domains as
+     * {@link #context()}. Used only by the diagnostic
+     * {@code ContextCaptureSplit} benchmarks, to time the stages of
+     * {@code AccessController.getContext()} separately. Invoking a method
+     * handle needs no permission: the handle's access was checked when the
+     * harness created it, and this frame only adds this domain's restrictions.
+     *
+     * @param target a handle of type {@code ()Object}
+     * @return what {@code target} returns
+     * @throws Throwable whatever {@code target} throws
+     */
+    public static Object invoke(java.lang.invoke.MethodHandle target) throws Throwable {
+        return (Object) target.invokeExact();
+    }
+
+    /**
      * Handles one request: parses {@code query} as {@code k=v&k=v...},
      * checksums {@code body}, performs {@code guardedReads} guarded property
      * reads, and formats a response.
