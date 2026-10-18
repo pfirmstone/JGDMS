@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.river.api.io.EntryV2Codec;
+import org.apache.river.outrigger.proxy.EntryRep;
 
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
@@ -149,6 +150,25 @@ public final class EntryProjection implements CandidateProjection {
      */
     public static final int MAX_PROJECTION_DECODE_BYTES = 64 * 1024;
 
+    /**
+     * Test-observable count of how many times the candidate's own entry schema chain was
+     * actually {@code SchemaChain.decodeChain}-ed — one per rep once the chain memo is in
+     * play, rather than one per candidate per evaluation. Counts <em>attempts</em>, so a
+     * failing chain is visibly re-attempted (never negatively cached).
+     *
+     * <p>Static and process-wide (the projection is a static factory, unlike the
+     * per-candidate {@code Evaluator} that owns {@code sizeStringComputationCountForTesting}),
+     * hence an {@code AtomicLong} and hence read as a DELTA by tests. Package-private; not
+     * part of the public API. Nested-object chains are deliberately NOT counted here.
+     */
+    private static final java.util.concurrent.atomic.AtomicLong ENTRY_CHAIN_DECODES =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /** @see #ENTRY_CHAIN_DECODES */
+    static long entryChainDecodeCountForTesting() {
+        return ENTRY_CHAIN_DECODES.get();
+    }
+
     /** The fail-closed sentinel: an undecodable candidate (non-budget). */
     private static final EntryProjection UNDECODABLE = new EntryProjection(false);
     /** The fail-closed sentinel: a candidate that blew the {@link #MAX_PROJECTION_DECODE_BYTES} budget. */
@@ -244,8 +264,10 @@ public final class EntryProjection implements CandidateProjection {
             //    {@link #projectReusing}; this factory is the fallback for a rep that was
             //    never decode-constructed (e.g. the client write path).
             EntryRepV2Codec.DecodedBody db = EntryRepV2Codec.decode(candidateBody);
+            // No rep and no Decoded here: this path has nothing to memoise a chain against,
+            // so it always decodes the chain itself (unchanged behaviour, contract point 6).
             return buildProjection(db.entrySchemaDigest(), db.sliceBytes(), db.absent(),
-                                   db.schemaTable(), referencedFieldNames);
+                                   db.schemaTable(), referencedFieldNames, null, null);
         } catch (ProjectionBudgetExceeded budget) {
             // Exceeded MAX_PROJECTION_DECODE_BYTES => fail-closed, but counted
             // separately so lock-hold-DoS attempts are visible (§4.3 / §7).
@@ -327,6 +349,48 @@ public final class EntryProjection implements CandidateProjection {
      */
     public static EntryProjection projectReusing(EntryV2Codec.Decoded decoded,
                                                  Set<String> referencedFieldNames) {
+        return projectReusing(null, decoded, referencedFieldNames);
+    }
+
+    /**
+     * Projects a candidate reusing its rep's already-decoded body <b>and</b> that rep's
+     * memoised schema chain — the same projection as
+     * {@link #projectReusing(EntryV2Codec.Decoded, Set)}, with the one remaining
+     * per-candidate decode removed.
+     *
+     * <p><b>What this removes.</b> After the &sect;4.2 slice reuse, the surviving
+     * per-candidate work in {@link #buildProjection} is
+     * {@code SchemaChain.decodeChain(entryChainBytes)}. That decode is already bounded by
+     * the STD-006 &sect;4.5 chain ceilings ({@code MAX_CHAIN_BYTES} 64&nbsp;KiB /
+     * {@code MAX_CHAIN_RECORDS} 64), so the ratified &sect;4.4 ceiling holds with or
+     * without this method — but it re-ran <em>per candidate, per evaluation, over
+     * byte-identical input</em>, under {@code EntryHolder.confirmAvailability}'s
+     * {@code synchronized(handle)} window and on the single {@code OperationJournal}
+     * fan-out thread. Memoising it on the rep makes it once-per-rep.
+     *
+     * <p><b>The memo changes no verdict.</b> The chain is a pure function of the
+     * {@code Decoded} it is derived from, and {@link EntryRep#cachedEntryChain} serves it
+     * only for that same {@code Decoded}, on the rep that currently holds it — so a hit and
+     * a miss produce the same chain and hence the same projection. Everything else, in
+     * particular the &sect;A.8 field-count guard and every per-field value decode under the
+     * {@link #MAX_PROJECTION_DECODE_BYTES} budget, still runs in full on every call.
+     *
+     * <p><b>Failures are never cached.</b> The memo is offered only after a chain decode
+     * that <em>succeeded</em>; a failing chain therefore fails closed identically on every
+     * attempt (contract point&nbsp;2), with no poisoned or negative entry.
+     *
+     * @param candidate            the rep the {@code decoded} came from, whose chain memo is
+     *                             read and (on a miss) populated; {@code null} disables the
+     *                             memo and behaves exactly like the two-argument overload
+     * @param decoded              the candidate rep's retained decode result (normally
+     *                             {@code candidate.decoded()}); {@code null} yields the
+     *                             fail-closed sentinel
+     * @param referencedFieldNames the field names the predicate references
+     * @return a fail-closed projection (never {@code null})
+     */
+    public static EntryProjection projectReusing(EntryRep candidate,
+                                                 EntryV2Codec.Decoded decoded,
+                                                 Set<String> referencedFieldNames) {
         if (decoded == null || referencedFieldNames == null) {
             return UNDECODABLE;
         }
@@ -344,7 +408,8 @@ public final class EntryProjection implements CandidateProjection {
             }
             @SuppressWarnings("unchecked")
             final Map<String, byte[]> schemaTable = (Map<String, byte[]>) table;
-            return buildProjection(entryDigest, slices, absent, schemaTable, referencedFieldNames);
+            return buildProjection(entryDigest, slices, absent, schemaTable, referencedFieldNames,
+                                   candidate, decoded);
         } catch (ProjectionBudgetExceeded budget) {
             return UNDECODABLE_BUDGET;
         } catch (VirtualMachineError vme) {
@@ -367,7 +432,9 @@ public final class EntryProjection implements CandidateProjection {
                                                    byte[][] slices,
                                                    boolean[] absent,
                                                    Map<String, byte[]> schemaTable,
-                                                   Set<String> referencedFieldNames)
+                                                   Set<String> referencedFieldNames,
+                                                   EntryRep chainMemoOwner,
+                                                   EntryV2Codec.Decoded chainMemoKey)
             throws Exception {
         // 2. The candidate's OWN leaf-first schema chain + entrySchemaDigest, derived from
         //    the already-decoded body (never a second full decode of the body).
@@ -377,9 +444,35 @@ public final class EntryProjection implements CandidateProjection {
         //    binding is proved by the caller's validating decode() and is a PRECONDITION of
         //    this method on the projectReusing path, not re-derived here -- unlike the
         //    idx != slices.length guard below, which IS recomputed on every call.
-        byte[] entryChainBytes = schemaTable.get(hex(entryDigest));
-        List<AtomicSerialSchemaRecord> chain =
-                SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"); // leaf-first
+        //
+        //    CHAIN MEMO: decodeChain is deterministic and its input is byte-identical for
+        //    every evaluation of one rep, so it is memoised on the rep, keyed by (and served
+        //    only for) the very `Decoded` it was derived from. A hit and a miss yield the
+        //    same chain, hence the same projection. Nothing below is skipped on a hit: the
+        //    §A.8 field-count guard and every per-field value decode still run in full.
+        List<AtomicSerialSchemaRecord> chain = null;
+        if (chainMemoOwner != null && chainMemoKey != null) {
+            Object memo = chainMemoOwner.cachedEntryChain(chainMemoKey);
+            if (memo instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<AtomicSerialSchemaRecord> hit = (List<AtomicSerialSchemaRecord>) memo;
+                chain = hit;
+            }
+        }
+        if (chain == null) {
+            byte[] entryChainBytes = schemaTable.get(hex(entryDigest));
+            ENTRY_CHAIN_DECODES.incrementAndGet();
+            // leaf-first. THROWS on any malformed/over-ceiling chain -- and because the memo
+            // is offered only AFTER this returns normally, a failure is never cached: the
+            // throw propagates to the caller's identical VirtualMachineError-rethrow /
+            // Throwable -> UNDECODABLE guard, exactly as before, on every attempt.
+            chain = Collections.unmodifiableList(
+                    SchemaChain.decodeChain(entryChainBytes, "EntryProjection.entryChain"));
+            if (chainMemoOwner != null && chainMemoKey != null) {
+                // Refused by the rep unless chainMemoKey is still its own current Decoded.
+                chainMemoOwner.cacheEntryChain(chainMemoKey, chain);
+            }
+        }
 
         List<String> nsChain = new ArrayList<>(chain.size());
         Map<String, Set<String>> declaredByClass = new LinkedHashMap<>();

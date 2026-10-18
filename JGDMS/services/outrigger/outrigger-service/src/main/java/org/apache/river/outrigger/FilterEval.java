@@ -224,9 +224,18 @@ final class FilterEval {
             // the structural decode of bodyBytes(), which remains bounded only by the 8 MiB
             // body ceiling (noted in the design memo §4.4). No fail-open either way: the
             // fallback is the pre-existing, identically fail-closed factory.
+            //
+            // CHAIN MEMO: passing the rep as well as its Decoded lets the projection memoise
+            // the one decode that survived the slice-reuse change --
+            // SchemaChain.decodeChain(entryChainBytes), which re-ran per candidate per
+            // evaluation over byte-identical input. It is already bounded by the STD-006 §4.5
+            // chain ceilings (64 KiB / 64 records), so the ratified §4.4 ceiling held without
+            // it; the memo simply makes it once-per-rep instead of once-per-evaluation, in the
+            // same lock-held / journal-thread window. Verdicts are unchanged: the memo is
+            // keyed on (and served only for) the very Decoded the chain came from.
             final EntryV2Codec.Decoded reusable = candidate.decoded();
             final EntryProjection projection = (reusable != null)
-                    ? EntryProjection.projectReusing(reusable, referenced)
+                    ? EntryProjection.projectReusing(candidate, reusable, referenced)
                     : EntryProjection.projectFields(candidate.bodyBytes(), referenced);
             if (projection.isUndecodable()) {
                 if (projection.budgetExceeded()) {
