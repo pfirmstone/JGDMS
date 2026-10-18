@@ -63,6 +63,9 @@ human authors.
   needs a SPIFFE-aware branch.
 
 ### Needs the project lead
+- Whether steady state needs any identity gate beyond the verdict (the `BootstrapPermission` check is
+  boot-window-only by design), and whether to drop the non-TLS digest-based boot check
+  (`checkBootstrapPermissionByDigest`), which the proposed identity rule would silently remove.
 - Taking identity from the bootstrap proxy's own authenticated call (above) departs from SOW 8.2
   item 5 ("identity only from a `getServiceProxy()` response"), which is a requirement written in 8.2
   and not one of the lead's 8.3 decisions: needs sign-off.
