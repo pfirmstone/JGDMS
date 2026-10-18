@@ -287,7 +287,17 @@ public final class DerMarshalOutputStream implements ObjectOutput {
      */
     @Override
     public void close() throws IOException {
-        flush();
+        try {
+            flush();
+        } catch (IOException | RuntimeException e) {
+            // a failed or refused flush must not leave the underlying stream open
+            try {
+                out.close();
+            } catch (IOException c) {
+                e.addSuppressed(c);
+            }
+            throw e;
+        }
         out.close();
     }
 }

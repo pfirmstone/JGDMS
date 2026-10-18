@@ -238,6 +238,13 @@ final class DerObjectStreamCodec {
     private boolean poisoned;
 
     /**
+     * True while an item is being written. User code ({@code serialize(PutArg)}) runs inside an item, between the frames it
+     * has opened in the shared output; if it reached this stream and wrote, its bytes would land INSIDE the open frame
+     * and the outer item's scratch state would be clobbered. Re-entry is refused and poisons the stream.
+     */
+    private boolean writing;
+
+    /**
      * Write-side proxy-substitution config. When {@code substituteProxies} is set (via
      * {@link #initWriter}), a downloadable proxy ({@link DynamicProxyCodebaseAccessor} /
      * {@link ProxyAccessor}) written through {@link #writeObject} is substituted with a
@@ -457,22 +464,27 @@ final class DerObjectStreamCodec {
     // =========================================================================
 
     void writeBoolean(boolean v) {
+        requireNotInItem();
         writeOut.bool(v);
     }
 
     void writeByte(int v) {
+        requireNotInItem();
         writeOut.integer((byte) v);
     }
 
     void writeShort(int v) {
+        requireNotInItem();
         writeOut.integer((short) v);
     }
 
     void writeInt(int v) {
+        requireNotInItem();
         writeOut.integer(v);
     }
 
     void writeLong(long v) {
+        requireNotInItem();
         writeOut.integer(v);
     }
 
@@ -481,6 +493,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeFloat(float v) {
+        requireNotInItem();
         writeOut.octets(encodeCanonicalFloatContent(v));
     }
 
@@ -489,6 +502,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeDouble(double v) {
+        requireNotInItem();
         writeOut.octets(encodeCanonicalDoubleContent(v));
     }
 
@@ -498,6 +512,7 @@ final class DerObjectStreamCodec {
      * the low 16 bits as the char value, matching {@link DataOutput#writeChar}.)
      */
     void writeChar(int v) {
+        requireNotInItem();
         writeOut.integer(validatedCodepoint(v));
     }
 
@@ -554,16 +569,19 @@ final class DerObjectStreamCodec {
     }
 
     void writeUTF(String s) {
+        requireNotInItem();
         Objects.requireNonNull(s, "s");
         writeOut.utf8(s);
     }
 
     void writeBytes(byte[] b, int off, int len) {
+        requireNotInItem();
         Objects.checkFromIndexSize(off, len, b.length);
         writeOut.leaf(Tag.OCTET_STRING, b, off, len);
     }
 
     void writeSingleByte(int b) {
+        requireNotInItem();
         // write(int) from ObjectOutputStream -- writes a single byte as an INTEGER
         writeOut.integer((byte) (b & 0xFF));
     }
@@ -593,6 +611,7 @@ final class DerObjectStreamCodec {
      */
     void writeObject(Object obj) throws IOException {
         requireWritable();
+        enterItem();
         int mark = writeOut.isClean() ? writeOut.size() : -1;
         long dedupMark = encodeDedup == null ? 0 : encodeDedup.mutationCount();
         boolean done = false;
@@ -602,8 +621,27 @@ final class DerObjectStreamCodec {
         } catch (DerUtf8.UnencodableStringException e) {
             throw new IOException("DER encode failed: " + e.getMessage(), e);
         } finally {
+            writing = false;
             if (!done) afterFailedItem(mark, dedupMark);
         }
+    }
+
+    /** A positional write from inside an item's serialize(): refuse and poison, it would land in an open frame. */
+    private void requireNotInItem() {
+        if (writing) {
+            poisoned = true;
+            throw new IllegalStateException("DER stream: re-entrant write while an item is being encoded");
+        }
+    }
+
+    /** Marks an item as in progress; a write that arrives while one is (re-entry from user code) kills the stream. */
+    private void enterItem() throws IOException {
+        if (writing) {
+            poisoned = true;
+            throw new IOException("DER stream: re-entrant write while an item is being encoded (user code reached the"
+                    + " stream from inside serialize()); the stream is unusable");
+        }
+        writing = true;
     }
 
     /** Refuses to continue a stream an earlier item corrupted (see {@link #poisoned}). */
@@ -874,6 +912,7 @@ final class DerObjectStreamCodec {
      */
     void writeCollection(Object coll, String declaredToken) throws IOException {
         requireWritable();
+        enterItem();
         int mark = writeOut.isClean() ? writeOut.size() : -1;
         long dedupMark = encodeDedup == null ? 0 : encodeDedup.mutationCount();
         boolean done = false;
@@ -883,6 +922,7 @@ final class DerObjectStreamCodec {
         } catch (DerUtf8.UnencodableStringException e) {
             throw new IOException("DER encode failed: " + e.getMessage(), e);
         } finally {
+            writing = false;
             if (!done) afterFailedItem(mark, dedupMark);
         }
     }
@@ -1787,12 +1827,30 @@ final class DerObjectStreamCodec {
 
     /**
      * Compacts everything written since the last drain into one array, writes it to the
-     * given output stream, and resets the buffer (a stream whose earlier item failed after
-     * changing it refuses, see {@link #poisoned}).
+     * given output stream, and resets the buffer. A stream whose earlier item failed after
+     * changing it refuses (see {@link #poisoned}); so does one whose sink threw, because the sink may
+     * have taken a prefix and a retry would duplicate it.
      */
     void drainTo(OutputStream out) throws IOException {
         requireWritable();
-        out.write(writeOut.toByteArray());
-        writeOut.reset();   // only after the write: a failed write leaves the bytes to be drained again
+        if (writing) {
+            poisoned = true;
+            throw new IOException("DER stream: drain while an item is being encoded");
+        }
+        byte[] bytes;
+        try {
+            bytes = writeOut.toByteArray();
+        } catch (IllegalStateException e) {   // the encoder latched a failure (e.g. it outgrew an array)
+            poisoned = true;
+            throw new IOException("DER stream is unusable: the encoder failed (" + e.getMessage() + ")", e);
+        }
+        try {
+            out.write(bytes);
+        } catch (IOException | RuntimeException e) {
+            // the sink may have taken a prefix: resending the whole buffer would duplicate it, so the stream is dead
+            poisoned = true;
+            throw e;
+        }
+        writeOut.reset();
     }
 }

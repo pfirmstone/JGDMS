@@ -112,24 +112,84 @@ class DerObjectStreamCodecWriteStateTest {
     }
 
     @Test
-    void aFailedWriteLeavesTheBytesToBeDrainedAgainAndTheNextDrainStartsEmpty() throws Exception {
+    void aSinkThatFailedMayHaveTakenAPrefixSoTheStreamIsDeadNotRetried() throws Exception {
         DerObjectStreamCodec c = new DerObjectStreamCodec();
         c.writeObject("one");
-        OutputStream broken = new OutputStream() {
-            @Override public void write(int b) throws IOException { throw new IOException("sink down"); }
-            @Override public void write(byte[] b, int o, int l) throws IOException { throw new IOException("sink down"); }
+        ByteArrayOutputStream taken = new ByteArrayOutputStream();
+        OutputStream prefixThenFail = new OutputStream() {
+            @Override public void write(int b) throws IOException { taken.write(b); }
+            @Override public void write(byte[] b, int o, int l) throws IOException {
+                taken.write(b, o, Math.min(l, 2));
+                throw new IOException("sink down after a prefix");
+            }
         };
-        assertThrows(IOException.class, () -> c.drainTo(broken));
-        byte[] retried = drain(c);
+        assertThrows(IOException.class, () -> c.drainTo(prefixThenFail));
+        assertEquals(2, taken.size(), "the sink really did take a prefix");
+        assertThrows(IOException.class, () -> c.drainTo(new ByteArrayOutputStream()),
+                "resending the whole buffer would duplicate that prefix");
+        assertThrows(IOException.class, () -> c.writeObject("two"));
+    }
+
+    @Test
+    void afterADrainTheNextDrainDoesNotRepeatTheVersionOctet() throws Exception {
+        DerObjectStreamCodec c = new DerObjectStreamCodec();
+        c.writeObject("one");
+        byte[] first = drain(c);
+        c.writeObject("two");
         DerObjectStreamCodec ref = new DerObjectStreamCodec();
         ref.writeObject("one");
-        assertArrayEquals(drain(ref), retried, "the undrained bytes must survive a failed write");
-        c.writeObject("two");
-        DerObjectStreamCodec ref2 = new DerObjectStreamCodec();
-        ref2.writeObject("one");
-        drain(ref2);
-        ref2.writeObject("two");
-        assertArrayEquals(drain(ref2), drain(c), "after a drain the version octet is not repeated");
+        drain(ref);
+        ref.writeObject("two");
+        assertEquals(first.length > 0, true);
+        assertArrayEquals(drain(ref), drain(c));
+    }
+
+    /** serialize() reaching the same stream: a user-supplied handler holding the codec. */
+    @AtomicSerial
+    public static final class Reentrant {
+        static volatile DerObjectStreamCodec target;
+        static volatile boolean positional;
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("n", int.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, Reentrant r) throws IOException {
+            if (positional) target.writeInt(5); else target.writeObject("sneaky");
+            arg.put("n", r.n);
+            arg.writeArgs();
+        }
+        final int n;
+        public Reentrant(int n) { this.n = n; }
+        public Reentrant(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException { this.n = arg.get("n", 0); }
+    }
+
+    @Test
+    void aWriteFromInsideSerializeIsRefusedAndKillsTheStream() throws Exception {
+        for (boolean streamFormat : new boolean[] {true, false}) {
+            for (boolean positional : new boolean[] {false, true}) {
+                DerObjectStreamCodec c = new DerObjectStreamCodec(streamFormat);
+                Reentrant.target = c;
+                Reentrant.positional = positional;
+                assertThrows(Exception.class, () -> c.writeObject(new Reentrant(1)),
+                        "streamFormat=" + streamFormat + " positional=" + positional);
+                assertThrows(IOException.class, () -> c.writeObject("after"));
+                assertThrows(IOException.class, () -> c.drainTo(new ByteArrayOutputStream()));
+            }
+        }
+        Reentrant.target = null;
+    }
+
+    @Test
+    void closeStillClosesTheUnderlyingStreamWhenTheFlushFails() throws Exception {
+        boolean[] closed = {false};
+        OutputStream sink = new OutputStream() {
+            @Override public void write(int b) throws IOException { throw new IOException("sink down"); }
+            @Override public void write(byte[] b, int o, int l) throws IOException { throw new IOException("sink down"); }
+            @Override public void close() { closed[0] = true; }
+        };
+        DerMarshalOutputStream dmos = new DerMarshalOutputStream(sink);
+        dmos.writeObject("x");
+        assertThrows(IOException.class, dmos::close);
+        assertTrue(closed[0], "a failed flush must not leave the underlying stream open");
     }
 
     @Test
