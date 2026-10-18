@@ -267,7 +267,50 @@ cost larger. Two shapes, to be decided in B2's design step:
 - **(ii) Admission at construction, unauthenticated-cost-bounded.** Only if (i) is rejected, and
   only with a measured bound showing the pre-authorization cost stays comparable to today's.
 
-Recommendation: (i). The response stream on the client has no authorization step and takes full
+**Board recommendation (all three seats, 2026-10-18): (i) two-stage admission**, refined as follows.
+Option (ii) loses because it adds, per unauthenticated request, SHA-256 over every chain, a dedup
+table up to `MAX_DEDUP_TABLE_BYTES` and a full walk — a cost multiplier a peer can drive without
+authenticating, and pre-authorization cost is the one thing this section must not grow.
+
+- **Cheap stage (at construction), and only this:** the version octet; each item's tag against the
+  allow-list; canonical length octets on each *item header* (`readTlvHeader` already rejects
+  indefinite and non-minimal lengths); every item fits the remaining buffer and the items exactly
+  cover it (no trailing bytes); per-item and total budgets; the item count; and **item 0 shape-pinned
+  to the scalar `long` the dispatcher reads as the method hash**, so the one pre-authorization read
+  can never touch a `[1]/[8]/[9]/[16]` item. **Not** in the cheap stage, although the earlier draft of
+  B.2.1 listed them: nesting-depth bounds, collection-size bounds and canonical length forms *inside*
+  payloads — these need schema and table state (payloads are OCTET STRINGs whose inner structure is
+  driven by `wireType()`, and `chainRef` records come from the table) and belong to full admission.
+- **API.** The state lives in `DerMarshalInputStream` (it owns the buffer and the table), exposed
+  as an explicit, idempotent `admit()`; to let the dispatcher call it without depending on
+  jgdms-der, add `default void admitStream() throws IOException {}` to `AtomicObjectInput` in
+  jgdms-platform (the dispatcher already casts to that interface for `endDecodeUnit`). The
+  dispatcher calls it between `checkAccess` and `unmarshalArguments`, inside the existing `try`.
+  A failed `admit()` poisons the stream so later reads rethrow. A rejected stream's decode unit is
+  empty, so no DGC callback fires (and see the abort fix for streams that fail later).
+- **ONE POINT THE SEATS DISAGREE ON — maintainer decision.** What a record-bearing read does
+  *before* `admit()` has been called. *Fail-closed (security seat):* it throws. This closes a real
+  trap: `unmarshalMethod` is `protected` and overridable, so a subclass that reads an object there
+  would otherwise pull a dedup record pre-authorization with no error. *Lazy full admission
+  (transport seat):* the first record-bearing `readObject` runs full admission itself — compatible
+  with custom dispatchers and the existing tests, but a subclass that reads early silently pays
+  full-admission CPU before authorization. Primitive reads (the method hash) stay cheap in both.
+  Recommendation: fail-closed for streams created for a dispatcher (a loud error for the rare
+  subclass that overrides `dispatch`), lazy/at-construction for everything else.
+- **ACC stream.** `DerReducingContextCodec` decodes its block in full before authorization anyway,
+  so deferral buys nothing: call `admit()` right after construction, and give that stream its own,
+  smaller `DerInputLimits` (it currently inherits the dispatcher's) — it is authorization input,
+  not argument payload.
+- **Client response stream** (no authorization step): full admission at construction, via a flag
+  from `AtomicDerInvocationHandler.createMarshalInputStream`; a failure surfaces as
+  `UnmarshalException` with no retry (delivery status is already "maybe processed").
+- **Compatibility.** Overrides of `unmarshalMethod`/`unmarshalArguments`/`checkAccess` are
+  unaffected (the call lives in `dispatch`); a non-DER stream gets the no-op default. Tests to
+  update: `DerObjectStreamTest`, `DerStreamSchemaDedupTest`, `AdversarialDecodeProbeTest`, the
+  `StreamSchemaDedup*` ceiling tests, the showcase `HostileInputStopsPolitelyTest`; add one JERI
+  test that an unauthorized request triggers no dedup walk.
+
+The response stream on the client has no authorization step and takes full
 admission at construction. B4 must report phase-1 cost for both stages, and the "synthetic
 8-item request" must include an authorization-context stream.
 
@@ -276,7 +319,7 @@ admission at construction. B4 must report phase-1 cost for both stages, and the 
 - **Phase 1 — admission (no object construction, no class loading, no constructor, no
   `check(GetArg)`, no DGC registration, no `ResolutionContext` use).** Walk the whole buffered
   stream and apply every wire-level check the decoder would apply: item framing and the version
-  octet; canonical DER length forms; the stream-level dedup resolution of every item in wire
+  octet; item header length forms; the stream-level dedup resolution of every item in wire
   order against a *scratch* table (unknown digest, duplicate `fullChain`, malformed arm, chain
   and table ceilings, and the per-item and cumulative reconstitution ceilings metered at the same
   points as today, before the amplifying step); nesting-depth and collection-size bounds; item
@@ -469,7 +512,11 @@ removing it.
 5. **B.2.2:** keep a plan (bounded) vs re-run the delivery walker on a fresh table; decided by B4.
 6. **B.2.1:** whether the `[8]`/`[16]` verify-only descent is in B2 or deferred to B3.
 7. **B.2.3:** fix the DGC-flush-on-failure behaviour as a standalone change (recommended).
-8. **B.2.7:** release-note wording for streams now rejected up front.
+8. **B.2.7:** release-note wording for streams now rejected up front; and B0 must first pin
+   whether any handler or peer legitimately leaves trailing optional items unread, before that
+   becomes a reject (board: strongest argument against rejecting trailing items).
+9. **B.2.0:** fail-closed vs lazy behaviour of a record-bearing read before `admit()`.
+10. **Lenient UTF-8 (separate change, see below):** board recommends strict both directions.
 
 # Agent brief (paste-ready)
 
@@ -486,6 +533,41 @@ removing it.
 > `GetArg`, `ResolutionContext`, `DerInputLimits` ceilings (except B1, which only changes *when*
 > the existing ceiling fires), or any spec document. Report: what changed, the test run, and (for
 > A5/B4) the measured numbers, including allocation per op.
+
+
+# Companion change: strict UTF-8 (board recommendation, 2026-10-18; not part of Part A or B)
+
+All three seats recommend, unanimously: **reject invalid UTF-8 on decode and unpaired surrogates on
+encode, centrally, by default, with no compatibility flag, in the same release.**
+
+- **Why.** `new String(bytes, UTF_8)` never throws; it substitutes U+FFFD, so many byte strings
+  decode to one value (a G1 break) and the `catch` in `DerReader.readUtf8String` can never run.
+  Lenient sites (CONFIRMED): `DerReader:320`, `AtomicSerialFieldDef:121,130`,
+  `AtomicSerialSchemaRecord:292`, `DerObjectStreamCodec:1113,1485`. On encode, `getBytes(UTF_8)`
+  maps an unpaired surrogate to `?`, so `"a\uD800"` and `"a?"` encode to identical bytes and the
+  value silently mutates in transit — DER byte-equality no longer mirrors `.equals`.
+- **Exploitability today is LOW,** not zero: schema chains are already fixed; class/enum/interface
+  names containing U+FFFD never resolve, and B5 policy and the loader consume the same decoded
+  String, so no allow-list bypass; the residual is Entry matching (stored `FF` and template
+  `EF BF BD` decode to equal Strings but never match bytewise) and the encode-side `?` collision.
+- **Fix.** One shared helper used by all six decode sites: decode with `new String` (keeps the
+  intrinsic fast path) and only if the result contains U+FFFD re-check with a `CharsetDecoder` set
+  to REPORT (a result without U+FFFD proves well-formed input); `DerWriter.writeUtf8String` rejects
+  lone surrogates (precedent: `CelEncoder.strictUtf8`). The same helper serves B3's UTF-8 check so
+  phase 1 and the decoder cannot drift.
+- **Spec (G8).** STD-006 never states well-formedness; STD-011 Appendix B §B.5 item 10 mandates
+  strict rejection and says STD-006 §4.2 "already requires" it, which is false. Add one normative
+  sentence to STD-006.
+- **Tests.** Reject `FF`, `C0 80`, `ED A0 80`, truncated `E2 82`, `F4 90 80 80`; accept U+FFFD,
+  a 4-byte character, U+10FFFF, U+0000; encode rejects a lone high surrogate, a lone low surrogate
+  and a reversed pair; mutation check (revert to lenient and every new test must fail); golden
+  corpus unaffected (ASCII).
+- **Rollout.** The Java encoder cannot emit invalid UTF-8, so newly rejected decode input comes
+  only from foreign or hostile peers; the version is 4.0.0-SNAPSHOT with no released compatibility
+  commitment. Release note; scan persisted stores (Outrigger) once.
+- **Strongest argument against (all seats note it):** Java serialization round-trips lone
+  surrogates, so classes migrating from Java serialization that carry such strings will now fail
+  loudly at encode instead of silently losing data. The seats still recommend doing it.
 
 ---
 Drafted with AI assistance (Claude) under the direction of the JGDMS maintainer; source facts
