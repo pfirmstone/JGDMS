@@ -637,13 +637,28 @@ reviewers found problems the section 7 text does not cover, and the trust story 
    silent-mismatch risk (the provider checks jar-level certificates with `containsAll`, the
    server's certificates are not the flattened chain `CodeSource.getCertificates()` yields).
    Consider building keys without signers or from the `JarFile` entries.
-5. **Server identity.** One reviewer reads `PreferredProxyCodebaseProvider.resolve` (line ~1719)
-   and `ProxySerializer` as taking `serverPrincipals` from the `ServerSubject` of the stream
-   that delivered the proxy, not from the bootstrap proxy's own connection, so a proxy handed out
-   by a lookup service would carry the lookup service's identity into grants and the isolation
-   pool key. **Disputed by the project lead:** the bootstrap proxy always talks to its own
-   server. Settle with a test: unmarshal service B's proxy from a lookup service with a
-   different SPIFFE ID and assert which principals are used.
+5. **Server identity — settled by test.** `PreferredProxyServerIdentityTest` drives the real
+   `resolve()`. `serverPrincipals` is the `ServerSubject` found in the **unmarshalling stream's
+   context** (`ProxySerializer` passes `arg.getObjectStreamContext()`); nothing is learned from the
+   bootstrap proxy's own connection. That context is filled by the transport that delivered the
+   bytes (`AtomicInvocationHandler.invokeRemoteMethod` calls `request.populateContext(context)` on
+   the response; `SslConnection` adds the delivering server's `ServerSubject`). Therefore:
+   - a proxy delivered **directly by its own service** gets that service's identity: correct;
+   - a bootstrap proxy for service B nested in a **response delivered by service A** (A returns a
+     reference to B) is attributed to A: two different servers' proxies in one stream share one
+     identity, one isolation pool key and one `BootstrapPermission` subject (test 1 and 3);
+   - a proxy taken from a **lookup result** is unmarshalled by `MarshalledWrapper.get()` with no
+     context (only an `IntegrityEnforcement`, `MarshalledInstance.get`), so it has **no identity**:
+     with isolation on `resolve` fails closed (test 2); with isolation off the
+     `serverPrincipals != null` gates (the `BootstrapPermission` and per-digest checks) are
+     skipped for it.
+   The project lead's statement (the bootstrap proxy always talks to its own server) is true of
+   the calls made through it, but the provider does not use those calls to establish identity.
+   The reviewers' relay finding is therefore **true for proxies nested in another service's
+   response**, and for lookup results the issue is the absence of any identity. A fix must
+   derive the identity from the bootstrap proxy's own authenticated connection (for example the
+   `ServerSubject` of an authenticated call such as `getClassAnnotation()` made through the proxy
+   with its constraints), not from the delivering stream.
 
 ### 8.3 Decisions recorded
 
