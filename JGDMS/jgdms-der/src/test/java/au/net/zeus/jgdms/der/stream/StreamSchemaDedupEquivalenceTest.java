@@ -175,6 +175,13 @@ class StreamSchemaDedupEquivalenceTest {
         mixed.add(null);
         mixed.add(new ArrayList<>(List.of(new Foo(3, "c"), new Foo(1, "a"))));
         out.add(anyItem("any-list-mixed", listAny, mixed));
+        // [30]/[31] arms whose content lengths straddle the 127/128 and 255/256 length-octet boundaries
+        for (int len : new int[] {120, 126, 127, 128, 250, 255, 256, 300}) {
+            out.add(anyItem("any-list-len-" + len, listAny,
+                    new ArrayList<Object>(List.of("x".repeat(len), new Foo(len, "f")))));
+            out.add(anyItem("any-set-len-" + len, setAny,
+                    new java.util.LinkedHashSet<Object>(List.of(new byte[len], new Foo(len, "g")))));
+        }
         Map<Object, Object> m = new LinkedHashMap<>();
         m.put("k1", new Foo(1, "a"));
         m.put("k2", new Foo(1, "a"));
@@ -761,6 +768,46 @@ class StreamSchemaDedupEquivalenceTest {
                 assertNotNull(migErr, "refs=" + refs + " must breach the 2 MiB ceiling");
                 assertTrue(migErr.contains("maxReconstitutedBytes"), migErr);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ edge cases from the security review
+
+    /** A zero-length payload and an empty hierarchy: both walkers must agree in both directions. */
+    @Test
+    void zeroLengthPayloadGetsTheSameVerdict() throws Exception {
+        Item zero = items().stream().filter(x -> x.name.equals("zero-field-record")).findFirst().orElseThrow();
+        SchemaChain.Result chain = SchemaGenerator.generateChain(zero.cls);
+        for (byte[] payload : new byte[][] {new byte[0], DerWriter.writeSequence(List.of()),
+                DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of())))}) {
+            Item it = new Item("zero-payload", false, MarshalledInstanceRecord.fromChain(chain, payload).encode(), zero.cls);
+            Outcome re = encodeOne(reference(true), it, it.canonical), me = encodeOne(migrated(true), it, it.canonical);
+            assertSame(re, me, "zero payload [encode] " + hex(payload, 20));
+            if (re.error == null) {
+                assertSame(decodeOne(reference(false), it, re.bytes), decodeOne(migrated(false), it, re.bytes),
+                        "zero payload [decode] " + hex(payload, 20));
+            }
+        }
+    }
+
+    /**
+     * The encode table must not alias the caller's input: a repeat chain site is looked up through a window onto the
+     * input, but a first occurrence is COPIED. Mutating the first input after the call must not change what the second
+     * occurrence encodes to.
+     */
+    @Test
+    void mutatingTheInputAfterEncodingDoesNotChangeLaterOutput() throws Exception {
+        for (Item it : items()) {
+            if (it.array) continue;
+            StreamSchemaDedup w = new StreamSchemaDedup(true);
+            byte[] first = it.canonical.clone();
+            byte[] out1 = w.dedupTopLevelAtomic(first, it.cls);
+            Arrays.fill(first, (byte) 0x5A);                    // scribble over the input the table might alias
+            byte[] out2 = w.dedupTopLevelAtomic(it.canonical.clone(), it.cls);
+            StreamSchemaDedupReference r = new StreamSchemaDedupReference(true);
+            r.dedupTopLevelAtomic(it.canonical.clone(), it.cls);
+            assertArrayEquals(r.dedupTopLevelAtomic(it.canonical.clone(), it.cls), out2, it.name);
+            assertNotNull(out1);
         }
     }
 

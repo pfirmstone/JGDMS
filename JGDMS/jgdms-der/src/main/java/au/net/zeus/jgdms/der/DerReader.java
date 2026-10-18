@@ -535,7 +535,7 @@ public final class DerReader {
      * @throws DerException if fewer than {@code needed} bytes remain
      */
     private void requireBytes(int needed) throws DerException {
-        if (pos + needed > end) {
+        if ((long) pos + needed > end) {
             throw new DerException("Unexpected end of DER input: need "
                     + needed + " byte(s) at pos=" + pos + ", end=" + end);
         }

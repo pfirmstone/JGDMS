@@ -206,7 +206,7 @@ append occurs (the encoder's size does not grow past the ceiling).
 | **A0** · Oracle extension | Extend `DerGoldenBytesTest` **before** A1, fixtures generated from HEAD (and cross-checked against trunk `9adc8e6e3` where the code path is unchanged, as in the previous SOW's T3 stage 0). Add: depth-`MAX_NESTING−1` chain; a 65 536-element `Rec` list (exactly `maxCollection`, length-octet boundary 3; DONE in A0, together with encoder rejection of 65 537+ elements, which the encoder previously emitted although every decoder rejects it); constructs of content length exactly 127/128/255/256/65535/65536 **inside** the stream, nested inside constructs that also straddle a boundary; a set with duplicate encodings; **map entries whose key order differs from whole-entry order**; **a sorted set inside a sorted-set element and inside a map key/value**; empty string, empty `byte[]`, a zero-field record (`30 00`), an empty collection, a `bag:` with duplicates; top-level `[16]`, `[7]`, scalar and null items; a mixed-class stream where a top-level chain is later referenced from a nested site; a 16 MiB−1-byte blob. Add a `DerEncoder`-vs-`DerWriterReference` property test scaffold (random nested trees incl. sorted sets and maps) that A1 fills in. **Mutation check required:** deliberately break the map sort, the set sort and a length boundary and show each is caught. | general-purpose · MEDIUM | sonnet | single reviewer (fixtures from clean HEAD) | — |
 | **A1** · `DerEncoder` + sorted-set support — **DONE 2026-10-18, see A1 OUTCOME in A.1.1** | The class per A.1.1/A.1.3/A.1.4; façade `DerWriter` unchanged. Implement **both** (b) two-pass and (c) reserve-and-compact variants of A.1.1 behind the same API, property-test both against `DerWriterReference` (random nested trees, all tag forms, all length boundaries 127/128/255/256/65535/65536 including nested straddles, sorted sets, maps, nested sorted sets), microbenchmark both on a 64 KiB / 7-level payload and on `batch100`, keep the faster and delete the other. | general-purpose · HIGH | sonnet | single reviewer + property test + `ConformanceVectorsTest` | A0 |
 | **A2** · Migrate the object encoders — **DONE 2026-10-18, see A2 OUTCOME below the table** | **Callee-first**, so no interim adapter adds copies: `AtomicSerialFieldDef`, `AtomicSerialSchemaRecord`, `MarshalledInstanceRecord`, `DerFieldStore`, `AnyCodec`, then `ObjectCodec`; and `EntryRepV2Codec` (12 sites — Entry byte-matching is a canonicity-critical path with its own tests, which must run per commit). Bracket children instead of building lists. One file per commit, each passing the full oracle. | general-purpose · HIGH | sonnet | single reviewer + full golden corpus per commit | A1 |
-| **A3** · Migrate the dedup walker (both directions) | Per A.1.5/A.1.6: offset-based reads, single output encoder, `appendRaw` for untouched sub-TLVs, ceilings metered before append. Keep the old byte[]-in/byte[]-out methods as thin wrappers (the ceiling/bomb/cumulative tests call them). Add an equivalence test: for the whole corpus, new walker output ≡ old walker output (old kept in the test tree) in both directions. | general-purpose · XHIGH (the dedup layer is the security spine) | top-tier | security-literate reviewer + `DerStreamSchemaDedupTest` + every `StreamSchemaDedup*` test + golden corpus + adversarial rejects re-run (G13) | A2 |
+| **A3** · Migrate the dedup walker (both directions) — **DONE 2026-10-18, see A3 OUTCOME below the table** | Per A.1.5/A.1.6: offset-based reads, single output encoder, `appendRaw` for untouched sub-TLVs, ceilings metered before append. Keep the old byte[]-in/byte[]-out methods as thin wrappers (the ceiling/bomb/cumulative tests call them). Add an equivalence test: for the whole corpus, new walker output ≡ old walker output (old kept in the test tree) in both directions. | general-purpose · XHIGH (the dedup layer is the security spine) | top-tier | security-literate reviewer + `DerStreamSchemaDedupTest` + every `StreamSchemaDedup*` test + golden corpus + adversarial rejects re-run (G13) | A2 |
 | **A4** · Migrate the stream codec | **First**, time the drain and the read phases separately on the JERI loopback benchmark and report whether `drainTo`/input buffering is a material part of a call (RESULTS.md hypothesises the unexplained ~2.4 ms of a `batch100` call; if codec time cannot appear in a JERI call, stop and report). Then: `DerObjectStreamCodec` writes items into one encoder instead of `writeBuffer` of arrays; `drainTo` streams from it. Item framing, version octet, `[8]`/`[9]`/`[16]` branches unchanged. | general-purpose · HIGH | sonnet | single reviewer + golden corpus | A3 |
 | **A5** · Measurement + closeout | Re-run the harness on the same machine/JDK as `results-after.json`; add a dated third section to `RESULTS.md` with the before/after pair and ratios; re-profile and list the new top-5 self-time frames; update both SOWs' status. Report medians as well as means for any row whose error interval exceeds its score. Report allocation per op (`-prof gc`) for `blob64k` and `batch100`, since reducing garbage is a stated goal. | general-purpose · MEDIUM | sonnet | single reviewer | A2–A4 |
 
@@ -239,6 +239,46 @@ boundary until A3 (the dedup walker consumes bytes).
   `blob64k` 118.8 us vs 189.6 us (0.63x); against the ORIGINAL baseline 0.38x / 0.35x / 0.43x. The `point` row is excluded: it was
   already noise in the earlier run (its "before" 2.64 us is below its "after" 5.40 us). One run, container not workstation, run-to-run
   drift here was about 12%, so only `batch100` and `blob64k` clear it. Unmarshal was not touched by A2. **Re-run on the workstation before quoting.**
+
+**A3 OUTCOME (2026-10-18).** `StreamSchemaDedup` now reads one input buffer by offset (no slice copy per child, no list-and-join
+per level) and writes one `DerEncoder`; a repeat chain site is recognised through a `ByteBuffer.wrap(in, off, len)` window
+and only a first occurrence is copied (into the table). The `byte[]` entry points remain as wrappers; `dedupTopLevelAtomicTo`,
+`reconstituteTopLevelAtomicTo`, `dedupTopLevelArrayTo`, `reconstituteTopLevelArrayTo` append to a caller's encoder (for A4).
+`DerReader` gained a public window constructor, `skipTlv()`, `skip(int)`, `readOctetStringHeader()`, and `Tag.decode(buf, off, limit)`
+so a reader over a window of a shared buffer cannot decode a tag into a following element (commits `0d406f603`, `4e753da84`).
+Order of decisions is preserved: in a P1 record the chain field physically follows the payload, so the fields are located first,
+the chain site processed (pre-order, C.6.2), the trailing-field checks run, and only then is anything emitted.
+
+- **Oracle.** The pre-A3 walker is frozen in the test tree (`StreamSchemaDedupReference`, delete only together with its test) and
+  run against the new one in `StreamSchemaDedupEquivalenceTest`: same output bytes, verified chain and table/ceiling counters on the
+  whole golden corpus plus `any`-typed arms (including content lengths 120-300 around the 127/128 and 255/256 boundaries) and a
+  two-level hierarchy with sites at both levels; same verdict on structure-aware and byte-level mutations (about 11 000 accepted and
+  187 distinct reject messages reached; messages equal after normalising digits, because a reader's positions are now offsets into the
+  shared buffer); same verdict across the `MAX_NESTING` boundary by splicing a nested site into the innermost null; same verdict and exact
+  counts on the `chainRef` fan-out bomb. Mutation check: ten mutants of the new walker (depth guard, reconstitution metering, trailing-field
+  check, NULL validation, duplicate `fullChain`, `[8]` descent, meter/append order, sorted rebuild, hierarchy order) are killed.
+- **Board review** (Opus DER seat, Fable security seat, read-only): no accept/reject or byte regression found. Opus confirmed every
+  re-emitted length and tag is identical and that `SET OF` order is not touched. Fable confirmed meter-before-append (`appendChain` follows
+  `decodeSite`'s metering in both callers), no read or emit across a window boundary, and no aliasing of the input into the encode table.
+  Corrections to claims made earlier: **"every reject message is unchanged" is false** for one case (a truncated high-tag-number form at a
+  window end now fails inside `Tag.decode` with "truncated high-tag-number form" instead of in `decodeLength` with "Unexpected end of DER
+  input"; same verdict, different text). `DerReader.requireBytes` now compares in `long` (hygiene; callers already pass validated lengths).
+- **Not done / for later (PLAUSIBLE, not run):** (1) **A4 trap, must be designed in:** when A4 shares one encoder across the items of a stream,
+  a failed item leaves open frames AND the encode table has already recorded its chains as emitted (table-before-emit is pre-existing), so a later
+  item would carry a `chainRef` to a chain never sent. The receiver rejects it, so it fails closed but corrupts the stream; A4 needs an explicit
+  poison latch on the codec after any encode failure, or mark/rollback of both the encoder and the table. `DerObjectStreamCodec` does not poison
+  after an `IOException` today. (2) Peak memory is not "ceiling + O(input)": `CompactDerEncoder` reserves tag + 5 octets and ~28 bytes of frame
+  arrays per construct, so nested-collection input made of 2-byte empty children is about 17x input (about 300 MB for a 16 MiB input); the old
+  walker was of similar order. The B5 construct-count budget should count frames, not bytes. (3) `ensure()` at 2^31 throws `IllegalStateException`,
+  which `readObject` does not catch (needs an operator-raised `maxInputBytes`; pre-existing shape). (4) `DerReader.slice` bounds only the upper end
+  (unused by the walker).
+- **Measured** (`CodecBenchmark`, DER, same container and JDK as `results-after.json`, JMH 2 forks x 5, file
+  `results-a3-marshal-unmarshal.json`; ratios of means): marshal `record` 1.79 us vs 1.76 after the T-series (1.02x, and vs 1.55 after A2, within the ~12%
+  drift seen here), `batch100` 124.8 vs 224.0 us (0.56x), `blob64k` 127.5 vs 189.6 us (0.67x); unmarshal `record` 8.99 vs 14.06 us (0.64x), `batch100` 688.9 vs
+  1498.9 us (0.46x), `blob64k` 148.3 vs 200.9 us (0.74x). Against the ORIGINAL baseline: marshal 0.44x/0.27x/0.46x, unmarshal 0.44x/0.42x/0.76x. The `point`
+  rows are excluded (noise in the earlier run). Micro-benchmark of the walker alone (`StreamSchemaDedupMicroBench`, one fresh instance per op, old to new): `bench-batch100`
+  encode 72 to 44 us and 326 to 79 KB per op, decode 68 to 39 us and 348 to 133 KB; `deep-chain-max-nesting` encode 12.8 to 4.8 us and 66 to 10 KB; a small flat record is
+  1253 to 781 ns encode but allocates about 35% MORE (a fresh encoder per call: its initial arrays), which A4's shared encoder removes. Container, one run: re-run on the workstation before quoting.
 
 **Sequencing:** A0 → A1 → A2 → A3 → A4 → A5. A2 may be split across several commits; A3 is last
 among the encoders because it is the security-sensitive one and benefits from A2's encoder
