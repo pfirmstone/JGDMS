@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 /**
  * Denial-of-service limits for the DER read path. The DER input streams read their input
@@ -115,14 +116,33 @@ public final class DerInputLimits {
             // Cap effectively disabled (deliberate operator override); avoid max+1 overflow.
             return in.readAllBytes();
         }
-        // readNBytes allocates incrementally up to (max + 1), so a huge stream costs at most ~max+1,
-        // and reading one byte past the limit lets us detect (and reject) oversize input.
-        byte[] data = in.readNBytes(max + 1);
-        if (data.length > max) {
+        // Read to EOF into a buffer that starts small (the stream's own available() hint, floor 256)
+        // and doubles up to max + 1. Reading one byte past the limit lets us detect and reject
+        // oversize input, and a huge stream still costs at most ~(max + 1) bytes. The initial size
+        // is only a hint: it is capped at max + 1 and the buffer never exceeds that bound.
+        final long limit = (long) max + 1;
+        int available = 0;
+        try {
+            available = Math.max(0, in.available());
+        } catch (IOException ignore) {
+            // a hint only; fall back to the floor
+        }
+        byte[] buf = new byte[(int) Math.min(limit, Math.max(256, available))];
+        int n = 0;
+        while (true) {
+            if (n == buf.length) {
+                if (n == limit) break;                       // read max + 1 bytes: oversize
+                buf = Arrays.copyOf(buf, (int) Math.min(limit, 2L * n));
+            }
+            int r = in.read(buf, n, buf.length - n);
+            if (r < 0) break;                                // EOF
+            n += r;
+        }
+        if (n > max) {
             throw new IOException("DER input exceeds the maximum permitted size of " + max
                     + " bytes; refusing to buffer a larger stream");
         }
-        return data;
+        return n == buf.length ? buf : Arrays.copyOf(buf, n);
     }
 
     @Override
