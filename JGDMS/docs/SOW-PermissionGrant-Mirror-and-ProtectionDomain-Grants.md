@@ -1,6 +1,6 @@
 # SOW — Mirror `org.apache.river.api.security` from DirtyChai, then grant dynamic proxy permissions by ProtectionDomain
 
-**Status:** scope only. Nothing here has been implemented. Written 2026-10-18
+**Status:** JGDMS side implemented 2026-10-18 (see section 6). Scope written 2026-10-18
 with AI assistance (Claude), from reading the JGDMS and DirtyChai trees as they
 stood that day. Line numbers are approximate and must be re-checked.
 
@@ -202,3 +202,59 @@ JDK.
    `getGrants`. T5 and T6.
 4. Run the full QA suite on DirtyChai and on a stock JDK (T7), then update
    `JGDMS_COMPATIBILITY.md` and the release notes (B.4).
+
+## 6. Implementation status (JGDMS, 2026-10-18)
+
+Implemented with AI assistance (Claude) on branch
+`claude/sow-permissiongrant-domain-grants`.
+
+**Part A (JGDMS)**
+- `CertificateGrant.impliesSigners` added; `URIGrant` and `DigestGrant` use it.
+  Unsigned code no longer throws `NullPointerException`; `codeBase` + `signedBy`
+  and `digest` + `signedBy` enforce the signer. `URIGrant.implies(ClassLoader)`
+  is false whenever signers are required.
+- `URIGrant` fails closed on an unparseable URI (`SecurityException`, as
+  DirtyChai does). Skipping it would have widened the grant, to every code
+  source if it was the only one.
+- `DigestGrant` already ignored the location; javadoc corrected.
+- Not mirrored, as the SOW directs: `PermissionGrantBuilder` constructor
+  visibility, `initSocketPermission`, `UnresolvedPrincipal.WILDCARD`.
+
+**Part B (JGDMS)**
+- New `CodebaseDomainGrant` (package-private) and
+  `PermissionGrantBuilder.CODEBASE_DOMAIN = 7`; `CLASSLOADER` and
+  `ClassLoaderGrant` are deprecated/documented, nothing creates one.
+- New package-private `CodeSourceKey` (Uri + signers + digest, reflective
+  digest access). `ProtectionDomainGrant.impliesCodeSource` uses it and fails
+  closed when identity cannot be established.
+- The builder collects the codebase from `URLClassLoader.getURLs()`; any other
+  loader gets the anchor-domain-only grant, logged at `CONFIG`.
+- `DynamicPolicyProvider.grant`, `Security.grantRetainedInconclusiveLoaderGrant`
+  use `CODEBASE_DOMAIN`; `DynamicPolicyProvider.getGrants` evaluates the class's
+  `ProtectionDomain` (carrying the supplied principals). `AggregatePolicyProvider`,
+  `LoaderSplitPolicyProvider` and `DebugDynamicPolicyProvider` pass the `Class`
+  through unchanged, so need no change.
+- `CodebaseDomainGrant.implies(ClassLoader, ...)` is false: a loader carries no
+  code identity.
+
+**Tests:** `GrantSignerTest` (T1, T2), `CodebaseDomainGrantTest` (T4, T5),
+`SecurityInconclusiveGrantLifecycleTest` (T6), and
+`PreferredClassLoaderCodebaseGrantTest` (T4 with a real `PreferredClassLoader`).
+The existing `org.apache.river.api.security`, `net.jini.security` and
+`api.net` unit tests pass unchanged (T7, unit level).
+
+**Not done / not verifiable here**
+- The QA harness (`qa/`) and a Maven build: the sandbox cannot resolve the
+  GitHub Packages `Pack200-ex-openjdk` dependency, so tests were compiled and
+  run with plain `javac`/JUnit.
+- T3 (parity run on DirtyChai with JGDMS on the class path) needs a DirtyChai
+  build.
+- `check-api-compat.sh` needs built jars; the change is additive (one new
+  constant, one deprecation, new package-private classes).
+
+**Release notes (B.4)**
+- Dynamic grants to a proxy no longer apply to domains the proxy's loader
+  defines from a source outside its codebase.
+- `Security.grant(fromClass, toClass)` now propagates permissions that came from
+  `signedBy` and `digest` grants.
+- An unparseable `codeBase` URI in a grant now raises `SecurityException`.

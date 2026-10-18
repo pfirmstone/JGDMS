@@ -132,11 +132,13 @@ class DigestGrant extends URIGrant {
      * Core implication logic.
      *
      * <ol>
-     * <li>Delegates to super for principal and URI checks.
+     * <li>Principal check only.  The location is ignored, a URL is not
+     *     identity.
      * <li>{@code codeSource} must be a {@code DigestCodeSource} — plain
      *     {@link CodeSource} instances are never implied, even with the same URL.
      * <li>Algorithm names must match (case-sensitive).
      * <li>Digest bytes must be equal ({@link Arrays#equals}).
+     * <li>Any signers required by this grant must be present.
      * </ol>
      */
     @Override
@@ -144,6 +146,7 @@ class DigestGrant extends URIGrant {
         if (!implies(p)) return false; // Ignore URL, it doesn't define identity.
         if (DIGEST_CODE_SOURCE_CLASS == null) return false;
         if (!DIGEST_CODE_SOURCE_CLASS.isInstance(codeSource)) return false;
+        if (!impliesSigners(codeSource)) return false;
         try {
             String alg = (String) GET_DIGEST_ALGORITHM.invoke(codeSource);
             byte[] dig = (byte[]) GET_DIGEST_BYTES.invoke(codeSource);

@@ -29,7 +29,15 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.river.api.net.Uri;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all
@@ -48,6 +56,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     // Static fields
     private static final long serialVersionUID = 1L;
     private static final PermissionGrant nullGrant = new NullPermissionGrant();
+    private static final Logger LOGGER = Logger.getLogger(PermissionGrantBuilderImp.class.getName());
     
    
     /*@serial */
@@ -99,8 +108,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         if (context < 0) {
             throw new IllegalStateException("context must be >= 0");
         }
-        if (context > 6) {
-            throw new IllegalStateException("context must be <= 6");
+        if (context > 7) {
+            throw new IllegalStateException("context must be <= 7");
         }
         this.context = context;
         return this;
@@ -167,6 +176,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 // Don't return principal grant if domain null, dynamic grant's
                 // are treated special.
                 return new ClassLoaderGrant(domain, principals, permissions );
+            case CODEBASE_DOMAIN: //Dynamic grant
+                return buildCodebaseDomainGrant();
             case URI:
                 if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
                 if (uri == null ) uri = new String[0];
@@ -187,6 +198,38 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         }
     }
     
+    /**
+     * The codebase is the locations of the ClassLoader of the anchor domain,
+     * the ClassLoader is the record of what was verified.  Any other kind of
+     * ClassLoader, or one without a ClassLoader, results in the strictest 
+     * grant, to the anchor ProtectionDomain only.
+     */
+    private PermissionGrant buildCodebaseDomainGrant() {
+        ProtectionDomain pd = domain != null ? domain.get() : null;
+        // Without a domain the grant applies to all domains, dynamic grants 
+        // are treated special.
+        if (domain == null) return new ProtectionDomainGrant(null, principals, permissions);
+        Set<Uri> codebase = new HashSet<Uri>();
+        ClassLoader loader = pd != null ? pd.getClassLoader() : null;
+        if (loader instanceof URLClassLoader) {
+            for (URL url : ((URLClassLoader) loader).getURLs()) {
+                try {
+                    // Not URL.equals, it can cause DNS lookups.
+                    codebase.add(Uri.urlToUri(url));
+                } catch (URISyntaxException ex) {
+                    // Fail closed, domains at this location are not implied.
+                    LOGGER.log(Level.FINE, "Unable to convert codebase URL", ex);
+                }
+            }
+        } else if (pd != null) {
+            LOGGER.log(Level.CONFIG, 
+                "ClassLoader {0} is not a URLClassLoader, dynamic grant is "
+                + "limited to the ProtectionDomain of the granted class",
+                loader);
+        }
+        return new CodebaseDomainGrant(domain, codebase, principals, permissions);
+    }
+
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
@@ -208,7 +251,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     // readResolve method returns a PermissionGrant instance.
     private Object readResolve(){
         // Don't deserialize specific grant's, they will grant to any domain.
-        if (context == CLASSLOADER || context == PROTECTIONDOMAIN){
+        if (context == CLASSLOADER || context == PROTECTIONDOMAIN 
+                || context == CODEBASE_DOMAIN){
             if (hasDomain) return nullGrant;
         }
         // It's ok to return domainless dynamic grants.

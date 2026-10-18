@@ -1460,7 +1460,7 @@ public final class Security {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(safePrincipals)
            .permissions(permissions)
-           .context(PermissionGrantBuilder.CLASSLOADER);
+           .context(PermissionGrantBuilder.CODEBASE_DOMAIN);
         AccessController.doPrivileged(
             new PrivilegedAction<Void>() {
                 @Override

@@ -50,7 +50,14 @@ public abstract class PermissionGrantBuilder {
     /**
      * The PermissionGrant generated will apply to all classes loaded by
      * the ClassLoader
+     * 
+     * @deprecated A grant to a ClassLoader as a whole applies to every
+     * ProtectionDomain the ClassLoader defines, whatever its CodeSource, 
+     * including those outside the codebase that was verified.  Use
+     * {@link #CODEBASE_DOMAIN} for dynamic grants.  Retained for 
+     * deserialising old builders and for explicit callers.
      */ 
+    @Deprecated
     public static final int CLASSLOADER = 0;
   
     /**
@@ -189,6 +196,14 @@ public abstract class PermissionGrantBuilder {
      * plain {@link CodeSource} is not implied.
      */
     public static final int DIGEST = 6;
+    
+    /**
+     * Context for a dynamic grant to each ProtectionDomain of the verified
+     * codebase of the ClassLoader of the class passed to {@link #clazz(Class)}.
+     * See {@code CodebaseDomainGrant}.  Replaces {@link #CLASSLOADER} for 
+     * dynamic grants.
+     */
+    public static final int CODEBASE_DOMAIN = 7;
     
     public static PermissionGrantBuilder newBuilder(){
         return new PermissionGrantBuilderImp();

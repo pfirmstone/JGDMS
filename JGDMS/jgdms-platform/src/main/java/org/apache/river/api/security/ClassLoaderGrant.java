@@ -26,7 +26,14 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 
 /**
- *
+ * A dynamic grant to every ProtectionDomain defined by a ClassLoader.
+ * <p>
+ * Deprecated: retained for compatibility, deserialising old builders and 
+ * explicit callers of {@link PermissionGrantBuilder#CLASSLOADER}.  Nothing in
+ * JGDMS creates one, dynamic grants to a proxy are made with
+ * {@link PermissionGrantBuilder#CODEBASE_DOMAIN}, which is limited to the
+ * ProtectionDomains of the verified codebase.
+ * 
  * @author Peter Firmstone
  * @since 3.0.0
  */

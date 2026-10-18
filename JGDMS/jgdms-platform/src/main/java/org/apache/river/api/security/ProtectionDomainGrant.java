@@ -21,15 +21,10 @@ package org.apache.river.api.security;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.lang.ref.WeakReference;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
-import java.util.Arrays;
 
 /**
  * ProtectionDomainGrant's become void if serialized, since ProtectionDomain's
@@ -143,7 +138,11 @@ class ProtectionDomainGrant extends PrincipalGrant {
     }
     // This is here for revoke and for new ProtectionDomain's created by the
     // DomainCombiner such as those in the SubjectDomainCombiner.
-    private boolean impliesCodeSource(CodeSource codeSource) {
+    /**
+     * Compares CodeSource identity: location Uri, signers and digest.
+     * Fails closed if either identity cannot be established.
+     */
+    boolean impliesCodeSource(CodeSource codeSource) {
         ProtectionDomain pd = domain != null ? domain.get(): null;
         if (pd == null) return false; // is void - why did I have true?
         // The CodeSource is not normalized, if the PD was created by a domain
@@ -151,26 +150,13 @@ class ProtectionDomainGrant extends PrincipalGrant {
         CodeSource cs = pd.getCodeSource(); // Don't normalise CodeSource.
         if (cs == codeSource) return true; // same reference.
         if (cs == null && codeSource == null) return true; // if both null, when pd exists.
-        if (cs == null) return false; // Null cs indicates system domain, does not imply.
+        if (cs == null || codeSource == null) return false; // Null cs indicates system domain, does not imply.
         // Most won't get to here, since domain combiners shouldn't duplicate CodeSource.
         // But just in case...
-        // Don't use CodeSource.equals() because that causes DNS Lookup.
-        Certificate[] myCerts = cs.getCertificates();
-        Certificate[] hisCerts = codeSource.getCertificates();
-        if ( myCerts != null && !Arrays.equals(myCerts, hisCerts)) return false;
-        try {
-            URI myLocation = cs.getLocation().toURI();
-            URI hisLocation = codeSource.getLocation().toURI();
-            if (myLocation.equals(hisLocation)) return true;
-        } catch (URISyntaxException ex) {
-            // We only compare URL if we can't compare URI
-            URL myLocation = cs.getLocation();
-            URL hisLocation = codeSource.getLocation();
-            // Only use string representation to compare, DNS cache poisioning
-            // presents a security risk, so URL.equals isn't used.
-            if (myLocation.toExternalForm().equals(hisLocation.toExternalForm())) return true;
-        }
-        return false;
+        // Don't use CodeSource.equals() or URL.equals() because that causes DNS Lookup.
+        CodeSourceKey mine = CodeSourceKey.of(cs);
+        if (mine == null) return false;
+        return mine.equals(CodeSourceKey.of(codeSource));
     }
     
     @Override

@@ -1,0 +1,178 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.river.api.security;
+
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.lang.ref.WeakReference;
+import java.security.CodeSource;
+import java.security.Permission;
+import java.security.Principal;
+import java.security.ProtectionDomain;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import org.apache.river.api.net.Uri;
+
+/**
+ * A dynamic grant to each {@link ProtectionDomain} of a verified codebase.
+ * <p>
+ * A ProtectionDomain {@code pd} is implied if and only if:
+ * <ol>
+ * <li>{@code pd.getClassLoader()} is the ClassLoader of the grant's anchor
+ *     ProtectionDomain (the domain of the class passed to
+ *     {@link PermissionGrantBuilder#clazz(Class)});
+ * <li>{@code pd}'s CodeSource location is one of the codebase locations the
+ *     ClassLoader was created for, or {@code pd} is the anchor domain, or
+ *     a domain with the identity of the anchor domain, such as one created by 
+ *     a DomainCombiner;
+ * <li>the grant's principals are satisfied.
+ * </ol>
+ * The first domain seen for each codebase location pins the identity of that 
+ * location: Uri, signers and digest.  A domain at the same location with a 
+ * different identity is not implied.
+ * <p>
+ * ProtectionDomain's are created lazily, upon the first class defined from 
+ * each jar, so domains are matched as they are checked, they are not listed
+ * when the grant is made.
+ * <p>
+ * If the codebase is empty, because the ClassLoader is not a URLClassLoader, 
+ * only the anchor domain is implied, in the same way as a 
+ * {@link ProtectionDomainGrant}.
+ * <p>
+ * Like all ProtectionDomain grants, this grant becomes void if serialized.
+ * 
+ * @since 4.0.0
+ */
+class CodebaseDomainGrant extends ProtectionDomainGrant {
+    private static final long serialVersionUID = 1L;
+    private final transient Set<Uri> codebase;
+    private final transient ConcurrentMap<Uri,CodeSourceKey> pinned;
+    private final int hashCode;
+
+    @SuppressWarnings("unchecked")
+    CodebaseDomainGrant(WeakReference<ProtectionDomain> domain, 
+            Set<Uri> codebase, Principal[] groups, Permission[] perm) {
+        super(domain, groups, perm);
+        if (domain == null) throw new NullPointerException("domain");
+        this.codebase = Collections.unmodifiableSet(codebase);
+        this.pinned = new ConcurrentHashMap<Uri,CodeSourceKey>(
+                Math.max(4, codebase.size() * 2));
+        ProtectionDomain anchor = domain.get();
+        if (anchor != null) {
+            // The anchor's identity is known at the time of the grant.
+            CodeSourceKey key = CodeSourceKey.of(anchor.getCodeSource());
+            if (key != null && this.codebase.contains(key.uri)) {
+                pinned.put(key.uri, key);
+            }
+        }
+        int hash = 5;
+        hash = 23 * hash + this.codebase.hashCode();
+        hash = 23 * hash + super.hashCode();
+        hashCode = hash;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null) return false;
+        if (o == this) return true;
+        if (o.hashCode() != this.hashCode) return false;
+        if (o.getClass() != this.getClass()) return false;
+        CodebaseDomainGrant c = (CodebaseDomainGrant) o;
+        return super.equals(o) && codebase.equals(c.codebase);
+    }
+
+    @Override
+    public int hashCode() {
+        return hashCode;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(500);
+        sb.append(super.toString()).append("\nCodebase grant: ");
+        if (codebase.isEmpty()) {
+            sb.append("anchor ProtectionDomain only");
+        } else {
+            for (Uri uri : codebase) {
+                sb.append("\n  codebase \"").append(uri).append("\"");
+            }
+        }
+        return sb.toString();
+    }
+
+    @Override
+    public boolean implies(ProtectionDomain pd) {
+        if (pd == null) return false;
+        return impliesDomain(pd) && implies(getPrincipals(pd));
+    }
+
+    /**
+     * A ClassLoader carries no CodeSource identity, so this grant is 
+     * indeterminate for a ClassLoader alone.
+     */
+    @Override
+    public boolean implies(ClassLoader cl, Principal[] pal) {
+        return false;
+    }
+
+    private boolean impliesDomain(ProtectionDomain pd) {
+        ProtectionDomain anchor = domain.get();
+        if (anchor == null) return false; // void.
+        if (pd == anchor) return true;
+        ClassLoader loader = anchor.getClassLoader();
+        if (loader == null || pd.getClassLoader() != loader) return false;
+        CodeSource cs = pd.getCodeSource();
+        CodeSourceKey key = CodeSourceKey.of(cs);
+        if (key == null) return false; // identity unknown, fail closed.
+        if (!codebase.contains(key.uri)) {
+            // Not in the codebase, only the anchor's identity, such as a
+            // domain created by a DomainCombiner, is implied.
+            return impliesCodeSource(cs);
+        }
+        CodeSourceKey existing = pinned.putIfAbsent(key.uri, key);
+        return existing == null || existing.equals(key);
+    }
+
+    @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+        if (!(grant instanceof CodebaseDomainGrant)) return false;
+        CodebaseDomainGrant other = (CodebaseDomainGrant) grant;
+        if (!super.impliesEquivalent(grant)) return false;
+        return codebase.equals(other.codebase);
+    }
+
+    @Override
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
+    }
+
+    //writeReplace method for serialization proxy pattern
+    private Object writeReplace() {
+        return getBuilderTemplate();
+    }
+
+    //readObject method for the serialization proxy pattern
+    private void readObject(ObjectInputStream stream)
+            throws InvalidObjectException {
+        throw new InvalidObjectException("PermissionGrantBuilder required");
+    }
+}

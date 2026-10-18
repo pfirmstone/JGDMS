@@ -119,11 +119,32 @@ class CertificateGrant extends PrincipalGrant {
     @Override
     public boolean implies(CodeSource codeSource, Principal[] p) {
         if ( !implies(p)) return false;
+        return impliesSigners(codeSource);
+    }
+
+    /**
+     * Returns true if this grant requires signers, so that it cannot be
+     * resolved from a ClassLoader alone.
+     */
+    final boolean requiresSigners() {
+        return !certs.isEmpty();
+    }
+
+    /**
+     * Signer check shared by the CodeSource based grants.  A null CodeSource
+     * is never implied, a grant that requires no signers implies any non null
+     * CodeSource, unsigned code never satisfies a grant that requires signers
+     * and otherwise every required signer must be present.
+     *
+     * @param codeSource
+     * @return true if codeSource satisfies this grant's signer requirement.
+     */
+    final boolean impliesSigners(CodeSource codeSource) {
         if ( codeSource == null ) return false;
-	if ( certs.isEmpty() ) return true;
-	Certificate[] signers = codeSource.getCertificates();
-	List<Certificate> certificates = Arrays.asList(signers);
-        return certificates.containsAll(certs);
+        if ( certs.isEmpty() ) return true;
+        Certificate[] signers = codeSource.getCertificates();
+        if ( signers == null || signers.length == 0 ) return false;
+        return Arrays.asList(signers).containsAll(certs);
     }
     
     @Override
