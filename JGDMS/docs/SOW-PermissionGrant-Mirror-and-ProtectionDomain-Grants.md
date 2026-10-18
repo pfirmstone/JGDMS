@@ -752,3 +752,9 @@ reviewers found problems the section 7 text does not cover, and the trust story 
   `suppressAccessChecks` holders only.
 - `PreferredClassLoader.addURL` is final and throws, so the "jar added later" test needs another
   loader (as `DigestDomainGrantTest` does).
+
+### 8.5 Investigated solutions
+
+`DESIGN-dynamic-grant-solutions-2026-10-18.md` records a sub-agent's investigation of the points
+above (P1–P7), with line-level evidence, proposed mechanisms, tests and an implementation order.
+Unreviewed; this SOW and the project lead's decisions govern where they differ.
