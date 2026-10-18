@@ -266,6 +266,50 @@ anything the golden/real corpora produce**, with each limit's default chosen fro
 and each reject a distinct, logged, test-pinned message. They are a separate task (B5), reviewed
 as a security change, and must not be folded into B2's "accept set unchanged" claim.
 
+### B.2.6 Hoisting the deserialization permission checks out of construction (B6; maintainer hypothesis, 2026-10-18)
+
+**Hypothesis:** whole-stream pre-admission could remove the need to check permissions *during*
+deserialization. **Finding: yes for the per-object checks, but not by replacing them with the
+B5 name policy.**
+
+Today `ObjectCodec` runs `DeSerializationPermission("ATOMIC")` at each `decodeHierarchy`
+(`checkAtomicDeSerializationPermitted`, two sites) and `DeSerializationPermission("PROXY")` at each
+`[8]` reconstruction (`checkProxyDeSerializationPermitted`, in `ObjectCodec.decodeProxy` and in
+`DerObjectStreamCodec`'s `[8]` path). Each builds an `AccessControlContext` from the
+`ProtectionDomain`s of the classes involved (`Class.getProtectionDomain()`: codebase and signers)
+and calls `SecurityManager.checkPermission` — **once per constructed object**, with a fresh
+`Security.create(...)` context each time, and only when a `SecurityManager` is installed.
+
+- **A name allow/deny list cannot replace these.** The grant is keyed on the `ProtectionDomain`
+  (where the class was loaded from, who signed it), not on its name; the same name can come from
+  different codebases with different grants. Name policy (B5) is an additional, coarser filter.
+- **What can be hoisted is the check itself, given the resolved classes.** A permission check
+  needs the `Class`, so it needs the class *loaded* (not initialised: `Class.forName(name, false,
+  loader)` semantics through the same `ResolutionContext`). Phase 1 could resolve each **distinct**
+  class named in the stream once (after B5's name policy and distinct-class cap have passed),
+  record the `Class` in the admission plan, run the ATOMIC/PROXY checks **once per distinct
+  hierarchy/interface set**, and reject the whole stream on the first denial. Phase 2 then
+  constructs from the plan's `Class` objects and does not re-check.
+- **The plan must be authoritative (G2, mechanism not claim).** Phase 2 must not re-resolve a name
+  (a second resolution could yield a different `Class` than the one checked: a check-then-use gap).
+  It uses the plan's `Class`, and the former per-object check is replaced by a cheap identity
+  assertion — "the class being constructed is in the admitted set" — that fails closed if it is
+  not. The permission semantics must be identical to today's for the same classes: same
+  permission, same domain set per hierarchy, same denial exception type.
+- **Cost and benefit.** Fewer checks (one per distinct class set, not per object — `batch100`
+  currently pays 100) and, more importantly, **whole-stream rejection on a permission denial
+  before any constructor runs**. Only relevant where a `SecurityManager` is installed (DirtyChai
+  deployments); with none, the checks are already no-ops.
+- **The price is a deliberate reversal of B2's rule.** Resolving classes in phase 1 can trigger
+  codebase downloads and class definition for a stream that is later rejected. It is bounded by
+  B5 running first (disallowed names are never resolved; distinct-class cap) and it is exactly the
+  loading that acceptance would do anyway, but it is a real side effect and a **board decision**.
+  B2 keeps "phase 1 loads no class"; only B6 relaxes it, explicitly.
+- **Not covered, and must stay at construction:** the declared-slot-type admission gate
+  (`admissibleConstructClass`), which needs the parent constructor's expected type; permission
+  checks for classes a constructor loads on its own and that are not named in the stream;
+  user-code checks in constructors and `check(GetArg)`.
+
 ### B.2.4 Class-free structural validation (optional extension, not in B2)
 
 `ObjectCodec` already has a class-free schema-driven field decode
@@ -284,6 +328,7 @@ equivalent to it (G8) rather than assumed.
 | **B2** · Two-phase admission | Per B.2.1/B.2.2: phase-1 verify-only pass over the whole buffered stream; phase-2 delivery from the admitted plan. Every B0 test flips to "rejects the stream, delivers nothing". Add: an adversarial test per reject class placed as the **last** item of a long stream (and as the first, and in the middle) asserting zero objects delivered and zero constructors run (a counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations of the golden streams). Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
 | **B3** · Class-free structural validation (optional) | Per B.2.4, only if the differential test shows a material class of malformed streams still reaching construction. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
 | **B5** · Whole-stream security policy checks | Per B.2.5: class-name policy (allow/deny lists, distinct-class cap), object-count / element-count / depth budgets, cross-item chain-consistency check, all in phase 1, all configurable (system properties validated like the reconstitution factors: invalid or hostile value → documented default, never weaker), defaults chosen from measured corpus maxima with headroom. Tests: each limit's inclusive boundary pair; a stream with a disallowed class name as its LAST item loads no class and runs no constructor (counting fixture + a class whose static initialiser records loading); a construction-bomb stream (1 M tiny records within `maxInputBytes`) is rejected before the first constructor; every default accepts the full golden corpus. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
+| **B6** · Hoist deserialization permission checks into phase 1 | Per B.2.6, **only after a board decision** on loading classes in phase 1. Phase 1 resolves each distinct named class once (load without initialise, through the stream's `ResolutionContext`, after B5), runs ATOMIC/PROXY checks once per distinct hierarchy / interface set with today's exact permission and domain set, records `Class` objects in the plan; phase 2 constructs from the plan and replaces per-object checks with an identity assertion. Tests: with a test `SecurityManager`, a denial on the LAST item rejects the whole stream with zero constructors run and zero classes initialised (static-initialiser probe); identical denial exception and permission to the lazy path across the corpus; a stream whose names resolve differently on a second resolution (test `ResolutionContext` that changes its answer) still constructs only the checked classes; check count per stream drops from per-object to per-distinct-class (counting `SecurityManager`). | general-purpose · XHIGH | top-tier | security-literate reviewer + G13 adversarial run | B2, B5, board decision |
 | **B4** · Cost measurement | Measure phase 1's cost on the benchmark payloads (`point`, `record`, `batch100`, `blob64k`, a synthetic 8-item request, and a 16 MiB stream) and report it against decode time, both with the existing walker run twice and with A3's verify-only mode. Defensive cost is acceptable but must be reported. | general-purpose · MEDIUM | sonnet | single reviewer | B2 |
 
 **Sequencing:** B0 and B1 are independent of Part A and can run first. B2 should follow A3 so the
@@ -298,7 +343,7 @@ removing it.
   (before any construction), not *what* is rejected: a stream valid today stays valid; one
   rejected at item *k* today is rejected up front. **B5 deliberately does change the accept set**
   (new configurable limits and name policy) and is kept separate so that difference is explicit.
-- **No class loading, resolution or constructor execution in phase 1** (B.2.3).
+- **No class loading, resolution or constructor execution in phase 1 of B2** (B.2.3). B6 is the one task that relaxes class *loading* (never initialisation, never construction), behind a board decision.
 - **Not a stronger all-objects-or-none contract** (B.2.3 explains the difference and the cost).
 
 # Open questions (implementer proposes, maintainer decides)
