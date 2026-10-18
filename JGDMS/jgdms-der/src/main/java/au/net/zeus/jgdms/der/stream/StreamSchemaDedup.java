@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.stream;
 
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerReader;
@@ -32,7 +33,7 @@ import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -488,6 +489,9 @@ final class StreamSchemaDedup {
      */
     private long streamReconstitutedChainBytes = 0;
 
+    /** Chain bytes appended to an output (decode direction); always {@code <= streamReconstitutedChainBytes}. */
+    private long materialisedChainBytes = 0;
+
     /**
      * One verified chain: the interned bytes, the parsed (leaf-first) records, the chain
      * identity digest, and (encode direction only) the {@code chainRef} TLV every
@@ -590,6 +594,14 @@ final class StreamSchemaDedup {
         return reconstitutedChainBytes;
     }
 
+    /**
+     * Chain bytes actually appended to an output so far (decode direction) — a test seam for the
+     * meter-before-append invariant: it can never exceed {@link #streamReconstitutedChainBytes()}.
+     */
+    long materialisedChainBytes() {
+        return materialisedChainBytes;
+    }
+
     /** The per-item peak-memory ceiling (sec.C.8.1 {@code maxReconstitutedBytes}); test seam. */
     long maxReconstitutedChainBytes() {
         return maxReconstitutedChainBytes;
@@ -634,8 +646,20 @@ final class StreamSchemaDedup {
      * unhinted path runs unchanged, so the output bytes are identical either way.
      */
     byte[] dedupTopLevelAtomic(byte[] canonicalRecord, Class<?> leafClass) throws DerException {
+        DerEncoder out = DerEncoder.create();
+        dedupTopLevelAtomicTo(canonicalRecord, leafClass, out);
+        return out.toByteArray();
+    }
+
+    /**
+     * As {@link #dedupTopLevelAtomic(byte[], Class)}, appending the stream-form record to {@code out}
+     * instead of returning it. On any exception {@code out} holds a partial encoding and must be
+     * discarded (the stream is dead on a dedup failure in either direction).
+     */
+    void dedupTopLevelAtomicTo(byte[] canonicalRecord, Class<?> leafClass, DerEncoder out)
+            throws DerException {
         requireDirection(true);
-        return transformP1(canonicalRecord, leafClass);
+        transformP1(canonicalRecord, leafClass, out);
     }
 
     /**
@@ -672,12 +696,24 @@ final class StreamSchemaDedup {
      * cannot disagree.
      */
     Reconstituted reconstituteTopLevelAtomicVerified(byte[] streamRecord) throws DerException {
+        DerEncoder out = DerEncoder.create();
+        SchemaChain.Result topChain = reconstituteTopLevelAtomicTo(streamRecord, out);
+        return new Reconstituted(out.toByteArray(), topChain);
+    }
+
+    /**
+     * As {@link #reconstituteTopLevelAtomicVerified}, appending the canonical record to {@code out}
+     * and returning the record's own verified chain. On any exception {@code out} holds a partial
+     * encoding and must be discarded.
+     */
+    SchemaChain.Result reconstituteTopLevelAtomicTo(byte[] streamRecord, DerEncoder out)
+            throws DerException {
         requireDirection(false);
         reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
         // streamReconstitutedChainBytes is deliberately NOT reset here — it accumulates
         // cumulative WORK across the whole input window (sec.C.8.1/C.8.3).
-        P1Out out = transformP1Full(streamRecord, null);
-        return new Reconstituted(out.bytes, new SchemaChain.Result(out.site.records, out.site.digest.clone()));
+        Site site = transformP1(streamRecord, null, out);
+        return new SchemaChain.Result(site.records, site.digest.clone());
     }
 
     /**
@@ -702,16 +738,30 @@ final class StreamSchemaDedup {
      * otherwise the content passes through verbatim.
      */
     byte[] dedupTopLevelArray(byte[] arrayContent) throws DerException {
+        DerEncoder out = DerEncoder.create();
+        dedupTopLevelArrayTo(arrayContent, out);
+        return out.toByteArray();
+    }
+
+    /** As {@link #dedupTopLevelArray}, appending to {@code out} (two consecutive TLVs, no wrapper). */
+    void dedupTopLevelArrayTo(byte[] arrayContent, DerEncoder out) throws DerException {
         requireDirection(true);
-        return transformTopLevelArray(arrayContent);
+        transformTopLevelArray(arrayContent, out);
     }
 
     /** Decode-direction counterpart of {@link #dedupTopLevelArray}. */
     byte[] reconstituteTopLevelArray(byte[] arrayContent) throws DerException {
+        DerEncoder out = DerEncoder.create();
+        reconstituteTopLevelArrayTo(arrayContent, out);
+        return out.toByteArray();
+    }
+
+    /** As {@link #reconstituteTopLevelArray}, appending to {@code out}. */
+    void reconstituteTopLevelArrayTo(byte[] arrayContent, DerEncoder out) throws DerException {
         requireDirection(false);
         reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
         // streamReconstitutedChainBytes is deliberately NOT reset here (cumulative WORK).
-        return transformTopLevelArray(arrayContent);
+        transformTopLevelArray(arrayContent, out);
     }
 
     private void requireDirection(boolean wantEncoding) {
@@ -721,6 +771,25 @@ final class StreamSchemaDedup {
                     + (encoding ? "encode" : "decode") + ")");
         }
     }
+
+    // =========================================================================
+    // The walker (A3): offset-based reads of ONE input buffer, one output DerEncoder
+    //
+    // Every transform below reads a TLV as a range [start, end) of the input and either re-emits
+    // it verbatim (out.raw: no slice, no re-framing) or rebuilds it into `out`, substituting only
+    // at chain sites. What is decided, in what order, and every reject message are exactly as in
+    // the byte[]-composition walker this replaced (kept frozen in the test tree and run against
+    // this one on the whole corpus and on mutated inputs); only how bytes move changed.
+    //
+    // Two orders matter and are preserved:
+    //  * PRE-ORDER (sec.C.6.2): a record's own chain site is processed before its payload interior.
+    //    In a P1 record the chain field PHYSICALLY follows the payload, so the fields are located
+    //    first, the site processed, and only then is anything emitted.
+    //  * METER BEFORE APPEND (G10): decodeSite meters a chain's re-materialisation before that
+    //    chain's bytes are appended to `out` (appendChain); appended <= metered <= ceiling holds at
+    //    every instant, whatever the nesting order of the appends.
+    // On any exception `out` holds a partial encoding and must be discarded by the caller.
+    // =========================================================================
 
     // =========================================================================
     // P1 — the [1] item record (sec.C.5.3)
@@ -737,41 +806,36 @@ final class StreamSchemaDedup {
      * schema SchemaChainRef, payloadFormat UTF8String }} — exactly three fields;
      * the {@code schemaDigest} field is dropped (RATIFIED item 2) and re-derived
      * on reconstitution.
+     *
+     * @return this record's own chain site
      */
-    private byte[] transformP1(byte[] recordBytes, Class<?> leafHint) throws DerException {
-        return transformP1Full(recordBytes, leafHint).bytes;
-    }
-
-    /** A transformed P1 record together with its own (top-level) chain site. */
-    private static final class P1Out {
-        final byte[] bytes;
-        final Site site;
-        P1Out(byte[] bytes, Site site) { this.bytes = bytes; this.site = site; }
-    }
-
-    private P1Out transformP1Full(byte[] recordBytes, Class<?> leafHint) throws DerException {
-        Objects.requireNonNull(recordBytes, "recordBytes");
-        DerReader outer = new DerReader(recordBytes);
+    private Site transformP1(byte[] in, Class<?> leafHint, DerEncoder out) throws DerException {
+        Objects.requireNonNull(in, "recordBytes");
+        DerReader outer = new DerReader(in);
         DerReader seq = outer.readSequence();
         if (outer.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after P1 record SEQUENCE");
         }
 
-        // Field 1 (both forms): payloadBytes OCTET STRING.
-        byte[] payload = seq.readOctetString();
+        // Field 1 (both forms): payloadBytes OCTET STRING — located, not copied.
+        int payloadLen = seq.readOctetStringHeader();
+        int payloadStart = seq.position();
+        seq.skip(payloadLen);
 
         Site site;
         if (encoding) {
             // Canonical fields 2-3: schemaBytes, schemaDigest (dropped from stream form).
-            byte[] chainBytes = seq.readOctetString();
+            int chainLen = seq.readOctetStringHeader();
+            int chainStart = seq.position();
+            seq.skip(chainLen);
             byte[] digestField = seq.readOctetString();
             if (digestField.length != 32) {
                 throw new DerException(
                         "StreamSchemaDedup: canonical P1 schemaDigest must be 32 bytes, got "
                         + digestField.length);
             }
-            site = encodeSite(chainBytes, leafHint);
+            site = encodeSite(in, chainStart, chainLen, leafHint);
         } else {
             // Stream field 2: SchemaChainRef — processed BEFORE the payload interior.
             site = decodeSite(seq);
@@ -788,26 +852,26 @@ final class StreamSchemaDedup {
                       + " schemaDigest or any extra field is rejected)");
         }
 
-        // Payload interior AFTER the record's own chain site (pre-order).
-        byte[] payloadOut = transformHierarchyPayload(payload, site.records, 0);
-
-        List<byte[]> children = new ArrayList<>(4);
-        children.add(DerWriter.writeOctetString(payloadOut));
+        // Emit. The payload interior is walked AFTER the record's own chain site (pre-order).
+        out.begin(Tag.SEQUENCE).beginOctetString();
+        transformHierarchyPayload(in, payloadStart, payloadStart + payloadLen, site.records, 0, out);
+        out.end();
         if (encoding) {
-            children.add(site.refOrFullTlv);
+            out.raw(site.refOrFullTlv);
         } else {
-            children.add(DerWriter.writeOctetString(site.chainBytes));
-            children.add(DerWriter.writeOctetString(site.digest));
+            appendChain(out, site);
+            out.octets(site.digest);
         }
-        children.add(DerWriter.writeUtf8String(payloadFormat));
-        return new P1Out(DerWriter.writeSequence(children), site);
+        out.utf8(payloadFormat);
+        out.end();
+        return site;
     }
 
     // =========================================================================
     // [9] top-level value array content
     // =========================================================================
 
-    private byte[] transformTopLevelArray(byte[] content) throws DerException {
+    private void transformTopLevelArray(byte[] content, DerEncoder out) throws DerException {
         DerReader r = new DerReader(content);
         int wtEnd;
         String awt;
@@ -821,24 +885,23 @@ final class StreamSchemaDedup {
         String comp = awt.substring("array:".length());
         if (!comp.startsWith("@AtomicSerial")) {
             // No chain sites (scalar/String/Class/enum components) — verbatim (rule 2).
-            return content;
+            out.raw(content, 0, content.length);
+            return;
         }
-        byte[] wtTlv = r.slice(0, wtEnd);
         // Element SEQUENCE: each element is a P2 nested-site-shaped TLV.
         DerReader seq = r.readSequence();
         if (r.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after [9] array element SEQUENCE");
         }
-        List<byte[]> elems = new ArrayList<>();
+        out.raw(content, 0, wtEnd);
+        out.begin(Tag.SEQUENCE);
         while (seq.hasMore()) {
-            elems.add(transformNestedSite(readTlv(seq), 0));
+            int start = seq.position();
+            int end = seq.skipTlv();
+            transformNestedSite(content, start, end, 0, out);
         }
-        byte[] seqOut = DerWriter.writeSequence(elems);
-        byte[] out = new byte[wtTlv.length + seqOut.length];
-        System.arraycopy(wtTlv, 0, out, 0, wtTlv.length);
-        System.arraycopy(seqOut, 0, out, wtTlv.length, seqOut.length);
-        return out;
+        out.end();
     }
 
     // =========================================================================
@@ -846,7 +909,8 @@ final class StreamSchemaDedup {
     // =========================================================================
 
     /**
-     * Transforms one nested {@code @AtomicSerial} site TLV. The TLV is one of:
+     * Transforms one nested {@code @AtomicSerial} site TLV (the range {@code [start, end)} of
+     * {@code in}). The TLV is one of:
      * <ul>
      *   <li>DER NULL ({@code 05 00}) — verbatim;</li>
      *   <li>{@code [7]} enum leaf — verbatim (no chain site);</li>
@@ -859,21 +923,24 @@ final class StreamSchemaDedup {
      *       (chain-first field order in both).</li>
      * </ul>
      *
-     * @param tlv   the complete site TLV bytes
      * @param depth enclosing nesting depth (mirrors {@code ObjectCodec.encodeNested}'s
      *              accounting: this record's interior is walked at {@code depth + 1})
      */
-    private byte[] transformNestedSite(byte[] tlv, int depth) throws DerException {
-        if (isNullTlv(tlv)) {
-            return tlv;
+    private void transformNestedSite(byte[] in, int start, int end, int depth, DerEncoder out)
+            throws DerException {
+        if (isNullTlv(in, start, end)) {
+            out.raw(in, start, end - start);
+            return;
         }
-        DerReader r = new DerReader(tlv);
+        DerReader r = new DerReader(in, start, end);
         Tag t = r.peekTag();
         if (CTX_PROXY.equals(t)) {
-            return tlv;         // sec.C.6.5: [8] byte region excluded, transitively.
+            out.raw(in, start, end - start);   // sec.C.6.5: [8] byte region excluded, transitively.
+            return;
         }
         if (CTX_ENUM.equals(t)) {
-            return tlv;         // enum leaf: no chain site, value travels verbatim.
+            out.raw(in, start, end - start);   // enum leaf: no chain site, value travels verbatim.
+            return;
         }
         if (!Tag.SEQUENCE.equals(t)) {
             throw new DerException(
@@ -893,27 +960,32 @@ final class StreamSchemaDedup {
 
         Site site;
         if (encoding) {
-            byte[] chainBytes = seq.readOctetString();   // canonical sec.16: chain first
-            site = encodeSite(chainBytes, null);
+            int chainLen = seq.readOctetStringHeader();   // canonical sec.16: chain first
+            int chainStart = seq.position();
+            seq.skip(chainLen);
+            site = encodeSite(in, chainStart, chainLen, null);
         } else {
-            site = decodeSite(seq);                      // stream form: SchemaChainRef first
+            site = decodeSite(seq);                       // stream form: SchemaChainRef first
         }
-        byte[] payload = seq.readOctetString();
+        int payloadLen = seq.readOctetStringHeader();
+        int payloadStart = seq.position();
+        seq.skip(payloadLen);
         if (seq.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: nested record has trailing content after payloadBytes"
                     + " (exactly two fields)");
         }
-        byte[] payloadOut = transformHierarchyPayload(payload, site.records, depth + 1);
 
-        List<byte[]> children = new ArrayList<>(2);
+        out.begin(Tag.SEQUENCE);
         if (encoding) {
-            children.add(site.refOrFullTlv);
+            out.raw(site.refOrFullTlv);
         } else {
-            children.add(DerWriter.writeOctetString(site.chainBytes));
+            appendChain(out, site);
         }
-        children.add(DerWriter.writeOctetString(payloadOut));
-        return DerWriter.writeSequence(children);
+        out.beginOctetString();
+        transformHierarchyPayload(in, payloadStart, payloadStart + payloadLen, site.records, depth + 1, out);
+        out.end();
+        out.end();
     }
 
     // =========================================================================
@@ -922,24 +994,27 @@ final class StreamSchemaDedup {
 
     /**
      * Walks one hierarchy payload ({@code SEQUENCE} of per-class {@code SEQUENCE}s,
-     * root-first) against its verified chain, transforming every interior chain site
-     * in schema field order and passing every value TLV through verbatim.
+     * root-first), the range {@code [start, end)} of {@code in}, against its verified chain,
+     * transforming every interior chain site in schema field order and passing every value TLV
+     * through verbatim. Writes the payload's CONTENT into {@code out} (the caller has opened the
+     * OCTET STRING that carries it).
      */
-    private byte[] transformHierarchyPayload(byte[] payload,
-                                             List<AtomicSerialSchemaRecord> chainLeafFirst,
-                                             int depth) throws DerException {
+    private void transformHierarchyPayload(byte[] in, int start, int end,
+                                           List<AtomicSerialSchemaRecord> chainLeafFirst,
+                                           int depth, DerEncoder out) throws DerException {
         // Fast path: a hierarchy whose fields cannot contain chain sites is verbatim.
         if (!hierarchyMaybeContainsSites(chainLeafFirst)) {
-            return payload;
+            out.raw(in, start, end - start);
+            return;
         }
-        DerReader outer = new DerReader(payload);
+        DerReader outer = new DerReader(in, start, end);
         DerReader seq = outer.readSequence();
         if (outer.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after hierarchy SEQUENCE");
         }
         int n = chainLeafFirst.size();
-        List<byte[]> classSeqs = new ArrayList<>(n);
+        out.begin(Tag.SEQUENCE);
         // Wire order is root-first (sec.7.8 hierarchy layout); the chain list is leaf-first.
         for (int i = n - 1; i >= 0; i--) {
             AtomicSerialSchemaRecord rec = chainLeafFirst.get(i);
@@ -948,89 +1023,103 @@ final class StreamSchemaDedup {
                         "StreamSchemaDedup: hierarchy payload has fewer per-class SEQUENCEs"
                         + " than chain records (missing '" + rec.className() + "')");
             }
-            classSeqs.add(transformClassSequence(seq, rec, depth));
+            transformClassSequence(in, seq, rec, depth, out);
         }
         if (seq.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: hierarchy payload has more per-class SEQUENCEs"
                     + " than chain records");
         }
-        return DerWriter.writeSequence(classSeqs);
+        out.end();
     }
 
     /** Transforms one per-class SEQUENCE: one TLV per schema field, in field order. */
-    private byte[] transformClassSequence(DerReader hierarchySeq,
-                                          AtomicSerialSchemaRecord rec,
-                                          int depth) throws DerException {
+    private void transformClassSequence(byte[] in, DerReader hierarchySeq,
+                                        AtomicSerialSchemaRecord rec,
+                                        int depth, DerEncoder out) throws DerException {
         DerReader classSeq = hierarchySeq.readSequence();
         List<AtomicSerialFieldDef> fields = rec.fields();
-        List<byte[]> out = new ArrayList<>(fields.size());
+        out.begin(Tag.SEQUENCE);
         for (AtomicSerialFieldDef f : fields) {
             if (!classSeq.hasMore()) {
                 throw new DerException(
                         "StreamSchemaDedup: class SEQUENCE for '" + rec.className()
                         + "' is missing a TLV for field '" + f.wireName() + "'");
             }
-            out.add(transformFieldTlv(readTlv(classSeq), f.wireType(), depth));
+            int start = classSeq.position();
+            int end = classSeq.skipTlv();
+            transformFieldTlv(in, start, end, f.wireType(), depth, out);
         }
         if (classSeq.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: class SEQUENCE for '" + rec.className()
                     + "' has trailing TLVs beyond its schema fields");
         }
-        return DerWriter.writeSequence(out);
+        out.end();
     }
 
     /** Dispatches one field TLV by wire type. Value types pass verbatim (rule 2). */
-    private byte[] transformFieldTlv(byte[] tlv, String wireType, int depth)
-            throws DerException {
+    private void transformFieldTlv(byte[] in, int start, int end, String wireType, int depth,
+                                   DerEncoder out) throws DerException {
         if (wireType.startsWith("@AtomicSerial")) {
-            return transformNestedSite(tlv, depth);
+            transformNestedSite(in, start, end, depth, out);
+            return;
         }
         if (wireType.startsWith("array:")) {
             String comp = wireType.substring("array:".length());
             if (comp.startsWith("@AtomicSerial")) {
-                return transformNestedArray(tlv, depth);
+                transformNestedArray(in, start, end, depth, out);
+                return;
             }
-            return tlv;     // scalar/String/Class/enum component arrays: no sites.
+            out.raw(in, start, end - start);   // scalar/String/Class/enum component arrays: no sites.
+            return;
         }
         if (CollectionWireTypes.isCollection(wireType)) {
-            return transformCollection(tlv, wireType, depth);
+            transformCollection(in, start, end, wireType, depth, out);
+            return;
         }
         if ("any".equals(wireType)) {
-            return transformAny(tlv, depth);
+            transformAny(in, start, end, depth, out);
+            return;
         }
-        return tlv;         // scalar / String / byte[] / Class / enum:<class> — verbatim.
+        // scalar / String / byte[] / Class / enum:<class> — verbatim.
+        out.raw(in, start, end - start);
     }
 
     /** {@code array:@AtomicSerial:<class>} field value: NULL, or SEQUENCE of P2 sites. */
-    private byte[] transformNestedArray(byte[] tlv, int depth) throws DerException {
-        if (isNullTlv(tlv)) {
-            return tlv;
+    private void transformNestedArray(byte[] in, int start, int end, int depth, DerEncoder out)
+            throws DerException {
+        if (isNullTlv(in, start, end)) {
+            out.raw(in, start, end - start);
+            return;
         }
-        DerReader r = new DerReader(tlv);
+        DerReader r = new DerReader(in, start, end);
         DerReader seq = r.readSequence();
         if (r.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after @AtomicSerial array SEQUENCE");
         }
-        List<byte[]> elems = new ArrayList<>();
+        out.begin(Tag.SEQUENCE);
         while (seq.hasMore()) {
-            elems.add(transformNestedSite(readTlv(seq), depth));
+            int elemStart = seq.position();
+            int elemEnd = seq.skipTlv();
+            transformNestedSite(in, elemStart, elemEnd, depth, out);
         }
-        return DerWriter.writeSequence(elems);
+        out.end();
     }
 
     /**
      * Collection field value per the sec.3.8 token grammar. Element order is
      * preserved exactly as received in BOTH directions — the stream's element order
      * is the canonical (pre-transform) order, per sec.C.5.3 ("everything else in the
-     * stream grammar is unchanged, octet for octet"); this walker never re-sorts.
+     * stream grammar is unchanged, octet for octet"); this walker never re-sorts (it opens
+     * plain constructs, never a sorted set).
      */
-    private byte[] transformCollection(byte[] tlv, String token, int depth)
-            throws DerException {
-        if (isNullTlv(tlv)) {
-            return tlv;
+    private void transformCollection(byte[] in, int start, int end, String token, int depth,
+                                     DerEncoder out) throws DerException {
+        if (isNullTlv(in, start, end)) {
+            out.raw(in, start, end - start);
+            return;
         }
         if (depth > ObjectCodec.MAX_NESTING) {
             throw new DerException(
@@ -1040,48 +1129,55 @@ final class StreamSchemaDedup {
         if (CollectionWireTypes.isMap(token)) {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(token);
             if (!maybeContainsSites(kv[0]) && !maybeContainsSites(kv[1])) {
-                return tlv;
+                out.raw(in, start, end - start);
+                return;
             }
-            return rebuildCollectionOuter(tlv, entryTlv -> {
+            rebuildCollectionOuter(in, start, end, (entryStart, entryEnd) -> {
                 // entry := SEQUENCE { key, value }
-                DerReader er = new DerReader(entryTlv);
+                DerReader er = new DerReader(in, entryStart, entryEnd);
                 if (!Tag.SEQUENCE.equals(er.peekTag())) {
                     throw new DerException(
                             "StreamSchemaDedup: map entry must be a SEQUENCE{key,value}");
                 }
                 DerReader entry = er.readSequence();
-                byte[] keyTlv = readTlv(entry);
-                byte[] valTlv = readTlv(entry);
+                int keyStart = entry.position();
+                int keyEnd = entry.skipTlv();
+                int valStart = entry.position();
+                int valEnd = entry.skipTlv();
                 if (entry.hasMore()) {
                     throw new DerException(
                             "StreamSchemaDedup: trailing bytes in map entry SEQUENCE");
                 }
-                List<byte[]> pair = new ArrayList<>(2);
-                pair.add(transformElement(keyTlv, kv[0], depth));
-                pair.add(transformElement(valTlv, kv[1], depth));
-                return DerWriter.writeSequence(pair);
-            });
+                out.begin(Tag.SEQUENCE);
+                transformElement(in, keyStart, keyEnd, kv[0], depth, out);
+                transformElement(in, valStart, valEnd, kv[1], depth, out);
+                out.end();
+            }, out);
+            return;
         }
         String elemWT = CollectionWireTypes.elementWireType(token);
         if (!maybeContainsSites(elemWT)) {
-            return tlv;
+            out.raw(in, start, end - start);
+            return;
         }
-        return rebuildCollectionOuter(tlv, elem -> transformElement(elem, elemWT, depth));
+        rebuildCollectionOuter(in, start, end,
+                (elemStart, elemEnd) -> transformElement(in, elemStart, elemEnd, elemWT, depth, out), out);
     }
 
     /** One collection element / map key / map value ({@code ObjectCodec.encodeElementValue} mirror). */
-    private byte[] transformElement(byte[] tlv, String elemWT, int depth)
-            throws DerException {
+    private void transformElement(byte[] in, int start, int end, String elemWT, int depth,
+                                  DerEncoder out) throws DerException {
         if (CollectionWireTypes.isCollection(elemWT)) {
-            return transformCollection(tlv, elemWT, depth + 1);
+            transformCollection(in, start, end, elemWT, depth + 1, out);
+            return;
         }
-        return transformFieldTlv(tlv, elemWT, depth);
+        transformFieldTlv(in, start, end, elemWT, depth, out);
     }
 
-    /** Per-element transform used by {@link #rebuildCollectionOuter}. */
+    /** Per-element transform used by {@link #rebuildCollectionOuter}: one child, a range of the input. */
     @FunctionalInterface
     private interface ElementTransform {
-        byte[] apply(byte[] elementTlv) throws DerException;
+        void apply(int start, int end) throws DerException;
     }
 
     /**
@@ -1089,9 +1185,9 @@ final class StreamSchemaDedup {
      * — whichever was received; the discipline check belongs to the record-level
      * decoder) with each child transformed, ORDER PRESERVED.
      */
-    private byte[] rebuildCollectionOuter(byte[] tlv, ElementTransform per)
-            throws DerException {
-        DerReader r = new DerReader(tlv);
+    private void rebuildCollectionOuter(byte[] in, int start, int end, ElementTransform per,
+                                        DerEncoder out) throws DerException {
+        DerReader r = new DerReader(in, start, end);
         Tag outerTag = r.peekTag();
         if (!Tag.SEQUENCE.equals(outerTag) && !Tag.SET.equals(outerTag)) {
             throw new DerException(
@@ -1099,25 +1195,20 @@ final class StreamSchemaDedup {
                     + " SET (0x31), got " + outerTag);
         }
         DerReader.TlvHeader hdr = r.readTlvHeader();
-        byte[] content = r.readRawContent(hdr.contentLength());
+        int contentStart = r.position();
+        r.skip(hdr.contentLength());
         if (r.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after collection TLV");
         }
-        DerReader elems = new DerReader(content);
-        List<byte[]> out = new ArrayList<>();
+        DerReader elems = new DerReader(in, contentStart, contentStart + hdr.contentLength());
+        out.begin(outerTag);
         while (elems.hasMore()) {
-            out.add(per.apply(readTlv(elems)));
+            int elemStart = elems.position();
+            int elemEnd = elems.skipTlv();
+            per.apply(elemStart, elemEnd);
         }
-        int total = 0;
-        for (byte[] c : out) total += c.length;
-        byte[] joined = new byte[total];
-        int pos = 0;
-        for (byte[] c : out) {
-            System.arraycopy(c, 0, joined, pos, c.length);
-            pos += c.length;
-        }
-        return DerWriter.writeTlv(outerTag, joined);
+        out.end();
     }
 
     // =========================================================================
@@ -1133,11 +1224,13 @@ final class StreamSchemaDedup {
      * stream is falsely rejected here; the record-level decoder's own (stricter)
      * checks still run on the reconstituted bytes.
      */
-    private byte[] transformAny(byte[] tlv, int depth) throws DerException {
-        if (isNullTlv(tlv)) {
-            return tlv;
+    private void transformAny(byte[] in, int start, int end, int depth, DerEncoder out)
+            throws DerException {
+        if (isNullTlv(in, start, end)) {
+            out.raw(in, start, end - start);
+            return;
         }
-        DerReader r = new DerReader(tlv);
+        DerReader r = new DerReader(in, start, end);
         Tag t = r.peekTag();
         if (t.tagClass() != Tag.CLASS_CONTEXT) {
             throw new DerException(
@@ -1145,16 +1238,19 @@ final class StreamSchemaDedup {
         }
         int n = t.tagNumber();
         if (n <= ANY_TAG_SCALAR_MAX && !t.isConstructed()) {
-            return tlv;                         // scalar arms: value octets verbatim.
+            out.raw(in, start, end - start);   // scalar arms: value octets verbatim.
+            return;
         }
         if (n == ANY_TAG_ATOMIC && t.isConstructed()) {
-            byte[] inner = readExplicitInner(r);
-            byte[] innerOut = transformNestedSite(inner, depth);
-            return DerWriter.writeTlv(t, innerOut);
+            Range inner = readExplicitInner(in, r);
+            out.begin(t);
+            transformNestedSite(in, inner.start, inner.end, depth, out);
+            out.end();
+            return;
         }
         if ((n == ANY_TAG_CANONICAL_COLL || n == ANY_TAG_ORDERED_COLL) && t.isConstructed()) {
-            byte[] inner = readExplicitInner(r);
-            DerReader ir = new DerReader(inner);
+            Range inner = readExplicitInner(in, r);
+            DerReader ir = new DerReader(in, inner.start, inner.end);
             Tag innerTag = ir.peekTag();
             if (!Tag.SEQUENCE.equals(innerTag) && !Tag.SET.equals(innerTag)) {
                 throw new DerException(
@@ -1167,49 +1263,58 @@ final class StreamSchemaDedup {
                         + " exceeds MAX_NESTING (" + ObjectCodec.MAX_NESTING + ")");
             }
             int next = depth + 1;
-            byte[] innerOut = rebuildCollectionOuter(inner, child -> {
-                Tag ct = childTag(child);
+            out.begin(t);
+            rebuildCollectionOuter(in, inner.start, inner.end, (childStart, childEnd) -> {
+                Tag ct = new DerReader(in, childStart, childEnd).peekTag();
                 if (Tag.SEQUENCE.equals(ct)) {
                     // Map entry: SEQUENCE { keyAny, valAny }.
-                    DerReader er = new DerReader(child);
+                    DerReader er = new DerReader(in, childStart, childEnd);
                     DerReader entry = er.readSequence();
-                    byte[] keyTlv = readTlv(entry);
-                    byte[] valTlv = readTlv(entry);
+                    int keyStart = entry.position();
+                    int keyEnd = entry.skipTlv();
+                    int valStart = entry.position();
+                    int valEnd = entry.skipTlv();
                     if (entry.hasMore()) {
                         throw new DerException(
                                 "StreamSchemaDedup: trailing bytes in Any map entry");
                     }
-                    List<byte[]> pair = new ArrayList<>(2);
-                    pair.add(transformAny(keyTlv, next));
-                    pair.add(transformAny(valTlv, next));
-                    return DerWriter.writeSequence(pair);
+                    out.begin(Tag.SEQUENCE);
+                    transformAny(in, keyStart, keyEnd, next, out);
+                    transformAny(in, valStart, valEnd, next, out);
+                    out.end();
+                    return;
                 }
-                return transformAny(child, next);
-            });
-            return DerWriter.writeTlv(t, innerOut);
+                transformAny(in, childStart, childEnd, next, out);
+            }, out);
+            out.end();
+            return;
         }
         throw new DerException(
                 "StreamSchemaDedup: unregistered/mismatched Any context tag [" + n
                 + "] (constructed=" + t.isConstructed() + ") — fail-secure reject");
     }
 
-    /** Reads an EXPLICIT wrapper's single inner TLV (trailing bytes rejected). */
-    private static byte[] readExplicitInner(DerReader r) throws DerException {
+    /** A range {@code [start, end)} of the input buffer. */
+    private record Range(int start, int end) {}
+
+    /** Locates an EXPLICIT wrapper's single inner TLV (trailing bytes rejected). */
+    private static Range readExplicitInner(byte[] in, DerReader r) throws DerException {
         DerReader.TlvHeader hdr = r.readTlvHeader();
-        byte[] inner = r.readRawContent(hdr.contentLength());
+        int innerStart = r.position();
+        r.skip(hdr.contentLength());
         if (r.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after EXPLICIT Any wrapper");
         }
-        DerReader ir = new DerReader(inner);
-        DerReader.TlvHeader innerHdr = ir.readTlvHeader();
-        ir.readRawContent(innerHdr.contentLength());
+        int innerEnd = innerStart + hdr.contentLength();
+        DerReader ir = new DerReader(in, innerStart, innerEnd);
+        ir.skipTlv();
         if (ir.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: EXPLICIT Any wrapper has trailing bytes after its"
                     + " single inner TLV");
         }
-        return inner;
+        return new Range(innerStart, innerEnd);
     }
 
     // =========================================================================
@@ -1241,16 +1346,20 @@ final class StreamSchemaDedup {
      * identity emits {@code fullChain}; every subsequent occurrence emits
      * {@code chainRef}. Table ceilings are loud encode-time failures (sec.C.8.2).
      */
-    private Site encodeSite(byte[] chainBytes, Class<?> leafHint) throws DerException {
-        if (chainBytes.length == 0) {
+    private Site encodeSite(byte[] in, int chainOff, int chainLen, Class<?> leafHint)
+            throws DerException {
+        if (chainLen == 0) {
             throw new DerException("StreamSchemaDedup: empty schema chain at encode site");
         }
         // Same bytes as an already-tabled chain => same identity: one content-equality
         // lookup replaces re-hashing the leaf record (pure accelerator, see encodeByBytes).
-        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(chainBytes));
+        // The lookup key is a window onto the input, so a repeat occurrence copies nothing.
+        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, chainOff, chainLen));
         byte[] digest = null;   // set below whenever e == null (the only path that reaches insert)
         List<AtomicSerialSchemaRecord> records = null;
+        byte[] chainBytes = null;
         if (e == null) {
+            chainBytes = Arrays.copyOfRange(in, chainOff, chainOff + chainLen);   // first occurrence: interned
             SchemaGenerator.VerifiedChain local = leafHint == null ? null
                     : SchemaGenerator.verifiedLocalChain(leafHint, chainBytes, "StreamSchemaDedup(encode)");
             if (local != null) {
@@ -1470,29 +1579,30 @@ final class StreamSchemaDedup {
         }
     }
 
-    /** Reads one complete TLV (header + content) from {@code r}, returning its bytes. */
-    private static byte[] readTlv(DerReader r) throws DerException {
-        int start = r.position();
-        DerReader.TlvHeader hdr = r.readTlvHeader();
-        r.readRawContent(hdr.contentLength());
-        return r.slice(start, r.position());
-    }
-
-    private static Tag childTag(byte[] tlv) throws DerException {
-        return new DerReader(tlv).peekTag();
-    }
-
-    private static boolean isNullTlv(byte[] tlv) throws DerException {
-        if (tlv.length == 0) {
+    /**
+     * Whether the TLV at {@code [start, end)} is a DER NULL; a first octet of {@code 0x05} followed by
+     * anything but {@code 00} and nothing else is malformed and rejected.
+     */
+    private static boolean isNullTlv(byte[] in, int start, int end) throws DerException {
+        if (end == start) {
             throw new DerException("StreamSchemaDedup: empty TLV");
         }
-        if (tlv[0] != 0x05) {
+        if (in[start] != 0x05) {
             return false;
         }
-        if (tlv.length != 2 || tlv[1] != 0x00) {
+        if (end - start != 2 || in[start + 1] != 0x00) {
             throw new DerException("StreamSchemaDedup: malformed NULL TLV (expected 05 00)");
         }
         return true;
+    }
+
+    /**
+     * Appends a decoded site's chain bytes to {@code out} — the re-materialisation that
+     * {@link #decodeSite} has already metered (meter-before-append, G10).
+     */
+    private void appendChain(DerEncoder out, Site site) {
+        out.octets(site.chainBytes);
+        materialisedChainBytes += site.chainBytes.length;
     }
 
     /** Whether a wire type can contain chain sites anywhere beneath it. */
