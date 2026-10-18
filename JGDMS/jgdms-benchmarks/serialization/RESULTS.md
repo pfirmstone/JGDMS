@@ -396,3 +396,27 @@ What B2 adds to a stream read: a second dedup walk over the whole stream, run be
 - **Where the added time is:** chain verification (`SchemaChain.decodeChain` and one SHA-256 of the leaf record) happens once in admission and again in delivery, on separate tables by design. A bytes-keyed verified-chain
   cache shared between the two would remove most of it; it is not built (it couples admission to delivery).
 - Container numbers: re-run on the workstation before quoting.
+
+
+# Fifth run: after the whole-stream policy (SOW-DER-Streaming-Encoder B5), 18 October 2026
+
+Same container and settings as the fourth run (DER only; `results-b5.json`). B5 adds the class-name policy, the object, element and class budgets and the rebinding check to full admission.
+
+| benchmark (us/op, 99.9% error) | A5 | B2 | B5 | B5 - B2 | B5 / A5 |
+|---|---:|---:|---:|---:|---:|
+| codec round trip batch100 | 865.58 +- 75.79 | 947.92 +- 78.46 | 911.19 +- 89.41 | -36.73 (within noise) | 1.05 |
+| codec round trip blob64k | 264.27 +- 26.97 | 299.96 +- 14.33 | 296.38 +- 19.74 | -3.58 (within noise) | 1.12 |
+| codec round trip point | 7.85 +- 0.88 | 9.58 +- 1.13 | 9.67 +- 0.50 | +0.09 (within noise) | 1.23 |
+| codec round trip record | 11.12 +- 1.08 | 13.96 +- 1.07 | 13.64 +- 0.87 | -0.32 (within noise) | 1.23 |
+| codec unmarshal batch100 | 789.77 +- 82.90 | 842.70 +- 165.95 | 763.38 +- 89.71 | -79.32 (within noise) | 0.97 |
+| codec unmarshal blob64k | 176.13 +- 66.10 | 183.43 +- 10.51 | 197.40 +- 39.44 | +13.97 (within noise) | 1.12 |
+| codec unmarshal point | 6.82 +- 0.96 | 7.82 +- 0.86 | 8.06 +- 0.53 | +0.24 (within noise) | 1.18 |
+| codec unmarshal record | 9.39 +- 0.90 | 12.31 +- 1.88 | 11.96 +- 1.47 | -0.35 (within noise) | 1.27 |
+| JERI batch100 | 4672.40 +- 341.23 | 4913.44 +- 337.84 | 4599.30 +- 264.59 | -314.14 (within noise) | 0.98 |
+| JERI blob64k | 9961.05 +- 520.59 | 10323.90 +- 824.73 | 10243.52 +- 523.46 | -80.39 (within noise) | 1.03 |
+| JERI ping | 134.00 +- 11.83 | 145.30 +- 14.26 | 133.27 +- 8.46 | -12.04 (within noise) | 0.99 |
+| JERI point | 182.54 +- 30.07 | 181.69 +- 14.11 | 183.43 +- 12.17 | +1.74 (within noise) | 1.00 |
+| JERI record | 198.49 +- 21.97 | 214.50 +- 23.41 | 195.41 +- 13.35 | -19.09 (within noise) | 0.98 |
+
+- **No measurable change over B2 (the fourth run):** every difference is inside the intervals, and the in-process unmarshal of `record` (the case that shows an added pass most clearly) is 11.96 us against 12.31. The added work is per distinct chain, per record site and one header-skip pass per collection or reference array that is passed through.
+- Against the third run (A5) the cost is still B2's: about +1 us (`point`) and +3 us (`record`) of in-process unmarshal, JERI within noise. Container numbers: re-run on the workstation before quoting.
