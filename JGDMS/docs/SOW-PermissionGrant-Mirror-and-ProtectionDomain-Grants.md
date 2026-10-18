@@ -245,16 +245,10 @@ The existing `org.apache.river.api.security`, `net.jini.security` and
 
 **DirtyChai side**
 
-DirtyChai trunk (`a6782e968`) did not contain the behaviour section 1 describes
-(`impliesSigners`, `CodeSourceKey`, `GrantSignerTest`), so it was implemented
-there too, mirroring the JGDMS code. The session could not push to
-`pfirmstone/dirtychai` (the Claude GitHub App has no access), so the commit is
-supplied as `docs/DirtyChai-SOW-PermissionGrant-domain-grants.patch`
-(`git am` it onto DirtyChai trunk). It adds the same classes and constant
-(`CODEBASE_DOMAIN = 7`), the reverse port of `PrincipalGrant` escaping, jtreg
-tests `GrantSignerTest` and `CodebaseDomainGrantTest`, and a section in
-`JGDMS_COMPATIBILITY.md`. It was only compile-checked, against stubs for
-`DigestCodeSource` and `CodeSource.getUriLocation`; it has not been built or run.
+DirtyChai trunk (`a6782e968`) does not contain the behaviour section 1 describes
+(`impliesSigners`, `CodeSourceKey`, `GrantSignerTest`). DirtyChai's `CLAUDE.md` requires
+contributions there to be human-written, so no DirtyChai code was committed. The changes
+needed are described in `DirtyChai-Required-Changes-PermissionGrant-SOW.md`.
 
 **Not done / not verifiable here**
 - The QA harness (`qa/`) and a Maven build: the sandbox cannot resolve the
