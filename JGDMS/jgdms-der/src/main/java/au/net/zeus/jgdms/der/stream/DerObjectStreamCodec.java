@@ -268,6 +268,12 @@ final class DerObjectStreamCodec {
     /** The complete input, kept so the admission pass can walk it with readers of its own (the delivery reader is untouched). */
     private byte[] inputBuf;
 
+    /** The whole-stream policy full admission applies (B5). */
+    private final DerStreamPolicy policy;
+
+    /** The tally of the last full admission (objects, elements, distinct classes); {@code null} before one. A test and diagnostic seam. */
+    private StreamPolicyMeter lastTally;
+
     /**
      * Where this read side is in the admission state machine (see {@link #admit}):
      * {@code OPEN} (no admission; codec-level callers and record-level capture), {@code PENDING} (record-bearing reads
@@ -363,8 +369,17 @@ final class DerObjectStreamCodec {
      * @param maxInputBytes the stream's DoS input cap ({@link DerInputLimits#maxInputBytes()})
      */
     DerObjectStreamCodec(boolean streamFormat, int maxInputBytes) {
+        this(streamFormat, maxInputBytes, DerStreamPolicy.DEFAULT);
+    }
+
+    /**
+     * As {@link #DerObjectStreamCodec(boolean, int)}, with the whole-stream {@link DerStreamPolicy} full admission applies
+     * (B5).
+     */
+    DerObjectStreamCodec(boolean streamFormat, int maxInputBytes, DerStreamPolicy policy) {
         this.streamFormat = streamFormat;
         this.maxInputBytes = maxInputBytes;
+        this.policy = Objects.requireNonNull(policy, "policy");
         if (streamFormat) {
             // sec.C.5.2: the version TLV is the FIRST TLV of every stream — seeded
             // before any item or positional primitive can be buffered. (Harmless for
@@ -541,6 +556,11 @@ final class DerObjectStreamCodec {
         return failure;
     }
 
+    /** The tally of the last full admission, or {@code null} (a test and diagnostic seam). */
+    StreamPolicyMeter admissionTally() {
+        return lastTally;
+    }
+
     /** Throws the permanent rejection, if any; the stream layer calls this before every read. */
     void requireNotRejected() throws IOException {
         if (admission == Admission.REJECTED) throw rejectedAgain();
@@ -556,7 +576,8 @@ final class DerObjectStreamCodec {
         }
         final byte[] buf = inputBuf;
         DerReader r = new DerReader(buf);
-        StreamSchemaDedup scratch = full ? StreamSchemaDedup.forAdmission(maxInputBytes) : null;
+        StreamPolicyMeter meter = full ? new StreamPolicyMeter(policy) : null;
+        StreamSchemaDedup scratch = full ? StreamSchemaDedup.forAdmission(maxInputBytes, meter) : null;
         DerEncoder sink = full ? DerEncoder.create() : null;
         int index = 0;
         try {
@@ -588,10 +609,14 @@ final class DerObjectStreamCodec {
                     }
                 }
                 if (full) {
-                    verifyItem(scratch, sink, id, start, contentStart, len);
+                    verifyItem(scratch, meter, sink, id, start, contentStart, len);
                 }
                 pos = contentStart + len;
                 index++;
+            }
+            if (full) {
+                lastTally = meter;
+                meter.logAdmitted();
             }
         } catch (DerException e) {
             throw new IOException("DER object stream admission: item " + index + ": " + e.getMessage(), e);
@@ -626,24 +651,31 @@ final class DerObjectStreamCodec {
      *
      * @param sink a reusable encoder the dedup walks write their (discarded) output to
      */
-    private void verifyItem(StreamSchemaDedup scratch, DerEncoder sink, int id, int itemStart, int contentStart, int len)
-            throws IOException, DerException {
+    private void verifyItem(StreamSchemaDedup scratch, StreamPolicyMeter meter, DerEncoder sink, int id, int itemStart,
+                            int contentStart, int len) throws IOException, DerException {
         if (id == ID_ATOMIC) {
             sink.reset();
             scratch.reconstituteTopLevelAtomicTo(inputBuf, contentStart, len, sink);
         } else if (id == ID_ARRAY) {
             byte[] content = Arrays.copyOfRange(inputBuf, contentStart, contentStart + len);
-            requireArrayWireType(content);
+            meter.wireType(requireArrayWireType(content));          // the component class the array will load
             scratch.reconstituteTopLevelArray(content);
         } else if (id == ID_COLLECTION) {
             ObjectCodec.TopLevelCollectionContent c =
                     ObjectCodec.parseTopLevelCollection(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+            meter.wireType(c.token());                              // the classes its element types name
             scratch.verifyCollectionRegion(c.token(), c.collectionTlv());
         } else if (id == ID_PROXY) {
-            byte[] handlerRec = parseProxy(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len)).handlerRec();
-            scratch.verifyRegionRecord(handlerRec);
+            ProxyParts parts = parseProxy(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+            meter.object();                                         // the proxy
+            for (String iface : parts.names()) {
+                meter.className(iface);
+            }
+            scratch.verifyRegionRecord(parts.handlerRec());
         } else if (id == ID_ENUM) {
-            parseEnumParts(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+            EnumParts enumParts = parseEnumParts(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+            meter.object();
+            meter.className(enumParts.className());
         } else if (id == ID_NULL) {
             requireNullItemEmpty(len);
         } else if (id == ID_STRING) {

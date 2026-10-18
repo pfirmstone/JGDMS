@@ -70,12 +70,12 @@ class DerStreamWholeStreamAdmissionTest {
     /** One way a stream can be structurally bad: the items appended (after the good prefix), and a message fragment. */
     private record BadTail(String name, byte[] bytes, String message) {}
 
-    private static byte[] chain(int n, String className) {
+    static byte[] chain(int n, String className) {
         // a one-record, zero-field chain; distinct class names make distinct identities
         return new AtomicSerialSchemaRecord(className + n, List.of()).encode();
     }
 
-    private static byte[] fullChainItem(byte[] chainBytes) {
+    static byte[] fullChainItem(byte[] chainBytes) {
         return DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
                 DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of())))),
                 DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, false, 0), chainBytes),
@@ -126,16 +126,16 @@ class DerStreamWholeStreamAdmissionTest {
 
     // ------------------------------------------------------------------ review follow-ups: what the first cut let through
 
-    private static final Tag CTX_NULL_TAG = new Tag(Tag.CLASS_CONTEXT, false, 0);
+    static final Tag CTX_NULL_TAG = new Tag(Tag.CLASS_CONTEXT, false, 0);
 
     /** A one-record chain whose single field is a nested {@code @AtomicSerial} (so its value is a chain site, or a proxy). */
-    private static byte[] holderChain() {
+    static byte[] holderChain() {
         return new AtomicSerialSchemaRecord("Holder",
                 List.of(new AtomicSerialFieldDef("p", "@AtomicSerial:java.lang.Runnable"))).encode();
     }
 
     /** A stream-form {@code [1]} item of class Holder whose one field value is {@code fieldTlv}; each carries the full chain. */
-    private static byte[] holderItem(byte[] fieldTlv) {
+    static byte[] holderItem(byte[] fieldTlv) {
         byte[] shell = DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of(fieldTlv))));
         return DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
                 DerWriter.writeOctetString(shell), DerWriter.writeTlv(CTX_NULL_TAG, holderChain()),
@@ -143,12 +143,12 @@ class DerStreamWholeStreamAdmissionTest {
     }
 
     /** A canonical nested site: {@code SEQUENCE { OCTET STRING(chain), OCTET STRING(payload shell of zero fields) }}. */
-    private static byte[] nestedSite(byte[] chainBytes) {
+    static byte[] nestedSite(byte[] chainBytes) {
         return DerWriter.writeSequence(List.of(DerWriter.writeOctetString(chainBytes),
                 DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of()))))));
     }
 
-    private static byte[] proxyTlv(byte[]... afterNames) {
+    static byte[] proxyTlv(byte[]... afterNames) {
         byte[] head = cat(DerWriter.writeInteger(1), DerWriter.writeUtf8String("java.lang.Runnable"));
         return DerWriter.writeTlv(CTX_PROXY, cat(head, cat(afterNames)));
     }
@@ -357,7 +357,7 @@ class DerStreamWholeStreamAdmissionTest {
 
     // ------------------------------------------------------------------ what the follow-up checks must NOT reject
 
-    private static byte[] streamOf(byte[]... items) {
+    static byte[] streamOf(byte[]... items) {
         return cat(new byte[] {(byte) 0x8F, 1, 1}, cat(items));
     }
 
@@ -595,9 +595,18 @@ class DerStreamWholeStreamAdmissionTest {
         }
     }
 
+    /**
+     * The wire-level admission verdict, with the whole-stream POLICY (B5) switched to its most permissive: this test is about
+     * admission agreeing with the lazy path, and a policy reject (a rebinding, a budget, a denied name) is by design a stream the
+     * lazy path would accept. The policy has its own tests.
+     */
+    private static final DerStreamPolicy NO_POLICY = DerStreamPolicy.BUILT_IN.withRejectRebinding(false)
+            .withMaxObjects(Integer.MAX_VALUE).withMaxElements(Integer.MAX_VALUE).withMaxDistinctClasses(Integer.MAX_VALUE);
+
     private static Throwable admissionFailure(byte[] stream) {
         try {
-            new DerMarshalInputStream(new ByteArrayInputStream(stream), ResolutionContext.NONE, DerInputLimits.DEFAULT).close();
+            new DerMarshalInputStream(new ByteArrayInputStream(stream), ResolutionContext.NONE, DerInputLimits.DEFAULT,
+                    NO_POLICY).close();
             return null;
         } catch (Throwable t) {
             return t;

@@ -153,7 +153,20 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
-        this(in, resolution, limits, true, false);
+        this(in, resolution, limits, DerStreamPolicy.DEFAULT);
+    }
+
+    /**
+     * As {@link #DerMarshalInputStream(InputStream, ResolutionContext, DerInputLimits)} with an explicit whole-stream
+     * {@link DerStreamPolicy} (class-name allow/deny lists, object and element budgets, rebinding) in place of the
+     * system-property-configured default. The policy is applied by full admission, before the constructor returns.
+     *
+     * @param policy the whole-stream policy (must not be null)
+     * @throws IOException if reading from {@code in} fails, it exceeds the byte cap, or the stream is not admissible
+     */
+    public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                 DerStreamPolicy policy) throws IOException {
+        this(in, resolution, limits, policy, true, false);
     }
 
     /**
@@ -176,21 +189,31 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
-        return new DerMarshalInputStream(in, resolution, limits, true, true);
+        return forDispatcher(in, resolution, limits, DerStreamPolicy.DEFAULT);
+    }
+
+    /**
+     * As {@link #forDispatcher(InputStream, ResolutionContext, DerInputLimits)} with an explicit {@link DerStreamPolicy},
+     * applied by {@link #admitStream()}.
+     */
+    public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                                      DerStreamPolicy policy) throws IOException {
+        return new DerMarshalInputStream(in, resolution, limits, policy, true, true);
     }
 
     /** Private: selects between the object-stream format and record-level capture, and the admission mode. */
-    private DerMarshalInputStream(InputStream in, ResolutionContext resolution,
-                                  DerInputLimits limits, boolean streamFormat, boolean deferAdmission)
+    private DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                  DerStreamPolicy policy, boolean streamFormat, boolean deferAdmission)
             throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
+        Objects.requireNonNull(policy, "policy");
         // bounded: refuse oversize input (DoS). The stream format is item-framed, so an item that declares more than
         // the budget has left is refused before any of it is buffered; a record-level capture is NOT item-framed
         // (it is the bare canonical record bytes) and keeps the plain bounded read.
         byte[] buf = streamFormat ? limits.readFramedBounded(in) : limits.readAllBytesBounded(in);
-        this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes());
+        this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes(), policy);
         this.codec.initReader(buf, decodeUnit, resolution);
         try {
             if (deferAdmission) {
@@ -226,6 +249,11 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         }
     }
 
+    /** The tally of this stream's last full admission (objects, elements, distinct classes), or {@code null}; a test and diagnostic seam. */
+    StreamPolicyMeter admissionTally() {
+        return codec.admissionTally();
+    }
+
     /**
      * Creates a <b>record-level capture</b> reader: the standalone
      * {@code MarshalledInstance} capture context (STD-006 Appendix C sec.C.1.2 item 3),
@@ -246,7 +274,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public static DerMarshalInputStream recordLevelCapture(InputStream in,
                                                            ResolutionContext resolution)
             throws IOException {
-        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, false, false);
+        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, DerStreamPolicy.DEFAULT, false, false);
     }
 
 

@@ -459,6 +459,18 @@ final class StreamSchemaDedup {
     /** The stream's input cap, kept to size the region verifier a decode-direction admission instance creates. */
     private final int maxInputBytes;
 
+    /**
+     * The whole-stream policy tally (B5) a verifying instance reports to, shared with the region verifiers it creates, or
+     * {@code null} on a delivery instance (which applies no policy, so delivery's behaviour is unchanged).
+     */
+    private final StreamPolicyMeter meter;
+
+    /**
+     * The rebinding scope chains are reported in (see {@link StreamPolicyMeter.Scope}): the stream's own for an admission
+     * instance, and for a region verifier the region being walked, swapped by {@link #inRegion}.
+     */
+    private StreamPolicyMeter.Scope scope;
+
     /** Decode-direction admission only: the table-of-its-own instance nested {@code [8]} regions are verified on. */
     private StreamSchemaDedup regionVerifier;
 
@@ -579,17 +591,19 @@ final class StreamSchemaDedup {
      * @param streamFactor  per-window factor (same range; must be {@code >= itemFactor})
      */
     StreamSchemaDedup(boolean encoding, int maxInputBytes, int itemFactor, int streamFactor) {
-        this(encoding, maxInputBytes, itemFactor, streamFactor, false);
+        this(encoding, maxInputBytes, itemFactor, streamFactor, false, null);
     }
 
     private StreamSchemaDedup(boolean encoding, int maxInputBytes, int itemFactor, int streamFactor,
-                              boolean verify) {
+                              boolean verify, StreamPolicyMeter meter) {
         requireValidFactor(itemFactor, PROP_RECONSTITUTION_FACTOR);
         requireValidFactor(streamFactor, PROP_STREAM_RECONSTITUTION_FACTOR);
         checkCompositionInvariant(itemFactor, streamFactor);
         this.encoding = encoding;
         this.verify = verify;
         this.maxInputBytes = maxInputBytes;
+        this.meter = meter;
+        this.scope = meter == null ? null : meter.newScope();
         // Math.multiplyExact keeps a large factor × maxInputBytes from overflowing to a
         // small/negative ceiling (structurally impossible in the validated range —
         // MAX_EXPANSION_FACTOR × Integer.MAX_VALUE < Long.MAX_VALUE — but pinned defensively).
@@ -604,9 +618,9 @@ final class StreamSchemaDedup {
      * makes (it is the same code, with its own table and counters), plus a verify-only descent into the {@code [8]}
      * regions delivery passes through. Its output is discarded.
      */
-    static StreamSchemaDedup forAdmission(int maxInputBytes) {
+    static StreamSchemaDedup forAdmission(int maxInputBytes, StreamPolicyMeter meter) {
         return new StreamSchemaDedup(false, maxInputBytes, RECONSTITUTION_EXPANSION_FACTOR,
-                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true);
+                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true, meter);
     }
 
     /**
@@ -614,9 +628,9 @@ final class StreamSchemaDedup {
      * {@code [8]} proxy's handler) with. Region bytes are not stream-deduplicated, so this instance's table belongs to the
      * region alone; see {@link #verify} for how it differs from a writer.
      */
-    static StreamSchemaDedup forRegionVerification(int maxInputBytes) {
+    static StreamSchemaDedup forRegionVerification(int maxInputBytes, StreamPolicyMeter meter) {
         return new StreamSchemaDedup(true, maxInputBytes, RECONSTITUTION_EXPANSION_FACTOR,
-                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true);
+                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true, meter);
     }
 
     /** Rejects a factor outside {@code [1, MAX_EXPANSION_FACTOR]} (the validated invariant). */
@@ -844,7 +858,8 @@ final class StreamSchemaDedup {
      */
     void verifyCollectionRegion(String token, byte[] collectionTlv) throws DerException {
         requireVerifying();
-        regionVerifier().transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create());
+        StreamSchemaDedup region = regionVerifier();
+        region.inRegion(() -> region.transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create()));
     }
 
     /**
@@ -853,7 +868,32 @@ final class StreamSchemaDedup {
      */
     void verifyRegionRecord(byte[] canonicalRecord) throws DerException {
         requireVerifying();
-        regionVerifier().dedupTopLevelAtomicTo(canonicalRecord, null, DerEncoder.create());
+        StreamSchemaDedup region = regionVerifier();
+        region.inRegion(() -> region.dedupTopLevelAtomicTo(canonicalRecord, null, DerEncoder.create()));
+    }
+
+    @FunctionalInterface
+    private interface RegionWalk {
+        void run() throws DerException;
+    }
+
+    /**
+     * Runs {@code walk} with a rebinding scope of its own (one forwarded region has one origin, so one schema per class), then
+     * restores the enclosing scope: a region nested in a region, or a proxy in a record, never shares a binding with what
+     * surrounds it.
+     */
+    private void inRegion(RegionWalk walk) throws DerException {
+        if (meter == null) {
+            walk.run();
+            return;
+        }
+        StreamPolicyMeter.Scope enclosing = scope;
+        scope = meter.newScope();
+        try {
+            walk.run();
+        } finally {
+            scope = enclosing;
+        }
     }
 
     private void requireVerifying() {
@@ -873,7 +913,7 @@ final class StreamSchemaDedup {
             return this;
         }
         if (regionVerifier == null) {
-            regionVerifier = forRegionVerification(maxInputBytes);
+            regionVerifier = forRegionVerification(maxInputBytes, meter);
         }
         return regionVerifier;
     }
@@ -907,8 +947,14 @@ final class StreamSchemaDedup {
             throw new DerException("StreamSchemaDedup: nested [8] proxy interface count " + count
                     + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
         }
+        if (meter != null) {
+            meter.object();                              // the proxy
+        }
         for (int i = 0; i < count; i++) {
-            pr.readUtf8String();
+            String iface = pr.readUtf8String();
+            if (meter != null) {
+                meter.className(iface);
+            }
         }
         int handlerStart = pr.position();
         int handlerEnd = pr.skipTlv();
@@ -916,6 +962,28 @@ final class StreamSchemaDedup {
             throw new DerException("StreamSchemaDedup: trailing bytes after the handler in a nested [8] proxy");
         }
         transformNestedSite(in, handlerStart, handlerEnd, depth + 1, DerEncoder.create());
+    }
+
+    /**
+     * Verify-only walk of a nested {@code [7]} enum leaf ({@code ObjectCodec.decodeEnumLeaf}): the enum's class is a name the
+     * stream makes the loader load, and the leaf is an object. Constructs nothing and resolves nothing.
+     */
+    private void verifyNestedEnum(byte[] in, int start, int end) throws DerException {
+        DerReader r = new DerReader(in, start, end);
+        DerReader.TlvHeader hdr = r.readTlvHeader();
+        int contentStart = r.position();
+        r.skip(hdr.contentLength());
+        if (r.hasMore()) {
+            throw new DerException("StreamSchemaDedup: trailing bytes after nested [7] enum TLV");
+        }
+        DerReader er = new DerReader(in, contentStart, contentStart + hdr.contentLength());
+        String className = er.readUtf8String();
+        er.readUtf8String();
+        if (er.hasMore()) {
+            throw new DerException("StreamSchemaDedup: trailing bytes in nested [7] enum content");
+        }
+        meter.object();
+        meter.className(className);
     }
 
     private void requireDirection(boolean wantEncoding) {
@@ -971,6 +1039,9 @@ final class StreamSchemaDedup {
         if (outer.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after P1 record SEQUENCE");
+        }
+        if (meter != null) {
+            meter.object();                              // a record site: one constructor will run for it
         }
 
         // Field 1 (both forms): payloadBytes OCTET STRING — located, not copied.
@@ -1045,8 +1116,15 @@ final class StreamSchemaDedup {
                     + awt + "'");
         }
         String comp = awt.substring("array:".length());
+        if (meter != null) {
+            meter.object();                              // the array (its component class is noted by the caller)
+        }
         if (!comp.startsWith("@AtomicSerial")) {
             // No chain sites (scalar/String/Class/enum components) — verbatim (rule 2).
+            if (meter != null) {
+                meterClassValues(comp, content, wtEnd, content.length);
+                meterRaw(content, wtEnd, content.length);
+            }
             out.raw(content, 0, content.length);
             return;
         }
@@ -1061,6 +1139,9 @@ final class StreamSchemaDedup {
         while (seq.hasMore()) {
             int start = seq.position();
             int end = seq.skipTlv();
+            if (meter != null) {
+                meter.elements(1);
+            }
             transformNestedSite(content, start, end, 0, out);
         }
         out.end();
@@ -1098,12 +1179,16 @@ final class StreamSchemaDedup {
         Tag t = r.peekTag();
         if (CTX_PROXY.equals(t)) {
             if (verify) {
-                regionVerifier().verifyNestedProxy(in, start, end, depth);
+                StreamSchemaDedup region = regionVerifier();
+                region.inRegion(() -> region.verifyNestedProxy(in, start, end, depth));
             }
             out.raw(in, start, end - start);   // sec.C.6.5: [8] byte region excluded, transitively.
             return;
         }
         if (CTX_ENUM.equals(t)) {
+            if (verify && meter != null) {
+                verifyNestedEnum(in, start, end);
+            }
             out.raw(in, start, end - start);   // enum leaf: no chain site, value travels verbatim.
             return;
         }
@@ -1121,6 +1206,9 @@ final class StreamSchemaDedup {
         if (r.hasMore()) {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after nested record SEQUENCE");
+        }
+        if (meter != null) {
+            meter.object();                              // a nested record site
         }
 
         Site site;
@@ -1237,6 +1325,13 @@ final class StreamSchemaDedup {
                 transformNestedArray(in, start, end, depth, out);
                 return;
             }
+            if (meter != null && !isNullTlv(in, start, end)) {
+                meter.object();                          // a non-null array field value
+            }
+            if (meter != null) {
+                meterClassValues(comp, in, start, end);
+                meterRaw(in, start, end);
+            }
             out.raw(in, start, end - start);   // scalar/String/Class/enum component arrays: no sites.
             return;
         }
@@ -1249,6 +1344,9 @@ final class StreamSchemaDedup {
             return;
         }
         // scalar / String / byte[] / Class / enum:<class> — verbatim.
+        if (meter != null) {
+            meterClassValues(wireType, in, start, end);
+        }
         out.raw(in, start, end - start);
     }
 
@@ -1265,10 +1363,16 @@ final class StreamSchemaDedup {
             throw new DerException(
                     "StreamSchemaDedup: trailing bytes after @AtomicSerial array SEQUENCE");
         }
+        if (meter != null) {
+            meter.object();
+        }
         out.begin(Tag.SEQUENCE);
         while (seq.hasMore()) {
             int elemStart = seq.position();
             int elemEnd = seq.skipTlv();
+            if (meter != null) {
+                meter.elements(1);
+            }
             transformNestedSite(in, elemStart, elemEnd, depth, out);
         }
         out.end();
@@ -1292,9 +1396,15 @@ final class StreamSchemaDedup {
                     "StreamSchemaDedup: collection nesting depth " + depth
                     + " exceeds MAX_NESTING (" + ObjectCodec.MAX_NESTING + ")");
         }
+        if (meter != null) {
+            meter.object();                              // one collection is built for this value
+        }
         if (CollectionWireTypes.isMap(token)) {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(token);
             if (!mustWalk(kv[0]) && !mustWalk(kv[1])) {
+                if (meter != null) {
+                    meterRaw(in, start, end);
+                }
                 out.raw(in, start, end - start);
                 return;
             }
@@ -1323,6 +1433,9 @@ final class StreamSchemaDedup {
         }
         String elemWT = CollectionWireTypes.elementWireType(token);
         if (!mustWalk(elemWT)) {
+            if (meter != null) {
+                meterRaw(in, start, end);
+            }
             out.raw(in, start, end - start);
             return;
         }
@@ -1372,6 +1485,9 @@ final class StreamSchemaDedup {
         while (elems.hasMore()) {
             int elemStart = elems.position();
             int elemEnd = elems.skipTlv();
+            if (meter != null) {
+                meter.elements(1);
+            }
             per.apply(elemStart, elemEnd);
         }
         out.end();
@@ -1427,6 +1543,9 @@ final class StreamSchemaDedup {
                 throw new DerException(
                         "StreamSchemaDedup: Any collection nesting depth " + (depth + 1)
                         + " exceeds MAX_NESTING (" + ObjectCodec.MAX_NESTING + ")");
+            }
+            if (meter != null) {
+                meter.object();                          // the collection this Any element becomes
             }
             int next = depth + 1;
             out.begin(t);
@@ -1571,6 +1690,9 @@ final class StreamSchemaDedup {
         byte[] chainBytes = Arrays.copyOfRange(in, chainOff, chainOff + chainLen);
         List<AtomicSerialSchemaRecord> records = SchemaChain.decodeChain(chainBytes, "StreamSchemaDedup(verify)");
         byte[] digest = leafRecordDigest(chainBytes);
+        if (meter != null) {
+            meter.chain(scope, records, digest);
+        }
         if (table.containsKey(ByteBuffer.wrap(digest))) {
             return new Site(chainBytes, records, digest, NO_OUTPUT);
         }
@@ -1581,6 +1703,57 @@ final class StreamSchemaDedup {
 
     /** What a verifying instance emits at a chain site: nothing (its output is discarded). */
     private static final byte[] NO_OUTPUT = new byte[0];
+
+    /** The wire type of a {@code Class}-valued field or element: its VALUE is a class name the loader will be asked for. */
+    private static final String CLASS_VALUE = "java.lang.Class";
+
+    /**
+     * Policy tally (B5) for a collection or array TLV that is passed through unwalked: its children are its elements.
+     * Counts the children of a constructed outer TLV; a primitive one (an {@code OCTET STRING} byte array) has none.
+     */
+    private void meterRaw(byte[] in, int start, int end) throws DerException {
+        if (isNullTlv(in, start, end)) {
+            return;
+        }
+        DerReader r = new DerReader(in, start, end);
+        if (!r.peekTag().isConstructed()) {
+            return;
+        }
+        DerReader.TlvHeader hdr = r.readTlvHeader();
+        int contentStart = r.position();
+        DerReader kids = new DerReader(in, contentStart, contentStart + hdr.contentLength());
+        long n = 0;
+        while (kids.hasMore()) {
+            kids.skipTlv();
+            n++;
+        }
+        meter.elements(n);
+    }
+
+    /**
+     * Policy tally (B5): the value of a {@code Class} field, or of every element of a {@code Class} array, names a class the
+     * loader will be asked for. {@code wireType} is the field's type (or an array's component type); anything else is ignored.
+     */
+    private void meterClassValues(String wireType, byte[] in, int start, int end) throws DerException {
+        if (!CLASS_VALUE.equals(wireType) || isNullTlv(in, start, end)) {
+            return;
+        }
+        DerReader r = new DerReader(in, start, end);
+        if (r.peekTag().isConstructed()) {                 // array:java.lang.Class: a SEQUENCE of class names
+            DerReader.TlvHeader hdr = r.readTlvHeader();
+            int contentStart = r.position();
+            DerReader kids = new DerReader(in, contentStart, contentStart + hdr.contentLength());
+            while (kids.hasMore()) {
+                int kidStart = kids.position();
+                int kidEnd = kids.skipTlv();
+                if (!isNullTlv(in, kidStart, kidEnd)) {
+                    meter.className(new DerReader(in, kidStart, kidEnd).readUtf8String());
+                }
+            }
+            return;
+        }
+        meter.className(r.readUtf8String());
+    }
 
     /**
      * Decode direction: reads the {@code SchemaChainRef} at the reader's position and
@@ -1614,6 +1787,9 @@ final class StreamSchemaDedup {
             }
             // 4. Insert (stream-level ceilings metered at insertion, sec.C.8.2).
             insert(digest, content, records);
+            if (meter != null) {
+                meter.chain(scope, records, digest);     // admission only: the policy sees each distinct chain once
+            }
             // 5. Meter reconstituted output BEFORE the caller re-materialises these bytes
             //    (transformP1/transformNestedSite writeOctetString) — the interior fence
             //    on total re-materialised chain bytes (sec.C.8.1/C.8.3, G10).
@@ -1809,7 +1985,8 @@ final class StreamSchemaDedup {
      * site, or (a verifying instance only) it is a nested collection, whose value depth delivery bounds.
      */
     private boolean mustWalk(String wireType) throws DerException {
-        return maybeContainsSites(wireType) || (verify && CollectionWireTypes.isCollection(wireType));
+        return maybeContainsSites(wireType) || (verify && CollectionWireTypes.isCollection(wireType))
+                || (meter != null && wireType.contains(CLASS_VALUE));
     }
 
     /**
