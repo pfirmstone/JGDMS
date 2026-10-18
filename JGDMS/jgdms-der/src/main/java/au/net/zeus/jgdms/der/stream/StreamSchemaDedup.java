@@ -776,6 +776,26 @@ final class StreamSchemaDedup {
         transformTopLevelArray(arrayContent, out);
     }
 
+    /**
+     * Verify-only descent into a {@code [16]} region (admission): walks the collection TLV exactly as the encode direction
+     * walks a collection field, so every chain site inside is parsed, hashed and ceiling-checked and every nesting bound is
+     * applied, and discards the output. Region interiors are outside the stream's dedup layer (C.6.5), so this must be
+     * called on a THROWAWAY encode-direction instance: its table is the region's own and is never the stream's.
+     */
+    void verifyCollectionRegion(String token, byte[] collectionTlv) throws DerException {
+        requireDirection(true);
+        transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create());
+    }
+
+    /**
+     * Verify-only descent into a {@code [8]} proxy region's handler record (admission); same contract as
+     * {@link #verifyCollectionRegion}: a throwaway encode-direction instance, output discarded.
+     */
+    void verifyRegionRecord(byte[] canonicalRecord) throws DerException {
+        requireDirection(true);
+        dedupTopLevelAtomic(canonicalRecord, null);
+    }
+
     private void requireDirection(boolean wantEncoding) {
         if (this.encoding != wantEncoding) {
             throw new IllegalStateException(

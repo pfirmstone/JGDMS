@@ -35,6 +35,7 @@ import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.InboundRequest;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -43,12 +44,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * B0 at the dispatcher seam: a request stream {@code [good, good, item whose chainRef names a digest never sent]},
- * read through the stream the real {@link AtomicDerInvocationDispatcher} creates and closed the way
- * {@code BasicInvocationDispatcher.dispatch}'s {@code finally} closes it on a failure path. Pins today's behaviour
- * (the good items ARE delivered; the DGC completion callbacks registered by them are NOT run) so B2 can flip the first
- * and must keep the second. The full {@code dispatch(...)} call is not driven here: it needs a method discriminator,
- * constraints and a server context that add nothing to this question.
+ * B0 at the dispatcher seam, flipped by B2: a request stream {@code [good, good, item whose chainRef names a digest never
+ * sent]}, read through the stream the real {@link AtomicDerInvocationDispatcher} creates. B0 pinned that the two good items were
+ * delivered before the reject; B2 admits or rejects the whole stream at {@code admitStream()} (which
+ * {@code BasicInvocationDispatcher.dispatch} calls between {@code checkAccess} and {@code unmarshalArguments}), so nothing is
+ * delivered and no constructor runs. The full {@code dispatch(...)} call is driven by {@code AtomicDerAdmissionDispatchTest}.
  */
 public class AtomicDerAdmissionSeamTest {
 
@@ -124,31 +124,43 @@ public class AtomicDerAdmissionSeamTest {
     }
 
     @Test
-    public void goodItemsAreDeliveredThenTheBadOneRejectsAndNoDgcCallbackRuns() throws Exception {
+    public void aBadRequestStreamDeliversNothingAndRunsNoConstructorAndNoDgcCallback() throws Exception {
         Item.CONSTRUCTED.set(0);
         Collection<Method> methods = new ArrayList<>();
         methods.add(Service.class.getMethod("echo", Item.class));
         AtomicDerInvocationDispatcher dispatcher = new AtomicDerInvocationDispatcher(
                 methods, new FakeServerCaps(), null, null, AtomicDerAdmissionSeamTest.class.getClassLoader());
+        // B0 pinned: read two good items, reject at the third. B2: the cheap stage accepts the stream at creation (nothing
+        // in it is malformed at the item-header level), an object read before admitStream() is refused, and admitStream()
+        // rejects the WHOLE stream, so no object is ever built.
         ObjectInput in = dispatcher.createMarshalInputStream(
                 new Impl(), new FakeInbound(new ByteArrayInputStream(goodGoodBad())), false, Collections.emptyList());
         Assert.assertTrue(in instanceof DerMarshalInputStream);
         AtomicInteger fired = new AtomicInteger();
         ((DerMarshalInputStream) in).registerValidation(fired::incrementAndGet, 0);
 
-        Assert.assertTrue(in.readObject() instanceof Item);
-        Assert.assertTrue(in.readObject() instanceof Item);
         try {
             in.readObject();
-            Assert.fail("the third item names an unknown chain digest and must be rejected");
+            Assert.fail("an object read before admitStream() must be refused");
         } catch (IOException expected) {
-            // BasicInvocationDispatcher.dispatch: the failure propagates, and its finally closes the stream
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("admitStream()"));
+        }
+        try {
+            ((AtomicObjectInput) in).admitStream();
+            Assert.fail("the third item names an unknown chain digest: the whole stream must be rejected");
+        } catch (IOException expected) {
             StringBuilder all = new StringBuilder();
             for (Throwable t = expected; t != null; t = t.getCause()) all.append(t.getMessage()).append(" | ");
             Assert.assertTrue("rejected for the unknown digest: " + all, all.toString().contains("unknown-digest"));
         }
+        try {
+            in.readObject();
+            Assert.fail("a rejected stream delivers nothing");
+        } catch (IOException expected) {
+            // permanent
+        }
         in.close();
-        Assert.assertEquals("today the two good items are delivered before the reject (B2: none)", 2, Item.CONSTRUCTED.get());
-        Assert.assertEquals("a failed decode unit must not issue the DGC dirty for the delivered objects", 0, fired.get());
+        Assert.assertEquals("B0 pinned 2; B2 builds nothing", 0, Item.CONSTRUCTED.get());
+        Assert.assertEquals("and registers nothing for the DGC", 0, fired.get());
     }
 }

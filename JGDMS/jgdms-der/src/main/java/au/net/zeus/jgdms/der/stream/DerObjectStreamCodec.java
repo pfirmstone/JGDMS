@@ -265,6 +265,18 @@ final class DerObjectStreamCodec {
     /** DER reader over the input bytes (read side). */
     private DerReader reader;
 
+    /** The complete input, kept so the admission pass can walk it with readers of its own (the delivery reader is untouched). */
+    private byte[] inputBuf;
+
+    /**
+     * Where this read side is in the admission state machine (see {@link #admit}):
+     * {@code OPEN} (no admission; codec-level callers and record-level capture), {@code PENDING} (record-bearing reads
+     * are refused until {@link #admit()}), {@code ADMITTED}, or {@code REJECTED} (permanent).
+     */
+    private enum Admission { OPEN, PENDING, ADMITTED, REJECTED }
+    private Admission admission = Admission.OPEN;
+    private IOException rejection;
+
     /**
      * Completion sink for the current decode unit, threaded into the constructed
      * {@code DerGetArg}s so that a decoded DGC live reference can register its batched
@@ -407,6 +419,7 @@ final class DerObjectStreamCodec {
             throws IOException {
         Objects.requireNonNull(buf, "buf");
         this.reader = new DerReader(buf);
+        this.inputBuf = buf;
         this.decodeUnit = decodeUnit;
         this.resolution = Objects.requireNonNull(resolution, "resolution");
         if (streamFormat) {
@@ -417,6 +430,206 @@ final class DerObjectStreamCodec {
             // stream's decode-side dedup table (sec.C.7.2: table created at stream open).
             consumeVersionOctet();
             this.decodeDedup = new StreamSchemaDedup(false, maxInputBytes);
+        }
+    }
+
+    // =========================================================================
+    // Whole-stream admission (SOW-DER-Streaming-Encoder, Part B)
+    // =========================================================================
+
+    /**
+     * The top-level tags a stream item may carry: the typed positional primitives (universal BOOLEAN, INTEGER, OCTET
+     * STRING, UTF8String) and the object items {@code [0]-[14]} and {@code [16]}. {@code [15]} is the version octet and
+     * is valid only as the first TLV, which is consumed before the walk.
+     */
+    private static final List<Tag> ITEM_TAGS = List.of(
+            Tag.BOOLEAN, Tag.INTEGER, Tag.OCTET_STRING, Tag.UTF8STRING,
+            CTX_NULL, CTX_ATOMIC, CTX_BOOLEAN, CTX_STRING, CTX_BYTE, CTX_BYTES, CTX_SHORT, CTX_ENUM, CTX_PROXY, CTX_ARRAY,
+            CTX_INTEGER, CTX_LONG, CTX_FLOAT, CTX_DOUBLE, CTX_CHARACTER, CTX_COLLECTION);
+
+    /**
+     * Makes the read side DEFER full admission: until {@link #admit()} is called, a read that would reach a record-bearing
+     * item ({@code [1]}, {@code [7]}, {@code [8]}, {@code [9]}, {@code [16]}) is refused. Used for streams a server
+     * dispatcher creates, which are built before the caller is authorized; scalar and primitive reads (the method hash)
+     * stay allowed. Only meaningful in the stream format.
+     */
+    void deferAdmission() {
+        if (streamFormat && admission == Admission.OPEN) {
+            admission = Admission.PENDING;
+        }
+    }
+
+    /**
+     * Cheap admission, with no hashing, no dedup table and no class names: every item's header is canonical and fits,
+     * the items exactly cover the input, and every item carries an allowed tag. Safe to run before authorization: it is
+     * linear in the (already bounded) input and allocates nothing proportional to it.
+     */
+    void admitCheap() throws IOException {
+        if (!streamFormat) return;
+        walkItems(false);
+    }
+
+    /**
+     * Full admission: the cheap checks, then a verify-only pass that runs every dedup decision the delivery path would
+     * run, in wire order, against a SCRATCH table of its own (nothing is shared with delivery, so there is no mode in
+     * which the delivery walker skips a check): chain verification and hashing, references, duplicates, the chain and table
+     * ceilings, the per-item and cumulative reconstitution ceilings, and the nesting bounds; plus a verify-only descent into
+     * {@code [8]} and {@code [16]} regions (which the dedup layer passes through) on throwaway tables. Constructs nothing,
+     * loads no class, runs no constructor or {@code check}, registers nothing. Idempotent; a failure is permanent.
+     *
+     * <p>Guarantees the stream is structurally admissible. It does NOT promise every object will be accepted:
+     * constructors, {@code check(GetArg)} and class resolution are decided when an object is read, bottom-up, and payload
+     * VALUE checks (set order, ranges) belong to the record decoder.
+     */
+    void admit() throws IOException {
+        if (admission == Admission.ADMITTED) return;
+        if (admission == Admission.REJECTED) throw rejectedAgain();
+        if (!streamFormat) {
+            admission = Admission.ADMITTED;
+            return;
+        }
+        try {
+            walkItems(true);
+        } catch (IOException | RuntimeException e) {
+            admission = Admission.REJECTED;
+            rejection = e instanceof IOException io ? io : new IOException("DER object stream admission failed: " + e, e);
+            throw rejection;
+        }
+        admission = Admission.ADMITTED;
+    }
+
+    /** Throws the permanent rejection, if any; the stream layer calls this before every read. */
+    void requireNotRejected() throws IOException {
+        if (admission == Admission.REJECTED) throw rejectedAgain();
+    }
+
+    private IOException rejectedAgain() {
+        return new IOException("DER object stream was rejected by admission and delivers nothing: "
+                + (rejection == null ? "?" : rejection.getMessage()), rejection);
+    }
+
+    private void walkItems(boolean full) throws IOException {
+        if (inputBuf == null) {
+            throw new IllegalStateException("admission before initReader");
+        }
+        DerReader r = new DerReader(inputBuf);
+        StreamSchemaDedup scratch = full ? new StreamSchemaDedup(false, maxInputBytes) : null;
+        int index = 0;
+        try {
+            r.skipTlv();                                          // the version octet, already verified by initReader
+            while (r.hasMore()) {
+                int start = r.position();
+                DerReader.TlvHeader hdr = r.readTlvHeader();
+                int contentStart = r.position();
+                int len = hdr.contentLength();
+                r.skip(len);
+                Tag tag = hdr.tag();
+                if (!ITEM_TAGS.contains(tag)) {
+                    throw new IOException("unexpected top-level tag " + tag + " at offset " + start
+                            + " (a stream item is a typed primitive or one of [0]-[14], [16]; [15] is the version octet and"
+                            + " is valid only first)");
+                }
+                if (full) {
+                    verifyItem(scratch, tag, contentStart, len);
+                }
+                index++;
+            }
+        } catch (DerException e) {
+            throw new IOException("DER object stream admission: item " + index + ": " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new IOException("DER object stream admission: item " + index + ": " + e.getMessage(), e);
+        }
+    }
+
+    /** The wire-level checks {@link #readObject} makes for one item, minus every construction. */
+    private void verifyItem(StreamSchemaDedup scratch, Tag tag, int contentStart, int len)
+            throws IOException, DerException {
+        if (CTX_ATOMIC.equals(tag)) {
+            scratch.reconstituteTopLevelAtomicVerified(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+        } else if (CTX_ARRAY.equals(tag)) {
+            byte[] content = Arrays.copyOfRange(inputBuf, contentStart, contentStart + len);
+            requireArrayWireType(content);
+            scratch.reconstituteTopLevelArray(content);
+        } else if (CTX_COLLECTION.equals(tag)) {
+            ObjectCodec.TopLevelCollectionContent c =
+                    ObjectCodec.parseTopLevelCollection(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));
+            new StreamSchemaDedup(true, maxInputBytes).verifyCollectionRegion(c.token(), c.collectionTlv());
+        } else if (CTX_PROXY.equals(tag)) {
+            byte[] handlerRec = parseProxy(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len)).handlerRec();
+            new StreamSchemaDedup(true, maxInputBytes).verifyRegionRecord(handlerRec);
+        }
+        // [7] enum and the scalar items have no chain site; their value checks are the record decoder's (B3).
+    }
+
+    /** Checks a {@code [9]} array item's wire-type token and returns it. */
+    private static String requireArrayWireType(byte[] content) throws IOException {
+        DerReader ar = new DerReader(content);
+        String awt;
+        try {
+            awt = ar.readUtf8String();
+        } catch (DerException e) {
+            throw new IOException("readObject: malformed [9] array wireType", e);
+        }
+        if (!awt.startsWith("array:")) {
+            throw new IOException("readObject: [9] array wireType must start with 'array:', got '"
+                    + awt + "'");
+        }
+        return awt;
+    }
+
+    /** A {@code [8]} proxy item split into its interface names and its handler's {@code [1]} record bytes. */
+    private record ProxyParts(String[] names, byte[] handlerRec) {}
+
+    /** The wire-level front half of reading a {@code [8]} proxy item, shared with admission so the two cannot drift. */
+    private static ProxyParts parseProxy(byte[] content) throws IOException {
+        DerReader pr = new DerReader(content);
+        int count;
+        String[] names;
+        byte[] handlerRec;
+        try {
+            count = pr.readInteger().intValueExact();
+            if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
+                throw new IOException("readObject: [8] proxy interface count " + count
+                        + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
+            }
+            names = new String[count];
+            for (int i = 0; i < count; i++) {
+                names[i] = pr.readUtf8String();
+            }
+            DerReader.TlvHeader hh = pr.readTlvHeader();
+            if (!CTX_ATOMIC.equals(hh.tag())) {
+                throw new IOException("readObject: [8] proxy handler must be a [1] @AtomicSerial item");
+            }
+            // Capture the handler's [1] @AtomicSerial record bytes but DEFER its decode until
+            // after tolerant interface resolution -- we must know whether narrowing occurred
+            // before decoding the handler, so we can inject the original [8] bytes into its
+            // GetArg (see readObject).
+            handlerRec = pr.readRawContent(hh.contentLength());
+            if (pr.hasMore()) {
+                throw new IOException("readObject: trailing bytes in [8] proxy item");
+            }
+        } catch (ArithmeticException e) {
+            throw new IOException("readObject: [8] proxy interface count overflow", e);
+        } catch (DerException e) {
+            throw new IOException("readObject: malformed [8] proxy item", e);
+        }
+        return new ProxyParts(names, handlerRec);
+    }
+
+    /** Refuses a record-bearing read on a stream whose admission is still pending (fail-closed, see {@link #deferAdmission}). */
+    private void requireAdmittedForNextItem() throws IOException {
+        if (admission != Admission.PENDING) return;
+        Tag next;
+        try {
+            next = reader.peekTag();
+        } catch (DerException e) {
+            return;                                               // an unreadable header fails in the normal path
+        }
+        if (CTX_ATOMIC.equals(next) || CTX_ENUM.equals(next) || CTX_PROXY.equals(next)
+                || CTX_ARRAY.equals(next) || CTX_COLLECTION.equals(next)) {
+            throw new IOException("readObject: a record-bearing item " + next + " was read before the stream was admitted;"
+                    + " this stream defers admission until the caller has been authorized, so call admitStream() first"
+                    + " (a dispatcher does this between checkAccess and unmarshalArguments)");
         }
     }
 
@@ -1209,6 +1422,7 @@ final class DerObjectStreamCodec {
      * Decodes the next context-tagged item from the stream and returns the object.
      */
     Object readObject() throws IOException, ClassNotFoundException {
+        requireAdmittedForNextItem();
         Tag tag;
         DerReader.TlvHeader hdr;
         try {
@@ -1255,17 +1469,7 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read [9] array content", e);
             }
-            DerReader ar = new DerReader(content);
-            String awt;
-            try {
-                awt = ar.readUtf8String();
-            } catch (DerException e) {
-                throw new IOException("readObject: malformed [9] array wireType", e);
-            }
-            if (!awt.startsWith("array:")) {
-                throw new IOException("readObject: [9] array wireType must start with 'array:', got '"
-                        + awt + "'");
-            }
+            requireArrayWireType(content);
             if (streamFormat) {
                 // Appendix C: reconstitute the [9] array's P2 element sites (references
                 // resolved fail-closed against this stream's table) BEFORE the existing
@@ -1278,12 +1482,13 @@ final class DerObjectStreamCodec {
                             "readObject: [9] array stream schema-dedup reconstitution"
                             + " failed: " + e.getMessage(), e);
                 }
-                ar = new DerReader(content);
-                try {
-                    awt = ar.readUtf8String();
-                } catch (DerException e) {
-                    throw new IOException("readObject: malformed [9] array wireType", e);
-                }
+            }
+            DerReader ar = new DerReader(content);
+            String awt;
+            try {
+                awt = ar.readUtf8String();
+            } catch (DerException e) {
+                throw new IOException("readObject: malformed [9] array wireType", e);
             }
             byte[] seqBytes = Arrays.copyOfRange(content, ar.position(), content.length);
             String componentWT = awt.substring("array:".length());
@@ -1396,37 +1601,9 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read [8] proxy content", e);
             }
-            DerReader pr = new DerReader(content);
-            int count;
-            String[] names;
-            byte[] handlerRec;
-            try {
-                count = pr.readInteger().intValueExact();
-                if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
-                    throw new IOException("readObject: [8] proxy interface count " + count
-                            + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
-                }
-                names = new String[count];
-                for (int i = 0; i < count; i++) {
-                    names[i] = pr.readUtf8String();
-                }
-                DerReader.TlvHeader hh = pr.readTlvHeader();
-                if (!CTX_ATOMIC.equals(hh.tag())) {
-                    throw new IOException("readObject: [8] proxy handler must be a [1] @AtomicSerial item");
-                }
-                // Capture the handler's [1] @AtomicSerial record bytes but DEFER its decode until
-                // after tolerant interface resolution -- we must know whether narrowing occurred
-                // before decoding the handler, so we can inject the original [8] bytes into its
-                // GetArg (see below).
-                handlerRec = pr.readRawContent(hh.contentLength());
-                if (pr.hasMore()) {
-                    throw new IOException("readObject: trailing bytes in [8] proxy item");
-                }
-            } catch (ArithmeticException e) {
-                throw new IOException("readObject: [8] proxy interface count overflow", e);
-            } catch (DerException e) {
-                throw new IOException("readObject: malformed [8] proxy item", e);
-            }
+            ProxyParts parts = parseProxy(content);
+            String[] names = parts.names();
+            byte[] handlerRec = parts.handlerRec();
             // Endpoint-assigned TOLERANT resolution of the proxy class (NEVER the thread-context
             // loader -- Warres): resolves each interface name independently rather than failing
             // the whole item when a single name doesn't resolve locally. Names that don't resolve

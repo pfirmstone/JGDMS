@@ -1751,6 +1751,24 @@ public final class ObjectCodec {
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(resolution, "resolution");
+        TopLevelCollectionContent parsed = parseTopLevelCollection(content);
+        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
+        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
+        return decodeCollection(parsed.collectionTlv(), parsed.token(), 0, decodeUnit, resolution, null);
+    }
+
+    /** A {@code [16]} item's content split into its collection wire-type token and its collection TLV. */
+    public record TopLevelCollectionContent(String token, byte[] collectionTlv) {}
+
+    /**
+     * The wire-level front half of {@link #decodeTopLevelCollection}: parses and grammar-validates the token and
+     * cross-checks the Option-A outer tag against it (the AnyCodec fence), constructing nothing. Shared with the stream
+     * layer's admission pass so the two cannot drift.
+     *
+     * @throws DerException if the token is malformed or not a collection token, the collection TLV is missing, or the
+     *                      outer tag lies about the token's discipline
+     */
+    public static TopLevelCollectionContent parseTopLevelCollection(byte[] content) throws DerException {
         DerReader r = new DerReader(content);
         String token;
         try {
@@ -1783,9 +1801,7 @@ public final class ObjectCodec {
                     + Integer.toHexString(expectedTag) + " but the collection TLV opens with 0x"
                     + Integer.toHexString(outerTag) + " -- lying Option-A encoding, rejected");
         }
-        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
-        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
-        return decodeCollection(collTlv, token, 0, decodeUnit, resolution, null);
+        return new TopLevelCollectionContent(token, collTlv);
     }
 
     /**

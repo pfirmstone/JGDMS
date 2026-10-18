@@ -426,7 +426,7 @@ class StreamSchemaDedupEquivalenceTest {
             0xA7, 0xA8, 0x87, 0x88, 0x89, 0xB4, 0xBE, 0x9E, 0x8F, 0x00, 0xFF};
 
     /** A structure-aware mutation of a valid record; returns null if the input does not parse. */
-    private static byte[] mutateTree(byte[] valid, Random r, StringBuilder how) {
+    static byte[] mutateTree(byte[] valid, Random r, StringBuilder how) {
         List<Node> top = parse(valid, 0, valid.length, 0);
         if (top == null) return null;
         // a [9] array item is two consecutive TLVs: mutate inside a virtual wrapper that is never itself encoded
@@ -520,7 +520,7 @@ class StreamSchemaDedupEquivalenceTest {
     }
 
     /** A byte-level mutation (lengths and framing are NOT repaired). */
-    private static byte[] mutateBytes(byte[] valid, Random r, StringBuilder how) {
+    static byte[] mutateBytes(byte[] valid, Random r, StringBuilder how) {
         byte[] b = valid.clone();
         int op = r.nextInt(7);
         how.append("byte-op ").append(op);
