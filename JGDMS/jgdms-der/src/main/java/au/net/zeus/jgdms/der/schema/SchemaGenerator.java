@@ -31,6 +31,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -209,6 +210,25 @@ public final class SchemaGenerator {
             return c.chainBytes().clone();
         }
         throw new DerException((String) v);
+    }
+
+    /**
+     * Whether {@code candidate} is byte-for-byte the canonical chain encoding that this
+     * node generates for {@code leafClass}. The comparison is AGAINST the cached, locally
+     * generated value; {@code candidate} (which may have come from the wire) is never stored.
+     * A class with no usable chain (not {@code @AtomicSerial}, bad {@code serialForm()}) is
+     * simply "not equal", so callers fall back to the full decode path.
+     *
+     * @param leafClass the locally resolved leaf class
+     * @param candidate the bytes to compare (not retained, not modified)
+     * @return {@code true} only if {@code candidate} equals the local canonical chain bytes
+     * @throws NullPointerException if either argument is {@code null}
+     */
+    public static boolean chainBytesEqual(Class<?> leafClass, byte[] candidate) {
+        Objects.requireNonNull(leafClass, "leafClass");
+        Objects.requireNonNull(candidate, "candidate");
+        Object v = CHAIN_CACHE.get(leafClass);
+        return v instanceof CachedChain c && Arrays.equals(c.chainBytes(), candidate);
     }
 
     /**

@@ -220,23 +220,47 @@ public final class MarshalledInstanceCodec {
         Objects.requireNonNull(rec,           "rec");
         Objects.requireNonNull(receiverClass, "receiverClass");
 
-        // Step 1: parse the embedded schema chain
-        SchemaChain.Result embeddedChain = rec.decodeSchemaChainAsResult();
-
-        // Step 2: compare embedded digest to receiver's own current digest
+        // Step 1+2: obtain the verified embedded chain and decide the schema case.
+        //
+        // Fast path (SOW-DER-Codec-Performance T4). The leaf class was already resolved by
+        // name through the endpoint ResolutionContext before this call (this method receives
+        // the Class, never a name). If the transmitted chain bytes are BYTE-IDENTICAL to the
+        // canonical chain this node generates for that class, and the sender's schemaDigest
+        // field equals that chain's leaf digest, then the chain is exactly the locally
+        // generated one: it is already parsed, cross-checked and digest-bound, so re-parsing
+        // it is redundant. This is a comparison AGAINST a locally generated, class-keyed
+        // value; nothing from the wire is cached. Any inequality -- an evolved sender, a
+        // tampered chain, a wrong schemaDigest field -- takes the full path below unchanged
+        // (which still rejects whatever it rejected before). The fast path can only accept
+        // what the full path accepts.
+        SchemaChain.Result embeddedChain;
         SchemaCase schemaCase;
+        SchemaChain.Result local = null;
         try {
-            SchemaChain.Result receiverChain = SchemaGenerator.generateChain(receiverClass);
-            byte[] receiverDigest  = receiverChain.leafDigest();
-            byte[] embeddedDigest  = rec.schemaDigest();
-            schemaCase = Arrays.equals(receiverDigest, embeddedDigest)
-                    ? SchemaCase.A_MATCH
-                    : SchemaCase.B_OR_C_MISMATCH;
+            local = SchemaGenerator.generateChain(receiverClass);
         } catch (DerException e) {
-            // If the receiver class has no @AtomicSerial serialForm() we cannot compute
-            // its current digest -- treat as a mismatch (case b/c) and proceed with the
-            // embedded schema, which is always correct.
-            schemaCase = SchemaCase.B_OR_C_MISMATCH;
+            // no usable local schema: never takes the fast path
+        }
+        if (local != null
+                && Arrays.equals(local.leafDigest(), rec.schemaDigest())
+                && rec.schemaBytesMatchLocal(receiverClass)) {
+            embeddedChain = local;
+            schemaCase = SchemaCase.A_MATCH;
+        } else {
+            // Step 1: parse the embedded schema chain (full verification)
+            embeddedChain = rec.decodeSchemaChainAsResult();
+
+            // Step 2: compare embedded digest to receiver's own current digest
+            if (local != null) {
+                schemaCase = Arrays.equals(local.leafDigest(), rec.schemaDigest())
+                        ? SchemaCase.A_MATCH
+                        : SchemaCase.B_OR_C_MISMATCH;
+            } else {
+                // If the receiver class has no @AtomicSerial serialForm() we cannot compute
+                // its current digest -- treat as a mismatch (case b/c) and proceed with the
+                // embedded schema, which is always correct.
+                schemaCase = SchemaCase.B_OR_C_MISMATCH;
+            }
         }
 
         // Step 3: ALWAYS decode using the embedded chain (S7.8 normative).

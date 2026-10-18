@@ -22,6 +22,7 @@ import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
+import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -338,6 +339,17 @@ public final class MarshalledInstanceRecord {
      */
     public List<AtomicSerialSchemaRecord> decodeSchemaChain() throws DerException {
         return SchemaChain.decodeChain(schemaBytes, "MarshalledInstanceRecord");
+    }
+
+    /**
+     * Whether this record's embedded {@code schemaBytes} are byte-for-byte the canonical
+     * chain this node generates for {@code leafClass} (decode fast path; see
+     * {@link MarshalledInstanceCodec#decodeMarshalledInstance}). {@code leafClass} must
+     * already have been resolved through the endpoint's resolution context; the wire bytes
+     * are only compared against, never cached.
+     */
+    public boolean schemaBytesMatchLocal(Class<?> leafClass) {
+        return SchemaGenerator.chainBytesEqual(leafClass, schemaBytes);
     }
 
     /**
