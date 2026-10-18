@@ -1123,7 +1123,9 @@ final class StreamSchemaDedup {
             // No chain sites (scalar/String/Class/enum components) — verbatim (rule 2).
             if (meter != null) {
                 meterClassValues(comp, content, wtEnd, content.length);
-                meterRaw(content, wtEnd, content.length);
+                if (!PRIMITIVE_COMPONENTS.contains(comp)) {
+                    meterRaw(content, wtEnd, content.length);
+                }
             }
             out.raw(content, 0, content.length);
             return;
@@ -1330,7 +1332,9 @@ final class StreamSchemaDedup {
             }
             if (meter != null) {
                 meterClassValues(comp, in, start, end);
-                meterRaw(in, start, end);
+                if (!PRIMITIVE_COMPONENTS.contains(comp)) {
+                    meterRaw(in, start, end);
+                }
             }
             out.raw(in, start, end - start);   // scalar/String/Class/enum component arrays: no sites.
             return;
@@ -1685,6 +1689,9 @@ final class StreamSchemaDedup {
     private Site verifyReceivedSite(byte[] in, int chainOff, int chainLen) throws DerException {
         TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, chainOff, chainLen));
         if (e != null) {
+            if (meter != null) {
+                meter.chain(scope, e.records(), e.digest());     // verified before, but possibly in another region's scope
+            }
             return new Site(e.chainBytes(), e.records(), e.digest(), NO_OUTPUT);
         }
         byte[] chainBytes = Arrays.copyOfRange(in, chainOff, chainOff + chainLen);
@@ -1703,6 +1710,13 @@ final class StreamSchemaDedup {
 
     /** What a verifying instance emits at a chain site: nothing (its output is discarded). */
     private static final byte[] NO_OUTPUT = new byte[0];
+
+    /**
+     * Array components that are primitives: an array of these costs memory in proportion to its bytes, which the input cap
+     * already bounds, and delivery puts no element cap on it, so its elements are not part of the element budget.
+     */
+    private static final java.util.Set<String> PRIMITIVE_COMPONENTS =
+            java.util.Set.of("boolean", "byte", "char", "short", "int", "long", "float", "double");
 
     /** The wire type of a {@code Class}-valued field or element: its VALUE is a class name the loader will be asked for. */
     private static final String CLASS_VALUE = "java.lang.Class";
@@ -1747,12 +1761,12 @@ final class StreamSchemaDedup {
                 int kidStart = kids.position();
                 int kidEnd = kids.skipTlv();
                 if (!isNullTlv(in, kidStart, kidEnd)) {
-                    meter.className(new DerReader(in, kidStart, kidEnd).readUtf8String());
+                    meter.classValue(new DerReader(in, kidStart, kidEnd).readUtf8String());
                 }
             }
             return;
         }
-        meter.className(r.readUtf8String());
+        meter.classValue(r.readUtf8String());
     }
 
     /**

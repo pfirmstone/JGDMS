@@ -54,11 +54,22 @@ class DerStreamPolicyTest {
     }
 
     @Test
+    void theDocumentedDefaultsAreTheShippedOnes() {
+        // these numbers are in the Javadoc, the SOW and release notes: a change here is a change to what streams are accepted
+        assertEquals(262_144, DerStreamPolicy.DEFAULT_MAX_OBJECTS);
+        assertEquals(4_194_304, DerStreamPolicy.DEFAULT_MAX_ELEMENTS);
+        assertEquals(1_024, DerStreamPolicy.DEFAULT_MAX_DISTINCT_CLASSES);
+        assertTrue(DerStreamPolicy.BUILT_IN.rejectRebinding());
+        assertTrue(DerStreamPolicy.BUILT_IN.allowClasses().isEmpty() && DerStreamPolicy.BUILT_IN.denyClasses().isEmpty());
+    }
+
+    @Test
     void theShippedDefaultMatchesTheBuiltInWhenNoSystemPropertyIsSet() {
         // the test JVM sets none of them; a JVM that does would be testing its own configuration
         boolean set = System.getProperties().stringPropertyNames().stream().anyMatch(n -> n.startsWith(DerStreamPolicy.PROP_PREFIX));
         if (!set) {
-            assertEquals(DerStreamPolicy.BUILT_IN.toString(), DerStreamPolicy.DEFAULT.toString());
+            assertEquals(DerStreamPolicy.BUILT_IN.toString(), DerStreamPolicy.defaults().toString());
+            assertSame(DerStreamPolicy.defaults(), DerStreamPolicy.defaults(), "read once");
         }
     }
 
@@ -177,6 +188,13 @@ class DerStreamPolicyTest {
         assertEquals(java.util.Set.of("k.K", "v.V"), namesIn("map:{@AtomicSerial:k.K}{enum:v.V}"));
         assertEquals(java.util.Set.of("k.K", "v.V", "w.W"), namesIn("orderedmap:{list:@AtomicSerial:k.K}{map:{enum:v.V}{@AtomicSerial:w.W}}"));
         assertEquals(java.util.Set.of("a.B$C"), namesIn("@AtomicSerial:a.B$C"));
+        // the loader receives everything up to the end of the part, so an array-class name is a name: it loads the element class
+        assertEquals(java.util.Set.of("a.E"), namesIn("enum:[La.E;"));
+        assertEquals(java.util.Set.of("a.E"), namesIn("array:enum:[[La.E;"));
+        assertEquals(java.util.Set.of("a.B"), namesIn("array:@AtomicSerial:[La.B;"));
+        assertEquals(java.util.Set.of("k.K", "v.V"), namesIn("map:{@AtomicSerial:[Lk.K;}{enum:[Lv.V;}"));
+        assertEquals(java.util.Set.of("a.E:foo"), namesIn("enum:a.E:foo"), "whatever follows the marker is the name");
+        assertEquals(java.util.Set.of("a.E x"), namesIn("enum:a.E x"));
         for (String none : new String[] {"int", "java.lang.String", "list:java.lang.String", "map:{int}{java.lang.String}", "any",
                 "array:int", "@AtomicSerial", "@AtomicSerial:", "enum:", "list:enum:", "x@AtomicSerial:a.B", ""}) {
             assertTrue(namesIn(none).isEmpty(), "'" + none + "' names no class: " + namesIn(none));
@@ -192,24 +210,53 @@ class DerStreamPolicyTest {
             DerException e = assertThrows(DerException.class, () -> m.wireType(token));
             assertTrue(e.getMessage().contains("is denied by"));
         });
-        // and a long run of marker-like text without a name
+        // and a long run of markers: the loader would be handed one 700 000-character name, which no class can have
         String noise = "@AtomicSerial:".repeat(50_000);
-        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertTrue(namesIn(noise).isEmpty()));
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            DerException e = assertThrows(DerException.class, () -> namesIn(noise));
+            assertTrue(e.getMessage().contains("longer than any class can have"));
+        });
+        // many short markers, each with its own short name: linear
+        String many = "map:" + "{@AtomicSerial:a.B}".repeat(30_000);
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertEquals(java.util.Set.of("a.B"), namesIn(many)));
     }
 
     @Test
     void classNamesAreNormalisedToTheClassTheLoaderWouldBeAsked() {
-        assertEquals("a.B", StreamPolicyMeter.normalise("a.B"));
-        assertEquals("a.B", StreamPolicyMeter.normalise("[La.B;"));
-        assertEquals("a.B", StreamPolicyMeter.normalise("[[[La.B;"));
-        assertEquals("a.B$C", StreamPolicyMeter.normalise("[La.B$C;"));
-        assertNull(StreamPolicyMeter.normalise("[I"));
-        assertNull(StreamPolicyMeter.normalise("[[J"));
-        assertNull(StreamPolicyMeter.normalise("int"));
-        assertNull(StreamPolicyMeter.normalise("void"));
-        assertNull(StreamPolicyMeter.normalise(""));
-        assertNull(StreamPolicyMeter.normalise("[La.B"), "an unterminated array name is not a class we can name");
-        assertEquals("integer", StreamPolicyMeter.normalise("integer"));
+        for (boolean values : new boolean[] {false, true}) {
+            assertEquals("a.B", StreamPolicyMeter.normalise("a.B", values));
+            assertEquals("a.B", StreamPolicyMeter.normalise("[La.B;", values));
+            assertEquals("a.B", StreamPolicyMeter.normalise("[[[La.B;", values));
+            assertEquals("a.B$C", StreamPolicyMeter.normalise("[La.B$C;", values));
+            assertNull(StreamPolicyMeter.normalise("[I", values), "a primitive array loads no class of ours");
+            assertNull(StreamPolicyMeter.normalise("[[J", values));
+            assertNull(StreamPolicyMeter.normalise("[Z", values));
+            assertNull(StreamPolicyMeter.normalise("", values));
+            assertEquals("integer", StreamPolicyMeter.normalise("integer", values));
+            // a malformed array name is judged as written: the loader receives that string, so a list must too
+            assertEquals("[La.B", StreamPolicyMeter.normalise("[La.B", values));
+            assertEquals("[La.B;x", StreamPolicyMeter.normalise("[La.B;x", values));
+            assertEquals("[L;", StreamPolicyMeter.normalise("[L;", values));
+            assertEquals("[Q", StreamPolicyMeter.normalise("[Q", values));
+        }
+        // a primitive NAME is no class to load only where delivery maps it to the primitive itself (a Class-valued field)
+        for (String prim : new String[] {"boolean", "byte", "char", "short", "int", "long", "float", "double", "void"}) {
+            assertEquals(prim, StreamPolicyMeter.normalise(prim, false), "a record, enum or interface called " + prim + " is a load");
+            assertNull(StreamPolicyMeter.normalise(prim, true));
+        }
+    }
+
+    @Test
+    void aPrimitiveNameIsCountedAsAClassExceptWhereItIsAClassValue() throws Exception {
+        StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN);
+        m.classValue("int");
+        m.classValue("void");
+        assertEquals(0, m.distinctClasses());
+        m.className("int");
+        assertEquals(1, m.distinctClasses());
+        StreamPolicyMeter denied = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("int"));
+        denied.classValue("int");
+        assertThrows(DerException.class, () -> denied.className("int"));
     }
 
     @Test
@@ -246,5 +293,97 @@ class DerStreamPolicyTest {
         m.className("b.B");
         assertEquals(2, m.distinctClasses());
         assertThrows(DerException.class, () -> m.className("c.C"));
+    }
+
+    // ------------------------------------------------------------------ defaults(): lazy, repeatable failure
+
+    @Test
+    void aMalformedPropertyFailsEveryUseWithTheSameActionableErrorAndOnlyWhereThePolicyIsNeeded() throws Exception {
+        String prop = DerStreamPolicy.PROP_DENY_CLASSES;
+        String before = System.getProperty(prop);
+        try {
+            System.setProperty(prop, "good.Name, bad entry!");
+            DerStreamPolicy.resetDefaultsForTest();
+            for (int i = 0; i < 3; i++) {
+                IllegalStateException e = assertThrows(IllegalStateException.class, DerStreamPolicy::defaults);
+                assertTrue(e.getMessage().contains("refusing to start"), e.getMessage());
+            }
+            // a reader is refused, with that message...
+            byte[] stream = DerStreamAdmissionCharacterisationTest.goodStream(1);
+            java.io.IOException io = assertThrows(java.io.IOException.class,
+                    () -> new DerMarshalInputStream(new java.io.ByteArrayInputStream(stream)));
+            assertTrue(DerStreamAdmissionCharacterisationTest.chain(io).contains("refusing to start"));
+            // ...an explicit policy is not affected by the broken property...
+            new DerMarshalInputStream(new java.io.ByteArrayInputStream(stream),
+                    au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE, au.net.zeus.jgdms.der.DerInputLimits.DEFAULT,
+                    DerStreamPolicy.BUILT_IN).close();
+            // ...and a writer never reads the policy
+            DerObjectStreamCodec c = new DerObjectStreamCodec();
+            c.writeLong(1L);
+            c.drainTo(new java.io.ByteArrayOutputStream());
+        } finally {
+            if (before == null) System.clearProperty(prop); else System.setProperty(prop, before);
+            DerStreamPolicy.resetDefaultsForTest();
+        }
+        assertDoesNotThrow(DerStreamPolicy::defaults);
+    }
+
+    @Test
+    void aPropertyThatIsSetButNamesNothingIsWarnedAbout() {
+        java.util.List<String> warnings = new java.util.ArrayList<>();
+        java.util.logging.Logger log = java.util.logging.Logger.getLogger("au.net.zeus.jgdms.der.stream.policy");
+        java.util.logging.Handler h = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord r) {
+                if (r.getLevel().intValue() >= java.util.logging.Level.WARNING.intValue()) {
+                    warnings.add(new java.util.logging.SimpleFormatter().formatMessage(r));
+                }
+            }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        log.addHandler(h);
+        try {
+            assertTrue(from("allowClasses", " , ").allowClasses().isEmpty());
+            assertTrue(from("allowClasses", "").allowClasses().isEmpty());
+            assertEquals(2, warnings.size(), warnings.toString());
+            assertTrue(warnings.get(0).contains("NO list is applied"), warnings.get(0));
+            warnings.clear();
+            from("denyClasses", "a.B");
+            from();
+            assertTrue(warnings.isEmpty(), "a real list and an unset property are silent: " + warnings);
+        } finally {
+            log.removeHandler(h);
+        }
+    }
+
+    @Test
+    void aFloodOfRejectionsIsLoggedAtAFixedRateButEveryOneStillThrows() {
+        java.util.concurrent.atomic.AtomicInteger logged = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.logging.Logger log = java.util.logging.Logger.getLogger("au.net.zeus.jgdms.der.stream.policy");
+        java.util.logging.Handler h = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord r) { logged.incrementAndGet(); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        log.addHandler(h);
+        StreamPolicyMeter.resetLogLimiterForTest();
+        try {
+            int thrown = 0;
+            long start = System.nanoTime();
+            for (int i = 0; i < 500; i++) {
+                StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("evil.**"));
+                try {
+                    m.className("evil.X" + i);
+                } catch (DerException e) {
+                    thrown++;
+                }
+            }
+            long seconds = 1 + (System.nanoTime() - start) / 1_000_000_000L;
+            assertEquals(500, thrown, "every rejection throws");
+            assertTrue(logged.get() <= 5 * seconds + 5, "at most five lines per second were logged: " + logged.get());
+            assertTrue(logged.get() >= 1);
+        } finally {
+            log.removeHandler(h);
+        }
     }
 }

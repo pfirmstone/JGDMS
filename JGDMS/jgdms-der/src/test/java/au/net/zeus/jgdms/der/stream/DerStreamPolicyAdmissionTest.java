@@ -173,6 +173,14 @@ class DerStreamPolicyAdmissionTest {
         m.put("schema: array of nested", c -> oneField("array:@AtomicSerial:" + c, NULL_TLV));
         m.put("schema: list of enums", c -> oneField("list:enum:" + c, NULL_TLV));
         m.put("schema: map value type", c -> oneField("map:{java.lang.String}{@AtomicSerial:" + c + "}", NULL_TLV));
+        m.put("schema: array-class enum type", c -> oneField("enum:[L" + c + ";", NULL_TLV));
+        m.put("schema: array of array-class enums", c -> oneField("array:enum:[[L" + c + ";", NULL_TLV));
+        m.put("schema: array-class component", c -> oneField("array:@AtomicSerial:[L" + c + ";", NULL_TLV));
+        m.put("schema: array-class map value", c -> oneField("map:{java.lang.String}{@AtomicSerial:[L" + c + ";}", NULL_TLV));
+        m.put("[9] array-class component", c -> DerWriter.writeTlv(CTX_ARRAY_TAG,
+                cat(utf8("array:@AtomicSerial:[L" + c + ";"), DerWriter.writeSequence(List.of()))));
+        m.put("[16] array-class token", c -> DerWriter.writeTlv(CTX_COLLECTION,
+                cat(utf8("list:enum:[L" + c + ";"), DerWriter.writeSequence(List.of()))));
         m.put("Class field value", c -> oneField("java.lang.Class", utf8(c)));
         m.put("array-class name in a Class field value", c -> oneField("java.lang.Class", utf8("[[L" + c + ";")));
         m.put("Class array element", c -> oneField("array:java.lang.Class", DerWriter.writeSequence(List.of(utf8(c)))));
@@ -335,7 +343,7 @@ class DerStreamPolicyAdmissionTest {
         c.writeCollection(new java.util.TreeSet<>(List.of("a", "b", "c", "d", "e")), "set:java.lang.String");
         java.util.TreeMap<String, Integer> map = new java.util.TreeMap<>(Map.of("a", 1, "b", 2, "c", 3));
         c.writeCollection(map, "map:{java.lang.String}{int}");
-        c.writeObject(new int[] {1, 2, 3, 4});
+        c.writeObject(new String[] {"w", "x", "y", "z"});
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         c.drainTo(bos);
         byte[] stream = bos.toByteArray();
@@ -394,11 +402,25 @@ class DerStreamPolicyAdmissionTest {
         StreamPolicyMeter topLevel = tally(streamOf(top));
         assertEquals(3, topLevel.objects());
         assertEquals(2, topLevel.elements());
-        // a primitive array field: the record and the array are 2 objects, 3 elements
+        // a primitive array field: the record and the array are 2 objects; its elements are bounded by the input size and
+        // are NOT part of the element budget
         StreamPolicyMeter prim = tally(streamOf(oneField("array:int",
                 DerWriter.writeSequence(List.of(DerWriter.writeInteger(1), DerWriter.writeInteger(2), DerWriter.writeInteger(3))))));
         assertEquals(2, prim.objects());
-        assertEquals(3, prim.elements());
+        assertEquals(0, prim.elements());
+        // the same as a top-level [9] item
+        StreamPolicyMeter primTop = tally(streamOf(DerWriter.writeTlv(CTX_ARRAY_TAG, cat(utf8("array:int"),
+                DerWriter.writeSequence(List.of(DerWriter.writeInteger(1), DerWriter.writeInteger(2)))))));
+        assertEquals(1, primTop.objects());
+        assertEquals(0, primTop.elements());
+        StreamPolicyMeter refTop = tally(streamOf(DerWriter.writeTlv(CTX_ARRAY_TAG, cat(utf8("array:java.lang.String"),
+                DerWriter.writeSequence(List.of(utf8("a"), utf8("b")))))));
+        assertEquals(2, refTop.elements());
+        // a reference-component array field (Strings) counts its elements
+        StreamPolicyMeter refs = tally(streamOf(oneField("array:java.lang.String",
+                DerWriter.writeSequence(List.of(utf8("a"), utf8("b"), utf8("c"))))));
+        assertEquals(2, refs.objects());
+        assertEquals(3, refs.elements());
         // a null array field is no array
         assertEquals(1, tally(streamOf(oneField("array:int", NULL_TLV))).objects());
         // an Any field holding a canonical collection of two ints: the record and the collection are 2 objects, 2 elements
@@ -408,6 +430,62 @@ class DerStreamPolicyAdmissionTest {
         StreamPolicyMeter any = tally(streamOf(oneField("any", anyColl)));
         assertEquals(2, any.objects());
         assertEquals(2, any.elements());
+    }
+
+    @Test
+    void aBigPrimitiveArrayIsNotHeldToTheElementBudgetButABigCollectionIs() throws Exception {
+        // delivery puts no cap on a primitive array (it is bounded by the input size) and a cap of 65 536 on a collection
+        List<byte[]> ints = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) ints.add(DerWriter.writeInteger(i));
+        byte[] bigArray = streamOf(oneField("array:int", DerWriter.writeSequence(ints)));
+        DerMarshalInputStream in = open(bigArray, new CountingLoader(), DerStreamPolicy.BUILT_IN.withMaxElements(10));
+        assertEquals(0, in.admissionTally().elements());
+        in.close();
+        byte[] bigList = streamOf(oneField("list:int", DerWriter.writeSequence(ints)));
+        assertThrows(IOException.class, () -> open(bigList, new CountingLoader(), DerStreamPolicy.BUILT_IN.withMaxElements(10)));
+    }
+
+    @Test
+    void aChainAlreadyVerifiedInAnEarlierRegionStillCountsInTheNextRegionsScope() throws Exception {
+        // region 1 verifies chain C (class Twin v1); region 2 reuses C (a byte-identical cache hit) and then binds Twin to v2.
+        // The hit must still bind Twin in region 2's scope, or the second schema goes unnoticed.
+        AtomicSerialSchemaRecord v1 = rec("fx.Twin");
+        AtomicSerialSchemaRecord v2 = rec("fx.Twin", field("x", "int"));
+        byte[] region1 = DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
+                DerWriter.writeSequence(List.of(site(v1, shell())))));
+        byte[] region2 = DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
+                DerWriter.writeSequence(List.of(site(v1, shell()), site(v2, shell(DerWriter.writeInteger(1)))))));
+        IOException e = assertThrows(IOException.class, () -> open(streamOf(region1, region2), new CountingLoader(), DerStreamPolicy.BUILT_IN));
+        assertTrue(msg(e).contains("bound to two different schemas"), msg(e));
+    }
+
+    @Test
+    void theStreamLevelChainCeilingsDoNotApplyAcrossRegions() throws Exception {
+        // 3 regions x 100 distinct chains: delivery of a region has no table ceiling, so 300 chains across regions are fine
+        byte[][] regions = new byte[3][];
+        for (int r = 0; r < 3; r++) {
+            List<byte[]> sites = new ArrayList<>();
+            for (int i = 0; i < 100; i++) sites.add(site(rec("fx.R" + r + "x" + i), shell()));
+            regions[r] = DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"), DerWriter.writeSequence(sites)));
+        }
+        open(streamOf(regions), new CountingLoader(), DerStreamPolicy.BUILT_IN.withMaxDistinctClasses(400)).close();
+    }
+
+    @Test
+    void aRepeatedChainIsCheckedOnceNotOncePerSite() throws Exception {
+        // 5 000 sites of one 40-field chain: the names and wire types are scanned for the chain, not for each site
+        AtomicSerialFieldDef[] fields = new AtomicSerialFieldDef[40];
+        for (int i = 0; i < fields.length; i++) fields[i] = field("f" + i, "enum:fx.E" + i);
+        AtomicSerialSchemaRecord big = rec("fx.Big", fields);
+        byte[][] values = new byte[fields.length][];
+        java.util.Arrays.fill(values, NULL_TLV);
+        List<byte[]> sites = new ArrayList<>();
+        for (int i = 0; i < 5000; i++) sites.add(site(big, shell(values)));
+        byte[] region = DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"), DerWriter.writeSequence(sites)));
+        DerMarshalInputStream in = open(streamOf(region), new CountingLoader(), DerStreamPolicy.BUILT_IN);
+        assertEquals(5001, in.admissionTally().objects(), "5 000 sites and the collection");
+        assertEquals(41, in.admissionTally().distinctClasses(), "Big and its 40 enums");
+        in.close();
     }
 
     @Test

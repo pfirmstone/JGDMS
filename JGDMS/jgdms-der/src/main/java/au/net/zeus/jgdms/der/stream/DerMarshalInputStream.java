@@ -67,6 +67,14 @@ import org.apache.river.api.io.AtomicObjectInput;
  * were delivered. The interior of a record's field values (set order, ranges, element counts, an {@code OCTET STRING}
  * that is to be a float) is likewise the record decoder's. Nothing here is a class-name policy or an object-count budget.
  * <p>
+ * <p>
+ * <b>Policy.</b> Full admission also applies the whole-stream {@link DerStreamPolicy}: a class-name deny/allow list over every
+ * name the stream makes the loader load (record, ancestor, enum, proxy-interface, array-component and {@code Class}-value names,
+ * from the stream, from {@code [8]}/{@code [16]} regions and from records), budgets on the objects and elements it builds and the
+ * distinct classes it names, and the refusal of one class name bound to two schemas. These are new rejects, configurable through
+ * {@code au.net.zeus.jgdms.der.stream.policy.*} system properties (or passed explicitly), with defaults far above anything
+ * measured; a policy reject refuses the whole stream before a class is loaded or a constructor runs, and is logged.
+ * <p>
  * Admission is a change to what is accepted (STD-008/B.2.7): a stream whose bad part is never read (a malformed,
  * non-canonical or over-ceiling trailing item, or an unresolvable {@code chainRef}) used to be accepted and is now rejected
  * up front. A <em>failed read</em> also ends the stream: every later read rethrows, because a failed typed read can leave
@@ -153,7 +161,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
-        this(in, resolution, limits, DerStreamPolicy.DEFAULT);
+        this(in, resolution, limits, null, true, false);
     }
 
     /**
@@ -166,7 +174,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits,
                                  DerStreamPolicy policy) throws IOException {
-        this(in, resolution, limits, policy, true, false);
+        this(in, resolution, limits, Objects.requireNonNull(policy, "policy"), true, false);
     }
 
     /**
@@ -189,7 +197,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
-        return forDispatcher(in, resolution, limits, DerStreamPolicy.DEFAULT);
+        return new DerMarshalInputStream(in, resolution, limits, null, true, true);
     }
 
     /**
@@ -198,7 +206,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits,
                                                       DerStreamPolicy policy) throws IOException {
-        return new DerMarshalInputStream(in, resolution, limits, policy, true, true);
+        return new DerMarshalInputStream(in, resolution, limits, Objects.requireNonNull(policy, "policy"), true, true);
     }
 
     /** Private: selects between the object-stream format and record-level capture, and the admission mode. */
@@ -208,7 +216,6 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
-        Objects.requireNonNull(policy, "policy");
         // bounded: refuse oversize input (DoS). The stream format is item-framed, so an item that declares more than
         // the budget has left is refused before any of it is buffered; a record-level capture is NOT item-framed
         // (it is the bare canonical record bytes) and keeps the plain bounded read.
@@ -274,7 +281,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public static DerMarshalInputStream recordLevelCapture(InputStream in,
                                                            ResolutionContext resolution)
             throws IOException {
-        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, DerStreamPolicy.DEFAULT, false, false);
+        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, null, false, false);
     }
 
 

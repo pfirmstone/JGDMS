@@ -23,9 +23,11 @@ import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -63,7 +65,12 @@ final class StreamPolicyMeter {
      */
     static final class Scope {
         private final Map<String, ByteBuffer> schemaOf = new HashMap<>();
+        /** Chains already bound in this scope (by identity: the dedup table hands back one list per distinct chain). */
+        private final Set<Object> bound = Collections.newSetFromMap(new IdentityHashMap<>());
     }
+
+    /** Chains whose class names have already been checked (by identity), so a chain repeated across sites is checked once. */
+    private final Set<Object> notedChains = Collections.newSetFromMap(new IdentityHashMap<>());
 
     Scope newScope() {
         return new Scope();
@@ -72,13 +79,22 @@ final class StreamPolicyMeter {
     long objects() { return objects; }
     long elements() { return elements; }
     int distinctClasses() { return names.size(); }
-    Set<String> classNames() { return java.util.Collections.unmodifiableSet(names); }
+    Set<String> classNames() { return Collections.unmodifiableSet(names); }
 
     /** Logs the distinct names of an admitted stream, for building an allow-list (a cheap no-op unless FINE is on). */
     void logAdmitted() {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "DER stream admitted: {0} objects, {1} elements, classes {2}",
-                    new Object[] {objects, elements, DerStreamPolicy.printable(names.toString(), 4000)});
+            StringBuilder b = new StringBuilder();
+            int n = 0;
+            for (String name : names) {
+                if (n++ == 200) {
+                    b.append(", ... (").append(names.size() - 200).append(" more)");
+                    break;
+                }
+                b.append(n > 1 ? ", " : "").append(DerStreamPolicy.printable(name, 200));
+            }
+            LOGGER.log(Level.FINE, "DER stream admitted: {0} objects, {1} elements, {2} classes: {3}",
+                    new Object[] {objects, elements, names.size(), b});
         }
     }
 
@@ -104,7 +120,18 @@ final class StreamPolicyMeter {
      * primitive names are not classes. The checks run once per distinct name.
      */
     void className(String raw) throws DerException {
-        String name = normalise(raw);
+        note(normalise(raw, false));
+    }
+
+    /**
+     * The value of a {@code java.lang.Class} field or element. Delivery maps a primitive name ({@code int}, {@code void}) to
+     * the primitive class without asking the loader, so only here is a primitive name not a class to load.
+     */
+    void classValue(String raw) throws DerException {
+        note(normalise(raw, true));
+    }
+
+    private void note(String name) throws DerException {
         if (name == null) {
             return;
         }
@@ -136,15 +163,25 @@ final class StreamPolicyMeter {
      * the chain verification has already cross-checked, so no record is re-encoded or re-hashed here.
      */
     void chain(Scope scope, List<AtomicSerialSchemaRecord> leafFirst, byte[] leafDigest) throws DerException {
-        byte[] digest = leafDigest;
-        for (int i = 0; i < leafFirst.size(); i++) {
-            AtomicSerialSchemaRecord rec = leafFirst.get(i);
-            if (i > 0) {
-                digest = leafFirst.get(i - 1).parentSchemaHashOrNull();
+        if (notedChains.add(leafFirst)) {                   // names and ceilings: once per distinct chain
+            for (AtomicSerialSchemaRecord rec : leafFirst) {
+                className(rec.className());
+                for (AtomicSerialFieldDef f : rec.fields()) {
+                    wireType(f.wireType());
+                }
             }
-            className(rec.className());
-            String bound = normalise(rec.className());
-            if (policy.rejectRebinding() && digest != null && bound != null) {
+        }
+        if (policy.rejectRebinding() && scope.bound.add(leafFirst)) {   // bindings: once per chain per scope
+            byte[] digest = leafDigest;
+            for (int i = 0; i < leafFirst.size(); i++) {
+                AtomicSerialSchemaRecord rec = leafFirst.get(i);
+                if (i > 0) {
+                    digest = leafFirst.get(i - 1).parentSchemaHashOrNull();
+                }
+                String bound = normalise(rec.className(), false);
+                if (digest == null || bound == null) {
+                    continue;
+                }
                 ByteBuffer d = ByteBuffer.wrap(digest);
                 ByteBuffer previous = scope.schemaOf.putIfAbsent(bound, d);
                 if (previous != null && !previous.equals(d)) {
@@ -152,9 +189,6 @@ final class StreamPolicyMeter {
                             + "' is bound to two different schemas in one stream (rebinding; "
                             + DerStreamPolicy.PROP_REJECT_REBINDING + ")");
                 }
-            }
-            for (AtomicSerialFieldDef f : rec.fields()) {
-                wireType(f.wireType());
             }
         }
     }
@@ -172,6 +206,11 @@ final class StreamPolicyMeter {
         scan(token, "enum:");
     }
 
+    /**
+     * Notes the name after each {@code marker}: everything up to the closing {@code '}'} of the enclosing map part, or the end
+     * of the token, exactly as the decoder's {@code substring} hands it to the loader (so an array-class name such as
+     * {@code [Lp.C;} is the name, not just its first letters).
+     */
     private void scan(String token, String marker) throws DerException {
         int from = 0;
         while (true) {
@@ -182,7 +221,7 @@ final class StreamPolicyMeter {
             int start = at + marker.length();
             boolean boundary = at == 0 || token.charAt(at - 1) == ':' || token.charAt(at - 1) == '{';
             int end = start;
-            while (end < token.length() && isNameChar(token.charAt(end))) {
+            while (end < token.length() && token.charAt(end) != '}' && token.charAt(end) != '{') {
                 end++;
             }
             if (boundary && end > start) {
@@ -192,41 +231,82 @@ final class StreamPolicyMeter {
         }
     }
 
-    private static boolean isNameChar(char c) {
-        return c == '.' || c == '$' || c == '_' || Character.isLetterOrDigit(c);
-    }
-
     /**
-     * Reduces a class name to the class the loader would be asked for: an array class {@code [[Lp.C;} to {@code p.C}, and
-     * {@code null} for a primitive name, a primitive array, or an empty name.
+     * Reduces a name to the class the loader would be asked for: an array class {@code [[Lp.C;} to {@code p.C} (the loader loads
+     * the element class), {@code null} for a primitive array ({@code [I}: no class of ours is loaded), for an empty name and,
+     * when {@code primitivesAreNotClasses}, for a primitive name. A malformed array name is kept as it is, so a list judges
+     * exactly the string the loader receives.
      */
-    static String normalise(String raw) {
+    static String normalise(String raw, boolean primitivesAreNotClasses) {
         int i = 0;
         while (i < raw.length() && raw.charAt(i) == '[') {
             i++;
         }
         String n = raw;
         if (i > 0) {
-            if (i + 1 < raw.length() && raw.charAt(i) == 'L' && raw.charAt(raw.length() - 1) == ';') {
-                n = raw.substring(i + 1, raw.length() - 1);
-            } else {
+            String rest = raw.substring(i);
+            if (rest.length() == 1 && "ZBCSIJFD".indexOf(rest.charAt(0)) >= 0) {
                 return null;                               // a primitive array such as [I
+            }
+            if (rest.length() > 2 && rest.charAt(0) == 'L' && rest.charAt(rest.length() - 1) == ';') {
+                n = rest.substring(1, rest.length() - 1);
             }
         }
         if (n.isEmpty()) {
             return null;
         }
-        switch (n) {
-            case "boolean": case "byte": case "char": case "short": case "int": case "long": case "float":
-            case "double": case "void":
-                return null;
-            default:
-                return n;
+        if (primitivesAreNotClasses) {
+            switch (n) {
+                case "boolean": case "byte": case "char": case "short": case "int": case "long": case "float":
+                case "double": case "void":
+                    return null;
+                default:
+                    break;
+            }
+        }
+        return n;
+    }
+
+    // Rate limit for the rejection log line: an unauthenticated peer (the authorization-context block is admitted before
+    // authorization) must not be able to flood the log. Every rejection still throws its full message to the caller.
+    private static final Object LOG_LOCK = new Object();
+    private static long logWindowStart;
+    private static int logsInWindow;
+    private static long logsSuppressed;
+    private static final long LOG_WINDOW_NANOS = 1_000_000_000L;
+    private static final int LOGS_PER_WINDOW = 5;
+
+    /** Test seam: start a fresh rate-limit window. */
+    static void resetLogLimiterForTest() {
+        synchronized (LOG_LOCK) {
+            logWindowStart = 0;
+            logsInWindow = 0;
+            logsSuppressed = 0;
         }
     }
 
+    private static void warn(String message) {
+        String line;
+        synchronized (LOG_LOCK) {
+            long now = System.nanoTime();
+            if (logWindowStart == 0 || now - logWindowStart > LOG_WINDOW_NANOS) {
+                logWindowStart = now;
+                logsInWindow = 0;
+            }
+            if (logsInWindow >= LOGS_PER_WINDOW) {
+                logsSuppressed++;
+                return;
+            }
+            logsInWindow++;
+            line = logsSuppressed == 0 ? message
+                    : message + " (" + logsSuppressed + " earlier policy rejections were not logged)";
+            logsSuppressed = 0;
+        }
+        LOGGER.log(Level.WARNING, line);
+    }
+
     private static DerException reject(String message) {
-        LOGGER.log(Level.WARNING, message);
+        warn(message);
         return new DerException(message);
     }
 }

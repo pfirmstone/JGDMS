@@ -268,7 +268,7 @@ final class DerObjectStreamCodec {
     /** The complete input, kept so the admission pass can walk it with readers of its own (the delivery reader is untouched). */
     private byte[] inputBuf;
 
-    /** The whole-stream policy full admission applies (B5). */
+    /** The whole-stream policy full admission applies (B5); {@code null}: {@link DerStreamPolicy#defaults()}. */
     private final DerStreamPolicy policy;
 
     /** The tally of the last full admission (objects, elements, distinct classes); {@code null} before one. A test and diagnostic seam. */
@@ -369,17 +369,18 @@ final class DerObjectStreamCodec {
      * @param maxInputBytes the stream's DoS input cap ({@link DerInputLimits#maxInputBytes()})
      */
     DerObjectStreamCodec(boolean streamFormat, int maxInputBytes) {
-        this(streamFormat, maxInputBytes, DerStreamPolicy.DEFAULT);
+        this(streamFormat, maxInputBytes, null);
     }
 
     /**
      * As {@link #DerObjectStreamCodec(boolean, int)}, with the whole-stream {@link DerStreamPolicy} full admission applies
-     * (B5).
+     * (B5); {@code null} means {@link DerStreamPolicy#defaults()}, looked up only when a full admission runs, so a codec that
+     * only writes never touches the policy.
      */
     DerObjectStreamCodec(boolean streamFormat, int maxInputBytes, DerStreamPolicy policy) {
         this.streamFormat = streamFormat;
         this.maxInputBytes = maxInputBytes;
-        this.policy = Objects.requireNonNull(policy, "policy");
+        this.policy = policy;
         if (streamFormat) {
             // sec.C.5.2: the version TLV is the FIRST TLV of every stream — seeded
             // before any item or positional primitive can be buffered. (Harmless for
@@ -576,7 +577,7 @@ final class DerObjectStreamCodec {
         }
         final byte[] buf = inputBuf;
         DerReader r = new DerReader(buf);
-        StreamPolicyMeter meter = full ? new StreamPolicyMeter(policy) : null;
+        StreamPolicyMeter meter = full ? new StreamPolicyMeter(policy != null ? policy : DerStreamPolicy.defaults()) : null;
         StreamSchemaDedup scratch = full ? StreamSchemaDedup.forAdmission(maxInputBytes, meter) : null;
         DerEncoder sink = full ? DerEncoder.create() : null;
         int index = 0;
