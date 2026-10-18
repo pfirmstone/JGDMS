@@ -7,6 +7,40 @@ then reconciled with this branch by Claude. Nothing here is implemented. Where i
 lead's decisions recorded there) governs. DirtyChai items are requirements, not patches: DirtyChai's
 `CLAUDE.md` requires its contributions to be human-written.
 
+## Review of this investigation (two independent reviewers, then discussion with the investigator)
+
+Reviewers: Opus and Sonnet (independent, read-only); they exchanged two rounds with each other and
+the investigator conceded the Opus points (13 of 13, refining one). Sonnet's points reached the
+investigator late and were not answered. **This section supersedes the Summary where they differ.**
+Line references in the investigation were found accurate. DirtyChai items remain requirements for
+human authors.
+
+### Verdicts
+
+| Point | Verdict | Required change |
+|---|---|---|
+| P1 loader sharing | sound with changes | Also include the pinned server identity in the shortcut and `Key` (the same host:port can be served later by another identity). Check the bootstrap proxy's handler is a trusted local class **before** taking the shortcut. Wording: `BasicInvocationHandler.equals` includes the server constraints but not the client constraints. |
+| P2 digests | sound with changes | The premise "the SCAP verdict for hex(H) is the attestation" is **false today**: the signed verdict covers URLs, verdict and timestamp only; `checkVerdictForJar` compares no hash, no URL set, no age, and a signed SAFE can be replayed for any hash, including after a DANGEROUS. Bind the verdict first. Compute digests only inside the new-loader block (not before the `CACHE` lookup). Load from the exact bytes hashed (the loader refuses a jar whose hash differs from an expected URL→H map) rather than relying on R5. Refuse directory URLs and manifest `Class-Path` expansion. |
+| P3 spoofing | sound with changes | R7 (`SecureClassLoader.issued(pd)`, implemented as `pdcache.get(key) == pd`, not an O(n) scan) first, applied to **both** `DigestDomainGrant` and `ClassLoaderGrant`. Narrow R1 to domains carrying a digest code source or principals, with a permission-gated exception (it would otherwise break Byte Buddy / cglib / Mockito style definers; not run). `readExternal` write-once, and grants work from a single snapshot of the code source. R2 + R4 need a permission-gated verified factory: `PreferredProxyCodebaseProvider` (~line 1153) and `RemoteContextCodec` use the public/unverified constructors. State the R3 migration (every non-boot `SecureClassLoader` subclass becomes unverified until policy grants the permission). R5 only opt-in (multi-release jars, `name == null`, `ByteBuffer`, weaving loaders). |
+| P4 registry | **unsound as specified** | The identity that feeds the registry is caller-asserted: the provider and `resolve()` are public and take identity from any `instanceof ServerSubject` in a caller-supplied context, so local code can launder any SPIFFE identity through the privileged `record`/grant calls ("not spoofable because writing needs the permission" is false). Use a provider-private weak map with a read-only accessor on `ProxyCodebaseSpi`, not a public `record()` plus `RuntimePermission`; authenticate the provenance of context items. Store keys or clones, not mutable `DigestCodeSource`s. The preparer must also compare the entry's identity with the identity it is preparing for. A `requireVerifiedCodebase` flag would make every permission-granting preparer throw for classpath and `Proxy` proxies, which is exactly what the legacy-lookup migration produces: use a separate preparer class and define the rule for non-provider loaders. |
+| P5 identity pin | **unsound as specified** (direction right) | `ServerMinPrincipal` over `SslEndpoint` accepts a single element only, and the server subject holds an X500 principal plus SPIFFE principal(s), so pinning the set is `NOT_SUPPORTED`; pin a **single SPIFFE principal** (a DN pin is not workload-unique); prove that works with a test; each pinned identity needs `AuthenticationPermission`; run it unconditionally. It binds only genuine JERI handlers: `ProxySerializer.check` and `DerProxySerializer` accept any `InvocationHandler`, so a malicious relay supplies its own handler and the pin is a no-op: check handler class identity (`==`). Pin the bootstrap proxy only, not the smart proxy (multi-identity replicas). |
+| P6 inconclusive | sound with changes | Union (or list) of retained grants is right. Voiding a grant stops future grants only: loaded classes keep running and cached permissions need `policy.refresh()` and `CachingSecurityManager.clearCache`; the verdict listener is leased, so a lapse leaves a stale SAFE. Meaningful with isolation (kill the subprocess pool for the identity). Also void the static `DigestGrant`s and URI grants. |
+| P7 ranking | wrong | **P7.1 withdrawn:** `BootstrapPermission` is deliberately boot-window-only and held only by lookup services and verdict registries; checking it in steady state would refuse every ordinary service. P7.6 withdrawn. Move the unbound verdict (P7.4) and the SCAP-gate bypasses to the top: directory URLs skip the verdict and digest checks, `RFC3986URLClassLoader` follows manifest `Class-Path` (absolute URLs included) so a SAFE jar pulls in unverified jars (grants fail closed, the code still runs), and the non-bootstrap `PreferredClassProvider` path and Entry annotations are the same bypass class. |
+
+### Corrected order
+1. SCAP verdict binding: URL containment and a freshness check now; a `ServerMinPrincipal` on the registry channel (`constrainRegistryProxy` currently *replaces* the preparer's constraints); then `contentHash` in the signed content.
+2. Identity: derive it from the bootstrap proxy's own authenticated connection, handler class identity checked, single SPIFFE pin on the bootstrap proxy, provenance check on context items. Then the endpoint-and-identity shortcut hygiene.
+3. Loader checks each jar's hash against the expected map; refuse directory URLs and `Class-Path` expansion; digests on cache miss only.
+4. Registry (provider-private, read-only SPI) and the separate rejecting preparer; propagation rule.
+5. DirtyChai (human-written): R7 first, then narrowed R1, write-once `readExternal`, the verified factory with R2 + R4, R6; R3 and R5 opt-in.
+6. SCAP listener and isolation work.
+
+### Still open
+- **Decision needed from the project lead.** Taking identity from the bootstrap proxy's own authenticated call, instead of only from a `getServiceProxy()` response as SOW 8.2 (item 5) says, departs from that text. It is a requirement written in 8.2, not one of the lead's 8.3 decisions, so it needs sign-off.
+- **Inbound arguments.** Smart proxies that arrive as inbound call arguments on a server (transaction managers, listeners) never carry a `ServerSubject`. Pinning an inbound proxy to the delivering peer's identity would refuse every legitimate third-party proxy (a client passing a transaction manager can never have the manager authenticate as the client). Pin to the SPIFFE ID seen on the first bootstrap call instead.
+- **Principal assertion is not closed by R1.** Any `SecureClassLoader` subclass can call the protected `defineClass(name, b, off, len, cs, Principal[])` and obtain a loader-issued domain carrying chosen principals, and a forged `ProtectionDomain` also asserts principals, so the loader-wide `ClassLoaderGrant` and any `grant principal X` entry without a codeBase or digest are spoofable with `createClassLoader` alone. The gate belongs in `SecureClassLoader`'s principal merge; until then such entries must not be relied on for code-domain principals.
+- Once the isolation flag is on by default the loader lives in the subprocess, so a parent-side preparer cannot look up loader→entry.
+
 ## Summary
 
 | Point | Board claim | Verdict | Recommended solution (short) |
