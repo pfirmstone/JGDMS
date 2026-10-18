@@ -1,6 +1,8 @@
 # SOW — Mirror `org.apache.river.api.security` from DirtyChai, then grant dynamic proxy permissions by ProtectionDomain
 
-**Status:** JGDMS side implemented 2026-10-18 (see section 6). Scope written 2026-10-18
+**Status:** JGDMS side implemented 2026-10-18 (see section 6). **Revised the same
+evening (section 7): the derived-codebase grant is replaced by `DigestDomainGrant`; where
+section 7 conflicts with Part B or section 6, section 7 governs.** Scope written 2026-10-18
 with AI assistance (Claude), from reading the JGDMS and DirtyChai trees as they
 stood that day. Line numbers are approximate and must be re-checked.
 
@@ -305,3 +307,245 @@ Open for the project lead: the choice of throwing versus skipping an unparseable
 - Jars reached through `Class-Path` manifest entries or an index are not in the loader's URLs
   and get no dynamic grant.
 - An unparseable `codeBase` URI in a grant now raises `SecurityException`.
+
+## 7. Revision (2026-10-18, evening): `DigestDomainGrant`
+
+**Status:** design agreed with Peter Firmstone in discussion on 2026-10-18; not
+implemented. Written with AI assistance (Claude). Supersedes B.1–B.3 and the parts of
+section 6 listed in 7.9.
+
+### 7.1 Why the design changed
+
+- **Identity should come from what was verified, not from what loads.** The
+  section 6 grant takes the codebase from `URLClassLoader.getURLs()`, which gives
+  locations only. The provider already has each jar's verified digest from the
+  bootstrap proxy (`CodebaseAccessor.getCodebaseDigest()` / `getDigestOffsets()`), so
+  the grant can require those identities instead of inferring them.
+- **Defence in depth against classes loaded later.** The provider verifies the codebase
+  once, before any class loads. Afterwards a loader-wide grant covers anything the
+  loader defines: a jar fetched lazily, a URL added with `URLClassLoader.addURL`, or
+  bytes defined through a path that skipped the check. The permission check must
+  re-establish, on every access, that the domain's code source is one that was
+  verified.
+- **Domains are lazy.** A jar's `ProtectionDomain` is created when its first class is
+  defined, which may be mid-call (responses are unmarshalled with the proxy's loader as
+  default loader) or never. So the grant matches identities as domains appear, not a
+  list of domain instances.
+- **Verified means a digest.** A digest proves this exact jar; signers alone prove only
+  "some jar this key signed" (rollback to an older signed version, and an annotation can
+  name any key unless it chains to a local trust anchor). DirtyChai computes a digest for
+  every jar domain, so requiring one excludes only directory codebases and jars whose
+  digest could not be computed.
+
+### 7.2 Two paths
+
+| Caller | Grant | Implies a `ProtectionDomain` `pd` when |
+|---|---|---|
+| Codebase verified with per-jar digests (new overload, 7.4) | `DigestDomainGrant` | `pd`'s loader is the proxy's loader, the principals are satisfied, and `pd`'s `CodeSourceKey` is one of the supplied keys |
+| Anything else: `Security.grant(Class, Permission[])`, signers-only or location-only codebases, non-bootstrap proxies | `ClassLoaderGrant`, as before this SOW | `pd`'s loader is the proxy's loader |
+
+"Permission is limited" on the second path is enforced by policy, not code: the caller
+of `Security.grant` needs `GrantPermission` for what it grants, so the policy should
+make only low-risk permissions grantable on the unverified path and keep the rest
+grantable only through the verified overload. Document this in `JGDMS_COMPATIBILITY.md`
+and `SECURITY_MODEL.md` (DirtyChai) and the JGDMS security docs.
+
+### 7.3 `DigestDomainGrant` (both trees, package-private)
+
+```java
+final class DigestDomainGrant extends ProtectionDomainGrant {
+    private final WeakReference<ClassLoader> loader;   // cl.getClassLoader() of the class, not of its domain
+    private final Set<CodeSourceKey> verified;          // every key has a digest
+
+    public boolean implies(ProtectionDomain pd) {
+        ClassLoader l = loader.get();
+        if (l == null || pd == null || pd.getClassLoader() != l) return false;   // 1. loader first
+        if (!implies(getPrincipals(pd))) return false;                           // 2. principals
+        CodeSource cs = pd.getCodeSource();
+        if (!(cs instanceof DigestCodeSource d) || d.unverified()) return false; // 3. a computed digest
+        CodeSourceKey key = keyOf(cs);                                           // null if unparseable
+        return key != null && verified.contains(key);                            // 4. Uri + signers + digest
+    }
+    public boolean implies(ClassLoader cl, Principal[] p) { return false; }      // no code identity
+    public boolean implies(CodeSource cs, Principal[] p)  { return false; }      // no loader
+}
+```
+
+- **Extends `ProtectionDomainGrant`, not `ClassLoaderGrant`.** `ClassLoaderGrant` takes
+  the loader from the anchor's domain (wrong for `java.lang.reflect.Proxy` classes),
+  implies a bare loader, treats any same-loader grant as equivalent in
+  `impliesEquivalent`, and its `equals` accepts any `instanceof ClassLoaderGrant`
+  (asymmetric with a subclass). Every one of those would need overriding, and an
+  `instanceof ClassLoaderGrant` check would match the narrower grant.
+- **Lifetime.** The loader is held weakly; `isVoid()` is true once it is cleared.
+  `SecureClassLoader.pdcache` holds domains strongly, so this is the same moment a
+  `ProtectionDomainGrant` per jar domain would become void: the grant goes with the
+  proxy.
+- **On DirtyChai** step 3 uses `DigestCodeSource` directly; **in JGDMS** it is
+  reflective (as `DigestGrant` and `CodeSourceKey` already are) and fails closed on a
+  stock JDK, where no domain carries a digest. On a stock JDK the provider therefore
+  uses the `ClassLoaderGrant` path.
+- **Key comparison.** `CodeSourceKey.equals` compares certificates with
+  `Arrays.equals`, which is order-sensitive. The provider must build the supplied keys'
+  certificates in the order `CodeSource` gets them from `getCodeSigners()`, or
+  `CodeSourceKey` must compare certificates as a set (that also changes `pdcache`, but
+  only to merge domains with identical signers). Decide one; test it.
+- **Mixed-signer jars fail closed.** `URLClassLoader.defineClass` builds the code
+  source per entry from that entry's signers, so a jar whose entries carry different
+  signer sets has several domains at one location. Only those whose key was supplied
+  are implied.
+- **`equals` / `hashCode` / `impliesEquivalent`** include the key set and the loader
+  identity.
+- **Serialization** uses the builder proxy pattern and deserialises **void**, never
+  as a grant without the loader (that would silently widen it to every loader).
+- **Builder.** Context constant `DIGEST_DOMAIN = 7`, same value in both trees (JGDMS
+  inlines it). Section 6 named it `CODEBASE_DOMAIN`; rename it if that branch has not
+  been released. A builder method supplies the code sources, for example
+  `codeSources(CodeSource... cs)`. Building with `DIGEST_DOMAIN` throws
+  `IllegalArgumentException` if any supplied code source has no digest, so "verified
+  means a digest" is enforced where the grant is built. `clazz(Class)` still supplies
+  the anchor domain and, from the class, the loader.
+
+### 7.4 API
+
+- `net.jini.security.Security.grant(Class<?> cl, CodeSource[] codebase, Principal[]
+  principals, Permission[] permissions)`: one `DigestCodeSource` per non-directory jar.
+- `DynamicPolicy`: the matching method as a `default` that throws
+  `UnsupportedOperationException`, so existing implementations still compile;
+  `DynamicPolicyProvider` and the delegating providers (`AggregatePolicyProvider`,
+  `LoaderSplitPolicyProvider`, `DebugDynamicPolicyProvider`) implement or pass it
+  through.
+- **Caller:** `PreferredProxyCodebaseProvider.resolve`, after it has authenticated the
+  server and checked the codebase, builds the code sources from the bootstrap proxy's
+  per-jar digests (`getCodebaseDigest()` split by `getDigestOffsets()`, in codebase
+  order, directories excluded) plus the jars' signers. Confirm the bootstrap digests are
+  the same computation as `DigestCodeSource` (SHA-256 over the whole jar file); if not,
+  keys will never match. Proxy preparers that grant permissions then use the overload
+  where the provider recorded verified identities for the proxy's loader, and
+  `Security.grant(Class, Permission[])` otherwise.
+
+### 7.5 `ClassLoaderGrant` stays
+
+- **Not deprecated.** Withdraw item 9 of the DirtyChai changes document and the section 6
+  deprecation in JGDMS. It is the unverified path.
+- **Loader from the class.** It must take the loader from `clazz.getClassLoader()`, not
+  from the anchor domain, or it is ineffective for `Proxy` classes (the section 6 review
+  finding). Same fix in both trees.
+- `DynamicPolicyProvider.grant(Class, Principal[], Permission[])` and
+  `Security.grantRetainedInconclusiveLoaderGrant` return to `CLASSLOADER`.
+- `DynamicPolicyProvider.getGrants(Class, Principal[])` keeps evaluating the class's
+  `ProtectionDomain` (section 6): that is what lets `signedBy` and `digest` grants
+  propagate, and is independent of this revision.
+
+### 7.6 `DigestGrant` rejects unverified code sources (both trees)
+
+`DigestCodeSource(String, Certificate[], String, byte[])` is public and accepts any
+digest, and `ClassLoader.defineClass(..., ProtectionDomain)` bypasses
+`SecureClassLoader.getProtectionDomain`. Code with `createClassLoader` can therefore
+define its own bytes in a domain carrying a trusted jar's digest, which matches every
+static `DigestGrant` in the policy. `unverified()` is true for that constructor and after
+`readExternal`, false for a digest `SecureClassLoader` computed; the field is private and
+the class final. So:
+
+```java
+if (!(codeSource instanceof DigestCodeSource dcs)) return false;
+if (dcs.unverified()) return false;   // a digest asserted by a caller is not identity
+```
+
+A combiner-rebuilt domain reuses the same `CodeSource` instance and stays verified.
+
+### 7.7 Loader isolation: the "unmarshalled itself" shortcut
+
+`DigestDomainGrant` can be no narrower than the loader it is attached to.
+`PreferredProxyCodebaseProvider` keys its loaders by `Key(InvocationHandler, List<Uri>
+codebase, parent)`, and `BasicInvocationHandler.equals` compares the `ObjectEndpoint` and
+server constraints, so on the bootstrap path there is one loader per remote object. One
+shortcut in `resolve` bypasses that:
+
+```java
+String loaderPath = PreferredClassProvider.getLoaderAnnotation(parent, false, null);
+if (loader == null && path != null && path.equals(loaderPath)) { // "Has it unmarshalled itself?"
+    loader = parent;
+}
+```
+
+It compares the codebase path only. A response from service A is unmarshalled with A's
+proxy loader as `parent`, so a bootstrap proxy for a **different** remote object B with
+the same codebase passes, resolves in A's loader, and shares A's `DigestDomainGrant`.
+
+**Change:** reuse `parent` only when it is the loader recorded for this handler: keep the
+`Key` with each loader in `CACHE` / `SERVICES_EXP` (or a weak reverse map from loader to
+key) and require `key.handler.equals(Proxy.getInvocationHandler(bootstrapProxy))`.
+Otherwise fall through and create a loader keyed by B's handler.
+
+Related, not changed here:
+- `BasicInvocationHandler.equals` has client-constraint comparison commented out (TODO),
+  so one remote object under different client constraints shares a loader. Same code and
+  service, so acceptable, but record it.
+- Proxies not sent in bootstrap form (not `DynamicProxyCodebaseAccessor` /
+  `ProxyAccessor` + `CodebaseAccessor`, or written through another stream) resolve
+  through `PreferredClassProvider`, keyed by codebase and parent only, so may share
+  loaders across services. They get only the `ClassLoaderGrant` path.
+
+### 7.8 DirtyChai items to check (not designed here)
+
+- Whether `ClassLoader.defineClass(..., ProtectionDomain)` has any `LoadClassPermission`
+  gate. If not, explicit-domain definition bypasses `SecureClassLoader`'s checks in
+  general, not only digests.
+- `DigestCodeSource.computeDigest` returns a null digest for a `file:` codebase that does
+  not exist; `SecureClassLoader` could refuse it rather than create a domain whose
+  `DigestCodeSource` has no digest.
+- Remote jar bytes and digests come from one `JarResponseCache` entry only while the
+  loader fetches with caches enabled; check that `PreferredClassLoader` /
+  `RFC3986URLClassLoader` never call `setUseCaches(false)` on codebase connections.
+
+### 7.9 Changes to the implemented JGDMS branch (section 6)
+
+| Section 6 | Revision |
+|---|---|
+| `CodebaseDomainGrant`, codebase from `getURLs()`, non-`URLClassLoader` fallback | Replace with `DigestDomainGrant` (7.3); remove the `getURLs()` collection and the fallback from the builder |
+| `PermissionGrantBuilder.CODEBASE_DOMAIN = 7` | Rename `DIGEST_DOMAIN`, value 7; add the code-source builder method |
+| `CLASSLOADER` / `ClassLoaderGrant` deprecated | Not deprecated; loader taken from the class (7.5) |
+| `DynamicPolicyProvider.grant`, retained INCONCLUSIVE grant use `CODEBASE_DOMAIN` | Back to `CLASSLOADER`; the verified path is the new overload (7.4) |
+| `DynamicPolicyProvider.getGrants` evaluates the domain | Keep |
+| `CodeSourceKey`, `impliesCodeSource` via it | Keep (item 6) |
+| Shadowing-builder fallback to `PROTECTIONDOMAIN` when the context is rejected | Keep, for `DIGEST_DOMAIN`; fall back to `CLASSLOADER` instead, so a DirtyChai trunk without the constant behaves as before rather than narrowing to one jar |
+| Tests `CodebaseDomainGrantTest`, `PreferredClassLoaderCodebaseGrantTest` | Rewrite for supplied identities (7.11) |
+| — | New: `Security.grant` overload and `DynamicPolicy` default (7.4); `DigestGrant` `unverified()` check (7.6); provider shortcut fix and digest supply (7.4, 7.7) |
+
+### 7.10 DirtyChai changes document
+
+Revise `DirtyChai-Required-Changes-PermissionGrant-SOW.md`:
+- **Item 6** (`impliesCodeSource` via `CodeSourceKey`): unchanged.
+- **Items 7 and 8:** `DigestDomainGrant` and `DIGEST_DOMAIN = 7` with the code-source
+  builder method, per 7.3, instead of `CodebaseDomainGrant`.
+- **Item 9:** withdrawn; replace with the `ClassLoaderGrant` loader-from-class fix.
+- **New:** `DigestGrant` rejects `unverified()` (7.6); the 7.8 checks.
+- **Item 11's** location-only bullet and **13a** (no pinning) no longer apply: there is no
+  derived identity to pin.
+
+### 7.11 Tests
+
+DirtyChai `test/jdk/ai/` (AI-authored, Zone T) and the JGDMS equivalents:
+- **`DigestDomainGrantTest`** (replaces `CodebaseDomainGrantTest`): with one loader over
+  jars A and B and supplied digests for both:
+  - A and B implied, B's first class loaded after the grant;
+  - a jar added with `addURL` not implied;
+  - a jar whose digest differs from the supplied one not implied;
+  - a domain in the same loader with a forged (`unverified()`) `DigestCodeSource`
+    carrying A's digest not implied;
+  - a mixed-signer jar: only the supplied signer set implied;
+  - a second loader over identical jars not implied;
+  - a `Proxy` class anchor uses the class's loader;
+  - principals honoured; `implies(ClassLoader)` and `implies(CodeSource)` false;
+  - void after serialization and after the loader is collected;
+  - the builder rejects a code source with no digest;
+  - controls, run every time: a `ClassLoaderGrant` passes the `addURL` case and a
+    `PROTECTIONDOMAIN` grant fails the jar B case, so the cases distinguish the
+    semantics.
+- **`GrantSignerTest`, `ProtectionDomainGrantIdentityTest`:** build digest code sources
+  from real temp jars (verified) instead of the four-argument constructor, and add a
+  forged-digest case that must be denied.
+- **JGDMS provider test:** two bootstrap proxies for different remote objects with the
+  same codebase, the second returned in a response unmarshalled by the first: they must
+  get different loaders. Today they share one (7.7).
