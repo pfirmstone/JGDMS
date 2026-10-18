@@ -46,6 +46,9 @@ final class CodeSourceKey {
     private static final Method GET_DIGEST_ALGORITHM;
     private static final Method GET_DIGEST_BYTES;
     private static final Class<?> DIGEST_CODE_SOURCE_CLASS;
+    // DigestCodeSource.unverified(): true for a digest asserted by a caller
+    // (public constructor, readExternal), false for one computed from the jar.
+    private static final Method UNVERIFIED;
 
     static {
         Class<?> clazz = null;
@@ -60,6 +63,15 @@ final class CodeSourceKey {
             getAlg = null;
             getDig = null;
         }
+        Method unverified = null;
+        if (clazz != null) {
+            try {
+                unverified = clazz.getMethod("unverified");
+            } catch (NoSuchMethodException e) {
+                unverified = null; // cannot tell, isVerifiedDigest fails closed.
+            }
+        }
+        UNVERIFIED = unverified;
         DIGEST_CODE_SOURCE_CLASS = clazz;
         GET_DIGEST_ALGORITHM = getAlg;
         GET_DIGEST_BYTES = getDig;
@@ -102,6 +114,26 @@ final class CodeSourceKey {
             }
         }
         return new CodeSourceKey(uri, signers, alg, dig);
+    }
+
+    /**
+     * Whether cs is a {@code java.security.DigestCodeSource} whose digest was
+     * computed from the jar, rather than asserted by a caller.  A digest
+     * asserted by a caller is not identity: code with createClassLoader can
+     * define its own bytes in a domain presenting a trusted jar's digest.
+     * Fails closed: false on a stock JDK, and if verification cannot be
+     * determined.
+     */
+    static boolean isVerifiedDigest(CodeSource cs) {
+        if (cs == null || DIGEST_CODE_SOURCE_CLASS == null 
+                || UNVERIFIED == null) return false;
+        if (!DIGEST_CODE_SOURCE_CLASS.isInstance(cs)) return false;
+        try {
+            if (((Boolean) UNVERIFIED.invoke(cs)).booleanValue()) return false;
+            return GET_DIGEST_BYTES.invoke(cs) != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     final Uri uri;
