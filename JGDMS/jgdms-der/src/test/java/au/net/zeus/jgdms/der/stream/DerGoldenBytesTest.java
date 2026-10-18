@@ -32,7 +32,9 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -165,6 +167,136 @@ class DerGoldenBytesTest {
         return new Blob(b);
     }
 
+
+    // ---- structural fixtures for chain-site coverage (SOW T3: sets/maps/arrays/proxies/recursion) ----
+
+    @AtomicSerial
+    public static final class Node {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("next", Node.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, Node n) throws IOException {
+            arg.put("next", n.next);
+            arg.writeArgs();
+        }
+        final Node next;
+        public Node(Node next) { this.next = next; }
+        public Node(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.next = (Node) arg.get("next", null);
+        }
+    }
+
+    /** Set&lt;Rec&gt;: a CANONICALISE (octet-sorted SET OF) collection whose elements are chain sites. */
+    @AtomicSerial
+    public static final class RecSet {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Set.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, RecSet h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Set<Rec> items;
+        public RecSet(Set<Rec> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public RecSet(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new HashSet<>((Set<Rec>) arg.get("items", null));
+        }
+    }
+
+    /** Set&lt;NestedValue&gt; holding BOTH NestedValue and NestedValueSub: two chains whose first-occurrence order is the sort order. */
+    @AtomicSerial
+    public static final class PolySet {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Set.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, PolySet h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Set<NestedValue> items;
+        public PolySet(Set<NestedValue> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public PolySet(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new HashSet<>((Set<NestedValue>) arg.get("items", null));
+        }
+    }
+
+    /** Map&lt;String, Rec&gt;: map values are chain sites. */
+    @AtomicSerial
+    public static final class RecMap {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Map.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, RecMap h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Map<String, Rec> items;
+        public RecMap(Map<String, Rec> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public RecMap(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new TreeMap<>((Map<String, Rec>) arg.get("items", null));
+        }
+    }
+
+    public interface Greet { String greet(); }
+
+    /** InvocationHandler carrying an @AtomicSerial field: its interior sits inside a [8] proxy region. */
+    @AtomicSerial
+    public static final class GreetHandler implements java.lang.reflect.InvocationHandler {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("rec", VersionedRecord.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, GreetHandler h) throws IOException {
+            arg.put("rec", h.rec);
+            arg.writeArgs();
+        }
+        final VersionedRecord rec;
+        public GreetHandler(VersionedRecord rec) { this.rec = rec; }
+        public GreetHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.rec = (VersionedRecord) arg.get("rec", null);
+        }
+        @Override public Object invoke(Object proxy, java.lang.reflect.Method m, Object[] a) {
+            return rec == null ? "?" : rec.getLabel();
+        }
+    }
+
+    /** Record with a Greet-proxy field and a plain nested record beside it. */
+    @AtomicSerial
+    public static final class ProxyHolder {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] {
+                new AtomicSerial.SerialForm("greet", Greet.class),
+                new AtomicSerial.SerialForm("rec", VersionedRecord.class),
+            };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, ProxyHolder h) throws IOException {
+            arg.put("greet", h.greet);
+            arg.put("rec", h.rec);
+            arg.writeArgs();
+        }
+        final Greet greet;
+        final VersionedRecord rec;
+        public ProxyHolder(Greet greet, VersionedRecord rec) { this.greet = greet; this.rec = rec; }
+        public ProxyHolder(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.greet = (Greet) arg.get("greet", null);
+            this.rec = (VersionedRecord) arg.get("rec", null);
+        }
+    }
+
+    private static Greet greetProxy() {
+        return (Greet) java.lang.reflect.Proxy.newProxyInstance(
+                Greet.class.getClassLoader(), new Class<?>[] {Greet.class},
+                new GreetHandler(new VersionedRecord(3, "inside-proxy", "x")));
+    }
+
+    private static Set<Rec> recSet() {
+        Set<Rec> s = new HashSet<>();
+        for (int i = 0; i < 12; i++) s.add(rec(i * 37));
+        return s;
+    }
+
     // ---- corpus ----
 
     private static Map<String, Supplier<Object>> corpus() {
@@ -198,8 +330,37 @@ class DerGoldenBytesTest {
             m.put(2, "b"); m.put(1, "a");
             return new SortedMapFieldRecord(m);
         });
+        c.put("node-recursion", () -> new Node(new Node(new Node(new Node((Node) null)))));
+        c.put("rec-set", DerGoldenBytesTest::recSet0);
+        c.put("poly-set", () -> {
+            Set<NestedValue> s = new HashSet<>();
+            for (int i = 0; i < 6; i++) {
+                s.add(new NestedValue(i, "v" + i));
+                s.add(new NestedValueSub(i, "w" + i, "extra" + i));
+            }
+            return new PolySet(s);
+        });
+        c.put("rec-map", () -> {
+            Map<String, Rec> m = new TreeMap<>();
+            for (int i = 0; i < 8; i++) m.put("key" + i, rec(i));
+            return new RecMap(m);
+        });
+        c.put("autowired-set", () -> {
+            Set<Foo> s = new HashSet<>();
+            for (int i = 0; i < 5; i++) s.add(new Foo(i, "f" + i));
+            return new AutoWiredSetRecord(s);
+        });
+        c.put("chain-array-holder", () -> new ChainArrayHolder(new Chain[] {
+                new Chain((Chain) null), new Chain(new Chain((Chain) null)), new Chain((Chain) null)}));
+        c.put("proxy-holder", () -> new ProxyHolder(greetProxy(), new VersionedRecord(1, "beside", "y")));
+        c.put("top-level-array-rec", () -> new Rec[] {rec(1), rec(2), rec(3)});
+        c.put("top-level-array-nested", () -> new NestedValue[] {
+                new NestedValue(1, "a"), new NestedValueSub(2, "b", "x"), new NestedValue(3, "c")});
+        c.put("top-level-proxy", DerGoldenBytesTest::greetProxy);
         return c;
     }
+
+    private static Object recSet0() { return new RecSet(recSet()); }
 
     // ---- encoding / fixture IO ----
 

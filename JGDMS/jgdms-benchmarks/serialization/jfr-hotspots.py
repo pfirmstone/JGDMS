@@ -27,7 +27,7 @@ def main():
     out = subprocess.run(
         ["jfr", "print", "--events", "jdk.ExecutionSample", "--stack-depth", "64", path],
         check=True, capture_output=True, text=True).stdout
-    frame = re.compile(r"^\s+([\w.$<>]+)\s+line:")
+    frame = re.compile(r"^\s+([\w.$<>]+)\(.*\)\s+line:")
     self_t, incl_t, samples = Counter(), Counter(), 0
     for ev in out.split("jdk.ExecutionSample"):
         frames = []
