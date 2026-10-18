@@ -152,4 +152,47 @@ class MarshalledInstanceFastPathTest {
                 bad, VersionedRecord.class, verified, null,
                 au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE));
     }
+
+    // ---- the fast path must not skip the chain ceilings (independent review) ----
+
+    /** A class whose locally generated chain exceeds maxChainBytes (65536): ~3000 fields with long names. */
+    @org.apache.river.api.io.AtomicSerial
+    public static final class OversizedChain {
+        public static org.apache.river.api.io.AtomicSerial.SerialForm[] serialForm() {
+            org.apache.river.api.io.AtomicSerial.SerialForm[] f =
+                    new org.apache.river.api.io.AtomicSerial.SerialForm[3000];
+            for (int i = 0; i < f.length; i++) {
+                f[i] = new org.apache.river.api.io.AtomicSerial.SerialForm(
+                        "field" + String.format("%05d", i) + "_padding_to_make_each_name_long", int.class);
+            }
+            return f;
+        }
+        public static void serialize(org.apache.river.api.io.AtomicSerial.PutArg arg, OversizedChain o)
+                throws java.io.IOException {
+            arg.writeArgs();
+        }
+        public OversizedChain() {}
+        public OversizedChain(org.apache.river.api.io.AtomicSerial.GetArg arg)
+                throws java.io.IOException, ClassNotFoundException {}
+    }
+
+    @Test
+    void localChainBreachingACeilingIsRejectedOnBothPaths() throws Exception {
+        SchemaChain.Result local = SchemaGenerator.generateChain(OversizedChain.class);
+        byte[] chainBytes = SchemaGenerator.generateChainBytes(OversizedChain.class);
+        assertTrue(chainBytes.length > 65536, "fixture must breach maxChainBytes, got " + chainBytes.length);
+        MarshalledInstanceRecord rec = new MarshalledInstanceRecord(
+                new byte[0], chainBytes, local.leafDigest(), MarshalledInstanceRecord.PAYLOAD_FORMAT);
+
+        // slow path, spelled out
+        DerException slow = assertThrows(DerException.class, rec::decodeSchemaChainAsResult);
+        assertTrue(slow.getMessage().contains("maxChainBytes"), slow.getMessage());
+
+        // the codec (fast path candidate): same bytes as the local chain and a matching digest field,
+        // yet it must still be rejected by the chain ceiling, not accepted because the chain is "local"
+        DerException fast = assertThrows(DerException.class,
+                () -> MarshalledInstanceCodec.decodeMarshalledInstance(rec, OversizedChain.class));
+        assertTrue(fast.getMessage().contains("maxChainBytes"),
+                "fast path must apply the same ceiling as the slow path, got: " + fast.getMessage());
+    }
 }

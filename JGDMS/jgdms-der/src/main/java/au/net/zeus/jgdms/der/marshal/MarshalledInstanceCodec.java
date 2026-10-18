@@ -279,27 +279,24 @@ public final class MarshalledInstanceCodec {
         // what the full path accepts.
         SchemaChain.Result embeddedChain;
         SchemaCase schemaCase;
-        SchemaChain.Result local = null;
-        try {
-            local = SchemaGenerator.generateChain(receiverClass);
-        } catch (DerException e) {
-            // no usable local schema: never takes the fast path
-        }
-        if (local != null
-                && Arrays.equals(local.leafDigest(), rec.schemaDigest())
-                && rec.schemaBytesMatchLocal(receiverClass)) {
-            embeddedChain = local;
+        // The "local chain" here is verified through SchemaChain.decodeChain (ceilings, Merkle
+        // cross-check, completeness, canonical form) before it is trusted -- once per class --
+        // so this path applies the same checks as the full path below.
+        SchemaChain.Result fast = rec.verifiedLocalChain(receiverClass, "MarshalledInstanceRecord");
+        if (fast != null && Arrays.equals(fast.leafDigest(), rec.schemaDigest())) {
+            embeddedChain = fast;
             schemaCase = SchemaCase.A_MATCH;
         } else {
             // Step 1: parse the embedded schema chain (full verification)
             embeddedChain = rec.decodeSchemaChainAsResult();
 
             // Step 2: compare embedded digest to receiver's own current digest
-            if (local != null) {
-                schemaCase = Arrays.equals(local.leafDigest(), rec.schemaDigest())
+            try {
+                SchemaChain.Result receiverChain = SchemaGenerator.generateChain(receiverClass);
+                schemaCase = Arrays.equals(receiverChain.leafDigest(), rec.schemaDigest())
                         ? SchemaCase.A_MATCH
                         : SchemaCase.B_OR_C_MISMATCH;
-            } else {
+            } catch (DerException e) {
                 // If the receiver class has no @AtomicSerial serialForm() we cannot compute
                 // its current digest -- treat as a mismatch (case b/c) and proceed with the
                 // embedded schema, which is always correct.

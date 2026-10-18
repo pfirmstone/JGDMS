@@ -343,13 +343,31 @@ public final class MarshalledInstanceRecord {
 
     /**
      * Whether this record's embedded {@code schemaBytes} are byte-for-byte the canonical
-     * chain this node generates for {@code leafClass} (decode fast path; see
-     * {@link MarshalledInstanceCodec#decodeMarshalledInstance}). {@code leafClass} must
-     * already have been resolved through the endpoint's resolution context; the wire bytes
-     * are only compared against, never cached.
+     * chain this node generates for {@code leafClass}.
      */
     public boolean schemaBytesMatchLocal(Class<?> leafClass) {
         return SchemaGenerator.chainBytesEqual(leafClass, schemaBytes);
+    }
+
+    /**
+     * Decode fast path (see {@link MarshalledInstanceCodec#decodeMarshalledInstance}). If this
+     * record's embedded {@code schemaBytes} are byte-for-byte the canonical chain this node
+     * generates for the already-resolved {@code leafClass}, returns that chain <em>verified
+     * through {@link SchemaChain#decodeChain}</em> (chain ceilings, adjacent-pair Merkle
+     * cross-check, completeness, strict canonical form) -- once per class, cached with the
+     * class -- so the fast path applies exactly the checks the full path applies and
+     * cannot accept a chain the full path would reject. Returns {@code null} if the bytes
+     * are not the local chain (the caller takes the full path). The wire bytes are only
+     * compared against the locally generated value, never cached.
+     *
+     * @throws DerException if the bytes ARE the local chain but that chain fails verification
+     *                      (the full path would reject the same bytes with the same checks)
+     */
+    public SchemaChain.Result verifiedLocalChain(Class<?> leafClass, String context)
+            throws DerException {
+        SchemaGenerator.VerifiedChain v =
+                SchemaGenerator.verifiedLocalChain(leafClass, schemaBytes, context);
+        return v == null ? null : new SchemaChain.Result(v.records(), v.leafDigest());
     }
 
     /**
