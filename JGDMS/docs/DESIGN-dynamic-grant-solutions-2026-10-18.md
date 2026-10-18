@@ -35,11 +35,43 @@ human authors.
 5. DirtyChai (human-written): R7 first, then narrowed R1, write-once `readExternal`, the verified factory with R2 + R4, R6; R3 and R5 opt-in.
 6. SCAP listener and isolation work.
 
-### Still open
-- **Decision needed from the project lead.** Taking identity from the bootstrap proxy's own authenticated call, instead of only from a `getServiceProxy()` response as SOW 8.2 (item 5) says, departs from that text. It is a requirement written in 8.2, not one of the lead's 8.3 decisions, so it needs sign-off.
-- **Inbound arguments.** Smart proxies that arrive as inbound call arguments on a server (transaction managers, listeners) never carry a `ServerSubject`. Pinning an inbound proxy to the delivering peer's identity would refuse every legitimate third-party proxy (a client passing a transaction manager can never have the manager authenticate as the client). Pin to the SPIFFE ID seen on the first bootstrap call instead.
-- **Principal assertion is not closed by R1.** Any `SecureClassLoader` subclass can call the protected `defineClass(name, b, off, len, cs, Principal[])` and obtain a loader-issued domain carrying chosen principals, and a forged `ProtectionDomain` also asserts principals, so the loader-wide `ClassLoaderGrant` and any `grant principal X` entry without a codeBase or digest are spoofable with `createClassLoader` alone. The gate belongs in `SecureClassLoader`'s principal merge; until then such entries must not be relied on for code-domain principals.
-- Once the isolation flag is on by default the loader lives in the subprocess, so a parent-side preparer cannot look up loader→entry.
+### Resolved in discussion (final)
+- The investigator conceded all of Opus's 13 points and, in the late exchange, 13 of Sonnet's 14
+  (refining one); nothing remains disputed among the three. It adopted the provider-private map with
+  a read-only SPI, the handler-class check, the single-SPIFFE pin on the bootstrap proxy only, the
+  loader-side expected-hash map, and the corrected order above.
+- **Inbound arguments.** Pinning an inbound proxy to the delivering peer's identity would refuse
+  every legitimate third-party proxy. Corrected P5: the identity is the SPIFFE ID seen on the
+  bootstrap proxy's **first authenticated call** (through a handler whose class is checked); that ID
+  is then pinned as a single SPIFFE principal on later bootstrap calls and is the identity used for
+  the loader record, the isolation pool key and the embedded principals.
+  `SafeServiceRegistrar` stays the recommended route but is no longer the only one that can yield a
+  verified identity.
+- **Principal assertion** is not closed by R1: any `SecureClassLoader` subclass can call the
+  protected `defineClass(name, b, off, len, cs, Principal[])`. Requirement moves to the source:
+  DirtyChai `SecureClassLoader` merges caller-supplied principals only when the loader's own domain
+  holds `DefineClassPermission`, otherwise it drops them. Until then policy authors must not rely on
+  `grant principal X` entries with no codeBase or digest to grant code domains anything; static
+  `DigestGrant` and principal grants also need a policy-side `issued()` call in
+  `ConcurrentPolicyFile`.
+- **Correction to a citation.** `SslEndpointImpl` lines ~770–778 index the *client's own* credentials
+  by SPIFFE URI; that is not server verification and does not show a single-SPIFFE server pin works.
+  Only `Utilities` ~687–707 supports it, partly. Whether the pin works end to end
+  (`ConnectionContext` ~386 plus `FilterX509TrustManager` enforcing that exact URI) is **unproven**.
+  The test must cover: (1) the right SVID succeeds; (2) another SVID with the same DN fails; (3) a
+  certificate with two SPIFFE URIs, only the other one pinned, fails. If it fails, `ConnectionContext`
+  needs a SPIFFE-aware branch.
+
+### Needs the project lead
+- Taking identity from the bootstrap proxy's own authenticated call (above) departs from SOW 8.2
+  item 5 ("identity only from a `getServiceProxy()` response"), which is a requirement written in 8.2
+  and not one of the lead's 8.3 decisions: needs sign-off.
+- Whether remotely reconstructed domains (`RemoteContextCodec`, which uses the unverified
+  constructor) should ever count as verified.
+- Once the isolation flag is on by default the loader lives in the subprocess, so a parent-side
+  preparer cannot look up loader→entry: the parent passes pool identity plus expected digests, which
+  must themselves be provenance-checked. The investigator rescoped P2–P4 to in-JVM with the flag off
+  and to inside the subprocess.
 
 ## Summary
 
