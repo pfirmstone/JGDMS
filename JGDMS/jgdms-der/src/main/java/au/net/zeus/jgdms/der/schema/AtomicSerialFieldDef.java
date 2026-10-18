@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
+import au.net.zeus.jgdms.der.DerUtf8;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 
@@ -118,7 +119,7 @@ public final class AtomicSerialFieldDef {
         }
         checkLengthBounds("wireName", nameHdr.contentLength(), 1, WIRE_NAME_MAX_BYTES);
         byte[] nameBytes = seq.readRawContent(nameHdr.contentLength());
-        String wireName = new String(nameBytes, StandardCharsets.UTF_8);
+        String wireName = DerUtf8.decode(nameBytes);
 
         // Read wireType
         DerReader.TlvHeader typeHdr = seq.readTlvHeader();
@@ -127,7 +128,7 @@ public final class AtomicSerialFieldDef {
         }
         checkLengthBounds("wireType", typeHdr.contentLength(), 1, WIRE_TYPE_MAX_BYTES);
         byte[] typeBytes = seq.readRawContent(typeHdr.contentLength());
-        String wireType = new String(typeBytes, StandardCharsets.UTF_8);
+        String wireType = DerUtf8.decode(typeBytes);
 
         if (seq.hasMore()) {
             throw new DerException("AtomicSerialFieldDef: unexpected trailing bytes in SEQUENCE");

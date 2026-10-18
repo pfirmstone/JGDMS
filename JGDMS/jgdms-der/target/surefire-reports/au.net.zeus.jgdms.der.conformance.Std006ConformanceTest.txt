@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: au.net.zeus.jgdms.der.conformance.Std006ConformanceTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.166 s -- in au.net.zeus.jgdms.der.conformance.Std006ConformanceTest

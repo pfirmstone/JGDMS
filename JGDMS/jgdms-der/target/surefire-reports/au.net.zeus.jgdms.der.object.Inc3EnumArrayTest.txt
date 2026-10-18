@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: au.net.zeus.jgdms.der.object.Inc3EnumArrayTest
+-------------------------------------------------------------------------------
+Tests run: 27, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in au.net.zeus.jgdms.der.object.Inc3EnumArrayTest

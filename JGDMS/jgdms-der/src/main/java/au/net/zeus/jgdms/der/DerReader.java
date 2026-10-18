@@ -315,12 +315,9 @@ public final class DerReader {
             throw new DerException("Expected UTF8String (tag 0x0C), got " + hdr.tag());
         }
         int len = hdr.contentLength();
-        String value;
-        try {
-            value = new String(buf, pos, len, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new DerException("UTF8String: invalid UTF-8 content", e);
-        }
+        // Strict: new String(..., UTF_8) never throws, it substitutes U+FFFD, so many malformed byte
+        // strings would decode to one value (one-encoding-per-value, STD-006 sec.3).
+        String value = DerUtf8.decode(buf, pos, len);
         pos += len;
         return value;
     }

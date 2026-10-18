@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.der.stream;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerReader;
+import au.net.zeus.jgdms.der.DerUtf8;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.ResolutionContext;
@@ -572,6 +573,14 @@ final class DerObjectStreamCodec {
      * </ul>
      */
     void writeObject(Object obj) throws IOException {
+        try {
+            writeObjectImpl(obj);
+        } catch (DerUtf8.UnencodableStringException e) {
+            throw new IOException("DER encode failed: " + e.getMessage(), e);
+        }
+    }
+
+    private void writeObjectImpl(Object obj) throws IOException {
         // Write seam (JERI invocation arg/return path): substitute a downloadable proxy
         // (DynamicProxyCodebaseAccessor / ProxyAccessor) with a DerProxySerializer carrier so it
         // carries its bootstrap + codebase for download, riding the [1] @AtomicSerial path -- the
@@ -592,7 +601,12 @@ final class DerObjectStreamCodec {
 
         // String: value semantics, no handle table
         if (obj instanceof String s) {
-            byte[] strBytes = s.getBytes(StandardCharsets.UTF_8);
+            byte[] strBytes;
+            try {
+                strBytes = DerUtf8.encode(s);
+            } catch (DerException e) {
+                throw new IOException("DER encode failed for java.lang.String: " + e.getMessage(), e);
+            }
             writeBuffer.add(DerWriter.writeTlv(CTX_STRING, strBytes));
             return;
         }
@@ -804,6 +818,14 @@ final class DerObjectStreamCodec {
      * @throws NullPointerException if either argument is {@code null}
      */
     void writeCollection(Object coll, String declaredToken) throws IOException {
+        try {
+            writeCollectionImpl(coll, declaredToken);
+        } catch (DerUtf8.UnencodableStringException e) {
+            throw new IOException("DER encode failed: " + e.getMessage(), e);
+        }
+    }
+
+    private void writeCollectionImpl(Object coll, String declaredToken) throws IOException {
         Objects.requireNonNull(coll, "coll");
         Objects.requireNonNull(declaredToken, "declaredToken");
         try {
@@ -1110,7 +1132,7 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("readObject: failed to read string content", e);
             }
-            return new String(content, StandardCharsets.UTF_8);
+            return DerUtf8.decode(content);
         }
 
         if (CTX_BYTES.equals(tag)) {
@@ -1482,7 +1504,7 @@ final class DerObjectStreamCodec {
         }
         if (CTX_STRING.equals(tag)) {
             byte[] content = readTagContent(hdr, "readScalarClassFree: [3] String");
-            return new String(content, StandardCharsets.UTF_8);
+            return DerUtf8.decode(content);
         }
         if (CTX_BYTES.equals(tag)) {
             return readTagContent(hdr, "readScalarClassFree: [5] byte[]");

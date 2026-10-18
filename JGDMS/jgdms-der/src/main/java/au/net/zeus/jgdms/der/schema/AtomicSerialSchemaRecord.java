@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
+import au.net.zeus.jgdms.der.DerUtf8;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 
@@ -289,7 +290,7 @@ public final class AtomicSerialSchemaRecord {
         AtomicSerialFieldDef.checkLengthBounds("className", classHdr.contentLength(),
                 1, CLASS_NAME_MAX_BYTES);
         byte[] classBytes = seq.readRawContent(classHdr.contentLength());
-        String className = new String(classBytes, StandardCharsets.UTF_8);
+        String className = DerUtf8.decode(classBytes);
 
         // 2. OPTIONAL parentSchemaHash -- resolved by tag, not by default
         byte[] parentSchemaHash = null;

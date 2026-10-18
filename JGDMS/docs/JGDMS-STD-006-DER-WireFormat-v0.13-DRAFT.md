@@ -1009,6 +1009,20 @@ schema `SIZE`/value constraint expressing the same ceiling. **[PROPOSED]**
 Text fields (principal class names, principal names, URIs) are `UTF8String`.
 This replaces the ad-hoc `UTF-8 : className / name` pairs in the `0x02` block.
 
+**UTF8String content MUST be well-formed UTF-8 (RFC 3629) — NORMATIVE.** A conformant decoder
+**MUST reject** (fail-secure, design principle 6) any `UTF8String` — and any context-tagged string
+item or field whose content is UTF-8, such as `[3]` String and the schema's `className`, `wireName`
+and `wireType` — whose content octets are ill-formed: overlong forms (e.g. `C0 80`), encoded
+surrogate code points (`ED A0 80`..`ED BF BF`), code points above U+10FFFF (`F4 90 80 80`), truncated
+sequences, stray continuation octets and invalid lead octets (`FF`, `FE`). It MUST NOT substitute
+U+FFFD or otherwise repair the content: a decoder that did would map many different octet strings to
+one value and break one-encoding-per-value (design principle 2; the same hazard as a non-minimal
+length). A genuine U+FFFD (`EF BF BD`) is well-formed and is accepted. A conformant **encoder**
+MUST NOT emit a string that is not well-formed UTF-16 (an unpaired or reversed surrogate has no UTF-8
+encoding; silently substituting `?` makes two distinct strings encode identically) and MUST fail the
+encode instead. There is no compatibility mode: an option admitting a second encoding of a value
+is non-conformant. (STD-011 Appendix B §B.5 item 10 relies on this requirement.)
+
 ### 4.3 Digests and Algorithms
 
 Content digests are encoded as `AlgorithmIdentifier` (the X.509 structure, reused

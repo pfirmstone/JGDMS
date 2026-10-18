@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: au.net.zeus.jgdms.der.serial.DerThrowableFormStreamTest
+-------------------------------------------------------------------------------
+Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.252 s -- in au.net.zeus.jgdms.der.serial.DerThrowableFormStreamTest

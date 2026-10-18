@@ -124,7 +124,13 @@ public final class DerWriter {
      */
     public static byte[] writeUtf8String(String value) {
         if (value == null) throw new NullPointerException("value");
-        byte[] content = value.getBytes(StandardCharsets.UTF_8);
+        byte[] content;
+        try {
+            content = DerUtf8.encode(value);
+        } catch (DerException e) {
+            // an unpaired surrogate has no UTF-8 encoding; getBytes would silently write '?'
+            throw new DerUtf8.UnencodableStringException(e.getMessage(), e);
+        }
         return writeTlv(Tag.UTF8STRING, content);
     }
 

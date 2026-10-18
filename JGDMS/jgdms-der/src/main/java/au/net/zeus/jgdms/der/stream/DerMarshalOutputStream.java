@@ -182,7 +182,11 @@ public final class DerMarshalOutputStream implements ObjectOutput {
     @Override
     public void writeUTF(String str) throws IOException {
         Objects.requireNonNull(str, "str");
-        codec.writeUTF(str);
+        try {
+            codec.writeUTF(str);
+        } catch (au.net.zeus.jgdms.der.DerUtf8.UnencodableStringException e) {
+            throw new IOException("DER encode failed: " + e.getMessage(), e);
+        }
     }
 
     /**
