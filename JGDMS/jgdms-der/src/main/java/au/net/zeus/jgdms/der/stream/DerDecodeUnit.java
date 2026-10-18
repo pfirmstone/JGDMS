@@ -55,6 +55,7 @@ final class DerDecodeUnit implements DeserializationCompletion {
     private final Object lock = new Object();
     private final List<Reg> registrations = new ArrayList<>();
     private boolean flushed = false;
+    private boolean aborted = false;
 
     @Override
     public void registerCompletion(ObjectInputValidation action, int priority)
@@ -63,11 +64,33 @@ final class DerDecodeUnit implements DeserializationCompletion {
             throw new InvalidObjectException("null completion callback");
         }
         synchronized (lock) {
+            if (aborted) {
+                throw new NotActiveException(
+                        "DER decode unit was aborted by a failed read; no further registration");
+            }
             if (flushed) {
                 throw new NotActiveException(
                         "DER decode unit already completed; no further registration");
             }
             registrations.add(new Reg(action, priority));
+        }
+    }
+
+    /**
+     * Abandons the unit after a failed read: the registered callbacks are discarded WITHOUT being
+     * run, and the unit accepts no further registration. The callbacks are cross-object end-of-unit
+     * work such as the client DGC batched {@code dirty}; running them for a unit whose decode failed
+     * would lease references to objects that were thrown away. Idempotent; a no-op on a unit that
+     * has already been flushed (its callbacks have run and cannot be taken back).
+     */
+    void abort() {
+        synchronized (lock) {
+            if (flushed) {
+                return;
+            }
+            flushed = true;
+            aborted = true;
+            registrations.clear();
         }
     }
 

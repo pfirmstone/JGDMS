@@ -166,6 +166,47 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, false);
     }
 
+
+    // =========================================================================
+    // Failure handling: a failed read abandons the decode unit
+    // =========================================================================
+
+    /** A read that can fail with an {@link IOException}. */
+    @FunctionalInterface
+    private interface IoRead<T> {
+        T get() throws IOException;
+    }
+
+    /** A read that can also fail with {@link ClassNotFoundException}. */
+    @FunctionalInterface
+    private interface ObjectRead<T> {
+        T get() throws IOException, ClassNotFoundException;
+    }
+
+    /**
+     * Runs {@code read}; if it fails in any way the decode unit is aborted (its registered
+     * completion callbacks, e.g. the client DGC batched {@code dirty}, are discarded unrun) before
+     * the failure propagates. A stream that failed to decode must not issue leases for the objects
+     * it had decoded before the failure.
+     */
+    private <T> T guarded(IoRead<T> read) throws IOException {
+        try {
+            return read.get();
+        } catch (IOException | RuntimeException | Error e) {
+            decodeUnit.abort();
+            throw e;
+        }
+    }
+
+    private <T> T guardedObject(ObjectRead<T> read) throws IOException, ClassNotFoundException {
+        try {
+            return read.get();
+        } catch (IOException | ClassNotFoundException | RuntimeException | Error e) {
+            decodeUnit.abort();
+            throw e;
+        }
+    }
+
     // =========================================================================
     // Object reading (self-describing, sec.15.2)
     // =========================================================================
@@ -183,7 +224,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public Object readObject() throws ClassNotFoundException, IOException {
-        return codec.readObject();
+        return guardedObject(codec::readObject);
     }
 
     /**
@@ -219,20 +260,22 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public Object readScalarClassFree(String declaredWireType) throws IOException {
         Objects.requireNonNull(declaredWireType, "declaredWireType");
-        return codec.readScalarClassFree(declaredWireType);
+        return guarded(() -> codec.readScalarClassFree(declaredWireType));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
         Objects.requireNonNull(type, "type");
-        Object obj = codec.readObject();
-        if (obj != null && !type.isInstance(obj)) {
-            throw new InvalidObjectException(
-                    "DER stream: decoded object of type " + obj.getClass().getName()
-                    + " is not assignable to expected type " + type.getName());
-        }
-        return (T) obj;
+        return guardedObject(() -> {
+            Object obj = codec.readObject();
+            if (obj != null && !type.isInstance(obj)) {
+                throw new InvalidObjectException(
+                        "DER stream: decoded object of type " + obj.getClass().getName()
+                        + " is not assignable to expected type " + type.getName());
+            }
+            return (T) obj;
+        });
     }
 
     /**
@@ -275,7 +318,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     /** Reads a DER BOOLEAN TLV and returns the value. */
     @Override
     public boolean readBoolean() throws IOException {
-        return codec.readBoolean();
+        return guarded(codec::readBoolean);
     }
 
     /**
@@ -284,7 +327,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public byte readByte() throws IOException {
-        return codec.readByte();
+        return guarded(codec::readByte);
     }
 
     /**
@@ -293,7 +336,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public int readUnsignedByte() throws IOException {
-        return codec.readByte() & 0xFF;
+        return guarded(codec::readByte) & 0xFF;
     }
 
     /**
@@ -302,7 +345,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public short readShort() throws IOException {
-        return codec.readShort();
+        return guarded(codec::readShort);
     }
 
     /**
@@ -311,7 +354,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public int readUnsignedShort() throws IOException {
-        return codec.readShort() & 0xFFFF;
+        return guarded(codec::readShort) & 0xFFFF;
     }
 
     /**
@@ -320,7 +363,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public int readInt() throws IOException {
-        return codec.readInt();
+        return guarded(codec::readInt);
     }
 
     /**
@@ -329,25 +372,25 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public long readLong() throws IOException {
-        return codec.readLong();
+        return guarded(codec::readLong);
     }
 
     /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
     @Override
     public float readFloat() throws IOException {
-        return codec.readFloat();
+        return guarded(codec::readFloat);
     }
 
     /** Strict canonical IEEE-754 decode (STD-008 sec.17.3.1; S7.6 lifted). */
     @Override
     public double readDouble() throws IOException {
-        return codec.readDouble();
+        return guarded(codec::readDouble);
     }
 
     /** Unicode codepoint INTEGER decode (STD-008 sec.17.3.2; S7.6 lifted). */
     @Override
     public char readChar() throws IOException {
-        return codec.readChar();
+        return guarded(codec::readChar);
     }
 
     /**
@@ -359,7 +402,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     @Override
     public String readUTF() throws IOException {
-        return codec.readUTF();
+        return guarded(codec::readUTF);
     }
 
     /**
@@ -386,7 +429,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     @Override
     public void readFully(byte[] buf) throws IOException {
         Objects.requireNonNull(buf, "buf");
-        byte[] decoded = codec.readOctetString();
+        byte[] decoded = guarded(codec::readOctetString);
         if (decoded.length != buf.length) {
             throw new IOException("readFully: expected " + buf.length
                     + " bytes but decoded OCTET STRING has " + decoded.length);
@@ -407,7 +450,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     @Override
     public void readFully(byte[] buf, int off, int len) throws IOException {
         Objects.requireNonNull(buf, "buf");
-        byte[] decoded = codec.readOctetString();
+        byte[] decoded = guarded(codec::readOctetString);
         if (decoded.length != len) {
             throw new IOException("readFully(off,len): expected " + len
                     + " bytes but decoded OCTET STRING has " + decoded.length);
@@ -428,7 +471,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public int read(byte[] buf) throws IOException {
         Objects.requireNonNull(buf, "buf");
         if (codec.available() == 0) return -1;
-        byte[] decoded = codec.readOctetString();
+        byte[] decoded = guarded(codec::readOctetString);
         int n = Math.min(decoded.length, buf.length);
         System.arraycopy(decoded, 0, buf, 0, n);
         return n;
@@ -448,7 +491,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public int read(byte[] buf, int off, int len) throws IOException {
         Objects.requireNonNull(buf, "buf");
         if (codec.available() == 0) return -1;
-        byte[] decoded = codec.readOctetString();
+        byte[] decoded = guarded(codec::readOctetString);
         int n = Math.min(decoded.length, len);
         System.arraycopy(decoded, 0, buf, off, n);
         return n;
@@ -465,7 +508,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     @Override
     public int read() throws IOException {
         if (codec.available() == 0) return -1;
-        return codec.readSingleByte();
+        return guarded(codec::readSingleByte);
     }
 
     /**
@@ -505,7 +548,10 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      *
      * <p>As a safety net, the decode unit is flushed first (so any registered completion
      * callbacks run before the close that drives the acknowledgement, even if the framing
-     * layer omitted the explicit {@link #endDecodeUnit()} call). The flush is idempotent,
+     * layer omitted the explicit {@link #endDecodeUnit()} call) -- <b>unless a read has
+     * failed</b>: a failed read aborts the unit (see {@link DerDecodeUnit#abort()}), so its
+     * callbacks, which include the client DGC batched {@code dirty}, are discarded unrun and
+     * the flush here is a no-op. The flush is idempotent,
      * so on the normal path -- where {@code endDecodeUnit()} already ran -- this is a
      * no-op and does not invert the dirty-before-ack ordering. The underlying stream is
      * always closed, even if a completion callback throws.
