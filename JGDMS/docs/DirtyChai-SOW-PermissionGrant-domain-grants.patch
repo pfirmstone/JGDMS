@@ -1,0 +1,1014 @@
+From 2b5b0760d57de9cffba696bd4385803bde5f08e3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 07:57:36 +0000
+Subject: [PATCH] Mirror JGDMS dynamic grant semantics: CodebaseDomainGrant,
+ signer checks
+
+Mirrors JGDMS commit c3dcea47 (SOW-PermissionGrant-Mirror-and-ProtectionDomain-Grants):
+- CertificateGrant.impliesSigners, used by URIGrant and DigestGrant.
+- CodeSourceKey (Uri + signers + digest) for ProtectionDomainGrant.impliesCodeSource.
+- New CodebaseDomainGrant and PermissionGrantBuilder.CODEBASE_DOMAIN = 7.
+- Deprecate CLASSLOADER / ClassLoaderGrant.
+- PrincipalGrant: escape control characters as JGDMS does.
+- jtreg tests GrantSignerTest and CodebaseDomainGrantTest; JGDMS_COMPATIBILITY.md.
+
+Not built or run here: only compile-checked against stubs.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NqDG1wtRoonoANo7jjfE2t
+---
+ JGDMS_COMPATIBILITY.md                        |  29 +++
+ .../river/api/security/CertificateGrant.java  |  29 ++-
+ .../river/api/security/ClassLoaderGrant.java  |  11 +-
+ .../river/api/security/CodeSourceKey.java     | 105 ++++++++++
+ .../api/security/CodebaseDomainGrant.java     | 179 ++++++++++++++++++
+ .../river/api/security/DigestGrant.java       |   6 +-
+ .../api/security/PermissionGrantBuilder.java  |  15 ++
+ .../security/PermissionGrantBuilderImp.java   |  52 ++++-
+ .../river/api/security/PrincipalGrant.java    |  11 +-
+ .../api/security/ProtectionDomainGrant.java   |  34 +---
+ .../apache/river/api/security/URIGrant.java   |  15 +-
+ .../api/security/CodebaseDomainGrantTest.java | 137 ++++++++++++++
+ .../river/api/security/GrantSignerTest.java   | 141 ++++++++++++++
+ 13 files changed, 718 insertions(+), 46 deletions(-)
+ create mode 100644 src/java.base/share/classes/org/apache/river/api/security/CodeSourceKey.java
+ create mode 100644 src/java.base/share/classes/org/apache/river/api/security/CodebaseDomainGrant.java
+ create mode 100644 test/jdk/ai/org/apache/river/api/security/CodebaseDomainGrantTest.java
+ create mode 100644 test/jdk/ai/org/apache/river/api/security/GrantSignerTest.java
+
+diff --git a/JGDMS_COMPATIBILITY.md b/JGDMS_COMPATIBILITY.md
+index 0f9804817..04bd35dba 100644
+--- a/JGDMS_COMPATIBILITY.md
++++ b/JGDMS_COMPATIBILITY.md
+@@ -14,6 +14,35 @@ ## Re-exported API Surface
+ 
+ These are the compatibility contracts used by JGDMS policy components and by Dirty Chai's authorization implementation.
+ 
++## Dynamic Grants by ProtectionDomain
++
++The concrete grant classes in `org.apache.river.api.security` (`CertificateGrant`,
++`URIGrant`, `DigestGrant`, `ProtectionDomainGrant`, `ClassLoaderGrant`,
++`PrincipalGrant` and the new `CodebaseDomainGrant`) are package-private and are
++defined by `java.base`. Those copies run on Dirty Chai; JGDMS's copies of the
++same classes are shadowed, so both trees must give the same answers.
++
++* A dynamic grant made through `Security.grant(Class, ...)` uses
++  `PermissionGrantBuilder.CODEBASE_DOMAIN` (`7`, the same value in both trees).
++  It applies to each `ProtectionDomain` of the codebase of the class's
++  `URLClassLoader`, including domains created after the grant, and to no
++  domain outside the codebase. A loader that is not a `URLClassLoader` gets a
++  grant to the class's own `ProtectionDomain` only.
++* `PermissionGrantBuilder.CLASSLOADER` and `ClassLoaderGrant` are deprecated:
++  a grant to a loader as a whole applies to every domain it defines.
++* `CertificateGrant.impliesSigners`: unsigned code never satisfies a grant that
++  requires signers (it used to throw `NullPointerException`); `codeBase` +
++  `signedBy` and `digest` + `signedBy` enforce the signer. A `DigestGrant`
++  ignores the location. An unparseable `codeBase` URI raises
++  `SecurityException`.
++* Code source identity is the location `Uri`, the signers and, for a
++  `DigestCodeSource`, the digest (`CodeSourceKey`).
++* A new grant class must exist in both trees and be built through
++  `PermissionGrantBuilder`: a JGDMS-only subclass of a package-private grant
++  fails with `IllegalAccessError` here.
++
++See `docs/SOW-PermissionGrant-Mirror-and-ProtectionDomain-Grants.md` in JGDMS.
++
+ ## Split Package: `org.apache.river.api.security`
+ 
+ The package `org.apache.river.api.security` is intentionally split between `java.base` and the unnamed module (classpath). This is a deliberate design decision, not an oversight.
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/CertificateGrant.java b/src/java.base/share/classes/org/apache/river/api/security/CertificateGrant.java
+index 1c82e39e5..07e3e11df 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/CertificateGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/CertificateGrant.java
+@@ -120,11 +120,32 @@ public boolean implies(ClassLoader cl, Principal[] p){
+     @Override
+     public boolean implies(CodeSource codeSource, Principal[] p) {
+         if ( !implies(p)) return false;
++        return impliesSigners(codeSource);
++    }
++
++    /**
++     * Returns true if this grant requires signers, so that it cannot be
++     * resolved from a ClassLoader alone.
++     */
++    final boolean requiresSigners() {
++        return !certs.isEmpty();
++    }
++
++    /**
++     * Signer check shared by the CodeSource based grants.  A null CodeSource
++     * is never implied, a grant that requires no signers implies any non null
++     * CodeSource, unsigned code never satisfies a grant that requires signers
++     * and otherwise every required signer must be present.
++     *
++     * @param codeSource
++     * @return true if codeSource satisfies this grant's signer requirement.
++     */
++    final boolean impliesSigners(CodeSource codeSource) {
+         if ( codeSource == null ) return false;
+-	if ( certs.isEmpty() ) return true;
+-	Certificate[] signers = codeSource.getCertificates();
+-	List<Certificate> certificates = Arrays.asList(signers);
+-        return certificates.containsAll(certs);
++        if ( certs.isEmpty() ) return true;
++        Certificate[] signers = codeSource.getCertificates();
++        if ( signers == null || signers.length == 0 ) return false;
++        return Arrays.asList(signers).containsAll(certs);
+     }
+     
+     @Override
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/ClassLoaderGrant.java b/src/java.base/share/classes/org/apache/river/api/security/ClassLoaderGrant.java
+index ea37a7644..e6b9c2fb0 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/ClassLoaderGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/ClassLoaderGrant.java
+@@ -26,9 +26,16 @@
+ import java.security.ProtectionDomain;
+ 
+ /**
+- *
++ * A dynamic grant to every ProtectionDomain defined by a ClassLoader.
++ * <p>
++ * Deprecated: retained for compatibility, deserialising old builders and 
++ * explicit callers of {@link PermissionGrantBuilder#CLASSLOADER}.  Nothing in
++ * JGDMS creates one, dynamic grants to a proxy are made with
++ * {@link PermissionGrantBuilder#CODEBASE_DOMAIN}, which is limited to the
++ * ProtectionDomains of the verified codebase.
++ * 
+  * @author Peter Firmstone
+- * @since 3.0.0
++ * @since 27
+  */
+ class ClassLoaderGrant extends ProtectionDomainGrant {
+     private static final long serialVersionUID = 1L;
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/CodeSourceKey.java b/src/java.base/share/classes/org/apache/river/api/security/CodeSourceKey.java
+new file mode 100644
+index 000000000..9e3e3b0d3
+--- /dev/null
++++ b/src/java.base/share/classes/org/apache/river/api/security/CodeSourceKey.java
+@@ -0,0 +1,105 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ * 
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ * 
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.river.api.security;
++
++import au.zeus.jdk.net.Uri;
++import java.security.CodeSource;
++import java.security.DigestCodeSource;
++import java.security.cert.Certificate;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++
++/**
++ * The identity of a {@link CodeSource}: location {@link Uri}, signers and, 
++ * when the CodeSource is a {@link DigestCodeSource}, the content digest.
++ * <p>
++ * {@code CodeSource.equals} is deliberately not used here, the identity
++ * of a grant must not depend on a lookup, and the grant implementations in
++ * JGDMS, which run on a stock JDK, compare the same three things.
++ * 
++ * @since 27
++ */
++final class CodeSourceKey {
++
++    /**
++     * Creates the identity of a CodeSource.
++     * 
++     * @param cs the CodeSource.
++     * @return the identity, or null if cs is null or has no location Uri.
++     * Callers must treat null as not implied (fail closed).
++     */
++    static CodeSourceKey of(CodeSource cs) {
++        if (cs == null) return null;
++        Uri uri = (Uri) cs.getUriLocation();
++        if (uri == null) return null;
++        Certificate[] certs = cs.getCertificates();
++        List<Certificate> signers = certs == null || certs.length == 0 
++                ? Collections.<Certificate>emptyList()
++                : Collections.unmodifiableList(Arrays.asList(certs));
++        String alg = null;
++        byte[] dig = null;
++        if (cs instanceof DigestCodeSource dcs) {
++            alg = dcs.getDigestAlgorithm();
++            dig = dcs.getDigest(); // a defensive copy.
++        }
++        return new CodeSourceKey(uri, signers, alg, dig);
++    }
++
++    final Uri uri;
++    private final List<Certificate> signers;
++    private final String digestAlgorithm;
++    private final byte[] digest;
++    private final int hash;
++
++    private CodeSourceKey(Uri uri, List<Certificate> signers, 
++            String digestAlgorithm, byte[] digest) {
++        this.uri = uri;
++        this.signers = signers;
++        this.digestAlgorithm = digestAlgorithm;
++        this.digest = digest;
++        int h = uri.hashCode();
++        h = 31 * h + signers.hashCode();
++        h = 31 * h + (digestAlgorithm != null ? digestAlgorithm.hashCode() : 0);
++        h = 31 * h + Arrays.hashCode(digest);
++        this.hash = h;
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if (o == this) return true;
++        if (!(o instanceof CodeSourceKey k)) return false;
++        if (hash != k.hash) return false;
++        if (!uri.equals(k.uri)) return false;
++        if (!signers.equals(k.signers)) return false;
++        if (digestAlgorithm == null ? k.digestAlgorithm != null 
++                : !digestAlgorithm.equals(k.digestAlgorithm)) return false;
++        return Arrays.equals(digest, k.digest);
++    }
++
++    @Override
++    public int hashCode() {
++        return hash;
++    }
++
++    @Override
++    public String toString() {
++        return "CodeSourceKey[" + uri + ", signers=" + signers.size()
++                + (digest != null ? ", digest=" + digestAlgorithm : "") + "]";
++    }
++}
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/CodebaseDomainGrant.java b/src/java.base/share/classes/org/apache/river/api/security/CodebaseDomainGrant.java
+new file mode 100644
+index 000000000..2bb551559
+--- /dev/null
++++ b/src/java.base/share/classes/org/apache/river/api/security/CodebaseDomainGrant.java
+@@ -0,0 +1,179 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ * 
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ * 
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.river.api.security;
++
++import java.io.InvalidObjectException;
++import java.io.ObjectInputStream;
++import java.lang.ref.WeakReference;
++import java.security.CodeSource;
++import java.security.Permission;
++import java.security.Principal;
++import java.security.ProtectionDomain;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ConcurrentMap;
++import au.zeus.jdk.net.Uri;
++
++/**
++ * A dynamic grant to each {@link ProtectionDomain} of a verified codebase.
++ * <p>
++ * A ProtectionDomain {@code pd} is implied if and only if:
++ * <ol>
++ * <li>{@code pd.getClassLoader()} is the ClassLoader of the grant's anchor
++ *     ProtectionDomain (the domain of the class passed to
++ *     {@link PermissionGrantBuilder#clazz(Class)});
++ * <li>{@code pd}'s CodeSource location is one of the codebase locations the
++ *     ClassLoader was created for, or {@code pd} is the anchor domain, or
++ *     a domain with the identity of the anchor domain, such as one created by 
++ *     a DomainCombiner;
++ * <li>the grant's principals are satisfied.
++ * </ol>
++ * The first domain seen for each codebase location pins the identity of that 
++ * location: Uri, signers and digest.  A domain at the same location with a 
++ * different identity is not implied.
++ * <p>
++ * ProtectionDomain's are created lazily, upon the first class defined from 
++ * each jar, so domains are matched as they are checked, they are not listed
++ * when the grant is made.
++ * <p>
++ * If the codebase is empty, because the ClassLoader is not a URLClassLoader, 
++ * only the anchor domain is implied, in the same way as a 
++ * {@link ProtectionDomainGrant}.
++ * <p>
++ * Like all ProtectionDomain grants, this grant becomes void if serialized.
++ * 
++ * @since 27
++ */
++@SuppressWarnings("serial")
++class CodebaseDomainGrant extends ProtectionDomainGrant {
++    private static final long serialVersionUID = 1L;
++    private final transient Set<Uri> codebase;
++    private final transient ConcurrentMap<Uri,CodeSourceKey> pinned;
++    private final int hashCode;
++
++    @SuppressWarnings("unchecked")
++    CodebaseDomainGrant(WeakReference<ProtectionDomain> domain, 
++            Set<Uri> codebase, Principal[] groups, Permission[] perm) {
++        super(domain, groups, perm);
++        if (domain == null) throw new NullPointerException("domain");
++        this.codebase = Collections.unmodifiableSet(codebase);
++        this.pinned = new ConcurrentHashMap<Uri,CodeSourceKey>(
++                Math.max(4, codebase.size() * 2));
++        ProtectionDomain anchor = domain.get();
++        if (anchor != null) {
++            // The anchor's identity is known at the time of the grant.
++            CodeSourceKey key = CodeSourceKey.of(anchor.getCodeSource());
++            if (key != null && this.codebase.contains(key.uri)) {
++                pinned.put(key.uri, key);
++            }
++        }
++        int hash = 5;
++        hash = 23 * hash + this.codebase.hashCode();
++        hash = 23 * hash + super.hashCode();
++        hashCode = hash;
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if (o == null) return false;
++        if (o == this) return true;
++        if (o.hashCode() != this.hashCode) return false;
++        if (o.getClass() != this.getClass()) return false;
++        CodebaseDomainGrant c = (CodebaseDomainGrant) o;
++        return super.equals(o) && codebase.equals(c.codebase);
++    }
++
++    @Override
++    public int hashCode() {
++        return hashCode;
++    }
++
++    @Override
++    public String toString() {
++        StringBuilder sb = new StringBuilder(500);
++        sb.append(super.toString()).append("\nCodebase grant: ");
++        if (codebase.isEmpty()) {
++            sb.append("anchor ProtectionDomain only");
++        } else {
++            for (Uri uri : codebase) {
++                sb.append("\n  codebase \"").append(uri).append("\"");
++            }
++        }
++        return sb.toString();
++    }
++
++    @Override
++    public boolean implies(ProtectionDomain pd) {
++        if (pd == null) return false;
++        return impliesDomain(pd) && implies(getPrincipals(pd));
++    }
++
++    /**
++     * A ClassLoader carries no CodeSource identity, so this grant is 
++     * indeterminate for a ClassLoader alone.
++     */
++    @Override
++    public boolean implies(ClassLoader cl, Principal[] pal) {
++        return false;
++    }
++
++    private boolean impliesDomain(ProtectionDomain pd) {
++        ProtectionDomain anchor = domain.get();
++        if (anchor == null) return false; // void.
++        if (pd == anchor) return true;
++        ClassLoader loader = anchor.getClassLoader();
++        if (loader == null || pd.getClassLoader() != loader) return false;
++        CodeSource cs = pd.getCodeSource();
++        CodeSourceKey key = CodeSourceKey.of(cs);
++        if (key == null) return false; // identity unknown, fail closed.
++        if (!codebase.contains(key.uri)) {
++            // Not in the codebase, only the anchor's identity, such as a
++            // domain created by a DomainCombiner, is implied.
++            return impliesCodeSource(cs);
++        }
++        CodeSourceKey existing = pinned.putIfAbsent(key.uri, key);
++        return existing == null || existing.equals(key);
++    }
++
++    @Override
++    public boolean impliesEquivalent(PermissionGrant grant) {
++        if (!(grant instanceof CodebaseDomainGrant)) return false;
++        CodebaseDomainGrant other = (CodebaseDomainGrant) grant;
++        if (!super.impliesEquivalent(grant)) return false;
++        return codebase.equals(other.codebase);
++    }
++
++    @Override
++    public PermissionGrantBuilder getBuilderTemplate() {
++        PermissionGrantBuilder pgb = super.getBuilderTemplate();
++        return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
++    }
++
++    //writeReplace method for serialization proxy pattern
++    private Object writeReplace() {
++        return getBuilderTemplate();
++    }
++
++    //readObject method for the serialization proxy pattern
++    private void readObject(ObjectInputStream stream)
++            throws InvalidObjectException {
++        throw new InvalidObjectException("PermissionGrantBuilder required");
++    }
++}
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/DigestGrant.java b/src/java.base/share/classes/org/apache/river/api/security/DigestGrant.java
+index d17bdefba..8fc8a3835 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/DigestGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/DigestGrant.java
+@@ -124,18 +124,20 @@ public boolean implies(ClassLoader cl, Principal[] p) {
+      * Core implication logic.
+      *
+      * <ol>
+-     * <li>Principal check (delegated to super).
++     * <li>Principal check only.  The location is ignored, a URL is not
++     *     identity.
+      * <li>{@code codeSource} must be a {@link DigestCodeSource} — plain
+      *     {@link CodeSource} instances are never implied, even with the same URL.
+      * <li>Algorithm names must match (case-sensitive).
+      * <li>Digest bytes must be equal ({@link Arrays#equals}).
+-     * <li>Certificate check delegated to {@code super.implies(CodeSource, Principal[])}.
++     * <li>Any signers required by this grant must be present.
+      * </ol>
+      */
+     @Override
+     public boolean implies(CodeSource codeSource, Principal[] p) {
+         if (!implies(p)) return false; // Ignore URL, it doesn't define identity.
+         if (!(codeSource instanceof DigestCodeSource dcs)) return false;
++        if (!impliesSigners(codeSource)) return false;
+         if (!stringsEqual(digestAlgorithm, dcs.getDigestAlgorithm())) return false;
+         if (!Arrays.equals(digest, dcs.getDigest())) return false;
+         return true;
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilder.java b/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilder.java
+index b03f11f6e..a32126683 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilder.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilder.java
+@@ -52,7 +52,14 @@ public abstract class PermissionGrantBuilder {
+     /**
+      * The PermissionGrant generated will apply to all classes loaded by
+      * the ClassLoader
++     * 
++     * @deprecated A grant to a ClassLoader as a whole applies to every
++     * ProtectionDomain the ClassLoader defines, whatever its CodeSource, 
++     * including those outside the codebase that was verified.  Use
++     * {@link #CODEBASE_DOMAIN} for dynamic grants.  Retained for 
++     * deserialising old builders and for explicit callers.
+      */ 
++    @Deprecated
+     public static final int CLASSLOADER = 0;
+   
+     /**
+@@ -191,6 +198,14 @@ public abstract class PermissionGrantBuilder {
+      * plain {@link java.security.CodeSource} is not implied.
+      */
+     public static final int DIGEST = 6;
++    
++    /**
++     * Context for a dynamic grant to each ProtectionDomain of the verified
++     * codebase of the ClassLoader of the class passed to {@link #clazz(Class)}.
++     * See {@code CodebaseDomainGrant}.  Replaces {@link #CLASSLOADER} for 
++     * dynamic grants.
++     */
++    public static final int CODEBASE_DOMAIN = 7;
+ 
+     public static PermissionGrantBuilder newBuilder(){
+         return new PermissionGrantBuilderImp();
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilderImp.java b/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilderImp.java
+index b54daa31b..48d602268 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilderImp.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/PermissionGrantBuilderImp.java
+@@ -29,7 +29,14 @@
+ import java.security.Principal;
+ import java.security.ProtectionDomain;
+ import java.security.cert.Certificate;
++import java.lang.System.Logger;
++import java.lang.System.Logger.Level;
++import java.net.URL;
++import java.net.URLClassLoader;
+ import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.Set;
++import au.zeus.jdk.net.Uri;
+ 
+ /**
+  * PermissionGrantBuilderImp represents the serialized form of all
+@@ -102,8 +109,8 @@ public PermissionGrantBuilder context(int context) {
+         if (context < 0) {
+             throw new IllegalStateException("context must be >= 0");
+         }
+-        if (context > 6) {
+-            throw new IllegalStateException("context must be <= 6");
++        if (context > 7) {
++            throw new IllegalStateException("context must be <= 7");
+         }
+         this.context = context;
+         return this;
+@@ -171,6 +178,8 @@ public PermissionGrant build() {
+                 // Don't return principal grant if domain null, dynamic grant's
+                 // are treated special.
+                 return new ClassLoaderGrant(domain, principals, permissions );
++            case CODEBASE_DOMAIN: //Dynamic grant
++                return buildCodebaseDomainGrant();
+             case URI:
+                 if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
+                 if (uri == null ) uri = new String[0];
+@@ -192,6 +201,42 @@ public PermissionGrant build() {
+         }
+     }
+     
++    /**
++     * The codebase is the locations of the ClassLoader of the anchor domain,
++     * the ClassLoader is the record of what was verified.  Any other kind of
++     * ClassLoader, or one without a ClassLoader, results in the strictest 
++     * grant, to the anchor ProtectionDomain only.
++     */
++    private PermissionGrant buildCodebaseDomainGrant() {
++        ProtectionDomain pd = domain != null ? domain.get() : null;
++        // Without a domain the grant applies to all domains, dynamic grants 
++        // are treated special.
++        if (domain == null) return new ProtectionDomainGrant(null, principals, permissions);
++        Set<Uri> codebase = new HashSet<Uri>();
++        ClassLoader loader = pd != null ? pd.getClassLoader() : null;
++        if (loader instanceof URLClassLoader) {
++            for (URL url : ((URLClassLoader) loader).getURLs()) {
++                try {
++                    // Not URL.equals, it can cause DNS lookups.
++                    codebase.add(Uri.urlToUri(url));
++                } catch (java.net.URISyntaxException ex) {
++                    // Fail closed, domains at this location are not implied.
++                    logger().log(Level.DEBUG, "Unable to convert codebase URL", ex);
++                }
++            }
++        } else if (pd != null) {
++            logger().log(Level.INFO, 
++                "ClassLoader {0} is not a URLClassLoader, dynamic grant is "
++                + "limited to the ProtectionDomain of the granted class",
++                loader);
++        }
++        return new CodebaseDomainGrant(domain, codebase, principals, permissions);
++    }
++
++    private static Logger logger() {
++        return System.getLogger(PermissionGrantBuilderImp.class.getName());
++    }
++
+     private void readObject(ObjectInputStream in)
+ 	throws IOException, ClassNotFoundException
+     {
+@@ -213,7 +258,8 @@ private void writeObject(ObjectOutputStream out) throws IOException{
+     // readResolve method returns a PermissionGrant instance.
+     private Object readResolve(){
+         // Don't deserialize specific grant's, they will grant to any domain.
+-        if (context == CLASSLOADER || context == PROTECTIONDOMAIN){
++        if (context == CLASSLOADER || context == PROTECTIONDOMAIN 
++                || context == CODEBASE_DOMAIN){
+             if (hasDomain) return nullGrant;
+         }
+         // It's ok to return domainless dynamic grants.
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/PrincipalGrant.java b/src/java.base/share/classes/org/apache/river/api/security/PrincipalGrant.java
+index 7adf2f931..53e0356fb 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/PrincipalGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/PrincipalGrant.java
+@@ -174,10 +174,13 @@ public String toString(){
+ 		literal carriage returns that must be escaped.  */
+ 		String name = p.getName();
+ 		if (p instanceof FilePermission){
+-		    // Always escape backslashes in file paths to ensure
+-		    // round-trip parsing on any OS (e.g., Windows paths
+-		    // tested on Linux must also be escaped correctly).
+-		    name = name.replace("\\", "\\\\").replace("\"", "\\\"");
++		    // Escape backslash first, then quote, then control chars that
++            // StreamTokenizer would otherwise re-interpret as escapes.
++            name = name.replace("\\", "\\\\")
++                       .replace("\"", "\\\"")
++                       .replace("\n", "\\n")
++                       .replace("\r", "\\r")
++                       .replace("\t", "\\t");
+ 		} else {
+ 		    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
+ 		}
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/ProtectionDomainGrant.java b/src/java.base/share/classes/org/apache/river/api/security/ProtectionDomainGrant.java
+index 79337323d..706d0c157 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/ProtectionDomainGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/ProtectionDomainGrant.java
+@@ -21,15 +21,10 @@
+ import java.io.InvalidObjectException;
+ import java.io.ObjectInputStream;
+ import java.lang.ref.WeakReference;
+-import java.net.URI;
+-import java.net.URISyntaxException;
+-import java.net.URL;
+ import java.security.CodeSource;
+ import java.security.Permission;
+ import java.security.Principal;
+ import java.security.ProtectionDomain;
+-import java.security.cert.Certificate;
+-import java.util.Arrays;
+ 
+ /**
+  * ProtectionDomainGrant's become void if serialized, since ProtectionDomain's
+@@ -143,7 +138,11 @@ private boolean impliesClassLoader(ClassLoader cl) {
+     }
+     // This is here for revoke and for new ProtectionDomain's created by the
+     // DomainCombiner such as those in the SubjectDomainCombiner.
+-    private boolean impliesCodeSource(CodeSource codeSource) {
++    /**
++     * Compares CodeSource identity: location Uri, signers and digest.
++     * Fails closed if either identity cannot be established.
++     */
++    boolean impliesCodeSource(CodeSource codeSource) {
+         ProtectionDomain pd = domain != null ? domain.get(): null;
+         if (pd == null) return false; // is void - why did I have true?
+         // The CodeSource is not normalized, if the PD was created by a domain
+@@ -151,26 +150,13 @@ private boolean impliesCodeSource(CodeSource codeSource) {
+         CodeSource cs = pd.getCodeSource(); // Don't normalise CodeSource.
+         if (cs == codeSource) return true; // same reference.
+         if (cs == null && codeSource == null) return true; // if both null, when pd exists.
+-        if (cs == null) return false; // Null cs indicates system domain, does not imply.
++        if (cs == null || codeSource == null) return false; // Null cs indicates system domain, does not imply.
+         // Most won't get to here, since domain combiners shouldn't duplicate CodeSource.
+         // But just in case...
+-        // Don't use CodeSource.equals() because that causes DNS Lookup.
+-        Certificate[] myCerts = cs.getCertificates();
+-        Certificate[] hisCerts = codeSource.getCertificates();
+-        if ( myCerts != null && !Arrays.equals(myCerts, hisCerts)) return false;
+-        try {
+-            URI myLocation = cs.getLocation().toURI();
+-            URI hisLocation = codeSource.getLocation().toURI();
+-            if (myLocation.equals(hisLocation)) return true;
+-        } catch (URISyntaxException ex) {
+-            // We only compare URL if we can't compare URI
+-            URL myLocation = cs.getLocation();
+-            URL hisLocation = codeSource.getLocation();
+-            // Only use string representation to compare, DNS cache poisioning
+-            // presents a security risk, so URL.equals isn't used.
+-            if (myLocation.toExternalForm().equals(hisLocation.toExternalForm())) return true;
+-        }
+-        return false;
++        // Don't use CodeSource.equals() or URL.equals() because that causes DNS Lookup.
++        CodeSourceKey mine = CodeSourceKey.of(cs);
++        if (mine == null) return false;
++        return mine.equals(CodeSourceKey.of(codeSource));
+     }
+     
+     @Override
+diff --git a/src/java.base/share/classes/org/apache/river/api/security/URIGrant.java b/src/java.base/share/classes/org/apache/river/api/security/URIGrant.java
+index 0f53a7e3a..468b54109 100644
+--- a/src/java.base/share/classes/org/apache/river/api/security/URIGrant.java
++++ b/src/java.base/share/classes/org/apache/river/api/security/URIGrant.java
+@@ -114,12 +114,10 @@ public String toString(){
+     @Override
+     public boolean implies(ClassLoader cl, Principal[] p){
+ 	if ( !implies(p)) return false;
++        // A ClassLoader carries no signers.
++        if ( requiresSigners() ) return false;
+ 	if ( location.isEmpty() ) return true;
+-        Iterator<Uri> it = location.iterator();
+-        while (it.hasNext()){
+-            if (it.next() == null) return true;
+-        }
+-	if ( cl == null ) return false;
++        if ( location.contains(null) ) return true;
+ 	return false;  //Indeterminate.
+     }
+     
+@@ -127,7 +125,8 @@ public boolean implies(ClassLoader cl, Principal[] p){
+     /**
+      * Checks if passed CodeSource matches this PermissionGrant. Null URI of
+      * PermissionGrant implies any CodeSource, only if that CodeSource is not 
+-     * null.
++     * null.  Any signers required by this grant must also be present, so a
++     * codeBase with signedBy enforces the signer.
+      */
+     @Override
+     public boolean implies(CodeSource codeSource, Principal[] p) {
+@@ -135,9 +134,11 @@ public boolean implies(CodeSource codeSource, Principal[] p) {
+         // sun.security.provider.PolicyFile compatibility for null CodeSource is false.
+         // see org.apache.river.test.spec.policyprovider.dynamicPolicyProvider.GrantPrincipal test.
+         if (codeSource == null)  return false; // Null CodeSource is not implied.
++        if (!impliesSigners(codeSource)) return false;
+         if (location.isEmpty()) return true; // But CodeSource with null URL is implied, if this location is empty.
+-        if (location.contains(null)) return true; // Null URI implies any CodeSource with non-null URL.))
++        if (location.contains(null)) return true; // Null URI implies any CodeSource with non-null URL.
+         Uri implied = (Uri) codeSource.getUriLocation();
++        if (implied == null) return false;
+         for (Uri uri : location){
+             if (uri.implies(implied)) return true;
+         }
+diff --git a/test/jdk/ai/org/apache/river/api/security/CodebaseDomainGrantTest.java b/test/jdk/ai/org/apache/river/api/security/CodebaseDomainGrantTest.java
+new file mode 100644
+index 000000000..eeb0703a7
+--- /dev/null
++++ b/test/jdk/ai/org/apache/river/api/security/CodebaseDomainGrantTest.java
+@@ -0,0 +1,137 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership. The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License. You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import java.io.ByteArrayOutputStream;
++import java.io.DataOutputStream;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.net.URL;
++import java.net.URLClassLoader;
++import java.nio.file.Files;
++import java.security.CodeSource;
++import java.security.Permission;
++import java.security.Principal;
++import java.security.ProtectionDomain;
++import java.security.cert.Certificate;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.jar.JarEntry;
++import java.util.jar.JarOutputStream;
++import javax.security.auth.x500.X500Principal;
++import org.apache.river.api.security.PermissionGrant;
++import org.apache.river.api.security.PermissionGrantBuilder;
++
++/**
++ * @test
++ * @summary A dynamic grant (PermissionGrantBuilder.CODEBASE_DOMAIN) to a class
++ *          applies to each ProtectionDomain of the codebase of its ClassLoader,
++ *          including a jar whose first class is loaded after the grant, and
++ *          to no other: not to a location outside the codebase, nor to a
++ *          second loader over identical jars. A domain rebuilt by a
++ *          DomainCombiner is covered, a domain at a codebase location with a
++ *          different identity is not, and the grant honours its principals.
++ * @author Claude Sonnet 5.5 -- AI-authored under AI_POLICY.md 4.1 (Zone T)
++ * @run main CodebaseDomainGrantTest
++ */
++public class CodebaseDomainGrantTest {
++
++    private static final Principal[] NONE = new Principal[0];
++    private static final Permission PERM = new RuntimePermission("codebase.domain.grant");
++    private static final List<String> failures = new ArrayList<>();
++
++    public static void main(String[] args) throws Exception {
++        File dir = Files.createTempDirectory("codebase-domain").toFile();
++        URL jarA = jar(dir, "a.jar", "codebasetest.ProxyA");
++        URL jarB = jar(dir, "b.jar", "codebasetest.ProxyB");
++        URL outside = new File(dir, "outside.jar").toURI().toURL();
++
++        URLClassLoader loader = new URLClassLoader(new URL[]{jarA, jarB},
++                ClassLoader.getPlatformClassLoader());
++        Class<?> a = loader.loadClass("codebasetest.ProxyA");
++        PermissionGrant g = PermissionGrantBuilder.newBuilder()
++                .principals(NONE).permissions(new Permission[]{PERM})
++                .context(PermissionGrantBuilder.CODEBASE_DOMAIN).clazz(a).build();
++        check(g.implies(a.getProtectionDomain()), "A");
++
++        Class<?> b = loader.loadClass("codebasetest.ProxyB"); // after the grant
++        check(g.implies(b.getProtectionDomain()), "B, loaded after the grant");
++        check(!g.implies(new ProtectionDomain(new CodeSource(outside, (Certificate[]) null),
++                null, loader, NONE)), "location outside the codebase");
++
++        URLClassLoader other = new URLClassLoader(new URL[]{jarA, jarB},
++                ClassLoader.getPlatformClassLoader());
++        check(!g.implies(other.loadClass("codebasetest.ProxyA").getProtectionDomain()), "second loader A");
++        check(!g.implies(other.loadClass("codebasetest.ProxyB").getProtectionDomain()), "second loader B");
++
++        Principal p = new X500Principal("CN=Rebuilt");
++        ProtectionDomain pb = b.getProtectionDomain();
++        check(g.implies(new ProtectionDomain(pb.getCodeSource(), null, loader, new Principal[]{p})),
++                "domain rebuilt by a combiner");
++
++        check(!g.implies(loader, NONE), "a ClassLoader alone");
++
++        PermissionGrant forP = PermissionGrantBuilder.newBuilder()
++                .principals(new Principal[]{p}).permissions(new Permission[]{PERM})
++                .context(PermissionGrantBuilder.CODEBASE_DOMAIN).clazz(a).build();
++        check(!forP.implies(a.getProtectionDomain()), "principal required, none held");
++        check(forP.implies(new ProtectionDomain(a.getProtectionDomain().getCodeSource(), null,
++                loader, new Principal[]{p})), "principal held");
++
++        for (File f : dir.listFiles()) f.delete();
++        dir.delete();
++        if (!failures.isEmpty()) {
++            throw new RuntimeException(failures.size() + " failure(s): " + failures);
++        }
++    }
++
++    private static URL jar(File dir, String file, String name) throws Exception {
++        File f = new File(dir, file);
++        try (JarOutputStream out = new JarOutputStream(new FileOutputStream(f))) {
++            out.putNextEntry(new JarEntry(name.replace('.', '/') + ".class"));
++            out.write(emptyClass(name));
++            out.closeEntry();
++        }
++        return f.toURI().toURL();
++    }
++
++    /** Class file for: public class name {} (version 52, no constructor). */
++    private static byte[] emptyClass(String name) throws Exception {
++        ByteArrayOutputStream bo = new ByteArrayOutputStream();
++        DataOutputStream o = new DataOutputStream(bo);
++        o.writeInt(0xCAFEBABE);
++        o.writeShort(0);
++        o.writeShort(52);
++        o.writeShort(5);
++        o.writeByte(1); o.writeUTF(name.replace('.', '/'));
++        o.writeByte(7); o.writeShort(1);
++        o.writeByte(1); o.writeUTF("java/lang/Object");
++        o.writeByte(7); o.writeShort(3);
++        o.writeShort(0x0021);
++        o.writeShort(2);
++        o.writeShort(4);
++        o.writeShort(0);
++        o.writeShort(0);
++        o.writeShort(0);
++        o.writeShort(0);
++        return bo.toByteArray();
++    }
++
++    private static void check(boolean ok, String what) {
++        if (!ok) failures.add(what);
++    }
++}
+diff --git a/test/jdk/ai/org/apache/river/api/security/GrantSignerTest.java b/test/jdk/ai/org/apache/river/api/security/GrantSignerTest.java
+new file mode 100644
+index 000000000..3c785bd84
+--- /dev/null
++++ b/test/jdk/ai/org/apache/river/api/security/GrantSignerTest.java
+@@ -0,0 +1,141 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership. The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License. You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import java.net.URL;
++import java.security.CodeSource;
++import java.security.DigestCodeSource;
++import java.security.Permission;
++import java.security.Principal;
++import java.security.PublicKey;
++import java.security.cert.Certificate;
++import java.util.ArrayList;
++import java.util.List;
++import org.apache.river.api.security.PermissionGrant;
++import org.apache.river.api.security.PermissionGrantBuilder;
++
++/**
++ * @test
++ * @summary signedBy, codeBase + signedBy and digest + signedBy grants must
++ *          enforce their signers against unsigned, other-signer and null code
++ *          sources, must never be implied by a ClassLoader alone, and a digest
++ *          grant must ignore the location. Unsigned code used to throw
++ *          NullPointerException from CertificateGrant.implies(CodeSource, Principal[]).
++ *          An unparseable codeBase URI must fail closed.
++ * @author Claude Sonnet 5.5 -- AI-authored under AI_POLICY.md 4.1 (Zone T)
++ * @run main GrantSignerTest
++ */
++public class GrantSignerTest {
++
++    private static final Principal[] NONE = new Principal[0];
++    private static final Permission PERM = new RuntimePermission("grant.signer.test");
++    private static final byte[] DIGEST_A = {1, 2, 3, 4};
++    private static final byte[] DIGEST_B = {9, 8, 7, 6};
++    private static final String ALG = "SHA-256";
++    private static final List<String> failures = new ArrayList<>();
++
++    public static void main(String[] args) throws Exception {
++        Certificate alice = new Fake("alice");
++        Certificate bob = new Fake("bob");
++        URL a = new URL("http://localhost/a.jar");
++        URL b = new URL("http://localhost/b.jar");
++
++        PermissionGrant signed = signedBy(alice, bob);
++        check(signed.implies(new CodeSource(a, new Certificate[]{alice, bob}), NONE), "all signers");
++        check(!signed.implies(new CodeSource(a, new Certificate[]{alice}), NONE), "one signer of two");
++        check(!signed.implies(new CodeSource(a, new Certificate[]{bob}), NONE), "other signer");
++        check(!signed.implies(new CodeSource(a, (Certificate[]) null), NONE), "unsigned, no NPE");
++        check(!signed.implies((CodeSource) null, NONE), "null code source");
++        check(!signed.implies(GrantSignerTest.class.getClassLoader(), NONE), "class loader alone");
++        check(signedBy().implies(new CodeSource(a, (Certificate[]) null), NONE), "no signers required");
++
++        PermissionGrant cb = codeBase("http://localhost/a.jar", alice);
++        check(cb.implies(new CodeSource(a, new Certificate[]{alice}), NONE), "codeBase+signedBy match");
++        check(!cb.implies(new CodeSource(a, (Certificate[]) null), NONE), "codeBase, unsigned");
++        check(!cb.implies(new CodeSource(a, new Certificate[]{bob}), NONE), "codeBase, other signer");
++        check(!cb.implies(new CodeSource(b, new Certificate[]{alice}), NONE), "other location");
++        check(!cb.implies(GrantSignerTest.class.getClassLoader(), NONE), "codeBase+signedBy, class loader");
++
++        try {
++            codeBase("http://[bad/a.jar");
++            check(false, "unparseable codeBase URI must fail closed");
++        } catch (SecurityException expected) {
++            // fail closed
++        }
++
++        PermissionGrant d = digest(DIGEST_A, alice);
++        CodeSource same = new DigestCodeSource("http://localhost/a.jar", new Certificate[]{alice}, ALG, DIGEST_A);
++        CodeSource moved = new DigestCodeSource("http://localhost/moved/z.jar", new Certificate[]{alice}, ALG, DIGEST_A);
++        CodeSource otherDigest = new DigestCodeSource("http://localhost/a.jar", new Certificate[]{alice}, ALG, DIGEST_B);
++        CodeSource otherSigner = new DigestCodeSource("http://localhost/a.jar", new Certificate[]{bob}, ALG, DIGEST_A);
++        CodeSource unsigned = new DigestCodeSource("http://localhost/a.jar", (Certificate[]) null, ALG, DIGEST_A);
++        check(d.implies(same, NONE), "digest+signedBy match");
++        check(d.implies(moved, NONE), "digest ignores location");
++        check(!d.implies(otherDigest, NONE), "other digest");
++        check(!d.implies(otherSigner, NONE), "digest, other signer");
++        check(!d.implies(unsigned, NONE), "digest, unsigned");
++        check(!d.implies(new CodeSource(a, new Certificate[]{alice}), NONE), "plain CodeSource, same URL");
++        check(digest(DIGEST_A).implies(moved, NONE), "digest without signers");
++        check(!d.implies(GrantSignerTest.class.getClassLoader(), NONE), "digest, class loader");
++
++        if (!failures.isEmpty()) {
++            throw new RuntimeException(failures.size() + " failure(s): " + failures);
++        }
++    }
++
++    private static PermissionGrant signedBy(Certificate... certs) {
++        return PermissionGrantBuilder.newBuilder()
++                .certificates(certs, new String[]{"alias"})
++                .permissions(new Permission[]{PERM}).principals(NONE)
++                .context(PermissionGrantBuilder.CODESOURCE_CERTS).build();
++    }
++
++    private static PermissionGrant codeBase(String uri, Certificate... certs) {
++        PermissionGrantBuilder bld = PermissionGrantBuilder.newBuilder()
++                .permissions(new Permission[]{PERM}).principals(NONE)
++                .context(PermissionGrantBuilder.URI).uri(uri);
++        if (certs.length > 0) bld.certificates(certs, new String[]{"alias"});
++        return bld.build();
++    }
++
++    private static PermissionGrant digest(byte[] digest, Certificate... certs) {
++        PermissionGrantBuilder bld = PermissionGrantBuilder.newBuilder()
++                .permissions(new Permission[]{PERM}).principals(NONE)
++                .digest(ALG, digest).context(PermissionGrantBuilder.DIGEST);
++        if (certs.length > 0) bld.certificates(certs, new String[]{"alias"});
++        return bld.build();
++    }
++
++    private static void check(boolean ok, String what) {
++        if (!ok) failures.add(what);
++    }
++
++    /** Certificates are equal if their encodings are. */
++    private static final class Fake extends Certificate {
++        private static final long serialVersionUID = 1L;
++        private final byte[] encoded;
++        Fake(String id) {
++            super("fake");
++            encoded = id.getBytes(java.nio.charset.StandardCharsets.UTF_8);
++        }
++        @Override public byte[] getEncoded() { return encoded.clone(); }
++        @Override public void verify(PublicKey key) { }
++        @Override public void verify(PublicKey key, String sigProvider) { }
++        @Override public String toString() { return "Fake"; }
++        @Override public PublicKey getPublicKey() { return null; }
++    }
++}
+-- 
+2.43.0
+
