@@ -663,11 +663,19 @@ reviewers found problems the section 7 text does not cover, and the trust story 
      skipped for it.
    The project lead's statement (the bootstrap proxy always talks to its own server) is true of
    the calls made through it, but the provider does not use those calls to establish identity.
-   The reviewers' relay finding is therefore **true for proxies nested in another service's
-   response**, and for lookup results the issue is the absence of any identity. A fix must
-   derive the identity from the bootstrap proxy's own authenticated connection (for example the
-   `ServerSubject` of an authenticated call such as `getClassAnnotation()` made through the proxy
-   with its constraints), not from the delivering stream.
+   **`SafeServiceRegistrar` should be used** (project lead), and it closes the gap for the
+   intended path: `lookUp(...)` returns *bootstrap* proxies as authentication tokens; the client's
+   bootstrap preparer prepares and authenticates the bootstrap proxy; then
+   `ServiceProxyAccessor.getServiceProxy()` is called on the **prepared** bootstrap proxy
+   (`ServiceDiscoveryManagerImpl`, around lines 2025–2085). The smart proxy therefore arrives in
+   the response to a call made over the service's **own** authenticated connection, so the
+   stream's `ServerSubject` is that service's identity. The two other delivery routes remain
+   unresolved: legacy `ServiceRegistrar.lookup` results (unmarshalled with no context, so no
+   identity) and a proxy nested in another service's response (attributed to the delivering
+   server). Requirement: delivery through `getServiceProxy()` on a prepared bootstrap proxy is the
+   only route that may yield an identity, isolation pool key, `BootstrapPermission` subject or
+   verified-path grant; for any other route the provider must refuse or route to process
+   isolation without a verified grant, never run the in-JVM unverified path silently.
 
 ### 8.3 Decisions recorded
 
