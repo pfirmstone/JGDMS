@@ -445,14 +445,8 @@ class DerGoldenBytesTest {
 
     /** Entries whose triple-in-a-stream form is skipped (their single form is already very large). */
     private static final java.util.Set<String> SINGLE_ONLY =
-            java.util.Set.of("blob-16MiB-minus-1", "list-70000", "list-65536");
+            java.util.Set.of("blob-16MiB-minus-1", "list-65536");
 
-    /**
-     * Entries the encoder emits but the decoder rejects (STD-006 sec.4.5 maxCollection = 65536): the
-     * encoder does not enforce the ceiling, so a 70 000-element list encodes to a stream no conforming
-     * decoder accepts. Pinned by {@link #encoderEmitsAListTheDecoderRejects}; excluded from the round trip.
-     */
-    private static final java.util.Set<String> ENCODE_ONLY = java.util.Set.of("list-70000");
 
     // ---- corpus ----
 
@@ -516,11 +510,6 @@ class DerGoldenBytesTest {
         c.put("top-level-proxy", DerGoldenBytesTest::greetProxy);
         // ---- A0 ----
         c.put("deep-chain-max-nesting", () -> deepChain(ObjectCodec.MAX_NESTING));
-        c.put("list-70000", () -> {
-            List<Rec> l = new ArrayList<>(70000);
-            for (int i = 0; i < 70000; i++) l.add(rec(i));
-            return new Batch(l);
-        });
         c.put("list-65536", () -> {   // exactly maxCollection: still decodable, content length > 65535
             List<Rec> l = new ArrayList<>(65536);
             for (int i = 0; i < 65536; i++) l.add(rec(i));
@@ -653,7 +642,6 @@ class DerGoldenBytesTest {
     @TestFactory
     Stream<DynamicTest> decodeRoundTripReproducesBytes() {
         return corpus().entrySet().stream().map(e -> DynamicTest.dynamicTest(e.getKey(), () -> {
-            if (ENCODE_ONLY.contains(e.getKey())) return;
             Object sample = e.getValue().get();
             for (int count : SINGLE_ONLY.contains(e.getKey()) ? new int[] {1} : new int[] {1, 3}) {
                 byte[] bytes = encode(e.getValue(), count);
@@ -675,12 +663,38 @@ class DerGoldenBytesTest {
         }));
     }
 
+    // ---- the encoder enforces the decoder's maxCollection ceiling (STD-006 sec.4.5) ----
+
+    private static List<Rec> recs(int n) {
+        List<Rec> l = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) l.add(new Rec(i, "n", "d", "o"));
+        return l;
+    }
+
+    private static void assertCeilingRejectedOnEncode(Object o) {
+        Exception e = assertThrows(Exception.class, () -> encode(() -> o, 1));
+        StringBuilder chain = new StringBuilder();
+        for (Throwable t = e; t != null; t = t.getCause()) chain.append(t).append(" <- ");
+        assertTrue(chain.toString().contains("maxCollection"), chain.toString());
+    }
+
     @org.junit.jupiter.api.Test
-    void encoderEmitsAListTheDecoderRejects() throws Exception {
-        byte[] bytes = encode(corpus().get("list-70000"), 1);
-        DerObjectStreamCodec in = new DerObjectStreamCodec();
-        in.initReader(bytes);
-        Exception e = assertThrows(Exception.class, in::readObject);
-        assertTrue(e.toString().contains("maxCollection"), e.toString());
+    void encoderRejectsAListOverTheDecodersMaxCollection() throws Exception {
+        assertCeilingRejectedOnEncode(new Batch(recs(65537)));          // list field
+        assertCeilingRejectedOnEncode(new Batch(recs(70000)));
+        // exactly at the ceiling still encodes AND decodes (list-65536 in the corpus round-trips)
+        assertDoesNotThrow(() -> encode(() -> new Batch(recs(65536)), 1));
+    }
+
+    @org.junit.jupiter.api.Test
+    void encoderRejectsASetAMapAndATopLevelCollectionOverTheCeiling() throws Exception {
+        Set<Rec> bigSet = new HashSet<>();
+        for (int i = 0; i < 65537; i++) bigSet.add(new Rec(i, "n", "d", "o"));
+        assertCeilingRejectedOnEncode(new RecSet(bigSet));
+        Map<String, Rec> bigMap = new TreeMap<>();
+        for (int i = 0; i < 65537; i++) bigMap.put(String.format("k%06d", i), new Rec(i, "n", "d", "o"));
+        assertCeilingRejectedOnEncode(new RecMap(bigMap));
+        assertCeilingRejectedOnEncode(new TopLevelCollection(recs(65537), "list:@AtomicSerial"));
+        assertDoesNotThrow(() -> encode(() -> new TopLevelCollection(recs(65536), "list:@AtomicSerial"), 1));
     }
 }

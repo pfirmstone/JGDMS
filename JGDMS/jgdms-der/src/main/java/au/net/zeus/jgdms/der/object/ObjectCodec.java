@@ -1519,6 +1519,7 @@ public final class ObjectCodec {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
             String keyWT = kv[0];
             String valWT = kv[1];
+            requireWithinMaxCollection(map.size(), fieldName);
             // Collect (keyEncoding, entryEncoding) pairs so a canonicalise map can octet-sort by
             // the KEY encoding, not the whole entry. Sorting the whole entry is NOT equivalent to
             // sorting by key: the entry SEQUENCE's length octet encodes key-size + value-size, so a
@@ -1530,6 +1531,7 @@ public final class ObjectCodec {
             List<byte[]> entryTlvs = new ArrayList<>(map.size());
             int i = 0;
             for (Map.Entry<?, ?> e : map.entrySet()) {
+                requireWithinMaxCollection(i + 1, fieldName);   // a concurrently growing map
                 byte[] keyTlv = encodeElementValue(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth);
                 byte[] valTlv = encodeElementValue(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth);
                 // entry := SEQUENCE { key, value }
@@ -1564,9 +1566,11 @@ public final class ObjectCodec {
                     + "' (wireType " + wireType + ") but got " + value.getClass().getName());
         }
         String elemWT = CollectionWireTypes.elementWireType(wireType);
+        requireWithinMaxCollection(coll.size(), fieldName);
         List<byte[]> elementTlvs = new ArrayList<>(coll.size());
         int i = 0;
         for (Object elem : coll) {
+            requireWithinMaxCollection(i + 1, fieldName);   // a concurrently growing collection
             elementTlvs.add(encodeElementValue(elem, elemWT, fieldName + "[" + i + "]", depth));
             i++;
         }
@@ -1576,6 +1580,21 @@ public final class ObjectCodec {
         // Option A tag: a CANONICALISE set/multiset is an ASN.1 SET OF -> SET (0x31); a PRESERVE
         // (orderedset/list) is a SEQUENCE OF -> SEQUENCE (0x30) (§3.8, Option A).
         return canonicalise ? DerWriter.writeSet(elementTlvs) : DerWriter.writeSequence(elementTlvs);
+    }
+
+    /**
+     * Encode-side counterpart of the decoder's {@code maxCollection} ceiling (STD-006 sec.4.5): an
+     * element (or map entry) count above {@link #MAX_COLLECTION} is rejected BEFORE any element is
+     * encoded. The decoder rejects such a collection, so an encoder that emitted it would produce a
+     * stream no conforming peer accepts; failing here makes the error local and immediate.
+     */
+    private static void requireWithinMaxCollection(int count, String fieldName) throws DerException {
+        if (count > MAX_COLLECTION) {
+            throw new DerException(
+                    "ObjectCodec.encodeCollection: element count " + count + " exceeds maxCollection ("
+                    + MAX_COLLECTION + ", §4.5) for field '" + fieldName
+                    + "' -- a conforming decoder would reject it");
+        }
     }
 
     /**
