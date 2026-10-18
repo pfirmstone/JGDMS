@@ -138,7 +138,10 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
-        byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
+        // bounded: refuse oversize input (DoS). The stream format is item-framed, so an item that declares more than
+        // the budget has left is refused before any of it is buffered; a record-level capture is NOT item-framed
+        // (it is the bare canonical record bytes) and keeps the plain bounded read.
+        byte[] buf = streamFormat ? limits.readFramedBounded(in) : limits.readAllBytesBounded(in);
         this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes());
         this.codec.initReader(buf, decodeUnit, resolution);
     }

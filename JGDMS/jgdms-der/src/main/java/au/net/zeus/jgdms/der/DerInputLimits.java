@@ -145,6 +145,146 @@ public final class DerInputLimits {
         return n == buf.length ? buf : Arrays.copyOf(buf, n);
     }
 
+    /**
+     * Reads a DER OBJECT STREAM (a sequence of top-level TLVs) fully, framed item by item under {@link #maxInputBytes()}:
+     * each item's header is read first, and an item whose declared length cannot fit in the remaining budget is rejected
+     * BEFORE any of its content is buffered. A hostile stream that declares a huge item therefore costs a header, not
+     * {@code maxInputBytes} of buffering and its growth copies.
+     *
+     * <p>What it returns is exactly what {@link #readAllBytesBounded(InputStream)} returns for the same stream, with ONE
+     * deliberate difference: a stream whose item declares more content than the budget has left is refused even if the
+     * stream is actually shorter (a truncated final item that the plain read would have buffered and left to fail when,
+     * and if, that item is read). Streams that cannot be framed at all (a header that is not a canonical definite
+     * length) are buffered under the same cap as before, so framing errors keep being reported where they were: when the
+     * item is read. The version octet is the first item like any other.
+     *
+     * <p>Only for object streams. A payload that is not item-framed (a {@code MarshalledInstance}'s captured payload) must use
+     * {@link #readAllBytesBounded(InputStream)}.
+     *
+     * @throws IOException if reading fails, the stream holds more than the limit, or an item declares more than fits
+     */
+    public byte[] readFramedBounded(InputStream in) throws IOException {
+        return readFramedBounded(in, maxInputBytes);
+    }
+
+    /** As {@link #readFramedBounded(InputStream)} with an explicit limit (package-private; for tests). */
+    static byte[] readFramedBounded(InputStream in, int max) throws IOException {
+        if (max >= Integer.MAX_VALUE - 8) {
+            return in.readAllBytes();                    // cap deliberately disabled
+        }
+        int available = 0;
+        try {
+            available = Math.max(0, in.available());
+        } catch (IOException ignore) {
+            // a hint only
+        }
+        // The first item's header tells us what to allocate, so the hint only seeds a modest buffer: a stream that
+        // claims a huge available() must not make us allocate it before a single header has been read.
+        Buffer b = new Buffer(Math.min(max, Math.max(256, Math.min(available, 64 * 1024))), max);
+        while (true) {
+            // ---- one item header: identifier octet(s), then length octet(s) ----
+            int first = in.read();
+            if (first < 0) return b.result();            // EOF at an item boundary
+            b.put(first);
+            if ((first & 0x1F) == 0x1F) {                // high-tag-number form: base-128 octets
+                int count = 0, c;
+                do {
+                    c = in.read();
+                    if (c < 0) return b.result();        // EOF inside a header: the reader rejects it when it gets there
+                    b.put(c);
+                    if (++count > 5) { b.readRest(in); return b.result(); }   // not a tag we can frame
+                } while ((c & 0x80) != 0);
+            }
+            int l = in.read();
+            if (l < 0) return b.result();
+            b.put(l);
+            long len;
+            if (l < 0x80) {
+                len = l;
+            } else if (l == 0x80 || l == 0xFF || (l & 0x7F) > 4) {
+                b.readRest(in);                          // indefinite / reserved / absurd length: not framable
+                return b.result();
+            } else {
+                len = 0;
+                for (int i = 0, octets = l & 0x7F; i < octets; i++) {
+                    int c = in.read();
+                    if (c < 0) return b.result();
+                    b.put(c);
+                    len = (len << 8) | c;
+                }
+            }
+            // ---- the item's content: refuse BEFORE buffering any of it if it cannot fit ----
+            if (b.n + len > max) {
+                throw new IOException("DER input exceeds the maximum permitted size of " + max
+                        + " bytes: an item declares " + len + " content bytes with " + (max - b.n)
+                        + " left; refusing to buffer it");
+            }
+            if (b.readFully(in, (int) len) < len) return b.result();   // truncated: keep what arrived, as the plain read does
+        }
+    }
+
+    /** A growing buffer that never holds more than {@code max} bytes and says so the moment a byte beyond that arrives. */
+    private static final class Buffer {
+        private byte[] buf;
+        private int n;
+        private final int max;
+
+        Buffer(int initial, int max) {
+            this.buf = new byte[initial];
+            this.max = max;
+        }
+
+        void put(int b) throws IOException {
+            if (n == max) throw oversize(max);
+            grow(n + 1);
+            buf[n++] = (byte) b;
+        }
+
+        private void grow(long need) {
+            if (need > buf.length) {
+                buf = Arrays.copyOf(buf, (int) Math.min(max, Math.max(need, 2L * buf.length)));
+            }
+        }
+
+        /** Reads up to {@code len} bytes (the caller has checked they fit); returns how many arrived. */
+        int readFully(InputStream in, int len) throws IOException {
+            grow((long) n + len);
+            int got = 0;
+            while (got < len) {
+                int r = in.read(buf, n + got, len - got);
+                if (r < 0) break;
+                got += r;
+            }
+            n += got;
+            return got;
+        }
+
+        /** The plain bounded read-to-EOF, from the current position. */
+        void readRest(InputStream in) throws IOException {
+            while (true) {
+                if (n == buf.length) {
+                    if (n == max) {
+                        if (in.read() >= 0) throw oversize(max);   // one byte past the cap
+                        return;
+                    }
+                    grow(n + 1L);
+                }
+                int r = in.read(buf, n, buf.length - n);
+                if (r < 0) return;
+                n += r;
+            }
+        }
+
+        byte[] result() {
+            return n == buf.length ? buf : Arrays.copyOf(buf, n);
+        }
+    }
+
+    private static IOException oversize(int max) {
+        return new IOException("DER input exceeds the maximum permitted size of " + max
+                + " bytes; refusing to buffer a larger stream");
+    }
+
     @Override
     public String toString() {
         return "DerInputLimits[maxInputBytes=" + maxInputBytes
