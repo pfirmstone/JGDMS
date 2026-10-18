@@ -633,7 +633,7 @@ release notes say so. Streams that are valid and fully consumed today stay valid
 |------|-------------|----------------|-----------|--------|---------|
 | **B0** · Characterise today's behaviour — **DONE 2026-10-18, see B0 OUTCOME below the table** | Turn the 2026-10-18 probe into permanent tests that pin **current** behaviour: for each per-item reject class (unknown digest, duplicate full, malformed arm, chain ceiling, table ceiling, per-item and cumulative reconstitution, depth, non-canonical framing) record which items are delivered before the reject; **an unread malformed trailing item is accepted**; **DGC `flush()` on `close()` after a failed decode** (count dirty registrations with a test `DeserializationCompletion`); `[8]`/`[16]` interior rejects arrive after earlier items. These tests change in B2 from "delivers *k*, then rejects" to "delivers nothing" — the diff in expected behaviour is the deliverable's proof. If the DGC finding is confirmed, raise it as a separate fix. | general-purpose · MEDIUM | sonnet | single reviewer | — |
 | **B1** · Framed, exactly-sized, early-rejecting input read — **DONE 2026-10-18, see B1 OUTCOME below the table** | **Only for the stream-format reader** (`DerMarshalInputStream`'s public constructors): `DerInputLimits.readAllBytesBounded` is also called by `DerMarshalInstanceInput` on payloads that are NOT item-framed and must keep working unchanged. Read item by item — peek the header, reject an item whose declared length exceeds the remaining budget **before buffering it**, read exactly that many bytes, accumulate into one exactly-grown buffer. Observable semantics unchanged (still reads to EOF; delivers nothing before the stream is framed). Honest benefit: today's reader already stops at `max+1`, so this saves buffering and a doubling copy on hostile input, nothing more — if a measurement shows no benefit, drop B1. Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected having read only the header (counting stream); trickle and slow streams; truncated item; trailing garbage (expectation per B.2.7); empty stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (touches the DoS gate) | — |
-| **B2** · Two-stage admission | Per B.2.0(i), B.2.1, B.2.2, B.2.7: cheap admission at construction; full admission (verify-only pass or plan per B.2.2, plus the verify-only `[8]`/`[16]` descent) invoked after `checkAccess`/before `unmarshalArguments`, with a `DerMarshalInputStream` API and a `BasicInvocationDispatcher` call site. Every B0 test flips to "rejects the stream, delivers nothing" or is explicitly documented as out of reach (B.2.1). Add: an adversarial test per reject class placed as the **last** item of a long stream (and first, and middle) asserting zero objects delivered and zero constructors run (counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations); a test that an unauthorized request does not trigger the dedup walk; Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
+| **B2** · Two-stage admission — **DONE 2026-10-18, see B2 OUTCOME below the table** | Per B.2.0(i), B.2.1, B.2.2, B.2.7: cheap admission at construction; full admission (verify-only pass or plan per B.2.2, plus the verify-only `[8]`/`[16]` descent) invoked after `checkAccess`/before `unmarshalArguments`, with a `DerMarshalInputStream` API and a `BasicInvocationDispatcher` call site. Every B0 test flips to "rejects the stream, delivers nothing" or is explicitly documented as out of reach (B.2.1). Add: an adversarial test per reject class placed as the **last** item of a long stream (and first, and middle) asserting zero objects delivered and zero constructors run (counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations); a test that an unauthorized request does not trigger the dedup walk; Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
 | **B3** · Class-free structural validation (optional) | Per B.2.4, only if the differential test shows a material class of malformed streams still reaching construction. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
 | **B5** · Whole-stream security policy checks | Per B.2.5: class-name policy (allow/deny lists, distinct-class cap), object-count / element-count / depth budgets, cross-item chain-consistency check, all in phase 1, all configurable (system properties validated like the reconstitution factors: invalid or hostile value → documented default, never weaker), defaults chosen from measured corpus maxima with headroom. Tests: each limit's inclusive boundary pair; a stream with a disallowed class name as its LAST item loads no class and runs no constructor (counting fixture + a class whose static initialiser records loading); a construction-bomb stream (1 M tiny records within `maxInputBytes`) is rejected before the first constructor; every default accepts the full golden corpus. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
 | **B6** · (optional, NOT dispatched) Phase-1 permission check as defence in depth | Per B.2.6: only if measurement shows the per-object checks matter. Adds a phase-1 check after authorization and B5 name policy, with the superclass walk, never replacing the per-object gate. | — | — | security-literate reviewer | B2, B5 |
@@ -671,6 +671,84 @@ frame (indefinite/reserved/more than 4 length octets, more than 5 tag octets) fa
   (2) header octets were read with one `read()` per octet, a call on the transport each (CPU on an unbuffered/synchronised stream): now a 128-byte `BufferedInputStream` (over-read at most 128 bytes beyond a header),
   `headerOnlyItemsDoNotCostOneTransportReadPerOctet`. Checked sound: no overflow (`n + len` is long, `len <= 2^32-1`, `(int)` taken only after the budget check), a valid stream of at most `max` is never refused,
   no JERI framing declares more than remains, `readRest` at `n == max` blocks exactly where the plain read does. Three mutants (drop the budget check, drop the per-byte cap, drop the end-probe) are killed.
+
+**B2 OUTCOME (2026-10-18).** Commits `558035770` (two-stage admission) and `f9be49b62` (review follow-ups).
+
+- **API.** `AtomicObjectInput.admitStream()` (default no-op, `jgdms-platform`); `DerMarshalInputStream.forDispatcher(...)` and `admitStream()`;
+  `BasicInvocationDispatcher.dispatch` calls `admitStream()` between `checkAccess` and `unmarshalArguments` (a failure is an `UnmarshalException`);
+  `AtomicDerInvocationDispatcher.createMarshalInputStream` builds with `forDispatcher`. Every other stream-format reader (the client's response stream, the
+  authorization-context block, tests) uses a public constructor, which performs FULL admission before it returns.
+- **Cheap stage (construction, pre-authorization):** exact item framing, canonical headers, the tag allow-list (a 256-entry table over the identifier octet), items
+  cover the input exactly. Allocation-free for short-form headers (anything else goes to `DerReader`, so error messages are the delivery path's); linear in the
+  already-bounded input; no hashing, no table, no class names. **Full stage (`admitStream()`):** one walk of every item on a scratch
+  decode-direction `StreamSchemaDedup.forAdmission` (the delivery code with its own table and counters, so there is no mode in which delivery skips a check;
+  B.2.2 option (b)), plus a verify-only descent into every `[8]` and `[16]` region, including a proxy nested inside a record payload, a `[16]` element or an `Any`
+  `[20]` arm (the dedup layer passes `[8]` through, C.6.5; delivery decodes the handler, so admission must), on a region verifier with a table of its own.
+  It also runs the class-free wire checks delivery makes on the scalar, enum, null and positional items, through code shared with `readObject`
+  (`parseBoxedScalar`, `parseEnumParts`, `parseProxy`, `requireArrayWireType`, `DerUtf8`, the reader's typed primitives), and walks the shell of every record
+  (one SEQUENCE per class, one TLV per field), including hierarchies whose fields cannot hold a chain site.
+- **Fail-closed.** A dispatcher-created stream is `PENDING`: a read of a record-bearing item (`[1]`, `[7]`, `[8]`, `[9]`, `[16]`) before `admitStream()` is refused, scalar
+  reads (the method hash) are allowed. A rejection is permanent and abandons the decode unit (no DGC callback). **A failed read of any kind also ends the stream**
+  (including that refusal; Fable): a typed read of the wrong kind consumes only the header, and a caller that caught the failure and carried on would read the rest of
+  the item as a new item that admission never covered. `admit()` marks the stream rejected on an `Error` as well (a hostile deep input) and rethrows it.
+- **What changed in the accept set (B.2.7):** a stream whose bad part is never read is now rejected up front. A failed read ends the stream. Nothing else. All B0
+  characterisation tests flipped from "delivers 2, then rejects" to "delivers 0, constructs 0".
+- **Tests.** `DerStreamWholeStreamAdmissionTest` (165): every reject class (unknown digest, wrong arm, non-canonical and truncated framing, unknown top-level tag, proxy and
+  collection interiors, oversize chain, table ceiling, duplicate full, fan-out bomb at the stream level, oversize chain inside a top-level and a nested `[8]`, inside a
+  `[16]` element and inside a `[8]` nested in a `[16]` element, nested `[8]` bounds, wrong P1 digest, a region site that reuses a tabled leaf record with different bytes,
+  a site-free collection past `MAX_NESTING`, fourteen scalar/enum/positional shapes, two site-free shell errors) as the first, middle and last item of a long stream with zero
+  objects delivered and zero constructors run; the two-stage dispatcher behaviour (cheap at construction, full at `admitStream()`, refusal and failure terminal and idempotent);
+  admission loads no class (counting loader over the whole corpus); positive tests for what must NOT be rejected (a well-formed nested proxy, 17-level collection nesting, a
+  100 000-level token over an empty value, a 300-distinct-chain region, a repeated chain); and a differential test against the lazy path over the golden corpus plus
+  thousands of tree- and byte-mutated streams (admission never rejects what the lazy path reads to the end; every wire-level lazy failure is an admission reject).
+  `AtomicDerAdmissionSeamTest`, `AtomicDerAdmissionDispatchTest` (an unauthorized request never triggers the dedup walk) in `jgdms-jeri`. `jgdms-der` 1352, `jgdms-jeri` + `jgdms-cel` green.
+- **Mutation (G13).** Every check above has a mutant that the tests kill: nested `[8]` not descended, P1 digest not compared, digest hit trusted, site-free nested collection passed through,
+  site-free shell not walked, region given the stream ceilings, token depth uncapped, each scalar/enum/positional check removed, poison a no-op, tag allow-list skipped on the fast path.
+  In the first cut the proxy-handler descent was the mutant that survived and led to the oversize-chain-in-`[8]`-handler and in-`[16]`-element tests; one mutant (a redundant poison-dedup
+  clause) is documented as redundant rather than killed. (A note for whoever repeats this: restoring a mutated source file leaves it OLDER than its compiled class, so Maven keeps the mutant's
+  class; touch the file after restoring, or the next full run reports failures that are the mutant's.)
+- **Review (Opus a0d4931, Fable acf480f, on `558035770`).** Both agreed the gate and the placement are sound. Confirmed gaps, all fixed above: nested `[8]` regions never descended;
+  `verifyRegionRecord` not faithful (digest field not compared, stream table ceilings applied to a region); an encode-site digest hit accepted a chain with different bytes without
+  verifying it; a site-free collection past `MAX_NESTING` passed through; `maybeContainsSites` recursed once per token level (a `[16]` token is bounded only by item size); cheap
+  class-free scalar/enum checks left to delivery; the site-free shell not walked; `ITEM_TAGS.contains` linear per item and about three allocations per header; the PENDING refusal left
+  the stream half-usable. Confirmed sound, no change: the tag allow-list equals the writer's emission set; the version-octet rule matches `readObject`'s; the capture contexts (`EntryRepV2Codec`,
+  `DerMarshalInstanceInput`) are unchanged and see no admission; no main-code consumer reads a prefix of a longer stream.
+- **Cost** (container, JMH 2 forks x 5 iterations, DER; **re-run on the workstation before quoting**; before = A5, results in `results-a5.json`, after = B2 with the review follow-ups):
+A5 -> B2 final (`results-a5.json` -> `results-b2.json`; the first cut is `results-b2-firstcut.json`):
+
+| benchmark (us/op, 99.9% error) | A5 | B2 | B2 - A5 | B2 / A5 |
+|---|---:|---:|---:|---:|
+| codec round trip batch100 | 865.58 +- 75.79 | 947.92 +- 78.46 | +82.34 (within noise) | 1.10 |
+| codec round trip blob64k | 264.27 +- 26.97 | 299.96 +- 14.33 | +35.69 (within noise) | 1.14 |
+| codec round trip point | 7.85 +- 0.88 | 9.58 +- 1.13 | +1.74 (within noise) | 1.22 |
+| codec round trip record | 11.12 +- 1.08 | 13.96 +- 1.07 | +2.83 | 1.25 |
+| codec unmarshal batch100 | 789.77 +- 82.90 | 842.70 +- 165.95 | +52.93 (within noise) | 1.07 |
+| codec unmarshal blob64k | 176.13 +- 66.10 | 183.43 +- 10.51 | +7.30 (within noise) | 1.04 |
+| codec unmarshal point | 6.82 +- 0.96 | 7.82 +- 0.86 | +1.00 (within noise) | 1.15 |
+| codec unmarshal record | 9.39 +- 0.90 | 12.31 +- 1.88 | +2.92 | 1.31 |
+| JERI batch100 | 4672.40 +- 341.23 | 4913.44 +- 337.84 | +241.04 (within noise) | 1.05 |
+| JERI blob64k | 9961.05 +- 520.59 | 10323.90 +- 824.73 | +362.85 (within noise) | 1.04 |
+| JERI ping | 134.00 +- 11.83 | 145.30 +- 14.26 | +11.30 (within noise) | 1.08 |
+| JERI point | 182.54 +- 30.07 | 181.69 +- 14.11 | -0.85 (within noise) | 1.00 |
+| JERI record | 198.49 +- 21.97 | 214.50 +- 23.41 | +16.01 (within noise) | 1.08 |
+
+  Reading: full admission is a second dedup walk over the stream, so in-process unmarshal pays about **+1.0 us (`point`), +2.9 us (`record`), +53 us (`batch100`, 7%, within noise), +7 us (`blob64k`)**;
+  small objects pay the most in relative terms (15-31%), large payloads little. **JERI end to end is within noise on every row**; `ping` (no codec work) itself moved +8% between the runs, which
+  accounts for the 0-8% on the JERI rows. The follow-ups (nested-`[8]` descent, shell walk, scalar checks) cost nothing measurable over the first cut (ratios 0.86 to 1.09, all within noise), and reading the `[1]` record in
+  place instead of copying it took `blob64k` unmarshal from 213 to 183 us. **Not measured here (B4):** the unauthenticated-peer cost with and without B2 on a synthetic 8-item request and a 16 MiB
+  stream; by construction the pre-authorization part is the cheap stage only (linear, allocation-free for short-form headers, no hashing). **A possible saving, not taken:** chain verification (`decodeChain` plus SHA-256) runs once at
+  admission and again at delivery on separate tables; a verified-chain cache keyed by the exact chain bytes (equality, not digest agreement) shared between the two would remove most of the added cost, at the price of coupling
+  admission to delivery, which B.2.2 chose not to do. Left to B4 and the maintainer.
+- **What admission does NOT do (limits, stated so nobody relies on more).** Layer 2 (constructors, `check(GetArg)`, class resolution) is per object, bottom-up (B.2.3). The interior of a record's field
+  values (set order, ranges, element counts, an `OCTET STRING` that should be a float) is the record decoder's; this is the optional B3. No class-name policy and no object-count or element-count
+  budget (B5); the number of items is bounded only by `maxInputBytes`, and the pass is linear in it. The walker verifies the dedup/wire structure of a nested `[8]`'s handler, not what the handler class
+  is. `unmarshalMethod` is not shape-pinned to a scalar (Fable's suggestion): it is `protected`, but the fail-closed refusal already keeps a subclass that reads an object there from pulling a dedup
+  record pre-authorization. The authorization-context block still decodes pre-authorization under the dispatcher's own limits; giving it a smaller `DerInputLimits` is an open suggestion.
+- **Operators and integrators.** A custom dispatcher that does not use `BasicInvocationDispatcher.dispatch` and reads objects from a `forDispatcher` stream must call `admitStream()` itself or its
+  record-bearing reads fail loudly. A subclass of `AtomicDerInvocationDispatcher` that overrides `createMarshalInputStream` with a public constructor pays full admission before authorization (a cost, not a hole).
+  Not runnable offline in this container (missing Maven plugins): `examples/wire-protocol-showcase` and the Outrigger tests; a grep of main code finds no Outrigger/DGC user of either reader.
+- **Remaining for Part B:** B5 (policy, xhigh), B3 only if a class of malformed streams still reaches construction, B4 (unauthenticated-peer cost on the synthetic 8-item and 16 MiB streams;
+  the table above is the benchmark-payload half of it), B6 not dispatched.
 
 **Sequencing:** B0 and B1 are independent of Part A and can run first. B2 should follow A3 so the
 verify-only mode is the same code as the delivery walker; if the maintainer wants admission

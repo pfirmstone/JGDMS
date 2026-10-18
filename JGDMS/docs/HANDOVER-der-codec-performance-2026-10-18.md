@@ -1,6 +1,6 @@
 # Handover: DER codec performance, streaming encoder and admission work
 
-**AS-OF 2026-10-18 (updated after A4, which landed after A3), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
+**AS-OF 2026-10-18 (updated after B2, which landed after B1; A4 and earlier notes below are older), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
 `git status -sb` showed the branch level with `origin/claude/focused-bohr-t6bwal` and a clean tree after restoring
 tracked `target/` build files). Anything committed after `53c369511` is NOT reflected here: run
 `git log --oneline 53c369511..HEAD` first. Written following `handover-composition` (pfirmstone/Cross-machine_Claude_Code_skills).
@@ -17,7 +17,7 @@ tracked `target/` build files). Anything committed after `53c369511` is NOT refl
 
 ## 2. State, with provenance
 
-- **Tests (after A4):** 1160 run, 0 failures, 0 skipped in `jgdms-der`. **Tests (after A3):** 1150 run, 0 failures, 0 skipped in `jgdms-der` (source: `mvn -pl jgdms-der test`); DER tests in `jgdms-cel`/`jgdms-jeri` also pass. **Tests (after A2):** 951 run, 0 failures, 0 skipped, in `jgdms-der` (source: `mvn -pl jgdms-der test`); the A1 line below is older. **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
+- **Tests (after B2):** 1352 run, 0 failures, 0 skipped in `jgdms-der`; `jgdms-jeri` 78 run (1 skipped, pre-existing) and `jgdms-cel` 692 run, 0 failures (source: `mvn -o -pl jgdms-der test` and `mvn -o -pl jgdms-jeri,jgdms-cel test` after `mvn -o -q -pl jgdms-platform,jgdms-der,jgdms-jeri install -DskipTests`). **Tests (after A4):** 1160 run, 0 failures, 0 skipped in `jgdms-der`. **Tests (after A3):** 1150 run, 0 failures, 0 skipped in `jgdms-der` (source: `mvn -pl jgdms-der test`); DER tests in `jgdms-cel`/`jgdms-jeri` also pass. **Tests (after A2):** 951 run, 0 failures, 0 skipped, in `jgdms-der` (source: `mvn -pl jgdms-der test`); the A1 line below is older. **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
   on DirtyChai 27 after commit `53c369511`'s change; population: that module only, NOT `jgdms-jeri`/`jgdms-cel`, which were
   spot-run earlier with `-Dtest='*Der*,*DER*,*Cel*'` and passed). The 1 skipped test is the A1 hook
   `DerEncoderEquivalenceScaffoldTest.derEncoderMatchesReference` (deliberately `@Disabled`).
@@ -50,6 +50,8 @@ Docs: the rest (SOW creation, board folding, decisions).
 - **Pipe maven through `grep ... | cut -c1-150`.** A failing golden assertion prints whole hex streams (cost ~10k tokens once).
 - **Never `git checkout -- <file>` to undo a mutation test on a file that has uncommitted real edits**: it reverts the real edit
   too (this happened once on `ObjectCodec.java`; recovered by re-applying). Copy to a backup first.
+- **Mutation tests: touch the file after restoring it.** `shutil.move` of the backup back leaves the source OLDER than its compiled class, so Maven keeps the mutant's class and the next full run reports the mutant's failures (this happened once in B2).
+- **Do not run unit tests while a JMH run is in progress** (a 391 +- 1449 us outlier once); wait for the `done` line.
 - Tracked `target/` files show as modified after every build; restore with `git checkout -- <those paths>`, do not commit them.
 
 ## 5. Decisions already made (maintainer, Peter) and the board
@@ -58,6 +60,8 @@ Docs: the rest (SOW creation, board folding, decisions).
 - Admission: two-stage; **fail-closed by default** for dispatcher-created streams; lazy-admission switch documented, NOT built.
 - Strict UTF-8 both directions, no flag (done). Encoder rejects over-ceiling collections (done). DGC flush fix (done).
 - B6 (hoist permission checks into phase 1): demoted, not dispatched.
+- A failed read ends a stream-format `DerMarshalInputStream` (every later read throws), including the refusal of a record-bearing read before `admitStream()` (Fable, B2 review): a typed read of the wrong kind consumes only the header, and carrying on would read the rest of the item as a new item that admission never covered.
+- Not built, deliberately (B2 OUTCOME): shape-pinning item 0 to the scalar method hash; an item-count ceiling (bounded by `maxInputBytes`, pass is linear); a smaller `DerInputLimits` for the authorization-context block; a shared admission/delivery verified-chain cache (B4 may revisit).
 
 ## 6. Do-NOT-redo list (each conditional)
 
@@ -71,7 +75,7 @@ Docs: the rest (SOW creation, board folding, decisions).
 
 ## 7. Open items
 
-1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **Part A (A0-A5) is DONE** (A4: the stream codec writes one encoder and poisons on a failed item; see the A4 OUTCOME in the SOW; A5 wrote the third section of RESULTS.md; B0 and B1 are DONE (B0: admission characterisation tests, B2 flips them; B1: framed bounded read in `DerInputLimits.readFramedBounded`); next is B2 [xhigh], then B5. Cheap leftover: per-stream construction cost of `CompactDerEncoder`/`StreamSchemaDedup` is ~7% of a one-object marshal) (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
+1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **Part A (A0-A5) is DONE** (A4: the stream codec writes one encoder and poisons on a failed item; see the A4 OUTCOME in the SOW; A5 wrote the third section of RESULTS.md; B0, B1 and B2 are DONE (B0: admission characterisation tests, flipped by B2; B1: framed bounded read in `DerInputLimits.readFramedBounded`; B2: two-stage whole-stream admission, `DerMarshalInputStream.forDispatcher`/`admitStream()`, the `BasicInvocationDispatcher` call after `checkAccess`, see the B2 OUTCOME in the SOW); next is B5 [xhigh] (policy checks on the admission pass), then B4 (unauthenticated-peer cost on the synthetic 8-item and 16 MiB streams) if the maintainer wants it; B3 only if a class of malformed streams still reaches construction. Cheap leftover: per-stream construction cost of `CompactDerEncoder`/`StreamSchemaDedup` is ~7% of a one-object marshal) (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
 2. Ask the user (in bold) before an effort change; efforts are set by the user.
 3. ~~DGC fix tested at stream level only~~ B0 pinned it at the dispatcher-created-stream seam too (`AtomicDerAdmissionSeamTest`); the full `dispatch()` call is not driven.
 4. ~~`JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine)~~ CORRECTED 2026-10-18: the 569 tracked `jgdms-der/target/` files WERE mine - force-added by `git add -f JGDMS/jgdms-der` in `ef2fdc6a9` (trunk `9adc8e6e3` tracks none; source: `git ls-tree -r 9adc8e6e3 --name-only | grep -c jgdms-der/target/` = 0). Untracked in the commit after `a6c2679d6`; `.gitignore` already had `**/target/`. NEVER use `git add -f` on a whole module. `dependency-reduced-pom.xml` IS trunk's own tracked file: leave it, `git checkout` it after benchmark builds.

@@ -47,6 +47,31 @@ import org.apache.river.api.io.AtomicObjectInput;
  * is a bounded call-buffer (the caller has already framed the data); a streaming approach
  * would require additional framing beyond the DER TLV layer.
  *
+ * <h2>Whole-stream admission</h2>
+ * <p>
+ * The bytes are all in hand before the first read, so the stream is <em>admitted or rejected as a whole before any
+ * object is built from it</em>. A stream built by a public constructor is admitted before the constructor returns; a
+ * request stream built by a server dispatcher ({@link #forDispatcher}) is admitted in two stages, so that only an
+ * authorized caller pays for the expensive one (see {@link #admitStream()}). What admission verifies, with no class
+ * loaded, no constructor or {@code check} run and nothing registered: that the items are canonically framed and exactly
+ * cover the input and carry only tags the writer emits; the schema-dedup layer in full (every chain parsed and hashed,
+ * every {@code chainRef} resolved, duplicate and unknown-digest rejects, the chain, table and reconstitution ceilings, the
+ * nesting bounds); the same checks inside the {@code [8]} proxy and {@code [16]} collection regions the dedup layer passes
+ * through, including a proxy nested inside a record's payload; the shell of every record; and the class-free wire checks
+ * on the scalar, enum and positional items (canonical integers, floats and booleans, strict UTF-8).
+ * <p>
+ * <b>What it cannot promise.</b> It guarantees the stream is <em>structurally admissible</em> (the wire level). It does not
+ * guarantee that every object will be accepted: {@code check(GetArg)}, a constructor's invariants and class resolution
+ * need the class and run user code, and are decided when each object is read, bottom-up (a nested value is constructed
+ * before its parent), so a rejection of object <i>k</i> still happens at the <i>k</i>th read, after objects 1..<i>k</i>-1
+ * were delivered. The interior of a record's field values (set order, ranges, element counts, an {@code OCTET STRING}
+ * that is to be a float) is likewise the record decoder's. Nothing here is a class-name policy or an object-count budget.
+ * <p>
+ * Admission is a change to what is accepted (STD-008/B.2.7): a stream whose bad part is never read (a malformed,
+ * non-canonical or over-ceiling trailing item, or an unresolvable {@code chainRef}) used to be accepted and is now rejected
+ * up front. A <em>failed read</em> also ends the stream: every later read rethrows, because a failed typed read can leave
+ * the reader inside an item. Streams that are valid and fully consumed are unaffected.
+ *
  * <h2>Typed primitives (positional, sec.15.2)</h2>
  * <p>
  * Each typed read decodes the next DER TLV from the buffer and range-checks the value
@@ -143,7 +168,9 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * authorization, or that overrides {@code dispatch}, must call {@code admitStream()} itself.
      *
      * <p>The public constructors, by contrast, perform FULL admission before returning (clients reading a response, tests,
-     * the authorization-context block): a stream that is not structurally admissible delivers nothing.
+     * the authorization-context block): a stream that is not structurally admissible delivers nothing. (A dispatcher
+     * subclass that overrides {@code createMarshalInputStream} and builds its stream with a public constructor therefore
+     * pays the full cost before the caller is authorized: a cost, not a hole, since nothing is delivered either way.)
      *
      * @throws IOException if reading fails, the byte cap is exceeded, or the cheap stage rejects the stream
      */

@@ -361,3 +361,38 @@ Samples: 881 / 885 / 190 / 170 (the unmarshal rows are indicative only). Compare
 dedup `rebuildCollectionOuter`/`transformFieldTlv` frames are gone from the top; what remains is the encoder's own work (header writing, the single compaction pass) and, for the
 small `record`, per-stream construction cost: `CompactDerEncoder.<init>` and `StreamSchemaDedup.<init>` together are about 7% of a one-object marshal and of an unmarshal. That is the
 next cheap target (lazily sized encoder arrays, a pooled or reused dedup table per connection rather than per stream), and it matters only for tiny objects.
+
+
+# Fourth run: after whole-stream admission (SOW-DER-Streaming-Encoder B2), 18 October 2026
+
+Same container, same JMH settings (2 forks x 5 iterations), DER only, `CodecBenchmark.(unmarshal|roundTrip)` and `JeriBenchmark.*`. Compared with the third run's
+payload rows (`results-a5.json`; the marshal rows are unaffected by B2 and were not re-run). Data: `results-b2.json` (with the review follow-ups) and `results-b2-firstcut.json` (the first B2 commit).
+
+What B2 adds to a stream read: a second dedup walk over the whole stream, run before the first object is built (and, for a server request stream, only after the caller is authorized).
+
+| benchmark (us/op, 99.9% error) | A5 | B2 | B2 - A5 | B2 / A5 |
+|---|---:|---:|---:|---:|
+| codec round trip batch100 | 865.58 +- 75.79 | 947.92 +- 78.46 | +82.34 (within noise) | 1.10 |
+| codec round trip blob64k | 264.27 +- 26.97 | 299.96 +- 14.33 | +35.69 (within noise) | 1.14 |
+| codec round trip point | 7.85 +- 0.88 | 9.58 +- 1.13 | +1.74 (within noise) | 1.22 |
+| codec round trip record | 11.12 +- 1.08 | 13.96 +- 1.07 | +2.83 | 1.25 |
+| codec unmarshal batch100 | 789.77 +- 82.90 | 842.70 +- 165.95 | +52.93 (within noise) | 1.07 |
+| codec unmarshal blob64k | 176.13 +- 66.10 | 183.43 +- 10.51 | +7.30 (within noise) | 1.04 |
+| codec unmarshal point | 6.82 +- 0.96 | 7.82 +- 0.86 | +1.00 (within noise) | 1.15 |
+| codec unmarshal record | 9.39 +- 0.90 | 12.31 +- 1.88 | +2.92 | 1.31 |
+| JERI batch100 | 4672.40 +- 341.23 | 4913.44 +- 337.84 | +241.04 (within noise) | 1.05 |
+| JERI blob64k | 9961.05 +- 520.59 | 10323.90 +- 824.73 | +362.85 (within noise) | 1.04 |
+| JERI ping | 134.00 +- 11.83 | 145.30 +- 14.26 | +11.30 (within noise) | 1.08 |
+| JERI point | 182.54 +- 30.07 | 181.69 +- 14.11 | -0.85 (within noise) | 1.00 |
+| JERI record | 198.49 +- 21.97 | 214.50 +- 23.41 | +16.01 (within noise) | 1.08 |
+
+## What the numbers say
+
+- **The added work is a second pass over the stream, so it shows on in-process unmarshal and not on the JERI rows.** `record` unmarshal +2.9 us (31%), `point` +1.0 us (15%), `batch100` +53 us (7%, within noise),
+  `blob64k` +7 us (4%, within noise). Every JERI row is within noise; `ping` (no codec work) moved +8% between the runs, which is the size of the drift on the JERI rows.
+- **The review follow-ups cost nothing measurable** over the first B2 commit (all ratios 0.86 to 1.09, within noise), and reading the `[1]` record in place recovered about 30 us of `blob64k` unmarshal.
+- **The unauthenticated-peer cost (what a peer pays before it is authorized) is the cheap stage only** and was not benchmarked here (SOW B4): it is linear in the already-bounded input and allocates nothing for
+  short-form headers.
+- **Where the added time is:** chain verification (`SchemaChain.decodeChain` and one SHA-256 of the leaf record) happens once in admission and again in delivery, on separate tables by design. A bytes-keyed verified-chain
+  cache shared between the two would remove most of it; it is not built (it couples admission to delivery).
+- Container numbers: re-run on the workstation before quoting.

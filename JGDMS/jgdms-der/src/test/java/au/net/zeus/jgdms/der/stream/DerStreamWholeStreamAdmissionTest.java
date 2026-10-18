@@ -605,15 +605,18 @@ class DerStreamWholeStreamAdmissionTest {
     }
 
     /**
-     * Failures of the kind admission exists to catch: the dedup layer, the top-level item framing, the version octet. A framing
-     * or value error INSIDE a record's payload (a field TLV that overruns, a bad set order) is the record decoder's to find when
-     * that object is read (the walker passes field values through verbatim; payload value and interior-structure checks are the
-     * optional B3 extension), so it is deliberately not in this list.
+     * Failures of the kind admission exists to catch: the dedup layer, the top-level item framing, the version octet, and the
+     * class-free wire checks on the scalar, enum and positional items. A framing or value error INSIDE a record's payload (a
+     * field TLV that overruns, a bad set order) is the record decoder's to find when that object is read (the walker passes
+     * field values through verbatim; interior value checks are the optional B3 extension), so it is deliberately not in this list.
      */
     private static boolean isWireLevel(Throwable t) {
         String m = DerStreamAdmissionCharacterisationTest.chain(t);
         return m.contains("StreamSchemaDedup") || m.contains("stream schema-dedup") || m.contains("failed to read TLV header")
-                || m.contains("readObject: failed to read");
+                || m.contains("readObject: failed to read")
+                || m.contains("boxed ") && !m.contains("ObjectCodec") || m.contains("[0] NULL TLV must have length 0")
+                || m.contains("malformed [7] enum item") || m.contains("trailing bytes in [7] enum item")
+                || m.contains("unexpected top-level tag");
     }
 
     @TestFactory
