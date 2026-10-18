@@ -288,15 +288,43 @@ authenticating, and pre-authorization cost is the one thing this section must no
   dispatcher calls it between `checkAccess` and `unmarshalArguments`, inside the existing `try`.
   A failed `admit()` poisons the stream so later reads rethrow. A rejected stream's decode unit is
   empty, so no DGC callback fires (and see the abort fix for streams that fail later).
-- **ONE POINT THE SEATS DISAGREE ON — maintainer decision.** What a record-bearing read does
-  *before* `admit()` has been called. *Fail-closed (security seat):* it throws. This closes a real
-  trap: `unmarshalMethod` is `protected` and overridable, so a subclass that reads an object there
+- **DECIDED (maintainer, 2026-10-18): fail-closed by default.** The seats differed on what a
+  record-bearing read (`[1]`/`[8]`/`[9]`/`[16]`) does *before* `admit()` has been called on a
+  dispatcher-created stream. *Fail-closed (security seat):* it throws. This closes a real trap:
+  `unmarshalMethod` is `protected` and overridable, so a subclass that reads an object there
   would otherwise pull a dedup record pre-authorization with no error. *Lazy full admission
-  (transport seat):* the first record-bearing `readObject` runs full admission itself — compatible
-  with custom dispatchers and the existing tests, but a subclass that reads early silently pays
-  full-admission CPU before authorization. Primitive reads (the method hash) stay cheap in both.
-  Recommendation: fail-closed for streams created for a dispatcher (a loud error for the rare
-  subclass that overrides `dispatch`), lazy/at-construction for everything else.
+  (transport seat):* the first record-bearing read runs full admission itself — compatible with
+  custom dispatchers, but an early read silently pays full-admission CPU before authorization.
+  The maintainer chose fail-closed. Scalar/primitive reads (the method hash) stay allowed and cheap.
+  Only streams created by the DER dispatcher's own `createMarshalInputStream` are in this mode;
+  streams built through the public `DerMarshalInputStream` constructors (clients, tests, capture
+  paths) take full admission at construction as before. Consequences accepted with the decision:
+  a third-party dispatcher that overrides `dispatch`, or reads objects in `unmarshalMethod`,
+  fails loudly (`IOException` with a message naming `admitStream()`) until it calls
+  `admitStream()` after authorization; in-tree, `AtomicDerInvocationLayerTest` (~line 320) and
+  `RawWireFormRetainingHandlerTest` obtain the stream from the dispatcher and read objects, so
+  B2 must update them to call `admit()`; the stream gains a small state machine (not admitted →
+  admitted, or poisoned by a failed admit) that needs tests and Javadoc.
+- **Lazy admission is deliberately NOT built (maintainer, 2026-10-18).** There are no operators
+  with custom dispatchers yet, so a switch is deferred until one exists — building it now would
+  add a second code path, and a way to quietly spend pre-authorization CPU, for a user who does
+  not exist. **How it could be supported, if one appears** (documented here so it need not be
+  rediscovered; none of this is to be implemented speculatively):
+  - A *documented* switch on the stream factory (a property read once and validated like the
+    reconstitution factors, or an explicit constructor/factory argument, preferably the
+    argument so it is per-dispatcher and not process-wide), selecting `LAZY` for a dispatcher
+    stream: the first record-bearing read then runs full admission itself, exactly as it would
+    have after `admit()`, and a later explicit `admit()` is a no-op (idempotent).
+  - It changes only *when* full admission runs, never *what* is admitted: the same walk, the same
+    ceilings, the same B5 policy, the same messages, and nothing is constructed before it
+    finishes. That is why it is a compatibility mode and not a second accept set, and why it is
+    acceptable where a lenient-UTF-8 flag was not.
+  - It must log a warning whenever full admission is triggered lazily before authorization has
+    been signalled, so the extra pre-authorization cost is visible to the operator, and it
+    should be off by default in every distribution.
+  - The test to add with it: an unauthorized request through a lazy-mode stream that reads an
+    object early performs the full walk (and is counted), so the cost is a pinned, known
+    property and not a surprise.
 - **ACC stream.** `DerReducingContextCodec` decodes its block in full before authorization anyway,
   so deferral buys nothing: call `admit()` right after construction, and give that stream its own,
   smaller `DerInputLimits` (it currently inherits the dispatcher's) — it is authorization input,
@@ -515,7 +543,8 @@ removing it.
 8. **B.2.7:** release-note wording for streams now rejected up front; and B0 must first pin
    whether any handler or peer legitimately leaves trailing optional items unread, before that
    becomes a reject (board: strongest argument against rejecting trailing items).
-9. **B.2.0:** fail-closed vs lazy behaviour of a record-bearing read before `admit()`.
+9. **B.2.0 — DECIDED:** fail-closed by default; the lazy-admission switch is documented, not built,
+   until an operator with a custom dispatcher appears.
 10. **Lenient UTF-8 (separate change, see below):** board recommends strict both directions.
 
 # Agent brief (paste-ready)
