@@ -207,7 +207,7 @@ append occurs (the encoder's size does not grow past the ceiling).
 | **A1** · `DerEncoder` + sorted-set support — **DONE 2026-10-18, see A1 OUTCOME in A.1.1** | The class per A.1.1/A.1.3/A.1.4; façade `DerWriter` unchanged. Implement **both** (b) two-pass and (c) reserve-and-compact variants of A.1.1 behind the same API, property-test both against `DerWriterReference` (random nested trees, all tag forms, all length boundaries 127/128/255/256/65535/65536 including nested straddles, sorted sets, maps, nested sorted sets), microbenchmark both on a 64 KiB / 7-level payload and on `batch100`, keep the faster and delete the other. | general-purpose · HIGH | sonnet | single reviewer + property test + `ConformanceVectorsTest` | A0 |
 | **A2** · Migrate the object encoders — **DONE 2026-10-18, see A2 OUTCOME below the table** | **Callee-first**, so no interim adapter adds copies: `AtomicSerialFieldDef`, `AtomicSerialSchemaRecord`, `MarshalledInstanceRecord`, `DerFieldStore`, `AnyCodec`, then `ObjectCodec`; and `EntryRepV2Codec` (12 sites — Entry byte-matching is a canonicity-critical path with its own tests, which must run per commit). Bracket children instead of building lists. One file per commit, each passing the full oracle. | general-purpose · HIGH | sonnet | single reviewer + full golden corpus per commit | A1 |
 | **A3** · Migrate the dedup walker (both directions) — **DONE 2026-10-18, see A3 OUTCOME below the table** | Per A.1.5/A.1.6: offset-based reads, single output encoder, `appendRaw` for untouched sub-TLVs, ceilings metered before append. Keep the old byte[]-in/byte[]-out methods as thin wrappers (the ceiling/bomb/cumulative tests call them). Add an equivalence test: for the whole corpus, new walker output ≡ old walker output (old kept in the test tree) in both directions. | general-purpose · XHIGH (the dedup layer is the security spine) | top-tier | security-literate reviewer + `DerStreamSchemaDedupTest` + every `StreamSchemaDedup*` test + golden corpus + adversarial rejects re-run (G13) | A2 |
-| **A4** · Migrate the stream codec | **First**, time the drain and the read phases separately on the JERI loopback benchmark and report whether `drainTo`/input buffering is a material part of a call (RESULTS.md hypothesises the unexplained ~2.4 ms of a `batch100` call; if codec time cannot appear in a JERI call, stop and report). Then: `DerObjectStreamCodec` writes items into one encoder instead of `writeBuffer` of arrays; `drainTo` streams from it. Item framing, version octet, `[8]`/`[9]`/`[16]` branches unchanged. | general-purpose · HIGH | sonnet | single reviewer + golden corpus | A3 |
+| **A4** · Migrate the stream codec — **DONE 2026-10-18, see A4 OUTCOME below the table** | **First**, time the drain and the read phases separately on the JERI loopback benchmark and report whether `drainTo`/input buffering is a material part of a call (RESULTS.md hypothesises the unexplained ~2.4 ms of a `batch100` call; if codec time cannot appear in a JERI call, stop and report). Then: `DerObjectStreamCodec` writes items into one encoder instead of `writeBuffer` of arrays; `drainTo` streams from it. Item framing, version octet, `[8]`/`[9]`/`[16]` branches unchanged. | general-purpose · HIGH | sonnet | single reviewer + golden corpus | A3 |
 | **A5** · Measurement + closeout | Re-run the harness on the same machine/JDK as `results-after.json`; add a dated third section to `RESULTS.md` with the before/after pair and ratios; re-profile and list the new top-5 self-time frames; update both SOWs' status. Report medians as well as means for any row whose error interval exceeds its score. Report allocation per op (`-prof gc`) for `blob64k` and `batch100`, since reducing garbage is a stated goal. | general-purpose · MEDIUM | sonnet | single reviewer | A2–A4 |
 
 **A2 OUTCOME (2026-10-18).** Every encoder in the list now writes into one `DerEncoder` through an
@@ -279,6 +279,40 @@ the chain site processed (pre-order, C.6.2), the trailing-field checks run, and 
   rows are excluded (noise in the earlier run). Micro-benchmark of the walker alone (`StreamSchemaDedupMicroBench`, one fresh instance per op, old to new): `bench-batch100`
   encode 72 to 44 us and 326 to 79 KB per op, decode 68 to 39 us and 348 to 133 KB; `deep-chain-max-nesting` encode 12.8 to 4.8 us and 66 to 10 KB; a small flat record is
   1253 to 781 ns encode but allocates about 35% MORE (a fresh encoder per call: its initial arrays), which A4's shared encoder removes. Container, one run: re-run on the workstation before quoting.
+
+**A4 OUTCOME (2026-10-18).**
+
+- **Pre-step result (measured before any code changed; `DerStreamPhaseBench`, plain loops, one fresh codec per op):** `drainTo` and input
+  buffering are NOT a material part of a JERI call. `batch100`: drain 5.2 us, `readAllBytesBounded` 7.8 us, against a ~7.5 ms call (under 0.2%);
+  `blob64k`: 22 us and 40 us. The unexplained ~2.4 ms RESULTS.md wondered about is not in these phases. Codec time does appear in a call
+  (marshal + unmarshal of `batch100` is about 0.8 ms of ~7.5 ms), so the SOW's "stop" condition did not apply and A4 went ahead, but its wall-clock
+  gain on a JERI call is necessarily small; its benefit is allocation.
+- **Change (commits `134ab3ae1`, `086155f21`):** `DerObjectStreamCodec` keeps ONE `DerEncoder` for the write side (no per-item array, no list of
+  chunks) plus a `scratch` encoder; `drainTo` compacts once and resets only after a successful write. `[16]` collections, `[8]` proxies, scalars,
+  strings, enums are written in place; `[1]` records and `[9]` arrays are built canonical in `scratch` (the dedup walker reads them by offset) and the
+  stream form is written straight into the shared output (`dedupTopLevelAtomicTo` / `dedupTopLevelArrayTo`). `MarshalledInstanceRecord.encodeCanonicalTo`
+  writes the canonical record with its payload in place. Item framing, the version octet and the `[8]`/`[9]`/`[16]` branches are unchanged; the golden
+  corpus (single and triple streams) is byte-identical.
+- **The A3 trap, closed.** A failed item used to leave the stream usable even when it had tabled a chain as sent that never was. Now an item that threw
+  AFTER changing the stream (partial item buffered in the shared encoder, or a dedup-table change) **poisons** it: later writes and the drain refuse. An item
+  rejected before touching it (unsupported type, proxy interface count) still leaves the stream usable. Also poisoned: a write that arrives while an item is in
+  progress (user `serialize()` reaching the stream would otherwise write inside an open frame, found by the Fable review), and a stream whose sink threw
+  (the sink may have taken a prefix; a retry would duplicate it; the old chunk loop resent every chunk). `DerMarshalOutputStream.close()` now closes the
+  underlying stream even when the flush fails. **Behaviour change for callers:** an `IOException` from `writeObject` after a mid-item failure now ends the stream;
+  a caller that caught it and carried on will see "stream is unusable". Callers were not audited.
+- **Tests:** `DerObjectStreamCodecWriteStateTest` (rejected-before-touch is invisible; failed after touch poisons; mid-collection failure; scratch failure in stream format
+  leaves nothing; prefix-then-fail sink; version octet not repeated; several drains; re-entrant item and positional writes in both formats; `close()` after a failing flush;
+  dedup `mutationCount`). Mutants: never-poison and reset-before-write are caught; ignoring the dedup-mutation clause survives and is documented as redundant today (every path
+  that tables a chain has already opened its frame in the shared encoder).
+- **Not done:** `drainTo` still holds the encoder buffer plus its compacted copy (peak about 3x the stream, against 1x for the old chunk list); a compact-in-place
+  `writeTo(OutputStream)` would remove it but writes one small chunk per frame, bad for an unbuffered socket. Read side untouched (still one `byte[]` per TLV).
+- **Measured** (`CodecBenchmark` DER, same container and JDK, JMH 2 forks x 5; files `results-a4.json`, `results-a4-marshal-rerun.json`). Marshal `record` 1.62 us (A3: 1.79),
+  `batch100` 105.2 us (124.8), `blob64k` 85.7 us (127.5; the first run's 391 +/- 1449 us was an outlier caused by my running the unit-test suite concurrently, so it was re-run alone);
+  unmarshal unchanged within noise (A4 does not touch it): `record` 9.7 us, `batch100` 738 us, `blob64k` 155 us. Against the ORIGINAL baseline marshal is now 0.40x / 0.23x / 0.31x.
+  `JeriBenchmark` (loopback call, DER): `batch100` 4.90 ms, `blob64k` 10.6 ms, `record` 220 us, `point` 184 us, `ping` 140 us, against 9.39 / 15.79 / 0.36 / 0.32 / 0.23 ms originally.
+  **Do not read the JERI ratios as codec gains:** the `ping` row, which carries no payload and so no codec work, also fell 38% (226 to 140 us) between runs on this
+  container, so run-to-run drift here is of that size and the JERI rows cannot separate A4 from it. Phase timings (plain loops): write side `batch100` 132 to 107 us and 436 to 276 KB per op,
+  `blob64k` 121 to 76 us and 792 to 463 KB, `record` 4.4 to 3.2 us and 7.6 to 5.7 KB; encode + drain together `batch100` 137 to 121 us. Container, one run: re-run on the workstation.
 
 **Sequencing:** A0 → A1 → A2 → A3 → A4 → A5. A2 may be split across several commits; A3 is last
 among the encoders because it is the security-sensitive one and benefits from A2's encoder

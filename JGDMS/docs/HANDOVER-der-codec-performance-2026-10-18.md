@@ -1,6 +1,6 @@
 # Handover: DER codec performance, streaming encoder and admission work
 
-**AS-OF 2026-10-18 (updated after A3, which landed after A2), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
+**AS-OF 2026-10-18 (updated after A4, which landed after A3), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
 `git status -sb` showed the branch level with `origin/claude/focused-bohr-t6bwal` and a clean tree after restoring
 tracked `target/` build files). Anything committed after `53c369511` is NOT reflected here: run
 `git log --oneline 53c369511..HEAD` first. Written following `handover-composition` (pfirmstone/Cross-machine_Claude_Code_skills).
@@ -17,7 +17,7 @@ tracked `target/` build files). Anything committed after `53c369511` is NOT refl
 
 ## 2. State, with provenance
 
-- **Tests (after A3):** 1150 run, 0 failures, 0 skipped in `jgdms-der` (source: `mvn -pl jgdms-der test`); DER tests in `jgdms-cel`/`jgdms-jeri` also pass. **Tests (after A2):** 951 run, 0 failures, 0 skipped, in `jgdms-der` (source: `mvn -pl jgdms-der test`); the A1 line below is older. **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
+- **Tests (after A4):** 1160 run, 0 failures, 0 skipped in `jgdms-der`. **Tests (after A3):** 1150 run, 0 failures, 0 skipped in `jgdms-der` (source: `mvn -pl jgdms-der test`); DER tests in `jgdms-cel`/`jgdms-jeri` also pass. **Tests (after A2):** 951 run, 0 failures, 0 skipped, in `jgdms-der` (source: `mvn -pl jgdms-der test`); the A1 line below is older. **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
   on DirtyChai 27 after commit `53c369511`'s change; population: that module only, NOT `jgdms-jeri`/`jgdms-cel`, which were
   spot-run earlier with `-Dtest='*Der*,*DER*,*Cel*'` and passed). The 1 skipped test is the A1 hook
   `DerEncoderEquivalenceScaffoldTest.derEncoderMatchesReference` (deliberately `@Disabled`).
@@ -71,7 +71,7 @@ Docs: the rest (SOW creation, board folding, decisions).
 
 ## 7. Open items
 
-1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **A0, A1, A2 and A3 are DONE** (A3: the dedup walker; see the A3 OUTCOME in the SOW; next is A4 [high] then A5; A4 MUST add a poison latch or mark/rollback for a failed item, see the A3 OUTCOME) (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
+1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **A0, A1, A2, A3 and A4 are DONE** (A4: the stream codec writes one encoder and poisons on a failed item; see the A4 OUTCOME in the SOW; next is A5 [medium]: re-run on the same machine/JDK, add the dated third section to RESULTS.md, re-profile top-5 frames, allocation per op with `-prof gc`; then Part B [B0 first, medium]) (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
 2. Ask the user (in bold) before an effort change; efforts are set by the user.
 3. DGC fix was tested at the `DerMarshalInputStream` level only; B0 should confirm it through the real dispatcher.
 4. ~~`JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine)~~ CORRECTED 2026-10-18: the 569 tracked `jgdms-der/target/` files WERE mine - force-added by `git add -f JGDMS/jgdms-der` in `ef2fdc6a9` (trunk `9adc8e6e3` tracks none; source: `git ls-tree -r 9adc8e6e3 --name-only | grep -c jgdms-der/target/` = 0). Untracked in the commit after `a6c2679d6`; `.gitignore` already had `**/target/`. NEVER use `git add -f` on a whole module. `dependency-reduced-pom.xml` IS trunk's own tracked file: leave it, `git checkout` it after benchmark builds.
@@ -80,6 +80,8 @@ Docs: the rest (SOW creation, board folding, decisions).
 **A2 landed (after the paragraphs above were written):** commits `012bd348d`, `03e54527a`, `ab5676555`, `c1c60b29b`, then the Entry commit `81a6ef556`. Wrappers keep every old `byte[]` method; `DerEncoder` gained `utf8/octets/integer/bool/nul`, `beginOctetString`, `beginSortedMap`, and a failure latch. Open maintainer decision: an encode-side total-size cap. DO NOT remove the `byte[]` wrappers until A4 moves `DerObjectStreamCodec`.
 
 **A3 landed:** commits `0d406f603`, `4e753da84` and the review follow-up. `StreamSchemaDedupReference` (test tree) is the FROZEN pre-A3 walker: do not edit it, and do not delete it without `StreamSchemaDedupEquivalenceTest`. DO NOT claim "reject messages unchanged": one truncated-high-tag message changed (see SOW). DO NOT add a shared encoder in A4 without the failure latch/rollback the SOW describes.
+
+**A4 landed:** commits `134ab3ae1`, `086155f21`. The codec's old `writeBuffer` list is gone; a failed item can POISON the stream (callers that catch an `IOException` from `writeObject` and continue will now fail; not audited). DO NOT run the unit-test suite while a JMH run is in progress: it produced a 391 +/- 1449 us outlier once. DO NOT read `JeriBenchmark` ratios as codec gains while `ping` moves 30-40% between runs.
 
 ## 8. Agent roster (all finished; resumable with `SendMessage` by agentId; read-only; own worktrees under /tmp/claude-0/board-*)
 
