@@ -19,13 +19,12 @@ package au.net.zeus.jgdms.der.marshal;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
-import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.Tag;
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
 import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 
-import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -176,12 +175,11 @@ public final class MarshalledInstanceRecord {
      * Concatenates the DER-encoded bytes of each record in the chain (leaf-first).
      */
     private static byte[] encodeChainBytes(List<AtomicSerialSchemaRecord> chain) {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        DerEncoder enc = DerEncoder.create();
         for (AtomicSerialSchemaRecord record : chain) {
-            byte[] encoded = record.encode();
-            buf.write(encoded, 0, encoded.length);
+            record.encodeTo(enc);
         }
-        return buf.toByteArray();
+        return enc.toByteArray();
     }
 
     // =========================================================================
@@ -235,12 +233,19 @@ public final class MarshalledInstanceRecord {
      * @return the complete DER TLV bytes of the outer SEQUENCE
      */
     public byte[] encode() {
-        List<byte[]> children = new ArrayList<>(4);
-        children.add(DerWriter.writeOctetString(payloadBytes));
-        children.add(DerWriter.writeOctetString(schemaBytes));
-        children.add(DerWriter.writeOctetString(schemaDigest));
-        children.add(DerWriter.writeUtf8String(payloadFormat));
-        return DerWriter.writeSequence(children);
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(enc);
+        return enc.toByteArray();
+    }
+
+    /** Appends this record's {@code SEQUENCE} TLV to {@code enc}; same bytes as {@link #encode()}. */
+    public void encodeTo(DerEncoder enc) {
+        enc.begin(Tag.SEQUENCE)
+           .octets(payloadBytes)
+           .octets(schemaBytes)
+           .octets(schemaDigest)
+           .utf8(payloadFormat)
+           .end();
     }
 
     // =========================================================================
