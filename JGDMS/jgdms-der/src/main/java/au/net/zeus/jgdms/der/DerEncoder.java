@@ -82,6 +82,22 @@ public abstract class DerEncoder {
     /** Opens a SET OF (tag {@code 0x31}) whose children are sorted by {@code order} when it is ended. */
     public abstract DerEncoder beginSortedSet(Comparator<byte[]> order);
 
+    /**
+     * Opens an OCTET STRING whose content is whatever is written until {@link #end()} (used to carry an
+     * already-framed payload without an intermediate copy). Content octets are arbitrary, so the result
+     * is still a primitive OCTET STRING on the wire. {@link #begin} refuses primitive tags, so this is
+     * the only way to open one.
+     */
+    public abstract DerEncoder beginOctetString();
+
+    /**
+     * Opens a SET OF {@code SEQUENCE { key, value }} (tag {@code 0x31}). Each direct child must be one
+     * SEQUENCE; they are ordered by the unsigned octets of the first TLV (the key) alone, never by the
+     * whole entry, because the entry's length octet is not part of the key and a long value could
+     * otherwise reorder two entries (STD-006 map canonical order).
+     */
+    public abstract DerEncoder beginSortedMap();
+
     /** Closes the innermost open construct. */
     public abstract DerEncoder end();
 
