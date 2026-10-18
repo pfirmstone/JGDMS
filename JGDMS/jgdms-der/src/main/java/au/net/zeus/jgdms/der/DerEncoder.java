@@ -135,6 +135,33 @@ public abstract class DerEncoder {
         }
     }
 
+    /** Writes an INTEGER leaf: minimal two's-complement octets, the same bytes as {@link DerWriter#writeInteger(long)}. */
+    public final DerEncoder integer(long value) {
+        return leaf(Tag.INTEGER, integerContent(value));
+    }
+
+    /** The content octets of {@link #integer}: minimal two's complement. */
+    public static byte[] integerContent(long value) {
+        int n = ((64 - Long.numberOfLeadingZeros(value ^ (value >> 63))) >> 3) + 1;
+        byte[] content = new byte[n];
+        for (int i = n - 1; i >= 0; i--, value >>= 8) content[i] = (byte) value;
+        return content;
+    }
+
+    private static final byte[] TRUE_TLV = {0x01, 0x01, (byte) 0xFF};
+    private static final byte[] FALSE_TLV = {0x01, 0x01, 0x00};
+    private static final byte[] NULL_TLV = {0x05, 0x00};
+
+    /** Writes a BOOLEAN (DER: {@code 0xFF} for true). */
+    public final DerEncoder bool(boolean value) {
+        return raw(value ? TRUE_TLV : FALSE_TLV);
+    }
+
+    /** Writes a DER NULL. */
+    public final DerEncoder nul() {
+        return raw(NULL_TLV);
+    }
+
     /** Writes an OCTET STRING leaf. */
     public final DerEncoder octets(byte[] value) {
         if (value == null) throw new NullPointerException("value");

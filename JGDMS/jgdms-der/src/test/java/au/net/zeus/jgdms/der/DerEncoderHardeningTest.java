@@ -181,4 +181,21 @@ class DerEncoderHardeningTest {
         assertArrayEquals(DerWriter.writeSet(List.of(
                 DerWriter.writeSequence(List.of(k, v2)), DerWriter.writeSequence(List.of(k, v1)))), enc.toByteArray());
     }
+
+    @Test
+    void integerBoolNullMatchDerWriter() {
+        long[] edge = {0, 1, -1, 127, 128, -128, -129, 255, 256, 32767, 32768, -32768, -32769, 65535, 65536,
+                Integer.MAX_VALUE, Integer.MIN_VALUE, (long) Integer.MAX_VALUE + 1, (long) Integer.MIN_VALUE - 1,
+                Long.MAX_VALUE, Long.MIN_VALUE, Long.MAX_VALUE - 1, Long.MIN_VALUE + 1, 0x7FFFFFFFFFFFFFL, 0x80000000000000L};
+        List<Long> all = new ArrayList<>();
+        for (long v : edge) all.add(v);
+        Random r = new Random(7);
+        for (int i = 0; i < 20000; i++) all.add(r.nextLong() >> r.nextInt(64));
+        for (long v : all) {
+            assertArrayEquals(DerWriter.writeInteger(v), DerEncoder.create().integer(v).toByteArray(), "value " + v);
+        }
+        assertArrayEquals(DerWriter.writeBoolean(true), DerEncoder.create().bool(true).toByteArray());
+        assertArrayEquals(DerWriter.writeBoolean(false), DerEncoder.create().bool(false).toByteArray());
+        assertArrayEquals(new byte[]{5, 0}, DerEncoder.create().nul().toByteArray());
+    }
 }

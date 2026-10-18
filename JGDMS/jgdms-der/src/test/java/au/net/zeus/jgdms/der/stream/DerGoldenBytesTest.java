@@ -388,6 +388,24 @@ class DerGoldenBytesTest {
         }
     }
 
+    /** Map&lt;K,V&gt; whose ITERATION order is deliberately not the canonical key order (insertion-ordered). */
+    @AtomicSerial
+    public static final class IterationOrderMap {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Map.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, IterationOrderMap h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Map<Object, String> items;
+        public IterationOrderMap(Map<Object, String> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public IterationOrderMap(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new LinkedHashMap<>((Map<Object, String>) arg.get("items", null));
+        }
+    }
+
     /** Map&lt;String, RecSet&gt;: map VALUES that each contain a sorted set. */
     @AtomicSerial
     public static final class MapOfRecSets {
@@ -531,6 +549,17 @@ class DerGoldenBytesTest {
             Map<String, Rec> m = new TreeMap<>();
             for (int i = 0; i < 6; i++) m.put("k" + i, bigRec(i, 60 - i * 10));
             return new RecMap(m);
+        });
+        c.put("map-iteration-order-differs-from-key-order", () -> {
+            // insertion order is neither natural nor encoded key order: canonical output must not depend on it
+            Map<Object, String> m = new LinkedHashMap<>();
+            for (String k : new String[] {"bb", "a", "ccc", "b", "aa", "", "c"}) m.put(k, "v".repeat(k.length() * 40 + 1));
+            return new IterationOrderMap(m);
+        });
+        c.put("map-integer-keys-across-length-boundaries", () -> {
+            Map<Object, String> m = new LinkedHashMap<>();
+            for (long k : new long[] {256, -1, 128, 127, -129, 0, 65536, -128, 32768}) m.put(k, "v" + k);
+            return new IterationOrderMap(m);
         });
         c.put("set-of-sets", () -> {
             Set<RecSet> outer = new HashSet<>();

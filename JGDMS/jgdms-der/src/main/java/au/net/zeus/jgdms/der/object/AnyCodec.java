@@ -17,8 +17,10 @@
 
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
+import au.net.zeus.jgdms.der.DerUtf8;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
@@ -175,43 +177,61 @@ final class AnyCodec {
      *                      excludes arbitrary {@code Object} graphs and {@code Serializable})
      */
     static byte[] encode(Object value, String fieldName, int depth) throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(value, fieldName, depth, enc);
+        return enc.toByteArray();
+    }
+
+    /** {@link #encode} appended to {@code enc}: the same TLV, written in place. */
+    static void encodeTo(Object value, String fieldName, int depth, DerEncoder enc) throws DerException {
         // A null element travels as DER NULL (the absence sentinel; not a registry category).
         if (value == null) {
-            return new byte[]{ (byte) TAG_NULL, 0x00 };
+            enc.nul();
+            return;
         }
 
         // --- Scalars: [0]-[9] IMPLICIT (the context tag replaces the value's universal tag) ---
+        // BOOLEAN content is one canonical octet (0x00 / 0xFF).
         if (value instanceof Boolean b) {
-            // BOOLEAN content is one canonical octet (0x00 / 0xFF).
-            return implicitPrimitive(TAG_BOOLEAN, contentOf(DerWriter.writeBoolean(b)));
+            enc.leaf(ctxPrimitive(TAG_BOOLEAN), new byte[]{ b ? (byte) 0xFF : 0x00 });
+            return;
         }
         if (value instanceof Byte by) {
-            return implicitPrimitive(TAG_BYTE, contentOf(DerWriter.writeInteger(BigInteger.valueOf(by))));
+            enc.leaf(ctxPrimitive(TAG_BYTE), DerEncoder.integerContent(by));
+            return;
         }
         if (value instanceof Short s) {
-            return implicitPrimitive(TAG_SHORT, contentOf(DerWriter.writeInteger(BigInteger.valueOf(s))));
+            enc.leaf(ctxPrimitive(TAG_SHORT), DerEncoder.integerContent(s));
+            return;
         }
         if (value instanceof Integer iv) {
-            return implicitPrimitive(TAG_INT, contentOf(DerWriter.writeInteger(BigInteger.valueOf(iv))));
+            enc.leaf(ctxPrimitive(TAG_INT), DerEncoder.integerContent(iv));
+            return;
         }
         if (value instanceof Long l) {
-            return implicitPrimitive(TAG_LONG, contentOf(DerWriter.writeInteger(BigInteger.valueOf(l))));
+            enc.leaf(ctxPrimitive(TAG_LONG), DerEncoder.integerContent(l));
+            return;
         }
         if (value instanceof Float f) {
             // IEEE-754 32-bit strict-canonical OCTET STRING (STD-008 §17.3.1); reuse ObjectCodec.
-            return implicitPrimitive(TAG_FLOAT, contentOf(ObjectCodec.encodeFloat(f, fieldName)));
+            enc.leaf(ctxPrimitive(TAG_FLOAT), ObjectCodec.floatContent(f, fieldName));
+            return;
         }
         if (value instanceof Double d) {
-            return implicitPrimitive(TAG_DOUBLE, contentOf(ObjectCodec.encodeDouble(d, fieldName)));
+            enc.leaf(ctxPrimitive(TAG_DOUBLE), ObjectCodec.doubleContent(d, fieldName));
+            return;
         }
         if (value instanceof Character c) {
-            return implicitPrimitive(TAG_CHAR, contentOf(ObjectCodec.encodeChar(c, fieldName)));
+            enc.leaf(ctxPrimitive(TAG_CHAR), DerEncoder.integerContent(ObjectCodec.charValue(c, fieldName)));
+            return;
         }
         if (value instanceof String str) {
-            return implicitPrimitive(TAG_STRING, contentOf(DerWriter.writeUtf8String(str)));
+            enc.leaf(ctxPrimitive(TAG_STRING), utf8Content(str));
+            return;
         }
         if (value instanceof byte[] bytes) {
-            return implicitPrimitive(TAG_BYTES, contentOf(DerWriter.writeOctetString(bytes)));
+            enc.leaf(ctxPrimitive(TAG_BYTES), bytes);
+            return;
         }
 
         // --- Collections: [30]/[31] EXPLICIT (inner SET OF/SEQUENCE OF outer tag preserved) ---
@@ -223,10 +243,12 @@ final class AnyCodec {
             // recursive Any elements): a canonicalise collection is [30], an ordered one is [31].
             // Elements of an Any collection are themselves Any (unresolvable stays unresolvable).
             String token = anyCollectionToken(value.getClass());
-            byte[] innerColl = ObjectCodec.encodeCollection(value, token, fieldName, next);
             boolean canonicalise = CollectionWireTypes.isCanonicalise(token);
             int ctxTag = canonicalise ? TAG_CANONICAL_COLL : TAG_ORDERED_COLL;
-            return explicitWrap(ctxTag, innerColl);
+            enc.begin(ctxConstructed(ctxTag));
+            ObjectCodec.encodeCollectionTo(value, token, fieldName, next, enc);
+            enc.end();
+            return;
         }
 
         // --- @AtomicSerial object: [20] EXPLICIT (inner record tag preserved) ---
@@ -235,8 +257,17 @@ final class AnyCodec {
         // closed record: encode it exactly as a typed nested @AtomicSerial element, then wrap.
         // encodeNested throws fail-fast if the value is not a closed-subset object, so an
         // arbitrary Object graph / Serializable can never travel as Any (memo §2.1 exclusion).
-        byte[] innerRecord = ObjectCodec.encodeNested(value, fieldName, depth);
-        return explicitWrap(TAG_ATOMIC, innerRecord);
+        enc.begin(ctxConstructed(TAG_ATOMIC));
+        ObjectCodec.encodeNestedTo(value, fieldName, depth, enc);
+        enc.end();
+    }
+
+    private static byte[] utf8Content(String s) throws DerException {
+        try {
+            return DerUtf8.encode(s);
+        } catch (DerException e) {
+            throw new DerUtf8.UnencodableStringException(e.getMessage(), e);
+        }
     }
 
     /**
@@ -252,32 +283,14 @@ final class AnyCodec {
         return CollectionWireTypes.setToken(collClass, ANY);
     }
 
-    /**
-     * Builds an {@code [n] IMPLICIT} primitive context TLV: the primitive context tag {@code n}
-     * followed by the length and the supplied content (the value's own DER content, its universal
-     * tag stripped). Minimal canonical length encoding (fence (d)).
-     */
-    private static byte[] implicitPrimitive(int ctxTag, byte[] content) {
-        return DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, false, ctxTag), content);
+    /** The primitive {@code [n]} context tag of an IMPLICIT scalar (its universal tag is replaced). */
+    private static Tag ctxPrimitive(int n) {
+        return new Tag(Tag.CLASS_CONTEXT, false, n);
     }
 
-    /**
-     * Builds an {@code [n] EXPLICIT} constructed context TLV: the constructed context tag {@code n}
-     * wrapping the inner TLV verbatim (the inner outer tag survives — memo §4.1).
-     */
-    private static byte[] explicitWrap(int ctxTag, byte[] innerTlv) {
-        return DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, true, ctxTag), innerTlv);
-    }
-
-    /**
-     * Returns the content octets of a complete primitive DER TLV (strips its tag and length),
-     * so the content can be re-tagged under an IMPLICIT context tag. The input is always a
-     * definite-length primitive TLV produced by {@link DerWriter}.
-     */
-    private static byte[] contentOf(byte[] tlv) throws DerException {
-        DerReader r = new DerReader(tlv);
-        DerReader.TlvHeader hdr = r.readTlvHeader();
-        return r.readRawContent(hdr.contentLength());
+    /** The constructed {@code [n]} context tag of an EXPLICIT wrapper (the inner TLV survives verbatim). */
+    private static Tag ctxConstructed(int n) {
+        return new Tag(Tag.CLASS_CONTEXT, true, n);
     }
 
     // =========================================================================
