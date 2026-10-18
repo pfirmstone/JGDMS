@@ -698,6 +698,29 @@ reviewers found problems the section 7 text does not cover, and the trust story 
   inconclusive verdict is not verified code. Retained inconclusive grants stay loader-wide.
 - **No key pinning, no `getURLs()`** (section 6 outcomes) stand.
 
+- **Migration path for legacy lookup (project lead's suggestion, not implemented).** Change the
+  legacy `ServiceRegistrar.lookup` so it returns only reflective (`java.lang.reflect.Proxy`)
+  proxies that need no codebase, and not smart proxies; smart proxies are reached only through
+  `SafeServiceRegistrar` (bootstrap proxy, authenticate, `getServiceProxy()`). Notes from reading
+  the code, to be checked when it is designed:
+  - It removes the case this SOW cannot otherwise cover: a legacy lookup result is unmarshalled
+    with no context, so it has no identity and the in-JVM path would download and run code for it.
+    A proxy with no codebase downloads nothing, so there is nothing to grant and no code identity
+    to verify; its classes (the service interfaces and the local `BasicInvocationHandler` etc.)
+    come from the client's own class path.
+  - It can be enforced client-side in `RegistrarProxy` / `Item.get()` before
+    `MarshalledWrapper.get()`: refuse an item whose marshalled service has a non-empty codebase
+    annotation, or whose service object is not a `java.lang.reflect.Proxy`. Reggie also stores a
+    `bootstrapProxy` in each `Item`, so the lookup service already has the data the safe path
+    needs; no wire change is required to start.
+  - The cost: legacy clients stop seeing smart-proxy services (they must move to
+    `SafeServiceRegistrar`), and a reflective proxy whose interfaces are not on the client's
+    class path now fails (the existing `Item.get()` behaviour is to set the service to null). The
+    migration is therefore fail-closed for legacy clients, which is the point. A property or a
+    per-client switch can ease rollout.
+  - It does not by itself authenticate the reflective proxy's server: that is still done by
+    constraints and proxy trust, as before.
+
 ### 8.4 DirtyChai requirements raised by the review (not JGDMS code)
 
 - **`ClassLoader.defineClass(..., ProtectionDomain)` has no gate.** `preDefineClass` does not
