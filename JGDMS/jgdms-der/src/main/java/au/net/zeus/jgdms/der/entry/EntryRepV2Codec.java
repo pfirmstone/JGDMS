@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.entry;
 
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
@@ -182,10 +183,9 @@ public final class EntryRepV2Codec {
             throw new IOException("EntryRepV2: field payload " + payload.length
                     + " exceeds maxSlicePayload (" + MAX_SLICE_PAYLOAD + ")");
         }
-        List<byte[]> inner = new ArrayList<>(2);
-        inner.add(DerWriter.writeOctetString(digest));
-        inner.add(DerWriter.writeOctetString(payload));
-        byte[] sliceBytes = DerWriter.writeTlv(SLICE_VALUE, concat(inner));
+        byte[] sliceBytes = DerEncoder.create()
+                .begin(SLICE_VALUE).octets(digest).octets(payload).end()
+                .toByteArray();
         return new Slice(sliceBytes, digest, chainBytes);
     }
 
@@ -219,11 +219,9 @@ public final class EntryRepV2Codec {
         table.put(entrySchemaDigest.clone(), entryChainBytes.clone());
 
         byte[][] slices = new byte[fieldValues.length][];
-        List<byte[]> sliceTlvs = new ArrayList<>(fieldValues.length);
         for (int i = 0; i < fieldValues.length; i++) {
             Slice s = encodeFieldSlice(fieldValues[i]);
             slices[i] = s.sliceBytes();
-            sliceTlvs.add(s.sliceBytes());
             if (s.chainBytes() != null) {
                 // dedup by content digest; a duplicate class contributes no extra bytes.
                 table.putIfAbsent(s.valueSchemaDigest().clone(), s.chainBytes());
@@ -234,21 +232,22 @@ public final class EntryRepV2Codec {
                     + " exceeds maxSchemaTable (" + MAX_SCHEMA_TABLE + ")");
         }
 
-        // Encode schemaTable (already ascending via TreeMap ordering).
-        List<byte[]> tableTlvs = new ArrayList<>(table.size());
+        // Body: SEQUENCE { version, entrySchemaDigest, schemaTable, slices }. The schemaTable is already
+        // ascending via the TreeMap ordering; each slice is a separate array because it is also cached
+        // for matching, so it enters verbatim.
+        DerEncoder enc = DerEncoder.create();
+        enc.begin(Tag.SEQUENCE).integer(VERSION).octets(entrySchemaDigest);
+        enc.begin(Tag.SEQUENCE);
         for (Map.Entry<byte[], byte[]> e : table.entrySet()) {
-            List<byte[]> se = new ArrayList<>(2);
-            se.add(DerWriter.writeOctetString(e.getKey()));
-            se.add(DerWriter.writeOctetString(e.getValue()));
-            tableTlvs.add(DerWriter.writeSequence(se));
+            enc.begin(Tag.SEQUENCE).octets(e.getKey()).octets(e.getValue()).end();
         }
-
-        List<byte[]> outer = new ArrayList<>(4);
-        outer.add(DerWriter.writeInteger(VERSION));
-        outer.add(DerWriter.writeOctetString(entrySchemaDigest));
-        outer.add(DerWriter.writeSequence(tableTlvs));
-        outer.add(DerWriter.writeSequence(sliceTlvs));
-        byte[] body = DerWriter.writeSequence(outer);
+        enc.end();
+        enc.begin(Tag.SEQUENCE);
+        for (byte[] slice : slices) {
+            enc.raw(slice);
+        }
+        enc.end().end();
+        byte[] body = enc.toByteArray();
         if (body.length > MAX_BODY_BYTES) {
             throw new IOException("EntryRepV2: body length " + body.length
                     + " exceeds maxBodyBytes (" + MAX_BODY_BYTES + ")");
@@ -680,17 +679,6 @@ public final class EntryRepV2Codec {
         return bos.toByteArray();
     }
 
-    private static byte[] concat(List<byte[]> parts) {
-        int total = 0;
-        for (byte[] p : parts) total += p.length;
-        byte[] out = new byte[total];
-        int pos = 0;
-        for (byte[] p : parts) {
-            System.arraycopy(p, 0, out, pos, p.length);
-            pos += p.length;
-        }
-        return out;
-    }
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
