@@ -1,7 +1,7 @@
 # Scope of Work — DER codec performance (byte-identical, verification-preserving)
 
 - **Drafted:** 2026-10-18.
-- **Status:** DRAFT — scoped at Peter's direction ("DER is the future; if there's
+- **Status:** T0–T6 DONE 2026-10-18 (see §8 and `jgdms-benchmarks/serialization/RESULTS.md`); originally DRAFT — scoped at Peter's direction ("DER is the future; if there's
   anything we can do to improve its performance without compromising security, we
   should consider it", 2026-10-18); task breakdown for a code agent; no
   implementation started.
@@ -202,7 +202,7 @@ point if T3 is deferred.
 > `DerInputLimits` ceilings, or any spec document. Report: what changed, the test
 > run, and (for T6) the before/after benchmark pair.
 
-## 8. Implementation notes (2026-10-18; T0–T5 landed, T6 pending)
+## 8. Implementation notes (2026-10-18; T0–T6 landed)
 
 Recorded so the next reader works from what was built, not from the plan. All numbers are
 from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the full harness.
@@ -256,6 +256,11 @@ from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the
   | unmarshal batch100 | 1647 | 1608 | 1524 | 1424 |
 
   `blob64k` is dominated by copies the façade cannot remove and was too noisy to quote.
+- **T6 (full 2 × 5 run, same machine and JDK as T0):** marshal `record` 0.43×, `batch100` 0.49×,
+  `blob64k` 0.69×; unmarshal `record` 0.68×, `batch100` 0.91×, `blob64k` unchanged; a JERI call
+  0.80–0.93×. Full table, caveats (the `point` rows are within noise) and the post-change top
+  self-time frames are in `RESULTS.md`. Next SOW: migrate the call sites to a streaming encoder
+  (the per-nesting-level copies are what now dominate both directions).
 
 ---
 Drafted with AI assistance (Claude) under the direction of the JGDMS maintainer;

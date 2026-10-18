@@ -206,3 +206,83 @@ above were taken on the stock-JDK-21 run with
 Written with AI assistance (Claude) under the direction of the JGDMS
 maintainer; the profiling conclusions were checked against the source files
 named above.
+
+
+---
+
+# Second run: after the DER codec performance work, 18 October 2026
+
+`docs/SOW-DER-Codec-Performance.md` tasks T0–T5 landed (byte-identical output, verdict-identical
+decode). This is the before/after pair that SOW requires, taken on the same machine and JDK, DER
+only (JOSS is being removed and was not re-run).
+
+| | |
+|---|---|
+| JDK | DirtyChai `27-internal`, OpenJDK 64-Bit Server VM |
+| Host | Linux cloud container (NOT the workstation of the first run above, so absolute times are not comparable with it; only the before/after ratios below are) |
+| JMH | 1.37; 2 forks; 5 × 1 s warmup, 5 × 2 s measurement (codec); 5 × 2 s, 5 × 3 s (JERI); 1 thread |
+| Before | `results-before.json`: trunk `9adc8e6e3` (before T1) |
+| After | `results-after.json`: T0–T5 (this branch) |
+
+Average time per operation, µs, ± the 99.9% confidence interval:
+
+| benchmark | payload | before | after | after/before |
+|---|---|---:|---:|---:|
+| marshal | point | 2.64 ± 0.09 | 5.40 ± 18.83 \* | – |
+| marshal | record | 4.05 ± 0.24 | 1.76 ± 0.09 | 0.43 |
+| marshal | batch100 | 454.06 ± 23.68 | 224.04 ± 13.92 | 0.49 |
+| marshal | blob64k | 276.04 ± 6.12 | 189.55 ± 17.42 | 0.69 |
+| unmarshal | point | 36.06 ± 102.12 \* | 10.26 ± 9.13 | – |
+| unmarshal | record | 20.66 ± 1.71 | 14.06 ± 1.56 | 0.68 |
+| unmarshal | batch100 | 1647.26 ± 75.56 | 1498.92 ± 494.50 | 0.91 |
+| unmarshal | blob64k | 193.86 ± 6.97 | 200.94 ± 6.38 | 1.04 |
+| roundTrip | record | 23.83 ± 1.54 | 19.23 ± 10.60 | 0.81 |
+| roundTrip | batch100 | 2177.79 ± 107.87 | 1658.05 ± 97.96 | 0.76 |
+| roundTrip | blob64k | 485.10 ± 16.08 | 411.36 ± 18.44 | 0.85 |
+| JERI | ping | 226.08 ± 12.47 | 198.43 ± 13.85 | 0.88 |
+| JERI | point | 320.19 ± 18.86 | 297.00 ± 37.46 | 0.93 |
+| JERI | record | 359.30 ± 37.19 | 331.15 ± 43.34 | 0.92 |
+| JERI | batch100 | 9391.63 ± 571.45 | 7521.43 ± 596.87 | 0.80 |
+| JERI | blob64k | 15790.13 ± 486.55 | 14541.95 ± 1044.58 | 0.92 |
+
+\* The `point` rows are unreliable: their error intervals exceed the score (the `point` cases
+are dominated by JIT/GC jitter on this shared host). Shorter runs of the same code measured
+`marshal point` at about 1.2 µs and `unmarshal point` at about 8.3 µs against 2.6 and 13 before,
+but those are not the protocol-grade 2 × 5 run and are not quoted as results. `roundTrip point`
+(12.82 ± 9.53 after vs 24.60 ± 34.08 before) is likewise within noise.
+
+## What the numbers say
+
+- **Marshal got about twice as fast** for `record` (0.43) and `batch100` (0.49). That is the encode
+  side of T1 (chain bytes and digest cached per class), the cheaper dedup pass (T3: repeated chain
+  sites cost one content lookup; the record's own chain is not re-parsed and re-hashed per stream)
+  and the single-allocation writer (T2).
+- **Unmarshal `record` is about a third faster** (0.68): T4 and T3 remove the repeated chain parses.
+  `batch100` moved little (0.91, with a wide interval): its cost is the actual per-element decode
+  plus the reconstitution pass that rebuilds bytes at every nesting level, which the SOW's
+  byte-identical, call-sites-unchanged constraints leave in place.
+- **`blob64k` unmarshal did not change** (1.04, within noise): T5 saves a fixed 16 KiB allocation
+  per stream, small against a 64 KiB payload. `blob64k` marshal is about 30% faster; it is still
+  several whole-array copies (one per nesting level), not the "within ~2× of a single copy" the
+  SOW hoped for, because that needs the call sites migrated to a streaming encoder.
+- **A remote call (JERI) improves 7–20%** because the transport is shared and unchanged: the codec is
+  a fraction of a loopback call. `batch100` benefits most (0.80).
+- The SOW's targets (small-object marshal ≈ halved; multi-object ≈ 30% faster both ways; `blob64k`
+  marshal in tens of µs) are met for marshal, partly met for unmarshal, and not met for `blob64k`.
+
+## Where the time goes now (JFR `-prof jfr`, `jfr-hotspots.py`, `au.net.zeus.jgdms.der.*`, self time)
+
+| marshal `record` | marshal `batch100` | unmarshal `record` | unmarshal `batch100` |
+|---|---|---|---|
+| `DerWriter.frame` 8.1% | `DerWriter.frame` 17.7% | `DerReader.decodeLength` 3.4% | `DerWriter.frame` 4.6% |
+| `DerWriter.writeTlv` 7.4% | `DerWriter.writeTlv` 7.4% | `AtomicSerialSchemaRecord.decode` 3.0% | `DerWriter.writeTlv` 3.6% |
+| `DerReader.decodeLength` 2.7% | `DerReader.decodeLength` 6.8% | `DerObjectStreamCodec.readObject` 2.6% | `StreamSchemaDedup.rebuildCollectionOuter` 3.1% |
+| `DerObjectStreamCodec.drainTo` 2.6% | `DerWriter.lengthSize` 5.2% | `DerInputLimits.readAllBytesBounded` 2.2% | `DerReader.decodeLength` 3.1% |
+| `DerPutArg.put` 2.6% | `StreamSchemaDedup.transformFieldTlv` 3.8% | `WireTypes.decode` 2.2% | `StreamSchemaDedup.transformClassSequence` 2.6% |
+
+(Samples are few for the unmarshal rows, 196–232, so their order is indicative.) What dominates is
+now copying: `DerWriter.frame`/`writeTlv` is the byte-array-per-nesting-level builder, and the
+dedup pass's reading and rebuilding of the same bytes. Chain parsing and hashing no longer appear
+near the top. The next SOW should start from the streaming-encoder migration (an encoder that
+writes into one buffer, used by `ObjectCodec`, `StreamSchemaDedup` and `DerObjectStreamCodec`),
+which removes the per-level copies both directions pay.
