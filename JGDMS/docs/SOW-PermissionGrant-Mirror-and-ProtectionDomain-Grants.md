@@ -617,15 +617,24 @@ The provider and preparer changes of 7.4 and 7.7 (`PreferredProxyCodebaseProvide
 supplying the digests and choosing the overload; the shortcut fix) are **not** done. The
 reviewers found problems the section 7 text does not cover, and the trust story depends on them:
 
-1. **The 7.7 fix is incomplete.** After the handler check fails, the new `PreferredClassLoader`
-   is still created with the first service's proxy loader as `parent`, and is parent-first unless a
-   resource is preferred, so service B's classes still resolve to A's classes in A's domains. The
-   test must assert that B's proxy class's loader is not A's and that A's grant does not imply B's
-   domains. The fix needs the loader to define its own codebase classes (or fail closed); never
-   make a proxy loader the parent of another remote object's loader. The shortcut also skips the
-   digest, certificate and `BootstrapPermission` checks and the isolation router, and compares
-   handlers including constraints (a nested self-proxy under other constraints would be given a
-   duplicate loader): compare the `ObjectEndpoint` only.
+1. **Loader parenting is not a defect to fix; process isolation is the boundary.** (Decision,
+   project lead.) The reviewers observed that the loader a falling-through shortcut creates for
+   service B is parented on service A's proxy loader and is parent-first unless a resource is
+   preferred, so B's classes can resolve to A's classes in A's domains, covered by A's grant.
+   That is the natural class-loader hierarchy of the JVM, and **only process isolation can give
+   true class isolation**; no loader layout in one JVM can. So:
+   - `DigestDomainGrant` promises, in one JVM, that unexpected, unverified or forged code does
+     not receive the grant; it does not promise that two services cannot reach each other's
+     classes through a shared parent chain. It is no narrower than the code the loader reaches.
+   - What remains worth doing on the in-JVM path is hygiene: the shortcut should compare the
+     `ObjectEndpoint` rather than only the codebase path, and must not reuse a loader recorded for
+     a different handler. It also skips the digest, certificate and `BootstrapPermission` checks
+     and the isolation router; that gap is the real concern (below).
+   - A trust boundary between server identities must therefore be enforced by routing to the
+     per-identity subprocess (7.12), and the router path must never fall through to in-JVM for a
+     foreign identity. Today unrouted: the shortcut (it runs before the router), the
+     non-bootstrap `PreferredClassProvider` path, nested proxies of another identity inside a
+     subprocess, and lookup results (no identity, item 5).
 2. **Digests exist in the provider only on the first resolve.** The comparison of server digests
    with local downloads is inside `if (vr != null)`'s `else` and `serverPrincipals != null`, so in
    steady state no comparison runs. The verified overload must be fed by the provider's own
