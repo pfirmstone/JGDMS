@@ -2167,6 +2167,45 @@ public final class ObjectCodec {
      * DeserializationCompletion, ResolutionContext)} above (DC-3). For a {@code [8]}/enum leaf in
      * this slot {@code injected} is irrelevant and not threaded.
      */
+    /**
+     * A stream-scoped view of the schema chains already verified for the current decode (see
+     * {@link #callWithVerifiedChains}). Implemented by the stream's dedup table.
+     */
+    public interface VerifiedChains {
+        /**
+         * @param chainBytes candidate chain bytes (not retained, not modified)
+         * @return the verified chain iff {@code chainBytes} are byte-for-byte a chain already
+         *         verified through {@link SchemaChain#decodeChain}; otherwise {@code null}
+         */
+        SchemaChain.Result verifiedChain(byte[] chainBytes);
+    }
+
+    /** Bound only for the duration of one stream item's decode; see {@link #callWithVerifiedChains}. */
+    private static final ScopedValue<VerifiedChains> VERIFIED_CHAINS = ScopedValue.newInstance();
+
+    /** A decode step run under {@link #callWithVerifiedChains}. */
+    @FunctionalInterface
+    public interface DecodeOp<R> {
+        R run() throws DerException, IOException, ClassNotFoundException;
+    }
+
+    /**
+     * Runs {@code op} with {@code verified} consulted by nested-record decode: a nested
+     * schema chain that is byte-for-byte one {@code verified} holds is not re-parsed. Scoped
+     * (not thread-local) so it cannot leak past {@code op} or to another thread; a nested
+     * decode of a different stream rebinds it. Exceptions from {@code op} propagate unchanged.
+     */
+    public static <R> R callWithVerifiedChains(VerifiedChains verified, DecodeOp<R> op)
+            throws DerException, IOException, ClassNotFoundException {
+        try {
+            return ScopedValue.where(VERIFIED_CHAINS, verified).call(op::run);
+        } catch (IOException | ClassNotFoundException | RuntimeException | Error e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("unexpected checked exception from decode", e);
+        }
+    }
+
     static Object decodeNested(byte[] nestedRecordBytes, Class<?> expectedSupertype,
                                int depth, DeserializationCompletion decodeUnit,
                                ResolutionContext resolution, Map<String, Object> injected)
@@ -2221,10 +2260,23 @@ public final class ObjectCodec {
         // cross-check and the S7.8 terminal-record completeness check identically to the
         // top-level (P1) site. (Previously this site parsed the chain WITHOUT those
         // checks -- the asymmetry is closed by construction.)
-        List<AtomicSerialSchemaRecord> records =
-                SchemaChain.decodeChain(schemaChainBytes, "ObjectCodec.decodeNested");
-        byte[] leafDigest = records.get(0).schemaDigest();
-        SchemaChain.Result chain = new SchemaChain.Result(records, leafDigest);
+        //
+        // Fast path: inside a stream decode the per-stream dedup table has already verified
+        // (through that same SchemaChain.decodeChain) every chain it reconstituted into this
+        // payload. If these bytes are byte-for-byte such a chain, reuse that verified parse
+        // instead of re-parsing and re-hashing it per nested element. A miss -- any chain the
+        // table does not hold byte-for-byte, e.g. one inside a [8] proxy region -- takes the
+        // full path below unchanged.
+        SchemaChain.Result chain = null;
+        if (VERIFIED_CHAINS.isBound()) {
+            chain = VERIFIED_CHAINS.get().verifiedChain(schemaChainBytes);
+        }
+        if (chain == null) {
+            List<AtomicSerialSchemaRecord> records =
+                    SchemaChain.decodeChain(schemaChainBytes, "ObjectCodec.decodeNested");
+            byte[] leafDigest = records.get(0).schemaDigest();
+            chain = new SchemaChain.Result(records, leafDigest);
+        }
 
         // Thread the receiving slot's DECLARED type into decodeHierarchy, which enforces the
         // pre-construction admission gate (admissibleConstructClass) against the wire-named

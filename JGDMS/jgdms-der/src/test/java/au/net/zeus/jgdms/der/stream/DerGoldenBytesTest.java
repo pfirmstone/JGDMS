@@ -412,4 +412,27 @@ class DerGoldenBytesTest {
             assertEquals(g.get("triple"), triple, e.getKey() + ": three-object stream bytes changed");
         }));
     }
+
+    /**
+     * Decode-side oracle (SOW T3): every corpus stream (alone and three-in-a-stream, so chainRefs
+     * resolve against the per-stream table) must decode, and re-encoding the decoded objects must
+     * reproduce the stream byte-for-byte. Exercises the verified-chain hand-off to the record
+     * codec and the nested-record lookup across sets, maps, arrays, hierarchies and proxies.
+     */
+    @TestFactory
+    Stream<DynamicTest> decodeRoundTripReproducesBytes() {
+        return corpus().entrySet().stream().map(e -> DynamicTest.dynamicTest(e.getKey(), () -> {
+            for (int count : new int[] {1, 3}) {
+                byte[] bytes = encode(e.getValue(), count);
+                DerObjectStreamCodec in = new DerObjectStreamCodec();
+                in.initReader(bytes);
+                DerObjectStreamCodec out = new DerObjectStreamCodec();
+                for (int i = 0; i < count; i++) out.writeObject(in.readObject());
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                out.drainTo(bos);
+                assertEquals(render(bytes), render(bos.toByteArray()),
+                        e.getKey() + " x" + count + ": decode then re-encode changed the bytes");
+            }
+        }));
+    }
 }

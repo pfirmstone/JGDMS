@@ -27,11 +27,13 @@ import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
+import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -486,8 +488,34 @@ final class StreamSchemaDedup {
      */
     private long streamReconstitutedChainBytes = 0;
 
-    /** One verified chain: the interned bytes and the parsed (leaf-first) records. */
-    private record TableEntry(byte[] chainBytes, List<AtomicSerialSchemaRecord> records) {}
+    /**
+     * One verified chain: the interned bytes, the parsed (leaf-first) records, the chain
+     * identity digest, and (encode direction only) the {@code chainRef} TLV every
+     * subsequent occurrence emits.
+     */
+    private record TableEntry(byte[] chainBytes, List<AtomicSerialSchemaRecord> records,
+                              byte[] digest, byte[] chainRefTlv) {}
+
+    /**
+     * ENCODE direction only: an index over {@link #table} keyed by the chain's own bytes.
+     * Encode-side chain bytes are produced locally by this node's {@code ObjectCodec} from
+     * its own classes, so a second occurrence of the same chain is recognised by one
+     * content-equality lookup instead of re-hashing the leaf record. It is a pure
+     * accelerator: every entry is also in {@link #table}; a miss falls back to the digest
+     * path unchanged, and it is bounded by the table ceilings (one entry per tabled chain).
+     * Never populated on the decode direction, where chain bytes come from the wire.
+     */
+    private final Map<ByteBuffer, TableEntry> encodeByBytes = new HashMap<>();
+
+    /**
+     * DECODE direction only: an index over {@link #table} keyed by the chain's bytes as
+     * received, used by {@link #verifiedChain}. Every entry is a chain this stream already
+     * verified through {@link SchemaChain#decodeChain} at its {@code fullChain} site, so a
+     * lookup hit means "these exact bytes were verified"; nothing is added except in
+     * {@link #insert}, which is metered by the table ceilings, and the index is discarded
+     * with the stream. Never consulted for acceptance without a full content comparison.
+     */
+    private final Map<ByteBuffer, TableEntry> decodeByBytes = new HashMap<>();
 
     /**
      * @param encoding {@code true} for the encode direction (canonical → stream form),
@@ -594,8 +622,20 @@ final class StreamSchemaDedup {
      *                      encode-time failure, sec.C.8.2 — never a fallback)
      */
     byte[] dedupTopLevelAtomic(byte[] canonicalRecord) throws DerException {
+        return dedupTopLevelAtomic(canonicalRecord, null);
+    }
+
+    /**
+     * As {@link #dedupTopLevelAtomic(byte[])}, with the record's leaf class so the record's
+     * own chain site can be recognised as this node's locally generated chain (verified
+     * once per class, see {@link SchemaGenerator#verifiedLocalChain}) instead of being
+     * re-parsed and re-hashed per stream. {@code leafClass} is only a hint: when the chain
+     * bytes are not exactly the local chain (or {@code leafClass} is {@code null}) the
+     * unhinted path runs unchanged, so the output bytes are identical either way.
+     */
+    byte[] dedupTopLevelAtomic(byte[] canonicalRecord, Class<?> leafClass) throws DerException {
         requireDirection(true);
-        return transformP1(canonicalRecord);
+        return transformP1(canonicalRecord, leafClass);
     }
 
     /**
@@ -611,11 +651,48 @@ final class StreamSchemaDedup {
      *                      failure, or ceiling breach
      */
     byte[] reconstituteTopLevelAtomic(byte[] streamRecord) throws DerException {
+        return reconstituteTopLevelAtomicVerified(streamRecord).recordBytes();
+    }
+
+    /**
+     * The reconstituted canonical record plus the record's own chain, exactly as this stream
+     * verified it at the record's chain site (the digest is the one computed over the
+     * received leaf-record bytes, sec.C.7.3).
+     *
+     * @param recordBytes the byte-exact canonical sec.7.8 four-field record
+     * @param topChain    the record's verified schema chain bound to {@code recordBytes}'s
+     *                    {@code schemaBytes}/{@code schemaDigest}
+     */
+    record Reconstituted(byte[] recordBytes, SchemaChain.Result topChain) {}
+
+    /**
+     * As {@link #reconstituteTopLevelAtomic}, also returning the record's own verified
+     * chain so the caller need not parse (and re-hash) the very bytes this method just
+     * verified. The chain and the record bytes come from the same {@link Site}, so they
+     * cannot disagree.
+     */
+    Reconstituted reconstituteTopLevelAtomicVerified(byte[] streamRecord) throws DerException {
         requireDirection(false);
         reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
         // streamReconstitutedChainBytes is deliberately NOT reset here — it accumulates
         // cumulative WORK across the whole input window (sec.C.8.1/C.8.3).
-        return transformP1(streamRecord);
+        P1Out out = transformP1Full(streamRecord, null);
+        return new Reconstituted(out.bytes, new SchemaChain.Result(out.site.records, out.site.digest.clone()));
+    }
+
+    /**
+     * Decode direction: if {@code chainBytes} are byte-for-byte a chain this stream has
+     * already verified (at a {@code fullChain} site, through {@link SchemaChain#decodeChain}),
+     * returns that verified chain; otherwise {@code null}, and the caller verifies the bytes
+     * itself. A hit proves the bytes were verified (equality, not digest agreement, so a
+     * different chain sharing a leaf cannot be mistaken for a tabled one). Used by nested
+     * decode to avoid re-parsing and re-hashing the interned chain bytes reconstitution just
+     * placed in each nested record; chains inside excluded {@code [8]} regions are not in the
+     * table unless byte-identical to a tabled one, and otherwise take the full path.
+     */
+    SchemaChain.Result verifiedChain(byte[] chainBytes) {
+        TableEntry e = decodeByBytes.get(ByteBuffer.wrap(chainBytes));
+        return e == null ? null : new SchemaChain.Result(e.records(), e.digest().clone());
     }
 
     /**
@@ -661,7 +738,18 @@ final class StreamSchemaDedup {
      * the {@code schemaDigest} field is dropped (RATIFIED item 2) and re-derived
      * on reconstitution.
      */
-    private byte[] transformP1(byte[] recordBytes) throws DerException {
+    private byte[] transformP1(byte[] recordBytes, Class<?> leafHint) throws DerException {
+        return transformP1Full(recordBytes, leafHint).bytes;
+    }
+
+    /** A transformed P1 record together with its own (top-level) chain site. */
+    private static final class P1Out {
+        final byte[] bytes;
+        final Site site;
+        P1Out(byte[] bytes, Site site) { this.bytes = bytes; this.site = site; }
+    }
+
+    private P1Out transformP1Full(byte[] recordBytes, Class<?> leafHint) throws DerException {
         Objects.requireNonNull(recordBytes, "recordBytes");
         DerReader outer = new DerReader(recordBytes);
         DerReader seq = outer.readSequence();
@@ -683,7 +771,7 @@ final class StreamSchemaDedup {
                         "StreamSchemaDedup: canonical P1 schemaDigest must be 32 bytes, got "
                         + digestField.length);
             }
-            site = encodeSite(chainBytes);
+            site = encodeSite(chainBytes, leafHint);
         } else {
             // Stream field 2: SchemaChainRef — processed BEFORE the payload interior.
             site = decodeSite(seq);
@@ -712,7 +800,7 @@ final class StreamSchemaDedup {
             children.add(DerWriter.writeOctetString(site.digest));
         }
         children.add(DerWriter.writeUtf8String(payloadFormat));
-        return DerWriter.writeSequence(children);
+        return new P1Out(DerWriter.writeSequence(children), site);
     }
 
     // =========================================================================
@@ -806,7 +894,7 @@ final class StreamSchemaDedup {
         Site site;
         if (encoding) {
             byte[] chainBytes = seq.readOctetString();   // canonical sec.16: chain first
-            site = encodeSite(chainBytes);
+            site = encodeSite(chainBytes, null);
         } else {
             site = decodeSite(seq);                      // stream form: SchemaChainRef first
         }
@@ -1153,23 +1241,39 @@ final class StreamSchemaDedup {
      * identity emits {@code fullChain}; every subsequent occurrence emits
      * {@code chainRef}. Table ceilings are loud encode-time failures (sec.C.8.2).
      */
-    private Site encodeSite(byte[] chainBytes) throws DerException {
+    private Site encodeSite(byte[] chainBytes, Class<?> leafHint) throws DerException {
         if (chainBytes.length == 0) {
             throw new DerException("StreamSchemaDedup: empty schema chain at encode site");
         }
-        byte[] digest = leafRecordDigest(chainBytes);
-        TableEntry e = table.get(ByteBuffer.wrap(digest));
+        // Same bytes as an already-tabled chain => same identity: one content-equality
+        // lookup replaces re-hashing the leaf record (pure accelerator, see encodeByBytes).
+        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(chainBytes));
+        byte[] digest = null;   // set below whenever e == null (the only path that reaches insert)
+        List<AtomicSerialSchemaRecord> records = null;
+        if (e == null) {
+            SchemaGenerator.VerifiedChain local = leafHint == null ? null
+                    : SchemaGenerator.verifiedLocalChain(leafHint, chainBytes, "StreamSchemaDedup(encode)");
+            if (local != null) {
+                digest = local.leafDigest();
+                records = local.records();
+            } else {
+                digest = leafRecordDigest(chainBytes);
+            }
+            e = table.get(ByteBuffer.wrap(digest));
+        }
         if (e != null) {
             // Subsequent occurrence: MUST be the reference form — no discretion.
-            return new Site(e.chainBytes(), e.records(), digest,
-                    DerWriter.writeTlv(TAG_CHAIN_REF, digest));
+            return new Site(e.chainBytes(), e.records(), e.digest(), e.chainRefTlv());
         }
         // First occurrence: verify through the single chain-decode path (chain-level
         // ceilings, Merkle cross-check, completeness — loud local failure on breach),
-        // then insert under the stream-level ceilings, then emit the full form.
-        List<AtomicSerialSchemaRecord> records =
-                SchemaChain.decodeChain(chainBytes, "StreamSchemaDedup(encode)");
-        insert(digest, chainBytes, records);
+        // then insert under the stream-level ceilings, then emit the full form. (A hinted
+        // local chain was verified through that same path, once per class.)
+        if (records == null) {
+            records = SchemaChain.decodeChain(chainBytes, "StreamSchemaDedup(encode)");
+        }
+        TableEntry inserted = insert(digest, chainBytes, records);
+        encodeByBytes.put(ByteBuffer.wrap(chainBytes), inserted);
         return new Site(chainBytes, records, digest,
                 DerWriter.writeTlv(TAG_FULL_CHAIN, chainBytes));
     }
@@ -1245,8 +1349,8 @@ final class StreamSchemaDedup {
     }
 
     /** Table insertion with the stream-level ceilings, inclusive fenceposts (sec.C.8). */
-    private void insert(byte[] digest, byte[] chainBytes,
-                        List<AtomicSerialSchemaRecord> records) throws DerException {
+    private TableEntry insert(byte[] digest, byte[] chainBytes,
+                              List<AtomicSerialSchemaRecord> records) throws DerException {
         if (table.size() + 1 > MAX_DISTINCT_CHAINS_PER_STREAM) {
             throw new DerException(
                     "StreamSchemaDedup: distinct chain count would exceed"
@@ -1259,8 +1363,14 @@ final class StreamSchemaDedup {
                     + " would exceed maxDedupTableBytes (" + MAX_DEDUP_TABLE_BYTES
                     + ", inclusive; sec.C.8.1) — rejected at insertion");
         }
-        table.put(ByteBuffer.wrap(digest), new TableEntry(chainBytes, records));
+        TableEntry entry = new TableEntry(chainBytes, List.copyOf(records), digest,
+                encoding ? DerWriter.writeTlv(TAG_CHAIN_REF, digest) : null);
+        table.put(ByteBuffer.wrap(digest), entry);
+        if (!encoding) {
+            decodeByBytes.put(ByteBuffer.wrap(chainBytes), entry);
+        }
         tableBytes += chainBytes.length;
+        return entry;
     }
 
     /**

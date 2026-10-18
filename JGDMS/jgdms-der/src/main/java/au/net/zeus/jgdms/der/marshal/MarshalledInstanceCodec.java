@@ -216,9 +216,53 @@ public final class MarshalledInstanceCodec {
             DeserializationCompletion decodeUnit,
             ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeMarshalledInstance(rec, receiverClass, null, decodeUnit, resolution);
+    }
+
+    /**
+     * As {@link #decodeMarshalledInstance(MarshalledInstanceRecord, Class, DeserializationCompletion,
+     * ResolutionContext)}, for a caller that has ALREADY verified {@code rec}'s embedded
+     * schema chain through {@link SchemaChain#decodeChain} and holds the result (the stream
+     * layer, whose dedup table verified the chain at the record's chain site and built
+     * {@code rec} from that same chain). The chain is used by reference instead of being
+     * parsed from {@code rec}'s bytes again. The record's {@code schemaDigest} field is still
+     * checked against the chain's leaf digest, so a record whose digest field disagrees with
+     * the chain it is handed is rejected exactly as the self-parsing path rejects it.
+     *
+     * @param verifiedChain the verified parse of {@code rec}'s {@code schemaBytes}, or
+     *                      {@code null} to parse {@code rec}'s chain here
+     */
+    public static <T> Result<T> decodeMarshalledInstance(
+            MarshalledInstanceRecord rec,
+            Class<T> receiverClass,
+            SchemaChain.Result verifiedChain,
+            DeserializationCompletion decodeUnit,
+            ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
 
         Objects.requireNonNull(rec,           "rec");
         Objects.requireNonNull(receiverClass, "receiverClass");
+
+        if (verifiedChain != null) {
+            if (!Arrays.equals(verifiedChain.leafDigest(), rec.schemaDigest())) {
+                throw new DerException(
+                        "MarshalledInstanceRecord: schemaDigest field does not match the digest"
+                        + " of the embedded leaf schema record for class '"
+                        + verifiedChain.chain().get(0).className()
+                        + "' -- rejected (STD-006 S7.8 schemaDigest verification)");
+            }
+            SchemaCase verifiedCase;
+            try {
+                verifiedCase = Arrays.equals(
+                        SchemaGenerator.generateChain(receiverClass).leafDigest(), rec.schemaDigest())
+                        ? SchemaCase.A_MATCH : SchemaCase.B_OR_C_MISMATCH;
+            } catch (DerException e) {
+                verifiedCase = SchemaCase.B_OR_C_MISMATCH;
+            }
+            T verifiedObject = ObjectCodec.decodeHierarchy(
+                    receiverClass, verifiedChain, rec.payloadBytes(), decodeUnit, resolution);
+            return new Result<>(verifiedObject, verifiedCase);
+        }
 
         // Step 1+2: obtain the verified embedded chain and decide the schema case.
         //

@@ -765,7 +765,7 @@ final class DerObjectStreamCodec {
                 // P2 site in its payload interior, deduplicated in pre-order under the
                 // pinned first-full-then-reference rule (sec.C.5.3/C.6). Unconditional:
                 // dedup is the stream format, not a mode (sec.C.9).
-                rec = encodeDedup.dedupTopLevelAtomic(rec);
+                rec = encodeDedup.dedupTopLevelAtomic(rec, cls);
             }
             writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, rec));
         } catch (DerException e) {
@@ -1165,7 +1165,10 @@ final class DerObjectStreamCodec {
             try {
                 if (componentWT.startsWith("@AtomicSerial:")) {
                     String cls = componentWT.substring("@AtomicSerial:".length());
-                    return ObjectCodec.decodeNestedArray(seqBytes, cls, 0, decodeUnit, resolution);
+                    return streamFormat
+                            ? withVerifiedChains(() ->
+                                    ObjectCodec.decodeNestedArray(seqBytes, cls, 0, decodeUnit, resolution))
+                            : ObjectCodec.decodeNestedArray(seqBytes, cls, 0, decodeUnit, resolution);
                 }
                 return DerFieldStore.decodePrimitiveArray(seqBytes, awt, resolution);
             } catch (DerException | ClassNotFoundException e) {
@@ -1209,13 +1212,18 @@ final class DerObjectStreamCodec {
                 throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
             }
             if (streamFormat) {
+                StreamSchemaDedup.Reconstituted rc;
                 try {
-                    recBytes = decodeDedup.reconstituteTopLevelAtomic(recBytes);
+                    rc = decodeDedup.reconstituteTopLevelAtomicVerified(recBytes);
                 } catch (DerException e) {
                     throw new IOException(
                             "readObject: [1] stream schema-dedup reconstitution failed: "
                             + e.getMessage(), e);
                 }
+                // The record's own chain was verified at its chain site (and rc.recordBytes
+                // was built from that same site), so it is handed on by reference rather
+                // than parsed again; nested records consult the same per-stream table.
+                return withVerifiedChains(() -> decodeAtomicRecord(rc.recordBytes(), rc.topChain()));
             }
             return decodeAtomicRecord(recBytes);
         }
@@ -1572,6 +1580,25 @@ final class DerObjectStreamCodec {
 
     /** Decodes the bytes inside a [1] {@code CTX_ATOMIC} TLV (a MarshalledInstanceRecord) into its object. */
     private Object decodeAtomicRecord(byte[] recBytes) throws IOException, ClassNotFoundException {
+        return decodeAtomicRecord(recBytes, (SchemaChain.Result) null);
+    }
+
+    /**
+     * Runs {@code op} with this stream's dedup table consulted by nested-record decode (a
+     * nested chain byte-identical to one the table verified is not re-parsed). Only called in
+     * the stream format, where {@link #decodeDedup} exists.
+     */
+    private <R> R withVerifiedChains(ObjectCodec.DecodeOp<R> op)
+            throws DerException, IOException, ClassNotFoundException {
+        return ObjectCodec.callWithVerifiedChains(decodeDedup::verifiedChain, op);
+    }
+
+    /**
+     * @param verifiedTopChain the record's own schema chain if the caller (the dedup layer) has
+     *                         already verified it, else {@code null} to parse it from the record
+     */
+    private Object decodeAtomicRecord(byte[] recBytes, SchemaChain.Result verifiedTopChain)
+            throws IOException, ClassNotFoundException {
         MarshalledInstanceRecord rec;
         try {
             rec = MarshalledInstanceRecord.decode(recBytes);
@@ -1580,14 +1607,17 @@ final class DerObjectStreamCodec {
         }
         String leafClassName;
         try {
-            leafClassName = rec.decodeSchemaChain().get(0).className();
+            leafClassName = verifiedTopChain != null
+                    ? verifiedTopChain.chain().get(0).className()
+                    : rec.decodeSchemaChain().get(0).className();
         } catch (DerException e) {
             throw new IOException("readObject: failed to decode embedded schema chain", e);
         }
         // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
         Class<?> leafClass = resolution.loadClass(leafClassName);
         try {
-            return MarshalledInstanceCodec.decodeMarshalledInstance(rec, leafClass, decodeUnit, resolution).object();
+            return MarshalledInstanceCodec.decodeMarshalledInstance(
+                    rec, leafClass, verifiedTopChain, decodeUnit, resolution).object();
         } catch (DerException e) {
             throw new IOException("readObject: decode failed for " + leafClassName, e);
         }

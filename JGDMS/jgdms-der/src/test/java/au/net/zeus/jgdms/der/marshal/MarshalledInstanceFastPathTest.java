@@ -127,4 +127,29 @@ class MarshalledInstanceFastPathTest {
         assertFalse(rec.schemaBytesMatchLocal(au.net.zeus.jgdms.der.object.fixtures.Foo.class));
         assertFalse(rec.schemaBytesMatchLocal(String.class));   // no local chain: never a match
     }
+
+    // ---- verified-chain overload (stream layer hands on the chain it already verified) ----
+
+    @Test
+    void verifiedChainOverloadDecodesLikeSelfParsingPath() throws Exception {
+        MarshalledInstanceRecord rec = genuine();
+        SchemaChain.Result verified = rec.decodeSchemaChainAsResult();
+        MarshalledInstanceCodec.Result<VersionedRecord> r = MarshalledInstanceCodec.decodeMarshalledInstance(
+                rec, VersionedRecord.class, verified, null, au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE);
+        assertEquals(OBJ, r.object());
+        assertEquals(MarshalledInstanceCodec.SchemaCase.A_MATCH, r.schemaCase());
+    }
+
+    @Test
+    void verifiedChainWithDisagreeingDigestFieldIsRejected() throws Exception {
+        MarshalledInstanceRecord rec = genuine();
+        SchemaChain.Result verified = rec.decodeSchemaChainAsResult();
+        byte[] wrong = rec.schemaDigest();
+        wrong[5] ^= 0x7F;
+        MarshalledInstanceRecord bad = new MarshalledInstanceRecord(
+                rec.payloadBytes(), rec.schemaBytes(), wrong, rec.payloadFormat());
+        assertThrows(DerException.class, () -> MarshalledInstanceCodec.decodeMarshalledInstance(
+                bad, VersionedRecord.class, verified, null,
+                au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE));
+    }
 }
