@@ -172,7 +172,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
             } else {
                 this.codec.admit();           // the whole stream is admitted or rejected here; a record-level capture is a no-op
             }
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | RuntimeException | Error e) {
             decodeUnit.abort();               // a rejected stream registers nothing: no DGC callback can fire for it
             throw e;
         }
@@ -193,7 +193,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public void admitStream() throws IOException {
         try {
             codec.admit();
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | RuntimeException | Error e) {
             decodeUnit.abort();
             throw e;
         }
@@ -244,6 +244,11 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * completion callbacks, e.g. the client DGC batched {@code dirty}, are discarded unrun) before
      * the failure propagates. A stream that failed to decode must not issue leases for the objects
      * it had decoded before the failure.
+     *
+     * <p>The stream is also dead from then on: every later read rethrows. A failed read can leave the reader inside an item
+     * (a typed read of the wrong kind consumes only the header), and a caller that caught the failure and went on would read
+     * the rest of that item as a new item, bytes whole-stream admission never covered as items. This includes the refusal of
+     * a record-bearing read on a dispatcher stream that is not yet admitted.
      */
     private <T> T guarded(IoRead<T> read) throws IOException {
         try {
@@ -251,6 +256,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
             return read.get();
         } catch (IOException | RuntimeException | Error e) {
             decodeUnit.abort();
+            codec.poison(e);
             throw e;
         }
     }
@@ -261,6 +267,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
             return read.get();
         } catch (IOException | ClassNotFoundException | RuntimeException | Error e) {
             decodeUnit.abort();
+            codec.poison(e);
             throw e;
         }
     }

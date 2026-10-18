@@ -131,20 +131,29 @@ public class AtomicDerAdmissionSeamTest {
         AtomicDerInvocationDispatcher dispatcher = new AtomicDerInvocationDispatcher(
                 methods, new FakeServerCaps(), null, null, AtomicDerAdmissionSeamTest.class.getClassLoader());
         // B0 pinned: read two good items, reject at the third. B2: the cheap stage accepts the stream at creation (nothing
-        // in it is malformed at the item-header level), an object read before admitStream() is refused, and admitStream()
-        // rejects the WHOLE stream, so no object is ever built.
-        ObjectInput in = dispatcher.createMarshalInputStream(
+        // in it is malformed at the item-header level), an object read before admitStream() is refused (and the refusal ends the
+        // stream), and admitStream() rejects the WHOLE stream, so no object is ever built.
+        ObjectInput refused = dispatcher.createMarshalInputStream(
                 new Impl(), new FakeInbound(new ByteArrayInputStream(goodGoodBad())), false, Collections.emptyList());
-        Assert.assertTrue(in instanceof DerMarshalInputStream);
-        AtomicInteger fired = new AtomicInteger();
-        ((DerMarshalInputStream) in).registerValidation(fired::incrementAndGet, 0);
-
+        Assert.assertTrue(refused instanceof DerMarshalInputStream);
         try {
-            in.readObject();
+            refused.readObject();
             Assert.fail("an object read before admitStream() must be refused");
         } catch (IOException expected) {
             Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("admitStream()"));
         }
+        try {
+            ((AtomicObjectInput) refused).admitStream();
+            Assert.fail("a refused read ends the stream: admitting afterwards cannot revive it");
+        } catch (IOException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("delivers nothing"));
+        }
+        refused.close();
+
+        ObjectInput in = dispatcher.createMarshalInputStream(
+                new Impl(), new FakeInbound(new ByteArrayInputStream(goodGoodBad())), false, Collections.emptyList());
+        AtomicInteger fired = new AtomicInteger();
+        ((DerMarshalInputStream) in).registerValidation(fired::incrementAndGet, 0);
         try {
             ((AtomicObjectInput) in).admitStream();
             Assert.fail("the third item names an unknown chain digest: the whole stream must be rejected");

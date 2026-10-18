@@ -25,6 +25,7 @@ import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
+import au.net.zeus.jgdms.der.object.ProxyWireSupport;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
@@ -440,6 +441,28 @@ final class StreamSchemaDedup {
     private final boolean encoding;
 
     /**
+     * {@code true} on an instance that exists only to prove a stream admissible (see {@link #forAdmission} and
+     * {@link #forRegionVerification}); its output is always discarded. Delivery instances are never in this mode, so
+     * nothing below changes what delivery accepts or emits. A verifying instance:
+     * <ul>
+     *   <li>descends into nested {@code [8]} proxy regions (which the dedup layer passes through, sec.C.6.5) on a table
+     *       of its own, because delivery decodes the handler there;</li>
+     *   <li>walks the shell of every hierarchy, including those whose fields cannot hold a chain site, and the value
+     *       shape of nested collections, because delivery's depth and shape checks run on them;</li>
+     *   <li>(encode direction, i.e. a region of received canonical bytes) verifies every chain it has not already
+     *       verified byte-for-byte, accepts a record's {@code schemaDigest} only if it matches its chain, and applies no
+     *       stream-level table ceilings, because delivery of a region applies none.</li>
+     * </ul>
+     */
+    private final boolean verify;
+
+    /** The stream's input cap, kept to size the region verifier a decode-direction admission instance creates. */
+    private final int maxInputBytes;
+
+    /** Decode-direction admission only: the table-of-its-own instance nested {@code [8]} regions are verified on. */
+    private StreamSchemaDedup regionVerifier;
+
+    /**
      * The per-stream dedup table: chain identity (32-byte SHA-256 over the received
      * leaf-record bytes) → interned chain bytes + parsed records. Iteration order is
      * insertion order (deterministic); keys are content-compared {@link ByteBuffer}s.
@@ -556,10 +579,17 @@ final class StreamSchemaDedup {
      * @param streamFactor  per-window factor (same range; must be {@code >= itemFactor})
      */
     StreamSchemaDedup(boolean encoding, int maxInputBytes, int itemFactor, int streamFactor) {
+        this(encoding, maxInputBytes, itemFactor, streamFactor, false);
+    }
+
+    private StreamSchemaDedup(boolean encoding, int maxInputBytes, int itemFactor, int streamFactor,
+                              boolean verify) {
         requireValidFactor(itemFactor, PROP_RECONSTITUTION_FACTOR);
         requireValidFactor(streamFactor, PROP_STREAM_RECONSTITUTION_FACTOR);
         checkCompositionInvariant(itemFactor, streamFactor);
         this.encoding = encoding;
+        this.verify = verify;
+        this.maxInputBytes = maxInputBytes;
         // Math.multiplyExact keeps a large factor × maxInputBytes from overflowing to a
         // small/negative ceiling (structurally impossible in the validated range —
         // MAX_EXPANSION_FACTOR × Integer.MAX_VALUE < Long.MAX_VALUE — but pinned defensively).
@@ -567,6 +597,26 @@ final class StreamSchemaDedup {
                 Math.multiplyExact((long) maxInputBytes, (long) itemFactor);
         this.maxStreamReconstitutedChainBytes =
                 Math.multiplyExact((long) maxInputBytes, (long) streamFactor);
+    }
+
+    /**
+     * The decode-direction instance whole-stream admission walks a stream's items with: every decision the delivery walker
+     * makes (it is the same code, with its own table and counters), plus a verify-only descent into the {@code [8]}
+     * regions delivery passes through. Its output is discarded.
+     */
+    static StreamSchemaDedup forAdmission(int maxInputBytes) {
+        return new StreamSchemaDedup(false, maxInputBytes, RECONSTITUTION_EXPANSION_FACTOR,
+                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true);
+    }
+
+    /**
+     * The encode-direction instance admission verifies a region of received canonical bytes (a {@code [16]} collection, a
+     * {@code [8]} proxy's handler) with. Region bytes are not stream-deduplicated, so this instance's table belongs to the
+     * region alone; see {@link #verify} for how it differs from a writer.
+     */
+    static StreamSchemaDedup forRegionVerification(int maxInputBytes) {
+        return new StreamSchemaDedup(true, maxInputBytes, RECONSTITUTION_EXPANSION_FACTOR,
+                STREAM_RECONSTITUTION_EXPANSION_FACTOR, true);
     }
 
     /** Rejects a factor outside {@code [1, MAX_EXPANSION_FACTOR]} (the validated invariant). */
@@ -671,7 +721,8 @@ final class StreamSchemaDedup {
     void dedupTopLevelAtomicTo(byte[] canonicalRecord, Class<?> leafClass, DerEncoder out)
             throws DerException {
         requireDirection(true);
-        transformP1(canonicalRecord, leafClass, out);
+        Objects.requireNonNull(canonicalRecord, "recordBytes");
+        transformP1(canonicalRecord, 0, canonicalRecord.length, leafClass, out);
     }
 
     /**
@@ -720,11 +771,20 @@ final class StreamSchemaDedup {
      */
     SchemaChain.Result reconstituteTopLevelAtomicTo(byte[] streamRecord, DerEncoder out)
             throws DerException {
+        return reconstituteTopLevelAtomicTo(streamRecord, 0, streamRecord.length, out);
+    }
+
+    /**
+     * As {@link #reconstituteTopLevelAtomicTo(byte[], DerEncoder)} over the record at {@code [off, off + len)} of
+     * {@code buf}, so a caller that holds the whole stream need not copy the record out first.
+     */
+    SchemaChain.Result reconstituteTopLevelAtomicTo(byte[] buf, int off, int len, DerEncoder out)
+            throws DerException {
         requireDirection(false);
         reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
         // streamReconstitutedChainBytes is deliberately NOT reset here — it accumulates
         // cumulative WORK across the whole input window (sec.C.8.1/C.8.3).
-        Site site = transformP1(streamRecord, null, out);
+        Site site = transformP1(buf, off, off + len, null, out);
         return new SchemaChain.Result(site.records, site.digest.clone());
     }
 
@@ -779,21 +839,83 @@ final class StreamSchemaDedup {
     /**
      * Verify-only descent into a {@code [16]} region (admission): walks the collection TLV exactly as the encode direction
      * walks a collection field, so every chain site inside is parsed, hashed and ceiling-checked and every nesting bound is
-     * applied, and discards the output. Region interiors are outside the stream's dedup layer (C.6.5), so this must be
-     * called on a THROWAWAY encode-direction instance: its table is the region's own and is never the stream's.
+     * applied, and discards the output. Region interiors are outside the stream's dedup layer (C.6.5), so the walk runs on
+     * the {@link #regionVerifier region verifier}: a table of its own, never the stream's.
      */
     void verifyCollectionRegion(String token, byte[] collectionTlv) throws DerException {
-        requireDirection(true);
-        transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create());
+        requireVerifying();
+        regionVerifier().transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create());
     }
 
     /**
      * Verify-only descent into a {@code [8]} proxy region's handler record (admission); same contract as
-     * {@link #verifyCollectionRegion}: a throwaway encode-direction instance, output discarded.
+     * {@link #verifyCollectionRegion}.
      */
     void verifyRegionRecord(byte[] canonicalRecord) throws DerException {
-        requireDirection(true);
-        dedupTopLevelAtomic(canonicalRecord, null);
+        requireVerifying();
+        regionVerifier().dedupTopLevelAtomicTo(canonicalRecord, null, DerEncoder.create());
+    }
+
+    private void requireVerifying() {
+        if (!verify) {
+            throw new IllegalStateException("StreamSchemaDedup: not a verifying instance");
+        }
+    }
+
+    /**
+     * The instance a nested {@code [8]} region is verified on: this one when it is already a region verifier (its table is
+     * the region's own), otherwise (a decode-direction admission instance, whose table is the stream's and must stay
+     * untouched, sec.C.6.5) one created on first use and kept for the rest of the admission walk, so byte-identical chains
+     * across regions are verified once.
+     */
+    private StreamSchemaDedup regionVerifier() {
+        if (encoding) {
+            return this;
+        }
+        if (regionVerifier == null) {
+            regionVerifier = forRegionVerification(maxInputBytes);
+        }
+        return regionVerifier;
+    }
+
+    /**
+     * Verify-only walk of a nested {@code [8]} proxy TLV ({@code ObjectCodec.decodeNested}'s proxy arm and
+     * {@code decodeProxy}): {@code INTEGER count, count x UTF8String, handler}, where the handler is a nested site
+     * decoded one level deeper. Constructs nothing and resolves no interface name.
+     */
+    private void verifyNestedProxy(byte[] in, int start, int end, int depth) throws DerException {
+        if (depth > ObjectCodec.MAX_NESTING) {
+            throw new DerException(
+                    "StreamSchemaDedup: nested proxy nesting depth " + depth
+                    + " exceeds MAX_NESTING (" + ObjectCodec.MAX_NESTING + ")");
+        }
+        DerReader r = new DerReader(in, start, end);
+        DerReader.TlvHeader hdr = r.readTlvHeader();
+        int contentStart = r.position();
+        r.skip(hdr.contentLength());
+        if (r.hasMore()) {
+            throw new DerException("StreamSchemaDedup: trailing bytes after nested [8] proxy TLV");
+        }
+        DerReader pr = new DerReader(in, contentStart, contentStart + hdr.contentLength());
+        int count;
+        try {
+            count = pr.readInteger().intValueExact();
+        } catch (ArithmeticException e) {
+            throw new DerException("StreamSchemaDedup: nested [8] proxy interface count overflow", e);
+        }
+        if (count <= 0 || count > ProxyWireSupport.MAX_PROXY_INTERFACES) {
+            throw new DerException("StreamSchemaDedup: nested [8] proxy interface count " + count
+                    + " out of range (1.." + ProxyWireSupport.MAX_PROXY_INTERFACES + ")");
+        }
+        for (int i = 0; i < count; i++) {
+            pr.readUtf8String();
+        }
+        int handlerStart = pr.position();
+        int handlerEnd = pr.skipTlv();
+        if (pr.hasMore()) {
+            throw new DerException("StreamSchemaDedup: trailing bytes after the handler in a nested [8] proxy");
+        }
+        transformNestedSite(in, handlerStart, handlerEnd, depth + 1, DerEncoder.create());
     }
 
     private void requireDirection(boolean wantEncoding) {
@@ -841,9 +963,10 @@ final class StreamSchemaDedup {
      *
      * @return this record's own chain site
      */
-    private Site transformP1(byte[] in, Class<?> leafHint, DerEncoder out) throws DerException {
+    private Site transformP1(byte[] in, int recStart, int recEnd, Class<?> leafHint, DerEncoder out)
+            throws DerException {
         Objects.requireNonNull(in, "recordBytes");
-        DerReader outer = new DerReader(in);
+        DerReader outer = new DerReader(in, recStart, recEnd);
         DerReader seq = outer.readSequence();
         if (outer.hasMore()) {
             throw new DerException(
@@ -868,6 +991,13 @@ final class StreamSchemaDedup {
                         + digestField.length);
             }
             site = encodeSite(in, chainStart, chainLen, leafHint);
+            if (verify && !Arrays.equals(digestField, site.records.get(0).schemaDigest())) {
+                // Received bytes: delivery rejects a record whose digest field is not its chain's leaf digest
+                // (MarshalledInstanceRecord.decodeSchemaChainAsResult), so admission must too.
+                throw new DerException(
+                        "StreamSchemaDedup: P1 schemaDigest field does not match the digest of the embedded leaf"
+                        + " schema record for class '" + site.records.get(0).className() + "' -- rejected");
+            }
         } else {
             // Stream field 2: SchemaChainRef — processed BEFORE the payload interior.
             site = decodeSite(seq);
@@ -967,6 +1097,9 @@ final class StreamSchemaDedup {
         DerReader r = new DerReader(in, start, end);
         Tag t = r.peekTag();
         if (CTX_PROXY.equals(t)) {
+            if (verify) {
+                regionVerifier().verifyNestedProxy(in, start, end, depth);
+            }
             out.raw(in, start, end - start);   // sec.C.6.5: [8] byte region excluded, transitively.
             return;
         }
@@ -1034,8 +1167,9 @@ final class StreamSchemaDedup {
     private void transformHierarchyPayload(byte[] in, int start, int end,
                                            List<AtomicSerialSchemaRecord> chainLeafFirst,
                                            int depth, DerEncoder out) throws DerException {
-        // Fast path: a hierarchy whose fields cannot contain chain sites is verbatim.
-        if (!hierarchyMaybeContainsSites(chainLeafFirst)) {
+        // Fast path: a hierarchy whose fields cannot contain chain sites is verbatim. A verifying instance walks the shell
+        // anyway: delivery checks it (one SEQUENCE per class, one TLV per field) whether or not a field can hold a site.
+        if (!verify && !hierarchyMaybeContainsSites(chainLeafFirst)) {
             out.raw(in, start, end - start);
             return;
         }
@@ -1160,7 +1294,7 @@ final class StreamSchemaDedup {
         }
         if (CollectionWireTypes.isMap(token)) {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(token);
-            if (!maybeContainsSites(kv[0]) && !maybeContainsSites(kv[1])) {
+            if (!mustWalk(kv[0]) && !mustWalk(kv[1])) {
                 out.raw(in, start, end - start);
                 return;
             }
@@ -1188,7 +1322,7 @@ final class StreamSchemaDedup {
             return;
         }
         String elemWT = CollectionWireTypes.elementWireType(token);
-        if (!maybeContainsSites(elemWT)) {
+        if (!mustWalk(elemWT)) {
             out.raw(in, start, end - start);
             return;
         }
@@ -1383,6 +1517,9 @@ final class StreamSchemaDedup {
         if (chainLen == 0) {
             throw new DerException("StreamSchemaDedup: empty schema chain at encode site");
         }
+        if (verify) {
+            return verifyReceivedSite(in, chainOff, chainLen);
+        }
         // Same bytes as an already-tabled chain => same identity: one content-equality
         // lookup replaces re-hashing the leaf record (pure accelerator, see encodeByBytes).
         // The lookup key is a window onto the input, so a repeat occurrence copies nothing.
@@ -1418,6 +1555,32 @@ final class StreamSchemaDedup {
         return new Site(chainBytes, records, digest,
                 DerWriter.writeTlv(TAG_FULL_CHAIN, chainBytes));
     }
+
+    /**
+     * Verifying encode direction (a region of received canonical bytes): a chain is trusted only if these exact bytes were
+     * already verified by this instance, or are verified now through the single chain-decode path, as delivery does for
+     * every site of a region. A chain whose leaf digest is already tabled but whose bytes differ is NOT assumed equal to the
+     * tabled one (a locally generated chain could be; received bytes cannot): it is verified on its own, and rejected by
+     * {@link SchemaChain#decodeChain} when it is malformed, truncated or carries trailing bytes.
+     */
+    private Site verifyReceivedSite(byte[] in, int chainOff, int chainLen) throws DerException {
+        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, chainOff, chainLen));
+        if (e != null) {
+            return new Site(e.chainBytes(), e.records(), e.digest(), NO_OUTPUT);
+        }
+        byte[] chainBytes = Arrays.copyOfRange(in, chainOff, chainOff + chainLen);
+        List<AtomicSerialSchemaRecord> records = SchemaChain.decodeChain(chainBytes, "StreamSchemaDedup(verify)");
+        byte[] digest = leafRecordDigest(chainBytes);
+        if (table.containsKey(ByteBuffer.wrap(digest))) {
+            return new Site(chainBytes, records, digest, NO_OUTPUT);
+        }
+        TableEntry inserted = insert(digest, chainBytes, records);
+        encodeByBytes.put(ByteBuffer.wrap(chainBytes), inserted);
+        return new Site(chainBytes, records, digest, NO_OUTPUT);
+    }
+
+    /** What a verifying instance emits at a chain site: nothing (its output is discarded). */
+    private static final byte[] NO_OUTPUT = new byte[0];
 
     /**
      * Decode direction: reads the {@code SchemaChainRef} at the reader's position and
@@ -1492,13 +1655,16 @@ final class StreamSchemaDedup {
     /** Table insertion with the stream-level ceilings, inclusive fenceposts (sec.C.8). */
     private TableEntry insert(byte[] digest, byte[] chainBytes,
                               List<AtomicSerialSchemaRecord> records) throws DerException {
-        if (table.size() + 1 > MAX_DISTINCT_CHAINS_PER_STREAM) {
+        // A region verifier's table is the region's own: delivery of a region (decodeNested) applies no stream-level
+        // table ceiling, only the per-chain ones SchemaChain.decodeChain has already enforced, so none is invented here.
+        boolean streamLevel = !(verify && encoding);
+        if (streamLevel && table.size() + 1 > MAX_DISTINCT_CHAINS_PER_STREAM) {
             throw new DerException(
                     "StreamSchemaDedup: distinct chain count would exceed"
                     + " maxDistinctChainsPerStream (" + MAX_DISTINCT_CHAINS_PER_STREAM
                     + ", inclusive; sec.C.8.1) — rejected at insertion");
         }
-        if (tableBytes + chainBytes.length > MAX_DEDUP_TABLE_BYTES) {
+        if (streamLevel && tableBytes + chainBytes.length > MAX_DEDUP_TABLE_BYTES) {
             throw new DerException(
                     "StreamSchemaDedup: dedup table bytes " + (tableBytes + chainBytes.length)
                     + " would exceed maxDedupTableBytes (" + MAX_DEDUP_TABLE_BYTES
@@ -1638,19 +1804,40 @@ final class StreamSchemaDedup {
         materialisedChainBytes += site.chainBytes.length;
     }
 
-    /** Whether a wire type can contain chain sites anywhere beneath it. */
+    /**
+     * Whether the element (or map key/value) wire type has to be walked rather than passed through: it can hold a chain
+     * site, or (a verifying instance only) it is a nested collection, whose value depth delivery bounds.
+     */
+    private boolean mustWalk(String wireType) throws DerException {
+        return maybeContainsSites(wireType) || (verify && CollectionWireTypes.isCollection(wireType));
+    }
+
+    /**
+     * Whether a wire type can contain chain sites anywhere beneath it. The token is attacker-controlled, so the answer is
+     * computed to a bounded depth: a collection token nested deeper than any legal value can be is answered "maybe", which
+     * only sends it down the walking path, where the value (not the token) drives the recursion and
+     * {@link ObjectCodec#MAX_NESTING} bounds it. That keeps the recursion, and the substring copying it does, bounded by
+     * a constant rather than by the size of the token.
+     */
     private static boolean maybeContainsSites(String wireType) throws DerException {
+        return maybeContainsSites(wireType, 0);
+    }
+
+    private static boolean maybeContainsSites(String wireType, int levels) throws DerException {
         if (wireType.startsWith("@AtomicSerial")) return true;
         if ("any".equals(wireType)) return true;
         if (wireType.startsWith("array:")) {
             return wireType.substring("array:".length()).startsWith("@AtomicSerial");
         }
         if (CollectionWireTypes.isCollection(wireType)) {
+            if (levels > ObjectCodec.MAX_NESTING + 1) {
+                return true;
+            }
             if (CollectionWireTypes.isMap(wireType)) {
                 String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
-                return maybeContainsSites(kv[0]) || maybeContainsSites(kv[1]);
+                return maybeContainsSites(kv[0], levels + 1) || maybeContainsSites(kv[1], levels + 1);
             }
-            return maybeContainsSites(CollectionWireTypes.elementWireType(wireType));
+            return maybeContainsSites(CollectionWireTypes.elementWireType(wireType), levels + 1);
         }
         return false;
     }
