@@ -236,6 +236,36 @@ implementation can make. (If a stronger, all-objects-or-none contract is wanted,
 different feature: decode every object first, then deliver; memory and side-effect cost to be
 decided separately, and DGC registration would need to be deferred until delivery.)
 
+### B.2.5 Security policy checks that only read-ahead makes possible (B5; changes the accept set)
+
+B2 is deliberately *equivalence-preserving*: it moves existing rejects earlier. Because phase 1
+sees the **whole** stream before anything is built, it can also apply checks that cannot be
+applied item by item or mid-construction, each of which rejects the **entire** stream:
+
+- **Class-name policy over the whole stream.** Walk every schema chain (and `[7]` enum, `[8]` proxy
+  interface list, array component) and collect every class *name* the stream will ask the
+  `ResolutionContext` to load, in wire order, without loading any of them (loading runs static
+  initialisers and is a side effect). Check the set against an operator-configured policy: a
+  deny-list / allow-list of names or packages, and a cap on the number of distinct classes. A
+  single disallowed name rejects the stream before any class is loaded or any constructor runs —
+  today the same name is only seen when its record's turn comes, after earlier objects exist.
+- **Work bounds known in advance.** Count record sites (= constructors that will run), total
+  collection elements, and total nested depth across the stream, and reject if they exceed a
+  configured budget — a many-tiny-objects construction bomb is bounded *before* the first
+  constructor, not detected after N have run. (Today only bytes are bounded, not objects.)
+- **Cross-item consistency.** A name that appears with two different schema chains in one stream
+  (same `className`, different leaf digests) can be rejected or flagged as a rebinding attempt.
+
+Limits: name-level checks cannot see what needs a `Class` object — the declared-slot-type
+admission gate (`admissibleConstructClass`), `DeSerializationPermission("PROXY")` against the
+interfaces' protection domains, codebase integrity — those still run at construction (B.2.3).
+
+**These are new rejects, so they are a policy decision, not a performance change:** a stream valid
+today could be rejected. They therefore ship **configurable, defaulting to values at or above
+anything the golden/real corpora produce**, with each limit's default chosen from measurement
+and each reject a distinct, logged, test-pinned message. They are a separate task (B5), reviewed
+as a security change, and must not be folded into B2's "accept set unchanged" claim.
+
 ### B.2.4 Class-free structural validation (optional extension, not in B2)
 
 `ObjectCodec` already has a class-free schema-driven field decode
@@ -253,6 +283,7 @@ equivalent to it (G8) rather than assumed.
 | **B1** · Framed, exactly-sized, early-rejecting input read | In `DerInputLimits`/`DerMarshalInputStream`: read item by item — peek the header, reject an item whose declared length exceeds the remaining budget **before buffering it**, read exactly that many bytes, accumulate into one exactly-grown buffer. Observable semantics unchanged (still reads to EOF and delivers nothing before the stream is framed). Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected having read only the header (counting stream); trickle and slow streams; truncated item; trailing garbage; empty stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (touches the DoS gate) | — |
 | **B2** · Two-phase admission | Per B.2.1/B.2.2: phase-1 verify-only pass over the whole buffered stream; phase-2 delivery from the admitted plan. Every B0 test flips to "rejects the stream, delivers nothing". Add: an adversarial test per reject class placed as the **last** item of a long stream (and as the first, and in the middle) asserting zero objects delivered and zero constructors run (a counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations of the golden streams). Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
 | **B3** · Class-free structural validation (optional) | Per B.2.4, only if the differential test shows a material class of malformed streams still reaching construction. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
+| **B5** · Whole-stream security policy checks | Per B.2.5: class-name policy (allow/deny lists, distinct-class cap), object-count / element-count / depth budgets, cross-item chain-consistency check, all in phase 1, all configurable (system properties validated like the reconstitution factors: invalid or hostile value → documented default, never weaker), defaults chosen from measured corpus maxima with headroom. Tests: each limit's inclusive boundary pair; a stream with a disallowed class name as its LAST item loads no class and runs no constructor (counting fixture + a class whose static initialiser records loading); a construction-bomb stream (1 M tiny records within `maxInputBytes`) is rejected before the first constructor; every default accepts the full golden corpus. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
 | **B4** · Cost measurement | Measure phase 1's cost on the benchmark payloads (`point`, `record`, `batch100`, `blob64k`, a synthetic 8-item request, and a 16 MiB stream) and report it against decode time, both with the existing walker run twice and with A3's verify-only mode. Defensive cost is acceptable but must be reported. | general-purpose · MEDIUM | sonnet | single reviewer | B2 |
 
 **Sequencing:** B0 and B1 are independent of Part A and can run first. B2 should follow A3 so the
@@ -263,10 +294,10 @@ removing it.
 ## B.4 Non-goals (Part B)
 
 - **No pipelined decode, no write-ahead, no delivery before the stream is admitted.**
-- **No change to wire format, to which streams are valid, or to reject messages** — pre-admission
-  moves *when* the existing rejects fire (before any construction), not *what* is rejected. A
-  stream that is valid today stays valid; a stream rejected at item *k* today is rejected up
-  front.
+- **B2 changes no wire format and no accept set** — it moves *when* the existing rejects fire
+  (before any construction), not *what* is rejected: a stream valid today stays valid; one
+  rejected at item *k* today is rejected up front. **B5 deliberately does change the accept set**
+  (new configurable limits and name policy) and is kept separate so that difference is explicit.
 - **No class loading, resolution or constructor execution in phase 1** (B.2.3).
 - **Not a stronger all-objects-or-none contract** (B.2.3 explains the difference and the cost).
 
