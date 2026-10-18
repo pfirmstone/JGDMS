@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = FINE
+.level = CONFIG
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -50,7 +50,7 @@ handlers = java.util.logging.ConsoleHandler
 # to the given level and above.
 
 java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
-java.util.logging.ConsoleHandler.level = FINEST
+java.util.logging.ConsoleHandler.level = CONFIG
 
 # For messages printed to a file, do the following:
 # - use either a standard or XML formatter
@@ -115,15 +115,15 @@ org.apache.river.logging.LogManager.level = INFO
 net.jini.config.level = INFO
 
 # For activation
-net.jini.activation.ActivatableInvocationHandler.level = FINE
+net.jini.activation.ActivatableInvocationHandler.level = INFO
 
 # For JRMP
 net.jini.jrmp.JrmpExporter.level = INFO
 
 # For RMI TLS
-au.net.zeus.rmi.tls.client.level = FINE
-au.net.zeus.rmi.tls.server.level = FINE
-au.net.zeus.rmi.tls.init.level = FINE
+au.net.zeus.rmi.tls.client.level = INFO
+au.net.zeus.rmi.tls.server.level = INFO
+au.net.zeus.rmi.tls.init.level = INFO
 
 # For Jini ERI
 net.jini.jeri.level = INFO
@@ -208,9 +208,9 @@ org.apache.river.start.level = INFO
 
 # For Reggie
 org.apache.river.reggie.level = INFO
-org.apache.river.reggie.service.level = FINEST
+org.apache.river.reggie.service.level = INFO
 org.apache.river.reggie.discovery.level = INFO
-org.apache.river.reggie.event.level = FINE
+org.apache.river.reggie.event.level = INFO
 org.apache.river.reggie.snapshot.level = INFO
 
 # For Mahalo
@@ -264,8 +264,8 @@ org.apache.river.outrigger.transactions.level = INFO
 org.apache.river.example.browser.level = INFO
 
 # For the test harness, tests, and infrastructure.
-org.apache.river.qa.harness.level = FINE
-org.apache.river.qa.harness.test.level = FINE
-org.apache.river.qa.harness.service.level = FINE
-org.apache.river.qa.harness.config.level = FINE
-org.apache.river.test.spec.jeri.mux.level = FINE
+org.apache.river.qa.harness.level = INFO
+org.apache.river.qa.harness.test.level = INFO
+org.apache.river.qa.harness.service.level = INFO
+org.apache.river.qa.harness.config.level = INFO
+org.apache.river.test.spec.jeri.mux.level = INFO
