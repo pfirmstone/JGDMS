@@ -1,7 +1,7 @@
 # Scope of Work — DER codec performance (byte-identical, verification-preserving)
 
 - **Drafted:** 2026-10-18.
-- **Status:** DRAFT — scoped at Peter's direction ("DER is the future; if there's
+- **Status:** T0–T6 DONE 2026-10-18 (see §8 and `jgdms-benchmarks/serialization/RESULTS.md`); originally DRAFT — scoped at Peter's direction ("DER is the future; if there's
   anything we can do to improve its performance without compromising security, we
   should consider it", 2026-10-18); task breakdown for a code agent; no
   implementation started.
@@ -201,6 +201,87 @@ point if T3 is deferred.
 > Pack200 repository). Do not touch `GetArg`, `ResolutionContext`,
 > `DerInputLimits` ceilings, or any spec document. Report: what changed, the test
 > run, and (for T6) the before/after benchmark pair.
+
+## 8. Implementation notes (2026-10-18; T0–T6 landed)
+
+Recorded so the next reader works from what was built, not from the plan. All numbers are
+from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the full harness.
+
+- **Oracle.** `DerGoldenBytesTest` holds 31 payloads (the 21 from T0 plus sets, a two-chain
+  polymorphic set, map values, `Chain[]`, self-recursion, a proxy field whose handler holds a
+  nested record, and top-level `[9]` arrays and a `[8]` proxy), each alone and three-in-a-stream.
+  The 10 added in T3 were generated from the ORIGINAL trunk (`9adc8e6e3`) and the T1/T2/T4/T5 code
+  reproduces all 31 byte-for-byte. A second test decodes each stream and re-encodes it to the same
+  bytes (decode-side oracle).
+- **T2 is only the façade half.** `DerWriter` now allocates once per call (no per-call tag/length
+  arrays, no intermediate concatenation for `writeSequence(List)`/`writeSet(List)`). The copy per
+  nesting level remains: callers pass already-built child arrays, and §4 forbids changing call
+  sites in T2. Removing it needs the call sites (`ObjectCodec`, `StreamSchemaDedup`,
+  `DerObjectStreamCodec`) migrated to a streaming encoder — a follow-up.
+- **T4 keeps the validate-then-resolve order.** `DerObjectStreamCodec.decodeAtomicRecord` still
+  fully validates the transmitted chain before resolving the class it names, so an attacker-named
+  class is not resolved ahead of chain validation (§3.4 as written would resolve first). The fast
+  path therefore removes the SECOND chain parse only. Skipping the first needs a security-board
+  decision.
+- **T3 as written is not implementable for the encoder; what was built instead.** §4 T3 has the
+  encoder consult the per-stream table "while writing". That cannot preserve the wire form:
+  a `SET OF` is octet-sorted (X.690 §11.6) over the canonical FULL-form element bytes, and
+  Appendix C §C.6.2 defines "first occurrence" over the pre-order record-entry traversal, in which
+  collection elements are taken in WIRE element order (for a sorted set, after the sort). (Board
+  review, 2026-10-18: strictly only subtrees under a sorted ancestor need deferral, and C.6.2's
+  non-normative note recommending "register the record's identity when you begin encoding it"
+  never mentions `SET OF` — it should be corrected.) Dedup in iteration order would
+  put the `fullChain` on a different element than the first one in wire order, and a conforming
+  decoder would then see a `chainRef` before its `fullChain` and hard-reject the stream. The
+  encode therefore stays two-phase (canonical encode and sort, then substitute sites in wire
+  order), and decode must still resolve sites eagerly in wire order (a lazy per-field decode reads
+  fields in constructor order, not wire order). Appendix C is unchanged. T3 instead removed the
+  redundant work around that pass:
+  - encode: a bytes-keyed index over the table (a repeated chain costs one content lookup, not a
+    re-hash), and the record's own chain recognised as this node's locally generated chain
+    (`SchemaGenerator.verifiedLocalChain`, verified through `SchemaChain.decodeChain` once per
+    class) instead of re-parsed and re-hashed per stream;
+  - decode: reconstitution returns the record's verified chain, handed to the record codec by
+    reference (new `decodeMarshalledInstance` overload; the `schemaDigest` field is still checked),
+    and nested records consult the stream's table through a `ScopedValue` so a chain byte-identical
+    to one the table verified is not re-parsed and re-hashed per element. Anything else (including
+    chains inside `[8]` regions) takes the unchanged path.
+  What remains is the byte-level interface itself: reconstitution rebuilds bytes at every
+  nesting level, and each distinct chain is parsed and hashed once per stream.
+- **Measured so far (µs/op, DER, quick run, `-f 1 -wi 3 -i 4`).**
+
+  | | baseline | after T1/T2/T5 | after T4 | after T3 |
+  |---|---:|---:|---:|---:|
+  | marshal point | 2.64 | 1.91 | – | 1.21 |
+  | marshal record | 4.05 | 2.72 | – | 1.85 |
+  | marshal batch100 | 454 | 317 | – | 217 |
+  | unmarshal point | 36.1 (noisy) | 13.1 | 8.5 | 8.3 |
+  | unmarshal record | 20.7 | 19.4 | 15.6 | 14.0 |
+  | unmarshal batch100 | 1647 | 1608 | 1524 | 1424 |
+
+  `blob64k` is dominated by copies the façade cannot remove and was too noisy to quote.
+- **T6 (full 2 × 5 run, same machine and JDK as T0):** marshal `record` 0.43×, `batch100` 0.49×,
+  `blob64k` 0.69×; unmarshal `record` 0.68×, `batch100` 0.91×, `blob64k` unchanged; a JERI call
+  0.80–0.93×. Full table, caveats (the `point` rows are within noise) and the post-change top
+  self-time frames are in `RESULTS.md`. Next SOW: migrate the call sites to a streaming encoder
+  (the per-nesting-level copies are what now dominate both directions).
+
+- **Post-closeout corrections (board review, 2026-10-18).** Two defects in the code landed by T3/T4
+  were found by review and fixed with regression tests, which is why the golden corpus alone was
+  not a sufficient oracle for the decode side:
+  1. *T3 regression:* a `fullChain` whose field name carried invalid UTF-8 was accepted (and was
+     rejected before T3). The string decoders substitute U+FFFD instead of failing, so such a chain
+     parsed; its identity was SHA-256 over the received bytes in the dedup table but over the
+     re-encoded record in the Merkle/`schemaDigest` check, and T3's hand-off compared the former
+     with itself. Fixed in `SchemaChain.decodeChain` (received bytes must equal the canonical
+     re-encoding), test `StreamSchemaDedupNonCanonicalChainTest`.
+  2. *T4 fast path skipped the chain ceilings:* it took the locally generated chain without
+     running `SchemaChain.decodeChain`, so a local class whose chain exceeded `maxChainBytes` was
+     accepted by the fast path and rejected by the full path. The fast path now uses
+     `SchemaGenerator.verifiedLocalChain` (decodeChain once per class); test
+     `localChainBreachingACeilingIsRejectedOnBothPaths`.
+  Still open: ordinary string VALUES in payloads are decoded with the same lenient UTF-8
+  substitution (a G1 question outside this SOW; making it strict rejects streams accepted today).
 
 ---
 Drafted with AI assistance (Claude) under the direction of the JGDMS maintainer;

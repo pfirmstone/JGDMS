@@ -1,6 +1,12 @@
 # Investigation — where Atomic DER spends its time, and what can be removed without weakening it
 
-**Status:** profiled, not yet changed. Follows from
+**Status (updated 2026-10-18):** the SOW `SOW-DER-Codec-Performance.md` tasks T0–T5 have landed;
+see its §8 for what was built (and why T2 and T3 differ from the plan) and the second run in
+`jgdms-benchmarks/serialization/RESULTS.md` for what each change bought: marshal about 2× faster
+(`record` 0.43, `batch100` 0.49 of before), unmarshal `record` about a third faster, `batch100`
+unmarshal and `blob64k` essentially unchanged, a JERI call 7–20% faster. The cost structure below
+is the one measured BEFORE those changes; the post-change top frames are listed in RESULTS.md.
+The original status line follows for reference. Profiled, not yet changed. Follows from
 `jgdms-benchmarks/serialization/RESULTS.md` (18 Oct 2026). JOSS is to be
 removed, so this document only asks where DER's cost is and which parts of it
 are implementation choices rather than STD-006 requirements.

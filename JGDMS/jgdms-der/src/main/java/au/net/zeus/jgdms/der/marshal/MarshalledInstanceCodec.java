@@ -216,27 +216,92 @@ public final class MarshalledInstanceCodec {
             DeserializationCompletion decodeUnit,
             ResolutionContext resolution)
             throws DerException, IOException, ClassNotFoundException {
+        return decodeMarshalledInstance(rec, receiverClass, null, decodeUnit, resolution);
+    }
+
+    /**
+     * As {@link #decodeMarshalledInstance(MarshalledInstanceRecord, Class, DeserializationCompletion,
+     * ResolutionContext)}, for a caller that has ALREADY verified {@code rec}'s embedded
+     * schema chain through {@link SchemaChain#decodeChain} and holds the result (the stream
+     * layer, whose dedup table verified the chain at the record's chain site and built
+     * {@code rec} from that same chain). The chain is used by reference instead of being
+     * parsed from {@code rec}'s bytes again. The record's {@code schemaDigest} field is still
+     * checked against the chain's leaf digest, so a record whose digest field disagrees with
+     * the chain it is handed is rejected exactly as the self-parsing path rejects it.
+     *
+     * @param verifiedChain the verified parse of {@code rec}'s {@code schemaBytes}, or
+     *                      {@code null} to parse {@code rec}'s chain here
+     */
+    public static <T> Result<T> decodeMarshalledInstance(
+            MarshalledInstanceRecord rec,
+            Class<T> receiverClass,
+            SchemaChain.Result verifiedChain,
+            DeserializationCompletion decodeUnit,
+            ResolutionContext resolution)
+            throws DerException, IOException, ClassNotFoundException {
 
         Objects.requireNonNull(rec,           "rec");
         Objects.requireNonNull(receiverClass, "receiverClass");
 
-        // Step 1: parse the embedded schema chain
-        SchemaChain.Result embeddedChain = rec.decodeSchemaChainAsResult();
+        if (verifiedChain != null) {
+            if (!Arrays.equals(verifiedChain.leafDigest(), rec.schemaDigest())) {
+                throw new DerException(
+                        "MarshalledInstanceRecord: schemaDigest field does not match the digest"
+                        + " of the embedded leaf schema record for class '"
+                        + verifiedChain.chain().get(0).className()
+                        + "' -- rejected (STD-006 S7.8 schemaDigest verification)");
+            }
+            SchemaCase verifiedCase;
+            try {
+                verifiedCase = Arrays.equals(
+                        SchemaGenerator.generateChain(receiverClass).leafDigest(), rec.schemaDigest())
+                        ? SchemaCase.A_MATCH : SchemaCase.B_OR_C_MISMATCH;
+            } catch (DerException e) {
+                verifiedCase = SchemaCase.B_OR_C_MISMATCH;
+            }
+            T verifiedObject = ObjectCodec.decodeHierarchy(
+                    receiverClass, verifiedChain, rec.payloadBytes(), decodeUnit, resolution);
+            return new Result<>(verifiedObject, verifiedCase);
+        }
 
-        // Step 2: compare embedded digest to receiver's own current digest
+        // Step 1+2: obtain the verified embedded chain and decide the schema case.
+        //
+        // Fast path (SOW-DER-Codec-Performance T4). The leaf class was already resolved by
+        // name through the endpoint ResolutionContext before this call (this method receives
+        // the Class, never a name). If the transmitted chain bytes are BYTE-IDENTICAL to the
+        // canonical chain this node generates for that class, and the sender's schemaDigest
+        // field equals that chain's leaf digest, then the chain is exactly the locally
+        // generated one: it is already parsed, cross-checked and digest-bound, so re-parsing
+        // it is redundant. This is a comparison AGAINST a locally generated, class-keyed
+        // value; nothing from the wire is cached. Any inequality -- an evolved sender, a
+        // tampered chain, a wrong schemaDigest field -- takes the full path below unchanged
+        // (which still rejects whatever it rejected before). The fast path can only accept
+        // what the full path accepts.
+        SchemaChain.Result embeddedChain;
         SchemaCase schemaCase;
-        try {
-            SchemaChain.Result receiverChain = SchemaGenerator.generateChain(receiverClass);
-            byte[] receiverDigest  = receiverChain.leafDigest();
-            byte[] embeddedDigest  = rec.schemaDigest();
-            schemaCase = Arrays.equals(receiverDigest, embeddedDigest)
-                    ? SchemaCase.A_MATCH
-                    : SchemaCase.B_OR_C_MISMATCH;
-        } catch (DerException e) {
-            // If the receiver class has no @AtomicSerial serialForm() we cannot compute
-            // its current digest -- treat as a mismatch (case b/c) and proceed with the
-            // embedded schema, which is always correct.
-            schemaCase = SchemaCase.B_OR_C_MISMATCH;
+        // The "local chain" here is verified through SchemaChain.decodeChain (ceilings, Merkle
+        // cross-check, completeness, canonical form) before it is trusted -- once per class --
+        // so this path applies the same checks as the full path below.
+        SchemaChain.Result fast = rec.verifiedLocalChain(receiverClass, "MarshalledInstanceRecord");
+        if (fast != null && Arrays.equals(fast.leafDigest(), rec.schemaDigest())) {
+            embeddedChain = fast;
+            schemaCase = SchemaCase.A_MATCH;
+        } else {
+            // Step 1: parse the embedded schema chain (full verification)
+            embeddedChain = rec.decodeSchemaChainAsResult();
+
+            // Step 2: compare embedded digest to receiver's own current digest
+            try {
+                SchemaChain.Result receiverChain = SchemaGenerator.generateChain(receiverClass);
+                schemaCase = Arrays.equals(receiverChain.leafDigest(), rec.schemaDigest())
+                        ? SchemaCase.A_MATCH
+                        : SchemaCase.B_OR_C_MISMATCH;
+            } catch (DerException e) {
+                // If the receiver class has no @AtomicSerial serialForm() we cannot compute
+                // its current digest -- treat as a mismatch (case b/c) and proceed with the
+                // embedded schema, which is always correct.
+                schemaCase = SchemaCase.B_OR_C_MISMATCH;
+            }
         }
 
         // Step 3: ALWAYS decode using the embedded chain (S7.8 normative).

@@ -103,6 +103,21 @@ No SecurityManager is installed. Measuring with one installed is a different
 question (the policy-overhead benchmarks in `../harness` answer it) and would
 need a policy for this jar.
 
+## Profiling (JFR)
+
+To see where a codec benchmark spends its time, attach JMH's JFR profiler to a
+single benchmark and payload, then aggregate the samples:
+
+    JAVA_HOME=/path/to/dirtychai/jdk ./run.sh "CodecBenchmark.marshal" \
+        -p format=DER -p payload=record -f 1 -prof jfr
+    python3 jfr-hotspots.py <profile.jfr from the JMH output> [frame-prefix] [top-n]
+
+`jfr-hotspots.py` prints self and inclusive time per `au.net.zeus.jgdms.der.*`
+frame as a percentage of samples (it needs the `jfr` tool from the same JDK on
+`PATH`). Compare a profile before and after a change rather than reading one in
+isolation; see `docs/SOW-DER-Codec-Performance.md` for how the DER codec work
+uses this.
+
 ## Reading the results
 
 `summarise.py` prints JOSS and DER side by side with the `DER/JOSS` ratio. A
