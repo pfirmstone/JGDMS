@@ -672,7 +672,15 @@ reviewers found problems the section 7 text does not cover, and the trust story 
    stream's `ServerSubject` is that service's identity. The two other delivery routes remain
    unresolved: legacy `ServiceRegistrar.lookup` results (unmarshalled with no context, so no
    identity) and a proxy nested in another service's response (attributed to the delivering
-   server). Requirement: delivery through `getServiceProxy()` on a prepared bootstrap proxy is the
+   server). **The nested case is a legacy-stream residue** (project lead): in Atomic marshal
+   streams a foreign service proxy is not inlined in the delivering server's response; it is
+   marshalled separately in a `MarshalledInstance` and unmarshalled separately by the receiver,
+   with a context the receiver chooses (as `getServiceProxy()` does for the proxy's own service).
+   Some of the old design remains (a `ProxySerializer` inlined in a JOSS stream resolves with that
+   stream's context), so the test below still pins the legacy behaviour, but it should not occur
+   on Atomic streams. Requirement: the provider must not rely on this; an identity may come only
+   from a `getServiceProxy()` response, and a `ProxySerializer` reached by any other route is not
+   trusted for identity. Requirement: delivery through `getServiceProxy()` on a prepared bootstrap proxy is the
    only route that may yield an identity, isolation pool key, `BootstrapPermission` subject or
    verified-path grant; for any other route the provider must refuse or route to process
    isolation without a verified grant, never run the in-JVM unverified path silently.
