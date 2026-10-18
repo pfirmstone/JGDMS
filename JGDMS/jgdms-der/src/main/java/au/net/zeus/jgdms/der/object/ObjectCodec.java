@@ -414,6 +414,12 @@ public final class ObjectCodec {
         return enc.toByteArray();
     }
 
+    /** {@link #encodeHierarchy(Object, SchemaChain.Result)} appended to {@code enc}; same bytes, no intermediate array. */
+    public static void encodeHierarchyTo(Object instance, SchemaChain.Result chain, DerEncoder enc)
+            throws DerException {
+        encodeHierarchyTo(instance, chain, 0, enc);
+    }
+
     /**
      * {@link #encodeHierarchy(Object, SchemaChain.Result, int)} appended to {@code enc} instead of returned: the
      * same bytes, with no intermediate array per class level. On any exception {@code enc} holds a partial

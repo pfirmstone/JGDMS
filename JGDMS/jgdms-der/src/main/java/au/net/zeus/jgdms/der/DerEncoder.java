@@ -107,6 +107,13 @@ public abstract class DerEncoder {
     /** Appends {@code len} bytes of an already-encoded TLV verbatim (not validated). */
     public abstract DerEncoder raw(byte[] tlv, int off, int len);
 
+    /**
+     * Whether the encoder holds a complete, usable encoding: it has not failed and no construct is open. A caller that
+     * shares one encoder across items uses this (with {@link #size()}) to tell whether an item that threw left anything
+     * behind.
+     */
+    public abstract boolean isClean();
+
     /** The encoding of everything written; requires every construct to be closed. */
     public abstract byte[] toByteArray();
 

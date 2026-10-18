@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.stream;
 
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerInputLimits;
 import au.net.zeus.jgdms.der.DerReader;
@@ -214,8 +215,27 @@ final class DerObjectStreamCodec {
     // Write side state
     // =========================================================================
 
-    /** Output accumulator for the write side. */
-    private final List<byte[]> writeBuffer = new ArrayList<>();
+    /**
+     * Output of the write side: ONE encoder holds every item written since the last drain. Items are appended in place
+     * (no per-item array, no list of chunks); {@link #drainTo} compacts it once and resets it.
+     */
+    private static final byte[] EMPTY = new byte[0];
+
+    private final DerEncoder writeOut = DerEncoder.create();
+
+    /**
+     * Scratch encoder for the one thing that still needs bytes in hand: the canonical record (or {@code [9]} array
+     * content) the dedup walker reads by offset. Reset before each use; never holds more than the current item.
+     */
+    private final DerEncoder scratch = DerEncoder.create();
+
+    /**
+     * Set when an item threw AFTER it had changed the stream: the shared encoder holds a partial item, or the encode
+     * dedup table has recorded a chain as emitted that was never sent (a later item would carry a {@code chainRef} the
+     * receiver cannot resolve). Such a stream is dead: every later write and the drain refuse. An item that threw before
+     * touching either (an unsupported type, an out-of-range proxy) leaves the stream usable, as it always did.
+     */
+    private boolean poisoned;
 
     /**
      * Write-side proxy-substitution config. When {@code substituteProxies} is set (via
@@ -328,7 +348,7 @@ final class DerObjectStreamCodec {
             // sec.C.5.2: the version TLV is the FIRST TLV of every stream — seeded
             // before any item or positional primitive can be buffered. (Harmless for
             // a read-only codec: its write buffer is never drained.)
-            writeBuffer.add(StreamSchemaDedup.versionTlv());
+            writeOut.raw(StreamSchemaDedup.versionTlv());
             this.encodeDedup = new StreamSchemaDedup(true);
         } else {
             this.encodeDedup = null;
@@ -437,23 +457,23 @@ final class DerObjectStreamCodec {
     // =========================================================================
 
     void writeBoolean(boolean v) {
-        writeBuffer.add(DerWriter.writeBoolean(v));
+        writeOut.bool(v);
     }
 
     void writeByte(int v) {
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf((byte) v)));
+        writeOut.integer((byte) v);
     }
 
     void writeShort(int v) {
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf((short) v)));
+        writeOut.integer((short) v);
     }
 
     void writeInt(int v) {
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(v)));
+        writeOut.integer(v);
     }
 
     void writeLong(long v) {
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(v)));
+        writeOut.integer(v);
     }
 
     /**
@@ -461,7 +481,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeFloat(float v) {
-        writeBuffer.add(DerWriter.writeOctetString(encodeCanonicalFloatContent(v)));
+        writeOut.octets(encodeCanonicalFloatContent(v));
     }
 
     /**
@@ -469,7 +489,7 @@ final class DerObjectStreamCodec {
      * canonical {@code +0.0}. {@code -0.0} is mapped to {@code +0.0} on encode.
      */
     void writeDouble(double v) {
-        writeBuffer.add(DerWriter.writeOctetString(encodeCanonicalDoubleContent(v)));
+        writeOut.octets(encodeCanonicalDoubleContent(v));
     }
 
     /**
@@ -478,7 +498,7 @@ final class DerObjectStreamCodec {
      * the low 16 bits as the char value, matching {@link DataOutput#writeChar}.)
      */
     void writeChar(int v) {
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf(validatedCodepoint(v))));
+        writeOut.integer(validatedCodepoint(v));
     }
 
     /**
@@ -535,18 +555,17 @@ final class DerObjectStreamCodec {
 
     void writeUTF(String s) {
         Objects.requireNonNull(s, "s");
-        writeBuffer.add(DerWriter.writeUtf8String(s));
+        writeOut.utf8(s);
     }
 
     void writeBytes(byte[] b, int off, int len) {
-        byte[] content = new byte[len];
-        System.arraycopy(b, off, content, 0, len);
-        writeBuffer.add(DerWriter.writeOctetString(content));
+        Objects.checkFromIndexSize(off, len, b.length);
+        writeOut.leaf(Tag.OCTET_STRING, b, off, len);
     }
 
     void writeSingleByte(int b) {
         // write(int) from ObjectOutputStream -- writes a single byte as an INTEGER
-        writeBuffer.add(DerWriter.writeInteger(BigInteger.valueOf((byte)(b & 0xFF))));
+        writeOut.integer((byte) (b & 0xFF));
     }
 
     // =========================================================================
@@ -573,10 +592,36 @@ final class DerObjectStreamCodec {
      * </ul>
      */
     void writeObject(Object obj) throws IOException {
+        requireWritable();
+        int mark = writeOut.isClean() ? writeOut.size() : -1;
+        long dedupMark = encodeDedup == null ? 0 : encodeDedup.mutationCount();
+        boolean done = false;
         try {
             writeObjectImpl(obj);
+            done = true;
         } catch (DerUtf8.UnencodableStringException e) {
             throw new IOException("DER encode failed: " + e.getMessage(), e);
+        } finally {
+            if (!done) afterFailedItem(mark, dedupMark);
+        }
+    }
+
+    /** Refuses to continue a stream an earlier item corrupted (see {@link #poisoned}). */
+    private void requireWritable() throws IOException {
+        if (poisoned) {
+            throw new IOException("DER stream is unusable: an earlier item failed after it had changed the stream"
+                    + " (a partial item is buffered, or a schema chain was recorded as sent that never was)");
+        }
+    }
+
+    /** Called when an item threw: poisons the stream iff the item had already changed it. */
+    // (The dedup-mutation clause is redundant today: every path that tables a chain has already opened its [1]/[9] frame
+    // in writeOut, so the encoder test alone catches it. It stays so a future reordering cannot silently lose the guard.)
+    private void afterFailedItem(int mark, long dedupMark) {
+        boolean touched = mark < 0 || !writeOut.isClean() || writeOut.size() != mark
+                || (encodeDedup != null && encodeDedup.mutationCount() != dedupMark);
+        if (touched) {
+            poisoned = true;
         }
     }
 
@@ -595,7 +640,7 @@ final class DerObjectStreamCodec {
             }
         }
         if (obj == null) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_NULL, new byte[0]));
+            writeOut.leaf(CTX_NULL, EMPTY);
             return;
         }
 
@@ -607,13 +652,13 @@ final class DerObjectStreamCodec {
             } catch (DerException e) {
                 throw new IOException("DER encode failed for java.lang.String: " + e.getMessage(), e);
             }
-            writeBuffer.add(DerWriter.writeTlv(CTX_STRING, strBytes));
+            writeOut.leaf(CTX_STRING, strBytes);
             return;
         }
 
         // byte[]: value semantics, no handle table
         if (obj instanceof byte[] bytes) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_BYTES, bytes));
+            writeOut.leaf(CTX_BYTES, bytes);
             return;
         }
 
@@ -621,13 +666,19 @@ final class DerObjectStreamCodec {
         // Arrays are VALUES, not @AtomicSerial objects (byte[] handled above as OCTET STRING).
         if (obj.getClass().isArray()) {
             try {
-                byte[] content = ObjectCodec.encodeTopLevelArray(obj);
+                scratch.reset();
+                ObjectCodec.encodeTopLevelArrayTo(obj, scratch);
                 if (streamFormat) {
                     // Appendix C: @AtomicSerial elements of a [9] array are P2 chain
-                    // sites and dedup like every other site (sec.C.4.2 P2c).
-                    content = encodeDedup.dedupTopLevelArray(content);
+                    // sites and dedup like every other site (sec.C.4.2 P2c). The walker reads the
+                    // canonical content by offset, so it is the one array this item still needs.
+                    byte[] content = scratch.toByteArray();
+                    writeOut.begin(CTX_ARRAY);
+                    encodeDedup.dedupTopLevelArrayTo(content, writeOut);
+                    writeOut.end();
+                } else {
+                    writeOut.leaf(CTX_ARRAY, scratch.toByteArray());
                 }
-                writeBuffer.add(DerWriter.writeTlv(CTX_ARRAY, content));
             } catch (DerException e) {
                 throw new IOException("DER stream [9] array encode failed for "
                         + obj.getClass().getName(), e);
@@ -639,12 +690,7 @@ final class DerObjectStreamCodec {
         // Use getDeclaringClass(), NOT getClass() (which is the constant-body subclass for
         // constants with bodies, e.g. Op.ADD -> Op$1).
         if (obj instanceof Enum<?> e) {
-            byte[] clsName = DerWriter.writeUtf8String(e.getDeclaringClass().getName());
-            byte[] name    = DerWriter.writeUtf8String(e.name());
-            byte[] content = new byte[clsName.length + name.length];
-            System.arraycopy(clsName, 0, content, 0, clsName.length);
-            System.arraycopy(name, 0, content, clsName.length, name.length);
-            writeBuffer.add(DerWriter.writeTlv(CTX_ENUM, content));
+            writeOut.begin(CTX_ENUM).utf8(e.getDeclaringClass().getName()).utf8(e.name()).end();
             return;
         }
 
@@ -676,7 +722,7 @@ final class DerObjectStreamCodec {
         if (Proxy.isProxyClass(obj.getClass())) {
             byte[] retained = ProxyWireSupport.wireContentForBoomerang(obj);
             if (retained != null) {
-                writeBuffer.add(DerWriter.writeTlv(CTX_PROXY, retained));
+                writeOut.leaf(CTX_PROXY, retained);
                 return;
             }
             Class<?>[] ifaces = obj.getClass().getInterfaces();
@@ -690,17 +736,18 @@ final class DerObjectStreamCodec {
                         "DER stream [8] proxy: InvocationHandler "
                         + h.getClass().getName() + " is not @AtomicSerial");
             }
-            java.io.ByteArrayOutputStream content = new java.io.ByteArrayOutputStream();
-            content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
-            for (Class<?> iface : ifaces) {
-                content.writeBytes(DerWriter.writeUtf8String(iface.getName()));
-            }
             try {
-                content.writeBytes(DerWriter.writeTlv(CTX_ATOMIC, encodeAtomicRecord(h)));
+                writeOut.begin(CTX_PROXY).integer(ifaces.length);
+                for (Class<?> iface : ifaces) {
+                    writeOut.utf8(iface.getName());
+                }
+                // the handler's record is canonical (the [8] interior is outside dedup)
+                writeOut.begin(CTX_ATOMIC);
+                writeAtomicRecordTo(h, writeOut);
+                writeOut.end().end();
             } catch (DerException e) {
                 throw new IOException("DER stream [8] proxy: handler encode failed", e);
             }
-            writeBuffer.add(DerWriter.writeTlv(CTX_PROXY, content.toByteArray()));
             return;
         }
 
@@ -725,37 +772,36 @@ final class DerObjectStreamCodec {
         // exactly one wire encoding whether it travels boxed (top-level) or as a
         // declared-type field (H1) -- required for Outrigger's byte-compare entry matching.
         if (obj instanceof Boolean b) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_BOOLEAN,
-                    new byte[] { b ? (byte) 0xFF : (byte) 0x00 }));
+            writeOut.leaf(CTX_BOOLEAN, new byte[] { b ? (byte) 0xFF : (byte) 0x00 });
             return;
         }
         if (obj instanceof Byte by) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_BYTE, BigInteger.valueOf(by).toByteArray()));
+            writeOut.leaf(CTX_BYTE, DerEncoder.integerContent(by));
             return;
         }
         if (obj instanceof Short sh) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_SHORT, BigInteger.valueOf(sh).toByteArray()));
+            writeOut.leaf(CTX_SHORT, DerEncoder.integerContent(sh));
             return;
         }
         if (obj instanceof Integer iv) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_INTEGER, BigInteger.valueOf(iv).toByteArray()));
+            writeOut.leaf(CTX_INTEGER, DerEncoder.integerContent(iv));
             return;
         }
         if (obj instanceof Long lg) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_LONG, BigInteger.valueOf(lg).toByteArray()));
+            writeOut.leaf(CTX_LONG, DerEncoder.integerContent(lg));
             return;
         }
         if (obj instanceof Float f) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_FLOAT, encodeCanonicalFloatContent(f)));
+            writeOut.leaf(CTX_FLOAT, encodeCanonicalFloatContent(f));
             return;
         }
         if (obj instanceof Double d) {
-            writeBuffer.add(DerWriter.writeTlv(CTX_DOUBLE, encodeCanonicalDoubleContent(d)));
+            writeOut.leaf(CTX_DOUBLE, encodeCanonicalDoubleContent(d));
             return;
         }
         if (obj instanceof Character c) {
             int cp = validatedCodepoint(c);
-            writeBuffer.add(DerWriter.writeTlv(CTX_CHARACTER, BigInteger.valueOf(cp).toByteArray()));
+            writeOut.leaf(CTX_CHARACTER, DerEncoder.integerContent(cp));
             return;
         }
 
@@ -772,16 +818,25 @@ final class DerObjectStreamCodec {
         }
 
         try {
-            byte[] rec = encodeAtomicRecord(obj);
             if (streamFormat) {
                 // Appendix C: the canonical sec.7.8 record becomes the stream-form
                 // DedupMarshalledInstanceRecord — this record's chain site and every
                 // P2 site in its payload interior, deduplicated in pre-order under the
                 // pinned first-full-then-reference rule (sec.C.5.3/C.6). Unconditional:
                 // dedup is the stream format, not a mode (sec.C.9).
-                rec = encodeDedup.dedupTopLevelAtomic(rec, cls);
+                // The walker reads the canonical record by offset, so it is the one array this
+                // item still needs; the stream form is written straight into the shared output.
+                scratch.reset();
+                writeAtomicRecordTo(obj, scratch);
+                byte[] rec = scratch.toByteArray();
+                writeOut.begin(CTX_ATOMIC);
+                encodeDedup.dedupTopLevelAtomicTo(rec, cls, writeOut);
+                writeOut.end();
+            } else {
+                writeOut.begin(CTX_ATOMIC);
+                writeAtomicRecordTo(obj, writeOut);
+                writeOut.end();
             }
-            writeBuffer.add(DerWriter.writeTlv(CTX_ATOMIC, rec));
         } catch (DerException e) {
             throw new IOException("DER encode failed for " + cls.getName(), e);
         }
@@ -818,10 +873,17 @@ final class DerObjectStreamCodec {
      * @throws NullPointerException if either argument is {@code null}
      */
     void writeCollection(Object coll, String declaredToken) throws IOException {
+        requireWritable();
+        int mark = writeOut.isClean() ? writeOut.size() : -1;
+        long dedupMark = encodeDedup == null ? 0 : encodeDedup.mutationCount();
+        boolean done = false;
         try {
             writeCollectionImpl(coll, declaredToken);
+            done = true;
         } catch (DerUtf8.UnencodableStringException e) {
             throw new IOException("DER encode failed: " + e.getMessage(), e);
+        } finally {
+            if (!done) afterFailedItem(mark, dedupMark);
         }
     }
 
@@ -829,9 +891,10 @@ final class DerObjectStreamCodec {
         Objects.requireNonNull(coll, "coll");
         Objects.requireNonNull(declaredToken, "declaredToken");
         try {
-            byte[] content = ObjectCodec.encodeTopLevelCollection(coll, declaredToken);
             // NO encodeDedup: the [16] interior is excluded from schema-chain dedup (see javadoc).
-            writeBuffer.add(DerWriter.writeTlv(CTX_COLLECTION, content));
+            writeOut.begin(CTX_COLLECTION);
+            ObjectCodec.encodeTopLevelCollectionTo(coll, declaredToken, writeOut);
+            writeOut.end();
         } catch (DerException e) {
             throw new IOException("DER stream [16] collection encode failed for token '"
                     + declaredToken + "'", e);
@@ -1593,11 +1656,11 @@ final class DerObjectStreamCodec {
     }
 
     /** Encodes an {@code @AtomicSerial} object to its MarshalledInstanceRecord DER bytes (the [1] content). */
-    private static byte[] encodeAtomicRecord(Object obj) throws DerException {
+    private static void writeAtomicRecordTo(Object obj, DerEncoder enc) throws DerException {
         Class<?> cls = obj.getClass();
         SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
-        byte[] payload = ObjectCodec.encodeHierarchy(obj, chain);
-        return MarshalledInstanceRecord.fromChain(chain, SchemaGenerator.generateChainBytes(cls), payload).encode();
+        MarshalledInstanceRecord.encodeCanonicalTo(enc, chain, SchemaGenerator.generateChainBytes(cls),
+                payload -> ObjectCodec.encodeHierarchyTo(obj, chain, payload));
     }
 
     /** Decodes the bytes inside a [1] {@code CTX_ATOMIC} TLV (a MarshalledInstanceRecord) into its object. */
@@ -1723,13 +1786,13 @@ final class DerObjectStreamCodec {
     // =========================================================================
 
     /**
-     * Concatenates all accumulated write-buffer chunks and writes them to the
-     * given output stream. Clears the buffer.
+     * Compacts everything written since the last drain into one array, writes it to the
+     * given output stream, and resets the buffer (a stream whose earlier item failed after
+     * changing it refuses, see {@link #poisoned}).
      */
     void drainTo(OutputStream out) throws IOException {
-        for (byte[] chunk : writeBuffer) {
-            out.write(chunk);
-        }
-        writeBuffer.clear();
+        requireWritable();
+        out.write(writeOut.toByteArray());
+        writeOut.reset();   // only after the write: a failed write leaves the bytes to be drained again
     }
 }

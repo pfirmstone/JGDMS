@@ -248,6 +248,36 @@ public final class MarshalledInstanceRecord {
            .end();
     }
 
+    /** Writes a record's payload into an encoder (see {@link #encodeCanonicalTo}). */
+    @FunctionalInterface
+    public interface PayloadWriter {
+        void writeTo(DerEncoder enc) throws DerException;
+    }
+
+    /**
+     * Appends the canonical record {@code SEQUENCE { payload, schemaBytes, schemaDigest, payloadFormat }} to
+     * {@code enc} with the payload written in place, byte-identical to
+     * {@code fromChain(chain, schemaBytes, payload).encode()} but with no intermediate payload or record array.
+     *
+     * @param schemaBytes the chain's records concatenated leaf-first (as {@link #fromChain(SchemaChain.Result, byte[], byte[])} takes it)
+     * @param payload     writes the payload bytes (the hierarchy encoding) into the OCTET STRING it is handed
+     */
+    public static void encodeCanonicalTo(DerEncoder enc, SchemaChain.Result chain, byte[] schemaBytes,
+                                         PayloadWriter payload) throws DerException {
+        Objects.requireNonNull(enc, "enc");
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(schemaBytes, "schemaBytes");
+        Objects.requireNonNull(payload, "payload");
+        byte[] digest = chain.leafDigest();
+        if (digest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException("schemaDigest must be exactly " + DIGEST_LENGTH
+                    + " bytes, got " + digest.length);
+        }
+        enc.begin(Tag.SEQUENCE).beginOctetString();
+        payload.writeTo(enc);
+        enc.end().octets(schemaBytes).octets(digest).utf8(PAYLOAD_FORMAT).end();
+    }
+
     // =========================================================================
     // Decoding
     // =========================================================================

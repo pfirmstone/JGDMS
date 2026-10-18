@@ -449,6 +449,9 @@ final class StreamSchemaDedup {
     /** Running sum of stored chain-byte lengths (metered at insertion, sec.C.8.2). */
     private long tableBytes = 0;
 
+    /** Incremented whenever the table changes; see {@link #mutationCount()}. */
+    private long mutations = 0;
+
     /**
      * Absolute ceiling (decode direction) on the schema-chain bytes re-materialised
      * while reconstituting one top-level item — {@code maxInputBytes ×
@@ -610,6 +613,15 @@ final class StreamSchemaDedup {
     /** The cumulative per-window work ceiling (sec.C.8.1 {@code maxStreamReconstitutedBytes}); test seam. */
     long maxStreamReconstitutedChainBytes() {
         return maxStreamReconstitutedChainBytes;
+    }
+
+    /**
+     * Count of changes made to this direction's table (chains inserted). A caller that shares one output across items
+     * compares it before and after an item that threw: if it moved, a chain may have been recorded as emitted without
+     * ever being sent, and the stream must not continue.
+     */
+    long mutationCount() {
+        return mutations;
     }
 
     /** Number of distinct chains currently tabled (test/diagnostic seam). */
@@ -1475,6 +1487,7 @@ final class StreamSchemaDedup {
         TableEntry entry = new TableEntry(chainBytes, List.copyOf(records), digest,
                 encoding ? DerWriter.writeTlv(TAG_CHAIN_REF, digest) : null);
         table.put(ByteBuffer.wrap(digest), entry);
+        mutations++;
         if (!encoding) {
             decodeByBytes.put(ByteBuffer.wrap(chainBytes), entry);
         }
