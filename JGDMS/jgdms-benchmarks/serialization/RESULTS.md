@@ -249,7 +249,11 @@ Average time per operation, µs, ± the 99.9% confidence interval:
 are dominated by JIT/GC jitter on this shared host). Shorter runs of the same code measured
 `marshal point` at about 1.2 µs and `unmarshal point` at about 8.3 µs against 2.6 and 13 before,
 but those are not the protocol-grade 2 × 5 run and are not quoted as results. `roundTrip point`
-(12.82 ± 9.53 after vs 24.60 ± 34.08 before) is likewise within noise.
+(12.82 ± 9.53 after vs 24.60 ± 34.08 before) and `roundTrip record` (19.23 ± 10.60 after, ratio
+0.81) are likewise within noise. The raw per-iteration data show the `point` anomalies are single slow
+first iterations (marshal `point` after: one fork opened at 40.8 µs; unmarshal `point` before: one
+fork opened at 228 µs). Medians are the better summary for those rows: marshal `point` 2.64 µs
+before, 1.27 µs after (0.48); unmarshal `point` 13.72 µs before, 8.35 µs after (0.61).
 
 ## What the numbers say
 
@@ -265,8 +269,12 @@ but those are not the protocol-grade 2 × 5 run and are not quoted as results. `
   per stream, small against a 64 KiB payload. `blob64k` marshal is about 30% faster; it is still
   several whole-array copies (one per nesting level), not the "within ~2× of a single copy" the
   SOW hoped for, because that needs the call sites migrated to a streaming encoder.
-- **A remote call (JERI) improves 7–20%** because the transport is shared and unchanged: the codec is
-  a fraction of a loopback call. `batch100` benefits most (0.80).
+- **A remote call (JERI): only `batch100` clearly improves (0.80).** The other JERI rows moved
+  0.88–0.93, but `JeriBenchmark.ping` (an empty call with essentially no codec work) moved 0.88
+  between the two runs, so about 12% of any JERI ratio is run-to-run drift on this shared host;
+  `point` (0.93), `record` (0.92) and `blob64k` (0.92) have overlapping confidence intervals and
+  are not distinguishable from it. The transport is shared and unchanged, and the codec is a
+  fraction of a loopback call (about 1.6 ms of a 7.5 ms `batch100` call).
 - The SOW's targets (small-object marshal ≈ halved; multi-object ≈ 30% faster both ways; `blob64k`
   marshal in tens of µs) are met for marshal, partly met for unmarshal, and not met for `blob64k`.
 

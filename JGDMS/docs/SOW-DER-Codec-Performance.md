@@ -226,7 +226,11 @@ from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the
 - **T3 as written is not implementable for the encoder; what was built instead.** §4 T3 has the
   encoder consult the per-stream table "while writing". That cannot preserve the wire form:
   a `SET OF` is octet-sorted (X.690 §11.6) over the canonical FULL-form element bytes, and
-  Appendix C §C.6.2 defines "first occurrence" over that WIRE order. Dedup in iteration order would
+  Appendix C §C.6.2 defines "first occurrence" over the pre-order record-entry traversal, in which
+  collection elements are taken in WIRE element order (for a sorted set, after the sort). (Board
+  review, 2026-10-18: strictly only subtrees under a sorted ancestor need deferral, and C.6.2's
+  non-normative note recommending "register the record's identity when you begin encoding it"
+  never mentions `SET OF` — it should be corrected.) Dedup in iteration order would
   put the `fullChain` on a different element than the first one in wire order, and a conforming
   decoder would then see a `chainRef` before its `fullChain` and hard-reject the stream. The
   encode therefore stays two-phase (canonical encode and sort, then substitute sites in wire
@@ -261,6 +265,23 @@ from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the
   0.80–0.93×. Full table, caveats (the `point` rows are within noise) and the post-change top
   self-time frames are in `RESULTS.md`. Next SOW: migrate the call sites to a streaming encoder
   (the per-nesting-level copies are what now dominate both directions).
+
+- **Post-closeout corrections (board review, 2026-10-18).** Two defects in the code landed by T3/T4
+  were found by review and fixed with regression tests, which is why the golden corpus alone was
+  not a sufficient oracle for the decode side:
+  1. *T3 regression:* a `fullChain` whose field name carried invalid UTF-8 was accepted (and was
+     rejected before T3). The string decoders substitute U+FFFD instead of failing, so such a chain
+     parsed; its identity was SHA-256 over the received bytes in the dedup table but over the
+     re-encoded record in the Merkle/`schemaDigest` check, and T3's hand-off compared the former
+     with itself. Fixed in `SchemaChain.decodeChain` (received bytes must equal the canonical
+     re-encoding), test `StreamSchemaDedupNonCanonicalChainTest`.
+  2. *T4 fast path skipped the chain ceilings:* it took the locally generated chain without
+     running `SchemaChain.decodeChain`, so a local class whose chain exceeded `maxChainBytes` was
+     accepted by the fast path and rejected by the full path. The fast path now uses
+     `SchemaGenerator.verifiedLocalChain` (decodeChain once per class); test
+     `localChainBreachingACeilingIsRejectedOnBothPaths`.
+  Still open: ordinary string VALUES in payloads are decoded with the same lenient UTF-8
+  substitution (a G1 question outside this SOW; making it strict rejects streams accepted today).
 
 ---
 Drafted with AI assistance (Claude) under the direction of the JGDMS maintainer;

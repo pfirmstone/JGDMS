@@ -1,30 +1,32 @@
 # Scope of Work — DER streaming encoder (byte-identical, verification-preserving) and optional stream read-ahead
 
 - **Drafted:** 2026-10-18.
-- **Status:** DRAFT — scoped at Peter's request following the closeout of
-  `SOW-DER-Codec-Performance.md`; task breakdown for a code agent; no implementation started.
+- **Status:** DRAFT, revised 2026-10-18 after a three-seat board review (ASN.1/DER, adversarial
+  security, transport/fidelity; findings folded in below) — scoped at Peter's request following the
+  closeout of `SOW-DER-Codec-Performance.md`; no implementation started.
   Part A (the streaming encoder) is dispatchable under the same rules as the previous SOW.
   Part B (whole-stream pre-admission: read-ahead for defensive security, per maintainer
   direction "safe, or not — no partial rejection") closes a verified gap: today per-item rejects
-  happen after earlier items have been delivered. Part B2 is the stream-level admission gate and
-  needs a security-literate reviewer.
+  happen after earlier items have been delivered. Part B is a *security* change, not a performance
+  change: B2 is the stream-level admission gate, **where it runs relative to authorization is an
+  open design question (B.2.0)**, and B1/B2 reject some streams that are accepted today (B.2.7).
 - **Origin:** `jgdms-benchmarks/serialization/RESULTS.md`, second run (after T0–T6 of the
   previous SOW), and `SOW-DER-Codec-Performance.md` §8. After that work the dominant remaining
   cost in both directions is **copying**: `DerWriter.frame`/`writeTlv` are 15% of marshal
   `record` self time and 25% of `batch100`, and the dedup pass's read-and-rebuild is the largest
   part of `batch100` unmarshal. Chain parsing and hashing no longer appear near the top.
 - **Governing rule — byte-identical output, verdict-identical decode.** Identical to the previous
-  SOW §0: every task must leave the encoder's output bytes and the decoder's accept/reject
-  decisions unchanged. STD-006 (canonical form, G1), Appendix C (first-occurrence rule over
-  *wire* order, per-stream table, fail-closed `chainRef`, ceilings) and `DerInputLimits` are not
-  touched. The 31-payload `DerGoldenBytesTest` corpus (alone and three-in-a-stream), its decode
+  SOW §0: every Part A task must leave the encoder's output bytes and the decoder's accept/reject
+  decisions unchanged. STD-006 (canonical form, G1), Appendix C (first-occurrence rule over the
+  pre-order record-entry traversal, with collection elements in wire element order; per-stream
+  table; fail-closed `chainRef`; ceilings) and `DerInputLimits` ceilings are not touched. The 31-payload `DerGoldenBytesTest` corpus (alone and three-in-a-stream), its decode
   round-trip, `DerWriterEquivalenceTest` and the existing reject tests are the oracle; a diff in
-  bytes or verdicts is a defect. Part B is the one place this SOW proposes anything that could
-  change observable behaviour (earlier rejection, never different acceptance), and it is therefore
-  reviewed as a security change.
+  bytes or verdicts is a defect. Part B is the one place this SOW proposes anything that changes
+  observable behaviour (streams rejected earlier, and a small class of streams rejected that are
+  accepted today, B.2.7); it is reviewed as a security change.
 - **Companions:** `SOW-DER-Codec-Performance.md` (§8 records what was built and why T2/T3 stopped
   where they did); `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md`;
-  `JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md` (§C.6.2 wire-order first
+  `JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md` (§C.6.2 pre-order first
   occurrence, §C.7, §C.8); `JGDMS-Board-Reviewer-Guidance.md` (G1, G3, G6, G10, G13);
   `jgdms-benchmarks/serialization/`.
 
@@ -32,7 +34,8 @@
 
 ## 1. What this closes, precisely
 
-Post-previous-SOW profile (JFR, DER, DirtyChai 27; `au.net.zeus.jgdms.der.*` self time):
+Post-previous-SOW profile (JFR, DER, DirtyChai 27; `au.net.zeus.jgdms.der.*` self time; the
+unmarshal columns rest on only ~200 samples and are indicative):
 
 | | marshal `record` | marshal `batch100` | unmarshal `record` | unmarshal `batch100` |
 |---|---:|---:|---:|---:|
@@ -40,14 +43,20 @@ Post-previous-SOW profile (JFR, DER, DirtyChai 27; `au.net.zeus.jgdms.der.*` sel
 | dedup read/rebuild (`StreamSchemaDedup.transform*`, `rebuildCollectionOuter`) | <5% | ~8% | ~5% | ~8% |
 
 and the structural cause: every `DerWriter` call returns a fresh `byte[]` that the caller wraps in
-the next call. A payload nested *k* levels deep is copied *k* times on encode, copied again by
-the dedup pass (read each TLV out as a slice, rebuild every enclosing level), and, on decode,
-copied again by reconstitution. `blob64k` marshal is still ~190 µs (a handful of 64 KiB copies)
-against a theoretical one copy.
+the next call. A payload nested *k* levels deep is copied *k* times on encode, and again by the
+dedup pass (read each TLV out as a slice, rebuild every enclosing level). `blob64k` marshal is
+still ~190 µs (a handful of 64 KiB copies) against a theoretical one copy.
 
-Targets after Part A (to be confirmed by A5, not asserted): `blob64k` marshal ≤ ~half of today;
-`batch100` marshal and unmarshal each a further ~20–30% faster; allocation per marshal of a
-64 KiB blob down from several hundred KiB to ~2× the payload.
+**Part A is a marshal story.** Even eliminating both rows entirely would remove only ~16% of
+`batch100` unmarshal and ~7% of `record` unmarshal (board review, arithmetic on the table above),
+so no unmarshal speed-up is promised: the unmarshal target is "no regression". Targets after
+Part A, to be confirmed by A5 and not asserted: `blob64k` marshal ≤ ~half of today **only if**
+A.1.1's single-pass approach (not shift-per-ancestor) is what is built; `batch100` marshal a
+further ~20–30% faster; allocation per marshal of a 64 KiB blob down from several hundred KiB to
+~2× the payload. Whether the gain shows up in a JERI call at all is unproven: the codec was
+~1.6 ms of a ~7.5 ms `batch100` call (RESULTS.md), and A4 changes the drain step that
+RESULTS.md hypothesises is part of the unexplained time — A4 is therefore preceded by timing the
+drain and read phases separately.
 
 Explicitly **not** touched: everything in the previous SOW §1's list (`GetArg.callerClass`, fail-
 closed verification, canonical-form checks, ceilings, per-stream tables, class resolution through
@@ -56,9 +65,11 @@ closed verification, canonical-form checks, ceilings, per-stream tables, class r
 ## 2. Verified ground truth (read in source, 2026-10-18)
 
 - `DerWriter` (public API unchanged, single-allocation per call after T2 of the previous SOW)
-  has ~122 call sites in 9 files: `ObjectCodec` 36, `DerObjectStreamCodec` 33, `StreamSchemaDedup`
-  19, `EntryRepV2Codec` 12, `AnyCodec` 10, `MarshalledInstanceRecord` 5,
-  `AtomicSerialSchemaRecord` 4, `AtomicSerialFieldDef` 3, `DerFieldStore` 3.
+  has ~105 call expressions in 9 files (comments and imports excluded): `DerObjectStreamCodec` 29,
+  `ObjectCodec` 26, `StreamSchemaDedup` 18, `EntryRepV2Codec` 12, `AnyCodec` 9,
+  `MarshalledInstanceRecord` 4, `DerFieldStore` 3, `AtomicSerialSchemaRecord` 3,
+  `AtomicSerialFieldDef` 1. Other modules also call it (`CelEncoder` in jgdms-cel-authoring,
+  `DerTbs` in jgdms-platform, two examples); they stay on the façade.
 - Composition is bottom-up by value: leaf `DerWriter.writeX(...)` → collected in a
   `List<byte[]>` → `writeSequence(list)` → the parent's list. No call site holds a buffer it
   appends into; there is no writer *object*.
@@ -66,39 +77,62 @@ closed verification, canonical-form checks, ceilings, per-stream tables, class r
   (X.690 §11.6) before framing. The sort key is the child's complete canonical bytes, so a sorted
   collection's elements are necessarily encoded to separate arrays first. A streaming encoder
   reduces copying elsewhere; it cannot remove the per-element array for sorted sets, and must not
-  pretend to. (`SEQUENCE`/preserve-order collections have no such constraint.)
-- Dedup is a pass over the canonical encoding, not part of encoding: Appendix C §C.6.2 defines
-  first occurrence over **wire** order, which for a sorted set is the order *after* the sort. The
-  previous SOW's §8 records why dedup-while-encoding is wire-incompatible. This SOW keeps that
-  structure; it makes the *pass* cheap (Part A, A3), it does not remove it.
+  pretend to. (`SEQUENCE`/preserve-order collections have no such constraint.) Map entries have
+  their own ordering rule; the golden corpus currently cannot tell key order from whole-entry
+  order (every entry has the same length — board review F2, confirmed by breaking the sort and
+  seeing 62/62 golden tests still pass), so A0 must add such a case.
+- **Dedup is a pass over the canonical encoding, not part of encoding.** Appendix C §C.6.2 defines
+  first occurrence over the **pre-order record-entry traversal** ("not over raw byte positions"):
+  a record's own chain site precedes its payload's sites even though its bytes follow them, and
+  collection elements are taken in *wire element order* — for a sorted set, the order *after*
+  the sort. Deduplicating while encoding in iteration order would therefore put the `fullChain`
+  on a different element than the first one in wire order. (Strictly, only subtrees under a
+  sorted ancestor need their substitution deferred; the previous SOW's §8 states the conclusion
+  more broadly than that, and C.6.2's non-normative note — register the record's identity when
+  you begin encoding it — recommends the naive approach without mentioning `SET OF`; the spec note
+  should be corrected, G8.) This SOW keeps the pass structure and makes the pass cheap (A3).
 - `DerObjectStreamCodec` buffers every encoded item in `writeBuffer` until `flush()`/`drainTo`;
   `DerMarshalInputStream`'s constructor calls `DerInputLimits.readAllBytesBounded(in)`, i.e. it
   **reads the whole stream to EOF before the first `readObject()`**, then decodes from the array.
-  (Part B starts from these two facts.)
+  On the server that constructor runs in `BasicInvocationDispatcher` **before**
+  `request.checkConstraints` and `checkAccess` (lines ~1077 vs ~1097/1114), i.e. before
+  authorization; the method descriptor is also read from the stream before authorization.
+  The authorization-context block is a separate DER stream (`DerReducingContextCodec`),
+  read before constraints are checked and described in the code as untrusted authorization input.
+  (Part B starts from these facts.)
 - Existing oracles: `DerGoldenBytesTest` (31 payloads × {1,3} items, encode + decode round-trip),
   `DerWriterEquivalenceTest` + frozen `DerWriterReference`, `ConformanceVectorsTest`,
   `DerStreamSchemaDedupTest`, the `StreamSchemaDedup*` ceiling/bomb/cumulative-work tests,
-  `DerInputLimitsTest`, `MarshalledInstanceFastPathTest`, `StreamSchemaDedupVerifiedChainTest`,
-  and the jqwik property tests.
+  `StreamSchemaDedupNonCanonicalChainTest`, `DerInputLimitsTest`, `MarshalledInstanceFastPathTest`,
+  `StreamSchemaDedupVerifiedChainTest`, and the jqwik property tests.
 
 # Part A — Streaming encoder
 
 ## A.1 Design positions (the agent implements these; it does not relitigate them)
 
-### A.1.1 One growable buffer, lengths patched in place, minimal-length rule kept
+### A.1.1 One growable buffer; lengths resolved without moving content at every ancestor
 
 Introduce `DerEncoder`, a mutable single-thread encoder over one growable `byte[]`:
-`beginConstructed(Tag)` records the content start; children are appended in order;
-`end()` computes the content length and writes the minimal DER length. Because the length-octet
-count depends on the content length (1, 2, 3, … octets), `end()` either (a) reserves the common
-case (a 1-octet length) and shifts the content once if more are needed (one memmove, only for
-constructs ≥ 128 bytes, and *once per construct*, replacing a copy of the whole subtree at *every*
-ancestor), or (b) uses the two-pass size-then-write variant. The previous SOW's open question 1
-(back-to-front vs two-pass) is decided here: **forward write with reserve-and-shift**, because the
-encode call graph is naturally forward and back-to-front would force reverse iteration through
-`ObjectCodec`'s field loop. The implementer may choose (b) only with a benchmark showing it wins.
+`beginConstructed(Tag)` records the content start; children are appended in order; `end()` fixes
+the construct's content length. The DER minimal-length rule makes the number of length octets
+depend on the content length, which is not known until the construct ends. **The earlier draft's
+"reserve one octet and shift once per construct" is wrong** (board review, confirmed by
+arithmetic): when a construct closes with ≥ 128 bytes, its whole content shifts, and so does
+every enclosing construct's content when *it* closes, so a 64 KiB blob nested 7 deep is still moved
+~7 times — the same O(depth × size) as today with a cheaper memmove. A1 must implement and
+benchmark the two variants that avoid this, and ship the faster:
+
+- (b) **two-pass sizing:** a size pass computes every TLV length, then one forward write; or
+- (c) **reserve-maximum-and-compact-once:** each construct reserves a worst-case length field
+  (e.g. 4 octets, enough for lengths below 16 MiB, the largest item `maxInputBytes` admits),
+  recording `(headerOffset, contentLength)` in a side list; one left-to-right pass at
+  `toByteArray()` closes the slack, so every byte moves at most once overall.
+
 Either way the output is byte-identical; the old builder stays in the test tree as the oracle
-(already there as `DerWriterReference`).
+(already there as `DerWriterReference`). Back-to-front is rejected as before (forces reverse
+iteration through `ObjectCodec`'s field loop). A1's property test must include constructs whose
+content length straddles each length-octet boundary, nested inside constructs that also straddle
+one, because that is exactly where a slack-compaction bug would hide.
 
 ### A.1.2 The façade stays; the new API is additive
 
@@ -109,11 +143,15 @@ migrate in one task; each task migrates one file and must pass the full oracle o
 
 ### A.1.3 Sorted sets: encode children to scratch, sort, append
 
-For a CANONICALISE collection the encoder encodes each child into a reusable **scratch region**
-(or a per-collection pooled array), sorts by unsigned lexicographic compare on those ranges
-(the comparator already proven by the octet-sort harness; reuse it, do not reimplement), then
-appends the sorted ranges. The saving over today is one copy and one allocation per element,
-not the removal of the per-element encode. Ties (duplicate encodings) behave exactly as today.
+For a CANONICALISE collection the encoder encodes each child into a **scratch region**, sorts by
+unsigned lexicographic compare on those ranges (reuse the comparator already proven by the
+octet-sort harness; do not reimplement), then appends the sorted ranges. **The scratch area must
+be a stack (or per-collection regions), not one shared buffer:** an element of a sorted set can
+itself contain a sorted set (or a map key/value can), and an inner collection reusing a single
+scratch region would overwrite the outer element still being encoded in it (board review F3;
+no current corpus payload exercises this, A0 adds one). Maps keep their existing ordering rule
+(see §2). The saving over today is one copy and one allocation per element, not the removal of the
+per-element encode. Ties (duplicate encodings) behave exactly as today.
 
 ### A.1.4 Ownership and defensive copying
 
@@ -143,12 +181,12 @@ append occurs (the encoder's size does not grow past the ceiling).
 
 | Task | Deliverable | Agent · effort | Model tier | Review | Depends |
 |------|-------------|----------------|-----------|--------|---------|
-| **A0** · Oracle extension | Add to `DerGoldenBytesTest` the payloads that stress nesting depth and large lengths: depth-`MAX_NESTING−1` chain, a 70 000-element `Rec` list (length-octet boundary 3), a set with duplicate encodings, an empty collection, a 16 MiB−1-byte blob. Generate fixtures from HEAD **before** A1. Add a `DerEncoder`-vs-`DerWriterReference` property test scaffold (random nested trees incl. sorted sets) that A1 fills in. | general-purpose · MEDIUM | sonnet | single reviewer (fixtures from clean HEAD) | — |
-| **A1** · `DerEncoder` + sorted-set support | The class per A.1.1/A.1.3/A.1.4; façade `DerWriter` unchanged. Property test: for random nested trees (incl. all tag forms, all length boundaries 127/128/255/256/65535/65536, sorted sets), `DerEncoder` ≡ `DerWriterReference` byte-for-byte. Microbenchmark vs the façade on a 64 KiB / 7-level payload. | general-purpose · HIGH | sonnet | single reviewer + property test + `ConformanceVectorsTest` | A0 |
-| **A2** · Migrate the object encoders | `ObjectCodec`, `AnyCodec`, `DerFieldStore`, `AtomicSerialSchemaRecord`, `AtomicSerialFieldDef`, `MarshalledInstanceRecord`: bracket children instead of building lists. One file per commit, each passing the full oracle. | general-purpose · HIGH | sonnet | single reviewer + full golden corpus per commit | A1 |
+| **A0** · Oracle extension | Extend `DerGoldenBytesTest` **before** A1, fixtures generated from HEAD (and cross-checked against trunk `9adc8e6e3` where the code path is unchanged, as in the previous SOW's T3 stage 0). Add: depth-`MAX_NESTING−1` chain; a 70 000-element `Rec` list (length-octet boundary 3); constructs of content length exactly 127/128/255/256/65535/65536 **inside** the stream, nested inside constructs that also straddle a boundary; a set with duplicate encodings; **map entries whose key order differs from whole-entry order**; **a sorted set inside a sorted-set element and inside a map key/value**; empty string, empty `byte[]`, a zero-field record (`30 00`), an empty collection, a `bag:` with duplicates; top-level `[16]`, `[7]`, scalar and null items; a mixed-class stream where a top-level chain is later referenced from a nested site; a 16 MiB−1-byte blob. Add a `DerEncoder`-vs-`DerWriterReference` property test scaffold (random nested trees incl. sorted sets and maps) that A1 fills in. **Mutation check required:** deliberately break the map sort, the set sort and a length boundary and show each is caught. | general-purpose · MEDIUM | sonnet | single reviewer (fixtures from clean HEAD) | — |
+| **A1** · `DerEncoder` + sorted-set support | The class per A.1.1/A.1.3/A.1.4; façade `DerWriter` unchanged. Implement **both** (b) two-pass and (c) reserve-and-compact variants of A.1.1 behind the same API, property-test both against `DerWriterReference` (random nested trees, all tag forms, all length boundaries 127/128/255/256/65535/65536 including nested straddles, sorted sets, maps, nested sorted sets), microbenchmark both on a 64 KiB / 7-level payload and on `batch100`, keep the faster and delete the other. | general-purpose · HIGH | sonnet | single reviewer + property test + `ConformanceVectorsTest` | A0 |
+| **A2** · Migrate the object encoders | **Callee-first**, so no interim adapter adds copies: `AtomicSerialFieldDef`, `AtomicSerialSchemaRecord`, `MarshalledInstanceRecord`, `DerFieldStore`, `AnyCodec`, then `ObjectCodec`; and `EntryRepV2Codec` (12 sites — Entry byte-matching is a canonicity-critical path with its own tests, which must run per commit). Bracket children instead of building lists. One file per commit, each passing the full oracle. | general-purpose · HIGH | sonnet | single reviewer + full golden corpus per commit | A1 |
 | **A3** · Migrate the dedup walker (both directions) | Per A.1.5/A.1.6: offset-based reads, single output encoder, `appendRaw` for untouched sub-TLVs, ceilings metered before append. Keep the old byte[]-in/byte[]-out methods as thin wrappers (the ceiling/bomb/cumulative tests call them). Add an equivalence test: for the whole corpus, new walker output ≡ old walker output (old kept in the test tree) in both directions. | general-purpose · XHIGH (the dedup layer is the security spine) | top-tier | security-literate reviewer + `DerStreamSchemaDedupTest` + every `StreamSchemaDedup*` test + golden corpus + adversarial rejects re-run (G13) | A2 |
-| **A4** · Migrate the stream codec | `DerObjectStreamCodec` writes items into one encoder instead of `writeBuffer` of arrays; `drainTo` streams from it. Item framing, version octet, `[8]`/`[9]`/`[16]` branches unchanged. | general-purpose · HIGH | sonnet | single reviewer + golden corpus | A3 |
-| **A5** · Measurement + closeout | Re-run the harness on the same machine/JDK as `results-after.json`; add a dated third section to `RESULTS.md` with the before/after pair and ratios; re-profile and list the new top-5 self-time frames; update both SOWs' status. Report allocation per op (`-prof gc`) for `blob64k` and `batch100`, since reducing garbage is a stated goal. | general-purpose · MEDIUM | sonnet | single reviewer | A2–A4 |
+| **A4** · Migrate the stream codec | **First**, time the drain and the read phases separately on the JERI loopback benchmark and report whether `drainTo`/input buffering is a material part of a call (RESULTS.md hypothesises the unexplained ~2.4 ms of a `batch100` call; if codec time cannot appear in a JERI call, stop and report). Then: `DerObjectStreamCodec` writes items into one encoder instead of `writeBuffer` of arrays; `drainTo` streams from it. Item framing, version octet, `[8]`/`[9]`/`[16]` branches unchanged. | general-purpose · HIGH | sonnet | single reviewer + golden corpus | A3 |
+| **A5** · Measurement + closeout | Re-run the harness on the same machine/JDK as `results-after.json`; add a dated third section to `RESULTS.md` with the before/after pair and ratios; re-profile and list the new top-5 self-time frames; update both SOWs' status. Report medians as well as means for any row whose error interval exceeds its score. Report allocation per op (`-prof gc`) for `blob64k` and `batch100`, since reducing garbage is a stated goal. | general-purpose · MEDIUM | sonnet | single reviewer | A2–A4 |
 
 **Sequencing:** A0 → A1 → A2 → A3 → A4 → A5. A2 may be split across several commits; A3 is last
 among the encoders because it is the security-sensitive one and benefits from A2's encoder
@@ -163,7 +201,7 @@ being exercised first.
 - **Not dedup-while-encoding** (wire-incompatible; previous SOW §8).
 - **Not the JERI mux** (`maxFragmentSize = 1024`, per-fragment synchronous `waitForIO`): still its
   own SOW; it bounds large remote calls in both formats and is independent of this work.
-- **Not a public `DerWriter` removal or signature change.**
+- **Not a public `DerWriter` removal or signature change**; other modules' use of the façade (`CelEncoder`, `DerTbs`, examples) is untouched.
 
 # Part B — Whole-stream pre-admission ("read-ahead" for defensive security)
 
@@ -190,9 +228,48 @@ nesting-depth breach. Only the version octet is checked up front. So the stream-
 fail-closed property the Appendix C text describes ("a hard reject of the stream") is, in the
 implementation, "a hard reject from that item on".
 
-Pre-admission closes that gap for every check that can be made **without constructing anything**.
+Two further facts the board review traced in code (not run; B0 pins them as tests):
+
+- **Unread trailing items are accepted today.** `DerObjectStreamCodec` has no end-of-stream or
+  unread-item check (`available()` only tests `hasMore`). A stream with a valid prefix and a
+  malformed *unread* trailing item decodes fine, because the dispatcher reads only the method and
+  its arguments and the client reads one response item. Whole-stream admission would reject it
+  (B.2.7).
+- **DGC callbacks still fire after a reject.** `DerMarshalInputStream.close()` calls
+  `decodeUnit.flush()` unconditionally, and `BasicInvocationDispatcher`'s `finally` closes the
+  stream on the failure path too. So after a Layer-2 reject of object *k*, the DGC registrations
+  made by objects 1…*k*−1 can still be sent. This is independent of pre-admission and applies to
+  streams that pass it; if confirmed it is a bug in current code and should be fixed on its own
+  (flush on success, discard on failure).
+
+Pre-admission closes the structural part of the gap: every check that can be made **without
+constructing anything**, over the part of the stream phase 1 can actually see (B.2.1).
 
 ## B.2 Design positions
+
+### B.2.0 Where admission runs relative to authorization (open design question; board review finding)
+
+The DER stream is constructed — and with it the whole input buffered — in
+`BasicInvocationDispatcher` **before** `checkConstraints` and `checkAccess`, and the method
+descriptor is read from it before authorization too. The same holds for the separate
+authorization-context stream. If phase 1 simply ran in the stream constructor, an
+**unauthorized peer would get the full dedup walk, chain hashing and reconstitution up to the
+ceilings** (and, under B6, class loading and codebase downloads) before being refused. Today such
+a peer costs only buffering up to `maxInputBytes`. Admission must not make the unauthenticated
+cost larger. Two shapes, to be decided in B2's design step:
+
+- **(i) Two-stage admission.** *Cheap admission* at construction (framing, the version octet,
+  per-item and total budgets, item count, tag allow-list — no hashing, no dedup walk, no class
+  names), and *full admission* (the dedup walk, B5 policy) invoked explicitly after `checkAccess`
+  and before `unmarshalArguments` (an explicit `DerMarshalInputStream` call from the dispatcher,
+  or a first-`readObject`-after-authorized hook). The method item that is read before authorization
+  is then covered only by cheap admission, which is the existing exposure and does not get worse.
+- **(ii) Admission at construction, unauthenticated-cost-bounded.** Only if (i) is rejected, and
+  only with a measured bound showing the pre-authorization cost stays comparable to today's.
+
+Recommendation: (i). The response stream on the client has no authorization step and takes full
+admission at construction. B4 must report phase-1 cost for both stages, and the "synthetic
+8-item request" must include an authorization-context stream.
 
 ### B.2.1 Two phases over the already-buffered bytes; nothing is constructed in phase 1
 
@@ -205,17 +282,41 @@ Pre-admission closes that gap for every check that can be made **without constru
   points as today, before the amplifying step); nesting-depth and collection-size bounds; item
   tag allow-list. Result: **admit** (a verified plan) or **reject the stream** with the first
   failure, with the same message class and exception type the lazy path throws today.
+- **What phase 1 cannot see (board review F5/#2, confirmed by trace).** The dedup walker passes
+  `[8]` proxy interiors and `[16]` collection interiors through **verbatim, without descent**
+  (C.6.5/C.6.5a; `transformNestedSite`), and payload *values* (set order, UTF-8, integer ranges)
+  are only checked by the record-level decoder. So a chain-ceiling breach, depth bomb or
+  disallowed class name inside a proxy handler's nested record, or a malformed value, passes
+  phase 1 and is rejected later, after earlier objects exist. The claims above and in B.1 are
+  therefore limited to what the walker sees. Closing the `[8]`/`[16]` hole needs a separate
+  **verify-only descent** into those regions that checks chains, depth and sizes but must NOT
+  populate or consult the dedup table (C.6.5 exclusion stays) — specified in B2; value checks
+  need B3.
 - **Phase 2 — delivery.** `readObject()` decodes from the admitted plan exactly as today. Because
   phase 1 populated and verified the per-stream chain table, phase 2 does not re-verify chains
   (the verified-chain hand-off from the previous SOW's T3 already supports this).
 
-### B.2.2 Phase 1 reuses the dedup walker, in verify-only mode
+### B.2.2 Phase 1 and phase 2 must not drift (G8) — and "same code, different output mode" needs care
 
-The dedup walker (migrated in A3) gains a mode that performs every decision and meters every
-ceiling but does not materialise the reconstituted bytes. This is cheaper than reconstituting
-twice, and it is *the same code* running in a different output mode, so phase 1 and phase 2
-cannot drift apart on what they accept (G8: one source of truth). If A3 has not landed, B2 can
-run the existing walker twice and measure the cost; the cost is the reason to land A3 first.
+Phase 1 must perform every decision the delivery walker performs and meter every ceiling, without
+materialising reconstituted bytes. The naive reading — run the walker twice, the second time
+against the table the first filled — does not work: the duplicate-`fullChain` check
+(`StreamSchemaDedup`, around the `table.containsKey` reject) would reject every `fullChain` on the
+second run. Avoiding that needs a "trust the table" mode, which is a second, weaker copy of the
+security spine. The two honest options:
+
+- **(a) Phase 1 builds and keeps a plan:** for each item, the reconstituted bytes (or an
+  offsets-and-substitutions description of them). Phase 2 consumes the plan; the delivery walker
+  is not re-run. Cost: the per-item memory bound (C.8.3) becomes a whole-stream bound, up to the
+  window ceilings; viable only if bounded explicitly (e.g. plan only while the cumulative size is
+  below a configured cap, otherwise fall to (b)).
+- **(b) Phase 1 is a separate verify-only pass over a fresh scratch table, and phase 2 re-runs the
+  full delivery walker against a fresh table of its own** (nothing shared between passes). Costs
+  the dedup walk twice; has no shared state to drift, and the differential test (B2) asserts the
+  two agree on every corpus and fuzz input.
+
+B2 must pick by measurement (B4) and must not introduce a mode flag that makes the delivery
+walker skip a check. The differential/fuzz test is the guard against drift in either case.
 
 ### B.2.3 The honest limit of the guarantee
 
@@ -235,6 +336,20 @@ plainly, because "the stream is safe" would otherwise be read as a stronger prom
 implementation can make. (If a stronger, all-objects-or-none contract is wanted, that is a
 different feature: decode every object first, then deliver; memory and side-effect cost to be
 decided separately, and DGC registration would need to be deferred until delivery.)
+**Today's `close()` flushes DGC registrations even after a failed decode (B.1); that must be fixed
+for the Layer-2 reject path to leave no network side effects, whether or not B2 lands.**
+Payloads decoded *later* — `MarshalledInstance` and Entry payloads, which go through the
+record-level capture path (no version octet, no dedup, `DerInputLimits.DEFAULT`) — and proxies
+unmarshalled long after the response stream was admitted are outside Part B altogether.
+
+### B.2.4 Class-free structural validation (optional extension, not in B2)
+
+`ObjectCodec` already has a class-free schema-driven field decode
+(`decodeToScalarFieldMapClassFree`). Phase 1 *may* be extended to validate field values against
+the in-stream schema without loading classes (UTF-8 validity, canonical set ordering and
+uniqueness, integer ranges, `byte[]` lengths) — catching more malformed streams before any
+construction. It is listed separately (B3) because it duplicates decode logic and must be proven
+equivalent to it (G8) rather than assumed.
 
 ### B.2.5 Security policy checks that only read-ahead makes possible (B5; changes the accept set)
 
@@ -256,7 +371,10 @@ applied item by item or mid-construction, each of which rejects the **entire** s
 - **Cross-item consistency.** A name that appears with two different schema chains in one stream
   (same `className`, different leaf digests) can be rejected or flagged as a rebinding attempt.
 
-Limits: name-level checks cannot see what needs a `Class` object — the declared-slot-type
+Limits: the walk only sees what phase 1 sees (B.2.1: nothing inside `[8]`/`[16]` interiors
+unless the verify-only descent is added, and neither the `MarshalledInstance` record nor later
+capture-path payloads); the list above omits `[16]` collections and the `MarshalledInstance`
+record for the same reason. Name-level checks cannot see what needs a `Class` object — the declared-slot-type
 admission gate (`admissibleConstructClass`), `DeSerializationPermission("PROXY")` against the
 interfaces' protection domains, codebase integrity — those still run at construction (B.2.3).
 
@@ -266,70 +384,63 @@ anything the golden/real corpora produce**, with each limit's default chosen fro
 and each reject a distinct, logged, test-pinned message. They are a separate task (B5), reviewed
 as a security change, and must not be folded into B2's "accept set unchanged" claim.
 
-### B.2.6 Hoisting the deserialization permission checks out of construction (B6; maintainer hypothesis, 2026-10-18)
+### B.2.6 Hoisting the deserialization permission checks (B6; DEMOTED to optional, defence in depth only)
 
-**Hypothesis:** whole-stream pre-admission could remove the need to check permissions *during*
-deserialization. **Finding: yes for the per-object checks, but not by replacing them with the
-B5 name policy.**
+**Hypothesis (maintainer, 2026-10-18):** whole-stream pre-admission could remove the need to
+check permissions *during* deserialization. **Board verdict: not as a replacement; at most an
+additional, earlier check.**
 
 Today `ObjectCodec` runs `DeSerializationPermission("ATOMIC")` at each `decodeHierarchy`
-(`checkAtomicDeSerializationPermitted`, two sites) and `DeSerializationPermission("PROXY")` at each
-`[8]` reconstruction (`checkProxyDeSerializationPermitted`, in `ObjectCodec.decodeProxy` and in
-`DerObjectStreamCodec`'s `[8]` path). Each builds an `AccessControlContext` from the
-`ProtectionDomain`s of the classes involved (`Class.getProtectionDomain()`: codebase and signers)
-and calls `SecurityManager.checkPermission` — **once per constructed object**, with a fresh
-`Security.create(...)` context each time, and only when a `SecurityManager` is installed.
+(`checkAtomicDeSerializationPermitted`) and `("PROXY")` at each `[8]` reconstruction
+(`checkProxyDeSerializationPermitted`), each from an `AccessControlContext` built from the
+`ProtectionDomain`s of the classes involved, once per constructed object, only when a
+`SecurityManager` is installed. A name allow/deny list (B5) cannot replace them: the grant is
+keyed on codebase and signers, not name. Hoisting the *check* into phase 1 is semantically
+possible, because the context is built purely from `ProtectionDomain`s, not from the call stack,
+so *when* the check runs does not change its answer. But the board found it is a poor trade:
 
-- **A name allow/deny list cannot replace these.** The grant is keyed on the `ProtectionDomain`
-  (where the class was loaded from, who signed it), not on its name; the same name can come from
-  different codebases with different grants. Name policy (B5) is an additional, coarser filter.
-- **What can be hoisted is the check itself, given the resolved classes.** A permission check
-  needs the `Class`, so it needs the class *loaded* (not initialised: `Class.forName(name, false,
-  loader)` semantics through the same `ResolutionContext`). Phase 1 could resolve each **distinct**
-  class named in the stream once (after B5's name policy and distinct-class cap have passed),
-  record the `Class` in the admission plan, run the ATOMIC/PROXY checks **once per distinct
-  hierarchy/interface set**, and reject the whole stream on the first denial. Phase 2 then
-  constructs from the plan's `Class` objects and does not re-check.
-- **The plan must be authoritative (G2, mechanism not claim).** Phase 2 must not re-resolve a name
-  (a second resolution could yield a different `Class` than the one checked: a check-then-use gap).
-  It uses the plan's `Class`, and the former per-object check is replaced by a cheap identity
-  assertion — "the class being constructed is in the admitted set" — that fails closed if it is
-  not. The permission semantics must be identical to today's for the same classes: same
-  permission, same domain set per hierarchy, same denial exception type.
-- **Cost and benefit.** Fewer checks (one per distinct class set, not per object — `batch100`
-  currently pays 100) and, more importantly, **whole-stream rejection on a permission denial
-  before any constructor runs**. Only relevant where a `SecurityManager` is installed (DirtyChai
-  deployments); with none, the checks are already no-ops.
-- **The price is a deliberate reversal of B2's rule.** Resolving classes in phase 1 can trigger
-  codebase downloads and class definition for a stream that is later rejected. It is bounded by
-  B5 running first (disallowed names are never resolved; distinct-class cap) and it is exactly the
-  loading that acceptance would do anyway, but it is a real side effect and a **board decision**.
-  B2 keeps "phase 1 loads no class"; only B6 relaxes it, explicitly.
-- **Not covered, and must stay at construction:** the declared-slot-type admission gate
-  (`admissibleConstructClass`), which needs the parent constructor's expected type; permission
-  checks for classes a constructor loads on its own and that are not named in the stream;
-  user-code checks in constructors and `check(GetArg)`.
+- **The domain set is not just the classes named in the stream.** Today's set is
+  `storeMap.keySet()`, which includes `@AtomicSerial` **superclasses the stream does not name**. A
+  phase-1 set built from stream names would silently omit them unless it walks `getSuperclass()`
+  of every resolved class — a G8 drift point.
+- **Constructions the wire never names are not gated by ATOMIC at all today** and would stay
+  outside a name-driven plan: the `@Serializer`/`Resolve` replacement in `DerReplacer.resolve`,
+  enum and `Class`-field resolutions, `resolveTolerant` proxy narrowing. An identity assertion
+  "the class being constructed is in the admitted set" is sound only if **every** `loadClass`
+  site in `decodeHierarchy`/`DerFieldStore` is plan-fed; that is a wide, easy-to-regress surface.
+- **The benefit is largely illusory.** "Whole-stream reject on a permission denial" is
+  undercut by B.2.3: an attacker wanting partial delivery uses any Layer-2 reject at item *k+1*.
+- **The cost is real.** Phase 1 would load classes (codebase downloads, class definition) for
+  streams later rejected, before authorization unless B.2.0(i) is followed; it reverses B2's
+  "phase 1 loads no class" rule. No new *class* of side effect exists (the leaf class is loaded per
+  item today), but all of it is front-loaded.
 
-### B.2.4 Class-free structural validation (optional extension, not in B2)
+**Recommendation:** do not remove the per-object checks. If measurement ever shows they cost
+enough to matter, B6 may add a phase-1 check *in addition*, after authorization and after B5's
+name policy, with the superclass walk and a test that its answer equals the lazy path's on the
+corpus. Until then B6 is not dispatched.
 
-`ObjectCodec` already has a class-free schema-driven field decode
-(`decodeToScalarFieldMapClassFree`). Phase 1 *may* be extended to validate field values against
-the in-stream schema without loading classes (UTF-8 validity, canonical set ordering and
-uniqueness, integer ranges, `byte[]` lengths) — catching more malformed streams before any
-construction. It is listed separately (B3) because it duplicates decode logic and must be proven
-equivalent to it (G8) rather than assumed.
+### B.2.7 Streams that B1/B2 reject but are accepted today (the accept set is NOT unchanged)
+
+The earlier draft said B2 "changes no accept set"; that was wrong (board review #2, traced).
+Whole-stream admission rejects, up front, streams that today are accepted because the bad part is
+never read: an unread trailing item that is malformed, non-canonical, over a ceiling or carries an
+unresolvable `chainRef`; a trailing item after the items the dispatcher/handler actually read.
+This is the intended defensive effect, but it is an observable change and is documented as one:
+B0 pins today's behaviour for these streams, B2 changes the expectation deliberately, and the
+release notes say so. Streams that are valid and fully consumed today stay valid.
 
 ## B.3 Task breakdown
 
 | Task | Deliverable | Agent · effort | Model tier | Review | Depends |
 |------|-------------|----------------|-----------|--------|---------|
-| **B0** · Characterise partial delivery | Turn the 2026-10-18 probe into permanent tests that pin **current** behaviour for each per-item reject class (unknown digest, duplicate full, malformed arm, chain ceiling, table ceiling, per-item and cumulative reconstitution, depth, non-canonical framing): record which items are delivered before the reject. These tests change in B2 from "delivers *k*, then rejects" to "delivers nothing" — the diff in expected behaviour is the deliverable's proof. | general-purpose · MEDIUM | sonnet | single reviewer | — |
-| **B1** · Framed, exactly-sized, early-rejecting input read | In `DerInputLimits`/`DerMarshalInputStream`: read item by item — peek the header, reject an item whose declared length exceeds the remaining budget **before buffering it**, read exactly that many bytes, accumulate into one exactly-grown buffer. Observable semantics unchanged (still reads to EOF and delivers nothing before the stream is framed). Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected having read only the header (counting stream); trickle and slow streams; truncated item; trailing garbage; empty stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (touches the DoS gate) | — |
-| **B2** · Two-phase admission | Per B.2.1/B.2.2: phase-1 verify-only pass over the whole buffered stream; phase-2 delivery from the admitted plan. Every B0 test flips to "rejects the stream, delivers nothing". Add: an adversarial test per reject class placed as the **last** item of a long stream (and as the first, and in the middle) asserting zero objects delivered and zero constructors run (a counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations of the golden streams). Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
+| **B0** · Characterise today's behaviour | Turn the 2026-10-18 probe into permanent tests that pin **current** behaviour: for each per-item reject class (unknown digest, duplicate full, malformed arm, chain ceiling, table ceiling, per-item and cumulative reconstitution, depth, non-canonical framing) record which items are delivered before the reject; **an unread malformed trailing item is accepted**; **DGC `flush()` on `close()` after a failed decode** (count dirty registrations with a test `DeserializationCompletion`); `[8]`/`[16]` interior rejects arrive after earlier items. These tests change in B2 from "delivers *k*, then rejects" to "delivers nothing" — the diff in expected behaviour is the deliverable's proof. If the DGC finding is confirmed, raise it as a separate fix. | general-purpose · MEDIUM | sonnet | single reviewer | — |
+| **B1** · Framed, exactly-sized, early-rejecting input read | **Only for the stream-format reader** (`DerMarshalInputStream`'s public constructors): `DerInputLimits.readAllBytesBounded` is also called by `DerMarshalInstanceInput` on payloads that are NOT item-framed and must keep working unchanged. Read item by item — peek the header, reject an item whose declared length exceeds the remaining budget **before buffering it**, read exactly that many bytes, accumulate into one exactly-grown buffer. Observable semantics unchanged (still reads to EOF; delivers nothing before the stream is framed). Honest benefit: today's reader already stops at `max+1`, so this saves buffering and a doubling copy on hostile input, nothing more — if a measurement shows no benefit, drop B1. Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected having read only the header (counting stream); trickle and slow streams; truncated item; trailing garbage (expectation per B.2.7); empty stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (touches the DoS gate) | — |
+| **B2** · Two-stage admission | Per B.2.0(i), B.2.1, B.2.2, B.2.7: cheap admission at construction; full admission (verify-only pass or plan per B.2.2, plus the verify-only `[8]`/`[16]` descent) invoked after `checkAccess`/before `unmarshalArguments`, with a `DerMarshalInputStream` API and a `BasicInvocationDispatcher` call site. Every B0 test flips to "rejects the stream, delivers nothing" or is explicitly documented as out of reach (B.2.1). Add: an adversarial test per reject class placed as the **last** item of a long stream (and first, and middle) asserting zero objects delivered and zero constructors run (counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations); a test that an unauthorized request does not trigger the dedup walk; Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
 | **B3** · Class-free structural validation (optional) | Per B.2.4, only if the differential test shows a material class of malformed streams still reaching construction. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
 | **B5** · Whole-stream security policy checks | Per B.2.5: class-name policy (allow/deny lists, distinct-class cap), object-count / element-count / depth budgets, cross-item chain-consistency check, all in phase 1, all configurable (system properties validated like the reconstitution factors: invalid or hostile value → documented default, never weaker), defaults chosen from measured corpus maxima with headroom. Tests: each limit's inclusive boundary pair; a stream with a disallowed class name as its LAST item loads no class and runs no constructor (counting fixture + a class whose static initialiser records loading); a construction-bomb stream (1 M tiny records within `maxInputBytes`) is rejected before the first constructor; every default accepts the full golden corpus. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
-| **B6** · Hoist deserialization permission checks into phase 1 | Per B.2.6, **only after a board decision** on loading classes in phase 1. Phase 1 resolves each distinct named class once (load without initialise, through the stream's `ResolutionContext`, after B5), runs ATOMIC/PROXY checks once per distinct hierarchy / interface set with today's exact permission and domain set, records `Class` objects in the plan; phase 2 constructs from the plan and replaces per-object checks with an identity assertion. Tests: with a test `SecurityManager`, a denial on the LAST item rejects the whole stream with zero constructors run and zero classes initialised (static-initialiser probe); identical denial exception and permission to the lazy path across the corpus; a stream whose names resolve differently on a second resolution (test `ResolutionContext` that changes its answer) still constructs only the checked classes; check count per stream drops from per-object to per-distinct-class (counting `SecurityManager`). | general-purpose · XHIGH | top-tier | security-literate reviewer + G13 adversarial run | B2, B5, board decision |
-| **B4** · Cost measurement | Measure phase 1's cost on the benchmark payloads (`point`, `record`, `batch100`, `blob64k`, a synthetic 8-item request, and a 16 MiB stream) and report it against decode time, both with the existing walker run twice and with A3's verify-only mode. Defensive cost is acceptable but must be reported. | general-purpose · MEDIUM | sonnet | single reviewer | B2 |
+| **B6** · (optional, NOT dispatched) Phase-1 permission check as defence in depth | Per B.2.6: only if measurement shows the per-object checks matter. Adds a phase-1 check after authorization and B5 name policy, with the superclass walk, never replacing the per-object gate. | — | — | security-literate reviewer | B2, B5 |
+| **B4** · Cost measurement | Measure both admission stages on the benchmark payloads (`point`, `record`, `batch100`, `blob64k`, a synthetic 8-item request **including an authorization-context stream**, and a 16 MiB stream) against decode time, for B.2.2 options (a) and (b), and report the unauthenticated-peer cost with and without B2. Defensive cost is acceptable but must be reported. | general-purpose · MEDIUM | sonnet | single reviewer | B2 |
 
 **Sequencing:** B0 and B1 are independent of Part A and can run first. B2 should follow A3 so the
 verify-only mode is the same code as the delivery walker; if the maintainer wants admission
@@ -339,23 +450,26 @@ removing it.
 ## B.4 Non-goals (Part B)
 
 - **No pipelined decode, no write-ahead, no delivery before the stream is admitted.**
-- **B2 changes no wire format and no accept set** — it moves *when* the existing rejects fire
-  (before any construction), not *what* is rejected: a stream valid today stays valid; one
-  rejected at item *k* today is rejected up front. **B5 deliberately does change the accept set**
-  (new configurable limits and name policy) and is kept separate so that difference is explicit.
-- **No class loading, resolution or constructor execution in phase 1 of B2** (B.2.3). B6 is the one task that relaxes class *loading* (never initialisation, never construction), behind a board decision.
+- **B2 changes no wire format**, and it rejects streams that are bad but currently unread (B.2.7);
+  streams valid and fully consumed today stay valid. **B5 deliberately changes the accept set**
+  further (new configurable limits and name policy) and is kept separate so that is explicit.
+- **No class loading, resolution or constructor execution in phase 1 of B2** (B.2.3). B6, if ever dispatched, is the one task that would relax class *loading* (never initialisation, never construction).
 - **Not a stronger all-objects-or-none contract** (B.2.3 explains the difference and the cost).
 
 # Open questions (implementer proposes, maintainer decides)
 
-1. **A.1.1 length handling:** reserve-one-octet-and-shift (recommended) vs two-pass sizing.
-2. **A.1.3 scratch strategy for sorted sets:** one reusable scratch array per encoder vs a small
-   pool; either must keep peak memory bounded by the existing input/ceiling limits.
-3. **A4:** whether `drainTo` should hand the internal array to the transport without a copy
-   (requires the `OutputStream` to consume synchronously) or always copy once. Recommendation:
-   copy once unless the profile shows it matters.
-4. **B1:** whether to treat a declared item length above the *remaining* budget and one above the
-   *total* budget as the same failure (recommendation: yes, one message, as today).
+1. **A.1.1:** two-pass sizing vs reserve-and-compact — settled by A1's benchmark, not by argument.
+2. **A.1.3:** scratch strategy is a stack or per-collection regions (a single shared region is
+   rejected); either must keep peak memory bounded by the existing input/ceiling limits.
+3. **A4:** whether `drainTo` hands the internal array to the transport without a copy (requires
+   the `OutputStream` to consume synchronously) or copies once. Recommendation: copy once unless
+   the profile shows it matters.
+4. **B.2.0:** two-stage admission (recommended) vs admission at construction, and the exact API
+   by which the dispatcher invokes full admission after `checkAccess`.
+5. **B.2.2:** keep a plan (bounded) vs re-run the delivery walker on a fresh table; decided by B4.
+6. **B.2.1:** whether the `[8]`/`[16]` verify-only descent is in B2 or deferred to B3.
+7. **B.2.3:** fix the DGC-flush-on-failure behaviour as a standalone change (recommended).
+8. **B.2.7:** release-note wording for streams now rejected up front.
 
 # Agent brief (paste-ready)
 
