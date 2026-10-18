@@ -54,9 +54,8 @@ import static org.junit.Assert.*;
  * result is unmarshalled by {@code MarshalledWrapper.get()} with no context
  * (only an {@code IntegrityEnforcement}), so it has no identity at all.
  * <p>
- * The nested case is a legacy-stream residue: in Atomic marshal streams a foreign
- * service proxy is marshalled separately in a {@code MarshalledInstance} and
- * unmarshalled separately by the receiver, so it should not occur there.
+ * The nested case does occur on Atomic JOSS streams, see
+ * {@link PreferredProxyRelayStreamTest}.
  * These tests record the behaviour as it is; they are not an endorsement.
  */
 public class PreferredProxyServerIdentityTest {

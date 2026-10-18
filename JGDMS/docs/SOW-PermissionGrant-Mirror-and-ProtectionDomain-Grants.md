@@ -672,15 +672,25 @@ reviewers found problems the section 7 text does not cover, and the trust story 
    stream's `ServerSubject` is that service's identity. The two other delivery routes remain
    unresolved: legacy `ServiceRegistrar.lookup` results (unmarshalled with no context, so no
    identity) and a proxy nested in another service's response (attributed to the delivering
-   server). **The nested case is a legacy-stream residue** (project lead): in Atomic marshal
-   streams a foreign service proxy is not inlined in the delivering server's response; it is
-   marshalled separately in a `MarshalledInstance` and unmarshalled separately by the receiver,
-   with a context the receiver chooses (as `getServiceProxy()` does for the proxy's own service).
-   Some of the old design remains (a `ProxySerializer` inlined in a JOSS stream resolves with that
-   stream's context), so the test below still pins the legacy behaviour, but it should not occur
-   on Atomic streams. Requirement: the provider must not rely on this; an identity may come only
-   from a `getServiceProxy()` response, and a `ProxySerializer` reached by any other route is not
-   trusted for identity. Requirement: delivery through `getServiceProxy()` on a prepared bootstrap proxy is the
+   server). **The nested case is real on Atomic JOSS streams, verified end to end**
+   (`PreferredProxyRelayStreamTest`, project lead's expectation was that it would not occur):
+   `AtomicMarshalOutputStream.defaultReplaceObject` replaces *any* object that is a
+   `DynamicProxyCodebaseAccessor` (a JERI dynamic proxy of a service implementing it) with
+   `ProxySerializer.create(...)`, and `PreferredProxyCodebaseProvider.substitute()` returns `true`
+   unconditionally, so a client or service holding a downloaded proxy of service B and writing it
+   into a stream inlines it as a `ProxySerializer` (bootstrap proxy + `MarshalledInstance`). The
+   `MarshalledInstance` is separate, but the `ProxySerializer` carrying it is inlined in the
+   enclosing stream, and its `readResolve` runs `resolve(...)` with **that stream's** context. The
+   test writes such a proxy and reads it with service A's `ServerSubject` in the context: the
+   provider keys service B's proxy by A. The DER path (`DerProxySerializer`,
+   `ProxyWireSupport.substituteDownloadableProxy`) is built the same way; not run. The intended
+   design (a foreign proxy travels only as a standalone `MarshalledInstance`, unmarshalled by the
+   receiver with a context it chooses) is therefore not enforced by the stream; it needs an
+   enforcement: `substitute()` should refuse a proxy that was not exported by this process
+   (`SERVICES_EXP` records those) so a foreign proxy is not inlined, and/or the provider must
+   distrust an identity from a `ProxySerializer` not reached through `getServiceProxy()`.
+   Requirement: an identity may come only from a `getServiceProxy()` response; a
+   `ProxySerializer` reached by any other route is not trusted for identity.
    only route that may yield an identity, isolation pool key, `BootstrapPermission` subject or
    verified-path grant; for any other route the provider must refuse or route to process
    isolation without a verified grant, never run the in-JVM unverified path silently.
