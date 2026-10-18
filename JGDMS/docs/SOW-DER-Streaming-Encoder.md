@@ -255,7 +255,7 @@ the chain site processed (pre-order, C.6.2), the trailing-field checks run, and 
   two-level hierarchy with sites at both levels; same verdict on structure-aware and byte-level mutations (about 11 000 accepted and
   187 distinct reject messages reached; messages equal after normalising digits, because a reader's positions are now offsets into the
   shared buffer); same verdict across the `MAX_NESTING` boundary by splicing a nested site into the innermost null; same verdict and exact
-  counts on the `chainRef` fan-out bomb. Mutation check: ten mutants of the new walker (depth guard, reconstitution metering, trailing-field
+  counts on the `chainRef` fan-out bomb. Mutation check: nine mutants of the new walker (depth guard, reconstitution metering, trailing-field
   check, NULL validation, duplicate `fullChain`, `[8]` descent, meter/append order, sorted rebuild, hierarchy order) are killed.
 - **Board review** (Opus DER seat, Fable security seat, read-only): no accept/reject or byte regression found. Opus confirmed every
   re-emitted length and tag is identical and that `SET OF` order is not touched. Fable confirmed meter-before-append (`appendChain` follows
