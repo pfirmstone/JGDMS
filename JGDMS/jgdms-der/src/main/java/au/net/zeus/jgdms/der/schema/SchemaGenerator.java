@@ -184,18 +184,64 @@ public final class SchemaGenerator {
         // (serialForm) and SHA-256 (schema digests) cost from the marshalling hot path. Failures
         // are deterministic per class and are cached too (as the message) and re-thrown fresh.
         Object v = CHAIN_CACHE.get(leafClass);
-        if (v instanceof SchemaChain.Result r) {
-            return r;
+        if (v instanceof CachedChain c) {
+            return c.result;
         }
         throw new DerException((String) v);
     }
 
-    /** Memoised {@link #generateChain}: a {@link SchemaChain.Result} on success, the failure message otherwise. */
+    /**
+     * The canonical encoding of {@link #generateChain(Class)}'s chain: the concatenation of
+     * each record's {@link AtomicSerialSchemaRecord#encode()} in leaf-first order (STD-006
+     * S7.8 "Schema chain encoding"). It is a pure function of the chain, so it is memoised
+     * per class beside the chain itself and re-encoding it per marshalled object is avoided.
+     * Each call returns a fresh copy; the cached array is never exposed.
+     *
+     * @param leafClass the leaf {@code @AtomicSerial} class
+     * @return a fresh copy of the encoded chain bytes
+     * @throws DerException         under the same conditions as {@link #generateChain(Class)}
+     * @throws NullPointerException if {@code leafClass} is {@code null}
+     */
+    public static byte[] generateChainBytes(Class<?> leafClass) throws DerException {
+        Objects.requireNonNull(leafClass, "leafClass");
+        Object v = CHAIN_CACHE.get(leafClass);
+        if (v instanceof CachedChain c) {
+            return c.chainBytes().clone();
+        }
+        throw new DerException((String) v);
+    }
+
+    /**
+     * A memoised chain plus (lazily) its canonical encoding. Holds only values generated
+     * locally from the class; nothing received from the wire is ever stored here.
+     */
+    private static final class CachedChain {
+        final SchemaChain.Result result;
+        private volatile byte[] chainBytes;
+
+        CachedChain(SchemaChain.Result result) { this.result = result; }
+
+        byte[] chainBytes() {
+            byte[] b = chainBytes;
+            if (b == null) {
+                java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+                for (AtomicSerialSchemaRecord record : result.chain()) {
+                    byte[] encoded = record.encode();
+                    buf.write(encoded, 0, encoded.length);
+                }
+                b = buf.toByteArray();
+                chainBytes = b;
+            }
+            return b;
+        }
+    }
+
+    /** Memoised {@link #generateChain}: a {@link CachedChain} on success, the failure message otherwise. */
     private static final ClassValue<Object> CHAIN_CACHE = new ClassValue<Object>() {
         @Override
         protected Object computeValue(Class<?> type) {
             try {
-                return generateChainUncached(type);
+                return new CachedChain(generateChainUncached(type));
             } catch (DerException e) {
                 return e.getMessage() != null ? e.getMessage() : e.toString();
             }

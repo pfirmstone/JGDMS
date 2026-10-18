@@ -1157,7 +1157,7 @@ final class StreamSchemaDedup {
         if (chainBytes.length == 0) {
             throw new DerException("StreamSchemaDedup: empty schema chain at encode site");
         }
-        byte[] digest = sha256(leafRecordBytes(chainBytes));
+        byte[] digest = leafRecordDigest(chainBytes);
         TableEntry e = table.get(ByteBuffer.wrap(digest));
         if (e != null) {
             // Subsequent occurrence: MUST be the reference form — no discretion.
@@ -1193,7 +1193,7 @@ final class StreamSchemaDedup {
             List<AtomicSerialSchemaRecord> records =
                     SchemaChain.decodeChain(content, "StreamSchemaDedup(fullChain)");
             // 2. Digest over the received bytes exactly (sec.C.7.3 preimage pin).
-            byte[] digest = sha256(leafRecordBytes(content));
+            byte[] digest = leafRecordDigest(content);
             // 3. Duplicate-full reject (sec.C.6.4: the canonical stream would have used
             //    a reference; accepting would admit a second encoding and a rebinding
             //    surface — this is the mandatory-dedup enforcement check, sec.C.9.2).
@@ -1316,10 +1316,11 @@ final class StreamSchemaDedup {
     // =========================================================================
 
     /**
-     * The received leaf-record bytes: the first complete SEQUENCE TLV of the chain
-     * content — the pinned digest preimage (sec.C.7.3).
+     * SHA-256 of the received leaf-record bytes: the first complete SEQUENCE TLV of the
+     * chain content, which is the pinned digest preimage (sec.C.7.3). Digests the range in
+     * place; the preimage is never copied out.
      */
-    private static byte[] leafRecordBytes(byte[] chainBytes) throws DerException {
+    private static byte[] leafRecordDigest(byte[] chainBytes) throws DerException {
         DerReader r = new DerReader(chainBytes);
         DerReader.TlvHeader hdr = r.readTlvHeader();
         if (!Tag.SEQUENCE.equals(hdr.tag())) {
@@ -1328,14 +1329,34 @@ final class StreamSchemaDedup {
                     + " AtomicSerialSchemaRecord SEQUENCE, got " + hdr.tag());
         }
         r.readRawContent(hdr.contentLength());
-        return r.slice(0, r.position());
+        MessageDigest md = newSha256();
+        md.update(chainBytes, 0, r.position());
+        return md.digest();
     }
 
-    private static byte[] sha256(byte[] bytes) {
+    /**
+     * A pristine SHA-256 instance, never updated; cloned per use (far cheaper than
+     * {@link MessageDigest#getInstance}'s synchronized provider lookup, and fresh and
+     * thread-confined per call).
+     */
+    private static final MessageDigest SHA256_PROTOTYPE;
+    static {
         try {
-            return MessageDigest.getInstance("SHA-256").digest(bytes);
+            SHA256_PROTOTYPE = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError("SHA-256 unavailable", e);
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    private static MessageDigest newSha256() {
+        try {
+            return (MessageDigest) SHA256_PROTOTYPE.clone();
+        } catch (CloneNotSupportedException notCloneable) {
+            try {
+                return MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new AssertionError("SHA-256 unavailable", e);
+            }
         }
     }
 

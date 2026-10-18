@@ -150,6 +150,28 @@ public final class MarshalledInstanceRecord {
     }
 
     /**
+     * As {@link #fromChain(SchemaChain.Result, byte[])}, with the chain's encoded bytes
+     * supplied by the caller instead of re-encoded from the records. {@code schemaBytes}
+     * MUST be the leaf-first concatenation of {@code chain}'s records' {@code encode()},
+     * as returned by
+     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChainBytes(Class)} for
+     * the class {@code chain} was generated for; the result is byte-identical to
+     * {@code fromChain(chain, payloadBytes)}.
+     */
+    public static MarshalledInstanceRecord fromChain(SchemaChain.Result chain,
+                                                     byte[] schemaBytes,
+                                                     byte[] payloadBytes) {
+        Objects.requireNonNull(chain,        "chain");
+        Objects.requireNonNull(schemaBytes,  "schemaBytes");
+        Objects.requireNonNull(payloadBytes, "payloadBytes");
+        return new MarshalledInstanceRecord(
+                payloadBytes,
+                schemaBytes,
+                chain.leafDigest(),
+                PAYLOAD_FORMAT);
+    }
+
+    /**
      * Concatenates the DER-encoded bytes of each record in the chain (leaf-first).
      */
     private static byte[] encodeChainBytes(List<AtomicSerialSchemaRecord> chain) {

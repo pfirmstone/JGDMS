@@ -1564,9 +1564,10 @@ final class DerObjectStreamCodec {
 
     /** Encodes an {@code @AtomicSerial} object to its MarshalledInstanceRecord DER bytes (the [1] content). */
     private static byte[] encodeAtomicRecord(Object obj) throws DerException {
-        SchemaChain.Result chain = SchemaGenerator.generateChain(obj.getClass());
+        Class<?> cls = obj.getClass();
+        SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
         byte[] payload = ObjectCodec.encodeHierarchy(obj, chain);
-        return MarshalledInstanceRecord.fromChain(chain, payload).encode();
+        return MarshalledInstanceRecord.fromChain(chain, SchemaGenerator.generateChainBytes(cls), payload).encode();
     }
 
     /** Decodes the bytes inside a [1] {@code CTX_ATOMIC} TLV (a MarshalledInstanceRecord) into its object. */

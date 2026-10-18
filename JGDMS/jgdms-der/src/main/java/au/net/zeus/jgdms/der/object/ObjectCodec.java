@@ -1918,7 +1918,7 @@ public final class ObjectCodec {
         byte[] payloadBytes = encodeHierarchy(value, chain, depth + 1);
 
         // Encode the schema chain: leaf-first concatenated AtomicSerialSchemaRecord DERs
-        byte[] schemaChainBytes = encodeSchemaChainBytes(chain.chain());
+        byte[] schemaChainBytes = SchemaGenerator.generateChainBytes(cls);
 
         // Wrap as SEQUENCE { OCTET STRING(schemaChainBytes), OCTET STRING(payloadBytes) }
         List<byte[]> children = new ArrayList<>(2);
@@ -3000,19 +3000,5 @@ public final class ObjectCodec {
         System.arraycopy(lengthBytes, 0, tlv, pos, lengthBytes.length); pos += lengthBytes.length;
         System.arraycopy(content,     0, tlv, pos, content.length);
         return tlv;
-    }
-
-    /**
-     * Encodes a schema chain as a concatenation of each record's DER SEQUENCE bytes,
-     * in leaf-first order (same as {@code MarshalledInstanceRecord.encodeChainBytes},
-     * but kept in {@code der.object} to avoid a {@code der.marshal} cycle).
-     */
-    private static byte[] encodeSchemaChainBytes(List<AtomicSerialSchemaRecord> chain) {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        for (AtomicSerialSchemaRecord record : chain) {
-            byte[] encoded = record.encode();
-            buf.write(encoded, 0, encoded.length);
-        }
-        return buf.toByteArray();
     }
 }
