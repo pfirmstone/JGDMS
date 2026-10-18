@@ -209,7 +209,7 @@ public final class DerMarshalInstanceOutput implements MarshalInstanceOutput {
             MarshalledInstanceRecord rec = MarshalledInstanceRecord.fromChain(
                     chain, SchemaGenerator.generateChainBytes(obj.getClass()), payload);
 
-            objOut.write(rec.payloadBytes());
+            objOut.write(payload);   // the same bytes as rec.payloadBytes(), without the defensive copy
 
             this.schemaBytes  = rec.schemaBytes();
             this.schemaDigest = rec.schemaDigest();

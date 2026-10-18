@@ -1,6 +1,6 @@
 # Handover: DER codec performance, streaming encoder and admission work
 
-**AS-OF 2026-10-18 (updated after A1), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
+**AS-OF 2026-10-18 (updated after A2, which landed after A1), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
 `git status -sb` showed the branch level with `origin/claude/focused-bohr-t6bwal` and a clean tree after restoring
 tracked `target/` build files). Anything committed after `53c369511` is NOT reflected here: run
 `git log --oneline 53c369511..HEAD` first. Written following `handover-composition` (pfirmstone/Cross-machine_Claude_Code_skills).
@@ -17,11 +17,11 @@ tracked `target/` build files). Anything committed after `53c369511` is NOT refl
 
 ## 2. State, with provenance
 
-- **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
+- **Tests (after A2):** 951 run, 0 failures, 0 skipped, in `jgdms-der` (source: `mvn -pl jgdms-der test`); the A1 line below is older. **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
   on DirtyChai 27 after commit `53c369511`'s change; population: that module only, NOT `jgdms-jeri`/`jgdms-cel`, which were
   spot-run earlier with `-Dtest='*Der*,*DER*,*Cel*'` and passed). The 1 skipped test is the A1 hook
   `DerEncoderEquivalenceScaffoldTest.derEncoderMatchesReference` (deliberately `@Disabled`).
-- **Golden fixtures:** 45 files in `JGDMS/jgdms-der/src/test/resources/golden/` (source: `ls | wc -l`). The 31 oldest were
+- **Golden fixtures:** 47 stream files after A2 (two insertion-ordered-map fixtures added; the 45 before are unchanged) plus 5 Entry files in `golden-entry/`; the older note follows: 45 files in `JGDMS/jgdms-der/src/test/resources/golden/` (source: `ls | wc -l`). The 31 oldest were
   generated from trunk `9adc8e6e3` before any of this work; a later run showed the first 46 (incl. the since-removed
   `list-70000`) were byte-identical to `9adc8e6e3`'s output. Fixture mismatch means STOP and report; regenerate only for a
   deliberate wire change (`-Dtest=DerGoldenBytesTest -DargLine=-Dgolden.generate=true`).
@@ -71,11 +71,13 @@ Docs: the rest (SOW creation, board folding, decisions).
 
 ## 7. Open items
 
-1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **A0 and A1 are DONE** (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
+1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **A0, A1 and A2 are DONE** (A2: all object encoders write through `DerEncoder`; see the A2 OUTCOME in the SOW; next is A3 [xhigh] then A4 and A5) (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
 2. Ask the user (in bold) before an effort change; efforts are set by the user.
 3. DGC fix was tested at the `DerMarshalInputStream` level only; B0 should confirm it through the real dispatcher.
 4. ~~`JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine)~~ CORRECTED 2026-10-18: the 569 tracked `jgdms-der/target/` files WERE mine - force-added by `git add -f JGDMS/jgdms-der` in `ef2fdc6a9` (trunk `9adc8e6e3` tracks none; source: `git ls-tree -r 9adc8e6e3 --name-only | grep -c jgdms-der/target/` = 0). Untracked in the commit after `a6c2679d6`; `.gitignore` already had `**/target/`. NEVER use `git add -f` on a whole module. `dependency-reduced-pom.xml` IS trunk's own tracked file: leave it, `git checkout` it after benchmark builds.
 5. STD-006 now has the strict-UTF-8 sentence (4.2); STD-011 Appendix B B.5 item 10 cites it.
+
+**A2 landed (after the paragraphs above were written):** commits `012bd348d`, `03e54527a`, `ab5676555`, `c1c60b29b`, then the Entry commit `81a6ef556`. Wrappers keep every old `byte[]` method; `DerEncoder` gained `utf8/octets/integer/bool/nul`, `beginOctetString`, `beginSortedMap`, and a failure latch. Open maintainer decision: an encode-side total-size cap. DO NOT remove the `byte[]` wrappers until A4 moves `DerObjectStreamCodec`.
 
 ## 8. Agent roster (all finished; resumable with `SendMessage` by agentId; read-only; own worktrees under /tmp/claude-0/board-*)
 
