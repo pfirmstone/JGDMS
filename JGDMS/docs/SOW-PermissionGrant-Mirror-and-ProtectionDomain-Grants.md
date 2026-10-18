@@ -277,10 +277,20 @@ Three independent reviewers (different models) examined the branch. Findings act
 - `CodebaseDomainGrant.implies(CodeSource, ...)` is false (no loader), and the last accepted
   `CodeSource` is cached by reference so repeated checks do not rebuild the identity.
 
-Open for the project lead: the "first domain seen pins the identity" rule (B.1) is order
-dependent and can be poisoned by code holding the loader (see the reviewers' findings); the
-choice of throwing versus skipping an unparseable `codeBase` URI (`ConcurrentPolicyFile.refresh`
-catches the exception, so a typo leaves the old policy in force).
+- **The "first domain seen pins the identity" rule (B.1) was removed**, on the unanimous advice of
+  the three reviewers: it made the result depend on class-loading order (one jar can yield several
+  domains at one location, each with its own certificates), code holding the loader could pin a
+  forged identity and permanently deny the legitimate domain, and on DirtyChai
+  `SecureClassLoader` probes permissions with a plain `CodeSource` before promoting it to a
+  `DigestCodeSource`, so the probe would pin an identity the real domain never has. A domain is
+  now implied if it has the anchor's loader and either the anchor's identity (Uri + signers +
+  digest, which covers combiner rebuilds) or a location in the codebase. No privilege escalation
+  was found without the pin: a forged domain backs no class, and the access-control context
+  intersection still applies. **This departs from B.1's text; revert if you want it back.**
+  `CodeSourceKey` now compares signers as a set.
+
+Open for the project lead: the choice of throwing versus skipping an unparseable `codeBase` URI
+(`ConcurrentPolicyFile.refresh` catches the exception, so a typo leaves the old policy in force).
 
 **Release notes (B.4)**
 - Dynamic grants to a proxy no longer apply to domains the proxy's loader

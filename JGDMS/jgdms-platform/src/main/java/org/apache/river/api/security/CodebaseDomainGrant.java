@@ -27,8 +27,6 @@ import java.security.ProtectionDomain;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -42,12 +40,16 @@ import org.apache.river.api.net.Uri;
  * <li>{@code pd}'s CodeSource location is one of the codebase locations the
  *     ClassLoader was created for, or {@code pd} is the anchor domain, or
  *     a domain with the identity of the anchor domain, such as one created by 
- *     a DomainCombiner;
+ *     a DomainCombiner (this also covers an anchor without a location);
  * <li>the grant's principals are satisfied.
  * </ol>
- * The first domain seen for each codebase location pins the identity of that 
- * location: Uri, signers and digest.  A domain at the same location with a 
- * different identity is not implied.
+ * Code source identity (signers, digest) is not required to match for a
+ * location in the codebase: a ClassLoader builds one ProtectionDomain per
+ * CodeSource, and one jar may yield several (each entry's own certificates,
+ * and on DirtyChai a plain CodeSource is promoted to a DigestCodeSource after
+ * a permission probe), so pinning the first identity seen would depend on
+ * class loading order and could be poisoned by any code holding the loader.
+ * The loader is the record of what was verified.
  * <p>
  * ProtectionDomain's are created lazily, upon the first class defined from 
  * each jar, so domains are matched as they are checked, they are not listed
@@ -70,7 +72,6 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
     private final transient Set<Uri> codebase;
     // Positive result for the last CodeSource checked, by reference.
     private transient volatile WeakReference<CodeSource> lastImplied;
-    private final transient ConcurrentMap<Uri,CodeSourceKey> pinned;
     private final int hashCode;
 
     @SuppressWarnings("unchecked")
@@ -81,17 +82,6 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
         if (domain == null) throw new NullPointerException("domain");
         this.loader = loader;
         this.codebase = Collections.unmodifiableSet(codebase);
-        this.pinned = new ConcurrentHashMap<Uri,CodeSourceKey>(
-                Math.max(4, codebase.size() * 2));
-        ProtectionDomain anchor = domain.get();
-        ClassLoader cl = loader != null ? loader.get() : null;
-        if (anchor != null && cl != null && anchor.getClassLoader() == cl) {
-            // The anchor's identity is known at the time of the grant.
-            CodeSourceKey key = CodeSourceKey.of(anchor.getCodeSource());
-            if (key != null && this.codebase.contains(key.uri)) {
-                pinned.put(key.uri, key);
-            }
-        }
         int hash = 5;
         hash = 23 * hash + this.codebase.hashCode();
         hash = 23 * hash + super.hashCode();
@@ -158,12 +148,8 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
         CodeSourceKey key = CodeSourceKey.of(cs);
         if (key == null) return false; // identity unknown, fail closed.
         if (!codebase.contains(key.uri)) return false;
-        CodeSourceKey existing = pinned.putIfAbsent(key.uri, key);
-        if (existing == null || existing.equals(key)) {
-            lastImplied = new WeakReference<CodeSource>(cs);
-            return true;
-        }
-        return false;
+        lastImplied = new WeakReference<CodeSource>(cs);
+        return true;
     }
 
     /**

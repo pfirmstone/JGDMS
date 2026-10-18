@@ -157,20 +157,28 @@ public class CodebaseDomainGrantTest {
         assertTrue(g.implies(b));
     }
 
+    /**
+     * A loader builds one domain per CodeSource and a jar can yield several
+     * (each entry's own certificates), so the result must not depend on which
+     * domain is checked first, nor can code holding the loader make the
+     * legitimate domain of a codebase location unreachable by checking a
+     * forged one first.
+     */
     @Test
-    public void codeSourceIdentityIsPinned() throws Exception {
+    public void identityAtACodebaseLocationIsNotPinned() throws Exception {
         Class<?> a = loader.loadClass(ProxyA.class.getName());
-        Class<?> b = loader.loadClass(ProxyB.class.getName());
         PermissionGrant g = grantTo(a);
-        assertTrue(g.implies(b.getProtectionDomain())); // pins B.
-        Certificate signer = new FakeCertificate("mallory");
+        Certificate signer = new FakeCertificate("other");
         ProtectionDomain signedB = new ProtectionDomain(
                 new CodeSource(jarB, new Certificate[]{signer}), null, loader, NONE);
-        assertFalse("same location, different signers", g.implies(signedB));
-        ProtectionDomain signedA = new ProtectionDomain(
-                new CodeSource(jarA, new Certificate[]{signer}), null, loader, NONE);
-        assertFalse("anchor location, different signers", g.implies(signedA));
-        assertTrue("B is still implied", g.implies(b.getProtectionDomain()));
+        assertTrue("signed domain at a codebase location", g.implies(signedB));
+        Class<?> b = loader.loadClass(ProxyB.class.getName());
+        assertTrue("unsigned domain at the same location, checked second", 
+                g.implies(b.getProtectionDomain()));
+        ProtectionDomain elsewhere = new ProtectionDomain(
+                new CodeSource(jarOutside, new Certificate[]{signer}), null, loader, NONE);
+        assertFalse("a location outside the codebase, whatever the signers", 
+                g.implies(elsewhere));
     }
 
     @Test

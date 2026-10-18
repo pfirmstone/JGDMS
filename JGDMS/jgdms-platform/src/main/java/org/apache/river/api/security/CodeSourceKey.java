@@ -24,7 +24,8 @@ import java.security.CodeSource;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -84,9 +85,10 @@ final class CodeSourceKey {
         }
         if (uri == null) return null;
         Certificate[] certs = cs.getCertificates();
-        List<Certificate> signers = certs == null || certs.length == 0 
-                ? Collections.<Certificate>emptyList()
-                : Collections.unmodifiableList(Arrays.asList(certs));
+        // A set: SecureClassLoader keys its domains without regard to order.
+        Set<Certificate> signers = certs == null || certs.length == 0 
+                ? Collections.<Certificate>emptySet()
+                : Collections.unmodifiableSet(new HashSet<Certificate>(Arrays.asList(certs)));
         String alg = null;
         byte[] dig = null;
         if (DIGEST_CODE_SOURCE_CLASS != null 
@@ -103,12 +105,12 @@ final class CodeSourceKey {
     }
 
     final Uri uri;
-    private final List<Certificate> signers;
+    private final Set<Certificate> signers;
     private final String digestAlgorithm;
     private final byte[] digest;
     private final int hash;
 
-    private CodeSourceKey(Uri uri, List<Certificate> signers, 
+    private CodeSourceKey(Uri uri, Set<Certificate> signers, 
             String digestAlgorithm, byte[] digest) {
         this.uri = uri;
         this.signers = signers;

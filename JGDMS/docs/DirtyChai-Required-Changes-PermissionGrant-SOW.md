@@ -13,11 +13,25 @@ implemented on branch `claude/sow-permissiongrant-domain-grants`; use its classe
 `CodebaseDomainGrantTest`) as the behavioural reference. On DirtyChai the `java.base` copies run
 and JGDMS's copies of the same 13 classes are shadowed, so the two must give the same answers.
 
-**Finding on trunk.** The SOW describes DirtyChai as already having `impliesSigners`, a shared
-`CodeSourceKey` and `GrantSignerTest`. `trunk` has none of them (`SecureClassLoader` has only a
-private nested `CodeSourceKey`; `test/jdk/ai/org/apache/river/api/security/` holds only
-`PrincipalGrantConjunctiveTest`). If that work exists on an unpushed branch, use it and compare
-against the items below.
+**Status against DirtyChai `trunk` `af6bc5479` (checked after the project lead pushed their local
+work).** Done there: items 1 and 3 (`impliesSigners` in `CertificateGrant`, used by `DigestGrant`),
+most of item 2 (`URIGrant`), the shared `CodeSourceKey` (now
+`au.zeus.jdk.authorization.policy.CodeSourceKey`, moved out of `SecureClassLoader`) and a
+`GrantSignerTest`. Still to do: items 4, 6, 7, 8, 9 and 12, the multi-jar test of item 11, and the
+two problems below.
+
+1. **Does not compile:** `URIGrant.implies(ClassLoader, …)` (line 117) reads `certs`, which is
+   `private` in `CertificateGrant` and not a field of `URIGrant`. Expose a package-private "requires
+   signers" test from `CertificateGrant` (item 1) and use it. (Reproduced by compiling trunk's
+   `org.apache.river.api.security` against stubs: this is the only error besides the pre-existing
+   `SocketPermission.init()` one.)
+2. **`CodeSourceKey` differences from what item 5 needs:** the constructor throws
+   `URISyntaxException` and the key may have a null Uri (no location) which compares equal to
+   another null-Uri key; signers are compared as an ordered array (`Arrays.equals`), while
+   `SecureClassLoader` caches order-insensitively and JGDMS compares as a set; unsigned is `null`
+   certificates in one place and possibly empty in another. For grant use, callers must catch the
+   exception and treat it, and a null Uri, as "not implied". Consider a set comparison and
+   treating null and empty signers alike.
 
 All paths below are under `src/java.base/share/classes/org/apache/river/api/security/`.
 
@@ -105,14 +119,13 @@ DirtyChai for codebase-wide grants to work there.
 
 ## 7. New `CodebaseDomainGrant` (package-private, extends `ProtectionDomainGrant`)
 
-Semantics (SOW B.1): a `ProtectionDomain pd` is implied iff
+Semantics (SOW B.1, without the pinning rule — see section 13a): a `ProtectionDomain pd` is
+implied iff
 1. `pd` is the anchor domain, **or**
-2. `pd.getClassLoader()` is the anchor domain's loader (reference equality, non-null) **and**
-   `pd`'s code-source Uri is in the codebase set **and** its `CodeSourceKey` equals the identity
-   pinned for that Uri (first domain seen pins it; the anchor's identity is pinned at
-   construction if its Uri is in the codebase), **or**
+2. `pd.getClassLoader()` is the granted class's loader (reference equality, non-null) **and**
+   `pd`'s code-source Uri is in the codebase set (signers and digest are not compared), **or**
 3. same loader and `pd`'s code source has the anchor's own identity (a domain rebuilt by a
-   `DomainCombiner`), even if the codebase set is empty;
+   `DomainCombiner`), even if the codebase set is empty or the anchor has no location;
 
 and the grant's principals are satisfied. Details to get right:
 - Domains are matched lazily at check time; the grant never stores a list of domains.
@@ -127,12 +140,9 @@ and the grant's principals are satisfied. Details to get right:
 - Cache the last accepted `CodeSource` by reference (weakly) so repeated checks do not rebuild
   the key; building it on every check was measured at ~25x slower than the old loader grant with
   thousands of grants.
-- The pin map is keyed only by Uris from the (bounded) codebase set, so a hostile domain cannot
-  grow it. Use a concurrent map with put-if-absent semantics.
 - `implies(ClassLoader, …)` returns false: a loader has no code identity.
-- Inherited `implies(CodeSource, …)` keeps the anchor-identity behaviour.
 - Not serialisable: `writeReplace` returns the builder template with the new context;
-  `readObject` throws `InvalidObjectException`. The codebase and pin map are transient.
+  `readObject` throws `InvalidObjectException`. The codebase and loader are transient.
 - `equals`/`hashCode` include the codebase set, and `equals` requires the same class.
 - `impliesEquivalent`: same codebase set plus the superclass test. `toString` lists the codebase.
 - `getBuilderTemplate`: superclass template with context `CODEBASE_DOMAIN`.
@@ -209,14 +219,13 @@ in both trees. Update `SECURITY_MODEL.md` if it states dynamic grants are per cl
 
 ## 13a. Open decisions that affect both trees
 
-1. **Pinning (SOW B.1).** The reviewers found "first domain seen pins the location's identity"
-   order dependent: a `PreferredClassLoader` builds each class's `CodeSource` from that jar
-   entry's own certificates, so one jar can legitimately yield several domains at one location,
-   and whichever is checked first locks out the others; code holding the loader can also pin a
-   forged identity first. They could not find a privilege escalation (the access-control
-   intersection still applies) and recommended implying any same-loader domain whose location
-   is in the codebase, keeping only the anchor identity check. Awaiting the project lead's
-   decision; implement DirtyChai to match whatever JGDMS does.
+1. **Pinning (SOW B.1) — decided: removed in JGDMS** (all three reviewers advised it; see SOW
+   section 6). Do **not** implement pinning in DirtyChai. A domain is implied iff it has the
+   anchor's loader and either the anchor's code-source identity or a code-source location in the
+   codebase set. On DirtyChai pinning would also break outright: `SecureClassLoader` calls
+   `getPermissions(plainCodeSource)` (and `PreferredClassLoader` builds a probe domain and checks
+   `DownloadPermission` against it) *before* promoting to a `DigestCodeSource`, so a probe would
+   pin an identity the real domain never has.
 2. **Unparseable `codeBase` URI.** Throwing is fail-closed, but `ConcurrentPolicyFile.refresh()`
    catches the exception and keeps the old grants, so a typo in an edited policy leaves removed
    privileges in force. Alternatives: log at SEVERE (minimum), or make only that grant match
