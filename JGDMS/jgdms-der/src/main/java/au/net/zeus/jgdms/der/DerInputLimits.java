@@ -181,6 +181,7 @@ public final class DerInputLimits {
         // The first item's header tells us what to allocate, so the hint only seeds a modest buffer: a stream that
         // claims a huge available() must not make us allocate it before a single header has been read.
         Buffer b = new Buffer(Math.min(max, Math.max(256, Math.min(available, 64 * 1024))), max);
+        in = new java.io.BufferedInputStream(in, 128);   // headers are read octet by octet: do not make each a call on the transport
         while (true) {
             // ---- one item header: identifier octet(s), then length octet(s) ----
             int first = in.read();
@@ -246,12 +247,16 @@ public final class DerInputLimits {
             }
         }
 
-        /** Reads up to {@code len} bytes (the caller has checked they fit); returns how many arrived. */
+        /**
+         * Reads up to {@code len} bytes (the caller has checked they fit); returns how many arrived. The buffer grows
+         * geometrically as content ARRIVES, never to the declared size up front: a peer that declares {@code max - n}
+         * and then stalls pins only what it has actually sent (a header is not proof of content).
+         */
         int readFully(InputStream in, int len) throws IOException {
-            grow((long) n + len);
             int got = 0;
             while (got < len) {
-                int r = in.read(buf, n + got, len - got);
+                grow((long) n + got + 1);
+                int r = in.read(buf, n + got, Math.min(len - got, buf.length - (n + got)));
                 if (r < 0) break;
                 got += r;
             }

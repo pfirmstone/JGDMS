@@ -105,7 +105,7 @@ class DerFramedReadTest {
         Counting c = new Counting(stream, 4096, 0);
         IOException e = assertThrows(IOException.class, () -> DerInputLimits.readFramedBounded(c, max));
         assertTrue(e.getMessage().contains("declares"), e.getMessage());
-        assertEquals(header.length, c.pos, "only the header may have been pulled from the stream");
+        assertTrue(c.pos <= header.length + 128, "no more than one transport buffer beyond the header may have been pulled: " + c.pos);
         // the plain read, by contrast, buffers up to max + 1 before it can say no
         Counting plain = new Counting(stream, 4096, 0);
         assertThrows(IOException.class, () -> DerInputLimits.readAllBytesBounded(plain, max));
@@ -119,7 +119,7 @@ class DerFramedReadTest {
         byte[] second = item(500);                                        // declares 500 with 396 left
         Counting c = new Counting(cat(first, second), 64, 0);
         assertThrows(IOException.class, () -> DerInputLimits.readFramedBounded(c, max));
-        assertEquals(first.length + 4, c.pos, "stopped at the second header (04 82 01 F4)");
+        assertTrue(c.pos <= first.length + 4 + 128, "stopped at the second header (04 82 01 F4), one buffer at most beyond it: " + c.pos);
     }
 
     @Test
@@ -214,10 +214,54 @@ class DerFramedReadTest {
         Counting c = new Counting(hostile, 512, 0);
         assertThrows(IOException.class, () -> new au.net.zeus.jgdms.der.stream.DerMarshalInputStream(c,
                 au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE, DerInputLimits.maxBytes(max)));
-        assertEquals(3 + header.length, c.pos, "the object-stream reader refused at the header, having read nothing more");
+        assertTrue(c.pos <= 3 + header.length + 128, "the object-stream reader refused at the header, one transport buffer at most beyond it: " + c.pos);
         // a record-level capture is not item-framed: the same bytes are buffered under the plain cap and left to fail later
         byte[] notFramed = cat(header, new byte[100]);
         assertDoesNotThrow(() -> au.net.zeus.jgdms.der.stream.DerMarshalInputStream.recordLevelCapture(
                 new ByteArrayInputStream(notFramed), au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE));
+    }
+
+    @Test
+    void aStalledItemPinsOnlyWhatActuallyArrived() throws Exception {
+        com.sun.management.ThreadMXBean mx = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+        int max = 16 << 20;
+        // declares max - 5 content bytes (so it passes the budget check), then delivers 10 and stops
+        byte[] header = {0x04, (byte) 0x84, (byte) ((max - 5 - 5) >>> 24), (byte) ((max - 10) >>> 16), (byte) ((max - 10) >>> 8), (byte) (max - 10)};
+        byte[] s = cat(header, new byte[10]);
+        long a0 = mx.getCurrentThreadAllocatedBytes();
+        byte[] out = DerInputLimits.readFramedBounded(new Counting(s, 1, 0), max);
+        long allocated = mx.getCurrentThreadAllocatedBytes() - a0;
+        assertArrayEquals(s, out);
+        assertTrue(allocated < 1 << 20, "a stalled declaration of ~16 MiB allocated " + allocated + " bytes");
+    }
+
+    @Test
+    void headerOnlyItemsDoNotCostOneTransportReadPerOctet() throws Exception {
+        byte[] two = {0x05, 0x00};                                    // 2-byte items
+        byte[] s = new byte[2 * 50000];
+        for (int i = 0; i < 50000; i++) System.arraycopy(two, 0, s, 2 * i, 2);
+        final int[] reads = {0};
+        InputStream counting = new ByteArrayInputStream(s) {
+            @Override public synchronized int read() { reads[0]++; return super.read(); }
+            @Override public synchronized int read(byte[] b, int o, int l) { reads[0]++; return super.read(b, o, l); }
+        };
+        assertArrayEquals(s, DerInputLimits.readFramedBounded(counting, 1 << 20));
+        assertTrue(reads[0] < s.length / 100, "transport reads: " + reads[0] + " for " + s.length + " bytes");
+    }
+
+    @Test
+    void tinyAndZeroCapsBehaveLikeThePlainRead() throws Exception {
+        for (int max : new int[] {0, 1, 2, 5, 100, 255}) {
+            for (int len : new int[] {0, 1, 2, 5, 6, 100, 101, 255, 256, 300}) {
+                byte[] data = new byte[len];
+                new Random(max * 31L + len).nextBytes(data);
+                byte[] plain = null, framed = null;
+                boolean plainFail = false, framedFail = false;
+                try { plain = DerInputLimits.readAllBytesBounded(new Counting(data, 3, 0), max); } catch (IOException e) { plainFail = true; }
+                try { framed = DerInputLimits.readFramedBounded(new Counting(data, 3, 0), max); } catch (IOException e) { framedFail = true; }
+                if (plainFail) assertTrue(framedFail, "max=" + max + " len=" + len);
+                else if (!framedFail) assertArrayEquals(plain, framed, "max=" + max + " len=" + len);
+            }
+        }
     }
 }
