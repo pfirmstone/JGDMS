@@ -193,7 +193,24 @@ public final class SchemaChain {
         DerReader reader = new DerReader(chainBytes);
 
         while (reader.hasMore()) {
+            int recStart = reader.position();
             AtomicSerialSchemaRecord rec = AtomicSerialSchemaRecord.decode(reader);
+            // Strict canonical form (STD-006 Appendix C sec.C.5.1 "strict canonical DER inside
+            // fullChain"; G1 one encoding per value). The string decoders substitute U+FFFD for
+            // invalid UTF-8 instead of failing, so a record can parse successfully from bytes that
+            // are NOT its canonical encoding. Such a chain would then carry two identities: SHA-256
+            // over the received bytes (the dedup table, sec.C.7.3) and SHA-256 over the re-encoded
+            // record (the Merkle cross-check, schemaDigest). Requiring received == re-encoded here
+            // makes the two coincide by construction for every caller of this single decode path.
+            byte[] canonical = rec.encode();
+            if (!Arrays.equals(chainBytes, recStart, reader.position(),
+                               canonical, 0, canonical.length)) {
+                throw new DerException(
+                        context + ": schema record " + records.size() + " for class '"
+                        + rec.className() + "' is not in canonical DER form (its received bytes"
+                        + " differ from its canonical re-encoding, e.g. invalid UTF-8)"
+                        + " -- rejected (STD-006 Appendix C sec.C.5.1)");
+            }
             records.add(rec);
 
             // S4.5 maxChainRecords -- metered at the accumulating frame (G10): the
