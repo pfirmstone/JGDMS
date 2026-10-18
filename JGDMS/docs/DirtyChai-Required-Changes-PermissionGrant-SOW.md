@@ -94,6 +94,15 @@ side is null, then compare `CodeSourceKey`s; return false if either key cannot b
 the method package-private (not private) so `CodebaseDomainGrant` can reuse it. Remove the
 now-unused imports.
 
+## 6a. Release ordering (board finding)
+
+`CODEBASE_DOMAIN` is a compile-time constant, inlined into JGDMS's bytecode. On DirtyChai the
+`java.base` builder shadows JGDMS's, and DirtyChai trunk's `context(int)` rejects anything above
+6. JGDMS now catches that rejection and falls back to a grant for the granted class's own
+`ProtectionDomain` (logged at warning), so it keeps working but with narrower grants: proxy
+jars other than the one holding the class lose their dynamic grants. Items 7 and 8 must ship in
+DirtyChai for codebase-wide grants to work there.
+
 ## 7. New `CodebaseDomainGrant` (package-private, extends `ProtectionDomainGrant`)
 
 Semantics (SOW B.1): a `ProtectionDomain pd` is implied iff
@@ -107,7 +116,17 @@ Semantics (SOW B.1): a `ProtectionDomain pd` is implied iff
 
 and the grant's principals are satisfied. Details to get right:
 - Domains are matched lazily at check time; the grant never stores a list of domains.
-- A key that cannot be built, a different loader, or a Uri outside the codebase → not implied.
+- The "anchor's loader" is the loader of the **class** passed to the builder, not the loader of
+  the class's `ProtectionDomain`: a `java.lang.reflect.Proxy` class (what `Security.grant` is
+  usually given) has the shared all-permission domain, whose loader is null. The builder records
+  `cl.getClassLoader()` weakly and the grant carries it; the grant is void when that loader is
+  collected. Rule 3 (anchor identity) compares code-source identity only, using that loader.
+- A key that cannot be built, a different loader, or a Uri outside the codebase → not implied,
+  except by rule 3 (which also covers an anchor whose `CodeSource` has no location).
+- `implies(CodeSource, Principal[])` returns false: a dynamic grant applies to domains.
+- Cache the last accepted `CodeSource` by reference (weakly) so repeated checks do not rebuild
+  the key; building it on every check was measured at ~25x slower than the old loader grant with
+  thousands of grants.
 - The pin map is keyed only by Uris from the (bounded) codebase set, so a hostile domain cannot
   grow it. Use a concurrent map with put-if-absent semantics.
 - `implies(ClassLoader, …)` returns false: a loader has no code identity.
@@ -125,6 +144,9 @@ and the grant's principals are satisfied. Details to get right:
 - Deprecate `CLASSLOADER` in javadoc and with `@Deprecated`; keep it working.
 - `Imp.context(int)`: raise the upper bound from 6 to 7 (and the message).
 - `Imp.build()`: new case `CODEBASE_DOMAIN`:
+  - the loader comes from `clazz(Class)` (the class's own loader), falling back to the anchor
+    domain's loader when only `setDomain` was used; a package-private setter is needed so
+    `CodebaseDomainGrant.getBuilderTemplate` can pass it on (do not add public API);
   - no domain at all → a `ProtectionDomainGrant` with no domain (applies to all domains, as a
     `ClassLoaderGrant` with no domain did);
   - otherwise collect the codebase from the anchor loader: if it is a `URLClassLoader`, convert
@@ -185,7 +207,28 @@ in both trees. Update `SECURITY_MODEL.md` if it states dynamic grants are per cl
   `digest` grants.
 - An unparseable `codeBase` URI raises `SecurityException`.
 
+## 13a. Open decisions that affect both trees
+
+1. **Pinning (SOW B.1).** The reviewers found "first domain seen pins the location's identity"
+   order dependent: a `PreferredClassLoader` builds each class's `CodeSource` from that jar
+   entry's own certificates, so one jar can legitimately yield several domains at one location,
+   and whichever is checked first locks out the others; code holding the loader can also pin a
+   forged identity first. They could not find a privilege escalation (the access-control
+   intersection still applies) and recommended implying any same-loader domain whose location
+   is in the codebase, keeping only the anchor identity check. Awaiting the project lead's
+   decision; implement DirtyChai to match whatever JGDMS does.
+2. **Unparseable `codeBase` URI.** Throwing is fail-closed, but `ConcurrentPolicyFile.refresh()`
+   catches the exception and keeps the old grants, so a typo in an edited policy leaves removed
+   privileges in force. Alternatives: log at SEVERE (minimum), or make only that grant match
+   nothing. JGDMS currently throws, as DirtyChai does.
+3. **Uri derivation parity.** JGDMS builds the codebase set with `Uri.urlToUri` on the loader's
+   URLs and the key from the same conversion; DirtyChai's key comes from `getUriLocation()`.
+   Check the two agree for `file:` and `httpmd:` jar URLs.
+
 ## 14. Not verified
+
+`DigestCodeSource` paths (the reflective key, `DigestGrant` signer check, T2 positive case) are
+not exercised on a stock JDK and need DirtyChai-only tests.
 
 The JGDMS side was compiled and tested with plain `javac`/JUnit (Maven could not resolve a
 dependency in the sandbox). Nothing was built against DirtyChai. Review the independent board
