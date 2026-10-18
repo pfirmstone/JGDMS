@@ -259,9 +259,39 @@ needed are described in `DirtyChai-Required-Changes-PermissionGrant-SOW.md`.
 - `check-api-compat.sh` needs built jars; the change is additive (one new
   constant, one deprecation, new package-private classes).
 
+**Review board (2026-10-18)**
+
+Three independent reviewers (different models) examined the branch. Findings acted on:
+- The anchor's loader is the loader of the *class*, not of its `ProtectionDomain`: a
+  `java.lang.reflect.Proxy` class, which is what `BasicProxyPreparer` passes to
+  `Security.grant`, has the shared all-permission domain, whose loader is null. The builder's
+  `clazz(Class)` now records `cl.getClassLoader()` and `DynamicPolicyProvider.getGrants`
+  evaluates the domain with that loader. (The old `ClassLoaderGrant` was equally ineffective for
+  Proxy classes.) Test: `proxyClassAnchorUsesTheLoaderOfTheClass`.
+- A domain sharing the anchor's `CodeSource` is implied before a location Uri is required
+  (anchor with no location).
+- A shadowing `PermissionGrantBuilder` that rejects `CODEBASE_DOMAIN` (DirtyChai trunk, whose
+  `context()` allows at most 6) now falls back to a `PROTECTIONDOMAIN` grant, with a warning,
+  instead of throwing from every `Security.grant`. **DirtyChai must be updated before JGDMS
+  relies on codebase-wide grants there.**
+- `CodebaseDomainGrant.implies(CodeSource, ...)` is false (no loader), and the last accepted
+  `CodeSource` is cached by reference so repeated checks do not rebuild the identity.
+
+Open for the project lead: the "first domain seen pins the identity" rule (B.1) is order
+dependent and can be poisoned by code holding the loader (see the reviewers' findings); the
+choice of throwing versus skipping an unparseable `codeBase` URI (`ConcurrentPolicyFile.refresh`
+catches the exception, so a typo leaves the old policy in force).
+
 **Release notes (B.4)**
 - Dynamic grants to a proxy no longer apply to domains the proxy's loader
   defines from a source outside its codebase.
-- `Security.grant(fromClass, toClass)` now propagates permissions that came from
-  `signedBy` and `digest` grants.
+- `Security.grant(fromClass, toClass)` now propagates permissions from `signedBy`, `digest`,
+  `codeBase` and principal grants that match the source class's `ProtectionDomain`, but only
+  grants held as dynamic grants (`Security.grant(PermissionGrant)`); grants read from the
+  policy file are not consulted by `getGrants`, so T5 as written ("in the policy file") is
+  not met.
+- Dynamic grants anchored on a jar class are no longer visible to `getGrants` of a `Proxy` class
+  of the same loader (they were loader-wide).
+- Jars reached through `Class-Path` manifest entries or an index are not in the loader's URLs
+  and get no dynamic grant.
 - An unparseable `codeBase` URI in a grant now raises `SecurityException`.

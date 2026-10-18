@@ -63,20 +63,29 @@ import org.apache.river.api.net.Uri;
  */
 class CodebaseDomainGrant extends ProtectionDomainGrant {
     private static final long serialVersionUID = 1L;
+    // The ClassLoader of the granted class, null if it was loaded by the
+    // bootstrap loader.  Not that of the anchor domain, a Proxy class has the
+    // shared all permission domain, whose loader is null.
+    private final transient WeakReference<ClassLoader> loader;
     private final transient Set<Uri> codebase;
+    // Positive result for the last CodeSource checked, by reference.
+    private transient volatile WeakReference<CodeSource> lastImplied;
     private final transient ConcurrentMap<Uri,CodeSourceKey> pinned;
     private final int hashCode;
 
     @SuppressWarnings("unchecked")
     CodebaseDomainGrant(WeakReference<ProtectionDomain> domain, 
-            Set<Uri> codebase, Principal[] groups, Permission[] perm) {
+            WeakReference<ClassLoader> loader, Set<Uri> codebase, 
+            Principal[] groups, Permission[] perm) {
         super(domain, groups, perm);
         if (domain == null) throw new NullPointerException("domain");
+        this.loader = loader;
         this.codebase = Collections.unmodifiableSet(codebase);
         this.pinned = new ConcurrentHashMap<Uri,CodeSourceKey>(
                 Math.max(4, codebase.size() * 2));
         ProtectionDomain anchor = domain.get();
-        if (anchor != null) {
+        ClassLoader cl = loader != null ? loader.get() : null;
+        if (anchor != null && cl != null && anchor.getClassLoader() == cl) {
             // The anchor's identity is known at the time of the grant.
             CodeSourceKey key = CodeSourceKey.of(anchor.getCodeSource());
             if (key != null && this.codebase.contains(key.uri)) {
@@ -137,9 +146,11 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
         ProtectionDomain anchor = domain.get();
         if (anchor == null) return false; // void.
         if (pd == anchor) return true;
-        ClassLoader loader = anchor.getClassLoader();
-        if (loader == null || pd.getClassLoader() != loader) return false;
+        ClassLoader cl = loader != null ? loader.get() : null;
+        if (cl == null || pd.getClassLoader() != cl) return false;
         CodeSource cs = pd.getCodeSource();
+        WeakReference<CodeSource> last = lastImplied;
+        if (last != null && last.get() == cs && cs != null) return true;
         // The anchor's identity, including a domain created by a 
         // DomainCombiner, which shares the anchor's CodeSource.  This also
         // covers an anchor CodeSource that has no location.
@@ -148,7 +159,26 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
         if (key == null) return false; // identity unknown, fail closed.
         if (!codebase.contains(key.uri)) return false;
         CodeSourceKey existing = pinned.putIfAbsent(key.uri, key);
-        return existing == null || existing.equals(key);
+        if (existing == null || existing.equals(key)) {
+            lastImplied = new WeakReference<CodeSource>(cs);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * A dynamic grant applies to ProtectionDomains, a CodeSource alone has
+     * no ClassLoader.
+     */
+    @Override
+    public boolean implies(CodeSource codeSource, Principal[] pal) {
+        return false;
+    }
+
+    @Override
+    public boolean isVoid() {
+        if (super.isVoid()) return true;
+        return loader != null && loader.get() == null;
     }
 
     @Override
@@ -162,6 +192,9 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        if (pgb instanceof PermissionGrantBuilderImp) {
+            ((PermissionGrantBuilderImp) pgb).setLoader(loader);
+        }
         return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
     }
 

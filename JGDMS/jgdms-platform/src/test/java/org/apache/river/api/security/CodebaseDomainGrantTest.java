@@ -24,6 +24,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -40,6 +42,7 @@ import java.util.Arrays;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import net.jini.security.policy.DynamicPolicyProvider;
+import org.apache.river.api.security.codebase.IfaceA;
 import org.apache.river.api.security.codebase.Outside;
 import org.apache.river.api.security.codebase.ProxyA;
 import org.apache.river.api.security.codebase.ProxyB;
@@ -209,6 +212,43 @@ public class CodebaseDomainGrantTest {
         Object o = new ObjectInputStream(new ByteArrayInputStream(bo.toByteArray())).readObject();
         assertTrue(((PermissionGrant) o).isVoid());
         assertFalse(((PermissionGrant) o).implies(a.getProtectionDomain()));
+    }
+
+    @Test
+    public void proxyClassAnchorUsesTheLoaderOfTheClass() throws Exception {
+        // BasicProxyPreparer grants to proxy.getClass(), a Proxy class has the
+        // shared all permission domain, whose loader is null.
+        URL jarI = jar("iface.jar", IfaceA.class);
+        try (Loader l = new Loader(new URL[]{jarA, jarB, jarI})) {
+            Class<?> iface = l.loadClass(IfaceA.class.getName());
+            Object proxy = Proxy.newProxyInstance(l, new Class<?>[]{iface}, 
+                    new InvocationHandler() {
+                        public Object invoke(Object p, java.lang.reflect.Method m, Object[] a) {
+                            return null;
+                        }
+                    });
+            Class<?> proxyClass = proxy.getClass();
+            assertNull("shared domain has no loader", proxyClass.getProtectionDomain().getClassLoader());
+            PermissionGrant g = grantTo(proxyClass);
+            Class<?> a = l.loadClass(ProxyA.class.getName());
+            Class<?> b = l.loadClass(ProxyB.class.getName());
+            assertTrue("jar A", g.implies(a.getProtectionDomain()));
+            assertTrue("jar B", g.implies(b.getProtectionDomain()));
+            assertTrue("interface jar", g.implies(iface.getProtectionDomain()));
+            ProtectionDomain elsewhere = new ProtectionDomain(
+                    new CodeSource(jarOutside, (Certificate[]) null), null, l, NONE);
+            assertFalse(g.implies(elsewhere));
+            try (Loader other = new Loader(new URL[]{jarA})) {
+                assertFalse(g.implies(other.loadClass(ProxyA.class.getName()).getProtectionDomain()));
+            }
+
+            DynamicPolicyProvider policy = new DynamicPolicyProvider(new EmptyPolicy());
+            policy.grant(proxyClass, NONE, new Permission[]{PERM});
+            assertTrue("getGrants(proxy class)", 
+                    Arrays.asList(policy.getGrants(proxyClass, NONE)).contains(PERM));
+            assertTrue("propagates to a class of the codebase", 
+                    Arrays.asList(policy.getGrants(a, NONE)).contains(PERM));
+        }
     }
 
     @Test

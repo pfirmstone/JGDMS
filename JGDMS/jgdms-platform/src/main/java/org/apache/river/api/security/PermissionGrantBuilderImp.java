@@ -79,6 +79,10 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     // Transient Fields
     private transient Collection<String> uris;
     private transient WeakReference<ProtectionDomain> domain;
+    // The ClassLoader of the class passed to clazz(), which is not necessarily
+    // the loader of its ProtectionDomain: a java.lang.reflect.Proxy class has
+    // the shared all permission domain, whose loader is null.
+    private transient WeakReference<ClassLoader> loader;
    
     PermissionGrantBuilderImp() {
         super();
@@ -95,6 +99,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         certs = null;
 	aliases = null;
         domain = null;
+        loader = null;
         hasDomain = false;
         principals = null;
         permissions = null;
@@ -129,8 +134,16 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 	    if ( pd != null ){
 		domain = new WeakReference<ProtectionDomain>(pd);
                 hasDomain = true;
+                ClassLoader cll = cl.getClassLoader();
+                loader = cll != null ? new WeakReference<ClassLoader>(cll) : null;
             }
         }
+        return this;
+    }
+
+    /** Package private, see {@link CodebaseDomainGrant#getBuilderTemplate()}. */
+    PermissionGrantBuilderImp setLoader(WeakReference<ClassLoader> cl) {
+        loader = cl;
         return this;
     }
 
@@ -210,9 +223,15 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         // are treated special.
         if (domain == null) return new ProtectionDomainGrant(null, principals, permissions);
         Set<Uri> codebase = new HashSet<Uri>();
-        ClassLoader loader = pd != null ? pd.getClassLoader() : null;
-        if (loader instanceof URLClassLoader) {
-            for (URL url : ((URLClassLoader) loader).getURLs()) {
+        // The loader of the class, falling back to that of its domain.
+        WeakReference<ClassLoader> loaderRef = loader;
+        ClassLoader cl = loaderRef != null ? loaderRef.get() 
+                : (pd != null ? pd.getClassLoader() : null);
+        if (loaderRef == null && cl != null) {
+            loaderRef = new WeakReference<ClassLoader>(cl);
+        }
+        if (cl instanceof URLClassLoader) {
+            for (URL url : ((URLClassLoader) cl).getURLs()) {
                 try {
                     // Not URL.equals, it can cause DNS lookups.
                     codebase.add(Uri.urlToUri(url));
@@ -225,9 +244,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
             LOGGER.log(Level.CONFIG, 
                 "ClassLoader {0} is not a URLClassLoader, dynamic grant is "
                 + "limited to the ProtectionDomain of the granted class",
-                loader);
+                cl);
         }
-        return new CodebaseDomainGrant(domain, codebase, principals, permissions);
+        return new CodebaseDomainGrant(domain, loaderRef, codebase, principals, permissions);
     }
 
     private void readObject(ObjectInputStream in)

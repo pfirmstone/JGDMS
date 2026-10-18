@@ -695,10 +695,14 @@ Put the policy providers and all referenced classes in the bootstrap class loade
     public Permission[] getGrants(Class cl, Principal[] principals) {
         // Grants are evaluated against the ProtectionDomain of the class, a
         // ClassLoader carries no signers or content, so CertificateGrant and
-        // DigestGrant could never be implied.
+        // DigestGrant could never be implied.  The domain is evaluated with
+        // the ClassLoader of the class, which differs from that of its 
+        // domain for a java.lang.reflect.Proxy class.
         ProtectionDomain domain = null;
+        ClassLoader loader = null;
         if( cl != null ) {
             domain = getProtectionDomain(cl);
+            loader = getClassLoader(cl);
         }
         // defensive copy array
         if (principals != null && principals.length > 0) {
@@ -709,7 +713,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
 	while ( grants.hasNext()){
             PermissionGrant g = grants.next();
-	    if ( impliesDomain(g, domain, principals) ){
+	    if ( impliesDomain(g, domain, loader, principals) ){
 		// Only use the trusted grantCache.
 		dPerms.addAll(g.getPermissions());
 	    }
@@ -726,17 +730,25 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         });
     }
 
+    private static ClassLoader getClassLoader(final Class cl) {
+        return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+            public ClassLoader run() {
+                return cl.getClassLoader();
+            }
+        });
+    }
+
     /**
      * Evaluates a grant against domain, but with the supplied principals
-     * instead of those of the domain.
+     * instead of those of the domain, and the ClassLoader of the class.
      */
     private static boolean impliesDomain(PermissionGrant g, ProtectionDomain domain,
-            Principal[] principals)
+            ClassLoader loader, Principal[] principals)
     {
         if (domain == null) return g.implies((ClassLoader) null, principals);
         Principal[] pals = principals != null ? principals : new Principal[0];
         ProtectionDomain pd = new ProtectionDomain(domain.getCodeSource(),
-                domain.getPermissions(), domain.getClassLoader(), pals);
+                domain.getPermissions(), loader, pals);
         return g.implies(pd);
     }
 

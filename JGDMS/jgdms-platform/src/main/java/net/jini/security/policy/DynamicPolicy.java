@@ -64,6 +64,11 @@ public interface DynamicPolicy {
      * the grant applies.  If this policy provider does not support dynamic
      * permission grants, then no permissions are granted and an
      * <code>UnsupportedOperationException</code> is thrown.
+     *
+     * <p>{@link DynamicPolicyProvider} limits the grant to the protection
+     * domains of the codebase of the class loader of the given class (those
+     * of the locations the loader was created for), not to every protection
+     * domain the loader defines.
      * <p>
      * The given class, if non-<code>null</code>, must belong to either the
      * system domain or a protection domain whose associated class loader is
@@ -101,7 +106,10 @@ public interface DynamicPolicy {
      * returns a new array containing the cumulative set of permissions
      * dynamically granted to protection domains (including ones not yet
      * created) that are associated with the class loader of the given class
-     * and possess at least the given set of principals.  If the given class is
+     * and possess at least the given set of principals.  In 
+     * {@link DynamicPolicyProvider} this is evaluated against the protection
+     * domain of the given class, so grants that depend on the code source, 
+     * such as those for signers or a digest, are included.  If the given class is
      * <code>null</code>, then this method returns the cumulative set of
      * permissions dynamically granted across all protection domains that
      * possess at least the specified principals (i.e., through calls to the
