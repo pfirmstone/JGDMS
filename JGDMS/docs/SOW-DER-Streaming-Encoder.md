@@ -225,7 +225,12 @@ constructor's invariants, class-resolution failure and admission-gate rejects ar
 policy decisions that need the class and run user code, and doing them in phase 1 would be
 exactly the construction this part forbids. So the contract is: **no object is constructed from a
 stream that is not structurally admissible**, and a Layer-2 reject of object *k* still occurs at
-`readObject()` *k*. Documentation and the `DerMarshalInputStream` Javadoc must state this
+`readObject()` *k*. This is inherent in how objects are built: decode constructs **from the fields
+up** — a nested value's constructor (and `check(GetArg)`) runs before its parent's — so once any
+constructor has run, that stream can no longer be rejected whole. A "safe or not" verdict for the
+stream is therefore only obtainable *before* construction starts, which is exactly what phase 1
+is for; everything that can only be known by constructing (Layer 2) stays a per-object reject,
+bottom-up. Documentation and the `DerMarshalInputStream` Javadoc must state this
 plainly, because "the stream is safe" would otherwise be read as a stronger promise than the
 implementation can make. (If a stronger, all-objects-or-none contract is wanted, that is a
 different feature: decode every object first, then deliver; memory and side-effect cost to be
