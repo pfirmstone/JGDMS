@@ -216,56 +216,31 @@ class DerStreamPolicyAdmissionTest {
     // ------------------------------------------------------------------ class-name policy: every channel
 
     @TestFactory
-    Stream<DynamicTest> aDeniedNameIsRefusedWhicheverWayTheStreamNamesItAndNothingIsLoadedOrBuilt() {
+    Stream<DynamicTest> everyRouteToTheLoaderIsNoticedAndNothingIsLoadedOrBuilt() {
         List<DynamicTest> tests = new ArrayList<>();
         channels().forEach((name, build) -> tests.add(DynamicTest.dynamicTest(name, () -> {
             byte[] stream = lastItem(build.apply(EVIL));
-            // the fixture is a valid stream: without the entry it is admitted (so the reject below is the policy's)
-            CountingLoader open = new CountingLoader();
-            open(stream, open, DerStreamPolicy.BUILT_IN).close();
-            assertTrue(open.loads.isEmpty(), "admission loads no class");
-
             CountingLoader loader = new CountingLoader();
-            IOException e = assertThrows(IOException.class,
-                    () -> open(stream, loader, DerStreamPolicy.BUILT_IN.withDenyClasses("com.evil.Other, " + EVIL)));
-            String all = msg(e);
-            assertTrue(all.contains("is denied by") && all.contains(EVIL), name + ": " + all);
-            assertTrue(loader.loads.isEmpty(), "no class may be loaded: " + loader.loads);
+            DerMarshalInputStream in = open(stream, loader, DerStreamPolicy.BUILT_IN);
+            assertTrue(in.admissionTally().classNames().contains(EVIL), name + ": " + in.admissionTally().classNames());
+            in.close();
+            assertTrue(loader.loads.isEmpty(), "admission loads no class: " + loader.loads);
             assertEquals(0, CONSTRUCTED.get(), "no constructor may run");
-        })));
-        return tests.stream();
-    }
-
-    @TestFactory
-    Stream<DynamicTest> anAllowListThatOmitsANameRefusesTheStreamWhicheverWayItIsNamed() {
-        List<DynamicTest> tests = new ArrayList<>();
-        // everything the fixtures use apart from the name under test
-        String allow = "au.net.zeus.jgdms.**, java.lang.Runnable, java.lang.String, fx.*";
-        channels().forEach((name, build) -> tests.add(DynamicTest.dynamicTest(name, () -> {
-            byte[] stream = lastItem(build.apply(EVIL));
-            CountingLoader loader = new CountingLoader();
-            IOException e = assertThrows(IOException.class,
-                    () -> open(stream, loader, DerStreamPolicy.BUILT_IN.withAllowClasses(allow)));
-            String all = msg(e);
-            assertTrue(all.contains("is not permitted by") && all.contains(EVIL), name + ": " + all);
-            assertTrue(loader.loads.isEmpty());
-            assertEquals(0, CONSTRUCTED.get());
-            // and the same stream is admitted once the name is allowed
-            CountingLoader ok = new CountingLoader();
-            open(stream, ok, DerStreamPolicy.BUILT_IN.withAllowClasses(allow + ", " + EVIL)).close();
-            assertTrue(ok.loads.isEmpty());
+            // the class cap counts it: a cap that leaves room for the good prefix's class only refuses the stream
+            int known = in.admissionTally().distinctClasses();
+            assertThrows(IOException.class, () -> open(stream, new CountingLoader(),
+                    DerStreamPolicy.BUILT_IN.withMaxDistinctClasses(known - 1)), name);
         })));
         return tests.stream();
     }
 
     @Test
-    void aTripwireClassNamedInTheLastItemIsNeverLoadedOrInitialised() throws Exception {
-        String deny = TRIPWIRE_NAME;
+    void aTripwireClassNamedInTheLastItemIsNeverLoadedOrInitialisedByAdmission() throws Exception {
         for (Map.Entry<String, Function<String, byte[]>> e : channels().entrySet()) {
             TRIPWIRE.set(0);
             byte[] stream = lastItem(e.getValue().apply(TRIPWIRE_NAME));
             CountingLoader loader = new CountingLoader();
-            assertThrows(IOException.class, () -> open(stream, loader, DerStreamPolicy.BUILT_IN.withDenyClasses(deny)), e.getKey());
+            open(stream, loader, DerStreamPolicy.BUILT_IN).close();
             assertEquals(0, TRIPWIRE.get(), e.getKey() + ": the class initialiser ran");
             assertTrue(loader.loads.isEmpty(), e.getKey());
         }
@@ -276,29 +251,6 @@ class DerStreamPolicyAdmissionTest {
         for (int i = 0; i < 3; i++) in.readObject();
         assertThrows(Exception.class, in::readObject);
         assertTrue(loader.loads.contains(TRIPWIRE_NAME), "the fixture really does make delivery load the class: " + loader.loads);
-    }
-
-    @Test
-    void denyBeatsAllowAndEntryFormsMatchAsDocumented() throws Exception {
-        byte[] stream = lastItem(channels().get("stream-level chain record").apply("a.b.C"));
-        DerStreamPolicy base = DerStreamPolicy.BUILT_IN;
-        open(stream, new CountingLoader(), base.withAllowClasses("au.net.zeus.jgdms.**, a.b.C")).close();
-        assertThrows(IOException.class, () -> open(stream, new CountingLoader(),
-                base.withAllowClasses("au.net.zeus.jgdms.**, a.b.C").withDenyClasses("a.b.C")), "deny wins over allow");
-        for (String denies : new String[] {"a.b.*", "a.b.**", "a.**", "a.b.C"}) {
-            assertThrows(IOException.class, () -> open(stream, new CountingLoader(), base.withDenyClasses(denies)), denies);
-        }
-        for (String misses : new String[] {"a.b.D", "a.bc.*", "a.bc.**", "a.b.C.*", "a.b.c", "x.**"}) {
-            open(stream, new CountingLoader(), base.withDenyClasses(misses)).close();
-        }
-    }
-
-    @Test
-    void aNameInTheFirstItemOfALongStreamIsRefusedToo() throws Exception {
-        byte[] bad = channels().get("top-level [7] enum").apply(EVIL);
-        byte[] stream = cat(new byte[] {(byte) 0x8F, 1, 1}, bad, itemsOf(goodStream(1, 2, 3, 4, 5)));
-        assertThrows(IOException.class, () -> open(stream, new CountingLoader(), DerStreamPolicy.BUILT_IN.withDenyClasses(EVIL)));
-        assertEquals(0, CONSTRUCTED.get());
     }
 
     // ------------------------------------------------------------------ budgets: each limit's inclusive boundary pair
@@ -665,13 +617,13 @@ class DerStreamPolicyAdmissionTest {
 
     @Test
     void thePolicyIsPartOfFullAdmissionNotTheCheapStage() throws Exception {
-        // a dispatcher stream constructs fine with a stream that the policy refuses; admitStream() is what applies it, so an
+        // a dispatcher stream constructs fine with a stream the policy refuses; admitStream() is what applies it, so an
         // unauthorized peer never pays for (or is told by) the policy walk
-        byte[] stream = lastItem(channels().get("top-level [7] enum").apply(EVIL));
+        byte[] stream = records(5);
         DerMarshalInputStream in = DerMarshalInputStream.forDispatcher(new ByteArrayInputStream(stream), ResolutionContext.NONE,
-                DerInputLimits.DEFAULT, DerStreamPolicy.BUILT_IN.withDenyClasses(EVIL));
+                DerInputLimits.DEFAULT, DerStreamPolicy.BUILT_IN.withMaxObjects(2));
         IOException e = assertThrows(IOException.class, in::admitStream);
-        assertTrue(msg(e).contains("is denied by"), msg(e));
+        assertTrue(msg(e).contains("maxObjects (2)"), msg(e));
         assertThrows(IOException.class, in::readLong, "and the stream is dead");
     }
 

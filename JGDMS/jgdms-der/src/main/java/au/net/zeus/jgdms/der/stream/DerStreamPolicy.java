@@ -19,85 +19,60 @@ package au.net.zeus.jgdms.der.stream;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
- * The whole-stream security policy a DER object stream is admitted against (SOW-DER-Streaming-Encoder B5).
+ * The whole-stream limits a DER object stream is admitted against (SOW-DER-Streaming-Encoder B5).
  *
  * <p>Because admission sees the WHOLE stream before anything is built, it can apply checks no item-by-item reader can:
- * a class the stream names that the operator has not permitted, a number of objects or elements the operator does not
- * want constructed, a class name bound to two different schemas. Each rejects the entire stream before a class is loaded
- * or a constructor runs. These are <b>new rejects</b>: a stream valid before may be refused, so they are configurable, and
- * the defaults are chosen to sit above anything the golden corpus and the benchmark payloads produce (see the SOW's B5
- * outcome for the measurement). They run in the FULL admission stage, after the caller is authorized.
+ * a bound on how many objects and elements the stream will build, a bound on how many distinct classes it names, and the
+ * refusal of a class name bound to two different schemas. Each rejects the entire stream before a class is loaded or a
+ * constructor runs. These are <b>new rejects</b>: a stream valid before may be refused, so they are configurable, and the
+ * defaults sit far above anything the golden corpus and the benchmark payloads produce. They run in the FULL admission
+ * stage, after the caller is authorized.
  *
- * <h2>What a "class name" is</h2>
- * Every name the stream <em>mentions</em> in a place from which the
- * {@link au.net.zeus.jgdms.der.getarg.ResolutionContext} would be asked to load it, in the order it appears, without loading
- * any of them: the class of every schema-chain record (leaf and ancestors) in the stream, in a {@code [8]}/{@code [16]}
- * region, or nested in a record; the class named by a {@code [7]} enum item; every interface a {@code [8]} proxy names; the
- * classes a field or collection wire type names ({@code @AtomicSerial:<class>}, {@code enum:<class>}, array components, in a
- * schema or in a {@code [9]}/{@code [16]} token); and the value of every {@code java.lang.Class} field or element. A name
- * is matched exactly as the loader will receive it; an array-class name ({@code [Lp.C;}) is reduced to its element class,
- * the loader loading the element class for it. The list is conservative: a name that delivery would not in the end load
- * (a declared field type whose value is null, a proxy interface it would drop as unresolvable) still counts, so an
- * allow-list refuses a stream that names a class it does not permit even where delivery would have narrowed it away.
+ * <p><b>There are deliberately no class-name allow or deny lists.</b> A list of names breaks encapsulation (a service's
+ * implementation classes would have to be published to whoever configures the policy) and cannot see codebase or signer.
+ * Which classes may be reconstructed is decided by the existing permission checks, {@code DeSerializationPermission}
+ * ({@code ATOMIC} and {@code PROXY}) and the preferred-class and integrity machinery of the
+ * {@link au.net.zeus.jgdms.der.getarg.ResolutionContext}, which run when each object is read.
  *
- * <h2>Scope</h2>
- * The policy covers the admitted stream's own content: its items, its {@code [8]}/{@code [16]} regions and its records.
- * Payloads the stream carries as opaque bytes and that are decoded LATER (a {@code MarshalledInstance} or
- * {@code MarshalledObject} body, an {@code Entry} representation) are outside it, as SOW B.2.3 says of all of Part B: they are
- * read through the record-level capture path when someone unmarshals them. Rebinding is judged per scope (see
- * {@code rejectRebinding}) and is a tripwire for a sender that binds a class name to two schemas in one scope, not a
- * boundary: a sender can always open another {@code [8]} region.
+ * <h2>What is counted</h2>
+ * <b>Objects:</b> every record site (stream, nested or a {@code [8]} handler), enum constant, proxy, non-null array and
+ * collection the stream builds. <b>Elements:</b> the children of every collection, map and reference-component array (an
+ * array of {@code int}, {@code long} ... is bounded by the input size and delivery has no cap on it, so it is not
+ * counted). <b>Distinct classes:</b> the names of every schema-chain record (leaf and ancestors), {@code [7]} enum,
+ * {@code [8]} proxy interface, array component, wire-type class ({@code @AtomicSerial:}, {@code enum:}) and
+ * {@code java.lang.Class} value, matched as the loader would receive them (an array-class name by its element class).
+ * <b>Rebinding:</b> one class name bound to two schemas within one scope, the scope being the stream's own dedup table or
+ * one forwarded {@code [8]}/{@code [16]} region (a re-forwarded proxy legitimately carries its origin's version of a
+ * class). It is a tripwire, not a boundary: a sender can always open another {@code [8]} region.
+ *
+ * <p>Payloads the stream carries as opaque bytes and that are decoded LATER (a {@code MarshalledInstance} or
+ * {@code MarshalledObject} body, an {@code Entry} representation) are outside the policy, as SOW B.2.3 says of all of
+ * Part B.
  *
  * <h2>System properties</h2>
- * Read once, by the first stream that is admitted against {@link #defaults()} (or by a dispatcher's constructor, which
- * checks them up front). A malformed number, a non-positive number or an unknown boolean is replaced by the default
- * with a warning (a mistake can never switch a limit off). <b>A malformed allow/deny entry makes {@link #defaults()}
- * throw an {@link IllegalStateException}</b>, every time it is called, and so refuses every stream that needs the
- * policy: silently dropping a deny entry would be a weaker policy than the operator wrote, and there is no safe recovery
- * that respects the other entries. Output streams never read the policy. A property that is SET but names nothing
- * ({@code allowClasses=" , "}) is warned about, because it means no list, not "allow nothing".
+ * Read once, on first use. A value that is not a positive integer (ASCII digits, at most {@code Integer.MAX_VALUE}) or not
+ * {@code true}/{@code false} is replaced by the default with a warning, so a mistake can never switch a limit off.
  * <table>
  *   <caption>Policy properties</caption>
  *   <tr><th>Property</th><th>Meaning</th><th>Default</th></tr>
- *   <tr><td>{@code au.net.zeus.jgdms.der.stream.policy.maxObjects}</td>
- *       <td>Most objects one stream may build: record sites (a constructor each), enum constants, proxies, arrays and
- *       collections</td><td>{@value #DEFAULT_MAX_OBJECTS}</td></tr>
- *   <tr><td>{@code ...maxElements}</td><td>Most collection, map and reference-component array elements in one stream, in
- *       total (the elements of an array of {@code int}, {@code long} ... are not counted: they are bounded by the input size
- *       and delivery has no cap on them)</td>
+ *   <tr><td>{@code au.net.zeus.jgdms.der.stream.policy.maxObjects}</td><td>Most objects one stream may build</td>
+ *       <td>{@value #DEFAULT_MAX_OBJECTS}</td></tr>
+ *   <tr><td>{@code ...maxElements}</td><td>Most collection, map and reference-array elements in one stream</td>
  *       <td>{@value #DEFAULT_MAX_ELEMENTS}</td></tr>
  *   <tr><td>{@code ...maxDistinctClasses}</td><td>Most distinct class names one stream may name</td>
  *       <td>{@value #DEFAULT_MAX_DISTINCT_CLASSES}</td></tr>
- *   <tr><td>{@code ...rejectRebinding}</td><td>{@code true}: refuse a stream in which one class name is bound to two
- *       different schemas within one scope (the stream's own table, or one forwarded {@code [8]}/{@code [16]} region: a
- *       forwarded proxy legitimately carries its origin's version of a class)</td><td>{@code true}</td></tr>
- *   <tr><td>{@code ...allowClasses}</td><td>Comma-separated names; when set, every class the stream names must match
- *       one</td><td>unset (no restriction)</td></tr>
- *   <tr><td>{@code ...denyClasses}</td><td>Comma-separated names; a stream naming a matching class is refused (wins
- *       over {@code allowClasses})</td><td>unset</td></tr>
+ *   <tr><td>{@code ...rejectRebinding}</td><td>{@code true}: refuse a class name bound to two schemas in one scope</td>
+ *       <td>{@code true}</td></tr>
  * </table>
- * An allow/deny entry is an exact binary name ({@code a.b.C}, {@code a.b.C$D}), {@code a.b.*} (classes directly in
- * package {@code a.b}) or {@code a.b.**} (package {@code a.b} and every package below it). Names are case-sensitive.
- * An allow-list must name the framework classes the deployment's own traffic carries (the remote-invocation and
- * lookup types, the serializers); set {@code java.util.logging} for {@code au.net.zeus.jgdms.der.stream.policy} to
- * {@code FINE} to see the distinct names of each admitted stream while building one.
- *
- * <p>Nesting depth is already bounded by the fixed {@code MAX_NESTING}; it has no knob.
- *
- * <p>Rejections are logged at {@code WARNING} by logger {@code au.net.zeus.jgdms.der.stream.policy}, once per rejected
- * stream, with names truncated and made printable. Instances are immutable.
+ * Nesting depth is already bounded by the fixed {@code MAX_NESTING}; it has no knob. Rejections are logged at
+ * {@code WARNING} by logger {@code au.net.zeus.jgdms.der.stream.policy}, at most five lines a second per JVM, with names
+ * truncated and made printable; at {@code FINE} the distinct class names of each admitted stream are logged. Instances are
+ * immutable.
  */
 public final class DerStreamPolicy {
 
@@ -109,13 +84,11 @@ public final class DerStreamPolicy {
     public static final String PROP_MAX_ELEMENTS = PROP_PREFIX + "maxElements";
     public static final String PROP_MAX_DISTINCT_CLASSES = PROP_PREFIX + "maxDistinctClasses";
     public static final String PROP_REJECT_REBINDING = PROP_PREFIX + "rejectRebinding";
-    public static final String PROP_ALLOW_CLASSES = PROP_PREFIX + "allowClasses";
-    public static final String PROP_DENY_CLASSES = PROP_PREFIX + "denyClasses";
 
     /**
-     * Default object budget. A 16 MiB stream (the default input cap) can hold at most about 400 000 record sites
-     * (the smallest nested site is about 42 bytes), so this is a real bound at the default cap while being more than two
-     * orders of magnitude above the largest stream measured (see the SOW B5 outcome).
+     * Default object budget. A 16 MiB stream (the default input cap) can hold at most about 400 000 record sites (the
+     * smallest nested site is about 42 bytes), so this binds at the default cap while being more than two orders of
+     * magnitude above the largest stream measured (see the SOW B5 outcome).
      */
     public static final int DEFAULT_MAX_OBJECTS = 262_144;
 
@@ -132,108 +105,66 @@ public final class DerStreamPolicy {
     /** A class name longer than this cannot be a loadable class (the constant-pool limit); such a name is refused. */
     static final int MAX_CLASS_NAME_LENGTH = 65_535;
 
-    private static final Pattern RULE = Pattern.compile(
-            "[\\p{L}_$][\\p{L}\\p{N}_$]*(\\.[\\p{L}_$][\\p{L}\\p{N}_$]*)*(\\.\\*{1,2})?");
-
-    /** The policy with every default and no allow/deny list, ignoring system properties. */
+    /** The policy with every default, ignoring system properties. */
     public static final DerStreamPolicy BUILT_IN =
-            new DerStreamPolicy(DEFAULT_MAX_OBJECTS, DEFAULT_MAX_ELEMENTS, DEFAULT_MAX_DISTINCT_CLASSES, true,
-                    Collections.emptyList(), Collections.emptyList());
+            new DerStreamPolicy(DEFAULT_MAX_OBJECTS, DEFAULT_MAX_ELEMENTS, DEFAULT_MAX_DISTINCT_CLASSES, true);
 
     private static volatile DerStreamPolicy configured;
-    private static IllegalStateException configurationError;
 
     /**
      * The policy used by every stream-format reader built without an explicit one: the defaults, overridden by system
-     * properties, read once. Computed on first use rather than at class initialisation, so a malformed property surfaces
-     * as the same actionable {@link IllegalStateException} each time (not an {@link ExceptionInInitializerError} followed by
-     * {@code NoClassDefFoundError}) and only on a path that needs the policy.
-     *
-     * @throws IllegalStateException if an allow or deny entry is malformed (every call)
+     * properties, read once.
      */
     public static DerStreamPolicy defaults() {
         DerStreamPolicy p = configured;
-        if (p != null) {
-            return p;
-        }
-        synchronized (DerStreamPolicy.class) {
-            if (configured == null && configurationError == null) {
-                try {
-                    configured = fromProperties(DerStreamPolicy::systemProperty);
-                } catch (IllegalStateException e) {
-                    configurationError = e;
-                    LOGGER.log(Level.SEVERE, e.getMessage());
+        if (p == null) {
+            synchronized (DerStreamPolicy.class) {
+                p = configured;
+                if (p == null) {
+                    p = fromProperties(DerStreamPolicy::systemProperty);
+                    configured = p;
                 }
             }
-            if (configurationError != null) {
-                throw new IllegalStateException(configurationError.getMessage(), configurationError);
-            }
-            return configured;
         }
+        return p;
     }
 
-    /** Test seam: forget the cached configuration so the next {@link #defaults()} re-reads the system properties. */
+    /** Test seam: forget the cached reading so the next {@link #defaults()} re-reads the system properties. */
     static synchronized void resetDefaultsForTest() {
         configured = null;
-        configurationError = null;
     }
 
     private final int maxObjects;
     private final int maxElements;
     private final int maxDistinctClasses;
     private final boolean rejectRebinding;
-    private final List<String> allow;
-    private final List<String> deny;
-    private final Rules allowRules;
-    private final Rules denyRules;
 
-    private DerStreamPolicy(int maxObjects, int maxElements, int maxDistinctClasses, boolean rejectRebinding,
-                            List<String> allow, List<String> deny) {
+    private DerStreamPolicy(int maxObjects, int maxElements, int maxDistinctClasses, boolean rejectRebinding) {
         this.maxObjects = maxObjects;
         this.maxElements = maxElements;
         this.maxDistinctClasses = maxDistinctClasses;
         this.rejectRebinding = rejectRebinding;
-        this.allow = List.copyOf(allow);
-        this.deny = List.copyOf(deny);
-        this.allowRules = new Rules(this.allow);
-        this.denyRules = new Rules(this.deny);
     }
 
     public int maxObjects() { return maxObjects; }
     public int maxElements() { return maxElements; }
     public int maxDistinctClasses() { return maxDistinctClasses; }
     public boolean rejectRebinding() { return rejectRebinding; }
-    /** The allow entries as written (empty: no restriction). */
-    public List<String> allowClasses() { return allow; }
-    /** The deny entries as written. */
-    public List<String> denyClasses() { return deny; }
 
     public DerStreamPolicy withMaxObjects(int n) {
-        return new DerStreamPolicy(positive(n, "maxObjects"), maxElements, maxDistinctClasses, rejectRebinding, allow, deny);
+        return new DerStreamPolicy(positive(n, "maxObjects"), maxElements, maxDistinctClasses, rejectRebinding);
     }
 
     public DerStreamPolicy withMaxElements(int n) {
-        return new DerStreamPolicy(maxObjects, positive(n, "maxElements"), maxDistinctClasses, rejectRebinding, allow, deny);
+        return new DerStreamPolicy(maxObjects, positive(n, "maxElements"), maxDistinctClasses, rejectRebinding);
     }
 
     public DerStreamPolicy withMaxDistinctClasses(int n) {
-        return new DerStreamPolicy(maxObjects, maxElements, positive(n, "maxDistinctClasses"), rejectRebinding, allow, deny);
+        return new DerStreamPolicy(maxObjects, maxElements, positive(n, "maxDistinctClasses"), rejectRebinding);
     }
 
     public DerStreamPolicy withRejectRebinding(boolean reject) {
-        return new DerStreamPolicy(maxObjects, maxElements, maxDistinctClasses, reject, allow, deny);
-    }
-
-    /** @throws IllegalArgumentException if an entry is malformed */
-    public DerStreamPolicy withAllowClasses(String commaSeparated) {
-        return new DerStreamPolicy(maxObjects, maxElements, maxDistinctClasses, rejectRebinding,
-                parseRules(commaSeparated, PROP_ALLOW_CLASSES), deny);
-    }
-
-    /** @throws IllegalArgumentException if an entry is malformed */
-    public DerStreamPolicy withDenyClasses(String commaSeparated) {
-        return new DerStreamPolicy(maxObjects, maxElements, maxDistinctClasses, rejectRebinding,
-                allow, parseRules(commaSeparated, PROP_DENY_CLASSES));
+        return new DerStreamPolicy(maxObjects, maxElements, maxDistinctClasses, reject);
     }
 
     private static int positive(int n, String what) {
@@ -246,65 +177,7 @@ public final class DerStreamPolicy {
     @Override
     public String toString() {
         return "DerStreamPolicy[maxObjects=" + maxObjects + ", maxElements=" + maxElements
-                + ", maxDistinctClasses=" + maxDistinctClasses + ", rejectRebinding=" + rejectRebinding
-                + ", allow=" + allow + ", deny=" + deny + "]";
-    }
-
-    // =========================================================================
-    // Matching (used by the meter)
-    // =========================================================================
-
-    /** The first deny entry matching {@code name}, or {@code null}. */
-    String deniedBy(String name) {
-        return denyRules.firstMatch(name);
-    }
-
-    boolean hasAllowList() {
-        return !allow.isEmpty();
-    }
-
-    boolean allowed(String name) {
-        return allow.isEmpty() || allowRules.firstMatch(name) != null;
-    }
-
-    /** Compiled form of an allow or deny list. */
-    private static final class Rules {
-        private final List<String> entries;
-        private final Set<String> exact = new LinkedHashSet<>();
-        private final Set<String> packages = new LinkedHashSet<>();
-        private final List<String> trees = new ArrayList<>();
-
-        Rules(List<String> entries) {
-            this.entries = entries;
-            for (String e : entries) {
-                if (e.endsWith(".**")) {
-                    trees.add(e.substring(0, e.length() - 3));
-                } else if (e.endsWith(".*")) {
-                    packages.add(e.substring(0, e.length() - 2));
-                } else {
-                    exact.add(e);
-                }
-            }
-        }
-
-        String firstMatch(String name) {
-            if (entries.isEmpty()) {
-                return null;
-            }
-            if (exact.contains(name)) {
-                return name;
-            }
-            int dot = name.lastIndexOf('.');
-            if (dot > 0 && packages.contains(name.substring(0, dot))) {
-                return name.substring(0, dot) + ".*";
-            }
-            for (String t : trees) {
-                if (name.length() > t.length() && name.startsWith(t) && name.charAt(t.length()) == '.') {
-                    return t + ".**";
-                }
-            }
-            return null;
-        }
+                + ", maxDistinctClasses=" + maxDistinctClasses + ", rejectRebinding=" + rejectRebinding + "]";
     }
 
     // =========================================================================
@@ -317,34 +190,19 @@ public final class DerStreamPolicy {
             // privileged, so the answer does not depend on which caller's protection domain happened to read it first
             return AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty(name));
         } catch (SecurityException e) {
-            LOGGER.log(Level.SEVERE, "Cannot read system property {0} ({1}); the policy runs with its default for it,"
-                    + " which for an allow or deny list means NO list", new Object[] {name, e.toString()});
+            LOGGER.log(Level.WARNING, "Cannot read system property {0} ({1}); using the default",
+                    new Object[] {name, e.toString()});
             return null;
         }
     }
 
-    /**
-     * Builds a policy from a property source, applying the validation rules in the class Javadoc.
-     *
-     * @throws IllegalStateException if an allow or deny entry is malformed
-     */
+    /** Builds a policy from a property source, applying the validation rules in the class Javadoc. */
     static DerStreamPolicy fromProperties(Function<String, String> source) {
-        Objects.requireNonNull(source, "source");
-        int objects = parseBudget(source.apply(PROP_MAX_OBJECTS), DEFAULT_MAX_OBJECTS, PROP_MAX_OBJECTS);
-        int elements = parseBudget(source.apply(PROP_MAX_ELEMENTS), DEFAULT_MAX_ELEMENTS, PROP_MAX_ELEMENTS);
-        int classes = parseBudget(source.apply(PROP_MAX_DISTINCT_CLASSES), DEFAULT_MAX_DISTINCT_CLASSES,
-                PROP_MAX_DISTINCT_CLASSES);
-        boolean rebinding = parseBoolean(source.apply(PROP_REJECT_REBINDING), true, PROP_REJECT_REBINDING);
-        List<String> allow;
-        List<String> deny;
-        try {
-            allow = parseRules(source.apply(PROP_ALLOW_CLASSES), PROP_ALLOW_CLASSES);
-            deny = parseRules(source.apply(PROP_DENY_CLASSES), PROP_DENY_CLASSES);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException(e.getMessage()
-                    + " -- refusing to start with a policy weaker than the one written", e);
-        }
-        return new DerStreamPolicy(objects, elements, classes, rebinding, allow, deny);
+        return new DerStreamPolicy(
+                parseBudget(source.apply(PROP_MAX_OBJECTS), DEFAULT_MAX_OBJECTS, PROP_MAX_OBJECTS),
+                parseBudget(source.apply(PROP_MAX_ELEMENTS), DEFAULT_MAX_ELEMENTS, PROP_MAX_ELEMENTS),
+                parseBudget(source.apply(PROP_MAX_DISTINCT_CLASSES), DEFAULT_MAX_DISTINCT_CLASSES, PROP_MAX_DISTINCT_CLASSES),
+                parseBoolean(source.apply(PROP_REJECT_REBINDING), true, PROP_REJECT_REBINDING));
     }
 
     /** Positive integer, else {@code def} with a warning: a bad value can never turn a budget off. */
@@ -388,34 +246,6 @@ public final class DerStreamPolicy {
         LOGGER.log(Level.WARNING, "Value \"{0}\" for {1} is neither true nor false; using the default {2}",
                 new Object[] {printable(raw, 40), propName, def});
         return def;
-    }
-
-    /**
-     * Comma-separated allow/deny entries; blank entries are ignored (a trailing comma is not a mistake).
-     *
-     * @throws IllegalArgumentException if an entry is not an exact name, {@code pkg.*} or {@code pkg.**}
-     */
-    static List<String> parseRules(String raw, String propName) {
-        if (raw == null) {
-            return Collections.emptyList();
-        }
-        List<String> out = new ArrayList<>();
-        for (String part : raw.split(",")) {
-            String e = part.trim();
-            if (e.isEmpty()) {
-                continue;
-            }
-            if (!RULE.matcher(e).matches()) {
-                throw new IllegalArgumentException("Malformed entry \"" + printable(e) + "\" in " + propName
-                        + " (expected a binary class name, pkg.* or pkg.**)");
-            }
-            out.add(e);
-        }
-        if (out.isEmpty()) {
-            LOGGER.log(Level.WARNING, "{0} is set but names no class: that means NO list is applied, not \"allow nothing\"",
-                    propName);
-        }
-        return out;
     }
 
     /** A name made safe to put in a message or a log line: printable ASCII only, truncated. */

@@ -95,13 +95,6 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                 net.jini.core.constraint.MarshallingFormat.ATOMIC_DER.getFormat(),
                 new DerReducingContextCodec(java.util.Objects.requireNonNull(limits, "limits")));
         this.limits = limits;
-        // The whole-stream policy is read from system properties by the first stream that needs it. Read it here, at export,
-        // so a malformed allow/deny entry fails the export with a clear message instead of failing every request.
-        try {
-            au.net.zeus.jgdms.der.stream.DerStreamPolicy.defaults();
-        } catch (IllegalStateException e) {
-            throw new ExportException("the DER stream policy configuration is invalid: " + e.getMessage(), e);
-        }
     }
 
     /**

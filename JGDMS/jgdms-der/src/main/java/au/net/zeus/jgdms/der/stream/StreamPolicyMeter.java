@@ -81,7 +81,7 @@ final class StreamPolicyMeter {
     int distinctClasses() { return names.size(); }
     Set<String> classNames() { return Collections.unmodifiableSet(names); }
 
-    /** Logs the distinct names of an admitted stream, for building an allow-list (a cheap no-op unless FINE is on). */
+    /** Logs the distinct names of an admitted stream, for diagnosing a policy (a cheap no-op unless FINE is on). */
     void logAdmitted() {
         if (LOGGER.isLoggable(Level.FINE)) {
             StringBuilder b = new StringBuilder();
@@ -140,15 +140,6 @@ final class StreamPolicyMeter {
         }
         if (!names.add(name)) {
             return;
-        }
-        String denied = policy.deniedBy(name);
-        if (denied != null) {
-            throw reject("DER stream policy: class '" + DerStreamPolicy.printable(name) + "' is denied by "
-                    + DerStreamPolicy.PROP_DENY_CLASSES + " (matched '" + denied + "')");
-        }
-        if (!policy.allowed(name)) {
-            throw reject("DER stream policy: class '" + DerStreamPolicy.printable(name) + "' is not permitted by "
-                    + DerStreamPolicy.PROP_ALLOW_CLASSES);
         }
         if (names.size() > policy.maxDistinctClasses()) {
             throw reject("DER stream policy: the stream names more than maxDistinctClasses ("

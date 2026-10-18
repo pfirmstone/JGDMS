@@ -48,8 +48,6 @@ class DerStreamPolicyTest {
         assertEquals(DerStreamPolicy.DEFAULT_MAX_ELEMENTS, p.maxElements());
         assertEquals(DerStreamPolicy.DEFAULT_MAX_DISTINCT_CLASSES, p.maxDistinctClasses());
         assertTrue(p.rejectRebinding());
-        assertTrue(p.allowClasses().isEmpty());
-        assertTrue(p.denyClasses().isEmpty());
         assertEquals(p.toString(), DerStreamPolicy.BUILT_IN.toString());
     }
 
@@ -60,7 +58,6 @@ class DerStreamPolicyTest {
         assertEquals(4_194_304, DerStreamPolicy.DEFAULT_MAX_ELEMENTS);
         assertEquals(1_024, DerStreamPolicy.DEFAULT_MAX_DISTINCT_CLASSES);
         assertTrue(DerStreamPolicy.BUILT_IN.rejectRebinding());
-        assertTrue(DerStreamPolicy.BUILT_IN.allowClasses().isEmpty() && DerStreamPolicy.BUILT_IN.denyClasses().isEmpty());
     }
 
     @Test
@@ -111,65 +108,6 @@ class DerStreamPolicyTest {
         assertEquals(1, p.withMaxObjects(1).maxObjects());
     }
 
-    // ------------------------------------------------------------------ allow/deny entry grammar
-
-    @Test
-    void entriesAreExactNamesOrPackageWildcards() {
-        DerStreamPolicy p = from("denyClasses", "a.b.C, a.b.C$D , x.*, y.z.**, TopLevel, ,");
-        assertEquals(List.of("a.b.C", "a.b.C$D", "x.*", "y.z.**", "TopLevel"), p.denyClasses());
-    }
-
-    @Test
-    void aMalformedEntryRefusesToStartRatherThanWeakenThePolicy() {
-        for (String bad : new String[] {"a..b", ".a", "a.", "a b", "a.b.***", "*", "**", "a.*.b", "a.**.b", "-x", "a/b", "a;b",
-                "a.b(", "1a", "a.1b", "a.b.*x"}) {
-            for (String prop : new String[] {"denyClasses", "allowClasses"}) {
-                IllegalStateException e = assertThrows(IllegalStateException.class, () -> from(prop, "good.Name, " + bad), bad);
-                assertTrue(e.getMessage().contains("refusing to start"), e.getMessage());
-            }
-            assertThrows(IllegalArgumentException.class, () -> DerStreamPolicy.BUILT_IN.withDenyClasses(bad));
-            assertThrows(IllegalArgumentException.class, () -> DerStreamPolicy.BUILT_IN.withAllowClasses(bad));
-        }
-    }
-
-    @Test
-    void aHostileEntryIsPrintedSafelyInTheMessage() {
-        IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> from("denyClasses", "ok.Name,evil\nINJECTED \u001b[31mred"));
-        assertFalse(e.getMessage().contains("\n"), e.getMessage());
-        assertFalse(e.getMessage().contains("\u001b"));
-    }
-
-    @Test
-    void wildcardsMatchTheDocumentedNames() {
-        DerStreamPolicy p = DerStreamPolicy.BUILT_IN.withDenyClasses("a.b.C, p.q.*, r.s.**, Bare");
-        assertEquals("a.b.C", p.deniedBy("a.b.C"));
-        assertNull(p.deniedBy("a.b.D"));
-        assertNull(p.deniedBy("a.b.C.E"), "an exact entry is exact");
-        assertNull(p.deniedBy("a.b.C$Inner"), "an exact entry does not cover nested classes");
-        assertEquals("p.q.*", p.deniedBy("p.q.X"));
-        assertEquals("p.q.*", p.deniedBy("p.q.X$Inner"), "a package wildcard covers nested classes of its classes");
-        assertNull(p.deniedBy("p.q.sub.X"), "pkg.* is the package alone");
-        assertNull(p.deniedBy("p.qq.X"));
-        assertEquals("r.s.**", p.deniedBy("r.s.X"));
-        assertEquals("r.s.**", p.deniedBy("r.s.t.u.X"));
-        assertNull(p.deniedBy("r.sx.X"), "a tree entry matches whole package segments");
-        assertNull(p.deniedBy("r.s"), "the tree root is not a class");
-        assertEquals("Bare", p.deniedBy("Bare"));
-        assertNull(p.deniedBy("x.Bare"));
-        assertNull(DerStreamPolicy.BUILT_IN.deniedBy("anything.At.All"));
-    }
-
-    @Test
-    void anEmptyAllowListMeansNoRestrictionAndANonEmptyOneRestricts() {
-        assertTrue(DerStreamPolicy.BUILT_IN.allowed("any.Thing"));
-        DerStreamPolicy p = DerStreamPolicy.BUILT_IN.withAllowClasses("ok.**");
-        assertTrue(p.allowed("ok.A"));
-        assertTrue(p.allowed("ok.sub.A"));
-        assertFalse(p.allowed("no.A"));
-        assertTrue(p.hasAllowList());
-    }
-
     // ------------------------------------------------------------------ the meter's name extraction
 
     private static java.util.Set<String> namesIn(String token) throws DerException {
@@ -203,13 +141,9 @@ class DerStreamPolicyTest {
 
     @Test
     void aHostileTokenIsScannedInBoundedTime() {
-        // 100 000 nested levels, then a denied name at the bottom: the scan is linear and recursion-free
+        // 100 000 nested levels, then a name at the bottom: the scan is linear and recursion-free
         String token = "list:".repeat(100_000) + "enum:evil.E";
-        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
-            StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("evil.E"));
-            DerException e = assertThrows(DerException.class, () -> m.wireType(token));
-            assertTrue(e.getMessage().contains("is denied by"));
-        });
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertEquals(java.util.Set.of("evil.E"), namesIn(token)));
         // and a long run of markers: the loader would be handed one 700 000-character name, which no class can have
         String noise = "@AtomicSerial:".repeat(50_000);
         assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
@@ -254,9 +188,6 @@ class DerStreamPolicyTest {
         assertEquals(0, m.distinctClasses());
         m.className("int");
         assertEquals(1, m.distinctClasses());
-        StreamPolicyMeter denied = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("int"));
-        denied.classValue("int");
-        assertThrows(DerException.class, () -> denied.className("int"));
     }
 
     @Test
@@ -269,14 +200,15 @@ class DerStreamPolicyTest {
     }
 
     @Test
-    void messagesAndLogsCarryOnlyPrintableTruncatedNames() {
-        StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("evil.**"));
+    void messagesCarryOnlyPrintableTruncatedNames() {
+        StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withMaxDistinctClasses(1));
+        assertDoesNotThrow(() -> m.className("first.One"));
         String hostile = "evil.X\n\u001b[31m" + "y".repeat(500);
-        DerException e = assertThrows(DerException.class, () -> m.className(hostile));
-        assertFalse(e.getMessage().contains("\n"));
-        assertFalse(e.getMessage().contains("\u001b"));
-        assertTrue(e.getMessage().length() < 400, "the name is truncated: " + e.getMessage().length());
-        assertTrue(e.getMessage().contains("..."));
+        // a rejection that quotes a name (rebinding) must not carry control characters or an unbounded string
+        String shown = DerStreamPolicy.printable(hostile);
+        assertFalse(shown.contains("\n"));
+        assertFalse(shown.contains("\u001b"));
+        assertTrue(shown.length() < 130 && shown.endsWith("..."), shown);
     }
 
     @Test
@@ -298,65 +230,6 @@ class DerStreamPolicyTest {
     // ------------------------------------------------------------------ defaults(): lazy, repeatable failure
 
     @Test
-    void aMalformedPropertyFailsEveryUseWithTheSameActionableErrorAndOnlyWhereThePolicyIsNeeded() throws Exception {
-        String prop = DerStreamPolicy.PROP_DENY_CLASSES;
-        String before = System.getProperty(prop);
-        try {
-            System.setProperty(prop, "good.Name, bad entry!");
-            DerStreamPolicy.resetDefaultsForTest();
-            for (int i = 0; i < 3; i++) {
-                IllegalStateException e = assertThrows(IllegalStateException.class, DerStreamPolicy::defaults);
-                assertTrue(e.getMessage().contains("refusing to start"), e.getMessage());
-            }
-            // a reader is refused, with that message...
-            byte[] stream = DerStreamAdmissionCharacterisationTest.goodStream(1);
-            java.io.IOException io = assertThrows(java.io.IOException.class,
-                    () -> new DerMarshalInputStream(new java.io.ByteArrayInputStream(stream)));
-            assertTrue(DerStreamAdmissionCharacterisationTest.chain(io).contains("refusing to start"));
-            // ...an explicit policy is not affected by the broken property...
-            new DerMarshalInputStream(new java.io.ByteArrayInputStream(stream),
-                    au.net.zeus.jgdms.der.getarg.ResolutionContext.NONE, au.net.zeus.jgdms.der.DerInputLimits.DEFAULT,
-                    DerStreamPolicy.BUILT_IN).close();
-            // ...and a writer never reads the policy
-            DerObjectStreamCodec c = new DerObjectStreamCodec();
-            c.writeLong(1L);
-            c.drainTo(new java.io.ByteArrayOutputStream());
-        } finally {
-            if (before == null) System.clearProperty(prop); else System.setProperty(prop, before);
-            DerStreamPolicy.resetDefaultsForTest();
-        }
-        assertDoesNotThrow(DerStreamPolicy::defaults);
-    }
-
-    @Test
-    void aPropertyThatIsSetButNamesNothingIsWarnedAbout() {
-        java.util.List<String> warnings = new java.util.ArrayList<>();
-        java.util.logging.Logger log = java.util.logging.Logger.getLogger("au.net.zeus.jgdms.der.stream.policy");
-        java.util.logging.Handler h = new java.util.logging.Handler() {
-            @Override public void publish(java.util.logging.LogRecord r) {
-                if (r.getLevel().intValue() >= java.util.logging.Level.WARNING.intValue()) {
-                    warnings.add(new java.util.logging.SimpleFormatter().formatMessage(r));
-                }
-            }
-            @Override public void flush() { }
-            @Override public void close() { }
-        };
-        log.addHandler(h);
-        try {
-            assertTrue(from("allowClasses", " , ").allowClasses().isEmpty());
-            assertTrue(from("allowClasses", "").allowClasses().isEmpty());
-            assertEquals(2, warnings.size(), warnings.toString());
-            assertTrue(warnings.get(0).contains("NO list is applied"), warnings.get(0));
-            warnings.clear();
-            from("denyClasses", "a.B");
-            from();
-            assertTrue(warnings.isEmpty(), "a real list and an unset property are silent: " + warnings);
-        } finally {
-            log.removeHandler(h);
-        }
-    }
-
-    @Test
     void aFloodOfRejectionsIsLoggedAtAFixedRateButEveryOneStillThrows() {
         java.util.concurrent.atomic.AtomicInteger logged = new java.util.concurrent.atomic.AtomicInteger();
         java.util.logging.Logger log = java.util.logging.Logger.getLogger("au.net.zeus.jgdms.der.stream.policy");
@@ -371,9 +244,10 @@ class DerStreamPolicyTest {
             int thrown = 0;
             long start = System.nanoTime();
             for (int i = 0; i < 500; i++) {
-                StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withDenyClasses("evil.**"));
+                StreamPolicyMeter m = new StreamPolicyMeter(DerStreamPolicy.BUILT_IN.withMaxDistinctClasses(1));
                 try {
-                    m.className("evil.X" + i);
+                    m.className("a.A");
+                    m.className("b.B" + i);
                 } catch (DerException e) {
                     thrown++;
                 }
