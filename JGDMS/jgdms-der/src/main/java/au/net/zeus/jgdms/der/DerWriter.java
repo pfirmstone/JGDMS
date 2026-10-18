@@ -241,11 +241,11 @@ public final class DerWriter {
     }
 
     /** Size in octets of the tag + definite-length header (same bytes as {@link #encodeLength}). */
-    private static int headerSize(Tag tag, int contentLength) {
+    static int headerSize(Tag tag, int contentLength) {
         return tag.encodedSize() + lengthSize(contentLength);
     }
 
-    private static int lengthSize(int length) {
+    static int lengthSize(int length) {
         if (length < 0) {
             throw new IllegalArgumentException("length must be >= 0, got " + length);
         }
@@ -256,7 +256,7 @@ public final class DerWriter {
     }
 
     /** Writes tag octets then definite-length octets at {@code pos}; returns the position after. */
-    private static int writeHeader(byte[] out, int pos, Tag tag, int contentLength) {
+    static int writeHeader(byte[] out, int pos, Tag tag, int contentLength) {
         pos = tag.encodeInto(out, pos);
         if (contentLength <= 127) {
             out[pos] = (byte) contentLength;

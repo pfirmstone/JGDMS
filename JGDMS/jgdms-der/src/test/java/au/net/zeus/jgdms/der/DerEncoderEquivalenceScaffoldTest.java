@@ -18,7 +18,6 @@
 package au.net.zeus.jgdms.der;
 
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -144,14 +143,94 @@ class DerEncoderEquivalenceScaffoldTest {
         return false;
     }
 
-    /** A1 replaces the body: encode the same trees with DerEncoder (both variants) and compare. */
-    @Disabled("A1: enable once DerEncoder exists; encode randomTree(seed) with it and compare to the reference")
-    @Test
-    void derEncoderMatchesReference() {
-        for (long seed = 0; seed < 2000; seed++) {
-            Node t = randomTree(new Random(seed), 0);
-            byte[] expected = encodeWithReference(t);
-            assertNotNull(expected);   // A1: assertArrayEquals(expected, <DerEncoder over t>, "seed " + seed);
+    // ---- A1: both DerEncoder variants must reproduce the reference byte for byte ----
+
+    private static void encodeWith(DerEncoder e, Node n, java.util.Random mix) {
+        if (n instanceof Leaf l) {
+            // alternate between leaf() and handing the same TLV over as raw(), to exercise both
+            if (mix.nextInt(4) == 0) {
+                e.raw(DerWriterReference.writeTlv(l.tag(), l.content()));
+            } else {
+                // surround the content with junk and pass an offset/length, proving the slice is honoured
+                byte[] padded = new byte[l.content().length + 6];
+                java.util.Arrays.fill(padded, (byte) 0xEE);
+                System.arraycopy(l.content(), 0, padded, 3, l.content().length);
+                e.leaf(l.tag(), padded, 3, l.content().length);
+            }
+        } else if (n instanceof Seq s) {
+            e.begin(s.tag());
+            for (Node c : s.children()) encodeWith(e, c, mix);
+            e.end();
+        } else {
+            e.beginSortedSet(CollectionWireTypes.OCTET_SORT);
+            for (Node c : ((SortedSet) n).children()) encodeWith(e, c, mix);
+            e.end();
         }
+    }
+
+    private static void checkVariant(java.util.function.Supplier<DerEncoder> make, String name) {
+        for (long seed = 0; seed < 3000; seed++) {
+            Node t = randomTree(new Random(seed), 0);
+            DerEncoder e = make.get();
+            encodeWith(e, t, new Random(seed ^ 0x5DEECE66DL));
+            assertEquals(encodeWithReference(t).length, e.size(), name + " size, seed " + seed);
+            assertArrayEquals(encodeWithReference(t), e.toByteArray(), name + " seed " + seed);
+        }
+    }
+
+    @Test
+    void compactVariantMatchesReference() { checkVariant(CompactDerEncoder::new, "compact"); }
+
+    @Test
+    void severalTopLevelTlvsAndAReusedEncoderBehave() {
+        for (java.util.function.Supplier<DerEncoder> make : List.<java.util.function.Supplier<DerEncoder>>of(
+                CompactDerEncoder::new)) {
+            DerEncoder e = make.get();
+            e.leaf(Tag.OCTET_STRING, new byte[] {1});
+            e.begin(Tag.SEQUENCE).leaf(Tag.OCTET_STRING, new byte[0]).end();
+            e.raw(new byte[] {5, 0});
+            assertArrayEquals(new byte[] {4, 1, 1, 0x30, 2, 4, 0, 5, 0}, e.toByteArray());
+            assertArrayEquals(e.toByteArray(), e.toByteArray(), "toByteArray is repeatable");
+        }
+    }
+
+    @Test
+    void misuseIsRejected() {
+        for (java.util.function.Supplier<DerEncoder> make : List.<java.util.function.Supplier<DerEncoder>>of(
+                CompactDerEncoder::new)) {
+            assertThrows(IllegalStateException.class, () -> make.get().end());
+            assertThrows(IllegalStateException.class, () -> make.get().begin(Tag.SEQUENCE).toByteArray());
+            assertThrows(IllegalStateException.class, () -> make.get().beginSortedSet(CollectionWireTypes.OCTET_SORT).size());
+        }
+    }
+
+    /** A leaf's bytes are copied in: mutating the caller's array afterwards must not change the output. */
+    @Test
+    void leafBytesAreCopiedNotAliased() {
+        for (java.util.function.Supplier<DerEncoder> make : List.<java.util.function.Supplier<DerEncoder>>of(
+                CompactDerEncoder::new)) {
+            byte[] src = {1, 2, 3};
+            DerEncoder e = make.get();
+            e.begin(Tag.SEQUENCE).leaf(Tag.OCTET_STRING, src);
+            src[0] = 99;
+            e.end();
+            assertArrayEquals(new byte[] {0x30, 5, 4, 3, 1, 2, 3}, e.toByteArray());
+        }
+    }
+
+    /** One encoder reused across many items (after reset) must give exactly the single-use results. */
+    @Test
+    void aResetEncoderIsAsGoodAsANewOne() {
+        DerEncoder reused = DerEncoder.create();
+        for (long seed = 0; seed < 600; seed++) {
+            Node t = randomTree(new Random(seed), 0);
+            reused.reset();
+            encodeWith(reused, t, new Random(seed ^ 0x5DEECE66DL));
+            assertArrayEquals(encodeWithReference(t), reused.toByteArray(), "reused, seed " + seed);
+        }
+        // reset also abandons open constructs and a half-built sorted set
+        reused.reset().begin(Tag.SEQUENCE).beginSortedSet(CollectionWireTypes.OCTET_SORT).leaf(Tag.OCTET_STRING, new byte[] {1});
+        reused.reset().leaf(Tag.OCTET_STRING, new byte[] {2});
+        assertArrayEquals(new byte[] {4, 1, 2}, reused.toByteArray());
     }
 }

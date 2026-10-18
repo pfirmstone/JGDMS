@@ -1,6 +1,6 @@
 # Handover: DER codec performance, streaming encoder and admission work
 
-**AS-OF 2026-10-18, branch `claude/focused-bohr-t6bwal` at commit `53c369511`** (source: `git rev-parse --short HEAD`;
+**AS-OF 2026-10-18 (updated after A1), branch `claude/focused-bohr-t6bwal`; originally written at `53c369511`, A1 and the target untrack landed after** (source: `git rev-parse --short HEAD`;
 `git status -sb` showed the branch level with `origin/claude/focused-bohr-t6bwal` and a clean tree after restoring
 tracked `target/` build files). Anything committed after `53c369511` is NOT reflected here: run
 `git log --oneline 53c369511..HEAD` first. Written following `handover-composition` (pfirmstone/Cross-machine_Claude_Code_skills).
@@ -17,7 +17,7 @@ tracked `target/` build files). Anything committed after `53c369511` is NOT refl
 
 ## 2. State, with provenance
 
-- **Tests:** 929 run, 0 failures, 0 errors, 1 skipped, in module `jgdms-der` (source: last full `mvn -pl jgdms-der test`
+- **Tests (after A1):** 933 run, 0 failures, 0 errors, 0 skipped, in module `jgdms-der` (source: `mvn -pl jgdms-der test` on DirtyChai 27; the A1 hook is now enabled). Before A1 it was 929 with 1 skipped. Population: `jgdms-der` (source: last full `mvn -pl jgdms-der test`
   on DirtyChai 27 after commit `53c369511`'s change; population: that module only, NOT `jgdms-jeri`/`jgdms-cel`, which were
   spot-run earlier with `-Dtest='*Der*,*DER*,*Cel*'` and passed). The 1 skipped test is the A1 hook
   `DerEncoderEquivalenceScaffoldTest.derEncoderMatchesReference` (deliberately `@Disabled`).
@@ -71,7 +71,7 @@ Docs: the rest (SOW creation, board folding, decisions).
 
 ## 7. Open items
 
-1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A1 `DerEncoder` [high]; then A2, A4, B1 [high]; A3, B2, B5 [xhigh]. The maintainer has not yet reviewed the streaming-encoder SOW.
+1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A2 migrate the object encoders (callee-first; sorted sets via `raw()`) [high]; then A4, B1 [high]; A3, B2, B5 [xhigh]. **A0 and A1 are DONE** (A1: `DerEncoder` = `CompactDerEncoder`, benchmark in the SOW A.1.1). The maintainer has not yet reviewed the streaming-encoder SOW.
 2. Ask the user (in bold) before an effort change; efforts are set by the user.
 3. DGC fix was tested at the `DerMarshalInputStream` level only; B0 should confirm it through the real dispatcher.
 4. ~~`JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine)~~ CORRECTED 2026-10-18: the 569 tracked `jgdms-der/target/` files WERE mine - force-added by `git add -f JGDMS/jgdms-der` in `ef2fdc6a9` (trunk `9adc8e6e3` tracks none; source: `git ls-tree -r 9adc8e6e3 --name-only | grep -c jgdms-der/target/` = 0). Untracked in the commit after `a6c2679d6`; `.gitignore` already had `**/target/`. NEVER use `git add -f` on a whole module. `dependency-reduced-pom.xml` IS trunk's own tracked file: leave it, `git checkout` it after benchmark builds.
