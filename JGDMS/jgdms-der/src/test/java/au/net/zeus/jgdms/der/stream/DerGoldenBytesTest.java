@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.der.stream;
 
 import au.net.zeus.jgdms.der.marshal.fixtures.VersionedRecord;
+import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.object.fixtures.*;
 import org.apache.river.api.io.AtomicSerial;
 import org.junit.jupiter.api.DynamicTest;
@@ -297,6 +298,162 @@ class DerGoldenBytesTest {
         return s;
     }
 
+
+    // ---- A0 fixtures: boundaries, nesting, empties, nested sorted sets, key-order-sensitive maps ----
+
+    /** Marker: write each item, in order, as consecutive stream items (a heterogeneous stream). */
+    static final class MixedStream {
+        final Object[] items;
+        MixedStream(Object... items) { this.items = items; }
+    }
+
+    /** Marker: a top-level {@code [16]} collection item written with writeCollection(coll, token). */
+    static final class TopLevelCollection {
+        final Object coll;
+        final String token;
+        TopLevelCollection(Object coll, String token) { this.coll = coll; this.token = token; }
+    }
+
+    /** A record with no fields at all: its class SEQUENCE is the empty construct {@code 30 00}. */
+    @AtomicSerial
+    public static final class ZeroField {
+        public static AtomicSerial.SerialForm[] serialForm() { return new AtomicSerial.SerialForm[0]; }
+        public static void serialize(AtomicSerial.PutArg arg, ZeroField z) throws IOException { arg.writeArgs(); }
+        public ZeroField() {}
+        public ZeroField(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {}
+    }
+
+    /** Empty string, empty byte[], and an empty List / Set / Map in one record. */
+    @AtomicSerial
+    public static final class Empties {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] {
+                new AtomicSerial.SerialForm("s", String.class),
+                new AtomicSerial.SerialForm("b", byte[].class),
+                new AtomicSerial.SerialForm("l", List.class),
+                new AtomicSerial.SerialForm("st", Set.class),
+                new AtomicSerial.SerialForm("m", Map.class),
+            };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, Empties e) throws IOException {
+            arg.put("s", e.s); arg.put("b", e.b); arg.put("l", e.l); arg.put("st", e.st); arg.put("m", e.m);
+            arg.writeArgs();
+        }
+        final String s; final byte[] b; final List<Rec> l; final Set<Rec> st; final Map<String, Rec> m;
+        public Empties() { this("", new byte[0], new ArrayList<>(), new HashSet<>(), new TreeMap<>()); }
+        Empties(String s, byte[] b, List<Rec> l, Set<Rec> st, Map<String, Rec> m) {
+            this.s = s; this.b = b; this.l = l; this.st = st; this.m = m;
+        }
+        @SuppressWarnings("unchecked")
+        public Empties(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this((String) arg.get("s", null), (byte[]) arg.get("b", null),
+                 new ArrayList<>((List<Rec>) arg.get("l", null)), new HashSet<>((Set<Rec>) arg.get("st", null)),
+                 new TreeMap<>((Map<String, Rec>) arg.get("m", null)));
+        }
+    }
+
+    /** A bag: a canonicalised multiset (PriorityQueue) whose duplicate encodings are kept. */
+    @AtomicSerial
+    public static final class StringBag {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", java.util.PriorityQueue.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, StringBag b) throws IOException {
+            arg.put("items", b.items);
+            arg.writeArgs();
+        }
+        final java.util.PriorityQueue<String> items;
+        public StringBag(java.util.PriorityQueue<String> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public StringBag(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this(new java.util.PriorityQueue<>((java.util.Collection<String>) arg.get("items", null)));
+        }
+    }
+
+    /** Set&lt;RecSet&gt;: a sorted set whose ELEMENTS each contain a sorted set. */
+    @AtomicSerial
+    public static final class SetOfRecSets {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Set.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, SetOfRecSets h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Set<RecSet> items;
+        public SetOfRecSets(Set<RecSet> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public SetOfRecSets(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new HashSet<>((Set<RecSet>) arg.get("items", null));
+        }
+    }
+
+    /** Map&lt;String, RecSet&gt;: map VALUES that each contain a sorted set. */
+    @AtomicSerial
+    public static final class MapOfRecSets {
+        public static AtomicSerial.SerialForm[] serialForm() {
+            return new AtomicSerial.SerialForm[] { new AtomicSerial.SerialForm("items", Map.class) };
+        }
+        public static void serialize(AtomicSerial.PutArg arg, MapOfRecSets h) throws IOException {
+            arg.put("items", h.items);
+            arg.writeArgs();
+        }
+        final Map<String, RecSet> items;
+        public MapOfRecSets(Map<String, RecSet> items) { this.items = items; }
+        @SuppressWarnings("unchecked")
+        public MapOfRecSets(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
+            this.items = new TreeMap<>((Map<String, RecSet>) arg.get("items", null));
+        }
+    }
+
+    /** A Rec whose three strings are {@code n} characters each, so entry sizes can be controlled. */
+    private static Rec bigRec(long id, int n) {
+        return new Rec(id, "n".repeat(n), "d".repeat(n), "o".repeat(n));
+    }
+
+    /**
+     * Blob sizes chosen so that SOME enclosing construct (the field OCTET STRING, the class SEQUENCE, the
+     * hierarchy SEQUENCE, the record, the array) has a content length of exactly 127/128, 255/256 or
+     * 65535/65536 octets, and so that those constructs sit inside others that straddle a boundary too.
+     */
+    private static final int[] BOUNDARY_BLOB_SIZES = boundarySizes();
+
+    private static int[] boundarySizes() {
+        List<Integer> l = new ArrayList<>();
+        l.add(0); l.add(1);
+        for (int n = 118; n <= 136; n++) l.add(n);
+        for (int n = 248; n <= 264; n++) l.add(n);
+        for (int n = 65524; n <= 65546; n++) l.add(n);
+        return l.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static Blob[] boundaryBlobs() {
+        Blob[] out = new Blob[BOUNDARY_BLOB_SIZES.length];
+        for (int i = 0; i < out.length; i++) {
+            byte[] b = new byte[BOUNDARY_BLOB_SIZES[i]];
+            for (int j = 0; j < b.length; j++) b[j] = (byte) (j * 31 + i);
+            out[i] = new Blob(b);
+        }
+        return out;
+    }
+
+    private static Chain deepChain(int objects) {
+        Chain c = null;
+        for (int i = 0; i < objects; i++) c = new Chain(c);
+        return c;
+    }
+
+    /** Entries whose triple-in-a-stream form is skipped (their single form is already very large). */
+    private static final java.util.Set<String> SINGLE_ONLY =
+            java.util.Set.of("blob-16MiB-minus-1", "list-70000", "list-65536");
+
+    /**
+     * Entries the encoder emits but the decoder rejects (STD-006 sec.4.5 maxCollection = 65536): the
+     * encoder does not enforce the ceiling, so a 70 000-element list encodes to a stream no conforming
+     * decoder accepts. Pinned by {@link #encoderEmitsAListTheDecoderRejects}; excluded from the round trip.
+     */
+    private static final java.util.Set<String> ENCODE_ONLY = java.util.Set.of("list-70000");
+
     // ---- corpus ----
 
     private static Map<String, Supplier<Object>> corpus() {
@@ -357,6 +514,63 @@ class DerGoldenBytesTest {
         c.put("top-level-array-nested", () -> new NestedValue[] {
                 new NestedValue(1, "a"), new NestedValueSub(2, "b", "x"), new NestedValue(3, "c")});
         c.put("top-level-proxy", DerGoldenBytesTest::greetProxy);
+        // ---- A0 ----
+        c.put("deep-chain-max-nesting", () -> deepChain(ObjectCodec.MAX_NESTING));
+        c.put("list-70000", () -> {
+            List<Rec> l = new ArrayList<>(70000);
+            for (int i = 0; i < 70000; i++) l.add(rec(i));
+            return new Batch(l);
+        });
+        c.put("list-65536", () -> {   // exactly maxCollection: still decodable, content length > 65535
+            List<Rec> l = new ArrayList<>(65536);
+            for (int i = 0; i < 65536; i++) l.add(rec(i));
+            return new Batch(l);
+        });
+        c.put("boundary-blob-array", DerGoldenBytesTest::boundaryBlobs);
+        c.put("blob-16MiB-minus-1", () -> {
+            byte[] b = new byte[16 * 1024 * 1024 - 1];
+            for (int i = 0; i < b.length; i++) b[i] = (byte) (i * 31);
+            return new Blob(b);
+        });
+        c.put("empties", Empties::new);
+        c.put("zero-field-record", ZeroField::new);
+        c.put("string-bag-duplicates", () -> new StringBag(
+                new java.util.PriorityQueue<>(Arrays.asList("b", "a", "b", "a", "c", "b"))));
+        c.put("map-key-order-differs-from-entry-order", () -> {
+            // keys sort k0 < k1 < ... but the values shrink, so whole-entry order (dominated by the entry's
+            // length octets) is the REVERSE of key order: a sort on the wrong key changes the bytes
+            Map<String, Rec> m = new TreeMap<>();
+            for (int i = 0; i < 6; i++) m.put("k" + i, bigRec(i, 60 - i * 10));
+            return new RecMap(m);
+        });
+        c.put("set-of-sets", () -> {
+            Set<RecSet> outer = new HashSet<>();
+            for (int i = 0; i < 4; i++) {
+                Set<Rec> inner = new HashSet<>();
+                for (int j = 0; j <= i; j++) inner.add(rec(i * 10 + j));
+                outer.add(new RecSet(inner));
+            }
+            return new SetOfRecSets(outer);
+        });
+        c.put("map-of-sets", () -> {
+            Map<String, RecSet> m = new TreeMap<>();
+            for (int i = 0; i < 4; i++) {
+                Set<Rec> inner = new HashSet<>();
+                for (int j = 0; j <= 3 - i; j++) inner.add(rec(i * 10 + j));
+                m.put("key" + i, new RecSet(inner));
+            }
+            return new MapOfRecSets(m);
+        });
+        c.put("top-level-scalars-and-null", () -> new MixedStream(
+                Integer.valueOf(5), Long.valueOf(-9L), Boolean.TRUE, Double.valueOf(1.5), Character.valueOf('x'),
+                "", "plain string", new byte[0], new byte[] {1, 2, 3}, null, Status.values()[1]));
+        c.put("top-level-collection-16-set", () -> new TopLevelCollection(
+                new HashSet<>(Arrays.asList(3, 1, 2, 10, 200)), "set:int"));
+        c.put("top-level-collection-16-list-atomic", () -> new TopLevelCollection(
+                new ArrayList<>(Arrays.asList(rec(1), rec(2), rec(3))), "list:@AtomicSerial"));
+        c.put("mixed-top-level-then-nested", () -> new MixedStream(
+                new NestedValue(1, "first"), new OuterWithNested("t", new NestedValue(2, "second")),
+                new NestedValue(3, "third"), rec(7)));
         return c;
     }
 
@@ -364,9 +578,24 @@ class DerGoldenBytesTest {
 
     // ---- encoding / fixture IO ----
 
+    private static void writeOne(DerObjectStreamCodec c, Object o) throws IOException {
+        if (o instanceof TopLevelCollection t) {
+            c.writeCollection(t.coll, t.token);
+        } else if (o instanceof MixedStream m) {
+            for (Object item : m.items) writeOne(c, item);
+        } else {
+            c.writeObject(o);
+        }
+    }
+
+    /** Number of stream items a corpus object contributes per repetition. */
+    private static int itemCount(Object o) {
+        return o instanceof MixedStream m ? m.items.length : 1;
+    }
+
     private static byte[] encode(Supplier<Object> s, int count) throws IOException {
         DerObjectStreamCodec c = new DerObjectStreamCodec();
-        for (int i = 0; i < count; i++) c.writeObject(s.get());
+        for (int i = 0; i < count; i++) writeOne(c, s.get());
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         c.drainTo(bos);
         return bos.toByteArray();
@@ -396,9 +625,11 @@ class DerGoldenBytesTest {
     Stream<DynamicTest> goldenBytes() {
         return corpus().entrySet().stream().map(e -> DynamicTest.dynamicTest(e.getKey(), () -> {
             String single = render(encode(e.getValue(), 1));
-            String triple = render(encode(e.getValue(), 3));
+            String triple = SINGLE_ONLY.contains(e.getKey()) ? "single-only" : render(encode(e.getValue(), 3));
             // the encoder must be deterministic within a run before it can be golden
-            assertEquals(single, render(encode(e.getValue(), 1)), "non-deterministic single");
+            if (!SINGLE_ONLY.contains(e.getKey())) {
+                assertEquals(single, render(encode(e.getValue(), 1)), "non-deterministic single");
+            }
             Path f = DIR.resolve(e.getKey() + ".hex");
             if (GENERATE) {
                 Files.createDirectories(DIR);
@@ -422,17 +653,34 @@ class DerGoldenBytesTest {
     @TestFactory
     Stream<DynamicTest> decodeRoundTripReproducesBytes() {
         return corpus().entrySet().stream().map(e -> DynamicTest.dynamicTest(e.getKey(), () -> {
-            for (int count : new int[] {1, 3}) {
+            if (ENCODE_ONLY.contains(e.getKey())) return;
+            Object sample = e.getValue().get();
+            for (int count : SINGLE_ONLY.contains(e.getKey()) ? new int[] {1} : new int[] {1, 3}) {
                 byte[] bytes = encode(e.getValue(), count);
                 DerObjectStreamCodec in = new DerObjectStreamCodec();
                 in.initReader(bytes);
                 DerObjectStreamCodec out = new DerObjectStreamCodec();
-                for (int i = 0; i < count; i++) out.writeObject(in.readObject());
+                for (int i = 0; i < count; i++) {
+                    if (sample instanceof TopLevelCollection t) {
+                        out.writeCollection(in.readObject(), t.token);
+                    } else {
+                        for (int k = 0; k < itemCount(sample); k++) out.writeObject(in.readObject());
+                    }
+                }
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 out.drainTo(bos);
                 assertEquals(render(bytes), render(bos.toByteArray()),
                         e.getKey() + " x" + count + ": decode then re-encode changed the bytes");
             }
         }));
+    }
+
+    @org.junit.jupiter.api.Test
+    void encoderEmitsAListTheDecoderRejects() throws Exception {
+        byte[] bytes = encode(corpus().get("list-70000"), 1);
+        DerObjectStreamCodec in = new DerObjectStreamCodec();
+        in.initReader(bytes);
+        Exception e = assertThrows(Exception.class, in::readObject);
+        assertTrue(e.toString().contains("maxCollection"), e.toString());
     }
 }
