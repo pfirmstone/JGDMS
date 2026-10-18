@@ -170,6 +170,37 @@ public final class Tag {
         return out;
     }
 
+    /** Number of identifier octets {@link #encode()} would produce, without allocating. */
+    int encodedSize() {
+        if (tagNumber <= 30) return 1;
+        int n = tagNumber;
+        int count = 0;
+        do { count++; n >>>= 7; } while (n != 0);
+        return 1 + count;
+    }
+
+    /**
+     * Writes the same identifier octets as {@link #encode()} into {@code out}
+     * at {@code pos} and returns the position after them.
+     */
+    int encodeInto(byte[] out, int pos) {
+        int first = (tagClass << 6) | (constructed ? 0x20 : 0x00);
+        if (tagNumber <= 30) {
+            out[pos] = (byte)(first | tagNumber);
+            return pos + 1;
+        }
+        int n = tagNumber;
+        int count = 0;
+        do { count++; n >>>= 7; } while (n != 0);
+        out[pos] = (byte)(first | 0x1F);
+        n = tagNumber;
+        for (int i = count; i >= 1; i--) {
+            out[pos + i] = (byte)((n & 0x7F) | (i < count ? 0x80 : 0x00));
+            n >>>= 7;
+        }
+        return pos + 1 + count;
+    }
+
     /* ------------------------------------------------------------------ */
     /* Decoding                                                             */
     /* ------------------------------------------------------------------ */
