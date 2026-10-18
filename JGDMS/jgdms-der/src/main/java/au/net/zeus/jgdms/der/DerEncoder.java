@@ -104,4 +104,24 @@ public abstract class DerEncoder {
     public final DerEncoder raw(byte[] tlv) {
         return raw(tlv, 0, tlv.length);
     }
+
+    /**
+     * Writes a UTF8String leaf, with the same strict UTF-8 rule as {@link DerWriter#writeUtf8String}.
+     *
+     * @throws DerUtf8.UnencodableStringException if {@code value} has an unpaired surrogate
+     */
+    public final DerEncoder utf8(String value) {
+        if (value == null) throw new NullPointerException("value");
+        try {
+            return leaf(Tag.UTF8STRING, DerUtf8.encode(value));
+        } catch (DerException e) {
+            throw new DerUtf8.UnencodableStringException(e.getMessage(), e);
+        }
+    }
+
+    /** Writes an OCTET STRING leaf. */
+    public final DerEncoder octets(byte[] value) {
+        if (value == null) throw new NullPointerException("value");
+        return leaf(Tag.OCTET_STRING, value);
+    }
 }

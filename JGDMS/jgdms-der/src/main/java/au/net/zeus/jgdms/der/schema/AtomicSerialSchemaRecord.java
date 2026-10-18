@@ -20,7 +20,7 @@ package au.net.zeus.jgdms.der.schema;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerUtf8;
-import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.Tag;
 
 import java.nio.charset.StandardCharsets;
@@ -214,30 +214,22 @@ public final class AtomicSerialSchemaRecord {
      * @return the complete DER TLV bytes
      */
     public byte[] encode() {
-        // 1. className
-        byte[] classNameTlv = DerWriter.writeUtf8String(className);
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(enc);
+        return enc.toByteArray();
+    }
 
-        // 2. parentSchemaHash (conditional)
-        byte[] hashTlv = (parentSchemaHash == null) ? null
-                : DerWriter.writeOctetString(parentSchemaHash);
-
-        // 3. fields SEQUENCE: encode each child in List order (ORDER-SIGNIFICANT)
-        int fieldCount = fields.size();
-        List<byte[]> fieldTlvs = new ArrayList<>(fieldCount);
+    /** Appends this record's {@code SEQUENCE} TLV to {@code enc}; same bytes as {@link #encode()}. */
+    public void encodeTo(DerEncoder enc) {
+        enc.begin(Tag.SEQUENCE).utf8(className);
+        if (parentSchemaHash != null) {
+            enc.octets(parentSchemaHash);
+        }
+        enc.begin(Tag.SEQUENCE);
         for (AtomicSerialFieldDef field : fields) {
-            fieldTlvs.add(field.encode());
+            field.encodeTo(enc);
         }
-        byte[] fieldsTlv = DerWriter.writeSequence(fieldTlvs);
-
-        // Assemble outer SEQUENCE content
-        List<byte[]> outerChildren = new ArrayList<>(3);
-        outerChildren.add(classNameTlv);
-        if (hashTlv != null) {
-            outerChildren.add(hashTlv);
-        }
-        outerChildren.add(fieldsTlv);
-
-        return DerWriter.writeSequence(outerChildren);
+        enc.end().end();
     }
 
     // -----------------------------------------------------------------------
