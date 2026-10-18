@@ -294,3 +294,70 @@ dedup pass's reading and rebuilding of the same bytes. Chain parsing and hashing
 near the top. The next SOW should start from the streaming-encoder migration (an encoder that
 writes into one buffer, used by `ObjectCodec`, `StreamSchemaDedup` and `DerObjectStreamCodec`),
 which removes the per-level copies both directions pay.
+
+---
+
+# Third run: after the streaming-encoder work (SOW-DER-Streaming-Encoder A0-A4), 18 October 2026
+
+DER only, same container, JDK (DirtyChai `27-internal`) and JMH protocol as the second run; files `results-a5.json` (full run), `results-a5-gc.json`
+(`-prof gc`), `results-before.json` / `results-after.json` unchanged. Average time per operation, us, +/- the 99.9% interval:
+
+| benchmark | payload | before (`9adc8e6e3`) | after T0-T5 | now (A0-A4) | now/before | now/after T0-T5 |
+|---|---|---:|---:|---:|---:|---:|
+| marshal | record | 4.05 ± 0.24 | 1.76 ± 0.09 | 1.56 ± 0.10 | 0.39 | 0.89 |
+| marshal | batch100 | 454.06 ± 23.68 | 224.04 ± 13.92 | 107.54 ± 9.49 | 0.24 | 0.48 |
+| marshal | blob64k | 276.04 ± 6.12 | 189.55 ± 17.42 | 84.97 ± 3.78 | 0.31 | 0.45 |
+| unmarshal | record | 20.66 ± 1.71 | 14.06 ± 1.56 | 9.39 ± 0.90 | 0.45 | 0.67 |
+| unmarshal | batch100 | 1647.26 ± 75.56 | 1498.92 ± 494.50 | 789.77 ± 82.90 | 0.48 | 0.53 |
+| unmarshal | blob64k | 193.86 ± 6.97 | 200.94 ± 6.38 | 176.13 ± 66.10 | 0.91 | 0.88 |
+| roundTrip | record | 23.83 ± 1.54 | 19.23 ± 10.60 | 11.12 ± 1.08 | 0.47 | 0.58 |
+| roundTrip | batch100 | 2177.79 ± 107.87 | 1658.05 ± 97.96 | 865.58 ± 75.79 | 0.40 | 0.52 |
+| roundTrip | blob64k | 485.10 ± 16.08 | 411.36 ± 18.44 | 264.27 ± 26.97 | 0.54 | 0.64 |
+| JERI | ping | 226.08 ± 12.47 | 198.43 ± 13.85 | 134.00 ± 11.83 | 0.59 | 0.68 |
+| JERI | point | 320.19 ± 18.86 | 297.00 ± 37.46 | 182.54 ± 30.07 | 0.57 | 0.61 |
+| JERI | record | 359.30 ± 37.19 | 331.15 ± 43.34 | 198.49 ± 21.97 | 0.55 | 0.60 |
+| JERI | batch100 | 9391.63 ± 571.45 | 7521.43 ± 596.87 | 4672.40 ± 341.23 | 0.50 | 0.62 |
+| JERI | blob64k | 15790.13 ± 486.55 | 14541.95 ± 1044.58 | 9961.05 ± 520.59 | 0.63 | 0.68 |
+
+The `point` rows (error intervals larger than the score in the earlier runs) are left out of the table. `unmarshal blob64k` now has an interval of 66 us
+on 176 us and is within noise of the second run.
+
+## What the numbers say
+
+- **Read the JERI rows as drift, not codec gain.** `ping` (an empty call, no codec work) fell from 226 to 134 us (0.59) between the first and this run, so this
+  container was running about 40% faster than when the baseline was taken. Every JERI ratio, and to a smaller extent every codec ratio against `before`, carries
+  that; the `now/after` column (second run to now, 0.6-0.7 for `ping`) shows the drift on its own. A fair JERI reading is "not distinguishable from drift except
+  perhaps `batch100`", the same conclusion as the second run. Re-run on the workstation before quoting any ratio.
+- **Marshal is where A0-A4 show up clearly:** `batch100` 0.48 and `blob64k` 0.45 of the second run (drift is at most 0.6-0.7 here, so these exceed it); `record` 0.89 is within
+  drift. Against the original baseline marshal is 0.39 / 0.24 / 0.31 of before.
+- **Unmarshal improved too** (A3 removed the per-level copies in reconstitution): `record` 0.67 and `batch100` 0.53 of the second run, comparable to the drift, so treat them as
+  probable rather than proven; `blob64k` unchanged.
+- **Targets of the first SOW** (small-object marshal about halved; multi-object about 30% faster both ways; `blob64k` marshal in tens of us): met for marshal, and now for
+  multi-object unmarshal; `blob64k` marshal is 85 us, not tens.
+
+## Allocation per operation (`-prof gc`, `gc.alloc.rate.norm`, B/op)
+
+| payload | marshal | unmarshal |
+|---|---:|---:|
+| record | 5 864 | 16 336 |
+| batch100 | 288 855 | 975 086 |
+| blob64k | 528 520 | 927 657 |
+
+There is no baseline `-prof gc` run (the baseline code was not re-built for this), so no before/after allocation ratio is claimed. For the write side only, the plain-loop phase
+bench (`DerStreamPhaseBench`, thread allocation counters) measured before/after A4: `batch100` 436 to 276 KB, `blob64k` 792 to 463 KB, `record` 7.6 to 5.7 KB per encode. Unmarshal still
+allocates about 15 bytes per wire byte for `batch100` and about 14x for `blob64k` (the read side still copies a `byte[]` per TLV and was not part of A4).
+
+## Where the time goes now (JFR `-prof jfr`, `jfr-hotspots.py`, `au.net.zeus.jgdms.der.*`, self time)
+
+| marshal `record` | marshal `batch100` | unmarshal `record` | unmarshal `batch100` |
+|---|---|---|---|
+| `CompactDerEncoder.leaf` 7.8% | `CompactDerEncoder.toByteArray` 7.8% | `CompactDerEncoder.<init>` 3.7% | `DerFieldStore.decodeAllFields` 2.9% |
+| `CompactDerEncoder.beginFrame` 3.9% | `Tag.encodeInto` 5.9% | `StreamSchemaDedup.<init>` 3.2% | `CompactDerEncoder.toByteArray` 2.9% |
+| `StreamSchemaDedup.<init>` 3.7% | `DerWriter.writeHeader` 4.6% | `DerObjectStreamCodec.readObject` 2.6% | `DerReader.decodeLength` 2.9% |
+| `CompactDerEncoder.toByteArray` 3.1% | `CompactDerEncoder.leaf` 3.4% | `DerReader.decodeLength` 2.1% | `CompactDerEncoder.beginFrame` 2.9% |
+| `CompactDerEncoder.<init>` 3.0% | `CompactDerEncoder.endFrame` 3.3% | `Tag.decode` 2.1% | `MarshalledInstanceRecord.decode` 2.4% |
+
+Samples: 881 / 885 / 190 / 170 (the unmarshal rows are indicative only). Compared with the second run: `DerWriter.frame`/`writeTlv`, the byte-array-per-level builder, and the
+dedup `rebuildCollectionOuter`/`transformFieldTlv` frames are gone from the top; what remains is the encoder's own work (header writing, the single compaction pass) and, for the
+small `record`, per-stream construction cost: `CompactDerEncoder.<init>` and `StreamSchemaDedup.<init>` together are about 7% of a one-object marshal and of an unmarshal. That is the
+next cheap target (lazily sized encoder arrays, a pooled or reused dedup table per connection rather than per stream), and it matters only for tiny objects.
