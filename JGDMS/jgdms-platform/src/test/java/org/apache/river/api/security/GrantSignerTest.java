@@ -17,7 +17,12 @@
 
 package org.apache.river.api.security;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.reflect.Constructor;
+import java.nio.file.Files;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -182,34 +187,58 @@ public class GrantSignerTest {
 
     @Test
     public void digestIgnoresLocationAndRequiresDigestAndSigners() throws Exception {
-        Constructor<?> c = digestCodeSourceConstructor();
-        Assume.assumeNotNull(c); // Stock JDK: fail closed, covered above.
-        CodeSource same = (CodeSource) c.newInstance("http://localhost/a.jar", 
-                new Certificate[]{alice}, ALG, DIGEST_A);
-        CodeSource moved = (CodeSource) c.newInstance("http://localhost/moved/z.jar", 
-                new Certificate[]{alice}, ALG, DIGEST_A);
-        CodeSource otherDigest = (CodeSource) c.newInstance("http://localhost/a.jar", 
-                new Certificate[]{alice}, ALG, DIGEST_B);
-        CodeSource otherSigner = (CodeSource) c.newInstance("http://localhost/a.jar", 
-                new Certificate[]{bob}, ALG, DIGEST_A);
-        CodeSource unsigned = (CodeSource) c.newInstance("http://localhost/a.jar", 
-                (Certificate[]) null, ALG, DIGEST_A);
-        PermissionGrant g = digest(DIGEST_A, alice);
-        assertTrue(g.implies(same, NONE));
-        assertTrue("same digest at another location", g.implies(moved, NONE));
-        assertFalse(g.implies(otherDigest, NONE));
-        assertFalse(g.implies(otherSigner, NONE));
-        assertFalse(g.implies(unsigned, NONE));
-        assertFalse("plain CodeSource, same URL", 
-                g.implies(new CodeSource(location, new Certificate[]{alice}), NONE));
-        assertTrue(digest(DIGEST_A).implies(moved, NONE));
+        Class<?> dcs = digestCodeSourceClass();
+        Assume.assumeNotNull(dcs); // Stock JDK: fail closed, covered above.
+        // Real jars, a digest the code source computed from the jar is what
+        // a loader makes: a digest asserted by a caller is not identity.
+        File dir = Files.createTempDirectory("digest-grant").toFile();
+        try {
+            File a1 = jar(dir, "a.jar", "a");
+            File a2 = jar(dir, "moved.jar", "a");   // same content, other location
+            File other = jar(dir, "other.jar", "b"); // other content
+            CodeSource same = computed(dcs, a1, alice);
+            byte[] digestA = (byte[]) dcs.getMethod("getDigest").invoke(same);
+            PermissionGrant g = digest(digestA, alice);
+            assertTrue(g.implies(same, NONE));
+            assertTrue("same digest at another location", g.implies(computed(dcs, a2, alice), NONE));
+            assertFalse("other digest", g.implies(computed(dcs, other, alice), NONE));
+            assertFalse("other signer", g.implies(computed(dcs, a1, bob), NONE));
+            assertFalse("unsigned", g.implies(computed(dcs, a1), NONE));
+            assertFalse("plain CodeSource, same URL", 
+                    g.implies(new CodeSource(a1.toURI().toURL(), new Certificate[]{alice}), NONE));
+            assertTrue(digest(digestA).implies(computed(dcs, a2), NONE));
+            // The same digest, asserted by a caller (forged), is not identity.
+            Constructor<?> asserted = dcs.getConstructor(String.class, Certificate[].class, 
+                    String.class, byte[].class);
+            CodeSource forged = (CodeSource) asserted.newInstance(a1.toURI().toURL().toString(), 
+                    new Certificate[]{alice}, ALG, digestA);
+            assertFalse("digest asserted by the caller", g.implies(forged, NONE));
+        } finally {
+            for (File f : dir.listFiles()) f.delete();
+            dir.delete();
+        }
     }
 
-    private static Constructor<?> digestCodeSourceConstructor() {
+    private static CodeSource computed(Class<?> dcs, File jar, Certificate... certs) throws Exception {
+        return (CodeSource) dcs.getConstructor(String.class, Certificate[].class, String.class)
+                .newInstance(jar.toURI().toURL().toString(), 
+                        certs.length == 0 ? null : certs, ALG);
+    }
+
+    private static File jar(File dir, String name, String content) throws Exception {
+        File f = new File(dir, name);
+        try (JarOutputStream out = new JarOutputStream(new FileOutputStream(f))) {
+            out.putNextEntry(new JarEntry("x.txt"));
+            out.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+        return f;
+    }
+
+    private static Class<?> digestCodeSourceClass() {
         try {
-            return Class.forName("java.security.DigestCodeSource").getConstructor(
-                    String.class, Certificate[].class, String.class, byte[].class);
-        } catch (ReflectiveOperationException e) {
+            return Class.forName("java.security.DigestCodeSource");
+        } catch (ClassNotFoundException e) {
             return null;
         }
     }

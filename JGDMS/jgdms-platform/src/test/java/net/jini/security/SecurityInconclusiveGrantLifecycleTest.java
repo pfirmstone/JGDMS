@@ -66,7 +66,7 @@ public class SecurityInconclusiveGrantLifecycleTest {
     }
 
     @Test
-    public void retainedInconclusiveGrantIsDomainScopedAndStillVoidable() throws Exception {
+    public void retainedInconclusiveGrantIsLoaderWideAndVoidable() throws Exception {
         originalPolicy = Policy.getPolicy();
         DynamicPolicyProvider policy =
                 new DynamicPolicyProvider(new EmptyPolicy());
@@ -78,15 +78,15 @@ public class SecurityInconclusiveGrantLifecycleTest {
         Permission p = new RuntimePermission("inconclusive-domain-scoped");
         Security.grant(proxyClass, new Principal[0], new Permission[]{p});
 
-        // The retained grant is scoped to the domains of the codebase, 
-        // not to the ClassLoader as a whole.
+        // The retained grant is for the ClassLoader, an inconclusive verdict
+        // is not verified code.
         ProtectionDomain pd = proxyClass.getProtectionDomain();
         assertTrue(grantsContain(policy.getPermissionGrants(pd), p));
         ProtectionDomain elsewhere = new ProtectionDomain(
                 new CodeSource(new java.net.URL("file:/not/in/the/codebase.jar"), 
                         (java.security.cert.Certificate[]) null),
                 null, proxyClass.getClassLoader(), new Principal[0]);
-        assertFalse(grantsContain(policy.getPermissionGrants(elsewhere), p));
+        assertTrue(grantsContain(policy.getPermissionGrants(elsewhere), p));
 
         Security.invalidateInconclusiveProxyLoaderGrants();
         assertFalse("voided", grantsContain(policy.getPermissionGrants(pd), p));

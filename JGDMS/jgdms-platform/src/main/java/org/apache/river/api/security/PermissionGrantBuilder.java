@@ -50,14 +50,9 @@ public abstract class PermissionGrantBuilder {
     /**
      * The PermissionGrant generated will apply to all classes loaded by
      * the ClassLoader
-     * 
-     * @deprecated A grant to a ClassLoader as a whole applies to every
-     * ProtectionDomain the ClassLoader defines, whatever its CodeSource, 
-     * including those outside the codebase that was verified.  Use
-     * {@link #CODEBASE_DOMAIN} for dynamic grants.  Retained for 
-     * deserialising old builders and for explicit callers.
+     * <p>This is the grant for a proxy whose codebase identity is not known
+     * to be verified.  Use {@link #DIGEST_DOMAIN} where it is.
      */ 
-    @Deprecated
     public static final int CLASSLOADER = 0;
   
     /**
@@ -198,12 +193,21 @@ public abstract class PermissionGrantBuilder {
     public static final int DIGEST = 6;
     
     /**
-     * Context for a dynamic grant to each ProtectionDomain of the verified
-     * codebase of the ClassLoader of the class passed to {@link #clazz(Class)}.
-     * See {@code CodebaseDomainGrant}.  Replaces {@link #CLASSLOADER} for 
-     * dynamic grants.
+     * Dynamic grant to the ProtectionDomains of verified code: the class
+     * passed to {@link #clazz(Class)} supplies the ClassLoader, and
+     * {@link #codeSources(CodeSource...)} the identities (location, signers 
+     * and content digest) the code must have.  A ProtectionDomain is implied 
+     * only if it belongs to that ClassLoader, its CodeSource is a digest 
+     * CodeSource whose digest was computed from the code (not asserted by a 
+     * caller), and its identity is one of those supplied.
+     * <p>
+     * Building throws {@link IllegalArgumentException} if no class with a
+     * ClassLoader was supplied, if there are no code sources, or if any code
+     * source has no SHA-256 digest, so a grant can never be wider than the
+     * identities given.  On a JVM without {@code java.security.DigestCodeSource}
+     * no code source has a digest, so this context cannot be built.
      */
-    public static final int CODEBASE_DOMAIN = 7;
+    public static final int DIGEST_DOMAIN = 7;
     
     public static PermissionGrantBuilder newBuilder(){
         return new PermissionGrantBuilderImp();
@@ -315,4 +319,19 @@ public abstract class PermissionGrantBuilder {
      * @return this builder
      */
     public abstract PermissionGrantBuilder digest(String algorithm, byte[] digestValue);
+
+    /**
+     * Supplies the identities for a {@link #DIGEST_DOMAIN} grant.  The code
+     * sources are expected identities, they may be digest CodeSources whose 
+     * digest was supplied by a verifier rather than computed here.
+     * 
+     * @param codeSources one per verified jar
+     * @return this builder
+     * @throws UnsupportedOperationException if the implementation does not
+     * support {@link #DIGEST_DOMAIN}.
+     * @since 4.0.0
+     */
+    public PermissionGrantBuilder codeSources(CodeSource... codeSources) {
+        throw new UnsupportedOperationException();
+    }
 }

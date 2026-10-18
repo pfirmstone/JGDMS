@@ -155,6 +155,14 @@ final class CodeSourceKey {
         this.hash = h;
     }
 
+    boolean hasDigest() {
+        return digest != null;
+    }
+
+    String digestAlgorithm() {
+        return digestAlgorithm;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == this) return true;

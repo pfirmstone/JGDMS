@@ -651,8 +651,8 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         g.checkGuard(null);
         final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(principals)
-            .permissions(permissions);
-        codebaseDomainContext(pgb, logger);
+            .permissions(permissions)
+            .context(PermissionGrantBuilder.CLASSLOADER);
         if (cl != null){
             AccessController.doPrivileged(
                 new PrivilegedAction(){
@@ -671,26 +671,40 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 	}
     }
     
-    /**
-     * Selects the codebase scoped dynamic grant.  A DirtyChai java.base that
-     * predates {@code CODEBASE_DOMAIN} shadows the builder and rejects the
-     * context; the strictest grant, to the ProtectionDomain of the granted
-     * class only, is used instead, so grants still work, narrower than 
-     * intended, and never wider.
-     */
-    private static PermissionGrantBuilder codebaseDomainContext(
-            PermissionGrantBuilder pgb, Logger log)
+    public void grant(final Class cl, java.security.CodeSource[] codebase, 
+            Principal[] principals, Permission[] permissions) 
     {
-        try {
-            return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
-        } catch (IllegalStateException e) {
-            log.log(Level.WARNING, "PermissionGrantBuilder does not support "
-                + "CODEBASE_DOMAIN, dynamic grants are limited to the "
-                + "ProtectionDomain of the granted class", e);
-            return pgb.context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+        // Never a universal grant: a missing class or identity is refused.
+        if (cl == null) throw new IllegalArgumentException("class cannot be null");
+        if (codebase == null || codebase.length == 0) {
+            throw new IllegalArgumentException("codebase cannot be null or empty");
         }
+        if (principals == null){ principals = new Principal[0];}
+        checkNullElements(principals);
+        checkNullElements(codebase);
+        if (permissions == null || permissions.length == 0) {return;}
+        checkNullElements(permissions);
+        Guard g = new GrantPermission(permissions);
+        g.checkGuard(null);
+        final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+        pgb.principals(principals)
+            .permissions(permissions)
+            .codeSources(codebase.clone())
+            .context(PermissionGrantBuilder.DIGEST_DOMAIN);
+        AccessController.doPrivileged(
+            new PrivilegedAction(){
+                public Object run() {
+                    pgb.clazz(cl);
+                    return null;
+                }
+            });
+        PermissionGrant pe = pgb.build(); // IllegalArgumentException if unverifiable
+	dynamicPolicyGrants.add(pe);
+	if (loggable){
+	    logger.log(Level.FINEST, "Granting: {0}", pe.toString());
+	}
     }
-    
+
     // documentation inherited from DynamicPolicy.getGrants
     public Permission[] getGrants(Class cl, Principal[] principals) {
         // Grants are evaluated against the ProtectionDomain of the class, a

@@ -571,3 +571,111 @@ replace it.
 - **Policy for the isolating JVM** should grant the process only what its proxies need,
   with the verified overload (7.4) as the only route to anything beyond the limited
   `ClassLoaderGrant` path.
+
+## 8. Implementation of section 7, and the second board review (2026-10-18)
+
+Three independent reviewers (different models) reviewed section 7 as a design; the platform
+side was then implemented on this branch. This section records both.
+
+### 8.1 Implemented (JGDMS, `jgdms-platform`, `service-starter`)
+
+- `DigestDomainGrant` (package-private) and `PermissionGrantBuilder.DIGEST_DOMAIN = 7` with
+  `codeSources(CodeSource...)` (a non-abstract method that throws `UnsupportedOperationException`,
+  so existing builder subclasses still compile). `CodebaseDomainGrant`, `CODEBASE_DOMAIN`, the
+  `getURLs()` collection and the shadowing-builder fallback are removed.
+- Implication: the domain's loader is the granted **class's** loader (checked first), principals,
+  a `DigestCodeSource` that is computed rather than asserted (`unverified()` false), and its
+  `CodeSourceKey` (Uri + signers as a set + digest) is one supplied. `implies(ClassLoader)` and
+  `implies(CodeSource)` are false. Void when the loader is collected and after serialisation.
+  No result is cached by `CodeSource` reference (`DigestCodeSource` is mutable through its public
+  `readExternal`).
+- The supplied code sources are expected identities and **may be unverified** digest code
+  sources (the verifier supplies the digest); only the domain presented at check time must be
+  verified. The builder refuses (`IllegalArgumentException`) a missing class, a class without a
+  loader, no code sources, a code source with no digest, or a digest algorithm other than
+  SHA-256, so a grant is never wider than the identities given. On a JVM without
+  `DigestCodeSource` nothing can be built.
+- `ClassLoaderGrant` is back, not deprecated, taking the loader from the **class** (so it works
+  for `java.lang.reflect.Proxy` classes, whose domain has no loader); `implies(CodeSource)` false.
+  `DynamicPolicyProvider.grant(Class, ...)` and the retained INCONCLUSIVE grant use it again.
+- `Security.grant(Class, CodeSource[], Principal[], Permission[])`,
+  `DynamicPolicy.grant(Class, CodeSource[], ...)` (a `default` that throws
+  `UnsupportedOperationException`: nothing is granted, callers must not fall back),
+  `DynamicPolicyProvider`, `AggregatePolicyProvider`, `LoaderSplitPolicyProvider`. The overload
+  throws `IllegalStateException` for a loader marked inconclusive. Null class, null/empty
+  codebase are `IllegalArgumentException`, never a universal grant.
+- `DigestGrant` rejects an unverified digest (7.6). `DynamicPolicyProvider.getGrants` unchanged.
+- Tests: `DigestDomainGrantTest` (16, with controls), `GrantSignerTest` (computed vs forged
+  digests from real jars), `SecurityInconclusiveGrantLifecycleTest`. The positive digest cases
+  need `java.security.DigestCodeSource`; here they were run against a stub patched into
+  `java.base` (`--patch-module`) as well as on a stock JDK, where they skip. Removing the
+  verified check, the loader check or the key check each fails tests.
+
+### 8.2 Not implemented, and why
+
+The provider and preparer changes of 7.4 and 7.7 (`PreferredProxyCodebaseProvider.resolve`
+supplying the digests and choosing the overload; the shortcut fix) are **not** done. The
+reviewers found problems the section 7 text does not cover, and the trust story depends on them:
+
+1. **The 7.7 fix is incomplete.** After the handler check fails, the new `PreferredClassLoader`
+   is still created with the first service's proxy loader as `parent`, and is parent-first unless a
+   resource is preferred, so service B's classes still resolve to A's classes in A's domains. The
+   test must assert that B's proxy class's loader is not A's and that A's grant does not imply B's
+   domains. The fix needs the loader to define its own codebase classes (or fail closed); never
+   make a proxy loader the parent of another remote object's loader. The shortcut also skips the
+   digest, certificate and `BootstrapPermission` checks and the isolation router, and compares
+   handlers including constraints (a nested self-proxy under other constraints would be given a
+   duplicate loader): compare the `ObjectEndpoint` only.
+2. **Digests exist in the provider only on the first resolve.** The comparison of server digests
+   with local downloads is inside `if (vr != null)`'s `else` and `serverPrincipals != null`, so in
+   steady state no comparison runs. The verified overload must be fed by the provider's own
+   locally computed digests, unconditionally, not by server claims.
+3. **Digest algorithm.** `DigestCodeSource` always computes SHA-256 whatever it is told, and
+   `SecureClassLoader` hard-codes "SHA-256"; a server may report any algorithm. Require
+   "SHA-256", fail loudly otherwise. (The builder already refuses other algorithms.)
+4. **Signers in the key.** The digest already covers the signature files; signers add
+   silent-mismatch risk (the provider checks jar-level certificates with `containsAll`, the
+   server's certificates are not the flattened chain `CodeSource.getCertificates()` yields).
+   Consider building keys without signers or from the `JarFile` entries.
+5. **Server identity.** One reviewer reads `PreferredProxyCodebaseProvider.resolve` (line ~1719)
+   and `ProxySerializer` as taking `serverPrincipals` from the `ServerSubject` of the stream
+   that delivered the proxy, not from the bootstrap proxy's own connection, so a proxy handed out
+   by a lookup service would carry the lookup service's identity into grants and the isolation
+   pool key. **Disputed by the project lead:** the bootstrap proxy always talks to its own
+   server. Settle with a test: unmarshal service B's proxy from a lookup service with a
+   different SPIFFE ID and assert which principals are used.
+
+### 8.3 Decisions recorded
+
+- **The weak path.** Both overloads check the same `GrantPermission`, so policy cannot say "only
+  via the verified overload". Decision (project lead): **the proxy preparer rejects a proxy that
+  has no verified identities**; there is no automatic fall back to the loader-wide grant. A
+  caller that wants the weak path calls `Security.grant(Class, Permission[])` explicitly. Still
+  open: `Security.grant(fromClass, toClass)` re-issues propagated permissions as a loader-wide
+  grant in the target loader, so a verified-path permission can become loader-wide there;
+  consider excluding digest-domain grants from propagation.
+- **Inconclusive.** The overload refuses (does not grant) for a loader marked inconclusive; an
+  inconclusive verdict is not verified code. Retained inconclusive grants stay loader-wide.
+- **No key pinning, no `getURLs()`** (section 6 outcomes) stand.
+
+### 8.4 DirtyChai requirements raised by the review (not JGDMS code)
+
+- **`ClassLoader.defineClass(..., ProtectionDomain)` has no gate.** `preDefineClass` does not
+  check that `pd.getClassLoader()` is the defining loader, and a `ProtectionDomain`'s loader is
+  just a field. Code with `createClassLoader` can define its own bytes in a domain naming the
+  victim's loader and carrying a computed `DigestCodeSource`: all of check 1, 3 and 4 then pass,
+  and every static `DigestGrant` applies. `unverified()` does not help: the public
+  `DigestCodeSource(String, Certificate[], String)` constructors and
+  `SecureClassLoader.defineClass(name, bytes, CodeSource)` compute the digest of the **URL's**
+  content, not of the bytes being defined. `readExternal` sets `unverified` last, with no
+  `finally`, so an `ObjectInput` that throws part-way leaves chosen fields and `unverified()`
+  false. Required: make `unverified` default to true and cleared only by the computing
+  constructors; allow an explicit-domain `defineClass` with a `DigestCodeSource` domain only for
+  a domain the loader itself issued (or behind a permission); consider letting
+  `DigestDomainGrant` ask the loader whether it issued the domain.
+- `DigestCodeSource.computeDigest` for a missing `file:` jar returns a *verified* code source
+  with a null digest; `SecureClassLoader` should refuse it.
+- `Lookup.defineClass` / hidden classes inherit the lookup class's domain: same-domain code or
+  `suppressAccessChecks` holders only.
+- `PreferredClassLoader.addURL` is final and throws, so the "jar added later" test needs another
+  loader (as `DigestDomainGrantTest` does).

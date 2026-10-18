@@ -29,15 +29,11 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.river.api.net.Uri;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all
@@ -56,7 +52,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     // Static fields
     private static final long serialVersionUID = 1L;
     private static final PermissionGrant nullGrant = new NullPermissionGrant();
-    private static final Logger LOGGER = Logger.getLogger(PermissionGrantBuilderImp.class.getName());
     
    
     /*@serial */
@@ -83,6 +78,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     // the loader of its ProtectionDomain: a java.lang.reflect.Proxy class has
     // the shared all permission domain, whose loader is null.
     private transient WeakReference<ClassLoader> loader;
+    private transient List<CodeSource> codeSources;
    
     PermissionGrantBuilderImp() {
         super();
@@ -100,6 +96,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 	aliases = null;
         domain = null;
         loader = null;
+        codeSources = null;
         hasDomain = false;
         principals = null;
         permissions = null;
@@ -141,9 +138,20 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         return this;
     }
 
-    /** Package private, see {@link CodebaseDomainGrant#getBuilderTemplate()}. */
+    /** Package private, see {@link DigestDomainGrant#getBuilderTemplate()}. */
     PermissionGrantBuilderImp setLoader(WeakReference<ClassLoader> cl) {
         loader = cl;
+        return this;
+    }
+
+    @Override
+    public PermissionGrantBuilder codeSources(CodeSource... cs) {
+        codeSources = cs == null ? null : new ArrayList<CodeSource>(Arrays.asList(cs));
+        return this;
+    }
+
+    PermissionGrantBuilderImp setCodeSources(List<CodeSource> cs) {
+        codeSources = cs;
         return this;
     }
 
@@ -188,9 +196,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
             case CLASSLOADER: //Dynamic grant
                 // Don't return principal grant if domain null, dynamic grant's
                 // are treated special.
-                return new ClassLoaderGrant(domain, principals, permissions );
-            case CODEBASE_DOMAIN: //Dynamic grant
-                return buildCodebaseDomainGrant();
+                return new ClassLoaderGrant(domain, classLoaderRef(), principals, permissions );
+            case DIGEST_DOMAIN: //Dynamic grant
+                return buildDigestDomainGrant();
             case URI:
                 if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
                 if (uri == null ) uri = new String[0];
@@ -212,41 +220,44 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
     /**
-     * The codebase is the locations of the ClassLoader of the anchor domain,
-     * the ClassLoader is the record of what was verified.  Any other kind of
-     * ClassLoader, or one without a ClassLoader, results in the strictest 
-     * grant, to the anchor ProtectionDomain only.
+     * A grant to the verified code identities supplied, belonging to the
+     * ClassLoader of the class.  Never wider than what was supplied: a missing
+     * class, loader, identity, digest, or an algorithm other than SHA-256 is
+     * refused, not widened.
      */
-    private PermissionGrant buildCodebaseDomainGrant() {
-        ProtectionDomain pd = domain != null ? domain.get() : null;
-        // Without a domain the grant applies to all domains, dynamic grants 
-        // are treated special.
-        if (domain == null) return new ProtectionDomainGrant(null, principals, permissions);
-        Set<Uri> codebase = new HashSet<Uri>();
-        // The loader of the class, falling back to that of its domain.
+    private PermissionGrant buildDigestDomainGrant() {
+        if (domain == null) throw new IllegalArgumentException(
+                "DIGEST_DOMAIN requires a class (clazz(Class))");
         WeakReference<ClassLoader> loaderRef = loader;
-        ClassLoader cl = loaderRef != null ? loaderRef.get() 
-                : (pd != null ? pd.getClassLoader() : null);
-        if (loaderRef == null && cl != null) {
-            loaderRef = new WeakReference<ClassLoader>(cl);
+        if (loaderRef == null || loaderRef.get() == null) {
+            throw new IllegalArgumentException(
+                "DIGEST_DOMAIN requires a class with a ClassLoader");
         }
-        if (cl instanceof URLClassLoader) {
-            for (URL url : ((URLClassLoader) cl).getURLs()) {
-                try {
-                    // Not URL.equals, it can cause DNS lookups.
-                    codebase.add(Uri.urlToUri(url));
-                } catch (URISyntaxException ex) {
-                    // Fail closed, domains at this location are not implied.
-                    LOGGER.log(Level.FINE, "Unable to convert codebase URL", ex);
-                }
-            }
-        } else if (pd != null) {
-            LOGGER.log(Level.CONFIG, 
-                "ClassLoader {0} is not a URLClassLoader, dynamic grant is "
-                + "limited to the ProtectionDomain of the granted class",
-                cl);
+        if (codeSources == null || codeSources.isEmpty()) {
+            throw new IllegalArgumentException(
+                "DIGEST_DOMAIN requires at least one code source");
         }
-        return new CodebaseDomainGrant(domain, loaderRef, codebase, principals, permissions);
+        Set<CodeSourceKey> keys = new HashSet<CodeSourceKey>();
+        for (CodeSource cs : codeSources) {
+            CodeSourceKey key = CodeSourceKey.of(cs);
+            if (key == null) throw new IllegalArgumentException(
+                    "code source has no usable location: " + cs);
+            if (!key.hasDigest()) throw new IllegalArgumentException(
+                    "code source has no digest: " + cs);
+            if (!"SHA-256".equals(key.digestAlgorithm())) throw new IllegalArgumentException(
+                    "digest algorithm must be SHA-256: " + cs);
+            keys.add(key);
+        }
+        return new DigestDomainGrant(domain, loaderRef, keys, 
+                new ArrayList<CodeSource>(codeSources), principals, permissions);
+    }
+
+    // The loader of the class, falling back to that of its domain.
+    private WeakReference<ClassLoader> classLoaderRef() {
+        if (loader != null) return loader;
+        ProtectionDomain pd = domain != null ? domain.get() : null;
+        ClassLoader cl = pd != null ? pd.getClassLoader() : null;
+        return cl != null ? new WeakReference<ClassLoader>(cl) : null;
     }
 
     private void readObject(ObjectInputStream in)
@@ -269,9 +280,12 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     
     // readResolve method returns a PermissionGrant instance.
     private Object readResolve(){
+        // A digest domain grant cannot be deserialized, the verified
+        // identities and the loader are not serialized.
+        if (context == DIGEST_DOMAIN) return nullGrant;
         // Don't deserialize specific grant's, they will grant to any domain.
         if (context == CLASSLOADER || context == PROTECTIONDOMAIN 
-                || context == CODEBASE_DOMAIN){
+                || context == DIGEST_DOMAIN){
             if (hasDomain) return nullGrant;
         }
         // It's ok to return domainless dynamic grants.

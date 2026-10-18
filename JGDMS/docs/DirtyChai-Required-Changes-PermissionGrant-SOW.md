@@ -33,6 +33,30 @@ two problems below.
    exception and treat it, and a null Uri, as "not implied". Consider a set comparison and
    treating null and empty signers alike.
 
+> **Revised by SOW sections 7 and 8.** `CodebaseDomainGrant` and `CODEBASE_DOMAIN` are gone.
+> Where this document and sections 7–8 disagree, sections 7–8 govern: in particular items 7, 8,
+> 9, the "release ordering" note (6a) and the pinning discussion (13a) below are **superseded**.
+> What DirtyChai needs now, in order:
+> 1. Items 1–6 as below (signers; escaping; `CodeSourceKey` for grants; `impliesCodeSource`),
+>    and fix `URIGrant.implies(ClassLoader, …)` so it compiles (see the status paragraph).
+> 2. **`DigestDomainGrant`** and **`PermissionGrantBuilder.DIGEST_DOMAIN = 7`** with
+>    `codeSources(CodeSource...)`, exactly as SOW 7.3 and 8.1 describe: the domain's loader is the
+>    granted class's loader (checked first); principals; `DigestCodeSource` with `unverified()`
+>    false; `CodeSourceKey` (Uri, signers, digest) in the supplied set; `implies(ClassLoader)` and
+>    `implies(CodeSource)` false; void when the loader is collected and after serialisation; no
+>    result cached by `CodeSource` reference. The builder refuses a missing class or loader, no
+>    code sources, a code source without a digest, and any algorithm but SHA-256
+>    (`IllegalArgumentException`); the supplied code sources may be unverified. Keep the value 7
+>    identical to JGDMS (it is inlined).
+> 3. **`ClassLoaderGrant` stays, undeprecated**, taking the loader from `clazz.getClassLoader()`
+>    (the builder records it), with `implies(CodeSource)` false. Withdraw the deprecation.
+> 4. **`DigestGrant` rejects `unverified()`** code sources (already on JGDMS side).
+> 5. **DirtyChai defences from SOW 8.4**: gate `ClassLoader.defineClass(..., ProtectionDomain)`;
+>    `unverified` default true; `readExternal` ordering; refuse a verified code source with a null
+>    digest; SHA-256-only labelling.
+> 6. Tests per SOW 7.11 / 8.1 (`DigestDomainGrantTest`, forged-digest cases in
+>    `GrantSignerTest`), with real temp jars so the digests are computed.
+
 All paths below are under `src/java.base/share/classes/org/apache/river/api/security/`.
 
 ---

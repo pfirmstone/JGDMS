@@ -1307,6 +1307,57 @@ public final class Security {
     }
 
     /**
+     * Grants the specified permissions only to the protection domains of the
+     * verified code of the given class's class loader: those whose code source
+     * has the identity (location, signers and content digest) of one of the
+     * given code sources, including domains not yet created, and possess at
+     * least the given principals.
+     * <p>
+     * The grant is never wider than the identities supplied.  If the policy
+     * does not support it, or the class loader's codebase verdict was
+     * inconclusive, nothing is granted and an exception is thrown: do not fall
+     * back to {@link #grant(Class, Principal[], Permission[])}, that grants to
+     * the whole class loader.
+     *
+     * @param cl the class whose class loader supplies the domains, not null
+     * @param codebase one code source with a digest per verified jar, neither
+     * null nor empty
+     * @param principals principals the domains must possess, or null
+     * @param permissions the permissions to grant
+     * @throws UnsupportedOperationException if the policy does not support it
+     * @throws IllegalStateException if the class loader was marked inconclusive
+     * @throws IllegalArgumentException if cl is null, codebase is null or
+     * empty, or a code source has no digest (always the case on a JVM without
+     * java.security.DigestCodeSource)
+     * @throws SecurityException if the caller lacks the GrantPermission
+     * @since 4.0.0
+     */
+    public static void grant(Class cl,
+                             CodeSource[] codebase,
+                             Principal[] principals,
+                             Permission[] permissions)
+    {
+        if (cl == null) throw new IllegalArgumentException("class cannot be null");
+	Policy policy = getPolicy();
+	if (!(policy instanceof DynamicPolicy)) {
+	    throw new UnsupportedOperationException("grants not supported by policy: " + policy);
+	}
+        ClassLoader loader = cl.getClassLoader();
+        if (loader != null && inconclusiveProxyLoaders.containsKey(loader)) {
+            // An inconclusive verdict is not verified code.
+            throw new IllegalStateException("codebase verdict inconclusive");
+        }
+        ((DynamicPolicy) policy).grant(cl, codebase, principals, permissions);
+	if (getPolicyLogger().isLoggable(Level.FINER)) {
+	    getPolicyLogger().log(Level.FINER, "granted {0} to verified code of {1}, {2}",
+		new Object[]{
+		    (permissions != null) ? Arrays.asList(permissions) : null,
+		    cl.getName(),
+		    (principals != null) ? Arrays.asList(principals) : null});
+	}
+    }
+
+    /**
      * Marks a proxy ClassLoader as having loaded an INCONCLUSIVE verdict
      * codebase.
      *
@@ -1452,26 +1503,6 @@ public final class Security {
         return inconclusiveProxyLoaders.containsKey(loader);
     }
 
-    /**
-     * Selects the codebase scoped dynamic grant.  A DirtyChai java.base that
-     * predates {@code CODEBASE_DOMAIN} shadows the builder and rejects the
-     * context; the strictest grant, to the ProtectionDomain of the granted
-     * class only, is used instead, so grants still work, narrower than 
-     * intended, and never wider.
-     */
-    private static PermissionGrantBuilder codebaseDomainContext(
-            PermissionGrantBuilder pgb, Logger log)
-    {
-        try {
-            return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
-        } catch (IllegalStateException e) {
-            log.log(Level.WARNING, "PermissionGrantBuilder does not support "
-                + "CODEBASE_DOMAIN, dynamic grants are limited to the "
-                + "ProtectionDomain of the granted class", e);
-            return pgb.context(PermissionGrantBuilder.PROTECTIONDOMAIN);
-        }
-    }
-
     private static void grantRetainedInconclusiveLoaderGrant(final Class cl,
                                                              Principal[] principals,
                                                              Permission[] permissions)
@@ -1479,8 +1510,8 @@ public final class Security {
         Principal[] safePrincipals = principals == null ? new Principal[0] : principals;
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(safePrincipals)
-           .permissions(permissions);
-        codebaseDomainContext(pgb, getPolicyLogger());
+           .permissions(permissions)
+           .context(PermissionGrantBuilder.CLASSLOADER);
         AccessController.doPrivileged(
             new PrivilegedAction<Void>() {
                 @Override

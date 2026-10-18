@@ -42,9 +42,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * T4 with a real {@link PreferredClassLoader}: a dynamic grant to a class of a
- * multi jar codebase applies to each jar's domain, including a jar whose 
- * first class is loaded after the grant, and to no other domain.
+ * The grant for code whose identity is not verified, with a real
+ * {@link PreferredClassLoader}: it applies to every domain of the loader, the
+ * jars of a multi jar codebase and any location the loader defines classes
+ * from, and to no other loader.  Compare DigestDomainGrantTest.
  */
 public class PreferredClassLoaderCodebaseGrantTest {
 
@@ -112,7 +113,7 @@ public class PreferredClassLoaderCodebaseGrantTest {
     private static PermissionGrant grantTo(Class<?> c) {
         return PermissionGrantBuilder.newBuilder()
                 .principals(NONE).permissions(new Permission[]{PERM})
-                .context(PermissionGrantBuilder.CODEBASE_DOMAIN)
+                .context(PermissionGrantBuilder.CLASSLOADER)
                 .clazz(c).build();
     }
 
@@ -130,7 +131,7 @@ public class PreferredClassLoaderCodebaseGrantTest {
         ProtectionDomain outside = new ProtectionDomain(
                 new CodeSource(new File(dir, "outside.jar").toURI().toURL(), (Certificate[]) null), 
                 null, l, NONE);
-        assertFalse("location outside the codebase", g.implies(outside));
+        assertTrue("location outside the codebase: not limited to the codebase", g.implies(outside));
 
         PreferredClassLoader other = newLoader();
         assertFalse("second loader over identical jars", 
