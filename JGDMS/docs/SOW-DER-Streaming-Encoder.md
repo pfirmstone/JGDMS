@@ -4,8 +4,10 @@
 - **Status:** DRAFT — scoped at Peter's request following the closeout of
   `SOW-DER-Codec-Performance.md`; task breakdown for a code agent; no implementation started.
   Part A (the streaming encoder) is dispatchable under the same rules as the previous SOW.
-  Part B (read-ahead) changes *delivery semantics*, not only speed, and is gated on a board
-  decision (§B.2) — it is scoped here so that decision can be made on facts.
+  Part B (whole-stream pre-admission: read-ahead for defensive security, per maintainer
+  direction "safe, or not — no partial rejection") closes a verified gap: today per-item rejects
+  happen after earlier items have been delivered. Part B2 is the stream-level admission gate and
+  needs a security-literate reviewer.
 - **Origin:** `jgdms-benchmarks/serialization/RESULTS.md`, second run (after T0–T6 of the
   previous SOW), and `SOW-DER-Codec-Performance.md` §8. After that work the dominant remaining
   cost in both directions is **copying**: `DerWriter.frame`/`writeTlv` are 15% of marshal
@@ -18,7 +20,8 @@
   touched. The 31-payload `DerGoldenBytesTest` corpus (alone and three-in-a-stream), its decode
   round-trip, `DerWriterEquivalenceTest` and the existing reject tests are the oracle; a diff in
   bytes or verdicts is a defect. Part B is the one place this SOW proposes anything that could
-  change observable behaviour, and it is therefore opt-in and separately gated.
+  change observable behaviour (earlier rejection, never different acceptance), and it is therefore
+  reviewed as a security change.
 - **Companions:** `SOW-DER-Codec-Performance.md` (§8 records what was built and why T2/T3 stopped
   where they did); `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md`;
   `JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md` (§C.6.2 wire-order first
@@ -162,67 +165,105 @@ being exercised first.
   own SOW; it bounds large remote calls in both formats and is independent of this work.
 - **Not a public `DerWriter` removal or signature change.**
 
-# Part B — Stream read-ahead (optional; gated)
+# Part B — Whole-stream pre-admission ("read-ahead" for defensive security)
 
-"Read-ahead" can mean three different things here. They differ sharply in risk, so they are
-separated, and only B1 is proposed for direct dispatch.
+**Principle (maintainer direction, 2026-10-18).** Read-ahead exists for defensive security: a
+stream is **admitted or rejected as a whole**. It is safe, or it is not. There is no partial
+delivery — no object is constructed from a stream that fails pre-admission. Pipelined decode
+(decoding item *n* while item *n+1* is still arriving) and write-ahead are therefore **out of
+scope and rejected by this principle**, not merely deferred; they were considered in an earlier
+draft of this part and removed.
 
-## B.1 The three meanings, and where each stands
+## B.1 What today guarantees, and what it does not (verified, not assumed)
 
-1. **Framing-aware, exactly-sized input buffering with early rejection (B1).** DER is
-   length-prefixed: the first bytes of each top-level item declare its length. Today the reader
-   buffers to EOF in a doubling buffer (T5 of the previous SOW made it start small) and rejects
-   oversize only after reading `max + 1` bytes. A framed reader peeks the next item's header,
-   **rejects an item whose declared length exceeds the remaining input budget before buffering
-   it**, and allocates each item's buffer at its exact size. It still returns nothing to the
-   application until the whole stream has been read and framed (so the observable semantics are
-   unchanged: either the whole stream is well-framed and within budget, or no object is
-   delivered). Benefits: cheaper rejection of oversize/garbage input (no 16 MiB allocation to
-   learn that a header lies), no doubling copies, exact allocation. This is "read ahead" in the
-   sense of looking at the next header before committing memory.
-2. **Pipelined decode (B2) — decode item *n* while item *n+1* is still arriving.** This is what
-   most people mean by read-ahead. It is possible (the stream is a sequence of self-delimiting
-   items and the dedup table is already sequential per item), but it changes semantics, see B.2.
-3. **Write-ahead (B3, the mirror image): send item *n* while item *n+1* is still being
-   marshalled.** Enabled by Part A (items are finished into one encoder in order) and by
-   `flush()` per item. Same class of semantic questions on the receiving side.
+Today's reader buffers to EOF in the constructor under `maxInputBytes`. That part is
+all-or-nothing: an oversize stream, or one that fails to read, delivers nothing. **Everything
+else is checked lazily, per item, inside `readObject()`**, and a probe run against the real codec
+(2026-10-18) shows the consequence: a stream of `[good₁, good₂, item₃]` where `item₃` carries a
+`chainRef` naming a digest never sent **delivers `good₁` and `good₂` (constructors run, class
+loads done, DGC registrations made) and only then rejects the stream at `item₃`**
+(`StreamSchemaDedup: chainRef names a digest with no prior verified fullChain … unknown-digest
+hard reject`). The same holds for any per-item reject: malformed or non-canonical TLV framing
+inside an item, a duplicate `fullChain`, an arm with the wrong tag, a chain-ceiling breach, a
+table-ceiling breach, the per-item or cumulative reconstitution ceilings (the bomb defences), a
+nesting-depth breach, a wrong version octet is the only one caught up front. So the stream-level
+fail-closed property the Appendix C text describes ("a hard reject of the stream") is, in the
+implementation, "a hard reject from that item on".
 
-## B.2 Why B2/B3 are gated on a board decision, not just a benchmark
+Pre-admission closes that gap for every check that can be made **without constructing anything**.
 
-Today's atomicity is a security property, not an accident: because the whole stream is buffered
-and bounded first, **no constructor, `check(GetArg)`, class load or DGC `dirty` registration runs
-until the entire stream has been accepted as well-framed and within budget.** With pipelined
-decode, item 1's object is constructed (and its side effects occur) before bytes that may later
-prove malformed, oversize, or abusive have been seen. The board guidance applies directly:
+## B.2 Design positions
 
-- **G6 (fail-closed on ambiguity; check the cleanup path):** a later-item reject now leaves
-  earlier items' side effects in place. Which of those must be undone, and by what?
-- **G10/G13:** the cumulative-work ceiling (`maxStreamReconstitutedBytes`) and the input budget are
-  per window and currently checked against a known total; they would become running counters
-  that must fail at the same boundary. Needs an adversarial test, not reasoning.
-- **Decode units:** DGC completion batching (`DeserializationCompletion`) assumes a decode unit
-  spans an accepted stream; pipelining makes "accepted" mean "accepted so far".
-- **Blocking and timeouts:** decode would now block on the transport mid-item; today it blocks
-  only in the constructor. Thread, interrupt and timeout behaviour must be specified.
-- **Benefit is bounded by the transport:** JERI's mux delivers 1 KiB fragments with a synchronous
-  wait per fragment, and a typical call's arguments are a few items. B2/B3 only pay off for
-  multi-item or very large requests, and only if the receive side is the bottleneck. **This has
-  not been measured**; B4 below measures it before anyone designs B2/B3.
+### B.2.1 Two phases over the already-buffered bytes; nothing is constructed in phase 1
+
+- **Phase 1 — admission (no object construction, no class loading, no constructor, no
+  `check(GetArg)`, no DGC registration, no `ResolutionContext` use).** Walk the whole buffered
+  stream and apply every wire-level check the decoder would apply: item framing and the version
+  octet; canonical DER length forms; the stream-level dedup resolution of every item in wire
+  order against a *scratch* table (unknown digest, duplicate `fullChain`, malformed arm, chain
+  and table ceilings, and the per-item and cumulative reconstitution ceilings metered at the same
+  points as today, before the amplifying step); nesting-depth and collection-size bounds; item
+  tag allow-list. Result: **admit** (a verified plan) or **reject the stream** with the first
+  failure, with the same message class and exception type the lazy path throws today.
+- **Phase 2 — delivery.** `readObject()` decodes from the admitted plan exactly as today. Because
+  phase 1 populated and verified the per-stream chain table, phase 2 does not re-verify chains
+  (the verified-chain hand-off from the previous SOW's T3 already supports this).
+
+### B.2.2 Phase 1 reuses the dedup walker, in verify-only mode
+
+The dedup walker (migrated in A3) gains a mode that performs every decision and meters every
+ceiling but does not materialise the reconstituted bytes. This is cheaper than reconstituting
+twice, and it is *the same code* running in a different output mode, so phase 1 and phase 2
+cannot drift apart on what they accept (G8: one source of truth). If A3 has not landed, B2 can
+run the existing walker twice and measure the cost; the cost is the reason to land A3 first.
+
+### B.2.3 The honest limit of the guarantee
+
+Pre-admission guarantees the stream is **structurally admissible** (wire level, Layer 1 in
+G5's terms). It cannot guarantee that every *object* will be accepted: `check(GetArg)`, the
+constructor's invariants, class-resolution failure and admission-gate rejects are Layer 2 /
+policy decisions that need the class and run user code, and doing them in phase 1 would be
+exactly the construction this part forbids. So the contract is: **no object is constructed from a
+stream that is not structurally admissible**, and a Layer-2 reject of object *k* still occurs at
+`readObject()` *k*. Documentation and the `DerMarshalInputStream` Javadoc must state this
+plainly, because "the stream is safe" would otherwise be read as a stronger promise than the
+implementation can make. (If a stronger, all-objects-or-none contract is wanted, that is a
+different feature: decode every object first, then deliver; memory and side-effect cost to be
+decided separately, and DGC registration would need to be deferred until delivery.)
+
+### B.2.4 Class-free structural validation (optional extension, not in B2)
+
+`ObjectCodec` already has a class-free schema-driven field decode
+(`decodeToScalarFieldMapClassFree`). Phase 1 *may* be extended to validate field values against
+the in-stream schema without loading classes (UTF-8 validity, canonical set ordering and
+uniqueness, integer ranges, `byte[]` lengths) — catching more malformed streams before any
+construction. It is listed separately (B3) because it duplicates decode logic and must be proven
+equivalent to it (G8) rather than assumed.
 
 ## B.3 Task breakdown
 
 | Task | Deliverable | Agent · effort | Model tier | Review | Depends |
 |------|-------------|----------------|-----------|--------|---------|
-| **B1** · Framed, exactly-sized, early-rejecting input read | In `DerInputLimits`/`DerMarshalInputStream`: read the stream item by item — peek the header, check the declared length against the remaining budget (reject *before* buffering with the identical message class), read exactly that many bytes, accumulate into one exactly-grown buffer; then decode as today. Still no object delivered until EOF and the whole stream is framed. Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected without allocating it (assert via a counting stream: bytes read ≤ header + small); trickle and slow streams; truncated item; trailing garbage; zero-length stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (it touches the DoS gate) | — (independent of Part A) |
-| **B4** · Measurement of what pipelining could buy | Instrument, do not implement: on the JERI loopback benchmark, record time from first byte received to last byte received vs time spent decoding, for `record`, `batch100`, `blob64k`, and a synthetic 8-item request. Report the fraction of call latency decode could overlap. | general-purpose · MEDIUM | sonnet | single reviewer | B1 optional |
-| **B2/B3** · Pipelined decode / write-ahead | **Not scoped for dispatch.** Becomes a design memo plus a board decision on B.2's questions *only if* B4 shows overlap is a material fraction of call latency. If it does, the memo must specify: delivery contract on a later-item reject, what is rolled back, decode-unit semantics, budget accounting, timeouts; and an opt-in switch, default off. | — | — | board | B4 |
+| **B0** · Characterise partial delivery | Turn the 2026-10-18 probe into permanent tests that pin **current** behaviour for each per-item reject class (unknown digest, duplicate full, malformed arm, chain ceiling, table ceiling, per-item and cumulative reconstitution, depth, non-canonical framing): record which items are delivered before the reject. These tests change in B2 from "delivers *k*, then rejects" to "delivers nothing" — the diff in expected behaviour is the deliverable's proof. | general-purpose · MEDIUM | sonnet | single reviewer | — |
+| **B1** · Framed, exactly-sized, early-rejecting input read | In `DerInputLimits`/`DerMarshalInputStream`: read item by item — peek the header, reject an item whose declared length exceeds the remaining budget **before buffering it**, read exactly that many bytes, accumulate into one exactly-grown buffer. Observable semantics unchanged (still reads to EOF and delivers nothing before the stream is framed). Tests: all `DerInputLimitsTest` boundary pairs unchanged; a header declaring `max+1` is rejected having read only the header (counting stream); trickle and slow streams; truncated item; trailing garbage; empty stream; the 16 MiB−1 / 16 MiB / 16 MiB+1 trio. | general-purpose · HIGH | sonnet | security-literate reviewer (touches the DoS gate) | — |
+| **B2** · Two-phase admission | Per B.2.1/B.2.2: phase-1 verify-only pass over the whole buffered stream; phase-2 delivery from the admitted plan. Every B0 test flips to "rejects the stream, delivers nothing". Add: an adversarial test per reject class placed as the **last** item of a long stream (and as the first, and in the middle) asserting zero objects delivered and zero constructors run (a counting fixture class); a differential test asserting phase 1 and the lazy path agree on accept/reject for the whole golden corpus plus a fuzzed mutation corpus (bit flips and truncations of the golden streams). Javadoc per B.2.3. | general-purpose · XHIGH (this is the stream-level admission gate) | top-tier | security-literate reviewer + B0 flips + differential/fuzz test + G13 adversarial run | A3 (preferred), B0, B1 |
+| **B3** · Class-free structural validation (optional) | Per B.2.4, only if the differential test shows a material class of malformed streams still reaching construction. | general-purpose · HIGH | top-tier | security-literate reviewer | B2 |
+| **B4** · Cost measurement | Measure phase 1's cost on the benchmark payloads (`point`, `record`, `batch100`, `blob64k`, a synthetic 8-item request, and a 16 MiB stream) and report it against decode time, both with the existing walker run twice and with A3's verify-only mode. Defensive cost is acceptable but must be reported. | general-purpose · MEDIUM | sonnet | single reviewer | B2 |
 
-## B.4 Recommendation
+**Sequencing:** B0 and B1 are independent of Part A and can run first. B2 should follow A3 so the
+verify-only mode is the same code as the delivery walker; if the maintainer wants admission
+sooner, B2 can ship on the existing walker run twice, with B4 reporting the cost and A3 later
+removing it.
 
-Do **B1** (cheap, independent, strictly safer than today: it rejects hostile input sooner and
-allocates less) and **B4** (a measurement). Do not design B2/B3 until B4 says they are worth the
-semantic cost; the loss of "nothing runs until the stream is accepted" is a real security
-trade, and the mux fragment size may dominate anyway.
+## B.4 Non-goals (Part B)
+
+- **No pipelined decode, no write-ahead, no delivery before the stream is admitted.**
+- **No change to wire format, to which streams are valid, or to reject messages** — pre-admission
+  moves *when* the existing rejects fire (before any construction), not *what* is rejected. A
+  stream that is valid today stays valid; a stream rejected at item *k* today is rejected up
+  front.
+- **No class loading, resolution or constructor execution in phase 1** (B.2.3).
+- **Not a stronger all-objects-or-none contract** (B.2.3 explains the difference and the cost).
 
 # Open questions (implementer proposes, maintainer decides)
 
@@ -241,7 +282,8 @@ trade, and the mux fragment size may dominate anyway.
 > `docs/SOW-DER-Streaming-Encoder.md` (this file), `docs/SOW-DER-Codec-Performance.md` §8,
 > `jgdms-benchmarks/serialization/RESULTS.md` (third section after A5; second section before),
 > `JGDMS-STD-006-Appendix-C-Stream-Schema-Dedup-v0.1-DRAFT.md` §C.5–C.8, and
-> `JGDMS-Board-Reviewer-Guidance.md` G1/G3/G6/G10/G13. Implement task **A<n>** (or **B<n>**) only.
+> `JGDMS-Board-Reviewer-Guidance.md` G1/G3/G6/G10/G13. Implement task **A<n>** (or **B<n>**) only. For Part B the contract is "admitted whole or
+> rejected whole": phase 1 must construct nothing, load no class and run no user code.
 > Output bytes and accept/reject verdicts must not change: the golden corpus, its decode
 > round-trip, `DerWriterEquivalenceTest` and the existing `jgdms-der` suite are the oracle, and a
 > fixture mismatch means stop and report, not regenerate. Build and test on DirtyChai from the
