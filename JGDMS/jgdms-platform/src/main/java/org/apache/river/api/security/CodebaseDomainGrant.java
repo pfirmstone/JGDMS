@@ -140,13 +140,13 @@ class CodebaseDomainGrant extends ProtectionDomainGrant {
         ClassLoader loader = anchor.getClassLoader();
         if (loader == null || pd.getClassLoader() != loader) return false;
         CodeSource cs = pd.getCodeSource();
+        // The anchor's identity, including a domain created by a 
+        // DomainCombiner, which shares the anchor's CodeSource.  This also
+        // covers an anchor CodeSource that has no location.
+        if (impliesCodeSource(cs)) return true;
         CodeSourceKey key = CodeSourceKey.of(cs);
         if (key == null) return false; // identity unknown, fail closed.
-        if (!codebase.contains(key.uri)) {
-            // Not in the codebase, only the anchor's identity, such as a
-            // domain created by a DomainCombiner, is implied.
-            return impliesCodeSource(cs);
-        }
+        if (!codebase.contains(key.uri)) return false;
         CodeSourceKey existing = pinned.putIfAbsent(key.uri, key);
         return existing == null || existing.equals(key);
     }

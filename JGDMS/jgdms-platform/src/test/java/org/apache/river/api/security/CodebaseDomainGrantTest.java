@@ -212,6 +212,21 @@ public class CodebaseDomainGrantTest {
     }
 
     @Test
+    public void anchorWithoutLocationStillCoversItsRebuiltDomain() throws Exception {
+        try (NotUrlLoader l = new NotUrlLoader()) {
+            Class<?> a = l.define(ProxyA.class, null); // CodeSource without a location
+            PermissionGrant g = grantTo(a);
+            ProtectionDomain pa = a.getProtectionDomain();
+            assertTrue(g.implies(pa));
+            assertTrue("rebuilt by a combiner, shares the CodeSource", 
+                    g.implies(new ProtectionDomain(pa.getCodeSource(), null, l, NONE)));
+            DynamicPolicyProvider policy = new DynamicPolicyProvider(new EmptyPolicy());
+            policy.grant(a, NONE, new Permission[]{PERM});
+            assertTrue(Arrays.asList(policy.getGrants(a, NONE)).contains(PERM));
+        }
+    }
+
+    @Test
     public void nullClassAppliesToAllDomains() throws Exception {
         PermissionGrant g = PermissionGrantBuilder.newBuilder()
                 .principals(NONE).permissions(new Permission[]{PERM})

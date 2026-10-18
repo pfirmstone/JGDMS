@@ -651,8 +651,8 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         g.checkGuard(null);
         final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(principals)
-            .permissions(permissions)
-            .context(PermissionGrantBuilder.CODEBASE_DOMAIN);
+            .permissions(permissions);
+        codebaseDomainContext(pgb, logger);
         if (cl != null){
             AccessController.doPrivileged(
                 new PrivilegedAction(){
@@ -669,6 +669,26 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 	if (loggable){
 	    logger.log(Level.FINEST, "Granting: {0}", pe.toString());
 	}
+    }
+    
+    /**
+     * Selects the codebase scoped dynamic grant.  A DirtyChai java.base that
+     * predates {@code CODEBASE_DOMAIN} shadows the builder and rejects the
+     * context; the strictest grant, to the ProtectionDomain of the granted
+     * class only, is used instead, so grants still work, narrower than 
+     * intended, and never wider.
+     */
+    private static PermissionGrantBuilder codebaseDomainContext(
+            PermissionGrantBuilder pgb, Logger log)
+    {
+        try {
+            return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
+        } catch (IllegalStateException e) {
+            log.log(Level.WARNING, "PermissionGrantBuilder does not support "
+                + "CODEBASE_DOMAIN, dynamic grants are limited to the "
+                + "ProtectionDomain of the granted class", e);
+            return pgb.context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+        }
     }
     
     // documentation inherited from DynamicPolicy.getGrants

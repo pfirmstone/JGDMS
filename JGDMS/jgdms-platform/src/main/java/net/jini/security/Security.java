@@ -1452,6 +1452,26 @@ public final class Security {
         return inconclusiveProxyLoaders.containsKey(loader);
     }
 
+    /**
+     * Selects the codebase scoped dynamic grant.  A DirtyChai java.base that
+     * predates {@code CODEBASE_DOMAIN} shadows the builder and rejects the
+     * context; the strictest grant, to the ProtectionDomain of the granted
+     * class only, is used instead, so grants still work, narrower than 
+     * intended, and never wider.
+     */
+    private static PermissionGrantBuilder codebaseDomainContext(
+            PermissionGrantBuilder pgb, Logger log)
+    {
+        try {
+            return pgb.context(PermissionGrantBuilder.CODEBASE_DOMAIN);
+        } catch (IllegalStateException e) {
+            log.log(Level.WARNING, "PermissionGrantBuilder does not support "
+                + "CODEBASE_DOMAIN, dynamic grants are limited to the "
+                + "ProtectionDomain of the granted class", e);
+            return pgb.context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+        }
+    }
+
     private static void grantRetainedInconclusiveLoaderGrant(final Class cl,
                                                              Principal[] principals,
                                                              Permission[] permissions)
@@ -1459,8 +1479,8 @@ public final class Security {
         Principal[] safePrincipals = principals == null ? new Principal[0] : principals;
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(safePrincipals)
-           .permissions(permissions)
-           .context(PermissionGrantBuilder.CODEBASE_DOMAIN);
+           .permissions(permissions);
+        codebaseDomainContext(pgb, getPolicyLogger());
         AccessController.doPrivileged(
             new PrivilegedAction<Void>() {
                 @Override
