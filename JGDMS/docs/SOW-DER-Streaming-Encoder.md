@@ -186,7 +186,7 @@ loads done, DGC registrations made) and only then rejects the stream at `item₃
 hard reject`). The same holds for any per-item reject: malformed or non-canonical TLV framing
 inside an item, a duplicate `fullChain`, an arm with the wrong tag, a chain-ceiling breach, a
 table-ceiling breach, the per-item or cumulative reconstitution ceilings (the bomb defences), a
-nesting-depth breach, a wrong version octet is the only one caught up front. So the stream-level
+nesting-depth breach. Only the version octet is checked up front. So the stream-level
 fail-closed property the Appendix C text describes ("a hard reject of the stream") is, in the
 implementation, "a hard reject from that item on".
 
