@@ -509,7 +509,7 @@ Related, not changed here:
 | `DynamicPolicyProvider.grant`, retained INCONCLUSIVE grant use `CODEBASE_DOMAIN` | Back to `CLASSLOADER`; the verified path is the new overload (7.4) |
 | `DynamicPolicyProvider.getGrants` evaluates the domain | Keep |
 | `CodeSourceKey`, `impliesCodeSource` via it | Keep (item 6) |
-| Shadowing-builder fallback to `PROTECTIONDOMAIN` when the context is rejected | Keep, for `DIGEST_DOMAIN`; fall back to `CLASSLOADER` instead, so a DirtyChai trunk without the constant behaves as before rather than narrowing to one jar |
+| Shadowing-builder fallback to `PROTECTIONDOMAIN` when the context is rejected | Remove. Neither tree has been released, so both gain `DIGEST_DOMAIN` together; a mismatched development build should fail loudly rather than silently change grant scope |
 | Tests `CodebaseDomainGrantTest`, `PreferredClassLoaderCodebaseGrantTest` | Rewrite for supplied identities (7.11) |
 | — | New: `Security.grant` overload and `DynamicPolicy` default (7.4); `DigestGrant` `unverified()` check (7.6); provider shortcut fix and digest supply (7.4, 7.7) |
 
@@ -549,3 +549,25 @@ DirtyChai `test/jdk/ai/` (AI-authored, Zone T) and the JGDMS equivalents:
 - **JGDMS provider test:** two bootstrap proxies for different remote objects with the
   same codebase, the second returned in a response unmarshalled by the first: they must
   get different loaders. Today they share one (7.7).
+
+### 7.12 Relation to per-SPIFFE-ID process isolation
+
+Planned: downloaded proxies run in subprocesses, one per server SPIFFE ID, holding all of
+that identity's service proxies (`SmartProxyIsolationRouterImpl`, pooled by
+`IsolationPoolingKey.derive(serverPrincipals)`). This complements section 7; it does not
+replace it.
+
+- **The process boundary separates identities.** Proxies of different SPIFFE IDs cannot
+  share a JVM, loader, dynamic grant or heap, including proxies outside the bootstrap
+  path. It also brings compatibility benefits (each process can be configured for the
+  code it hosts).
+- **The isolating JVM is itself the highest-risk component.** It is the one that
+  downloads and runs foreign code, and it is still an entry point to the system: it holds
+  connections, credentials for its identity, and whatever permissions it is granted. So
+  least privilege inside it matters more, not less. `DigestDomainGrant` still decides
+  which code in that JVM gets each proxy's permissions (later jars, changed jars and
+  forged code sources stay denied), and the 7.7 fix still keeps grants per remote object
+  among proxies of the same identity.
+- **Policy for the isolating JVM** should grant the process only what its proxies need,
+  with the verified overload (7.4) as the only route to anything beyond the limited
+  `ClassLoaderGrant` path.
