@@ -34,6 +34,8 @@ jmh() {
     "$JAVA" \
         "-Djgdms.bench.harness.url=file:$HARNESS" \
         "-Djgdms.bench.workload.url=file:$WORKLOAD" \
+        "-Djgdms.bench.harness.path=$HARNESS" \
+        "-Djgdms.bench.workload.path=$WORKLOAD" \
         "-Djava.security.policy==$POLICY_FILE" \
         "-Djava.security.properties=$HERE/conf/$SECURITY" \
         "-Djgdms.bench.expectedPolicy=$POLICY_CLASS" \
@@ -49,10 +51,11 @@ if [ "${BENCH_MODE:-run}" = audit ]; then
     [ -f "$GENERATED" ] || cp "$HERE/conf/bench.policy" "$GENERATED"
     POLICY_FILE="$GENERATED"
     # polpAudit writes these properties in place of the matching paths, so the
-    # generated grants stay portable: codeBase "${jgdms.bench.workload.url}".
+    # generated grants stay portable: codeBase "${jgdms.bench.workload.url}",
+    # FilePermission "${jgdms.bench.workload.path}".
     PATHS="$HERE/conf/audit-paths.properties"
-    printf 'jgdms.bench.harness.url=%s\njgdms.bench.workload.url=%s\n' \
-        "file:$HARNESS" "file:$WORKLOAD" > "$PATHS"
+    printf 'jgdms.bench.harness.url=%s\njgdms.bench.workload.url=%s\njgdms.bench.harness.path=%s\njgdms.bench.workload.path=%s\n' \
+        "file:$HARNESS" "file:$WORKLOAD" "$HARNESS" "$WORKLOAD" > "$PATHS"
     AUDIT="-Djava.security.manager=polpAudit -DpolpAudit.path.properties=$PATHS -Djgdms.bench.audit=true"
     jmh 'PolicyOverheadSmOn\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "$AUDIT"
     jmh 'PolicyOverheadVirtualSmOn\.' -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "$AUDIT -Djmh.executor=VIRTUAL"

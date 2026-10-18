@@ -38,6 +38,7 @@
     <modules>
         <module>workload</module>
         <module>harness</module>
+        <module>serialization</module>
     </modules>
 
     <properties>

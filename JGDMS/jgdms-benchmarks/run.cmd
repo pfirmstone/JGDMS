@@ -53,6 +53,10 @@ if "%SECURITY%"=="" (
 rem Policy codeBase URLs use forward slashes: file:/C:/...
 set "HARNESS_URL=file:/%HARNESS:\=/%"
 set "WORKLOAD_URL=file:/%WORKLOAD:\=/%"
+rem File paths for FilePermission grants. Forward slashes: these are also
+rem written to a .properties file, where a backslash is an escape character.
+set "HARNESS_PATH=%HARNESS:\=/%"
+set "WORKLOAD_PATH=%WORKLOAD:\=/%"
 
 set "GENERATED=%HERE%\conf\generated.policy"
 set "POLICY_FILE=%HERE%\conf\bench.policy"
@@ -70,7 +74,7 @@ if defined AUDIT_MODE set "POLICY_FILE=%GENERATED%"
 
 rem The host JVM's -D options are inherited by every JMH fork; each benchmark
 rem class then appends its own SecurityManager / executor options.
-set JMH="%JAVA%" "-Djgdms.bench.harness.url=%HARNESS_URL%" "-Djgdms.bench.workload.url=%WORKLOAD_URL%" "-Djava.security.policy==%POLICY_FILE%" "-Djava.security.properties=%HERE%\conf\%SECURITY%" "-Djgdms.bench.expectedPolicy=%POLICY_CLASS%" -Djmh.link.address=127.0.0.1 -Djgdms.bench.p0=value0 -Djgdms.bench.p1=value1 -Djgdms.bench.p2=value2 -Djgdms.bench.p3=value3 -Djgdms.bench.p4=value4 -Djgdms.bench.p5=value5 -Djgdms.bench.p6=value6 -Djgdms.bench.p7=value7 -cp "%HARNESS%;%WORKLOAD%" org.openjdk.jmh.Main
+set JMH="%JAVA%" "-Djgdms.bench.harness.url=%HARNESS_URL%" "-Djgdms.bench.workload.url=%WORKLOAD_URL%" "-Djgdms.bench.harness.path=%HARNESS_PATH%" "-Djgdms.bench.workload.path=%WORKLOAD_PATH%" "-Djava.security.policy==%POLICY_FILE%" "-Djava.security.properties=%HERE%\conf\%SECURITY%" "-Djgdms.bench.expectedPolicy=%POLICY_CLASS%" -Djmh.link.address=127.0.0.1 -Djgdms.bench.p0=value0 -Djgdms.bench.p1=value1 -Djgdms.bench.p2=value2 -Djgdms.bench.p3=value3 -Djgdms.bench.p4=value4 -Djgdms.bench.p5=value5 -Djgdms.bench.p6=value6 -Djgdms.bench.p7=value7 -cp "%HARNESS%;%WORKLOAD%" org.openjdk.jmh.Main
 
 if not defined AUDIT_MODE echo # jgdms-bench: policy file %POLICY_FILE%
 if not defined AUDIT_MODE %JMH% %*
@@ -78,10 +82,13 @@ if not defined AUDIT_MODE exit /b
 
 rem Audit mode. polpAudit writes these properties in place of the matching
 rem paths, so the generated grants stay portable:
-rem codeBase "${jgdms.bench.workload.url}".
+rem codeBase "${jgdms.bench.workload.url}" and
+rem FilePermission "${jgdms.bench.workload.path}".
 set "PATHS=%HERE%\conf\audit-paths.properties"
 > "%PATHS%" echo jgdms.bench.harness.url=%HARNESS_URL%
 >> "%PATHS%" echo jgdms.bench.workload.url=%WORKLOAD_URL%
+>> "%PATHS%" echo jgdms.bench.harness.path=%HARNESS_PATH%
+>> "%PATHS%" echo jgdms.bench.workload.path=%WORKLOAD_PATH%
 set "AUDIT=-Djava.security.manager=polpAudit -DpolpAudit.path.properties=%PATHS% -Djgdms.bench.audit=true"
 %JMH% "PolicyOverheadSmOn\." -f 1 -wi 1 -w 200ms -i 1 -r 200ms -jvmArgsAppend "%AUDIT%"
 if errorlevel 1 exit /b
