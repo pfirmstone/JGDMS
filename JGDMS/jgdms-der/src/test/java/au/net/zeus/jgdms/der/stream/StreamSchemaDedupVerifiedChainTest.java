@@ -102,6 +102,15 @@ class StreamSchemaDedupVerifiedChainTest {
         byte[] extended = Arrays.copyOf(chain, chain.length + 4);
         assertNull(d.verifiedChain(extended), "trailing bytes after a tabled chain are not vouched for");
 
+        // The table's digest (over the RECEIVED leaf bytes, sec.C.7.3) must equal the digest nested
+        // decode used to compute by re-encoding the parsed leaf record: canonical decode makes
+        // the two coincide, and the lookup relies on it.
+        for (int i = 0; i < hit.chain().size(); i++) {
+            assertArrayEquals(leafDigest(hit.chain().get(i).encode()), hit.chain().get(i).schemaDigest());
+        }
+        assertArrayEquals(hit.chain().get(0).schemaDigest(), hit.leafDigest(),
+                "received-bytes digest must equal the re-encoded leaf digest");
+
         assertEquals(hit.chain(), rc.topChain().chain(), "reconstitution hands back the tabled chain");
         assertArrayEquals(hit.leafDigest(), rc.topChain().leafDigest());
     }

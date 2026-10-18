@@ -202,6 +202,61 @@ point if T3 is deferred.
 > `DerInputLimits` ceilings, or any spec document. Report: what changed, the test
 > run, and (for T6) the before/after benchmark pair.
 
+## 8. Implementation notes (2026-10-18; T0–T5 landed, T6 pending)
+
+Recorded so the next reader works from what was built, not from the plan. All numbers are
+from the Linux container on DirtyChai 27 and are indicative until T6 re-runs the full harness.
+
+- **Oracle.** `DerGoldenBytesTest` holds 31 payloads (the 21 from T0 plus sets, a two-chain
+  polymorphic set, map values, `Chain[]`, self-recursion, a proxy field whose handler holds a
+  nested record, and top-level `[9]` arrays and a `[8]` proxy), each alone and three-in-a-stream.
+  The 10 added in T3 were generated from the ORIGINAL trunk (`9adc8e6e3`) and the T1/T2/T4/T5 code
+  reproduces all 31 byte-for-byte. A second test decodes each stream and re-encodes it to the same
+  bytes (decode-side oracle).
+- **T2 is only the façade half.** `DerWriter` now allocates once per call (no per-call tag/length
+  arrays, no intermediate concatenation for `writeSequence(List)`/`writeSet(List)`). The copy per
+  nesting level remains: callers pass already-built child arrays, and §4 forbids changing call
+  sites in T2. Removing it needs the call sites (`ObjectCodec`, `StreamSchemaDedup`,
+  `DerObjectStreamCodec`) migrated to a streaming encoder — a follow-up.
+- **T4 keeps the validate-then-resolve order.** `DerObjectStreamCodec.decodeAtomicRecord` still
+  fully validates the transmitted chain before resolving the class it names, so an attacker-named
+  class is not resolved ahead of chain validation (§3.4 as written would resolve first). The fast
+  path therefore removes the SECOND chain parse only. Skipping the first needs a security-board
+  decision.
+- **T3 as written is not implementable for the encoder; what was built instead.** §4 T3 has the
+  encoder consult the per-stream table "while writing". That cannot preserve the wire form:
+  a `SET OF` is octet-sorted (X.690 §11.6) over the canonical FULL-form element bytes, and
+  Appendix C §C.6.2 defines "first occurrence" over that WIRE order. Dedup in iteration order would
+  put the `fullChain` on a different element than the first one in wire order, and a conforming
+  decoder would then see a `chainRef` before its `fullChain` and hard-reject the stream. The
+  encode therefore stays two-phase (canonical encode and sort, then substitute sites in wire
+  order), and decode must still resolve sites eagerly in wire order (a lazy per-field decode reads
+  fields in constructor order, not wire order). Appendix C is unchanged. T3 instead removed the
+  redundant work around that pass:
+  - encode: a bytes-keyed index over the table (a repeated chain costs one content lookup, not a
+    re-hash), and the record's own chain recognised as this node's locally generated chain
+    (`SchemaGenerator.verifiedLocalChain`, verified through `SchemaChain.decodeChain` once per
+    class) instead of re-parsed and re-hashed per stream;
+  - decode: reconstitution returns the record's verified chain, handed to the record codec by
+    reference (new `decodeMarshalledInstance` overload; the `schemaDigest` field is still checked),
+    and nested records consult the stream's table through a `ScopedValue` so a chain byte-identical
+    to one the table verified is not re-parsed and re-hashed per element. Anything else (including
+    chains inside `[8]` regions) takes the unchanged path.
+  What remains is the byte-level interface itself: reconstitution rebuilds bytes at every
+  nesting level, and each distinct chain is parsed and hashed once per stream.
+- **Measured so far (µs/op, DER, quick run, `-f 1 -wi 3 -i 4`).**
+
+  | | baseline | after T1/T2/T5 | after T4 | after T3 |
+  |---|---:|---:|---:|---:|
+  | marshal point | 2.64 | 1.91 | – | 1.21 |
+  | marshal record | 4.05 | 2.72 | – | 1.85 |
+  | marshal batch100 | 454 | 317 | – | 217 |
+  | unmarshal point | 36.1 (noisy) | 13.1 | 8.5 | 8.3 |
+  | unmarshal record | 20.7 | 19.4 | 15.6 | 14.0 |
+  | unmarshal batch100 | 1647 | 1608 | 1524 | 1424 |
+
+  `blob64k` is dominated by copies the façade cannot remove and was too noisy to quote.
+
 ---
 Drafted with AI assistance (Claude) under the direction of the JGDMS maintainer;
 source line references verified against trunk at 754700b (2026-10-14).
