@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: au.net.zeus.jgdms.der.object.ImmutableCollectionCodecTest
--------------------------------------------------------------------------------
-Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.059 s -- in au.net.zeus.jgdms.der.object.ImmutableCollectionCodecTest

@@ -74,7 +74,7 @@ Docs: the rest (SOW creation, board folding, decisions).
 1. **Next tasks (SOW effort in brackets):** B0 pin today's behaviour [medium, independent]; A1 `DerEncoder` [high]; then A2, A4, B1 [high]; A3, B2, B5 [xhigh]. The maintainer has not yet reviewed the streaming-encoder SOW.
 2. Ask the user (in bold) before an effort change; efforts are set by the user.
 3. DGC fix was tested at the `DerMarshalInputStream` level only; B0 should confirm it through the real dispatcher.
-4. `JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine): suggest `git rm --cached` + `.gitignore`; user not yet asked/decided.
+4. ~~`JGDMS/jgdms-der/target/` and `dependency-reduced-pom.xml` are tracked in git (not mine)~~ CORRECTED 2026-10-18: the 569 tracked `jgdms-der/target/` files WERE mine - force-added by `git add -f JGDMS/jgdms-der` in `ef2fdc6a9` (trunk `9adc8e6e3` tracks none; source: `git ls-tree -r 9adc8e6e3 --name-only | grep -c jgdms-der/target/` = 0). Untracked in the commit after `a6c2679d6`; `.gitignore` already had `**/target/`. NEVER use `git add -f` on a whole module. `dependency-reduced-pom.xml` IS trunk's own tracked file: leave it, `git checkout` it after benchmark builds.
 5. STD-006 now has the strict-UTF-8 sentence (4.2); STD-011 Appendix B B.5 item 10 cites it.
 
 ## 8. Agent roster (all finished; resumable with `SendMessage` by agentId; read-only; own worktrees under /tmp/claude-0/board-*)
