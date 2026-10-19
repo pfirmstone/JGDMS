@@ -125,8 +125,9 @@ class EntryRepV2GoldenBytesTest {
                 return;
             }
             assertTrue(Files.exists(f), "missing golden fixture " + f);
-            assertEquals(new String(Files.readAllBytes(f), StandardCharsets.US_ASCII), now,
-                    e.getKey() + ": Entry bytes changed");
+            // The fixture is text: a checkout that converts line endings (Windows core.autocrlf) must not change what is compared.
+            String frozen = new String(Files.readAllBytes(f), StandardCharsets.US_ASCII).replace("\r\n", "\n");
+            assertEquals(frozen, now, e.getKey() + ": Entry bytes changed");
         }));
     }
 }
