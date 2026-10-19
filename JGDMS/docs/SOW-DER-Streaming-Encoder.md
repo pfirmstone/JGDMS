@@ -306,6 +306,11 @@ the chain site processed (pre-order, C.6.2), the trailing-field checks run, and 
   that tables a chain has already opened its frame in the shared encoder).
 - **Not done:** `drainTo` still holds the encoder buffer plus its compacted copy (peak about 3x the stream, against 1x for the old chunk list); a compact-in-place
   `writeTo(OutputStream)` would remove it but writes one small chunk per frame, bad for an unbuffered socket. Read side untouched (still one `byte[]` per TLV).
+  **Measured later (2026-10-19, container, a throwaway harness against the pre-A4 chunk-list writer at `5b2658a27` and the current code, one 15.9 MB / 16.8 MB stream to a discarding sink; re-run before quoting):**
+  the drain copy is real but small next to what A4 saved. Allocation per marshal: 16 MiB `byte[]` 201 -> 134 MB, 27 batches of 4 096 small records (15.9 MB) 563 -> 219 MB (the drain itself is exactly one stream-size copy, 16.8 and 15.9 MB);
+  warm wall time (G1, 80 repetitions) 40 -> 26 ms and 148 -> 103 ms. Minimum heap to marshal one stream, above the heap that merely holds the payload: records 22 MB (1.4x the stream) before, 48 MB (3.0x) now;
+  16 MiB `byte[]` 66 MB (3.9x) before, 70 MB (4.2x) now, because there the canonical record built in `scratch` already holds a stream-size copy. So the 3x is true for streams of many small records, costs about
+  1.6x the stream (26 MB at 16 MiB) of extra transient heap per concurrent writer, and was judged not worth a chunked compaction inside the encoder (which would also reintroduce partial-write states the poisoning rule removed).
 - **Measured** (`CodecBenchmark` DER, same container and JDK, JMH 2 forks x 5; files `results-a4.json`, `results-a4-marshal-rerun.json`). Marshal `record` 1.62 us (A3: 1.79),
   `batch100` 105.2 us (124.8), `blob64k` 85.7 us (127.5; the first run's 391 +/- 1449 us was an outlier caused by my running the unit-test suite concurrently, so it was re-run alone);
   unmarshal unchanged within noise (A4 does not touch it): `record` 9.7 us, `batch100` 738 us, `blob64k` 155 us. Against the ORIGINAL baseline marshal is now 0.40x / 0.23x / 0.31x.
