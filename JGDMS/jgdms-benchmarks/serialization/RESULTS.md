@@ -420,3 +420,24 @@ Same container and settings as the fourth run (DER only; `results-b5.json`). B5 
 
 - **No measurable change over B2 (the fourth run):** every difference is inside the intervals, and the in-process unmarshal of `record` (the case that shows an added pass most clearly) is 11.96 us against 12.31. The added work is per distinct chain, per record site and one header-skip pass per collection or reference array that is passed through.
 - Against the third run (A5) the cost is still B2's: about +1 us (`point`) and +3 us (`record`) of in-process unmarshal, JERI within noise. Container numbers: re-run on the workstation before quoting.
+
+
+# Sixth run: cost of admission by stage (SOW-DER-Streaming-Encoder B4), 19 October 2026
+
+`AdmissionBenchmark` (`results-b4.json`), DirtyChai JDK 27, container, 2 forks x 5 iterations; **re-run on the workstation before quoting**. Times are per operation; `floor` is the framed bounded read alone (construction before B2); `cheap` is `forDispatcher` (B2's pre-authorization work); `cheapPlusFull` adds `admitStream()`; `decode` is the public constructor and all reads; `dispatcherPath` is cheap, admit, read; `context` is the authorization-context block (public constructor, full admission before authorization); `unauth+ctx` is `context` plus `cheap`.
+
+| payload | floor | cheap | cheapPlusFull | decode | dispatcherPath | context | unauth+ctx |
+|---|---|---|---|---|---|---|---|
+| point (us) | 0.26 +- 0.03 | 0.71 +- 0.16 | 2.47 +- 0.47 | 9.13 +- 1.23 | 9.53 +- 1.75 | 27.76 +- 2.33 | 30.79 +- 4.84 |
+| record (us) | 0.34 +- 0.03 | 0.82 +- 0.20 | 3.13 +- 0.51 | 13.97 +- 1.99 | 14.79 +- 1.99 | 30.10 +- 3.45 | 33.72 +- 5.30 |
+| batch100 (us) | 3.44 +- 3.51 | 3.45 +- 0.82 | 50.62 +- 5.44 | 922.92 +- 138.34 | 1023.66 +- 180.35 | 29.15 +- 5.06 | 34.83 +- 3.44 |
+| blob64k (us) | 45.78 +- 14.37 | 182.10 +- 668.62 | 333.86 +- 1241.97 | 226.90 +- 111.76 | 213.26 +- 41.06 | 30.23 +- 4.24 | 78.34 +- 7.20 |
+| request8 (us) | 1.73 +- 0.11 | 2.24 +- 0.19 | 14.04 +- 1.43 | 165.52 +- 83.35 | 155.88 +- 26.53 | 33.13 +- 8.82 | 33.47 +- 4.76 |
+| blob16m (us) | 9326 +- 756 | 9174 +- 888 | 18767 +- 1864 | 60619 +- 7589 | 61460 +- 9569 | 49 +- 93 | 9476 +- 781 |
+| records16m (us) | 11112 +- 512 | 10889 +- 829 | 44929 +- 4019 | 1118809 +- 217732 | 1118776 +- 153503 | 34 +- 6 | 9445 +- 715 |
+
+Streams: `request8` 3 286 bytes; `blob16m` 16 773 248; `records16m` 15 893 920. `blob64k` cheap and cheapPlusFull are GC-outlier noise (intervals larger than the scores).
+
+- The cheap stage is below 1 us over the read on small streams and unmeasurable on 16 MiB streams (inside the intervals): an unauthenticated peer costs the byte read, as before B2.
+- The full stage (after `checkAccess` only) is 1.8 to 2.3 us on `point`/`record`, 47 us on `batch100`, 11.8 us on `request8`, 9.6 ms on a 16 MiB blob and 34 ms on 16 MiB of small records (3% of delivering them).
+- The side-band authorization-context block is the only full admission before authorization: about 30 us per request in this fixture, independent of the request size.
