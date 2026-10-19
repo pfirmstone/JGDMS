@@ -1676,25 +1676,35 @@ final class DerObjectStreamCodec {
             // processed in pre-order, ceilings metered during the walk — BEFORE the
             // unchanged record-level decode below sees the bytes. (Record-level capture
             // context: the content is already canonical and passes straight through.)
-            byte[] recBytes;
-            try {
-                recBytes = reader.readRawContent(hdr.contentLength());
-            } catch (DerException e) {
-                throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
-            }
             if (streamFormat) {
-                StreamSchemaDedup.Reconstituted rc;
+                // The record is read in place, out of the input buffer: it is neither copied out nor re-assembled, only its pieces are
+                // taken (the payload once, into the array the decoder reads).
+                int recStart = reader.position();
                 try {
-                    rc = decodeDedup.reconstituteTopLevelAtomicVerified(recBytes);
+                    reader.skip(hdr.contentLength());
+                } catch (DerException e) {
+                    throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
+                }
+                StreamSchemaDedup.ReconstitutedParts rc;
+                try {
+                    rc = decodeDedup.reconstituteTopLevelAtomicParts(inputBuf, recStart, hdr.contentLength());
                 } catch (DerException e) {
                     throw new IOException(
                             "readObject: [1] stream schema-dedup reconstitution failed: "
                             + e.getMessage(), e);
                 }
-                // The record's own chain was verified at its chain site (and rc.recordBytes
-                // was built from that same site), so it is handed on by reference rather
-                // than parsed again; nested records consult the same per-stream table.
-                return withVerifiedChains(() -> decodeAtomicRecord(rc.recordBytes(), rc.topChain()));
+                // The record's own chain was verified at its chain site (and the parts were taken from that same
+                // site), so it is handed on by reference rather than parsed again; nested records consult the same
+                // per-stream table.
+                MarshalledInstanceRecord rec = MarshalledInstanceRecord.adopt(
+                        rc.payload(), rc.chainBytes(), rc.digest(), rc.payloadFormat());
+                return withVerifiedChains(() -> decodeAtomicRecord(rec, rc.topChain()));
+            }
+            byte[] recBytes;
+            try {
+                recBytes = reader.readRawContent(hdr.contentLength());
+            } catch (DerException e) {
+                throw new IOException("readObject: failed to read @AtomicSerial record bytes", e);
             }
             return decodeAtomicRecord(recBytes);
         }
@@ -2085,6 +2095,12 @@ final class DerObjectStreamCodec {
         } catch (DerException e) {
             throw new IOException("readObject: malformed MarshalledInstanceRecord", e);
         }
+        return decodeAtomicRecord(rec, verifiedTopChain);
+    }
+
+    /** As {@link #decodeAtomicRecord(byte[], SchemaChain.Result)} for a record already in hand. */
+    private Object decodeAtomicRecord(MarshalledInstanceRecord rec, SchemaChain.Result verifiedTopChain)
+            throws IOException, ClassNotFoundException {
         String leafClassName;
         try {
             leafClassName = verifiedTopChain != null

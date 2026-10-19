@@ -737,7 +737,7 @@ final class StreamSchemaDedup {
             throws DerException {
         requireDirection(true);
         Objects.requireNonNull(canonicalRecord, "recordBytes");
-        transformP1(canonicalRecord, 0, canonicalRecord.length, leafClass, out);
+        transformP1(canonicalRecord, 0, canonicalRecord.length, leafClass, out, null);
     }
 
     /**
@@ -799,8 +799,56 @@ final class StreamSchemaDedup {
         reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
         // streamReconstitutedChainBytes is deliberately NOT reset here — it accumulates
         // cumulative WORK across the whole input window (sec.C.8.1/C.8.3).
-        Site site = transformP1(buf, off, off + len, null, out);
+        Site site = transformP1(buf, off, off + len, null, out, null);
         return new SchemaChain.Result(site.records, site.digest.clone());
+    }
+
+    /**
+     * The pieces of a reconstituted top-level record: what {@link #reconstituteTopLevelAtomicVerified} would have written into the
+     * canonical four-field record, handed over without writing it. The payload is an array of its own, the chain bytes are the
+     * stream table's (immutable by convention, never modified), the digest is the record's verified leaf digest.
+     */
+    record ReconstitutedParts(byte[] payload, byte[] chainBytes, byte[] digest, String payloadFormat,
+                              SchemaChain.Result topChain) {}
+
+    /** Collector for {@link #transformP1}'s emission when the caller wants the parts instead of the record. */
+    private static final class PartsOut {
+        byte[] payload;
+        Site site;
+        String payloadFormat;
+    }
+
+    /**
+     * As {@link #reconstituteTopLevelAtomicVerified}, over the record at {@code [off, off + len)} of {@code buf} and returning its
+     * pieces instead of the canonical record: no copy of the record out of the input, no encoder holding a second copy of the
+     * payload, no re-parse of the four fields. Every check, every counter and the order in which they happen are those of the
+     * record-writing path (the emission is the only difference), so a stream is accepted and rejected identically.
+     */
+    ReconstitutedParts reconstituteTopLevelAtomicParts(byte[] buf, int off, int len) throws DerException {
+        requireDirection(false);
+        if (verify) {
+            throw new IllegalStateException("a verifying instance has no use for the pieces of a record");
+        }
+        reconstitutedChainBytes = 0;   // per-item budget reset (peak memory, sec.C.8.3);
+        // streamReconstitutedChainBytes is deliberately NOT reset here
+        PartsOut parts = new PartsOut();
+        Site site = transformP1(buf, off, off + len, null, null, parts);
+        return new ReconstitutedParts(parts.payload, site.chainBytes, site.digest.clone(), parts.payloadFormat,
+                new SchemaChain.Result(site.records, site.digest.clone()));
+    }
+
+    /**
+     * The hierarchy payload of a decoded record as an array of its own: a verbatim copy of the received bytes when no field can hold a
+     * chain site, else the walk's output (the same bytes {@code transformHierarchyPayload} writes as the content of the record's
+     * payload OCTET STRING).
+     */
+    private byte[] hierarchyPayloadBytes(byte[] in, int payloadStart, int payloadLen, Site site) throws DerException {
+        if (!verify && !hierarchyMaybeContainsSites(site.records)) {
+            return Arrays.copyOfRange(in, payloadStart, payloadStart + payloadLen);
+        }
+        DerEncoder payload = DerEncoder.create();
+        transformHierarchyPayload(in, payloadStart, payloadStart + payloadLen, site.records, 0, payload);
+        return payload.toByteArray();
     }
 
     /**
@@ -1032,7 +1080,7 @@ final class StreamSchemaDedup {
      *
      * @return this record's own chain site
      */
-    private Site transformP1(byte[] in, int recStart, int recEnd, Class<?> leafHint, DerEncoder out)
+    private Site transformP1(byte[] in, int recStart, int recEnd, Class<?> leafHint, DerEncoder out, PartsOut parts)
             throws DerException {
         Objects.requireNonNull(in, "recordBytes");
         DerReader outer = new DerReader(in, recStart, recEnd);
@@ -1087,6 +1135,15 @@ final class StreamSchemaDedup {
         }
 
         // Emit. The payload interior is walked AFTER the record's own chain site (pre-order).
+        if (parts != null) {
+            // Decode direction, delivery: the caller wants the pieces of the canonical record, not the record. Everything above
+            // (every check, the chain site, the counters) is shared with the path that writes the record; only the emission differs.
+            parts.payload = hierarchyPayloadBytes(in, payloadStart, payloadLen, site);
+            parts.site = site;
+            parts.payloadFormat = payloadFormat;
+            materialisedChainBytes += site.chainBytes.length;   // what appendChain accounts when the record is written
+            return site;
+        }
         out.begin(Tag.SEQUENCE).beginOctetString();
         transformHierarchyPayload(in, payloadStart, payloadStart + payloadLen, site.records, 0, out);
         out.end();

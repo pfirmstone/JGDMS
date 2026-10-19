@@ -221,16 +221,58 @@ class StreamSchemaDedupEquivalenceTest {
 
     private static Walker migrated(boolean encoding) {
         StreamSchemaDedup w = new StreamSchemaDedup(encoding);
+        // A second instance fed the same inputs through the pieces API delivery uses (the record read in place, out of a larger buffer,
+        // and never assembled): on every input it must reach the same verdict, give the same record, chain and counters.
+        StreamSchemaDedup p = new StreamSchemaDedup(encoding);
         return new Walker() {
             public byte[] encodeP1(byte[] c, Class<?> k) throws DerException { return w.dedupTopLevelAtomic(c, k); }
             public byte[] encodeArray(byte[] c) throws DerException { return w.dedupTopLevelArray(c); }
             public Decoded decodeP1(byte[] s) throws DerException {
-                StreamSchemaDedup.Reconstituted r = w.reconstituteTopLevelAtomicVerified(s);
+                StreamSchemaDedup.Reconstituted r = null;
+                DerException viaRecord = null;
+                try {
+                    r = w.reconstituteTopLevelAtomicVerified(s);
+                } catch (DerException e) {
+                    viaRecord = e;
+                }
+                StreamSchemaDedup.ReconstitutedParts parts = null;
+                DerException viaParts = null;
+                byte[] padded = new byte[s.length + 11];
+                System.arraycopy(s, 0, padded, 5, s.length);                  // not at offset 0, with bytes after it
+                java.util.Arrays.fill(padded, 0, 5, (byte) 0x7E);
+                java.util.Arrays.fill(padded, 5 + s.length, padded.length, (byte) 0x7E);
+                try {
+                    parts = p.reconstituteTopLevelAtomicParts(padded, 5, s.length);
+                } catch (DerException e) {
+                    viaParts = e;
+                }
+                if (viaRecord != null || viaParts != null) {
+                    assertNotNull(viaRecord, "pieces rejected (" + (viaParts == null ? null : viaParts.getMessage()) + ") but the record path accepted");
+                    assertNotNull(viaParts, "record path rejected (" + viaRecord.getMessage() + ") but the pieces path accepted");
+                    assertEquals(normalise(viaRecord.getMessage()), normalise(viaParts.getMessage()), "different reject");
+                    throw viaRecord;
+                }
                 assertTrue(w.materialisedChainBytes() <= w.streamReconstitutedChainBytes(),
                         "appended chain bytes must never exceed the metered total");
+                byte[] assembled = au.net.zeus.jgdms.der.marshal.MarshalledInstanceRecord.adopt(
+                        parts.payload(), parts.chainBytes(), parts.digest(), parts.payloadFormat()).encode();
+                assertArrayEquals(r.recordBytes(), assembled, "the record assembled from the pieces is not the reconstituted record");
+                assertArrayEquals(r.topChain().leafDigest(), parts.topChain().leafDigest(), "pieces: verified chain digest");
+                assertEquals(r.topChain().chain(), parts.topChain().chain(), "pieces: verified chain records");
+                assertEquals(w.distinctChains(), p.distinctChains(), "pieces: table size");
+                assertEquals(w.reconstitutedChainBytes(), p.reconstitutedChainBytes(), "pieces: per-item metered chain bytes");
+                assertEquals(w.streamReconstitutedChainBytes(), p.streamReconstitutedChainBytes(), "pieces: cumulative metered chain bytes");
+                assertEquals(w.materialisedChainBytes(), p.materialisedChainBytes(), "pieces: materialised chain bytes");
                 return new Decoded(r.recordBytes(), r.topChain().leafDigest(), r.topChain().chain());
             }
-            public byte[] decodeArray(byte[] c) throws DerException { return w.reconstituteTopLevelArray(c); }
+            public byte[] decodeArray(byte[] c) throws DerException {
+                try {
+                    p.reconstituteTopLevelArray(c);          // the pieces instance sees the same arrays, so its counters stay comparable
+                } catch (DerException ignored) {
+                    // the verdict is the record instance's; both are the same code
+                }
+                return w.reconstituteTopLevelArray(c);
+            }
             public long[] state() {
                 return new long[] {w.distinctChains(), w.reconstitutedChainBytes(), w.streamReconstitutedChainBytes()};
             }
@@ -830,4 +872,5 @@ class StreamSchemaDedupEquivalenceTest {
     /** Silences the unused-import warning for HashMap if mutation helpers change. */
     @SuppressWarnings("unused")
     private static final Map<String, String> UNUSED = new HashMap<>();
+
 }

@@ -534,3 +534,29 @@ materialising reconstituted bytes"; as first built it did). The workstation run 
 - Streams of many small records gain 21 to 33% of the full stage (the bytes of every field are no longer copied), and still pay about 0.47 us a record: the value checks of B3 allocate a reader per field and element, a `BigInteger` per integer and a `String` per string.
   That is the remaining cost, and is not copying; see the follow-ups in the SOW.
 - `point` and `record` read/delivery differences (9.4 -> 10.5, 14.2 -> 16.2) are inside the intervals of this container.
+
+
+# Tenth run: the read path copies a record's payload once, not seven times (SOW-DER-Streaming-Encoder, read-side follow-up), 19 October 2026
+
+`CodecBenchmark` DER `unmarshal` and `roundTrip` with `-prof gc` (container, JMH 2 forks x 5 iterations; `results-readpath-before.json` and `results-readpath-after.json`; **re-run on the workstation before quoting**).
+Before = the code at `fb9bca845` (the discarding verify output); after = that plus the changes below, built and run back to back.
+
+| benchmark | payload | time before | time after | after / before | alloc before | alloc after | after / before |
+|---|---|---:|---:|---:|---:|---:|---:|
+| unmarshal | point | 8.42 | 8.23 | 0.98 | 16 472 B | 14 552 B | 0.88 |
+| unmarshal | record | 13.12 | 11.93 | 0.91 | 21 924 B | 19 120 B | 0.87 |
+| unmarshal | batch100 | 872.8 | 826.0 | 0.95 | 1 007 308 B | 925 829 B | 0.92 |
+| unmarshal | blob64k | 151.8 | **73.9** | **0.49** | 932 163 B | 471 680 B | **0.51** |
+| roundTrip | point | 10.01 | 9.76 | 0.98 | 20 912 B | 19 312 B | 0.92 |
+| roundTrip | record | 14.57 | 14.24 | 0.98 | 28 216 B | 25 452 B | 0.90 |
+| roundTrip | batch100 | 970.5 | 950.5 | 0.98 | 1 301 062 B | 1 212 731 B | 0.93 |
+| roundTrip | blob64k | 241.1 | **166.5** | **0.69** | 1 526 485 B | 1 065 954 B | **0.70** |
+
+Where the 14 copies of a 64 KiB payload went (JFR, outside-TLAB allocation events on the pre-change code): the framed read of the input 4 (a 64 KiB seed, a doubling to 128 KiB because the stream is just over the seed, a trimming copy), the record copied out of
+the input 1, the reconstitution encoder 4 (growth to the payload, growth again to append the chain, `toByteArray`), the record parse 3 (`readOctetString` and two defensive copies in `MarshalledInstanceRecord`), the field 1, the benchmark fixture's own
+clone 1. Now: framed read 4 (unchanged, see below), payload 1, field 1, fixture 1. The read of a record no longer copies it out of the input, no longer rebuilds the canonical four-field record in an encoder to parse it again, and the record keeps the arrays it
+was built from.
+
+- A large opaque record reads 2.0 times faster in process (`blob64k` 151.8 to 73.9 us, below even the pre-streaming-encoder container figure) and allocates half; the allocation of small records falls 8 to 13% (fewer short-lived arrays and a record that is not re-parsed).
+- Not touched: the framed read of the input (`DerInputLimits.readFramedBounded`) still grows its buffer geometrically as bytes arrive and trims at the end; that is the unauthenticated-peer memory rule of B1 (never size the buffer from a declared length), so changing
+  it is a policy decision, not a copy to remove. It is 4 of the 7 remaining copies here.
