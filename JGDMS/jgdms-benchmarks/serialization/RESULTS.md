@@ -458,3 +458,55 @@ Streams: `request8` 3 286 bytes; `blob16m` 16 773 248; `records16m` 15 893 920. 
 
 - The cheap stage (an unauthenticated peer's cost) is unchanged. The full stage, paid only after `checkAccess`, grows by about 0.2 us per record (the decoder's own value checks run on every field, element and key before anything is built); `byte[]` content is checked without a copy, so a 16 MiB blob pays nothing. End to end (dispatcherPath, decode) every row is inside the noise (0.89 to 1.16, intervals overlapping).
 - 16 MiB of small records: full stage 34 -> 62 ms (3% -> 5% of delivering them).
+
+
+# Eighth run: the maintainer's workstation on the current branch, 19 October 2026
+
+Same machine and JDK as the first run (Windows, Xeon E5-1650 v3, DirtyChai `27-internal`, no SecurityManager, JMH 2 forks x 5 iterations), jars installed from this branch
+after B3 (`jgdms-platform`, `jgdms-der`, `jgdms-jeri` rebuilt and installed, then the benchmarks packaged). An earlier run of the same day on stale jars reproduced the first run within a few
+percent on every row, which makes the first run a sound baseline. The raw file is `results-workstation.json` on the workstation (not committed). Times in microseconds per operation.
+
+## DER against the first run (before any of the streaming-encoder work)
+
+| benchmark | payload | first run | now | now / first |
+|---|---|---:|---:|---:|
+| marshal | point | 3.52 | 1.52 | 0.43 |
+| marshal | record | 4.48 | 2.07 | 0.46 |
+| marshal | batch100 | 366.6 | 151.1 | 0.41 |
+| marshal | blob64k | 137.1 | 73.7 | 0.54 |
+| unmarshal | point | 16.44 | 16.13 | 0.98 |
+| unmarshal | record | 23.13 | 25.80 | 1.12 |
+| unmarshal | batch100 | 1 710 | 1 547 | 0.90 |
+| unmarshal | blob64k | 113.4 | 154.8 | **1.37** |
+| roundTrip | point | 19.62 | 20.17 | 1.03 |
+| roundTrip | record | 27.91 | 28.38 | 1.02 |
+| roundTrip | batch100 | 2 086 | 1 685 | 0.81 |
+| roundTrip | blob64k | 258.6 | 242.1 | 0.94 |
+| JERI | ping | 125.2 | 131.7 | 1.05 |
+| JERI | point | 191.0 | 212.5 | 1.11 |
+| JERI | record | 291.2 (+-114) | 237.9 | 0.82 |
+| JERI | batch100 | 6 689 | 5 859 | 0.88 |
+| JERI | blob64k | 9 676 | 9 710 | 1.00 |
+
+JOSS rows are the control and agree with the first run (for example JERI `ping` 249.6 against 240.5, `batch100` 3 181 against 3 382).
+
+- **Marshal is roughly 2x faster everywhere** (0.41 to 0.54), as A1 to A4 intended. On this machine the gain is smaller for `blob64k` (0.54) than in the container (0.31).
+- **Unmarshal has not improved on this machine**: whatever the read-side work saved, the whole-stream admission (B2, B3, B5) added back. Small objects are level (`point` 0.98, `record` 1.12); `batch100` is 10% better; **`blob64k` is 37% worse (113 to 155 us)**, beyond the interval (+-2.4).
+- **Calls (JERI)**: small messages are within noise of the first run (`point` +11%, `record` -18%, `ping` +5%); `batch100` is 12% better; `blob64k` is level. DER against JOSS: `ping` 0.53, `point` 0.60, `record` 0.61, `batch100` 1.84, `blob64k` 0.98 (first run: 0.52, 0.53, 0.78, 1.98, 0.98).
+- **`batch100` over JERI is still not explained by the codec.** Marshal plus unmarshal of `batch100` is about 1.7 ms and the call is 5.9 ms, 5.7 ms above `ping`, so about 4 ms of a DER call is outside the codec (JOSS: 1.4 ms outside). A4 showed the drain and the bounded read are not it. Not investigated.
+
+## Admission, stage by stage (`AdmissionBenchmark`)
+
+| payload | floor | cheap | full stage (cheapPlusFull - cheap) | dispatcherPath | full stage / dispatcherPath |
+|---|---:|---:|---:|---:|---:|
+| point | 0.29 | 0.59 | 2.78 | 16.6 | 17% |
+| record | 0.36 | 0.66 | 4.09 | 25.1 | 16% |
+| batch100 | 2.14 | 2.42 | 82.7 | 1 491 | 5.5% |
+| blob64k | 31.3 | 32.4 | 28.7 | 153.5 | 19% |
+| request8 | 1.50 | 1.92 | 22.1 | 253 | 8.7% |
+| blob16m | 9 578 | 9 750 | 8 807 | 53 496 | 16% |
+| records16m | 9 759 | 10 093 | 78 545 | 1 633 567 | 4.8% |
+
+- **An unauthenticated peer** costs the byte read plus 0.3 to 0.4 us on small requests and about 2% (0.2 to 0.3 ms) on 16 MiB streams; the authorization-context block, the one full admission before authorization, is 52 to 57 us here (31 to 34 us in the container, so this machine is about 1.6x slower on that path).
+- **The full stage costs about 0.8 us per record** on this machine (`batch100` 82.7 us for 100 records; 16 MiB of records 78.5 ms), 5% of delivering them. For `point` and `record` it is 16 to 17% of the in-process read, and for opaque bytes 16 to 19% (`blob64k` 28.7 us, `blob16m` 8.8 ms): about 0.45 ns a byte.
+- **A lead on the `blob64k` unmarshal regression (a hypothesis, not tested):** the verifying walk writes its reconstituted output to a scratch encoder that is always discarded, so a large byte field is copied into that encoder (and again as the encoder grows) only to be thrown away. A discarding output for the verify pass, used where the bytes are not compared, would remove that copy.
