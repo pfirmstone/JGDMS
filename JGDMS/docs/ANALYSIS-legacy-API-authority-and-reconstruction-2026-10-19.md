@@ -43,7 +43,7 @@ implemented except where marked "done". Branch `claude/focused-bohr-t6bwal`, HEA
 - With no SecurityManager (stock JDK 24+) nothing enforces any of this; the analysis is then an audit certificate. A platform-independent rule that survives: refuse classes assignable to `PrivilegedAction`, `PrivilegedExceptionAction`, `DomainCombiner`, `Policy`, `ClassLoader`, `SecurityManager` (a type check, not a name check).
 - Impossible in any API: reasoning through virtual dispatch on attacker-chosen types, reflection and generated code, user callback bodies, trusting `java.base`.
 
-**A plan for "check the class-domain context, then inject an unprivileged domain" exists** at `/root/.claude/plans/splendid-fluttering-aho.md` (session-local; not approved, not implemented). The reviews above say it needs the barrier, the combiner handling and the two-phase decode before it is sound.
+**A plan for "check the class-domain context, then inject an unprivileged domain" is documented** in `docs/PLAN-check-and-inject-unprivileged-construction-2026-10-19.md` (not scheduled, not implemented). The reviews above say it needs the barrier, the combiner handling and the two-phase decode before it is sound.
 
 ## 3. Verified findings (two fresh reviews on the named models; counts are FILE counts from greps)
 
