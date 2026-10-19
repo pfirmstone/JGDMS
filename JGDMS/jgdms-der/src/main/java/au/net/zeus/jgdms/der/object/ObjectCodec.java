@@ -1599,6 +1599,16 @@ public final class ObjectCodec {
      * encoded. The decoder rejects such a collection, so an encoder that emitted it would produce a
      * stream no conforming peer accepts; failing here makes the error local and immediate.
      */
+    /**
+     * Checks the content octets of a scalar {@code Any} arm ({@code [0]..[9]}) exactly as {@code AnyCodec.decode} will, with no
+     * class loaded: the bridge whole-stream admission uses so an {@code Any} scalar is validated by one code path.
+     *
+     * @throws DerException if the content is not a valid encoding of the arm's scalar kind, or the arm is not a scalar arm
+     */
+    public static void validateAnyScalarArm(int contextTag, byte[] content) throws DerException {
+        AnyCodec.decodeScalar(contextTag, content);
+    }
+
     private static void requireWithinMaxCollection(int count, String fieldName) throws DerException {
         if (count > MAX_COLLECTION) {
             throw new DerException(
@@ -2907,17 +2917,13 @@ public final class ObjectCodec {
                 byte[] enc = body.slice(start, end);
                 if (prevEnc != null) {
                     int cmp = CollectionWireTypes.compareOctets(prevEnc, enc);
-                    if (multiset) {
-                        if (cmp > 0) {
-                            throw new DerException("ObjectCodec.decodeCollection: canonicalise "
-                                    + "multiset field (wireType " + wireType + ") is not in "
-                                    + "non-decreasing X.690 §11.6 octet order (fail-secure)");
-                        }
-                    } else if (cmp >= 0) {
-                        throw new DerException("ObjectCodec.decodeCollection: canonicalise set "
-                                + "field (wireType " + wireType + ") is not in strictly ascending "
-                                + "X.690 §11.6 octet order -- unsorted or duplicate element "
-                                + "encoding (fail-secure, §2/§11.6)");
+                    if (CollectionWireTypes.orderViolated(cmp, multiset)) {
+                        throw new DerException(multiset
+                                ? "ObjectCodec.decodeCollection: canonicalise multiset field (wireType "
+                                    + wireType + ") is not in non-decreasing X.690 §11.6 octet order (fail-secure)"
+                                : "ObjectCodec.decodeCollection: canonicalise set field (wireType "
+                                    + wireType + ") is not in strictly ascending X.690 §11.6 octet order -- "
+                                    + "unsorted or duplicate element encoding (fail-secure, §2/§11.6)");
                     }
                 }
                 prevEnc = enc;
@@ -3002,7 +3008,7 @@ public final class ObjectCodec {
             if (canonicalise) {
                 byte[] keyEnc = entry.slice(keyStart, keyEnd);
                 if (prevKeyEnc != null
-                        && CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc) >= 0) {
+                        && CollectionWireTypes.orderViolated(CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc), false)) {
                     throw new DerException("ObjectCodec.decodeCollection: canonicalise map field "
                             + "(wireType " + wireType + ") keys are not in strictly ascending "
                             + "X.690 §11.6 octet order -- unsorted or duplicate key encoding "

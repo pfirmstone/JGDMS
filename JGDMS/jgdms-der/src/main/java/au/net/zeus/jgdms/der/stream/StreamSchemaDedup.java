@@ -24,6 +24,7 @@ import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
 import au.net.zeus.jgdms.der.Tag;
 import au.net.zeus.jgdms.der.getarg.CollectionWireTypes;
+import au.net.zeus.jgdms.der.getarg.DerFieldStore;
 import au.net.zeus.jgdms.der.object.ObjectCodec;
 import au.net.zeus.jgdms.der.object.ProxyWireSupport;
 import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
@@ -1119,13 +1120,20 @@ final class StreamSchemaDedup {
         if (meter != null) {
             meter.object();                              // the array (its component class is noted by the caller)
         }
-        if (!comp.startsWith("@AtomicSerial")) {
-            // No chain sites (scalar/String/Class/enum components) — verbatim (rule 2).
+        if (!comp.startsWith(verify ? "@AtomicSerial:" : "@AtomicSerial")) {
+            // No chain sites (scalar/String/Class/enum components) — verbatim (rule 2). (A verifying instance reads only
+            // "array:@AtomicSerial:<class>" as an array of records, as delivery does; a bare "@AtomicSerial" component falls
+            // here and the decoder's value check refuses it.)
             if (meter != null) {
                 meterClassValues(comp, content, wtEnd, content.length);
                 if (!PRIMITIVE_COMPONENTS.contains(comp)) {
                     meterRaw(content, wtEnd, content.length);
                 }
+            }
+            if (verify) {
+                // B3: the value array's elements, by the decoder's own rules (delivery hands the TLV after the wire type to
+                // the same check; bytes after it are not looked at there, so they are not looked at here either).
+                DerFieldStore.validateValueClassFree(new DerReader(content, wtEnd, content.length), awt);
             }
             out.raw(content, 0, content.length);
             return;
@@ -1318,14 +1326,29 @@ final class StreamSchemaDedup {
     private void transformFieldTlv(byte[] in, int start, int end, String wireType, int depth,
                                    DerEncoder out) throws DerException {
         if (wireType.startsWith("@AtomicSerial")) {
+            if (verify && !"@AtomicSerial".equals(wireType)) {
+                // B3: delivery's only nested-record wire type is exactly "@AtomicSerial"; any other token reaches the
+                // scalar decoder, which refuses it for every value but NULL.
+                requireNullTlv(in, start, end, wireType);
+                out.raw(in, start, end - start);
+                return;
+            }
             transformNestedSite(in, start, end, depth, out);
             return;
         }
         if (wireType.startsWith("array:")) {
             String comp = wireType.substring("array:".length());
             if (comp.startsWith("@AtomicSerial")) {
+                if (verify && !comp.startsWith("@AtomicSerial:")) {
+                    requireNullTlv(in, start, end, wireType);     // B3: only "array:@AtomicSerial:<class>" is a nested array
+                    out.raw(in, start, end - start);
+                    return;
+                }
                 transformNestedArray(in, start, end, depth, out);
                 return;
+            }
+            if (verify) {
+                validateValue(in, start, end, wireType);  // B3: the decoder's own rules, before anything is built
             }
             if (meter != null && !isNullTlv(in, start, end)) {
                 meter.object();                          // a non-null array field value
@@ -1348,10 +1371,30 @@ final class StreamSchemaDedup {
             return;
         }
         // scalar / String / byte[] / Class / enum:<class> — verbatim.
+        if (verify) {
+            validateValue(in, start, end, wireType);      // B3: the decoder's own rules, before anything is built
+        }
         if (meter != null) {
             meterClassValues(wireType, in, start, end);
         }
         out.raw(in, start, end - start);
+    }
+
+    /** B3: a value that delivery can only accept as NULL (its declared wire type is not one it decodes). */
+    private static void requireNullTlv(byte[] in, int start, int end, String wireType) throws DerException {
+        if (!isNullTlv(in, start, end)) {
+            throw new DerException("StreamSchemaDedup: unsupported wire type: " + wireType);
+        }
+    }
+
+    /**
+     * B3: proves one value TLV (a scalar, {@code String}, {@code byte[]}, enum name, {@code Class} name or value array) valid for
+     * its declared wire type by running the record decoder's own checks on it ({@link DerFieldStore#validateValueClassFree}),
+     * with no class loaded. Verifying instances only: delivery decodes the value itself, and a field the receiving class never
+     * reads is otherwise never looked at by anything.
+     */
+    private void validateValue(byte[] in, int start, int end, String wireType) throws DerException {
+        DerFieldStore.validateValueClassFree(new DerReader(in, start, end), wireType);   // [start, end) is one TLV
     }
 
     /** {@code array:@AtomicSerial:<class>} field value: NULL, or SEQUENCE of P2 sites. */
@@ -1403,16 +1446,25 @@ final class StreamSchemaDedup {
         if (meter != null) {
             meter.object();                              // one collection is built for this value
         }
+        // B3, verifying instances only: the outer tag delivery requires of this token, the element-count cap, the order
+        // the discipline requires, and every element's value. Delivery decodes a collection field only when the class asks
+        // for it, so these are otherwise checked late or never.
+        boolean canonicalise = CollectionWireTypes.isCanonicalise(token);
+        Tag requiredOuter = verify ? (canonicalise ? Tag.SET : Tag.SEQUENCE) : null;
+        OrderTracker order = verify && canonicalise ? new OrderTracker(token, CollectionWireTypes.isMultiset(token)) : null;
         if (CollectionWireTypes.isMap(token)) {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(token);
             if (!mustWalk(kv[0]) && !mustWalk(kv[1])) {
+                if (verify) {
+                    verifyRawCollection(in, start, end, token, requiredOuter, order, kv[0], kv[1]);
+                }
                 if (meter != null) {
                     meterRaw(in, start, end);
                 }
                 out.raw(in, start, end - start);
                 return;
             }
-            rebuildCollectionOuter(in, start, end, (entryStart, entryEnd) -> {
+            rebuildCollectionOuter(in, start, end, requiredOuter, (entryStart, entryEnd) -> {
                 // entry := SEQUENCE { key, value }
                 DerReader er = new DerReader(in, entryStart, entryEnd);
                 if (!Tag.SEQUENCE.equals(er.peekTag())) {
@@ -1429,7 +1481,7 @@ final class StreamSchemaDedup {
                             "StreamSchemaDedup: trailing bytes in map entry SEQUENCE");
                 }
                 out.begin(Tag.SEQUENCE);
-                transformElement(in, keyStart, keyEnd, kv[0], depth, out);
+                transformOrdered(in, keyStart, keyEnd, kv[0], depth, order, out);
                 transformElement(in, valStart, valEnd, kv[1], depth, out);
                 out.end();
             }, out);
@@ -1437,14 +1489,121 @@ final class StreamSchemaDedup {
         }
         String elemWT = CollectionWireTypes.elementWireType(token);
         if (!mustWalk(elemWT)) {
+            if (verify) {
+                verifyRawCollection(in, start, end, token, requiredOuter, order, elemWT, null);
+            }
             if (meter != null) {
                 meterRaw(in, start, end);
             }
             out.raw(in, start, end - start);
             return;
         }
-        rebuildCollectionOuter(in, start, end,
-                (elemStart, elemEnd) -> transformElement(in, elemStart, elemEnd, elemWT, depth, out), out);
+        rebuildCollectionOuter(in, start, end, requiredOuter,
+                (elemStart, elemEnd) -> transformOrdered(in, elemStart, elemEnd, elemWT, depth, order, out), out);
+    }
+
+    /**
+     * Adjacent-order check for a canonicalise collection (B3): remembers the previous element (or map key) encoding as a range
+     * of a buffer, and rejects one that is out of order, by the same comparison and the same rule the decoder uses
+     * ({@link CollectionWireTypes#compareOctets}, {@link CollectionWireTypes#orderViolated}). No copy, no allocation per element.
+     */
+    private static final class OrderTracker {
+        private final String token;
+        private final boolean multiset;
+        private byte[] buf;
+        private int off;
+        private int len;
+
+        OrderTracker(String token, boolean multiset) {
+            this.token = token;
+            this.multiset = multiset;
+        }
+
+        void next(byte[] b, int o, int l) throws DerException {
+            if (buf != null
+                    && CollectionWireTypes.orderViolated(CollectionWireTypes.compareOctets(buf, off, len, b, o, l), multiset)) {
+                throw new DerException("StreamSchemaDedup: canonicalise collection (wireType " + token + ") is not in "
+                        + (multiset ? "non-decreasing" : "strictly ascending")
+                        + " X.690 §11.6 octet order -- unsorted" + (multiset ? "" : " or duplicate") + " element encoding");
+            }
+            buf = b;
+            off = o;
+            len = l;
+        }
+    }
+
+    /**
+     * Transforms one element (or map key) and, when {@code order} is set, checks its place in the order. Delivery compares the
+     * RECONSTITUTED encodings, so where reconstitution rewrites the bytes (a decode-direction element that holds chain sites)
+     * the element is transformed into a buffer of its own and compared from that; otherwise the received bytes are the ones
+     * delivery will see and are compared in place.
+     */
+    private void transformOrdered(byte[] in, int start, int end, String wireType, int depth, OrderTracker order,
+                                  DerEncoder out) throws DerException {
+        if (order == null) {
+            transformElement(in, start, end, wireType, depth, out);
+        } else if (encoding || !maybeContainsSites(wireType)) {
+            order.next(in, start, end - start);
+            transformElement(in, start, end, wireType, depth, out);
+        } else {
+            DerEncoder own = DerEncoder.create();
+            transformElement(in, start, end, wireType, depth, own);
+            byte[] reconstituted = own.toByteArray();
+            order.next(reconstituted, 0, reconstituted.length);
+            out.raw(reconstituted);
+        }
+    }
+
+    /**
+     * Verifies, without rebuilding it, a collection whose elements hold no chain sites: outer tag, element count, each element
+     * (and, for a map, each {@code SEQUENCE{key,value}} entry) valid for its wire type, and the order. {@code valueWT} is the
+     * map value's wire type, or {@code null} for a set, bag or list.
+     */
+    private void verifyRawCollection(byte[] in, int start, int end, String token, Tag requiredOuter, OrderTracker order,
+                                     String elemWT, String valueWT) throws DerException {
+        DerReader outer = new DerReader(in, start, end);
+        // readSet / readSequence refuse the other tag, exactly as the decoder's do
+        DerReader body = Tag.SET.equals(requiredOuter) ? outer.readSet() : outer.readSequence();
+        if (outer.hasMore()) {
+            throw new DerException("StreamSchemaDedup: trailing bytes after collection TLV");
+        }
+        int count = 0;
+        while (body.hasMore()) {
+            requireWithinMaxCollection(++count, token);
+            int elemStart = body.position();
+            int elemEnd = body.skipTlv();
+            if (valueWT == null) {
+                validateValue(in, elemStart, elemEnd, elemWT);
+                if (order != null) {
+                    order.next(in, elemStart, elemEnd - elemStart);
+                }
+                continue;
+            }
+            DerReader er = new DerReader(in, elemStart, elemEnd);
+            if (!Tag.SEQUENCE.equals(er.peekTag())) {
+                throw new DerException("StreamSchemaDedup: map entry must be a SEQUENCE{key,value}");
+            }
+            DerReader entry = er.readSequence();
+            int keyStart = entry.position();
+            int keyEnd = entry.skipTlv();
+            int valStart = entry.position();
+            int valEnd = entry.skipTlv();
+            if (entry.hasMore()) {
+                throw new DerException("StreamSchemaDedup: trailing bytes in map entry SEQUENCE");
+            }
+            validateValue(in, keyStart, keyEnd, elemWT);
+            validateValue(in, valStart, valEnd, valueWT);
+            if (order != null) {
+                order.next(in, keyStart, keyEnd - keyStart);
+            }
+        }
+    }
+
+    private static void requireWithinMaxCollection(int count, String token) throws DerException {
+        if (count > ObjectCodec.MAX_COLLECTION) {
+            throw new DerException("StreamSchemaDedup: element count exceeds maxCollection ("
+                    + ObjectCodec.MAX_COLLECTION + ") for collection '" + token + "'");
+        }
     }
 
     /** One collection element / map key / map value ({@code ObjectCodec.encodeElementValue} mirror). */
@@ -1452,6 +1611,12 @@ final class StreamSchemaDedup {
                                   DerEncoder out) throws DerException {
         if (CollectionWireTypes.isCollection(elemWT)) {
             transformCollection(in, start, end, elemWT, depth + 1, out);
+            return;
+        }
+        if (verify && elemWT.startsWith("array:@AtomicSerial")) {
+            // B3: delivery decodes an element that is a value array with the plain array decoder, which has no nested records
+            requireNullTlv(in, start, end, elemWT);
+            out.raw(in, start, end - start);
             return;
         }
         transformFieldTlv(in, start, end, elemWT, depth, out);
@@ -1464,15 +1629,21 @@ final class StreamSchemaDedup {
     }
 
     /**
-     * Rebuilds a collection's outer TLV (SET {@code 0x31} or SEQUENCE {@code 0x30}
-     * — whichever was received; the discipline check belongs to the record-level
-     * decoder) with each child transformed, ORDER PRESERVED.
+     * Rebuilds a collection's outer TLV with each child transformed, ORDER PRESERVED. A delivery instance accepts SET
+     * {@code 0x31} or SEQUENCE {@code 0x30}, whichever was received (the discipline check belongs to the record-level
+     * decoder); a verifying instance passes the one tag the token's discipline requires as {@code requiredOuter}, and also
+     * applies the decoder's element-count cap.
      */
-    private void rebuildCollectionOuter(byte[] in, int start, int end, ElementTransform per,
+    private void rebuildCollectionOuter(byte[] in, int start, int end, Tag requiredOuter, ElementTransform per,
                                         DerEncoder out) throws DerException {
         DerReader r = new DerReader(in, start, end);
         Tag outerTag = r.peekTag();
-        if (!Tag.SEQUENCE.equals(outerTag) && !Tag.SET.equals(outerTag)) {
+        if (requiredOuter != null) {
+            if (!requiredOuter.equals(outerTag)) {
+                throw new DerException("StreamSchemaDedup: collection outer tag must be " + requiredOuter
+                        + " for its wire type, got " + outerTag);
+            }
+        } else if (!Tag.SEQUENCE.equals(outerTag) && !Tag.SET.equals(outerTag)) {
             throw new DerException(
                     "StreamSchemaDedup: collection outer tag must be SEQUENCE (0x30) or"
                     + " SET (0x31), got " + outerTag);
@@ -1486,9 +1657,13 @@ final class StreamSchemaDedup {
         }
         DerReader elems = new DerReader(in, contentStart, contentStart + hdr.contentLength());
         out.begin(outerTag);
+        int count = 0;
         while (elems.hasMore()) {
             int elemStart = elems.position();
             int elemEnd = elems.skipTlv();
+            if (requiredOuter != null) {
+                requireWithinMaxCollection(++count, "collection");
+            }
             if (meter != null) {
                 meter.elements(1);
             }
@@ -1524,6 +1699,11 @@ final class StreamSchemaDedup {
         }
         int n = t.tagNumber();
         if (n <= ANY_TAG_SCALAR_MAX && !t.isConstructed()) {
+            if (verify) {
+                // B3: a scalar arm is validated by the very decoder delivery runs on it (canonical INTEGER, float, char, UTF-8).
+                DerReader.TlvHeader hdr = r.readTlvHeader();
+                ObjectCodec.validateAnyScalarArm(n, r.readRawContent(hdr.contentLength()));
+            }
             out.raw(in, start, end - start);   // scalar arms: value octets verbatim.
             return;
         }
@@ -1552,9 +1732,25 @@ final class StreamSchemaDedup {
                 meter.object();                          // the collection this Any element becomes
             }
             int next = depth + 1;
+            // B3: delivery requires the inner tag the context tag implies ([30] a SET, [31] a SEQUENCE), reads a body whose
+            // first element is a SEQUENCE as a map and every element as an entry, caps the count, and (a [30] set or map)
+            // requires strictly ascending elements or keys.
+            Tag requiredOuter = verify ? (n == ANY_TAG_CANONICAL_COLL ? Tag.SET : Tag.SEQUENCE) : null;
+            boolean mapShape = false;
+            if (verify && innerTag.equals(requiredOuter)) {
+                DerReader body = new DerReader(in, inner.start, inner.end);
+                body.readTlvHeader();
+                mapShape = body.hasMore() && Tag.SEQUENCE.equals(body.peekTag());
+            }
+            boolean ordered = verify && n == ANY_TAG_CANONICAL_COLL;
+            OrderTracker order = ordered ? new OrderTracker(mapShape ? "map:{any}{any}" : "set:any", false) : null;
+            boolean map = mapShape;
             out.begin(t);
-            rebuildCollectionOuter(in, inner.start, inner.end, (childStart, childEnd) -> {
+            rebuildCollectionOuter(in, inner.start, inner.end, requiredOuter, (childStart, childEnd) -> {
                 Tag ct = new DerReader(in, childStart, childEnd).peekTag();
+                if (verify && map != Tag.SEQUENCE.equals(ct)) {
+                    throw new DerException("StreamSchemaDedup: Any collection mixes map entries and plain elements");
+                }
                 if (Tag.SEQUENCE.equals(ct)) {
                     // Map entry: SEQUENCE { keyAny, valAny }.
                     DerReader er = new DerReader(in, childStart, childEnd);
@@ -1568,12 +1764,12 @@ final class StreamSchemaDedup {
                                 "StreamSchemaDedup: trailing bytes in Any map entry");
                     }
                     out.begin(Tag.SEQUENCE);
-                    transformAny(in, keyStart, keyEnd, next, out);
+                    transformOrdered(in, keyStart, keyEnd, "any", next, order, out);
                     transformAny(in, valStart, valEnd, next, out);
                     out.end();
                     return;
                 }
-                transformAny(in, childStart, childEnd, next, out);
+                transformOrdered(in, childStart, childEnd, "any", next, order, out);
             }, out);
             out.end();
             return;

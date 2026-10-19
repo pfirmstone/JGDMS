@@ -57,21 +57,25 @@ import org.apache.river.api.io.AtomicObjectInput;
  * cover the input and carry only tags the writer emits; the schema-dedup layer in full (every chain parsed and hashed,
  * every {@code chainRef} resolved, duplicate and unknown-digest rejects, the chain, table and reconstitution ceilings, the
  * nesting bounds); the same checks inside the {@code [8]} proxy and {@code [16]} collection regions the dedup layer passes
- * through, including a proxy nested inside a record's payload; the shell of every record; and the class-free wire checks
- * on the scalar, enum and positional items (canonical integers, floats and booleans, strict UTF-8).
+ * through, including a proxy nested inside a record's payload; the shell of every record; the class-free wire checks
+ * on the scalar, enum and positional items (canonical integers, floats and booleans, strict UTF-8); and the value rules of
+ * every record's interior: each field, collection element, map key and value and value array is checked by the record
+ * decoder's own code (range, canonical float and char, strict UTF-8, the tag the declared wire type requires), each collection
+ * for the outer tag its discipline requires, at most {@code ObjectCodec.MAX_COLLECTION} elements and, for a {@code set:},
+ * {@code bag:} or {@code map:}, the X.690 11.6 order of its elements or keys as delivery will see them. A field the receiving
+ * class never reads is checked as well.
  * <p>
- * <b>What it cannot promise.</b> It guarantees the stream is <em>structurally admissible</em> (the wire level). It does not
- * guarantee that every object will be accepted: {@code check(GetArg)}, a constructor's invariants and class resolution
- * need the class and run user code, and are decided when each object is read, bottom-up (a nested value is constructed
- * before its parent), so a rejection of object <i>k</i> still happens at the <i>k</i>th read, after objects 1..<i>k</i>-1
- * were delivered. The interior of a record's field values (set order, ranges, element counts, an {@code OCTET STRING}
- * that is to be a float) is likewise the record decoder's. Nothing here is a class-name policy or an object-count budget.
+ * <b>What it cannot promise.</b> It guarantees the stream is <em>structurally admissible</em> (the wire level and the value
+ * rules that need no class). It does not guarantee that every object will be accepted: {@code check(GetArg)}, a
+ * constructor's invariants, class resolution and whether an enum constant exists need the class and run user code, and are
+ * decided when each object is read, bottom-up (a nested value is constructed before its parent), so a rejection of object
+ * <i>k</i> still happens at the <i>k</i>th read, after objects 1..<i>k</i>-1 were delivered.
  * <p>
- * <p>
- * <b>Policy.</b> Full admission also applies the whole-stream {@link DerStreamPolicy}: a class-name deny/allow list over every
- * name the stream makes the loader load (record, ancestor, enum, proxy-interface, array-component and {@code Class}-value names,
- * from the stream, from {@code [8]}/{@code [16]} regions and from records), budgets on the objects and elements it builds and the
- * distinct classes it names, and the refusal of one class name bound to two schemas. These are new rejects, configurable through
+ * <b>Policy.</b> Full admission also applies the whole-stream {@link DerStreamPolicy}: budgets on the objects and elements the
+ * stream builds and the distinct classes it names (every name the stream makes the loader load: record, ancestor, enum,
+ * proxy-interface, array-component and {@code Class}-value names, from the stream, from {@code [8]}/{@code [16]} regions and
+ * from records), and the refusal of one class name bound to two schemas. There is no class-name list: which classes may be
+ * reconstructed is the {@code DeSerializationPermission} gates' decision. These are new rejects, configurable through
  * {@code au.net.zeus.jgdms.der.stream.policy.*} system properties (or passed explicitly), with defaults far above anything
  * measured; a policy reject refuses the whole stream before a class is loaded or a constructor runs, and is logged.
  * <p>

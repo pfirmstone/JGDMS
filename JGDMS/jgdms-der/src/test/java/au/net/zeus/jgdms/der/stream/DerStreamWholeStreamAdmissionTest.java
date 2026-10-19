@@ -131,7 +131,7 @@ class DerStreamWholeStreamAdmissionTest {
     /** A one-record chain whose single field is a nested {@code @AtomicSerial} (so its value is a chain site, or a proxy). */
     static byte[] holderChain() {
         return new AtomicSerialSchemaRecord("Holder",
-                List.of(new AtomicSerialFieldDef("p", "@AtomicSerial:java.lang.Runnable"))).encode();
+                List.of(new AtomicSerialFieldDef("p", "@AtomicSerial"))).encode();
     }
 
     /** A stream-form {@code [1]} item of class Holder whose one field value is {@code fieldTlv}; each carries the full chain. */
@@ -615,17 +615,28 @@ class DerStreamWholeStreamAdmissionTest {
 
     /**
      * Failures of the kind admission exists to catch: the dedup layer, the top-level item framing, the version octet, and the
-     * class-free wire checks on the scalar, enum and positional items. A framing or value error INSIDE a record's payload (a
-     * field TLV that overruns, a bad set order) is the record decoder's to find when that object is read (the walker passes
-     * field values through verbatim; interior value checks are the optional B3 extension), so it is deliberately not in this list.
+     * class-free wire checks on the scalar, enum and positional items, and (B3) the value rules of a record's interior: a
+     * scalar out of range or not canonical, bad UTF-8, a tag that is not the declared wire type's, a collection with the wrong
+     * outer tag, too many elements or out of order. Admission applies the record decoder's own checks to those, so what the
+     * decoder would reject for them admission must reject first. What stays out of this list is what needs a class or a
+     * constructor: an unknown enum constant, a class that cannot be loaded, {@code check(GetArg)}.
      */
     private static boolean isWireLevel(Throwable t) {
         String m = DerStreamAdmissionCharacterisationTest.chain(t);
-        return m.contains("StreamSchemaDedup") || m.contains("stream schema-dedup") || m.contains("failed to read TLV header")
+        return isInteriorValueFailure(m) || m.contains("StreamSchemaDedup") || m.contains("stream schema-dedup") || m.contains("failed to read TLV header")
                 || m.contains("readObject: failed to read")
                 || m.contains("boxed ") && !m.contains("ObjectCodec") || m.contains("[0] NULL TLV must have length 0")
                 || m.contains("malformed [7] enum item") || m.contains("trailing bytes in [7] enum item")
                 || m.contains("unexpected top-level tag");
+    }
+
+    /** The messages of the decoder's value rules (B3): range, canonical form, UTF-8, tags, collection shape, order and count. */
+    private static boolean isInteriorValueFailure(String m) {
+        return m.contains("overflows wire type") || m.contains("DER float") || m.contains("DER double") || m.contains("DER char")
+                || m.contains("not well-formed UTF-8") || m.contains("BOOLEAN content") || m.contains("Non-canonical INTEGER")
+                || m.contains("octet order") || m.contains("maxCollection") || m.contains("(tag 0x")
+                || m.contains("unsupported wire type")
+                || m.contains("map entry SEQUENCE has more") || m.contains("map entry must be");
     }
 
     @TestFactory

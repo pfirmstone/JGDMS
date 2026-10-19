@@ -149,7 +149,7 @@ class DerStreamPolicyAdmissionTest {
 
     /** A holder record, one nested-site field, as a stream-level item. */
     static byte[] holding(byte[] nestedValue) {
-        return item(chainOf(rec("fx.Holder", field("p", "@AtomicSerial:java.lang.Runnable"))), shell(nestedValue));
+        return item(chainOf(rec("fx.Holder", field("p", "@AtomicSerial"))), shell(nestedValue));
     }
 
     static final AtomicSerialSchemaRecord LEAF = rec("fx.Leaf");
@@ -185,8 +185,8 @@ class DerStreamPolicyAdmissionTest {
         m.put("array-class name in a Class field value", c -> oneField("java.lang.Class", utf8("[[L" + c + ";")));
         m.put("Class array element", c -> oneField("array:java.lang.Class", DerWriter.writeSequence(List.of(utf8(c)))));
         m.put("Class list element", c -> oneField("list:java.lang.Class", DerWriter.writeSequence(List.of(utf8(c)))));
-        m.put("Class map key", c -> oneField("map:{java.lang.Class}{int}",
-                DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of(utf8(c), DerWriter.writeInteger(1)))))));
+        m.put("Class map key", c -> oneField("map:{java.lang.Class}{int}",   // map: is a canonicalise token: an outer SET
+                DerWriter.writeSet(List.of(DerWriter.writeSequence(List.of(utf8(c), DerWriter.writeInteger(1)))))));
         m.put("chain record inside a [16] element", c -> DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
                 DerWriter.writeSequence(List.of(site(rec(c), shell()))))));
         m.put("chain record inside a [8] handler", c -> proxyOf("java.lang.Runnable",
@@ -547,20 +547,20 @@ class DerStreamPolicyAdmissionTest {
         open(streamOf(regionA, regionB), new CountingLoader(), DerStreamPolicy.BUILT_IN).close();
         // inside ONE region record: a proxy (its own scope) between two sites of the region's scope. The region's binding survives
         // the proxy and the proxy's does not leak out.
-        AtomicSerialSchemaRecord outer = rec("fx.Outer", field("a", "@AtomicSerial:fx.Twin"),
-                field("p", "@AtomicSerial:java.lang.Runnable"), field("b", "@AtomicSerial:fx.Twin"));
+        AtomicSerialSchemaRecord outer = rec("fx.Outer", field("a", "@AtomicSerial"),
+                field("p", "@AtomicSerial"), field("b", "@AtomicSerial"));
         byte[] outerShell = shell(site(v1, shell()), proxyOf("fx.I", site(v2, v2Shell)), site(v1, shell()));
         open(streamOf(DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
                 DerWriter.writeSequence(List.of(site(outer, outerShell)))))), new CountingLoader(), DerStreamPolicy.BUILT_IN).close();
         // ... and a site AFTER the proxy that agrees with the region's version, while the proxy held the other one
         byte[] after = shell(proxyOf("fx.I", site(v2, v2Shell)), site(v1, shell()));
-        AtomicSerialSchemaRecord outer2 = rec("fx.Outer2", field("p", "@AtomicSerial:java.lang.Runnable"),
-                field("b", "@AtomicSerial:fx.Twin"));
+        AtomicSerialSchemaRecord outer2 = rec("fx.Outer2", field("p", "@AtomicSerial"),
+                field("b", "@AtomicSerial"));
         open(streamOf(DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
                 DerWriter.writeSequence(List.of(site(outer2, after)))))), new CountingLoader(), DerStreamPolicy.BUILT_IN).close();
         // a site BEFORE the proxy in the region with the proxy's class at the OTHER version: the region binds v1, the proxy v2
-        AtomicSerialSchemaRecord outer3 = rec("fx.Outer3", field("a", "@AtomicSerial:fx.Twin"),
-                field("p", "@AtomicSerial:java.lang.Runnable"));
+        AtomicSerialSchemaRecord outer3 = rec("fx.Outer3", field("a", "@AtomicSerial"),
+                field("p", "@AtomicSerial"));
         byte[] before = shell(site(v1, shell()), proxyOf("fx.I", site(v2, v2Shell)));
         open(streamOf(DerWriter.writeTlv(CTX_COLLECTION, cat(utf8("list:@AtomicSerial"),
                 DerWriter.writeSequence(List.of(site(outer3, before)))))), new CountingLoader(), DerStreamPolicy.BUILT_IN).close();

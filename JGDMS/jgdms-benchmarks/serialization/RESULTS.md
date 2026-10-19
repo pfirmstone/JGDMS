@@ -441,3 +441,20 @@ Streams: `request8` 3 286 bytes; `blob16m` 16 773 248; `records16m` 15 893 920. 
 - The cheap stage is below 1 us over the read on small streams and unmeasurable on 16 MiB streams (inside the intervals): an unauthenticated peer costs the byte read, as before B2.
 - The full stage (after `checkAccess` only) is 1.8 to 2.3 us on `point`/`record`, 47 us on `batch100`, 11.8 us on `request8`, 9.6 ms on a 16 MiB blob and 34 ms on 16 MiB of small records (3% of delivering them).
 - The side-band authorization-context block is the only full admission before authorization: about 30 us per request in this fixture, independent of the request size.
+
+
+# Seventh run: cost of the record-interior admission checks (SOW-DER-Streaming-Encoder B3), 19 October 2026
+
+`AdmissionBenchmark` again (`results-b3.json`, same container, JMH 2 forks x 5 iterations; **re-run on the workstation before quoting**), against the sixth run (`results-b4.json`, before B3). Times in microseconds per operation.
+
+| payload | cheap (B4 / B3) | full stage = cheapPlusFull - cheap (B4 / B3) | dispatcherPath (B4 / B3) | decode (B4 / B3) |
+|---|---|---|---|---|
+| point | 0.71 / 0.70 | 1.76 / 1.91 | 9.5 / 9.9 | 9.1 / 9.4 |
+| record | 0.82 / 0.78 | 2.31 / 2.72 | 14.8 / 16.4 | 14.0 / 14.3 |
+| batch100 | 3.45 / 3.06 | 47.2 / 70.9 | 1 024 / 1 021 | 923 / 1 067 |
+| request8 | 2.24 / 2.36 | 11.8 / 16.1 | 156 / 171 | 166 / 165 |
+| blob16m | 9 174 / 8 070 | 9 592 / 9 401 | 61 460 / 54 394 | 60 619 / 53 839 |
+| records16m | 10 889 / 9 708 | 34 040 / 61 593 | 1 118 776 / 1 162 404 | 1 118 809 / 1 136 136 |
+
+- The cheap stage (an unauthenticated peer's cost) is unchanged. The full stage, paid only after `checkAccess`, grows by about 0.2 us per record (the decoder's own value checks run on every field, element and key before anything is built); `byte[]` content is checked without a copy, so a 16 MiB blob pays nothing. End to end (dispatcherPath, decode) every row is inside the noise (0.89 to 1.16, intervals overlapping).
+- 16 MiB of small records: full stage 34 -> 62 ms (3% -> 5% of delivering them).
