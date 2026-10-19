@@ -71,6 +71,15 @@ public abstract class DerEncoder {
     }
 
     /**
+     * Creates an encoder that follows the same protocol and argument checks as {@link #create()} but keeps no output, for a pass whose
+     * result is thrown away (whole-stream admission). {@link #toByteArray()}, {@link #size()} and the sorted constructs are
+     * unsupported on it and throw {@link UnsupportedOperationException}.
+     */
+    public static DerEncoder discarding() {
+        return new DiscardingDerEncoder();
+    }
+
+    /**
      * Discards everything written and any open constructs, keeping the allocated buffers, so one
      * encoder can be reused for the next item. This is what makes the allocation figure above hold.
      */

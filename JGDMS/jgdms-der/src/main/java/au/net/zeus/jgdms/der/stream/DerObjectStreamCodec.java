@@ -579,7 +579,7 @@ final class DerObjectStreamCodec {
         DerReader r = new DerReader(buf);
         StreamPolicyMeter meter = full ? new StreamPolicyMeter(policy != null ? policy : DerStreamPolicy.defaults()) : null;
         StreamSchemaDedup scratch = full ? StreamSchemaDedup.forAdmission(maxInputBytes, meter) : null;
-        DerEncoder sink = full ? DerEncoder.create() : null;
+        DerEncoder sink = full ? DerEncoder.discarding() : null;   // the verifying walks' output is never read
         int index = 0;
         try {
             r.skipTlv();                                          // the version octet, already verified by initReader
@@ -660,7 +660,8 @@ final class DerObjectStreamCodec {
         } else if (id == ID_ARRAY) {
             byte[] content = Arrays.copyOfRange(inputBuf, contentStart, contentStart + len);
             meter.wireType(requireArrayWireType(content));          // the component class the array will load
-            scratch.reconstituteTopLevelArray(content);
+            sink.reset();
+            scratch.reconstituteTopLevelArrayTo(content, sink);
         } else if (id == ID_COLLECTION) {
             ObjectCodec.TopLevelCollectionContent c =
                     ObjectCodec.parseTopLevelCollection(Arrays.copyOfRange(inputBuf, contentStart, contentStart + len));

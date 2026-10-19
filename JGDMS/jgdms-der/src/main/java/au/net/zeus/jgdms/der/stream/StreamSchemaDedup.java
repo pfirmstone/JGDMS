@@ -860,7 +860,7 @@ final class StreamSchemaDedup {
     void verifyCollectionRegion(String token, byte[] collectionTlv) throws DerException {
         requireVerifying();
         StreamSchemaDedup region = regionVerifier();
-        region.inRegion(() -> region.transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.create()));
+        region.inRegion(() -> region.transformCollection(collectionTlv, 0, collectionTlv.length, token, 0, DerEncoder.discarding()));
     }
 
     /**
@@ -870,7 +870,7 @@ final class StreamSchemaDedup {
     void verifyRegionRecord(byte[] canonicalRecord) throws DerException {
         requireVerifying();
         StreamSchemaDedup region = regionVerifier();
-        region.inRegion(() -> region.dedupTopLevelAtomicTo(canonicalRecord, null, DerEncoder.create()));
+        region.inRegion(() -> region.dedupTopLevelAtomicTo(canonicalRecord, null, DerEncoder.discarding()));
     }
 
     @FunctionalInterface
@@ -962,7 +962,7 @@ final class StreamSchemaDedup {
         if (pr.hasMore()) {
             throw new DerException("StreamSchemaDedup: trailing bytes after the handler in a nested [8] proxy");
         }
-        transformNestedSite(in, handlerStart, handlerEnd, depth + 1, DerEncoder.create());
+        transformNestedSite(in, handlerStart, handlerEnd, depth + 1, DerEncoder.discarding());
     }
 
     /**

@@ -510,3 +510,27 @@ JOSS rows are the control and agree with the first run (for example JERI `ping` 
 - **An unauthenticated peer** costs the byte read plus 0.3 to 0.4 us on small requests and about 2% (0.2 to 0.3 ms) on 16 MiB streams; the authorization-context block, the one full admission before authorization, is 52 to 57 us here (31 to 34 us in the container, so this machine is about 1.6x slower on that path).
 - **The full stage costs about 0.8 us per record** on this machine (`batch100` 82.7 us for 100 records; 16 MiB of records 78.5 ms), 5% of delivering them. For `point` and `record` it is 16 to 17% of the in-process read, and for opaque bytes 16 to 19% (`blob64k` 28.7 us, `blob16m` 8.8 ms): about 0.45 ns a byte.
 - **A lead on the `blob64k` unmarshal regression (a hypothesis, not tested):** the verifying walk writes its reconstituted output to a scratch encoder that is always discarded, so a large byte field is copied into that encoder (and again as the encoder grows) only to be thrown away. A discarding output for the verify pass, used where the bytes are not compared, would remove that copy.
+
+
+# Ninth run: admission without materialising the reconstituted bytes (verify-only output), 19 October 2026
+
+`AdmissionBenchmark` again (`results-verifyonly.json`, container, JMH 2 forks x 5 iterations; **re-run on the workstation before quoting**), against the seventh run (`results-b3.json`, same container). The change: the walks that exist only to prove a
+stream admissible now write to `DerEncoder.discarding()`, an encoder that follows the call protocol and keeps nothing, instead of a real encoder whose buffer was filled, doubled and thrown away (SOW B.2.2 had promised a verify pass "without
+materialising reconstituted bytes"; as first built it did). The workstation run of the same day showed `blob64k` unmarshal 37% over the first run, 30 of the extra 41 us being this copy.
+
+| payload | full stage before | full stage now | now / before | decode before / now | dispatcherPath before / now |
+|---|---:|---:|---:|---:|---:|
+| point | 1.92 | 1.91 | 1.00 | 9.4 / 10.5 | 9.9 / 10.0 |
+| record | 2.72 | 2.53 | 0.93 | 14.2 / 16.2 | 16.4 / 15.1 |
+| batch100 | 70.95 | 47.24 | 0.67 | 1 067 / 1 050 | 1 021 / 1 099 |
+| blob64k | 31.54 | 3.11 | **0.10** | 187.2 / 168.7 | 195.2 / 156.6 |
+| request8 | 16.08 | 14.78 | 0.92 | 165.1 / 175.0 | 170.7 / 173.1 |
+| blob16m | 9 401 | about 0 (-16, inside the noise) | 0.00 | 53 839 / 47 067 | 54 394 / 45 300 |
+| records16m | 61 593 | 48 413 | 0.79 | 1 136 136 / 1 171 904 | 1 162 404 / 1 237 398 |
+
+(us per operation; full stage = `cheapPlusFull` - `cheap`; the cheap stage is unchanged, 0.7 to 0.84 us on small requests.)
+
+- Opaque bytes now cost admission nothing measurable: the full stage of a 64 KiB `byte[]` is 3.1 us (was 31.5), of a 16 MiB one nothing above the noise (was 9.4 ms), and the in-process read of the large blob is 13 to 19% faster.
+- Streams of many small records gain 21 to 33% of the full stage (the bytes of every field are no longer copied), and still pay about 0.47 us a record: the value checks of B3 allocate a reader per field and element, a `BigInteger` per integer and a `String` per string.
+  That is the remaining cost, and is not copying; see the follow-ups in the SOW.
+- `point` and `record` read/delivery differences (9.4 -> 10.5, 14.2 -> 16.2) are inside the intervals of this container.
