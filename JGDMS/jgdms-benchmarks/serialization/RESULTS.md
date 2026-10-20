@@ -741,3 +741,29 @@ The fifteenth section left `DerReader.decodeLength` at 12.7% self time in the `b
 - **Allocation:** 75% of the sampled bytes are `byte[]` (the copies); the rest is `HashMap`/`LinkedHashMap` structure. The JFR allocation weights are not reliable for small objects (`LinkedKeySet`, one per object from `ObjectCodec.decodeHierarchy`, showed 11.5% of bytes).
 
 Conclusion: no reader optimisation is worth making; the remaining unmarshal cost is spread across the three passes, the per-object `GetArg`/field-store maps and class resolution (`Class.forName` 3%), and none exceeds a few percent.
+
+## Seventeenth section: workstation run with the `GetArg` shortcut and the chain-key hash caching (`results-workstation3.json`)
+
+Built from the branch after the sixteenth section (mux bulk write, `AtomicSerial` shortcut, `ByteArrayKey`). 49 min. Against the previous workstation run (`results-workstation2.json`, fourteenth section: mux bulk write only):
+
+| us per op | DER before | DER now | JOSS before | JOSS now | DER/JOSS now |
+|---|---:|---:|---:|---:|---:|
+| unmarshal point | 14.1 | 9.4 | 98.1 | 114.6 | 0.08 |
+| unmarshal record | 21.7 | 12.9 | 108.9 | 113.1 | 0.11 |
+| unmarshal batch100 | 1 483.6 | **491.2** (-67%) | 1 266.8 | **384.3** (-70%) | 1.28 |
+| unmarshal blob64k | 73.5 | 67.0 | 120.4 | 135.1 | 0.50 |
+| roundTrip batch100 | 1 736.3 | **672.9** | 1 556.9 | **651.4** | 1.03 |
+| marshal batch100 | 156.0 | 165.4 | 214.6 | 213.8 | 0.77 |
+| JERI ping | 124.1 | 125.7 | 304.1 | 273.0 | 0.46 |
+| JERI point | 205.2 | 181.4 | 380.7 | 386.4 | 0.47 |
+| JERI record | 242.5 | 197.0 | 422.4 | 416.7 | 0.47 |
+| JERI batch100 | 3 839.9 | **1 859.8** (-52%) | 2 971.9 | **2 365.0** (-20%) | **0.79** |
+| JERI blob64k | 1 409.0 | 1 442.1 | 1 238.5 | 1 216.4 | 1.19 |
+
+Against the first run (before any of this work): JERI `batch100` DER 6 689 -> 1 860 us (3.6 times), the DER/JOSS ratio 1.98 -> 0.79; `blob64k` DER 9 676 -> 1 442 us.
+
+- **The `GetArg` shortcut is confirmed on the workstation:** unmarshal `batch100` -67% (DER) and -70% (JOSS), the container predicted -61%; `request8` decode 244 -> 92 us; 16 MiB of small records decoded in 476 ms (was 1 597); the authorization-context block, which is pure `GetArg` use, 53 -> 28 us. Both formats gained, as predicted, so DER is still 28% slower than JOSS on unmarshalling a batch of 100 records (491 against 384 us, 4.9 against 3.8 us a record) while 8 to 12 times faster on a single small object. Round trip is level (673 against 651 us).
+- **JERI `batch100` is now faster in DER than in JOSS** (1.86 against 2.37 ms) because DER's marshal is cheaper and the transport no longer penalises it.
+- **The chain-key hash caching is NOT confirmed:** DER `marshal batch100` is 165.4 +- 10.7 us against 156.0 +- 5.3 and 148 in earlier runs, no gain where the container showed -17%. Do not quote the 17%. The change is correct and tested, and costs nothing measurable here; whether to keep it is the maintainer's call (it adds one class and a previous-chain check for a gain that did not reproduce).
+- **Admission is unchanged:** full stage after `checkAccess` `batch100` 59 us (60.8 - 2.5 earlier 58), `blob64k` 6.8 us, `records16m` 80 ms; the cheap stage 0.6 us on `point`.
+- **What is left:** the DER unmarshal of many small objects, 1.1 us a record slower than JOSS; the container profile spreads it over three passes over the stream, per-object maps and class resolution, none above a few percent (sixteenth section).
