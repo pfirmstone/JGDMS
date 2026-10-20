@@ -1004,3 +1004,17 @@ Test note: small socket buffers on loopback TCP stall the sender for tens of sec
 An RMI call is one write and one read per side and almost no futex: each thread blocks in its own socket and the kernel wakes it. A JERI call on UDS makes 12 system calls per side, 6 of them futex (cross-thread parking and waking) and 3 `epoll_wait` plus an `epoll_ctl` for each readiness event. On TCP the server makes 13 futex calls per call. The three `epoll_wait`s are the JDK's machinery for a virtual thread waiting in `Selector.select()` (the master poller wakes the virtual thread, whose carrier then polls the selector again and re-arms it): the `SelectionManager` loop runs on a virtual thread.
 
 Conclusion for the design: the cost of a JERI call is its thread hand-offs and the selector machinery, not the codec or the context handling.
+
+## Twenty-eighth section: the selection loop on a platform thread; platform or virtual threads for the pool (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+Commit 1821b2f25 (2026-05-12, "migrate all executors to virtual threads") replaced the system pool's `Executors.newCachedThreadPool` of platform daemon threads (stack size hint 228) with a virtual thread per task. That put `SelectionManager`'s select loop on a virtual thread, and a virtual thread in `Selector.select()` is woken through the JDK's poller (the 3 `epoll_wait`s and 6 futex calls per call per JVM of the twenty-seventh section). Three arrangements, DER `ping`, two or three alternating runs each:
+
+| | UDS, 1 caller (wall us, switches) | UDS, 16 callers (calls/ms) | TCP, 1 caller (wall us) | TCP, 16 callers | TLS, 1 / 16 callers |
+|---|---|---|---|---|---|
+| all virtual (before) | 134, 132 (6.1) | 37.5, 40.3 | 157, 145 | 40.6, 40.2 | 208, 229 / 24.8, 24.0 |
+| all platform (cached pool) | 92, 91 (4.0) | 36.6, 35.0 | 136, 126 | 28.5, 31.6 | 232, 205 / 21.3, 21.8 |
+| select loop on a platform thread, rest virtual (now) | 90, 95, 88 (4.1) | 45.5, 56.7, 50.7 | unchanged | unchanged | unchanged |
+
+The platform pool halves the UDS single-caller gap but costs 10 to 28% of the TCP and TLS throughput at 16 callers (more runnable threads than cores). Only the select loop needs to be a platform thread: it lives as long as the manager and blocks in `select()`. Done in `SelectionManager`; the pool stays virtual by default, and `-Dorg.apache.river.thread.platform=true` restores the platform-thread cached pool of before 1821b2f25 (keeping the later subject-clearing: the factory creates each thread with no ambient subject).
+
+UDS DER `ping` now: one caller 90 us (was 132), 4.1 voluntary switches across both JVMs (was 6.1), CPU 79 to 99 us per call (was 150); 16 callers 45 to 57 calls/ms (was 33 to 40). For reference RMI over plain TCP is 53 to 80 us for one caller and about 121 calls/ms at 16.
