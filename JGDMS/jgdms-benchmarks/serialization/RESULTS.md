@@ -1066,3 +1066,59 @@ Scheduling the virtual thread on the reader recovers two thirds of the 30 us the
 Resources per connection (64 callers with the scratch `K=1` property forcing a connection each; client JVM; the callers' own threads are counted in the thread deltas): UDS and channel-I/O TCP add no thread (the shared selection thread serves them); stream TCP and TLS add two platform threads (mux reader and writer) per connection; heap grows about 0.2 MB per UDS or TCP connection and about 0.6 MB per TLS connection (SSLEngine buffers and session), and resident memory by roughly 0.8 MB (UDS), 1.1 MB (TCP stream) and 1.9 MB (TLS) per connection including stacks. One file descriptor per connection on each side.
 
 Consequences: striping must open connections lazily and keep them (a connection is worth 20 to 45 calls, so a pool that opens and closes is a loss, which is what the TLS striping result showed). The cold burst is the same cost paid N times: when N callers find no connection they each open one (16 callers on TLS spend 16 x 12 ms of CPU and handshakes), where one caller opening and the rest waiting would pay once.
+
+## Thirty-first section: latency and high-concurrency tooling, `ConcurrencyCurve` and `concurrency-curve.py` (tooling only; the table is a smoke run, 4-core container, not for quoting)
+
+The target of the JERI transport is low latency and high scalability, and the earlier sweeps report throughput and medians for 1 to 16 callers on 4 cores, which is RMI's best case. This tool measures what they do not: the latency distribution under load, thousands of callers (platform and virtual threads), and what each run costs in threads, sockets, memory and CPU.
+
+**The tool.** `ConcurrencyCurve` (with `LatencyHistogram`, a log-bucketed histogram of 3 significant digits from 100 ns to 100 s, no dependency) runs one point: N callers on one proxy or stub against a server in its own JVM (`ServerMain`, as `ThreadProfile` does), warm-up, then a measured window. It records the latency of every call that completes in the window with `System.nanoTime`, one histogram per caller up to 64 callers and 64 shared histograms (atomic increments) above that, so memory does not grow with the caller count and does not distort the RSS figures. It prints calls/ms, p50, p90, p99, p99.9, max, the threads, socket descriptors, peak resident memory (VmRSS) and CPU per call of the client and of the server JVM (`/proc`, so Linux only; on other systems those fields are `n/a`, and CPU falls back to `ProcessHandle`), and one `curve-json:` line for the driver. Callers are `Thread.ofPlatform()` or `Thread.ofVirtual()`; if the platform threads cannot all be created (`OutOfMemoryError: unable to create native thread`) the run goes on with the callers that started and says so (`callers_started`). A call that throws is counted (`errors`, `first_error`) and does not stop the run.
+
+`concurrency-curve.py` runs the sweep: a fresh server JVM and a fresh client JVM per point (so the server's threads and memory belong to that point; `--shared-server` reuses one), a timeout per point (a failed or timed-out point is recorded and the sweep goes on), `results.jsonl`, `summary.txt` and `environment.txt` in the output directory. Combinations that do not exist are skipped (RMI has no UDS; RMI's plain variant is `PLAIN`, and `TCP` is accepted for it).
+
+```
+python3 concurrency-curve.py --out curve-80core                       # DER,JOSS,RMI x TCP,UDS,TLS x platform,virtual x 1,8,64,512,4096
+python3 concurrency-curve.py --out curve-x --stacks DER,RMI --transports UDS,TCP --callers 1,8,64,512 --kinds platform,virtual --warmup 3 --measure 4
+python3 concurrency-curve.py --out curve-x --rate 20000 --callers 64,512     # open loop
+java -Dthreadprofile.server=<ServerMain dir> [-Dthreadprofile.serverpid=<pid>] [-Dbench.tls.dir=<dir>] -cp target/serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ConcurrencyCurve stack=DER transport=UDS payload=ping callers=64 kind=virtual warmup=5 measure=8   # one point by hand
+```
+
+On Windows use `py concurrency-curve.py --out curve-6core ...` (or `python`), with `JAVA_HOME` set or `java` on the path; the driver uses argument lists only. `--jvm-args '-Xmx8g -Djdk.virtualThreadScheduler.parallelism=N'` goes to both JVMs. Defaults are warm-up 5 s and measure 8 s per point; with 3 stacks, 3 transports (8 combinations), 2 kinds and 5 caller counts that is 80 points of about 25 s, so plan half an hour, and use `--kinds`, `--stacks` or `--transports` to cut it.
+
+**What it measures, and the caveats.**
+- The default is a **closed loop**: each caller calls again when the last call returns, so the offered load falls as the system slows down. When the system saturates, the percentiles understate what an independent arrival stream would see (coordinated omission); read them as "latency while N callers are in flight". With `rate=R` (`--rate R`) the run is an **open loop**: each caller has its own arrival schedule (one call every N/R seconds, staggered), the latency of a call runs from its intended start to its completion, so a late caller charges its delay to the calls behind it. N bounds the concurrency, a caller more than 10 s late is abandoned and its arrivals counted as `missed`, and `parkNanos` slop (50 us or more) is included in the latency of calls that waited. Only the closed loop has been smoke-tested more than briefly; the open loop was run at 5 000 calls/s (all arrivals completed) and at an overload (200 000 calls/s, where it reported latencies of seconds and the missed arrivals, as it should).
+- The calls/ms and the percentiles are over the window the callers used (`measure_s`), whatever moment the sampling thread got to run. Threads, sockets and RSS are the largest of three samples taken inside the window. CPU per call is the CPU time of all threads (`schedstat`) between two snapshots divided by the calls completed between them.
+- At thousands of platform-thread callers the machine is oversubscribed by construction (and the sampling thread competes with them); virtual-thread callers are the realistic model of a many-client server but share the JDK scheduler (parallelism = cores) with JERI's own virtual threads. Limits such as `ulimit -n`, `ulimit -u` and the memory of the machine are part of the result: record them (`environment.txt` does) and do not raise them to make a point pass.
+- Verified in the container: DER on TCP, UDS and TLS, RMI plain and TLS, platform and virtual callers, 1 to 4096 callers (4096 on DER and RMI over TCP, both kinds), the timeout path, the open loop. Not verified: JOSS (the same code path as DER, not run), the 32- and 80-core machines, Windows (the `/proc` fields are guarded and print `n/a`, but nothing has been run there), 4096 callers on UDS and TLS beyond one DER UDS platform run.
+
+**Smoke run, 4-core container, not for quoting** (`python3 concurrency-curve.py --out smoke --callers 1,8,64,512 --stacks DER,RMI --transports TCP,UDS --kinds platform,virtual --warmup 3 --measure 4`; ping, closed loop, JDK 27, one run per point, a noisy shared container, warm-up and measurement short): this proves the tool runs and shows its output shape; it is not a comparison of the stacks.
+
+| stack | transport | callers | calls/ms | p50 us | p99 us | p99.9 us | max us | client / server threads | client / server RSS MB | errors |
+|---|---|---|---:|---:|---:|---:|---:|---|---|---:|
+| **platform-thread callers** | | | | | | | | | | |
+| DER | TCP | 1 | 5.8 | 129 | 630 | 3813 | 113465 | 29 / 38 | 103 / 112 | 0 |
+| DER | TCP | 8 | 29.4 | 239 | 961 | 3414 | 7081 | 49 / 51 | 186 / 213 | 0 |
+| DER | TCP | 64 | 46.2 | 1202 | 4674 | 7287 | 14487 | 217 / 163 | 390 / 379 | 0 |
+| DER | TCP | 512 | 10.6 | 49644 | 219939 | 325059 | 507093 | 1561 / 1059 | 601 / 430 | 0 |
+| DER | UDS | 1 | 10.7 | 83 | 222 | 2080 | 6638 | 28 / 38 | 118 / 117 | 0 |
+| DER | UDS | 8 | 36.1 | 184 | 766 | 4694 | 11793 | 35 / 37 | 325 / 357 | 0 |
+| DER | UDS | 64 | 37.4 | 964 | 12935 | 26378 | 45331 | 91 / 37 | 931 / 484 | 0 |
+| DER | UDS | 512 | 13.3 | 42140 | 148242 | 205390 | 309347 | 539 / 37 | 426 / 357 | 0 |
+| RMI | PLAIN | 1 | 19.0 | 46 | 116 | 890 | 33649 | 25 / 36 | 135 / 124 | 0 |
+| RMI | PLAIN | 8 | 103.4 | 65 | 243 | 1095 | 6332 | 32 / 43 | 145 / 311 | 0 |
+| RMI | PLAIN | 64 | 99.1 | 467 | 4102 | 16097 | 75671 | 89 / 100 | 204 / 331 | 0 |
+| RMI | PLAIN | 512 | 29.7 | 7569 | 159777 | 375128 | 4642132 | 538 / 548 | 862 / 862 | 0 |
+| **virtual-thread callers** | | | | | | | | | | |
+| DER | TCP | 1 | 5.6 | 153 | 431 | 3602 | 15472 | 32 / 38 | 107 / 108 | 0 |
+| DER | TCP | 8 | 24.0 | 287 | 1551 | 4399 | 7037 | 45 / 51 | 151 / 170 | 0 |
+| DER | TCP | 64 | 47.1 | 950 | 6668 | 12534 | 25368 | 157 / 163 | 382 / 338 | 0 |
+| DER | TCP | 512 | 16.1 | 11125 | 193462 | 277610 | 441300 | 277 / 283 | 589 / 869 | 16 |
+| DER | UDS | 1 | 8.0 | 107 | 280 | 3455 | 13479 | 30 / 38 | 113 / 113 | 0 |
+| DER | UDS | 8 | 29.0 | 230 | 1206 | 4751 | 16415 | 30 / 37 | 239 / 284 | 0 |
+| DER | UDS | 64 | 45.1 | 915 | 7729 | 16384 | 27038 | 30 / 37 | 450 / 445 | 0 |
+| DER | UDS | 512 | 13.6 | 2408 | 216531 | 321913 | 625134 | 30 / 37 | 853 / 527 | 0 |
+| RMI | PLAIN | 1 | 9.7 | 89 | 321 | 1315 | 3691 | 30 / 37 | 99 / 94 | 0 |
+| RMI | PLAIN | 8 | 68.8 | 95 | 463 | 1680 | 10286 | 31 / 43 | 121 / 152 | 0 |
+| RMI | PLAIN | 64 | 87.6 | 125 | 7430 | 46268 | 145057 | 32 / 99 | 300 / 322 | 0 |
+| RMI | PLAIN | 512 | 56.9 | 1501 | 99025 | 886571 | 1795593 | 32 / 547 | 304 / 857 | 0 |
+
+The 512-caller point of DER over TCP with virtual callers had 16 errors, `ConnectIOException ... no free sessions` from the mux (another run of DER UDS with virtual callers had 36); the tool counts those as errors and keeps the latency of the calls that succeeded, so a point with errors is not comparable with one without. At 4096 callers over TCP (one run each, 3 s + 4 s) every point completed: DER with platform callers 0.5 calls/ms, with virtual callers 13 calls/ms; RMI with platform callers 41 calls/ms and virtual callers 47 calls/ms, with up to about 8 000 client threads in the DER platform run. These too are a first look at what the tool shows, to be repeated on the machines the maintainer named before anyone reads anything into them.
