@@ -1,6 +1,9 @@
 # Design: a concurrent JERI connection/mux provider
 
-Status: PROPOSAL for the maintainer's decision (2026-10-20). Nothing in this document is implemented. Container
+Status: SUPERSEDED IN PART (2026-10-20). After the board review and the Fable gap review
+(`docs/BOARD-REVIEW-jeri-concurrent-transport-2026-10-20.md`) the plan below is NOT approved as written: the
+board's verdict is an in-place programme first (section 9), and a new provider only if that leaves a gap. The
+design text is kept as the record of the proposal. Nothing in this document is implemented. Container
 numbers are marked; re-measure on the workstation machines before relying on them.
 
 ## 0. Production transports (maintainer, 2026-10-20)
@@ -140,3 +143,30 @@ Transports with costly connections (TLS/Kerberos handshakes) should keep a pool 
    and measure before striping?
 3. Selection: a system property/configuration entry per endpoint, with the old provider the default until the
    new one has passed the gates?
+
+## 9. Revised plan after the board and the gap review (replaces sections 5 and 8 until the maintainer decides)
+
+The reviewers (three Opus seats and a Fable gap review) disagreed on the mechanism but agreed on the direction:
+measure the central hypothesis cheaply, and fix the mux in place before replacing it. Key corrections to this
+document: the right seam is `ConnectionIO` inside the mux (it leaves `Session` and `Mux`, and therefore every
+contract the old layer honours, untouched), not `ConnManagerFactory`; a caller-thread drainer is unsound for
+virtual-thread callers and blocking stream transports (an interrupt closes the socket), so channels get
+non-blocking caller writes and streams keep an owned writer; the reader never writes; striping must go through
+`ep.connect(handle, candidates, idle)` and a pool of one for TLS; the larger window is not wanted.
+
+Production transports are TLS and UDS (section 0), so the measurements below are taken on those, with plain TCP
+only as the cross-check against the earlier numbers.
+
+0. **Evidence first.** Add UDS and mutual-TLS variants of `JeriBenchmark`, and RMI over TLS using
+   `jgdms-rmi-tls` (`TlsRMIClientSocketFactory`/`TlsRMIServerSocketFactory`, Subject credentials, client
+   authentication). Single-caller JFR of DER `ping` on each transport; per-thread CPU at the knee of the sweep on the
+   workstation (Windows, 12 logical CPUs, JDK 27); the connection threshold experiment (`ConnectionManager.connect`,
+   `n < K`); connection counts during the sweep; JFR `VirtualThreadPinned` on JDK 27. Decision gate: where do the
+   127 us go?
+1. **One write per frame** in `StreamConnectionIO.Writer` (header and payload coalesced; the reader's `available()`
+   dropped). Gate: single-caller `ping`/`record` and the sweep curve.
+2. **Acknowledgment listeners notified on connection loss**, and a mux acknowledgment timeout (a defect found by the
+   gap review: listeners are only notified on abort and ack).
+3. **Striping inside `ConnectionManager`**, only if stage 0's threshold experiment is positive: endpoint-approved
+   candidates, CAS slot reservation, handshake-aware, a pool of one for SSL/Kerberos.
+4. **A new `ConnectionIO`** only if stages 1 to 3 leave a measured gap.

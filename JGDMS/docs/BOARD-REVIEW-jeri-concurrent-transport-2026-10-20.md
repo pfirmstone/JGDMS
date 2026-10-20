@@ -247,4 +247,74 @@ existing `Mux`: build the new provider only if that does not close most of the g
 
 ---
 
-(Fable gap review: appended below when received.)
+## D. Fable gap review (independent second reviewer): do not approve a new provider now
+
+1. CONFIRMED. The evidence mixes two platforms and the pinning explanation is wrong for the sweep. The 6-core sweep ran on
+   Windows, Xeon E5-1650 v3 (6 cores / 12 threads), DirtyChai JDK 27 (`RESULTS.md:12-13,465`; `sweep.py` derives its columns from
+   `os.cpu_count()`). The writer-0.80/reader-0.64 figure is Linux/JDK 21. On JDK 24+ `synchronized`/`Object.wait` no longer pin
+   (JEP 491), so C-F5's "pinning may explain the 24 to 48 drop" and design cost row 7 do not apply to the target data. The knee at
+   24 is 2x the logical CPUs; RMI also peaks there (105 to 98); 48 platform callers plus a server JVM on 12 threads is
+   oversubscription, which taxes DER's four-hand-off chain more than RMI's zero. 0.80 of a core is not saturation (a saturated
+   single thread reads about 1.0): Little's law gives 490 us per call at 24 callers against 127 alone, a latency chain, not CPU.
+2. CONFIRMED. Two TCP segments and two reader wakeups per frame. Header and payload are two `out.write` calls
+   (`StreamConnectionIO.java:196-203` to `:411-421`), `BufferedOutputStream` is commented out (`:85`), `flush()` is a no-op on the
+   raw socket stream (`TcpEndpoint.java:918`), TCP_NODELAY is set at both ends (`TcpEndpoint.java:990`,
+   `TcpServerEndpoint.java:1055`), and the reader's "block at most once" loop (`:371-373`) can return after the 4-byte header alone.
+   C-E2 proposes coalescing but no report ties NODELAY to 2 segments and 2 wakeups per frame in both directions, the likeliest
+   source of the reader's 0.64 core. One write per frame in the existing `Writer` is the smallest safe, valuable deliverable.
+3. CONFIRMED. Wrong seam. `ConnectionIO` (`mux/ConnectionIO.java:47-124`) is an abstract I/O strategy (start/asyncSend/futureSend)
+   written "for both blocking streams and non-blocking channels". A new `ConnectionIO` keeps `Session` and `Mux`, so AUDIT-1 to 17,
+   role asymmetry, delivery status and the DGC ack hold by construction, with no wire, selection, serial-form or permission
+   question. The `ConnManagerFactory` seam forces reimplementing all of it, and `org.apache.river.jeri.internal.mux` is OSGi
+   Private-Package (`MANIFEST.MF:158`) while `internal.connection` is exported (`:68-70`), so an external provider cannot reuse
+   `Session`. Corollary: the only endpoints exposing the factory seam (SSL, Kerberos) return `getChannel()==null`
+   (`SslConnection.java:736`, `KerberosEndpoint.java:2077`), so the direct-buffer/gathering path can reach only TCP/UDS, the
+   endpoints that do not expose the seam.
+4. CONFIRMED. The "approve with changes" verdicts conflict. A4/B4 accept a caller-thread drainer "shielded from interrupts"; C-F1
+   shows that is impossible for virtual-thread callers and blocking channels (an interrupt closes the socket) and requires an owned
+   writer thread plus non-blocking caller writes. The design's headline "no writer thread" is unbuildable for stream transports,
+   exactly SSL/Kerberos. C is right; A/B's required mechanism is unsound. Second conflict: A1/B1 require
+   `ep.connect(handle, candidates, idle)` per request on the caller's thread while the SPI says it is never called concurrently
+   (`ConnectionEndpoint.java:155-158`, B8); the fix is a hot-path lock (the contention being removed) or a public-contract change,
+   unresolved.
+5. CONFIRMED. The larger window is measured useless and harms fairness. `RESULTS.md:616`: ration 32 KiB / 256 KiB / 4 MiB gave
+   4.52 / 4.44 / 4.49 ms. `writeBulk` queues `min(len, ration)` before waiting (`MuxOutputStream.java:156-180`), so the window is the
+   head-of-line quantum: a 1 MiB window lets one bulk session queue 16 frames ahead of every small call; load by in-flight count
+   (design section 3) cannot see bytes.
+6. CONFIRMED. "Old peer sends PINGs" is wrong: `asyncSendPing` (`Mux.java:443`) has no callers; no JGDMS peer sends Ping. The
+   hazard is real only for a hostile peer (the reader must still never block in a write); the mixed old/new risk is smaller than
+   stated.
+7. CONFIRMED. E1 (`useNIO=true`) is confounded and untested: one static `SelectionManager` (`SocketChannelConnectionIO.java:55`)
+   with `concurrency = 1` (`SelectionManager.java:84`) runs a single select loop for all connections' reads and write completions;
+   no test references `useNIO`; `futureSend`'s `finally` leaves `bufferPair` holding buffers (`:252-253`). E1 tests in-thread writes
+   and a single shared reader, so a negative result does not weaken the drainer premise.
+8. CONFIRMED (code) / PLAUSIBLE (effect). DGC ack listeners never hear about connection loss: `Session.setDown`
+   (`Session.java:295-305`) and `Mux.setDown` via `SessionShutdownTask` (`Mux.java:96-116,286`) never call
+   `notifyAcknowledgmentListeners`; only abort (`:368`) and ack (`:461`) do. `BasicObjectEndpoint.AckListener` holds a strong
+   reference until notified (`BasicObjectEndpoint.java:749-752`, REMIND `:745`); HTTP has `responseAckTimeout`
+   (`HttpSettings.java:110-116`), the mux none. A pool with write timeouts loses connections more often. B's AUDIT-1 lists two
+   outcomes; there are three.
+9. PLAUSIBLE. Pool selection ignores handshake and multihoming: the handshake is lazy with others waiting on `startLock`
+   (`ConnectionManager.java:378-405`, 15 s); a fresh connection has in-flight 0 to 1 and attracts least-loaded selection, piling
+   callers onto one handshake. `TcpEndpoint` iterates every address of the host (`TcpEndpoint.java:~678`), so a pool can span
+   addresses of a round-robin name within one client lifetime.
+10. CONFIRMED. Selection granularity: `TcpEndpoint` has no configuration hook; the interned `ConnectionManager`
+    (`TcpEndpoint.java:215-244`) makes a system property process-global, so "endpoint by endpoint" needs new public factories. HTTP
+    is outside the mux entirely (`HttpEndpoint.java:134-139`). No code depends on the `(JSK) mux request dispatch` name. Steady
+    state today is one connection: TCP's `connect` returns the first active (`TcpEndpoint.java:794-830`) and the lists are
+    reverse-`muxes`, so B8's confound is warm-up only.
+
+Verdict: do not approve a new provider now; approve an in-place Stage 0 programme; revisit the provider only if it leaves a gap.
+Revised stages: 0: single-caller JFR of DER `ping` (where do 127 us go?); per-thread CPU at 24 and 48 on the workstation; E3
+one-liner (`ConnectionManager.java:212`, K=8/12), the one decisive test of the hypothesis. 1: one write per frame in
+`StreamConnectionIO.Writer`, drop `available()`; gate on `ping`/`record` (1 caller) and the curve. 2: notify ack listeners `false`
+on `setDown`; add an ack timeout. 3: if E3 is positive, striping inside `ConnectionManager` (threshold, endpoint-approved
+candidates, CAS slot reservation, exclude handshaking connections; pool of one for SSL/Kerberos). 4: only then a new
+`ConnectionIO`: owned writer virtual thread with non-blocking caller writes for channels, a writer thread for streams, `Session`
+untouched. 5: server likewise; wire format unchanged; no larger window. Missing evidence before approval: the single-caller profile;
+workstation per-thread CPU at the knee; the E3 result; connection count during the sweep (FINEST "opened"/"using"); JFR
+`VirtualThreadPinned` on JDK 27 (expected none); a Linux run of the same sweep. Not said by the other reports: (1) the sweep is
+Windows/JDK 27 with 12 logical CPUs while the thread-CPU evidence is Linux/JDK 21; pinning cannot explain it and 0.80 core is not
+saturation; (2) the right seam is `ConnectionIO`, which makes every audit item true by construction; (3) NODELAY plus two writes
+per frame doubles segments and wakeups per call, and the window enlargement is measured worthless and worsens head-of-line
+blocking.
