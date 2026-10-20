@@ -24,6 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
@@ -40,12 +41,29 @@ import java.util.logging.Logger;
  *
  * <h2>Subject identity</h2>
  *
- * <p>This pool <em>explicitly clears</em> any ambient
- * {@link javax.security.auth.Subject} before executing each task.  Every task
- * is wrapped in {@code Subject.callAs(null, task)} so that
- * {@link Subject#current Subject.current()} always returns {@code null} on
- * the worker thread, regardless of what subject was active on the submitting
+ * <p>{@link Subject#current Subject.current()} is always {@code null} on a
+ * worker thread, regardless of what subject was active on the submitting
  * thread.
+ *
+ * <p>This is achieved when the worker thread is <em>created</em>, not by
+ * wrapping the task body.  In DirtyChai a thread captures
+ * {@code Subject.current()} of the thread that constructs it, and
+ * {@code Thread.runWith} then runs the whole thread body inside that
+ * subject's scope.  A virtual-thread-per-task executor constructs the thread
+ * inside {@code submit()}, on the <em>submitting</em> thread, so a plain
+ * executor would hand every worker the submitter's subject for the lifetime
+ * of the task.  Creating the executor under {@code Subject.callAs(null, ...)}
+ * does not help, as that only affects threads created while the executor is
+ * being constructed.  Instead the executor uses a {@link ThreadFactory} that
+ * builds each thread inside {@code Subject.callAs(null, ...)}, so the thread
+ * captures {@code null} and runs its body with no subject scope at all.
+ *
+ * <p>The task body is deliberately <em>not</em> wrapped in
+ * {@code Subject.callAs(null, task)}.  Tasks submitted here include
+ * accept loops and other long-running blocking loops; a {@code callAs}
+ * scope must be bounded and must never enclose a blocking wait (see
+ * the DirtyChai notes on {@code Thread.runWith}), and the wrapper would in
+ * any case leave the thread's own captured subject scope in place around it.
  *
  * <p>This is intentional and provides defence in depth:
  * <ul>
@@ -55,20 +73,18 @@ import java.util.logging.Logger;
  *       {@code ProtectionDomain} permission checks via ACC intersection and
  *       create confused-deputy vulnerabilities.</li>
  *   <li>In DirtyChai deployments, {@code AccessController.getContext()}
- *       injects active scoped subjects into the captured ACC.  A virtual
- *       thread submitted from within a {@code Subject.callAs(...)} scope
- *       therefore inherits that subject in its ACC.  The explicit
- *       {@code Subject.callAs(null, ...)} wrapper ensures that the ScopedValue
- *       is cleared on the worker thread, neutralising any injected subject.</li>
+ *       injects active scoped subjects into the captured ACC, so a thread
+ *       created from within a {@code Subject.callAs(...)} scope would
+ *       otherwise inherit that subject.</li>
  *   <li>SPIFFE workload identity is always available process-wide (resolved
  *       from the ambient process subject, not the per-thread ScopedValue), so
  *       clearing the ScopedValue subject does not affect SPIFFE identity
  *       resolution.</li>
  * </ul>
  *
- * <p>For short-lived tasks that need subject propagation (RPC dispatch, JWT
- * forwarding across thread boundaries) use
- * {@link SubjectPropagatingThreadPool} instead.
+ * <p>A task that needs a subject must establish it itself, for example
+ * from a subject captured on the submitting thread (as {@code MuxServer}
+ * does for request dispatch).
  *
  * <p>This implementation uses the {@link Logger} named
  * {@code org.apache.river.thread.ThreadPool} to log information at the
@@ -81,7 +97,6 @@ import java.util.logging.Logger;
  * </table>
  *
  * @author Sun Microsystems, Inc.
- * @see SubjectPropagatingThreadPool
  **/
 class ThreadPool implements Executor, java.util.concurrent.Executor {
 
@@ -103,17 +118,25 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
     }
 
     private static ExecutorService newVirtualThreadPerTaskExecutor() {
-        // Explicitly clear any ambient subject. Subject.callAs(null,
-        // ...) binds null into the ScopedValue, making Subject.current()
-        // return null for the duration of the task. This neutralises
-        // any subject injected via DirtyChai's ACC snapshot mechanism
-        // or inherited from an enclosing Subject.callAs scope on the
-        // submitting thread.
-        return AccessController.doPrivileged((PrivilegedAction<ExecutorService>) () -> {
-            return Subject.callAs(null, (Callable<ExecutorService>) () -> {
-                return Executors.newVirtualThreadPerTaskExecutor();
-            });
-        });
+        return Executors.newThreadPerTaskExecutor(new SubjectFreeThreadFactory());
+    }
+
+    /**
+     * Creates virtual threads that capture no {@link Subject}.
+     *
+     * <p>{@link ThreadFactory#newThread} is invoked by the executor on the
+     * submitting thread, so the thread is built inside
+     * {@code Subject.callAs(null, ...)} to stop it capturing the submitter's
+     * subject.  Only the (bounded) construction is inside the scope; the
+     * thread body runs outside it.
+     */
+    private static final class SubjectFreeThreadFactory implements ThreadFactory {
+        @Override
+        public Thread newThread(final Runnable r) {
+            return AccessController.doPrivileged((PrivilegedAction<Thread>) () ->
+                Subject.callAs(null, (Callable<Thread>) () ->
+                    Thread.ofVirtual().unstarted(r)));
+        }
     }
 
     private ThreadPool(ExecutorService es) {
@@ -147,10 +170,11 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
 
     /**
      * Wraps a submitted {@link Runnable} for execution.  The base
-     * implementation returns a {@link Task} that clears any ambient subject
-     * before running the delegate.  Subclasses override this to return an
-     * enriched task that captures and restores additional context (e.g. the
-     * submitting thread's {@code Subject}).
+     * implementation returns a {@link Task} that names the thread and runs
+     * the delegate; the absence of a subject is provided by the executor's
+     * thread factory.  Subclasses override this to return an enriched task
+     * that captures and restores additional context (e.g. the submitting
+     * thread's {@code Subject}).
      *
      * @param runnable the runnable to wrap; never {@code null}
      * @param name     the task name used for thread naming
@@ -175,14 +199,13 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
     }
 
     /**
-     * Base task: explicitly clears any ambient {@link Subject} via
-     * {@code Subject.callAs(null, ...)}, sets the thread name, runs the
-     * delegate, and resets the name on completion.
+     * Base task: sets the thread name, runs the delegate, and resets the name
+     * on completion.
      *
-     * <p>Clearing the subject ensures that infrastructure tasks never
-     * inadvertently run under a user or service subject inherited from the
-     * submitting thread's {@code Subject.callAs} scope or from DirtyChai's
-     * ACC-injected subject.
+     * <p>It does not touch the {@link Subject}: the worker thread was created
+     * subject-free by {@link SubjectFreeThreadFactory}, and wrapping the
+     * delegate in {@code Subject.callAs} here would put a scope around
+     * potentially unbounded blocking loops.
      */
     static class Task implements Runnable {
 
