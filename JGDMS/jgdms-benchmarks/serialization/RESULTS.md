@@ -930,3 +930,18 @@ What stands and what does not:
 * **Withdrawn:** "a JERI call on UDS is 114 us against 146 on TCP". With the server in its own JVM, one caller takes 124 us on UDS and 123 us on TCP. The stream transport's writer and reader threads still cost two more hand-offs and about 30 us more CPU per call, but at one caller they do not add wall time here.
 * **Stands:** JERI over TLS spends 4 times RMI's CPU and 3.7 times its wall time for one caller; at 16 callers JERI DER uses 65% (UDS), 70% (TCP) and 73% (TLS) of the four cores, RMI over TLS 95%. JERI is waiting, not out of CPU.
 * **Open:** whether the wait is one connection or the single `SelectionManager` poller (UDS), which the plan's two-poller experiment (stage 1b) is to separate.
+
+## Twenty-fourth section: stage 1, one write per message on the stream path (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+`StreamConnectionIO.Writer` wrote every queued buffer on its own: a data message is a 4-byte header buffer and a payload buffer, so each message cost two writes to the connection's output stream, and on a TLS connection two TLS records (each with its own header, authentication tag and encryption call) and two system calls. The writer now gathers the buffers up to the next completion marker (at most one maximal message, 65 539 bytes) and writes them once; the reader's `read` no longer loops on `available()` (one blocking read; on TCP the loop cost a system call per read, on TLS a buffer inspection). UDS uses the channel path and is unchanged.
+
+`ThreadProfile`, DER `ping`, 16 callers, calls/ms, alternating runs of the previous and the new jar:
+
+| transport | before | writer gathers only | writer gathers and reader loop removed |
+|---|---|---|---|
+| TCP | 30.5, 28.5, 27.0, 26.6 | 44.1, 39.9 | 47.9, 42.7, 43.2, 42.0 |
+| TLS | 21.7, 23.0, 20.8, 19.1 | 26.4, 27.3 | 32.1, 26.2, 30.3, 32.6 |
+
+CPU per call at 16 callers falls from about 100 to about 68 us (TCP) and from 105 to 84 us (TLS); voluntary context switches from 4.0 to 3.1. One caller is within the noise of this container (TLS `ping` 185 to 208 us before, 178 to 259 after; TCP 127 before, 121 to 126 after; the machine was noisy: one `record` run took 630 us). So the gain is in throughput under concurrency, about 55% for TCP and 35% for TLS, and it is larger than the connection-threshold experiment's (about 50% for TCP, 14% for TLS), which should be re-measured on top of this change before stage 3 is judged.
+
+Tests: `MuxWriteCoalescingTest` (a small request is one write; order is kept across message sizes up to 200 000 bytes and concurrent callers); the unmodified writer fails it with 100 writes for 50 requests. Mutants: not writing the gathered bytes before completing a future (hangs), not resetting the gathered length (fails) are killed; an early flush at the exact boundary and the defensive direct write of a buffer larger than any message are unobservable through the mux.
