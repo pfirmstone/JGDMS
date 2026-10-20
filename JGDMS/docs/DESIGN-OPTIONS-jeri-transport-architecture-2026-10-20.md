@@ -147,6 +147,10 @@ Questions this area poses:
 
 ### D2. Connection topology
 
+**A hard fact first:** the mux protocol allows at most 256 concurrent requests per connection (an unsigned-byte session id; the
+limit was 128 before 3.1.1), so more than 256 concurrent calls to an endpoint require more than one connection whatever
+else is decided. See D8.
+
 One connection per endpoint serialises every call on one drainer and one mux lock; RMI uses one connection per concurrent
 call. What opening costs **[measured, section 30]**:
 
@@ -278,6 +282,15 @@ two things that matter for the scalability target:
   surplus fails in `MuxClient.newRequest` and the failure is not retried. This is existing behaviour, not caused by the
   changes above, and it is a correctness bug at high concurrency, not a performance matter. The earlier plan called the fix
   "CAS slot reservation": re-check and reserve in one critical section, and choose again when the mux is full.
+
+**History (maintainer):** the mux used to have 128 sessions; a stress test overflowed it and the limit was raised to 256
+(`Mux.MAX_SESSION_ID` 0x7F to 0xFF in 3.1.1; the source comment says the session id is now an unsigned byte and 256 is the
+most the protocol allows). That fits the reading above: the overflow was probably this reservation race, and raising the
+limit moved the threshold from 128 to 256 callers without removing the race. It also makes 256 a **hard ceiling per
+connection**: a wire-format limit, not a tunable. More than 256 concurrent calls to one endpoint *need* a second connection,
+so a connection pool is not an optional optimisation (D2's striping question) but a requirement at the scale the target
+asks for, and the pool's open-on-demand path must be correct (no failure when a mux fills). Going beyond 256 per connection
+would need a new mux protocol version (option B of the first design, a negotiated format).
 
 These need diagnosing and, for the second, fixing before the scalability options are weighed: they sit below every
 architecture choice in this document.
