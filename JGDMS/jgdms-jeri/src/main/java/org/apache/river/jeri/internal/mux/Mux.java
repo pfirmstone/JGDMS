@@ -110,7 +110,7 @@ abstract class Mux {
 	public void run() {
 	    for (int i = 0, l = sessions.length; i < l; i++) {
 		if (sessions[i] != null)
-		sessions[i].setDown(message, cause);
+		sessions[i].connectionDown(message, cause);
 	    }
 	}
     }

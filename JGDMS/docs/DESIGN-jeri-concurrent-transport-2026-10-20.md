@@ -175,7 +175,7 @@ only as the cross-check against the earlier numbers.
 
 Full tables are in the twenty-third section of `jgdms-benchmarks/serialization/RESULTS.md`. In short:
 
-* The UDS transport (channel I/O) already needs 5.5 thread hand-offs and 129 us of CPU per call against 8.2 and 195 us for TCP (stream I/O) and 8.3 and 260 us for TLS; RMI over TLS needs 2.0 and 66 us. The per-connection writer and reader threads of `StreamConnectionIO` cost about 2.7 hand-offs and 65 us.
+* (CORRECTED by section 10.1 and the RESULTS correction: with the server in its own JVM UDS and TCP take the same 123 us for one caller; hand-offs 6.1 against 8.1, CPU 137 against 167 us.) The UDS transport (channel I/O) already needs 5.5 thread hand-offs and 129 us of CPU per call against 8.2 and 195 us for TCP (stream I/O) and 8.3 and 260 us for TLS; RMI over TLS needs 2.0 and 66 us. The per-connection writer and reader threads of `StreamConnectionIO` cost about 2.7 hand-offs and 65 us.
 * At 16 callers on 4 cores JERI leaves 30 to 40% of the CPU idle and RMI over TLS uses 93%: the limit is waiting on one connection, not CPU.
 * E3 (connection threshold) is positive: TCP +50%, UDS +16%, TLS +14% (noisy), with 2 to 4 connections capturing it. Stage 3 may proceed for TCP and UDS; TLS keeps a pool of one until a handshake-aware measurement exists.
 * No steady-state virtual-thread pinning on JDK 27.
