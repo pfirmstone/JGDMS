@@ -26,6 +26,8 @@ import java.io.ObjectOutput;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.InvocationLayerFactory;
@@ -68,8 +70,8 @@ public enum Format {
         }
 
         @Override
-        public InvocationLayerFactory ilFactory(ClassLoader loader) {
-            return new AtomicILFactory(null, null, loader);
+        public InvocationLayerFactory ilFactory(ClassLoader loader, MethodConstraints constraints) {
+            return new AtomicILFactory(constraints, null, loader);
         }
     },
 
@@ -87,8 +89,8 @@ public enum Format {
         }
 
         @Override
-        public InvocationLayerFactory ilFactory(ClassLoader loader) {
-            return new AtomicDerILFactory(null, null, loader);
+        public InvocationLayerFactory ilFactory(ClassLoader loader, MethodConstraints constraints) {
+            return new AtomicDerILFactory(constraints, null, loader);
         }
     };
 
@@ -102,7 +104,12 @@ public enum Format {
     public abstract ObjectInput input(InputStream in, ClassLoader loader) throws IOException;
 
     /** The JERI invocation layer factory that uses this format. */
-    public abstract InvocationLayerFactory ilFactory(ClassLoader loader);
+    public abstract InvocationLayerFactory ilFactory(ClassLoader loader, MethodConstraints constraints);
+
+    /** The invocation layer factory with no server constraints. */
+    public final InvocationLayerFactory ilFactory(ClassLoader loader) {
+        return ilFactory(loader, null);
+    }
 
     /** Encodes {@code obj} into a fresh stream and returns the bytes. */
     public byte[] encode(Object obj, ClassLoader loader) throws IOException {

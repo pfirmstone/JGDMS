@@ -50,6 +50,18 @@
             <version>${jgdms.version}</version>
         </dependency>
         <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-rmi-tls</artifactId>
+            <version>${jgdms.version}</version>
+            <exclusions>
+                <!-- its META-INF/services names RMIClassLoader providers that are not on the benchmark class path -->
+                <exclusion>
+                    <groupId>au.net.zeus.jgdms</groupId>
+                    <artifactId>jgdms-resources</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
             <version>${jmh.version}</version>

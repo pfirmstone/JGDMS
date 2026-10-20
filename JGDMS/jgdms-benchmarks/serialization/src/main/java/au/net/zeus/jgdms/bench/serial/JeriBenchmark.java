@@ -22,7 +22,8 @@ import au.net.zeus.jgdms.bench.serial.Payloads.Record;
 import java.util.concurrent.TimeUnit;
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.tcp.TcpServerEndpoint;
+import javax.security.auth.Subject;
+import net.jini.core.constraint.MethodConstraints;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -66,6 +67,13 @@ public class JeriBenchmark {
     @Param({"JOSS", "DER"})
     public Format format;
 
+    /** TCP is the transport of all earlier results; production uses TLS and UDS. */
+    @Param({"TCP"})
+    public Transport transport;
+
+    /** The identity calls are made as (TLS), or null. */
+    private Subject clientSubject;
+
     private Exporter exporter;
     private Echo.Impl impl;   // strong ref: the export table holds it weakly
     private Echo proxy;
@@ -78,18 +86,20 @@ public class JeriBenchmark {
     @Setup(Level.Trial)
     public void export() throws Exception {
         ClassLoader loader = JeriBenchmark.class.getClassLoader();
-        exporter = System.getProperty("bench.proxy." + format.name()) != null ? null : new BasicJeriExporter(
-                TcpServerEndpoint.getInstance("127.0.0.1", 0),
-                format.ilFactory(loader),
-                false,   // no DGC
-                true);   // keep alive
-        String remote = System.getProperty("bench.proxy." + format.name());
+        MethodConstraints constraints = transport.constraints();
+        String remote = System.getProperty("bench.proxy." + format.name() + "." + transport.name());
+        clientSubject = transport.clientSubject();
         if (remote != null) {
             // the service runs in another JVM (see ServerMain): call that one
             proxy = (Echo) ServerMain.read(format, remote);
         } else {
+            exporter = new BasicJeriExporter(transport.serverEndpoint(), format.ilFactory(loader, constraints),
+                    false,   // no DGC
+                    true);   // keep alive
             impl = new Echo.Impl();
-            proxy = (Echo) exporter.export(impl);
+            final Exporter ex = exporter;
+            final Echo.Impl service = impl;
+            proxy = transport.asServer(() -> (Echo) ex.export(service));
         }
 
         point  = (Point)  Payloads.create("point");
@@ -99,11 +109,11 @@ public class JeriBenchmark {
 
         // Self-check: every method must round-trip an equal value through
         // this format before anything is timed.
-        proxy.ping();
-        check(point,  proxy.point(point));
-        check(record, proxy.record(record));
-        check(batch,  proxy.batch(batch));
-        check(blob,   proxy.blob(blob));
+        ping();
+        check(point,  point());
+        check(record, record());
+        check(batch,  batch100());
+        check(blob,   blob64k());
     }
 
     private void check(Object sent, Object received) {
@@ -120,26 +130,37 @@ public class JeriBenchmark {
 
     @Benchmark
     public void ping() throws Exception {
-        proxy.ping();
+        if (clientSubject == null) {
+            proxy.ping();
+        } else {
+            Subject.callAs(clientSubject, () -> {
+                proxy.ping();
+                return null;
+            });
+        }
     }
 
     @Benchmark
     public Point point() throws Exception {
-        return proxy.point(point);
+        return clientSubject == null ? proxy.point(point)
+                : Subject.callAs(clientSubject, () -> proxy.point(point));
     }
 
     @Benchmark
     public Record record() throws Exception {
-        return proxy.record(record);
+        return clientSubject == null ? proxy.record(record)
+                : Subject.callAs(clientSubject, () -> proxy.record(record));
     }
 
     @Benchmark
     public Batch batch100() throws Exception {
-        return proxy.batch(batch);
+        return clientSubject == null ? proxy.batch(batch)
+                : Subject.callAs(clientSubject, () -> proxy.batch(batch));
     }
 
     @Benchmark
     public Blob blob64k() throws Exception {
-        return proxy.blob(blob);
+        return clientSubject == null ? proxy.blob(blob)
+                : Subject.callAs(clientSubject, () -> proxy.blob(blob));
     }
 }

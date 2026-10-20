@@ -41,39 +41,46 @@ def default_threads(cores):
     return sorted(set(out))
 
 
-def start_server(jar, jvm_args, directory):
-    cmd = [java_cmd()] + jvm_args + ["-cp", jar, "au.net.zeus.jgdms.bench.serial.ServerMain", directory]
+def start_server(jar, jvm_args, directory, tls_dir=None):
+    cmd = [java_cmd()] + jvm_args + (["-Dbench.tls.dir=" + tls_dir] if tls_dir else []) + ["-cp", jar, "au.net.zeus.jgdms.bench.serial.ServerMain", directory]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     deadline = time.time() + 60
     for line in proc.stdout:
         if line.strip() == "ready":
             return proc
+        if line.startswith("failed:"):
+            break
         if time.time() > deadline:
             break
     proc.kill()
     sys.exit("the server JVM did not become ready")
 
 
-def run_jmh(jar, jvm_args, benchmarks, threads, out_json, extra, remote_dir, args):
+def run_jmh(jar, jvm_args, benchmarks, threads, out_json, extra, remote_dir, args, transport="TCP", tls_dir=None):
     cmd = [java_cmd(), "-Djmh.link.address=127.0.0.1"] + jvm_args + ["-jar", jar, benchmarks,
            "-t", str(threads), "-bm", "thrpt", "-tu", "ms", "-f", str(args.forks),
            "-wi", str(args.warmups), "-w", "%ds" % args.warmup_seconds,
-           "-i", str(args.iterations), "-r", "%ds" % args.seconds, "-rf", "json", "-rff", out_json]
+           "-i", str(args.iterations), "-r", "%ds" % args.seconds, "-rf", "json", "-rff", out_json,
+           "-p", "transport=" + transport]
     child = list(jvm_args)
+    if tls_dir:
+        child.append("-Dbench.tls.dir=" + tls_dir)
     if remote_dir:
-        for kind in ("JOSS", "DER", "rmi"):
-            child.append("-Dbench.proxy.%s=%s" % (kind, os.path.join(remote_dir, kind + ".proxy")))
+        for fmt in ("JOSS", "DER"):
+            child.append("-Dbench.proxy.%s.%s=%s" % (fmt, transport, os.path.join(remote_dir, "%s.%s.proxy" % (fmt, transport))))
+        child.append("-Dbench.proxy.rmi.%s=%s" % ("TLS" if transport == "TLS" else "PLAIN",
+                     os.path.join(remote_dir, "rmi.%s.proxy" % ("TLS" if transport == "TLS" else "PLAIN"))))
     if child:
         cmd += ["-jvmArgsAppend", " ".join(child)]
     cmd += extra
-    print("== %d caller thread(s)" % threads, flush=True)
+    print("== %s, %d caller thread(s)" % (transport, threads), flush=True)
     subprocess.run(cmd, check=True)
 
 
-def summarise(out_dir, threads):
+def summarise(out_dir, threads, transport="TCP"):
     table = {}
     for t in threads:
-        path = os.path.join(out_dir, "threads-%d.json" % t)
+        path = os.path.join(out_dir, "%s-threads-%d.json" % (transport, t))
         if not os.path.exists(path):
             continue
         with open(path, encoding="utf-8") as f:
@@ -84,7 +91,7 @@ def summarise(out_dir, threads):
                 table.setdefault((method, name), {})[t] = float(run["primaryMetric"]["score"])
     lines = []
     cols = [t for t in threads if any(t in v for v in table.values())]
-    lines.append("Throughput, calls per millisecond, summed over all caller threads")
+    lines.append("Transport %s. Throughput, calls per millisecond, summed over all caller threads" % transport)
     lines.append("%-10s %-10s" % ("payload", "stack") + "".join("%10d" % t for t in cols))
     order = {"ping": 0, "record": 1, "batch100": 2}
     for (method, name), row in sorted(table.items(), key=lambda kv: (order.get(kv[0][0], 9), kv[0][1])):
@@ -112,6 +119,9 @@ def main():
     ap.add_argument("--jar", default=DEFAULT_JAR)
     ap.add_argument("--threads", help="comma-separated caller counts (default: powers of two up to the core count, then x2, x4)")
     ap.add_argument("--benchmarks", default="(JeriBenchmark|RmiBenchmark).(ping|record|batch100)")
+    ap.add_argument("--transports", default="TCP",
+                    help="comma-separated JERI transports to sweep: TCP (plain, tests only), TLS (mutual TLS, with RMI over "
+                         "the jgdms-rmi-tls factories as the comparison), UDS (JERI only). Default TCP.")
     ap.add_argument("--local", action="store_true", help="export the services in the benchmark JVM instead of a separate server JVM")
     ap.add_argument("--jvm-args", default="", help="extra JVM arguments for the benchmark and server JVMs, e.g. '-Xmx8g -XX:+UseParallelGC'")
     ap.add_argument("--forks", type=int, default=1)
@@ -135,14 +145,24 @@ def main():
     with open(os.path.join(args.out, "environment.txt"), "w", encoding="utf-8") as f:
         f.write(env)
     print(env)
+    transports = [t.strip().upper() for t in args.transports.split(",") if t.strip()]
+    tls_dir = None
+    if "TLS" in transports:
+        tls_dir = tempfile.mkdtemp(prefix="bench-tls-")
+        subprocess.run([java_cmd(), "-cp", args.jar, "au.net.zeus.jgdms.bench.serial.TlsFixture", "generate", tls_dir],
+                       check=True)
     server, remote = None, None
     if not args.local:
         remote = tempfile.mkdtemp(prefix="bench-server-")
-        server = start_server(args.jar, jvm_args, remote)
+        server = start_server(args.jar, jvm_args, remote, tls_dir)
     try:
-        for t in threads:
-            run_jmh(args.jar, jvm_args, args.benchmarks, t, os.path.join(args.out, "threads-%d.json" % t),
-                    args.extra, remote, args)
+        for transport in transports:
+            benchmarks = args.benchmarks
+            if transport == "UDS":
+                benchmarks = "JeriBenchmark.(ping|record|batch100)"     # RMI has no Unix domain sockets
+            for t in threads:
+                run_jmh(args.jar, jvm_args, benchmarks, t, os.path.join(args.out, "%s-threads-%d.json" % (transport, t)),
+                        args.extra, remote, args, transport, tls_dir)
     finally:
         if server is not None:
             server.stdin.close()
@@ -150,7 +170,7 @@ def main():
                 server.wait(timeout=15)
             except subprocess.TimeoutExpired:
                 server.kill()
-    text = summarise(args.out, threads)
+    text = "\n\n".join(summarise(args.out, threads, t) for t in transports)
     with open(os.path.join(args.out, "summary.txt"), "w", encoding="utf-8") as f:
         f.write(text + "\n")
     print()

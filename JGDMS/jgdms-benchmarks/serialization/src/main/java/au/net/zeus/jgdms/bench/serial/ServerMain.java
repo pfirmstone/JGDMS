@@ -18,6 +18,11 @@ package au.net.zeus.jgdms.bench.serial;
 import java.io.File;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+import javax.security.auth.Subject;
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
+import au.net.zeus.rmi.tls.TlsRMIServerSocketFactory;
 import java.nio.file.StandardCopyOption;
 import java.rmi.server.UnicastRemoteObject;
 import net.jini.export.Exporter;
@@ -41,22 +46,51 @@ public final class ServerMain {
     private ServerMain() {}
 
     public static void main(String[] args) throws Exception {
+        try {
+            run(args);
+        } catch (Throwable t) {
+            // the exporters' threads would keep the JVM, and the parent waiting for 'ready', alive
+            t.printStackTrace();
+            System.out.println("failed: " + t);
+            System.out.flush();
+            System.exit(1);
+        }
+    }
+
+    private static void run(String[] args) throws Exception {
         File dir = new File(args[0]);
         dir.mkdirs();
         ClassLoader loader = ServerMain.class.getClassLoader();
-        Object[] keep = new Object[8];     // strong references: the export tables hold the impls weakly
-        int n = 0;
-        for (Format f : Format.values()) {
-            Exporter exporter = new BasicJeriExporter(
-                    TcpServerEndpoint.getInstance("127.0.0.1", 0), f.ilFactory(loader), false, true);
-            Echo.Impl impl = new Echo.Impl();
-            keep[n++] = impl;
-            keep[n++] = exporter;
-            publishBytes(new File(dir, f.name() + ".proxy"), f.encode(exporter.export(impl), loader));
+        List<Object> keep = new ArrayList<>();      // strong references: the export tables hold the impls weakly
+        for (Transport t : Transport.values()) {
+            if (t == Transport.TLS && System.getProperty("bench.tls.dir") == null) {
+                continue;                           // TLS needs the shared credentials of -Dbench.tls.dir
+            }
+            try {
+                for (Format f : Format.values()) {
+                    Exporter exporter = new BasicJeriExporter(t.serverEndpoint(),
+                            f.ilFactory(loader, t.constraints()), false, true);
+                    Echo.Impl impl = new Echo.Impl();
+                    keep.add(impl);
+                    keep.add(exporter);
+                    Object proxy = t.asServer(() -> exporter.export(impl));
+                    publishBytes(new File(dir, f.name() + "." + t.name() + ".proxy"), f.encode(proxy, loader));
+                }
+            } catch (Exception | LinkageError e) {
+                // for example UDS on a platform where the endpoint cannot bind: report it, serve the others
+                System.err.println("skipping transport " + t + ": " + e);
+            }
         }
         RmiEcho.Impl rmi = new RmiEcho.Impl();
-        keep[n++] = rmi;
-        publishBytes(new File(dir, "rmi.proxy"), jdkBytes(UnicastRemoteObject.exportObject(rmi, 0)));
+        keep.add(rmi);
+        publishBytes(new File(dir, "rmi.PLAIN.proxy"), jdkBytes(UnicastRemoteObject.exportObject(rmi, 0)));
+        if (System.getProperty("bench.tls.dir") != null) {
+            RmiEcho.Impl tlsRmi = new RmiEcho.Impl();
+            keep.add(tlsRmi);
+            Object stub = Subject.callAs(TlsFixture.current().server, () -> UnicastRemoteObject.exportObject(
+                    tlsRmi, 0, new TlsRMIClientSocketFactory(), new TlsRMIServerSocketFactory()));
+            publishBytes(new File(dir, "rmi.TLS.proxy"), jdkBytes(stub));
+        }
         System.out.println("ready");
         System.out.flush();
         while (System.in.read() != -1) {

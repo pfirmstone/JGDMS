@@ -19,7 +19,10 @@ import au.net.zeus.jgdms.bench.serial.JdkPayloads.Batch;
 import au.net.zeus.jgdms.bench.serial.JdkPayloads.Blob;
 import au.net.zeus.jgdms.bench.serial.JdkPayloads.Point;
 import au.net.zeus.jgdms.bench.serial.JdkPayloads.Record;
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
+import au.net.zeus.rmi.tls.TlsRMIServerSocketFactory;
 import java.lang.reflect.Proxy;
+import javax.security.auth.Subject;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -29,6 +32,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -51,8 +55,15 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class RmiBenchmark {
 
+    /** TLS: the jgdms-rmi-tls socket factories (mutual TLS, credentials from the Subject), the like-for-like
+     *  comparison with JERI over TLS. Anything else (PLAIN, or TCP/UDS when run beside the JERI benchmark): unencrypted
+     *  sockets, as in all earlier RMI results. */
+    @Param({"PLAIN"})
+    public String transport;
+
     private RmiEcho.Impl impl;   // strong ref
     private RmiEcho stub;
+    private Subject clientSubject;
 
     private Point point;
     private Record record;
@@ -61,13 +72,19 @@ public class RmiBenchmark {
 
     @Setup(Level.Trial)
     public void export() throws Exception {
-        String remote = System.getProperty("bench.proxy.rmi");
+        boolean tls = transport.equals("TLS");
+        String remote = System.getProperty("bench.proxy.rmi." + (tls ? "TLS" : "PLAIN"));
+        clientSubject = tls ? TlsFixture.current().client : null;
         if (remote != null) {
             // the service runs in another JVM (see ServerMain): call that one
             stub = (RmiEcho) ServerMain.readStub(remote);
         } else {
             impl = new RmiEcho.Impl();
-            stub = (RmiEcho) UnicastRemoteObject.exportObject(impl, 0);
+            final RmiEcho.Impl service = impl;
+            stub = tls
+                    ? Subject.callAs(TlsFixture.current().server, () -> (RmiEcho) UnicastRemoteObject.exportObject(
+                            service, 0, new TlsRMIClientSocketFactory(), new TlsRMIServerSocketFactory()))
+                    : (RmiEcho) UnicastRemoteObject.exportObject(impl, 0);
         }
         if (stub == impl || !Proxy.isProxyClass(stub.getClass())) {
             throw new IllegalStateException("RMI stub expected, got " + stub.getClass());
@@ -77,13 +94,13 @@ public class RmiBenchmark {
         batch  = (Batch)  JdkPayloads.create("batch100");
         blob   = (Blob)   JdkPayloads.create("blob64k");
 
-        stub.ping();
-        check(point,  stub.point(point));
-        check(record, stub.record(record));
-        check(batch,  stub.batch(batch));
-        check(blob,   stub.blob(blob));
+        ping();
+        check(point,  point());
+        check(record, record());
+        check(batch,  batch100());
+        check(blob,   blob64k());
         // the echo returns its argument: over the wire it comes back as a different object
-        if (stub.record(record) == record) {
+        if (record() == record) {
             throw new IllegalStateException("RMI call did not cross the wire");
         }
     }
@@ -101,26 +118,37 @@ public class RmiBenchmark {
 
     @Benchmark
     public void ping() throws Exception {
-        stub.ping();
+        if (clientSubject == null) {
+            stub.ping();
+        } else {
+            Subject.callAs(clientSubject, () -> {
+                stub.ping();
+                return null;
+            });
+        }
     }
 
     @Benchmark
     public Point point() throws Exception {
-        return stub.point(point);
+        return clientSubject == null ? stub.point(point)
+                : Subject.callAs(clientSubject, () -> stub.point(point));
     }
 
     @Benchmark
     public Record record() throws Exception {
-        return stub.record(record);
+        return clientSubject == null ? stub.record(record)
+                : Subject.callAs(clientSubject, () -> stub.record(record));
     }
 
     @Benchmark
     public Batch batch100() throws Exception {
-        return stub.batch(batch);
+        return clientSubject == null ? stub.batch(batch)
+                : Subject.callAs(clientSubject, () -> stub.batch(batch));
     }
 
     @Benchmark
     public Blob blob64k() throws Exception {
-        return stub.blob(blob);
+        return clientSubject == null ? stub.blob(blob)
+                : Subject.callAs(clientSubject, () -> stub.blob(blob));
     }
 }

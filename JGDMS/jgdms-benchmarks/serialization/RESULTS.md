@@ -822,3 +822,33 @@ Throughput in calls per millisecond summed over all callers (one fork, 5 iterati
 - **CORRECTION (board gap review, 2026-10-20): the single-writer explanation below is not established.** 0.80 of a core is not saturation (a saturated thread reads about 1.0), the figure is Linux/JDK 21 while this sweep is Windows/JDK 27 on 12 logical CPUs (where `synchronized` no longer pins), and the knee at 24 callers is twice the logical CPUs, i.e. oversubscription with a server JVM on the same machine. Little's law gives about 490 us per call at 24 callers against 127 alone: a latency chain, not CPU. Read the next item as a hypothesis to test, not a finding.
 - **A candidate cause for the ceiling, measured in the container (4 cores, 16 callers, DER `ping`):** the mux writer thread runs at 0.80 of a core and the reader at 0.64. JERI multiplexes all calls to an endpoint over one connection, and each mux connection has one writer and one reader thread, so small calls are limited by one writer thread; RMI opens connections as concurrency rises and has a thread per connection. For `batch100` (codec-bound) the mux threads are at 0.15 to 0.19 of a core and the callers and carriers dominate, which is why DER keeps scaling there. Not yet shown on the 6-, 32- or 80-core machines.
 - **Untested remedy:** more than one connection per endpoint (a configurable pool in the connection manager) would raise the ceiling for small calls. It is a design change with ordering and constraint consequences, so it is an experiment to propose, not something done.
+
+## Twenty-first section: stage 0 of the transport plan, TLS and thread hand-offs (container; re-run on the workstation before quoting)
+
+New in the benchmarks: `Transport` (`TCP`, `UDS`, `TLS`), `TlsFixture` (EC P-256 server and client identities made with `keytool`, held as Subjects with X.500 principals and one shared trust store; SPIFFE is for production), `JeriBenchmark` and `RmiBenchmark` parameterised by transport (RMI over TLS uses the `jgdms-rmi-tls` factories with the same credentials; every TLS call runs `Subject.callAs(client)` on both stacks), `ServerMain` serving every transport from a separate JVM, and `sweep.py --transports TCP,TLS,UDS`.
+
+**One caller, mutual TLS, in-process, JMH 5 x 3 s (container), us per call:**
+
+| | JERI DER | JERI JOSS | RMI over TLS | DER / RMI |
+|---|---:|---:|---:|---:|
+| ping | 160 +- 34 | 444 +- 119 | 64 +- 6 | 2.5 |
+| record | 231 +- 48 | 562 +- 201 | 74 +- 11 | 3.1 |
+| batch100 | 1 971 +- 309 | 2 715 +- 867 | 414 +- 182 | 4.8 |
+
+TLS adds about 25 us to a JERI DER `ping` (TCP: 127) and about 10 us to RMI (plain: 53); the ratio to RMI is the same as over plain TCP. The cost of the JERI call is not the TLS.
+
+**Where the extra time goes: thread hand-offs.** `Hops` counts each thread's voluntary context switches per call from `/proc/self/task` (single caller, 5 s):
+
+| call | voluntary context switches per call | us per call |
+|---|---:|---:|
+| JERI DER ping, TCP | 8.15 | 127 |
+| JERI DER ping, TLS | 8.24 | 205 |
+| JERI DER record, TLS | 8.10 to 8.16 | 261 to 273 |
+| JERI JOSS ping, TCP | 8.13 | 262 |
+| RMI ping/record, TLS | 2.01 | 54 to 66 |
+
+A JERI call crosses about 8 thread wake-ups (mux writer 2, mux reader 2, the virtual-thread unblocker 1, carrier threads about 2, the caller 1) whatever the format and transport; an RMI call crosses 2. At 10 to 15 us per wake this is 60 to 90 of the roughly 75 us gap between JERI DER and RMI for `ping`, which supports the hand-off hypothesis for latency. It says nothing yet about the throughput ceiling at many callers (the gap review's reading of the 6-core sweep is oversubscription on 12 logical CPUs, not saturation).
+
+**Defects found on the way:**
+- `UdsServerEndpoint` cannot bind a socket on Linux: `restrictPermissions` sets the owner-only mode through a `NOFOLLOW_LINKS` attribute view, which the JDK implements by opening the file, and opening a socket file fails with ENXIO ("No such device or address"); the endpoint then refuses to bind. A following chmod works (confirmed in a scratch program). All UDS tests in the repository are commented out, which is why nothing caught it. UDS is a production transport, so there are no UDS numbers yet.
+- `TlsRMIClientSocketFactory` was not `Serializable`, so an RMI stub exported with it could not be marshalled to another JVM (a registry bind or any remote use). Fixed (stateless, all instances equal; `TlsRMIClientSocketFactorySerializationTest`).
