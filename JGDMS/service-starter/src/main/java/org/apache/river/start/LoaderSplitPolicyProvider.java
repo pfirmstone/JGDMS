@@ -210,6 +210,23 @@ public class LoaderSplitPolicyProvider
 
     /**
      * If both underlying policy providers support dynamic grants, delegates to
+     * the <code>grant</code> method for verified code of the underlying policy
+     * associated with the loader of the given class.  Otherwise nothing is
+     * granted and an <code>UnsupportedOperationException</code> is thrown.
+     */
+    @Override
+    public void grant(Class cl, java.security.CodeSource[] codebase,
+		      Principal[] principals, Permission[] permissions)
+    {
+	if (!grantSupported()) {
+	    throw new UnsupportedOperationException("grants not supported");
+	}
+	((DynamicPolicy) getDelegate(getClassLoader(cl))).grant(
+				cl, codebase, principals, permissions);
+    }
+
+    /**
+     * If both underlying policy providers support dynamic grants, delegates to
      * the <code>getGrants</code> method of the underlying policy associated
      * with the loader of the given class (the loader-specific policy if the
      * class loader is <code>null</code>, the same as or a child of the loader

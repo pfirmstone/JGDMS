@@ -1808,6 +1808,154 @@ public class BasicInvocationHandler
 	return serverConstraints;
     }
 
+    /** Bound on establishing the connection for {@link #authenticateServer}, if the constraints set none. */
+    private static final long AUTHENTICATE_SERVER_CONNECT_TIMEOUT_MS = 30_000L;
+
+    private static final java.security.Permission SERVER_SUBJECT_PERMISSION =
+	new net.jini.io.context.ContextPermission(
+	    "net.jini.io.context.ServerSubject.getServerSubject");
+
+    /**
+     * Returns the principals the server authenticated as on the connection
+     * a call to the given method would use, establishing it if necessary.
+     * No method is invoked and no call data is sent: the request is aborted
+     * once the connection's authenticated server subject has been read.
+     *
+     * <p>The result is trustworthy only because this method refuses, before
+     * any I/O, anything other than the platform's own classes: this handler
+     * must be exactly a {@link BasicInvocationHandler},
+     * {@link AtomicInvocationHandler} or {@link AtomicDerInvocationHandler},
+     * its object endpoint exactly a {@link BasicObjectEndpoint}, and the
+     * endpoint exactly an {@code SslEndpoint}, {@code HttpsEndpoint} or
+     * {@code KerberosEndpoint}, the transports that authenticate the server.
+     * Any other handler, object endpoint or endpoint could return a forged
+     * subject.  A transport that cannot authenticate the server (TCP, HTTP,
+     * UDS) fails with {@link UnsupportedConstraintException}.
+     *
+     * <p>The constraints are those of a real call to {@code method}, client
+     * and server combined, plus {@link ServerAuthentication#YES} as a
+     * requirement, and a connection time bound if they set none.  The caller
+     * must hold {@link net.jini.io.context.ContextPermission}
+     * {@code "net.jini.io.context.ServerSubject.getServerSubject"}, checked
+     * before any I/O.  The network operations run with the caller's
+     * permissions, not this class's: the handshake is made as the caller.
+     *
+     * @param method the method whose constraints select the connection, for
+     *        example the one the caller is about to invoke; not null
+     * @return an unmodifiable, non-empty copy of the authenticated server
+     *         principals (for SSL an X500 principal and SPIFFE principals)
+     * @throws NullPointerException if {@code method} is null
+     * @throws SecurityException if this handler, its object endpoint or its
+     *         endpoint is not one of the platform's authenticating classes,
+     *         or the caller lacks the permission
+     * @throws UnsupportedConstraintException if the transport cannot
+     *         authenticate the server or the constraints cannot be met
+     * @throws IOException if the connection cannot be established or does not
+     *         produce exactly one authenticated server subject
+     * @since 4.0.0
+     **/
+    public final Set<Principal> authenticateServer(Method method) throws IOException {
+	if (method == null) {
+	    throw new NullPointerException("method is null");
+	}
+	Class<?> hc = getClass();
+	if (hc != BasicInvocationHandler.class
+	    && hc != AtomicInvocationHandler.class
+	    && hc != AtomicDerInvocationHandler.class)
+	{
+	    throw new SecurityException("untrusted invocation handler class: " + hc);
+	}
+	if (oe.getClass() != BasicObjectEndpoint.class) {
+	    throw new SecurityException("untrusted object endpoint class: " + oe.getClass());
+	}
+	Endpoint ep = ((BasicObjectEndpoint) oe).getEndpoint();
+	Class<?> ec = ep.getClass();
+	if (ec != net.jini.jeri.ssl.SslEndpoint.class
+	    && ec != net.jini.jeri.ssl.HttpsEndpoint.class
+	    && ec != net.jini.jeri.kerberos.KerberosEndpoint.class)
+	{
+	    if (ec == net.jini.jeri.tcp.TcpEndpoint.class
+		|| ec == net.jini.jeri.http.HttpEndpoint.class
+		|| ec == net.jini.jeri.uds.UdsEndpoint.class)
+	    {
+		throw new UnsupportedConstraintException(
+		    "transport cannot authenticate the server: " + ec.getName());
+	    }
+	    throw new SecurityException("untrusted endpoint class: " + ec);
+	}
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(SERVER_SUBJECT_PERMISSION);
+	}
+
+	InvocationConstraints constraints = InvocationConstraints.combine(
+	    getConstraints(method),
+	    new InvocationConstraints(
+		net.jini.core.constraint.ServerAuthentication.YES, null));
+	boolean timed = false;
+	for (Iterator i = constraints.requirements().iterator(); i.hasNext();) {
+	    Object c = i.next();
+	    if (c instanceof net.jini.core.constraint.ConnectionRelativeTime
+		|| c instanceof net.jini.core.constraint.ConnectionAbsoluteTime)
+	    {
+		timed = true;
+	    }
+	}
+	if (!timed) {
+	    constraints = InvocationConstraints.combine(constraints,
+		new InvocationConstraints(
+		    new net.jini.core.constraint.ConnectionRelativeTime(
+			AUTHENTICATE_SERVER_CONNECT_TIMEOUT_MS), null));
+	}
+	constraints = constraints.makeAbsolute();
+
+	OutboundRequestIterator iter = oe.newCall(constraints);
+	if (!iter.hasNext()) {
+	    throw new ConnectIOException("iterator produced no requests",
+		new IOException("iterator produced no requests"));
+	}
+	OutboundRequest request = iter.next(); // the handshake completes here
+	try {
+	    for (Iterator i = request.getUnfulfilledConstraints()
+		     .requirements().iterator(); i.hasNext();)
+	    {
+		InvocationConstraint c = (InvocationConstraint) i.next();
+		// The invocation layer's own constraints do not concern the
+		// identity; anything else, above all ServerAuthentication, does.
+		if (!(c instanceof Integrity)
+		    && !(c instanceof AtomicInputValidation)
+		    && !(c instanceof MarshallingFormat))
+		{
+		    throw new UnsupportedConstraintException(
+			"cannot satisfy unfulfilled constraint: " + c);
+		}
+	    }
+	    Collection context = new ArrayList();
+	    request.populateContext(context);
+	    net.jini.io.context.ServerSubject found = null;
+	    for (Iterator i = context.iterator(); i.hasNext();) {
+		Object o = i.next();
+		if (o instanceof net.jini.io.context.ServerSubject) {
+		    if (found != null) {
+			throw new IOException("more than one server subject");
+		    }
+		    found = (net.jini.io.context.ServerSubject) o;
+		}
+	    }
+	    if (found == null) {
+		throw new IOException("the connection authenticated no server");
+	    }
+	    javax.security.auth.Subject subject = found.getServerSubject();
+	    if (subject == null || subject.getPrincipals().isEmpty()) {
+		throw new IOException("the authenticated server subject has no principals");
+	    }
+	    return Collections.unmodifiableSet(
+		new java.util.LinkedHashSet<Principal>(subject.getPrincipals()));
+	} finally {
+	    request.abort();
+	}
+    }
+
     /**
      * Returns the hash code value for this invocation handler.
      *

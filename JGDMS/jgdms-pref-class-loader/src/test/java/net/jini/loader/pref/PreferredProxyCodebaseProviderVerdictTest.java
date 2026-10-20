@@ -666,6 +666,116 @@ public class PreferredProxyCodebaseProviderVerdictTest {
     // Helpers
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // Verdict binding: the verdict must be for THIS jar, and not implausibly dated
+    // -------------------------------------------------------------------------
+
+    private static final String OTHER_HASH =
+            "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+    @Test
+    public void verdictForAnotherHashIsRefused() throws Exception {
+        // Validly signed SAFE, but for a different jar: replayed in answer to this hash.
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(newVerdictForHash(VerdictType.SAFE, OTHER_HASH));
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("a signed verdict for another content hash must not be accepted");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage(), 
+                    expected.getMessage().contains("was not issued for JAR"));
+        }
+    }
+
+    @Test
+    public void verdictNamingMoreThanTheHashIsRefused() throws Exception {
+        Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH), 
+                new Uri("urn:sha256:" + OTHER_HASH) };
+        long ts = System.currentTimeMillis();
+        RegistryVerdict rv = new RegistryVerdict(urls, VerdictType.SAFE, ts, 
+                signVerdict(urls, VerdictType.SAFE, ts, REGISTRY_KEYS.getPrivate()));
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(rv);
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("a verdict that also covers other content says nothing exact about this jar");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("was not issued for JAR"));
+        }
+    }
+
+    @Test
+    public void verdictHashComparisonIgnoresHexCase() throws Exception {
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(newVerdictForHash(VerdictType.SAFE, FAKE_HASH.toUpperCase()));
+        assertFalse(PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+    }
+
+    @Test
+    public void verdictFromTheFutureIsRefused() throws Exception {
+        Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH) };
+        long ts = System.currentTimeMillis() 
+                + PreferredProxyCodebaseProvider.VERDICT_MAX_FUTURE_SKEW_MS + 60_000L;
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(new RegistryVerdict(urls, VerdictType.SAFE, ts, 
+                signVerdict(urls, VerdictType.SAFE, ts, REGISTRY_KEYS.getPrivate())));
+        try {
+            PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+            fail("a verdict dated beyond clock skew must be refused");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("in the future"));
+        }
+    }
+
+    @Test
+    public void maxAgeUnsetAcceptsAnOldVerdict_andSetRefusesIt() throws Exception {
+        Uri[] urls = new Uri[]{ new Uri("urn:sha256:" + FAKE_HASH) };
+        long ts = System.currentTimeMillis() - 3L * 24 * 3600 * 1000; // 3 days old
+        RegistryVerdict old = new RegistryVerdict(urls, VerdictType.SAFE, ts, 
+                signVerdict(urls, VerdictType.SAFE, ts, REGISTRY_KEYS.getPrivate()));
+        StubVerdictRegistry stub = new StubVerdictRegistry();
+        stub.setVerdictToReturn(old);
+        long saved = PreferredProxyCodebaseProvider.verdictMaxAgeMs;
+        try {
+            PreferredProxyCodebaseProvider.verdictMaxAgeMs = 0L;
+            assertFalse("published verdicts may legitimately be old",
+                    PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH));
+            PreferredProxyCodebaseProvider.clearVerdictCache();
+            PreferredProxyCodebaseProvider.verdictMaxAgeMs = 24L * 3600 * 1000;
+            try {
+                PreferredProxyCodebaseProvider.checkVerdictForJar(stub, FAKE_HASH, PATH);
+                fail("older than the configured limit");
+            } catch (IOException expected) {
+                assertTrue(expected.getMessage().contains("older than"));
+            }
+        } finally {
+            PreferredProxyCodebaseProvider.verdictMaxAgeMs = saved;
+        }
+    }
+
+    @Test
+    public void registryChannelCanBePinnedToAServerPrincipal() throws Exception {
+        ConstrainableStubVerdictRegistry stub = new ConstrainableStubVerdictRegistry();
+        final java.security.Principal registry = new java.security.Principal() {
+            public String getName() { return "spiffe://example.org/verdict-registry"; }
+            public boolean equals(Object o) {
+                return o instanceof java.security.Principal 
+                        && getName().equals(((java.security.Principal) o).getName());
+            }
+            public int hashCode() { return getName().hashCode(); }
+            public String toString() { return getName(); }
+        };
+        PreferredProxyCodebaseProvider.constrainRegistryProxy(stub, registry);
+        java.lang.reflect.Method m =
+                VerdictRegistry.class.getMethod("getVerdictByHash", String.class);
+        java.util.Set<net.jini.core.constraint.InvocationConstraint> reqs =
+                stub.constrainedCopy.appliedConstraints.getConstraints(m).requirements();
+        assertTrue(reqs.contains(net.jini.core.constraint.Integrity.YES));
+        assertTrue(reqs.contains(net.jini.core.constraint.ServerAuthentication.YES));
+        assertTrue("pinned to the registry's principal",
+                reqs.contains(new net.jini.core.constraint.ServerMinPrincipal(registry)));
+    }
+
     /**
      * Constructs a minimal {@link RegistryVerdict} with the given type, GENUINELY
      * SIGNED by {@link #REGISTRY_KEYS} so it passes the mandatory signature gate

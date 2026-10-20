@@ -53,6 +53,35 @@ public interface DynamicPolicy {
     boolean grantSupported();
 
     /**
+     * Grants the specified permissions only to the protection domains of
+     * verified code: those of the class loader of the given class whose code
+     * source has the identity (location, signers and content digest) of one
+     * of the given code sources, including domains not yet created.
+     * Principals are as for {@link #grant(Class, Principal[], Permission[])}.
+     * <p>
+     * This grant is never wider than the identities supplied.  If this policy
+     * provider does not support it, an <code>UnsupportedOperationException</code>
+     * is thrown and <b>nothing is granted</b>: the caller must not fall back to
+     * a grant to the whole class loader, which would widen what was refused.
+     * 
+     * @param   cl class whose class loader supplies the domains, not null
+     * @param   codebase one code source per verified jar, each with a digest,
+     *          neither null nor empty
+     * @param   principals principals the domains must possess
+     * @param   permissions permissions to grant
+     * @throws  UnsupportedOperationException if not supported (the default)
+     * @throws  IllegalArgumentException if cl is null, codebase is null or
+     *          empty, or a code source has no digest
+     * @throws  SecurityException if the caller lacks the GrantPermission
+     * @since 4.0.0
+     */
+    default void grant(Class cl, java.security.CodeSource[] codebase, 
+            Principal[] principals, Permission[] permissions) {
+        throw new UnsupportedOperationException(
+                "grants to verified code are not supported");
+    }
+
+    /**
      * If this security policy provider supports dynamic permission grants,
      * grants the specified permissions to all protection domains (including
      * ones not yet created) that are associated with the class loader of the
@@ -64,6 +93,7 @@ public interface DynamicPolicy {
      * the grant applies.  If this policy provider does not support dynamic
      * permission grants, then no permissions are granted and an
      * <code>UnsupportedOperationException</code> is thrown.
+     *
      * <p>
      * The given class, if non-<code>null</code>, must belong to either the
      * system domain or a protection domain whose associated class loader is
@@ -101,7 +131,10 @@ public interface DynamicPolicy {
      * returns a new array containing the cumulative set of permissions
      * dynamically granted to protection domains (including ones not yet
      * created) that are associated with the class loader of the given class
-     * and possess at least the given set of principals.  If the given class is
+     * and possess at least the given set of principals.  In 
+     * {@link DynamicPolicyProvider} this is evaluated against the protection
+     * domain of the given class, so grants that depend on the code source, 
+     * such as those for signers or a digest, are included.  If the given class is
      * <code>null</code>, then this method returns the cumulative set of
      * permissions dynamically granted across all protection domains that
      * possess at least the specified principals (i.e., through calls to the
