@@ -986,3 +986,21 @@ About +30% at 16 callers (CPU per call 80 to 64 us, voluntary switches 2.7 to 2.
 Tests: `MuxChannelBatchingTest` (4; they pass on the old code too, so they pin behaviour, not the change): sizes up to 2 MB in order, 24 threads sharing one connection, 8 threads of 100 to 300 KB with 4 KiB socket buffers (writes handed to the selection thread), and calls over a connection that is lost (6 x 3 MB) fail rather than hang. Mutants killed: no OP_WRITE interest on hand-over (hangs), callers ignoring `writing` (corrupts), futures never completed (hangs), futures not failed on a write error. Not killed: failing the pending futures when the drainer finds the mux down (defensive).
 
 Test note: small socket buffers on loopback TCP stall the sender for tens of seconds (the receive window never reaches one segment, MSS 65 483), which looked like a mux deadlock for an hour; the tests use Unix domain sockets.
+
+## Twenty-seventh section: where a call's CPU goes, by sampling and by system call (container, 4 cores, JDK 27, server in its own JVM, one caller; re-run on the workstation before quoting)
+
+**Sampling the Java frames (JFR, 1 ms, UDS DER `ping`).** On the server's request-dispatch thread the Java-level samples add up to about 3 to 4 us per call (281 samples over a 13 s run of about 80 000 calls). Of those, building the DER input stream is 20%, the `BasicInvocationDispatcher` client-subject lookup 4%, stack-trace creation about 1%, `StreamSchemaDedup` 4%; `ServerContext.doWithServerContext` and `Subject.callAs` show high inclusive shares only because they wrap the whole dispatch. On the client the poller's samples sit in one line of `Mux.handleData` (the call into `Session.handleData`, which wakes the waiting caller). So the Java code on the call path (codec, remote context, security context, stack traces, constraints) costs a few microseconds of the 60 to 90 us of CPU each JVM spends per call. The rest is in the kernel and the scheduler.
+
+**Counting system calls (`strace -c -f`, 5 s, per call, per JVM):**
+
+| | futex | epoll_wait | epoll_ctl | read | write |
+|---|---:|---:|---:|---:|---:|
+| JERI DER, UDS, client | 6.1 | 3.0 | 1.0 | 1.0 | 1.0 (writev) |
+| JERI DER, UDS, server | 6.1 | 3.0 | 1.0 | 1.0 | 1.0 (writev) |
+| JERI DER, TCP, client | 6.1 | | | 1.0 | 1.0 |
+| JERI DER, TCP, server | 13.3 | | | 1.0 | 1.0 |
+| RMI, plain TCP, client and server | about 0.03 | | | 1 | 1 (and a rare poll) |
+
+An RMI call is one write and one read per side and almost no futex: each thread blocks in its own socket and the kernel wakes it. A JERI call on UDS makes 12 system calls per side, 6 of them futex (cross-thread parking and waking) and 3 `epoll_wait` plus an `epoll_ctl` for each readiness event. On TCP the server makes 13 futex calls per call. The three `epoll_wait`s are the JDK's machinery for a virtual thread waiting in `Selector.select()` (the master poller wakes the virtual thread, whose carrier then polls the selector again and re-arms it): the `SelectionManager` loop runs on a virtual thread.
+
+Conclusion for the design: the cost of a JERI call is its thread hand-offs and the selector machinery, not the codec or the context handling.
