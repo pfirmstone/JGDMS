@@ -1018,3 +1018,26 @@ Commit 1821b2f25 (2026-05-12, "migrate all executors to virtual threads") replac
 The platform pool halves the UDS single-caller gap but costs 10 to 28% of the TCP and TLS throughput at 16 callers (more runnable threads than cores). Only the select loop needs to be a platform thread: it lives as long as the manager and blocks in `select()`. Done in `SelectionManager`; the pool stays virtual by default, and `-Dorg.apache.river.thread.platform=true` restores the platform-thread cached pool of before 1821b2f25 (keeping the later subject-clearing: the factory creates each thread with no ambient subject).
 
 UDS DER `ping` now: one caller 90 us (was 132), 4.1 voluntary switches across both JVMs (was 6.1), CPU 79 to 99 us per call (was 150); 16 callers 45 to 57 calls/ms (was 33 to 40). For reference RMI over plain TCP is 53 to 80 us for one caller and about 121 calls/ms at 16.
+
+## Twenty-ninth section: channel I/O for TCP, and how contended the mux lock is (container, 4 cores, server in its own JVM; re-run on the 32- and 80-core machines before deciding anything)
+
+**TCP on `SocketChannel` (`-Dorg.apache.river.jeri.tcp.useNIO=true`, an existing switch, default off), DER `ping`/`record`, three alternating runs each:**
+
+| | stream (default) | channel I/O |
+|---|---|---|
+| `ping`, 1 caller, wall us (voluntary switches) | 145, 129, 130 (8.1) | 98, 91, 107 (4.1) |
+| `ping`, 16 callers, calls/ms | 42.2, 44.1, 41.3 | 37.4, 40.6, 38.1 |
+| `record`, 16 callers, calls/ms | 30.5, 27.7, 29.2 | 22.9, 28.5, 29.2 |
+
+Channel I/O takes 28% off the single-caller latency (the hand-offs halve) and is about 8% lower at 16 callers on 4 cores. TLS has no channel path: `SslConnection.getChannel()` is deliberately null because the raw channel carries ciphertext; it would need an `SSLEngine`-driven non-blocking `ConnectionIO`.
+
+**Contended monitors at 16 callers (`jdk.JavaMonitorEnter`, threshold 0; `jfr-monitors.py`).** Only entries that had to wait are recorded. UDS DER `ping`, 46.7 calls/ms for about 13 s (about 600 000 calls):
+
+| JVM | monitor | blocked entries | total blocked | per call |
+|---|---|---:|---:|---:|
+| server | mux lock (`Object`: `MuxServer.handleOpen`, `Session.handleOpen`, `getSession`) | 10 732 | 1 465 ms | 2.4 us |
+| client | mux lock (`Session.handleData`, `getSession`) | 4 586 | 803 ms | 1.3 us |
+| client | `ConnectionManager` (`connect`: `pendingConnects++`, the mux scan) | 19 976 | 4 312 ms | 7.2 us |
+| client | `Util$TableCache.getTable` (per-call method-hash cache), `WeakIdentityMap` (`checkProxyRemoteMethod`), `HashSet` | 2 500 | 630 ms | 1.0 us |
+
+At 343 us of wall time per call per caller these are 0.4% (mux lock, server), 0.4% (client), 2% (`ConnectionManager`) and 0.3%. TCP is the same shape (`StreamConnectionIO` writer lock waits 200 ms). So on 4 cores the mux lock does not limit throughput; per-call CPU (63 us against RMI's 36) does. The contended fraction grows with the number of cores, so the 32- and 80-core machines are where it would show: run the sweep with a recording and `python3 jfr-monitors.py` on the client and the server recordings.
