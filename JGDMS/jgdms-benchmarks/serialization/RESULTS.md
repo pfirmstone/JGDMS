@@ -969,3 +969,20 @@ More poller threads make it worse (the extra thread only takes over the handler 
 | TLS | 29.8, 31.4 | 29.4, 29.4 | 24.2, 25.8 | 18.9, 19.7 |
 
 Most of the TCP gain of the first experiment (+50%) was the two writes per message that stage 1 removed; what is left is +10 to 17% for TCP at K=4, +20% for UDS at K=2 to 4, and a loss for TLS that grows as K falls (-17% at K=4, -35% at K=2: more connections mean more TLS records and handshake state for no gain). So striping is justified for UDS at most, and TLS stays at a pool of one. TCP is a test transport.
+
+## Twenty-sixth section: batching on the channel path (UDS) (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+`SocketChannelConnectionIO` wrote each message from the calling thread with `writev`, one system call per message, while holding the mux lock that the reader and every other caller also need. It now has one drainer at a time (`writing`, guarded by the lock): a caller queues its buffers and, if nobody is draining, becomes the drainer and writes outside the lock, up to 16 buffers per `writev`, taking whatever the other callers queued meanwhile; a write that meets a full socket buffer, or eight rounds, is handed to the selection thread (`awaitingWriteReady`), as before. UDS only; TCP and TLS use the stream path.
+
+DER `ping` over UDS, calls/ms, alternating runs of the previous jar and the new one:
+
+| callers | before | after |
+|---|---|---|
+| 16 | 32.3, 31.6, 33.7, 34.6, 32.2, 34.2 | 45.0, 34.3, 45.4, 41.5, 46.0, 45.3 |
+| 1 (wall us per call) | 132, 133, 123, 126, 129, 131 | 139, 143, 136, 141, 136, 130 |
+
+About +30% at 16 callers (CPU per call 80 to 64 us, voluntary switches 2.7 to 2.2) and about 5% slower for one caller (the drain adds a lock round trip and a queue pass; not removed). `record` at 16 callers moved from 26 to 29 (noisy). This brings UDS level with the stream path after stage 1 (TCP 41 to 53).
+
+Tests: `MuxChannelBatchingTest` (4; they pass on the old code too, so they pin behaviour, not the change): sizes up to 2 MB in order, 24 threads sharing one connection, 8 threads of 100 to 300 KB with 4 KiB socket buffers (writes handed to the selection thread), and calls over a connection that is lost (6 x 3 MB) fail rather than hang. Mutants killed: no OP_WRITE interest on hand-over (hangs), callers ignoring `writing` (corrupts), futures never completed (hangs), futures not failed on a write error. Not killed: failing the pending futures when the drainer finds the mux down (defensive).
+
+Test note: small socket buffers on loopback TCP stall the sender for tens of seconds (the receive window never reaches one segment, MSS 65 483), which looked like a mux deadlock for an hour; the tests use Unix domain sockets.

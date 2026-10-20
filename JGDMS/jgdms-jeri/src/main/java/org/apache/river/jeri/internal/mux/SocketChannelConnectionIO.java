@@ -24,6 +24,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Deque;
@@ -97,8 +98,6 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     private final Buffer inputBuffer =
 	ByteBuffer.allocateDirect(RECEIVE_BUFFER_SIZE);	// ready for reading
 
-    private final ByteBuffer[] bufferPair = new ByteBuffer[2];
-
     private final ByteBuffer[] preallocBufferArray = new ByteBuffer[IOV_MAX];
 
     /**
@@ -122,138 +121,86 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	key.renewInterestMask(SelectionKey.OP_READ);
     }
 
+    /**
+     * Whether a thread is draining the send queue; guarded by muxLock.  The
+     * drainer is the thread that found it clear when it queued a message (or
+     * the selection thread, for a write that had to wait for the socket), and
+     * it writes without holding muxLock, so that messages queued meanwhile by
+     * other threads join the same gathering write instead of each paying for a
+     * system call under the lock.
+     */
+    private boolean writing;
+
+    /**
+     * Whether a write has met a full socket buffer and the selection thread has
+     * been asked to continue it; callers only queue then.  Guarded by muxLock.
+     */
+    private boolean awaitingWriteReady;
+
+    /**
+     * Rounds of gathering writes one thread performs before leaving the rest
+     * to the selection thread, so that one caller is not made to write for
+     * ever on behalf of the others.
+     */
+    private static final int MAX_ROUNDS = 8;
+
     @Override
     void asyncSend(Buffer buffer) {
+	int len;
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
 	    }
-	    try {
-		if (sendQueue.isEmpty()) {
-		    channel.write((ByteBuffer)buffer);
-		}
-		if (buffer.hasRemaining()) {
-		    sendQueue.addLast((ByteBuffer) buffer);
-		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-		}
-	    } catch (IOException e) {
-		mux.setDown("I/O error writing to mux connection: " +
-			    e.toString(), e);
-		try {
-		    channel.close();
-		} catch (IOException ignore) {
-		}
+	    sendQueue.addLast((ByteBuffer) buffer);
+	    if (writing || awaitingWriteReady) {
+		return;
 	    }
+	    writing = true;
+	    len = gather();
 	}
+	drain(len);
     }
 
     @Override
     void asyncSend(Buffer first, Buffer second) {
+	int len;
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
 	    }
-	    try {
-		if (sendQueue.isEmpty()) {
-		    bufferPair[0] = (ByteBuffer) first;
-		    bufferPair[1] = (ByteBuffer) second;
-		    try {
-			channel.write(bufferPair);
-		    } catch (IOException e) {
-			// work around 4854354
-			String message = e.getMessage();
-			if (message != null &&
-                                message.contains(detailMessage4854354))
-			{
-			    logger.log(Levels.HANDLED,
-				       "ignoring to work around 4854354", e);
-			} else {
-			    throw e;
-			}
-		    }
-		}
-		if (!first.hasRemaining()) {
-		    if (second.hasRemaining()) {
-			sendQueue.addLast((ByteBuffer) second);
-			key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-		    }
-		} else {
-		    sendQueue.addLast((ByteBuffer) first);
-		    sendQueue.addLast((ByteBuffer) second);
-		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-		}
-	    } catch (IOException e) {
-		mux.setDown("I/O error writing to mux connection: " +
-			    e.toString(), e);
-		try {
-		    channel.close();
-		} catch (IOException ignore) {
-		}
-	    } finally {
-		bufferPair[0] = null;
-		bufferPair[1] = null;
+	    sendQueue.addLast((ByteBuffer) first);
+	    sendQueue.addLast((ByteBuffer) second);
+	    if (writing || awaitingWriteReady) {
+		return;
 	    }
+	    writing = true;
+	    len = gather();
 	}
+	drain(len);
     }
 
     @Override
     IOFuture futureSend(Buffer first, Buffer second) {
+	IOFuture future = new IOFuture();
+	int len;
 	synchronized (mux.muxLock) {
-	    IOFuture future = new IOFuture();
 	    if (mux.muxDown) {
 		IOException ioe = new IOException(mux.muxDownMessage, mux.muxDownCause);
 		future.done(ioe);
 		return future;
 	    }
-	    try {
-		if (sendQueue.isEmpty()) {
-		    bufferPair[0] = (ByteBuffer) first;
-		    bufferPair[1] = (ByteBuffer) second;
-		    try {
-			channel.write(bufferPair);
-		    } catch (IOException e) {
-			// work around 4854354
-			String message = e.getMessage();
-			if (message != null &&
-                                message.contains(detailMessage4854354))
-			{
-			    logger.log(Levels.HANDLED,
-				       "ignoring to work around 4854354", e);
-			} else {
-			    throw e;
-			}
-		    }
-		}
-		if (!first.hasRemaining()) {
-		    if (second.hasRemaining()) {
-			sendQueue.addLast((ByteBuffer) second);
-			key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-			notifyQueue.addLast(second);
-			notifyQueue.addLast(future);
-		    } else {
-			future.done(second.position());
-		    }
-		} else {
-		    sendQueue.addLast((ByteBuffer) first);
-		    sendQueue.addLast((ByteBuffer) second);
-		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-		    notifyQueue.addLast(second);
-		    notifyQueue.addLast(future);
-		}
-	    } catch (IOException e) {
-		mux.setDown("I/O error writing to mux connection: " +
-			    e.toString(), e);
-		future.done(e);
-		try {
-		    channel.close();
-		} catch (IOException ignore) {
-		}
-	    } finally {
-		bufferPair[0] = (ByteBuffer) first;
-		bufferPair[1] = (ByteBuffer) second;
+	    sendQueue.addLast((ByteBuffer) first);
+	    sendQueue.addLast((ByteBuffer) second);
+	    notifyQueue.addLast(second);
+	    notifyQueue.addLast(future);
+	    if (writing || awaitingWriteReady) {
+		return future;
 	    }
-	    return future;
+	    writing = true;
+	    len = gather();
 	}
+	drain(len);
+	return future;
 	/*
 	 * REMIND: Can/should we implement any sort of
 	 * priority inversion avoidance scheme here?
@@ -261,90 +208,146 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     }
 
     private void handleWriteReady() {
+	int len;
+	synchronized (mux.muxLock) {
+	    awaitingWriteReady = false;
+	    if (writing) {
+		return;		// cannot happen: callers only queue while awaiting
+	    }
+	    writing = true;
+	    len = gather();
+	}
+	drain(len);
+    }
+
+    /**
+     * Copies up to IOV_MAX buffers from the head of the send queue into
+     * {@code preallocBufferArray} and returns how many.  Holds muxLock; the
+     * caller owns {@code writing}.
+     *
+     * <p>Work around 4481573: must manually break the sequence of buffers to
+     * write into chunks no larger than IOV_MAX.
+     */
+    private int gather() {
+	assert Thread.holdsLock(mux.muxLock);
+	ByteBuffer[] bufs = preallocBufferArray;
+	int len = 0;
+	Iterator<ByteBuffer> iter = sendQueue.iterator();
+	while (iter.hasNext() && len < bufs.length) {
+	    bufs[len++] = iter.next();
+	}
+	return len;
+    }
+
+    /**
+     * Writes the send queue until it is empty, the socket is full or
+     * {@link #MAX_ROUNDS} rounds have been written, then clears
+     * {@code writing}.  The caller has set {@code writing}; only that thread
+     * touches the head of the queue, the buffers' positions and
+     * {@code preallocBufferArray} until it clears it.
+     */
+    private void drain(int len) {
+	ByteBuffer[] bufs = preallocBufferArray;		// IOV_MAX length
 	try {
-	    synchronized (mux.muxLock) {
-		/*
-		 * Work around 4481573: must manually break sequence of
-		 * buffers to write into chunks no larger than IOV_MAX.
-		 */
-	      gatherLoop:
-		while (!sendQueue.isEmpty()) {
-		    /*
-		     * Copy up to the first IOV_MAX buffers of the send queue
-		     * into the preallocated ByteBuffer array.
-		     */
-		    ByteBuffer[] bufs = preallocBufferArray; // IOV_MAX length
-		    int len = sendQueue.size();
-		    if (len <= bufs.length) {			// optimization
-			bufs = sendQueue.toArray(bufs);
+	    for (int round = 0; ; round++) {
+		if (len == 0) {
+		    synchronized (mux.muxLock) {
+			// nothing to write: connection down, or an empty queue
+			writing = false;
+			if (mux.muxDown) {
+			    failPending();
+			}
+			return;
+		    }
+		}
+		try {
+		    channel.write(bufs, 0, len);
+		} catch (IOException e) {
+		    // work around 4854354
+		    String message = e.getMessage();
+		    if (message != null && message.contains(detailMessage4854354)) {
+			logger.log(Levels.HANDLED,
+				   "ignoring to work around 4854354", e);
 		    } else {
-			Iterator<ByteBuffer> iter = sendQueue.iterator();	// sufficient
-			len = 0;
-			while (iter.hasNext() && len < bufs.length) {
-			    bufs[len++] = iter.next();
-			}
+			throw e;
 		    }
-		    try {
-			channel.write(bufs, 0, len);
-		    } catch (IOException e) {
-			// work around 4854354
-			String message = e.getMessage();
-			if (message != null &&
-                                message.contains(detailMessage4854354))
-			{
-			    logger.log(Levels.HANDLED,
-				       "ignoring to work around 4854354", e);
-			} else {
-			    throw e;
-			}
-		    }        
+		}
+		synchronized (mux.muxLock) {
 		    for (int i = 0; i < len; i++) {
-			Buffer bb = bufs[i];
+			ByteBuffer bb = bufs[i];
+			bufs[i] = null;
 			assert bb == sendQueue.getFirst();
-			if (!bb.hasRemaining()) {
-			    sendQueue.removeFirst();
-			    if (!notifyQueue.isEmpty() &&
-				bb == notifyQueue.getFirst())
-			    {
-				notifyQueue.removeFirst();
-				IOFuture future =
-				    (IOFuture) notifyQueue.removeFirst();
-				future.done(bb.position());
+			if (bb.hasRemaining()) {
+			    for (int j = i + 1; j < len; j++) {
+				bufs[j] = null;
 			    }
-			} else {
-			    key.renewInterestMask(SelectionKey.OP_WRITE);// ###
-			    break gatherLoop;
+			    handOverToSelector();
+			    return;
+			}
+			sendQueue.removeFirst();
+			if (!notifyQueue.isEmpty() && bb == notifyQueue.getFirst()) {
+			    notifyQueue.removeFirst();
+			    IOFuture future = (IOFuture) notifyQueue.removeFirst();
+			    future.done(bb.position());
 			}
 		    }
+		    if (mux.muxDown) {
+			writing = false;
+			failPending();
+			return;
+		    }
+		    if (sendQueue.isEmpty()) {
+			writing = false;
+			return;
+		    }
+		    if (round + 1 >= MAX_ROUNDS) {
+			handOverToSelector();
+			return;
+		    }
+		    len = gather();
 		}
 	    }
 	} catch (IOException e) {
 	    try {
-		logger.log(Levels.HANDLED,
-			   "mux write handler, I/O error", e);
+		logger.log(Levels.HANDLED, "mux write, I/O error", e);
 	    } catch (Throwable t) {
 	    }
-	    mux.setDown("I/O error writing to mux connection: " +
-			e.toString(), e);
-	    drainNotifyQueue();
-	    try {
-		channel.close();
-	    } catch (IOException ignore) {
-	    }
+	    writeFailed("I/O error writing to mux connection: " + e.toString(), e);
 	} catch (Throwable t) {
 	    try {
-		logger.log(Level.WARNING,
-			   "mux write handler, unexpected exception", t);
+		logger.log(Level.WARNING, "mux write, unexpected exception", t);
 	    } catch (Throwable tt) {
 	    }
-	    mux.setDown("unexpected exception in mux write handler: " +
-			t.toString(), t);
-	    drainNotifyQueue();
-	    try {
-		channel.close();
-	    } catch (IOException ignore) {
-	    }
+	    writeFailed("unexpected exception in mux write: " + t.toString(), t);
 	}
+    }
+
+    /** Leaves the rest of the queue to the selection thread. Holds muxLock. */
+    private void handOverToSelector() throws ClosedChannelException {
+	assert Thread.holdsLock(mux.muxLock);
+	writing = false;
+	awaitingWriteReady = true;
+	key.renewInterestMask(SelectionKey.OP_WRITE);
+    }
+
+    private void writeFailed(String message, Throwable cause) {
+	synchronized (mux.muxLock) {
+	    java.util.Arrays.fill(preallocBufferArray, null);
+	    writing = false;
+	    awaitingWriteReady = false;
+	}
+	mux.setDown(message, cause);
+	drainNotifyQueue();
+	try {
+	    channel.close();
+	} catch (IOException ignore) {
+	}
+    }
+
+    /** The connection went down under a drainer: fail what is waiting. Holds muxLock. */
+    private void failPending() {
+	assert Thread.holdsLock(mux.muxLock);
+	drainNotifyQueue();
     }
 
     private void drainNotifyQueue() {

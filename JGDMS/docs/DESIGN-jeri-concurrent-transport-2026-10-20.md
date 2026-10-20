@@ -196,3 +196,7 @@ Full tables are in the twenty-third section of `jgdms-benchmarks/serialization/R
 * Stage 1b negative: more `SelectionManager` threads make UDS slower; `concurrency` stays 1.
 * E3 repeated on stage 1: striping is worth +20% for UDS (K=2 to 4), +10 to 17% for TCP, and costs TLS 17% (K=4) to 35% (K=2). Stage 3 is therefore at most a UDS change, and UDS increment 2 (identity-bearing connections, SVID) must shape it. The larger lead is batching on the channel path (UDS 35 to 38 calls/ms against TCP 41 to 53 at 16 callers after stage 1).
 * Decision needed from the maintainer: whether to do stage 3 for UDS at all, or first apply the stream path's batching to `SocketChannelConnectionIO`.
+
+## 12. Channel-path batching (2026-10-20)
+
+`SocketChannelConnectionIO` now drains with one writer at a time (section 26 of RESULTS.md): UDS DER `ping` at 16 callers +30% (container), one caller about -5%. UDS and the stream paths are now at similar throughput at 16 callers; the remaining per-call cost is the hand-off count (UDS 6 per call across both JVMs, RMI 2). Open: whether to stripe UDS (+20% at 2 to 4 connections, measured before this change and not repeated on it).
