@@ -801,3 +801,23 @@ What the cost buys is listed in the final report of this piece of work, not meas
 Run 4 repeats run 3 on the same code for the performance paths (the only change since is the endpoint fix below, which no benchmark exercises). It agrees with run 3 within 2 to 10%: DER `unmarshal batch100` 451.9 (run 3: 491.2), JOSS 402.2 (384.3); DER `marshal batch100` 152.1 (165.4; the two runs bracket the 156 of run 2, so the hash-caching change is neither confirmed nor refuted by them); JERI `batch100` DER 1 920 (1 860), JOSS 2 052 (2 365); `blob64k` DER 1 480 (1 442), JOSS 1 244 (1 216); `ping` DER 125.4 (125.7), JOSS 272.5 (273.0); `record` DER 197.4 (197.0), JOSS 410.8 (416.7). JERI DER stays below JOSS on every row except `blob64k`. The JOSS `batch100` JERI row moved most (2 052 against 2 365, error bars +-32 and +-258): the figure to quote for it is the pair.
 
 **Endpoint defect found and fixed.** The scalability sweep calls a service in another JVM through a proxy decoded from a stream. A DER-decoded `TcpEndpoint`, `UdsEndpoint` or `HttpEndpoint` threw a `NullPointerException` from its first `newRequest`, because `getInstance` interns an endpoint and sets up its connection state while the `@AtomicSerial` constructor does not, and `readResolve()` (which does) never runs on a DER or atomic read. Now `TcpEndpoint` and `UdsEndpoint` take the connection manager of the canonical interned instance on first use, and `HttpEndpoint(GetArg)` initialises its connection state; `DerDecodedEndpointTest` (3 tests, failing before the fix, passing after). `KerberosEndpoint` has no `GetArg` constructor and `SslEndpoint` sets its state in its constructor, so they are not affected; `HttpsEndpoint` is not covered by a test. `jgdms-jeri` 96 tests, no failures.
+
+## Twentieth section: scalability sweep on the 6-core workstation (`sweep-6core`, separate server JVM, 1 to 48 caller threads)
+
+Throughput in calls per millisecond summed over all callers (one fork, 5 iterations; error bars are 3 to 30% of the score, widest for RMI `record` and JERI JOSS):
+
+| payload / stack | 1 | 2 | 4 | 8 | 12 | 24 | 48 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ping, JERI DER | 7.90 | 14.92 | 22.37 | 33.48 | 38.60 | 49.02 | 38.23 |
+| ping, JERI JOSS | 3.73 | 7.92 | 14.23 | 19.79 | 25.33 | 26.43 | 26.10 |
+| ping, RMI | 12.89 | 25.48 | 45.80 | 75.06 | 83.39 | 105.04 | 98.64 |
+| record, JERI DER | 5.21 | 10.34 | 16.50 | 25.68 | 28.70 | 31.19 | 30.76 |
+| record, RMI | 9.10 | 18.78 | 34.00 | 51.29 | 58.73 | 69.88 | 61.98 |
+| batch100, JERI DER | 0.54 | 1.22 | 2.30 | 3.23 | 3.91 | 3.81 | 3.78 |
+| batch100, JERI JOSS | 0.46 | 0.87 | 1.36 | 2.15 | 2.02 | 1.84 | 1.76 |
+| batch100, RMI | 2.44 | 4.95 | 9.14 | 12.90 | 12.91 | 14.30 | 14.15 |
+
+- **The hypothesis that JERI DER outperforms RMI under heavy contention is not supported at this size.** DER/RMI throughput is 0.61 to 0.39 for `ping`, 0.57 to 0.50 for `record` and 0.22 to 0.30 for `batch100`, at every thread count up to 48: RMI is 2 to 4 times faster throughout, and the small-payload ratio gets worse with more callers.
+- **What does hold:** DER scales much better than JERI JOSS (`batch100` speed-up 7.0 against 3.8 at 48 callers, throughput 2.1 times JOSS) and, on `batch100`, better than RMI (7.0 against 5.8) from a lower base, so the `batch100` ratio improves from 0.22 to 0.27-0.30. `ping` DER drops from 49 at 24 callers to 38 at 48.
+- **A candidate cause for the ceiling, measured in the container (4 cores, 16 callers, DER `ping`):** the mux writer thread runs at 0.80 of a core and the reader at 0.64. JERI multiplexes all calls to an endpoint over one connection, and each mux connection has one writer and one reader thread, so small calls are limited by one writer thread; RMI opens connections as concurrency rises and has a thread per connection. For `batch100` (codec-bound) the mux threads are at 0.15 to 0.19 of a core and the callers and carriers dominate, which is why DER keeps scaling there. Not yet shown on the 6-, 32- or 80-core machines.
+- **Untested remedy:** more than one connection per endpoint (a configurable pool in the connection manager) would raise the ceiling for small calls. It is a design change with ordering and constraint consequences, so it is an experiment to propose, not something done.
