@@ -40,7 +40,9 @@ import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -266,6 +268,80 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	    && !attrs.isRegularFile()
 	    && !attrs.isDirectory()
 	    && !attrs.isSymbolicLink();
+    }
+
+    /**
+     * Sets mode {@code rwx------} on the socket inode just bound at
+     * {@code socketPath}, then verifies, fail-closed.
+     *
+     * <p>The mode cannot be set through a view obtained with
+     * {@link LinkOption#NOFOLLOW_LINKS}: the JDK implements that by
+     * {@code open(O_NOFOLLOW)} followed by {@code fchmod}, and a socket file
+     * cannot be opened (ENXIO, "No such device or address"), so every bind
+     * failed on Linux.  The mode is therefore applied with a following
+     * {@code chmod(path)}, and the no-follow guarantee (LOW-2) is kept by
+     * checking the inode before and after, without following links:
+     * <ol>
+     * <li>before: the path is a socket, not a symlink or anything else, and
+     *     its {@code fileKey} is recorded;
+     * <li>after: the path is still a non-symlink with the same
+     *     {@code fileKey} (so it is the inode this process bound), and its
+     *     mode is exactly {@code rwx------}.
+     * </ol>
+     * A failure of any step throws; the caller then unlinks the socket file
+     * it created.  The residual window (a link swapped in between the two
+     * checks) needs the right to replace entries in the socket's directory,
+     * which {@code validateParentDirectory} has already limited (no
+     * world-writable directory without the sticky bit), and the post-check
+     * detects it.
+     *
+     * @param betweenChecks test seam run between the two checks, always
+     *        {@code null} in production
+     */
+    static void restrictPosixOwnerOnly(Path socketPath, Runnable betweenChecks)
+	throws IOException
+    {
+	Set<PosixFilePermission> ownerOnly =
+	    EnumSet.of(PosixFilePermission.OWNER_READ,
+		       PosixFilePermission.OWNER_WRITE,
+		       PosixFilePermission.OWNER_EXECUTE);
+	try {
+	    PosixFileAttributes before = Files.readAttributes(
+		socketPath, PosixFileAttributes.class,
+		LinkOption.NOFOLLOW_LINKS);
+	    if (!isSocket(before)) {
+		throw new IOException(
+		    "socket file " + socketPath + " is not a socket "
+			+ "(replaced after bind?)");
+	    }
+	    Object key = before.fileKey();
+	    if (betweenChecks != null) {
+		betweenChecks.run();
+	    }
+	    Files.setPosixFilePermissions(socketPath, ownerOnly);
+	    PosixFileAttributes after = Files.readAttributes(
+		socketPath, PosixFileAttributes.class,
+		LinkOption.NOFOLLOW_LINKS);
+	    if (!isSocket(after)
+		|| (key != null && !key.equals(after.fileKey())))
+	    {
+		throw new IOException(
+		    "socket file " + socketPath + " was replaced while "
+			+ "restricting its mode");
+	    }
+	    if (!ownerOnly.equals(after.permissions())) {
+		throw new IOException(
+		    "socket file " + socketPath + " has mode "
+			+ PosixFilePermissions.toString(after.permissions())
+			+ " after chmod, not rwx------");
+	    }
+	} catch (IOException | RuntimeException e) {
+	    // A failed chmod or check is a SECURITY failure, not a FINE log.
+	    throw new IOException(
+		"could not restrict socket file " + socketPath
+		    + " to owner-only (rwx------); refusing to bind an "
+		    + "unprotected control socket", e);
+	}
     }
 
     /**
@@ -703,27 +779,15 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * </ol>
 	 */
 	private void restrictPermissions(Path socketPath) throws IOException {
-	    // LOW-2: NOFOLLOW so we operate on the socket inode itself, never a
-	    // symlink target that may have been swapped in.
+	    // Capability test only: no file access happens here.
 	    PosixFileAttributeView posix = Files.getFileAttributeView(
 		socketPath, PosixFileAttributeView.class,
 		LinkOption.NOFOLLOW_LINKS);
 	    if (posix != null) {
-		Set<PosixFilePermission> ownerOnly =
-		    EnumSet.of(PosixFilePermission.OWNER_READ,
-			       PosixFilePermission.OWNER_WRITE,
-			       PosixFilePermission.OWNER_EXECUTE);
-		try {
-		    posix.setPermissions(ownerOnly);
-		} catch (IOException e) {
-		    // A failed chmod is a SECURITY failure, not a FINE log.
-		    throw new IOException(
-			"could not restrict socket file " + socketPath
-			    + " to owner-only (rwx------); refusing to bind an "
-			    + "unprotected control socket", e);
-		}
-		// The real owner-only mode is now applied; only then may the
-		// test-only fault fire (see restrictPermissionsFaultInjector).
+		restrictPosixOwnerOnly(socketPath, null);
+		// The real owner-only mode is now applied and verified; only
+		// then may the test-only fault fire (see
+		// restrictPermissionsFaultInjector).
 		firePostRestrictFaultIfInjected(socketPath);
 		return;
 	    }
