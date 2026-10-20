@@ -709,3 +709,23 @@ Question: unmarshal of `batch100` is about 850 to 900 us in-process (100 records
 | JERI call JOSS record | 564 | 414 (-27%, noisy) |
 
 Re-run on the workstation before quoting; the in-process unmarshal rows are the reliable ones (the JERI rows move with the container's noise). Expected there: `unmarshal batch100` about 1.48 ms to about 0.6 ms for DER, a similar fall for JOSS, and JERI `batch100` about 3.8 ms to about 2.4 ms for DER.
+
+## Fifteenth section: chain-key hash caching (`ByteArrayKey`, container; re-run on the workstation before quoting)
+
+The thirteenth section's profile put `ByteBuffer.hashCode` at 10% of the samples of a `batch100` unmarshal (the digest `table.get` on every `chainRef`, 5%, and `verifiedChain`'s content hash of each nested record's chain, 5%), because the dedup tables were keyed by `ByteBuffer` views and `ByteBuffer.hashCode()` reads a byte at a time through the buffer's bounds checks.
+
+Change: `ByteArrayKey` (the digest table: first eight bytes of the SHA-256 folded to an `int`; the decode-side chain index: `Arrays.hashCode`, a vectorised intrinsic; equality is always a full `Arrays.equals`), and, on the encode side, `encodedByBytes` compares a site's chain with the previously matched one (`Arrays.equals` over the window) before any map lookup. A pure accelerator in both cases. Tests: `ByteArrayKeyTest` (5), three new `StreamSchemaDedupTableTest` cases (every single-bit change of a tabled digest is an unknown digest; every one-byte change, prefix and extension of a verified chain is not verified; 100 chains stay distinct) and an interleaving round trip in `DerStreamSchemaDedupTest` (60 random mixes of three classes decode as the classes encoded); mutants killed: equality by hash only, by an eight-byte prefix, the previous-chain check by length only or by first byte, and the wrong hash flavour for the chain index (replacing the digest hash with a constant survives, correctly: it is a performance change only). `jgdms-der` 1 493 tests, no failures.
+
+In-process, three runs each, old `StreamSchemaDedup` against new, jars rebuilt, us per op:
+
+| DER | before | after | |
+|---|---:|---:|---:|
+| marshal batch100 | 103.4 100.9 106.5 | **80.7 86.5 89.4** | -17% |
+| marshal record | 1.6 | 1.5 | within noise |
+| marshal blob64k | 97.6 | 95.3 | within noise |
+| unmarshal batch100 | 270.7 270.3 269.7 | 259.2 277.6 249.9 | -3%, inside the run-to-run spread |
+| unmarshal record | 6.1 | 5.8 | within noise |
+| unmarshal blob64k | 67.5 | 68.2 | none |
+
+- **The sampled share overstated the unmarshal gain.** `ByteBuffer.hashCode` is gone from the profile, but the work moved: `ArraysSupport.mismatch` (the `Arrays.equals` on a hit, about 200 bytes) is 6% self time now, and the probe is a fresh copy of the chain that `decodeNested` read out of the reconstituted record, so there is no identity shortcut to take. Marshal gained because the previous-chain comparison avoids the map lookup altogether for runs of one class.
+- **What is left in the `batch100` unmarshal profile** (306 us under JFR, 100 records): `DerReader.decodeLength` 12.7% self, `HashMap.getNode` 7.7%, `ArraysSupport.mismatch` 6%, `Arrays.copyOf` 4%, `Class.forName` 3%, `HashMap.putVal` 3%. `decodeLength` is the one worth a look.
