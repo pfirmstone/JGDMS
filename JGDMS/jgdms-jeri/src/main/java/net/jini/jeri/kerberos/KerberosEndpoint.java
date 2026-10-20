@@ -62,6 +62,10 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
@@ -272,10 +276,32 @@ import org.ietf.jgss.GSSName;
  * @see KerberosTrustVerifier
  * @since 2.0
  */
+@AtomicSerial
 public final class KerberosEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -880347439811805543L;
+
+    public static SerialForm[] serialForm() {
+	return new SerialForm[]{
+	    new SerialForm("serverHost", String.class),
+	    new SerialForm("serverPort", Integer.TYPE),
+	    // KerberosPrincipal is a JDK Serializable, not AtomicSerial, so it is
+	    // carried as its name and name type.
+	    new SerialForm("serverPrincipalName", String.class),
+	    new SerialForm("serverPrincipalNameType", Integer.TYPE),
+	    new SerialForm("csf", SocketFactory.class)
+	};
+    }
+
+    public static void serialize(PutArg arg, KerberosEndpoint ep) throws IOException {
+	arg.put("serverHost", ep.serverHost);
+	arg.put("serverPort", ep.serverPort);
+	arg.put("serverPrincipalName", ep.serverPrincipal.getName());
+	arg.put("serverPrincipalNameType", ep.serverPrincipal.getNameType());
+	arg.put("csf", ep.csf);
+	arg.writeArgs();
+    }
 
     /** JERI Kerberos client transport logger */
     private static final Logger logger =
@@ -353,19 +379,19 @@ public final class KerberosEndpoint
      * of the analysis of the constraints and principals in the
      * subject, without checking permissions and private credentials.
      */
-    private transient KerberosUtil.SoftCache softCache;
+    private transient volatile KerberosUtil.SoftCache softCache;
 
     /**
      * The <code>ConnectionEndpoint</code> this endpoint passes
      * to its <code>connManager</code> to create connections.
      */
-    private transient ConnectionEndpointImpl connectionEndpoint;
+    private transient volatile ConnectionEndpointImpl connectionEndpoint;
 
     /**
      * The <code>ConnManager</code> this endpoint uses to create
      * connections.
      */
-    private transient ConnManager connManager;
+    private transient volatile ConnManager connManager;
 
     /**
      * If set to true, causes the endpoint not to connect sockets it
@@ -424,6 +450,47 @@ public final class KerberosEndpoint
 	this.serverPrincipal = serverPrincipal;
 	this.csf = csf;
 	logger.log(Level.FINE, "created {0}", toString()); //previously allowed "this" to escape during construction.
+    }
+
+    /**
+     * Atomic deserialization constructor: applies the same checks as
+     * {@link #readObject}.  The soft cache, connection endpoint and
+     * connection manager are created on first use, as the instance
+     * is not necessarily passed through {@code readResolve}.
+     */
+    KerberosEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
+	this(checkHost(arg.get("serverHost", null, String.class)),
+	     checkPort(arg.get("serverPort", 0)),
+	     checkPrincipal(arg.get("serverPrincipalName", null, String.class),
+			    arg.get("serverPrincipalNameType", 0)),
+	     arg.get("csf", null, SocketFactory.class));
+    }
+
+    private static String checkHost(String host) throws InvalidObjectException {
+	if (host == null) throw new InvalidObjectException("serverHost is null");
+	return host;
+    }
+
+    private static int checkPort(int port) throws InvalidObjectException {
+	if (port <= 0 || port > 0xFFFF) {
+	    throw new InvalidObjectException(
+		"server port number out of range 1-65535: serverPort = " + port);
+	}
+	return port;
+    }
+
+    private static KerberosPrincipal checkPrincipal(String name, int nameType)
+	throws InvalidObjectException
+    {
+	if (name == null) throw new InvalidObjectException("serverPrincipal is null");
+	try {
+	    return new KerberosPrincipal(name, nameType);
+	} catch (IllegalArgumentException e) {
+	    InvalidObjectException ioe = new InvalidObjectException(
+		"invalid serverPrincipal: " + name);
+	    ioe.initCause(e);
+	    throw ioe;
+	}
     }
 
     //-----------------------------------
@@ -659,6 +726,7 @@ public final class KerberosEndpoint
 	    }
 	}
 
+	ensureInitialized();
 	CacheKey key = new CacheKey(clientSubject, constraints);
 	RequestHandleImpl handle = (RequestHandleImpl) softCache.get(key);
 
@@ -762,6 +830,22 @@ public final class KerberosEndpoint
 	}
     }
 
+    /**
+     * Creates the soft cache, connection endpoint and connection manager
+     * if they do not exist yet.  An instance created by the atomic
+     * deserialization constructor is not necessarily interned.
+     */
+    private void ensureInitialized() {
+	if (connManager != null) return;
+	synchronized (this) {
+	    if (connManager == null) {
+		softCache = new KerberosUtil.SoftCache(maxCacheSize);
+		connectionEndpoint = new ConnectionEndpointImpl();
+		connManager = new BasicConnManagerFactory().create(connectionEndpoint);
+	    }
+	}
+    }
+
     /** Returns canonical instance equivalent to given instance. */
     private static KerberosEndpoint intern(KerberosEndpoint endpoint) {
 	synchronized (internTable) {
@@ -774,12 +858,7 @@ public final class KerberosEndpoint
 	    }
 
 	    // construct these only if endpoint passes intern test
-	    endpoint.softCache =
-		new KerberosUtil.SoftCache(maxCacheSize);
-	    endpoint.connectionEndpoint =
-		endpoint.new ConnectionEndpointImpl();
-	    endpoint.connManager = new BasicConnManagerFactory().create(
-		endpoint.connectionEndpoint);
+	    endpoint.ensureInitialized();
 
 	    internTable.put(endpoint, new WeakReference(endpoint));
 	    return endpoint;
@@ -863,6 +942,7 @@ public final class KerberosEndpoint
 					  ConnManagerFactory factory)
 	{
 	    KerberosEndpoint kep = (KerberosEndpoint) endpoint;
+	    kep.ensureInitialized();
 	    kep.connManager = factory.create(kep.connectionEndpoint);
 	}
 
