@@ -6,6 +6,7 @@
 # Record with: -XX:StartFlightRecording=filename=x.jfr,dumponexit=true,jdk.JavaMonitorEnter#threshold=0ms
 # Run:    python3 jfr-monitors.py x.jfr      (needs the JDK `jfr` tool on the PATH)
 # Written with AI assistance (Claude); see the README.
+import sys, re, subprocess, collections
 f=sys.argv[1]
 out=subprocess.run(['jfr','print','--events','jdk.JavaMonitorEnter','--stack-depth','8',f],capture_output=True,text=True).stdout
 evs=out.split('jdk.JavaMonitorEnter {')[1:]
