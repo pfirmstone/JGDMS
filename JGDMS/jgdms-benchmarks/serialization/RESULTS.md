@@ -945,3 +945,27 @@ What stands and what does not:
 CPU per call at 16 callers falls from about 100 to about 68 us (TCP) and from 105 to 84 us (TLS); voluntary context switches from 4.0 to 3.1. One caller is within the noise of this container (TLS `ping` 185 to 208 us before, 178 to 259 after; TCP 127 before, 121 to 126 after; the machine was noisy: one `record` run took 630 us). So the gain is in throughput under concurrency, about 55% for TCP and 35% for TLS, and it is larger than the connection-threshold experiment's (about 50% for TCP, 14% for TLS), which should be re-measured on top of this change before stage 3 is judged.
 
 Tests: `MuxWriteCoalescingTest` (a small request is one write; order is kept across message sizes up to 200 000 bytes and concurrent callers); the unmodified writer fails it with 100 writes for 50 requests. Mutants: not writing the gathered bytes before completing a future (hangs), not resetting the gathered length (fails) are killed; an early flush at the exact boundary and the defensive direct write of a buffer larger than any message are unobservable through the mux.
+
+## Twenty-fifth section: the poller experiment (stage 1b) and the connection-threshold experiment repeated on stage 1 (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+**Stage 1b, more `SelectionManager` threads for UDS (negative).** A scratch patch (not committed) made the `SelectionManager` `concurrency` a property. DER `ping` over UDS, calls/ms, two runs each:
+
+| concurrency | 1 caller, wall us | CPU us, both JVMs | voluntary switches | 16 callers |
+|---|---:|---:|---:|---:|
+| 1 (today) | 128, 124 | 144, 138 | 6.1 | 33.8, 36.2 |
+| 2 | 145, 146 | 211, 210 | 10.6 | 31.2, 30.1 |
+| 4 | 149, 156 | 219, 232 | 10.6 | 31.2, 31.3 |
+
+More poller threads make it worse (the extra thread only takes over the handler call-backs, a hand-off per message), so the single poller is not what limits UDS at 16 callers on 4 cores. `concurrency` stays 1.
+
+**What does differ: after stage 1 the stream path beats the channel path under concurrency.** DER `ping`, 16 callers, TCP 41 to 53 calls/ms against UDS 35 to 38 (UDS at one caller equals TCP, 121 to 126 us). The owned writer thread drains whatever the 16 callers queued and writes it at once; the channel path writes message by message under the mux lock. Batching, not the thread count, is what the stream path has. Not investigated further.
+
+**Connection-threshold experiment repeated on top of stage 1** (scratch property `K`, DER `ping`, 16 callers, calls/ms, 2 runs):
+
+| transport | K=256 (today) | K=8 | K=4 | K=2 |
+|---|---|---|---|---|
+| TCP | 41.3, 47.0 | 49.1, 46.2 | 51.3, 52.6 | 48.1, 45.1 |
+| UDS | 37.3, 34.6 | 38.0, 38.4 | 44.5, 40.0 | 43.7, 43.9 |
+| TLS | 29.8, 31.4 | 29.4, 29.4 | 24.2, 25.8 | 18.9, 19.7 |
+
+Most of the TCP gain of the first experiment (+50%) was the two writes per message that stage 1 removed; what is left is +10 to 17% for TCP at K=4, +20% for UDS at K=2 to 4, and a loss for TLS that grows as K falls (-17% at K=4, -35% at K=2: more connections mean more TLS records and handshake state for no gain). So striping is justified for UDS at most, and TLS stays at a pool of one. TCP is a test transport.
