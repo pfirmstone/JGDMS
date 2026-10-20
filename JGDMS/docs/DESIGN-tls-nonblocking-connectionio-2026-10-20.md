@@ -17,7 +17,7 @@ also the transport with the largest gap to RMI over TLS **[measured]**:
 | thread hand-offs per call, both JVMs | 8.3 | 2 |
 | CPU per call, both JVMs | 240 to 270 us | 58 us |
 | 16 callers | 25 to 32 calls/ms | ~108 calls/ms |
-| opening a connection | 12 ms | |
+| opening a connection | 12 ms (a *resumed* handshake, see below) | |
 
 The same call over TCP with channel I/O (`useNIO`) takes 91 to 107 us with 4.1 hand-offs; the stream path with a mux reader
 and writer thread per connection takes 126 to 145 us with 8.1. TLS cannot use the channel path today because
@@ -34,6 +34,21 @@ which the stream-to-channel move already measured (about 40 us for one caller on
 (`doPrivileged` and `readLock`/`writeLock` per read and write, copies, a `Selector` opened per handshake read) adds
 something on top. A profile of the stream TLS path (question 5) would say how much. **[measured, the rest reasoned]** The
 single-thread crypto ceiling feared in the first review is not the constraint it looked like (section 4.2).
+
+**Session tickets are already in use.** A `-Djavax.net.ssl.debug=ssl:handshake` run of 19 consecutive reconnects (client JVM,
+`ConnectionCost`) shows 19 ClientHellos offering `pre_shared_key`, 19 `NewSessionTicket` messages, and **one** server
+`Certificate` message in all: only the first connection did a full handshake, the other 18 were TLS 1.3 PSK resumptions (no
+certificate exchange, no signatures). The client creates its engine with host and port (`createSSLEngine(serverHost, port)`), so
+the JDK's client session cache is eligible. So the 12 ms above is the cost of a **resumed** connection open; a first connection
+to a peer, and the server's accept-loop rate for new clients (section 4.6), is slower than the 12 ms and 80 per second
+quoted. What the 12 ms is made of is therefore not certificate cryptography: the candidates are JSSE's PSK processing,
+`AuthManager`/credential and permission checks, engine and thread creation, the `Selector` per handshake read, the mux
+handshake (2.3 ms on UDS), and JIT warm-up; a profile of a connection open would say. Open for the board: resumption
+skips the server's re-validation of the client certificate, so credential freshness rests on `maxServerSessionDuration`, the
+per-request `checkCredentials`, and invalidation when a credential is removed (`ServerAuthManager.chooseServerAlias`); check that
+chains of resumptions cannot outlive a rotated or expired SPIFFE credential (a resumed session's creation time is not the
+original's), and that `setEnableSessionCreation(false)` after the handshake does not make the client drop the tickets it
+needs.
 
 ## 2. What exists today **[code]**
 
