@@ -560,3 +560,48 @@ was built from.
 - A large opaque record reads 2.0 times faster in process (`blob64k` 151.8 to 73.9 us, below even the pre-streaming-encoder container figure) and allocates half; the allocation of small records falls 8 to 13% (fewer short-lived arrays and a record that is not re-parsed).
 - Not touched: the framed read of the input (`DerInputLimits.readFramedBounded`) still grows its buffer geometrically as bytes arrive and trims at the end; that is the unauthenticated-peer memory rule of B1 (never size the buffer from a declared length), so changing
   it is a policy decision, not a copy to remove. It is 4 of the 7 remaining copies here.
+
+
+# Eleventh run: the workstation with the verify-only admission output (`fb9bca845`), 20 October 2026
+
+Same machine, JDK and settings as the first and eighth runs; jars installed from `fb9bca845` (the discarding verify output; the read-side change of the tenth section is NOT in this run). The raw file is `results-workstation1.json` on the workstation (not committed). Times in microseconds.
+
+| DER | first run (pre-A1) | eighth run | now | now / first | now / eighth |
+|---|---:|---:|---:|---:|---:|
+| marshal point | 3.52 | 1.52 | 1.53 | 0.43 | 1.00 |
+| marshal record | 4.48 | 2.07 | 2.05 | 0.46 | 0.99 |
+| marshal batch100 | 366.6 | 151.1 | 147.6 | 0.40 | 0.98 |
+| marshal blob64k | 137.1 | 73.7 | 73.8 | 0.54 | 1.00 |
+| unmarshal point | 16.44 | 16.13 | 15.69 | 0.95 | 0.97 |
+| unmarshal record | 23.13 | 25.80 | 23.11 | 1.00 | 0.90 |
+| unmarshal batch100 | 1 710 | 1 547 | 1 464 | 0.86 | 0.95 |
+| unmarshal blob64k | 113.4 | 154.8 | **129.0** | 1.14 | 0.83 |
+| roundTrip point | 19.62 | 20.17 | 19.02 | 0.97 | 0.94 |
+| roundTrip record | 27.91 | 28.38 | 27.90 | 1.00 | 0.98 |
+| roundTrip batch100 | 2 086 | 1 685 | 1 564 | 0.75 | 0.93 |
+| roundTrip blob64k | 258.6 | 242.1 | 211.3 | 0.82 | 0.87 |
+| JERI ping | 125.2 | 131.7 | 122.4 | 0.98 | 0.93 |
+| JERI point | 191.0 | 212.5 | 193.8 | 1.01 | 0.91 |
+| JERI record | 291.2 | 237.9 | 211.7 | 0.73 | 0.89 |
+| JERI batch100 | 6 689 | 5 859 | 5 147 | 0.77 | 0.88 |
+| JERI blob64k | 9 676 | 9 710 | 9 135 | 0.94 | 0.94 |
+
+The JOSS control moved too: JERI `ping` 239.7 (first run 240.5), `point` 352.0 (357.4), `batch100` 2 917 (3 382), `blob64k` 8 541 (9 910). The heavy JOSS rows are 8 to 14% down on the first run, so about that much of the JERI `batch100`/`blob64k` movement is the machine, not the code;
+DER against JOSS is the safer reading: `ping` 0.51, `point` 0.55, `record` 0.55, `batch100` 1.76 (first run 1.98, eighth 1.84), `blob64k` 1.07 (0.98, 0.98).
+
+Admission, stage by stage (full stage = `cheapPlusFull` - `cheap`):
+
+| payload | cheap | full stage now | full stage, eighth run | dispatcherPath |
+|---|---:|---:|---:|---:|
+| point | 0.56 | 2.48 | 2.78 | 15.8 |
+| record | 0.64 | 4.06 | 4.09 | 25.5 |
+| batch100 | 2.35 | 64.1 | 82.7 | 1 416 |
+| blob64k | 31.2 | **6.3** | 28.7 | 124.2 |
+| request8 | 1.86 | 18.4 | 22.1 | 239.8 |
+| blob16m | 9 564 | **about 0** (-162, inside the noise) | 8 807 | 43 568 |
+| records16m | 9 912 | 65 292 | 78 545 | 1 456 946 |
+
+- **The verify-only output does on the workstation what it did in the container**: admitting a 64 KiB `byte[]` costs 6.3 us (was 28.7), a 16 MiB one nothing measurable (was 8.8 ms), `batch100` 64 us (was 83), 16 MiB of records 65 ms (was 79). `unmarshal blob64k` is 129.0 us (was 154.8) and the in-process read of the 16 MiB blob is 43.7 ms (was 53.2).
+- **`unmarshal blob64k` is still 14% over the first run** (129.0 against 113.4). The full stage is now 6.3 us of it; the rest is the read-side copying that the tenth section removes (a 64 KiB record was copied about seven times); that change is in the branch after this run and was not measured here.
+- The cheap stage, which is what an unauthenticated peer costs, is unchanged (0.56 us on `point`, 9.6 ms for the 16 MiB read, which is the read itself: `floor` is 9.5 ms). The side-band context block, the one full admission before authorization, is 50 to 53 us on this machine (fixture-dependent: a two-record object).
+- **JERI `batch100` is still not explained by the codec**: marshal plus unmarshal is about 1.6 ms of a 5.1 ms call, 5.0 ms above `ping`; JOSS: 1.5 ms of 2.9 ms. Not investigated.
