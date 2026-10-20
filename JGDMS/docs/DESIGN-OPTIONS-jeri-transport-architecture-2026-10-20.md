@@ -8,6 +8,12 @@ workstation (6 cores) and the 32- and 80-core machines have not been run on the 
 **[measured]** from `jgdms-benchmarks/serialization/RESULTS.md` (sections 23 to 30), **[reasoned]** inferred from code,
 **[estimate]** a guess that nothing has measured.
 
+**Target (maintainer, 2026-10-20): low latency and high scalability.** That is not RMI parity on small calls: it asks for
+latency per call, latency under load (tail), and behaviour at many callers, many cores and many connections, which is
+where multiplexing should win. The measurements below were mostly taken in the opposite regime (1 to 16 callers on 4
+cores); section 3 (D8) and the first measurements of the other regime are new. A Fable-seat review of the first version
+of this document (2026-10-20) is folded in below and marked **[review]**.
+
 ## 1. Where things stand
 
 Small DER calls, one caller, then 16 callers (calls per millisecond summed over callers). RMI has no UDS; its rows are
@@ -32,6 +38,9 @@ message on the stream path (TCP +55%, TLS +35% at 16 callers); one batching drai
 listeners told when no acknowledgment will come. Not the cause of the remaining gap: the DER codec and the invocation
 layer (the Java code on a call is 3 to 4 us of the 60 to 90 us each JVM spends), the remote context, stack traces.
 **[measured]**
+
+**Caveat [review]:** the system-call counts below were taken before the selection loop moved to a platform thread; they
+need re-running on the current code, and the hand-off count in the table is the only figure re-measured after it.
 
 **Where a call's CPU goes.** An RMI call is one `write` and one `read` per side and almost no `futex`: each thread blocks
 in its own socket and the kernel wakes it. A JERI call on UDS made 12 system calls per side before the platform-thread
@@ -97,6 +106,45 @@ Questions this area poses:
 * Subject and access-control-context propagation to a continuation scheduled on the reader must match the current pool.
 * C1 and C2 compose: C1 takes the client side from 2 to 1 and C2 the server side from 2 to 1.
 
+**Added by the review [review], and by the maintainer:**
+
+* **There is one reader per JVM, not one per connection.** `SelectionManager.concurrency` is 1 and the instance is static, so
+  every connection's reads, inbound and outbound, are processed on one platform thread. The spike modelled one reader but
+  only handlers that park. Under C2a a handler that *computes* (or a request that is expensive to decode, within the size
+  bounds) stalls every connection in the JVM, which is the same as the inline column (1.5 calls/ms), not 3.5. C2a is therefore
+  viable only (i) opt-in per exported object, for trusted, short, non-blocking handlers (DGC, lookup), and (ii) on top of
+  **N readers with connection affinity** (an event-loop group: each connection belongs to one reader; a reader is the
+  scheduler for the virtual threads of its connections). The earlier "more selection threads was worse" result tested
+  leader/follower on callbacks, not affinity, so it says nothing about that design. A custom scheduler also has no
+  compensation for blocking file I/O (class loading from a jar, logging), which would block that reader's other
+  connections.
+* **Rule 4 has two intents:** availability (a slow handler must not stall other connections) and attack surface (untrusted
+  bytes are not decoded on the shared I/O thread, so a decode-DoS costs one request's thread). C2a keeps the letter for
+  parking handlers and breaks both intents for computing ones.
+* **A provider interface for the scheduler (maintainer's suggestion).** Instead of reflection on the package-private
+  constructor, define an SPI in `jgdms-collections` beside `ThreadPool`/`GetThreadPoolAction`, say
+  `VirtualThreadSchedulerProvider`: `supportsCustomScheduler()` and a factory taking an `Executor` and returning a
+  `ThreadFactory` of virtual threads scheduled by it. The default provider reports "not supported" (stock JDKs keep today's
+  behaviour and the feature stays off); the DirtyChai JDK ships the real one and is the only code touching
+  `java.lang.ThreadBuilders$VirtualThreadBuilder`; if the JDK ever makes custom schedulers public only that provider
+  changes. The interface Javadoc must state the contract the executor has to honour (each task run exactly once, tasks
+  may arrive from any thread including inside a running continuation, tasks may run inline, never concurrently for one
+  virtual thread). Obtaining the factory is guarded like `GetThreadPoolAction` (a permission), and the provider is found
+  through the platform class loader, never from downloaded code. This also is the mechanism for the N-reader design: one
+  scheduler per reader. Open: a compensating scheduler for blocking file I/O.
+* **C1-solo [review]:** a lower-risk form of C1. When the caller's session is the only one in flight on the connection (the
+  sequential case) the caller reads its own response; otherwise the poller does, as today. No other session's frames are
+  ever processed on a caller thread, so the confused-deputy and fairness questions disappear. Full C1 has real pitfalls:
+  a virtual-thread caller in `select()` is woken through the JDK poller (the hop C1 removes); `processIncomingData` sends
+  PingAck, IncrementRation and Error, closes the channel and notifies listeners, which would run under the caller's
+  AccessControlContext and Subject (it needs `doPrivileged` with the connection's context, and a caller's reduced
+  permissions must never fail another session's control frame); a leader that leaves (deadline, interrupt) must hand the
+  role on first.
+* **C5, permanent read interest [review]:** `SelectionManager` removes interest in every ready operation before dispatch
+  and `handleReadReady` re-arms `OP_READ` after each read: one `epoll_ctl` per call per side (the 1.0 in the system-call
+  table). With one selecting thread the handler runs on it, so `OP_READ` can stay registered; only `OP_WRITE` needs to be
+  one-shot. A small change inside `SelectionManager`, no rule bent, not previously listed.
+
 ### D2. Connection topology
 
 One connection per endpoint serialises every call on one drainer and one mux lock; RMI uses one connection per concurrent
@@ -119,6 +167,14 @@ Related and independent of the choice: **the cold burst.** When N callers find n
 current code opens about N), so 16 callers on TLS pay 16 handshakes of 12 ms where one open and waiting callers would pay
 once. Serialising the open step per endpoint is small and removes that cost whichever topology is chosen. **[reasoned,
 the burst itself measured]**
+
+**[review]** "Striping is a loss on TLS" was measured with two platform threads and a 12 ms handshake per connection and a
+cold burst that opened 16 connections at every K. With TLS-C (no per-connection threads, below) and lazily kept
+connections, 2 to 4 TLS connections may be exactly how the crypto gets spread over cores; keep pool-of-one as a default,
+not as a conclusion. A connection is worth 20 to 45 calls, so any pool must be lazy and sticky. The cold burst is also a
+client-side amplification against servers (N handshakes for N callers), so serialising the open is a security fix as well
+as a performance one. And RMI's two hand-offs are bought with a thread and a connection per concurrent call: "parity"
+should say whether it means at RMI's resource cost.
 
 Security questions: stripes can end up satisfying different constraint sets; striping multiplies the server's connections
 and TLS handshakes with no per-peer cap or handshake deadline (A6); credentials expire between selection and write.
@@ -166,6 +222,21 @@ Expected gain: the stream path's 8 hand-offs to the channel path's 4 (UDS and TC
 107 us for one caller) plus whatever TLS-specific cost the single drainer removes. **[estimate]** Not prototyped. This
 needs its own board review.
 
+**Review of this sketch [review].** (1) *All TLS decryption in the JVM would run on one thread* if `unwrap` runs on the
+single selection thread: a one-core crypto ceiling and a DoS amplifier (large bogus records cost the shared thread), where
+today each stream connection decrypts on its own reader thread and RMI over TLS on 16. Either `unwrap` moves off the
+poller or there are N readers with affinity; otherwise TLS-C is a single-caller win and a throughput loss. This is the
+first thing a board review should settle. (2) Per connection a ciphertext and a plaintext buffer of about 17 KiB each,
+`BUFFER_UNDERFLOW`/`OVERFLOW` handling; idle slow-handshake connections hold them (A6). (3) The plaintext queue must not be
+wrapped until there is ciphertext space, or record buffers grow without bound; control frames are unbounded per A3.
+(4) After the blocking handshake the engine may hold unwrapped application bytes or unread ciphertext (a TLS 1.3
+`NewSessionTicket` arrives right after); carry them into the new reader state. (5) `close_notify`: send on `Mux.shutdown`/
+`Error` before closing; treat a received one as EOF. (6) Restrict to TLS 1.3 and refuse any handshake status after the
+initial handshake other than `KeyUpdate`/`NewSessionTicket`; the per-request session re-check in `SslServerEndpointImpl`
+must keep reading the engine's session. (7) The trust boundary moves: today `getChannel() == null` keeps ciphertext out of
+the mux, under TLS-C `ConnectionIO` is the record layer and needs a negative test that no plaintext reaches the channel and
+no ciphertext reaches `processIncomingData`. (8) Delegated tasks inline are fine after the handshake.
+
 ### D5. Thread model
 
 Commit 1821b2f25 (2026-05-12) moved the system pool from a cached pool of platform daemon threads (stack hint 228,
@@ -190,6 +261,27 @@ topology (D2) and TLS (D4); D1 and D4 sit inside the `ConnectionIO`/`Mux` seam, 
 provider would still have to preserve every rule in section 2; the measurements do not show one that the seams cannot
 reach.
 
+### D8. Behaviour at many callers (first measurements, 2026-10-20)
+
+`ConcurrencyCurve` / `concurrency-curve.py` (RESULTS section 31) now give latency percentiles, threads, sockets and memory
+at up to 4096 callers, platform or virtual. The first smoke run (4-core container, short runs, **not for quoting**) shows
+two things that matter for the scalability target:
+
+* **Throughput collapses between 64 and 512 callers.** DER over UDS: 37 to 45 calls/ms at 64 callers, 13 at 512, with p50
+  latency 2.4 to 42 ms and p99 150 to 220 ms; over TCP 46 to 47 at 64 and 11 to 16 at 512. RMI plain also falls (99 at 64,
+  30 to 57 at 512) but less. 512 callers is above the mux's 256 sessions per connection, which is the first suspect; it is
+  not diagnosed. On 4 cores 512 callers is also oversubscribed by construction.
+* **Calls fail.** At 512 virtual-thread callers DER over TCP had 16 errors and over UDS 36, `ConnectIOException: no free
+  sessions`. Cause **[reasoned from the code]**: `ConnectionManager.connect` decides under its lock that a mux with fewer
+  than 256 requests in progress may be reused, but the caller only reserves its slot (`newRequestPending`) after
+  `ep.connect(...)` returns, outside that lock, so many callers can pass the check at 255 and all pick the same mux; the
+  surplus fails in `MuxClient.newRequest` and the failure is not retried. This is existing behaviour, not caused by the
+  changes above, and it is a correctness bug at high concurrency, not a performance matter. The earlier plan called the fix
+  "CAS slot reservation": re-check and reserve in one critical section, and choose again when the mux is full.
+
+These need diagnosing and, for the second, fixing before the scalability options are weighed: they sit below every
+architecture choice in this document.
+
 ## 4. Combinations
 
 | Programme | Contents | Hand-offs | Estimated one-caller UDS latency | Notes |
@@ -203,6 +295,14 @@ reach.
 
 The programmes are not exclusive; P3 is independent of P2 and P4. The estimates are mine: the single-caller figures take
 10 to 15 us per removed hand-off, which the spike's 30 us (default scheduler) and 10 us (reader scheduler) bracket.
+
+**The reviewer's order [review]:** (1) cheap evidence: re-run strace and `ThreadProfile` on the current code, try C5, report
+`blob64k`/`batch100`, one workstation run; (2) serialise the connection open per endpoint and add the
+`ConnectionManager.connect` fast path (P1), which needs no rule bent and removes 16 handshakes per cold burst and the one
+measurable lock (now also: the slot-reservation race of D8); (3) a paper design for TLS-C with the N-reader and unwrap
+placement answered, then a board review, and in parallel a C1-solo prototype on UDS behind a flag. Not to do: C2a as a
+JVM-wide default; a lock-free mux without 32/80-core evidence; treat "TLS striping is a loss" as settled; C4; change the
+`useNIO` default on 4-core numbers alone.
 
 ## 5. What is not known
 
@@ -221,7 +321,7 @@ The programmes are not exclusive; P3 is independent of P2 and P4. The estimates 
 
 ## 6. Decisions for the maintainer
 
-1. Is the target RMI parity for small calls (P4), or "close enough that multiplexing's benefits outweigh it" (P1 to P3)?
+1. *Answered 2026-10-20:* the target is low latency and high scalability, not RMI parity on small calls. That favours the options that cut CPU per call and spread work over cores (C1-solo, C5, N readers with affinity, TLS-C with decryption off the single poller) and makes D8 (behaviour at many callers) a precondition.
 2. Does rule 4 stand as written, or as "the reader must stay responsive"?
 3. Is a dependency on a package-private JDK constructor acceptable, given the DirtyChai JDK can expose it?
 4. TLS: is a non-blocking `SSLEngine` `ConnectionIO` worth its review burden (D4)?
