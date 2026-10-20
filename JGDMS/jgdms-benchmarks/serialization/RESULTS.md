@@ -676,3 +676,36 @@ Question: unmarshal of `batch100` is about 850 to 900 us in-process (100 records
 - **Hierarchies are not helped.** A class with an `@AtomicSerial` superclass registers two or more classes, and the stack is the only thing that says which constructor is asking (each level has its own field set; the memo is per `(caller, name)`). A stack query costs 380 to 620 ns even on a shallow stack (`SW` micro-loop: `walk` with a stream 590 to 620, with an iterator 550 to 590, `getCallerClass()` 380 to 420), so there is no cheap stack-based form. Resolving by field name alone would let a subclass read a superclass's field and is a semantic change, not an optimisation.
 - **After the shortcut (320 us for 100 records, 3.2 us a record)** the profile is flat: `ByteBuffer.hashCode` is 10% self time (chain-bytes keys in `StreamSchemaDedup.encodeSite`, `verifiedChain` and `decodeSite` hash the whole chain on every lookup; a key that caches its hash, or one lookup per chain instead of three, would take most of it), `DerReader.decodeLength` 11%, `HashMap.putVal` 8% (the per-object field maps in `DerFieldStore`), `Class.forName` 3%, `validateClassFree` 7% (admission), `verifiedChain` 6%. Phase split of the 320 us: reconstitution of the stream (`reconstituteTopLevelAtomicParts`) 22%, admission (`admit`) 20%, the decode and construction 56%.
 - **Not done:** the shortcut is a change to `jgdms-platform` (`org.apache.river.api.io.AtomicSerial`, shared by JOSS and DER); not applied.
+
+## Fourteenth section: workstation run after the mux bulk write (`results-workstation2.json`), and the `GetArg` shortcut applied
+
+**Workstation run (built from the mux change, before the shortcut below).** Full JMH run, 49 min. Codec rows are unchanged from the previous workstation run (DER `unmarshal batch100` 1 484 against 1 464, `marshal batch100` 156 against 148), as they should be, since only the mux changed. The JERI rows (us per call):
+
+| JERI | DER, eleventh section | DER now | JOSS, eleventh section | JOSS now | DER/JOSS now (was) |
+|---|---:|---:|---:|---:|---:|
+| ping | 122.4 | 124.1 | 239.7 | 304.1 | 0.41 (0.51) |
+| point | 193.8 | 205.2 | 352.0 | 380.7 | 0.54 (0.55) |
+| record | 211.7 | 242.5 | - | 422.4 | 0.57 (0.55) |
+| batch100 | 5 147 | **3 840** | 2 917 | 2 972 | **1.29 (1.76)** |
+| blob64k | 9 135 | **1 409** | 8 541 | **1 238** | 1.14 (1.07) |
+
+- **The mux bulk write is confirmed on the workstation:** DER `batch100` -25%, `blob64k` 6.5 times faster, JOSS `blob64k` 6.9 times faster; JOSS `batch100`, and the single-fragment rows (`ping`, `point`, `record`), unchanged within the noise. The container predicted -30% and 5.9 to 6.2 times.
+- The JOSS control moved on the small rows (`ping` 304 +- 54 against 240 before), so the 0.41 and 0.57 ratios are not the code; the large-payload rows moved by a factor, not a few percent.
+- The DER/JOSS gap on `batch100` fell from 1.76 to 1.29. The remainder is the unmarshal (DER 1.48 ms against JOSS 1.27 ms in `CodecBenchmark`), which the next change addresses in both formats.
+- Admission is where the tenth and eleventh sections left it (full stage after `checkAccess`: `batch100` 58 us, `blob64k` 4 us, `records16m` 70 ms; `context` 52 to 55 us).
+
+**`AtomicSerial.GetArg.callerClass()` returns the single registered class without walking the stack (applied, 2026-10-20).** Platform change, `GetArgCallerResolutionTest` (6 tests, passes on the old code as well, 4 mutants killed); `jgdms-der` 1 484, `jgdms-jeri` 93 (1 skipped), `jgdms-cel` 692, no failures (`jgdms-platform` has 3 failures in `CombinerDebugRecursionTest`, `DefaultPolicyParserTest` and `MultiSubjectGrantAuthorizationTest`, which fail identically on the unchanged tree in this container). Container, jars rebuilt, old `AtomicSerial` against new in the same session, three runs each, mean:
+
+| | before | after |
+|---|---:|---:|
+| in-process unmarshal DER batch100 (us) | 742 | **289** (-61%) |
+| in-process unmarshal JOSS batch100 | 711 | **276** (-61%) |
+| in-process unmarshal DER record | 10.9 | **6.3** (-42%) |
+| in-process unmarshal JOSS record | 73 | 69 (none: the JOSS record path does not read through `GetArg` per field) |
+| in-process unmarshal DER blob64k | 72.5 | 68.3 (-6%, noise) |
+| JERI call DER batch100 (us) | 3 171 | **1 808** (-43%) |
+| JERI call JOSS batch100 | 2 748 | 2 389 (-13%, noisy: 2 880 2 670 2 696 against 2 689 2 218 2 261) |
+| JERI call DER record | 182 | **160** (-12%) |
+| JERI call JOSS record | 564 | 414 (-27%, noisy) |
+
+Re-run on the workstation before quoting; the in-process unmarshal rows are the reliable ones (the JERI rows move with the container's noise). Expected there: `unmarshal batch100` about 1.48 ms to about 0.6 ms for DER, a similar fall for JOSS, and JERI `batch100` about 3.8 ms to about 2.4 ms for DER.
