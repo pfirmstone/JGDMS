@@ -604,4 +604,29 @@ Admission, stage by stage (full stage = `cheapPlusFull` - `cheap`):
 - **The verify-only output does on the workstation what it did in the container**: admitting a 64 KiB `byte[]` costs 6.3 us (was 28.7), a 16 MiB one nothing measurable (was 8.8 ms), `batch100` 64 us (was 83), 16 MiB of records 65 ms (was 79). `unmarshal blob64k` is 129.0 us (was 154.8) and the in-process read of the 16 MiB blob is 43.7 ms (was 53.2).
 - **`unmarshal blob64k` is still 14% over the first run** (129.0 against 113.4). The full stage is now 6.3 us of it; the rest is the read-side copying that the tenth section removes (a 64 KiB record was copied about seven times); that change is in the branch after this run and was not measured here.
 - The cheap stage, which is what an unauthenticated peer costs, is unchanged (0.56 us on `point`, 9.6 ms for the 16 MiB read, which is the read itself: `floor` is 9.5 ms). The side-band context block, the one full admission before authorization, is 50 to 53 us on this machine (fixture-dependent: a two-record object).
-- **JERI `batch100` is still not explained by the codec**: marshal plus unmarshal is about 1.6 ms of a 5.1 ms call, 5.0 ms above `ping`; JOSS: 1.5 ms of 2.9 ms. Not investigated.
+- **JERI `batch100` is still not explained by the codec**: marshal plus unmarshal is about 1.6 ms of a 5.1 ms call, 5.0 ms above `ping`; JOSS: 1.5 ms of 2.9 ms. Investigated in the twelfth section: it is the mux fragment size, not the codec.
+
+## Twelfth section: why a DER `batch100` JERI call costs more than its codec (container; re-run on the workstation before quoting)
+
+The question: a DER `batch100` call is an echo, so the codec round trip (marshal + unmarshal, about 0.9 ms in the container) is paid twice, yet the call costs 4.4 to 4.6 ms; JOSS pays about 2.7 ms. Scratch harnesses (`JeriLoop`: a timed call loop with per-thread CPU; `JeriTime`: an `Echo` whose server method stamps `nanoTime`, which splits a call into request leg and response leg) against the installed jars; nothing in the branch changed.
+
+What was ruled out, and what was found:
+
+- **Not CPU in the codec.** Main-thread CPU per call is the same for both formats (1.49 ms). The extra CPU sits in the mux reader and writer threads (DER 1.5 ms against 1.05 ms) and in thread wake-ups; the DER JVM is about 35% busy.
+- **Not the mux ration.** Client and server `initialInboundRation` at 32 KiB (default), 256 KiB and 4 MiB: DER 4.52 / 4.44 / 4.49 ms. The stream is smaller than the default ration.
+- **Symmetric legs.** `JeriTime`: DER 2.07 to 2.13 ms to reach the server method and 2.27 to 2.34 ms to return; JOSS 1.29 to 1.35 and 1.36 to 1.37. The cost is in sending and receiving a stream, not in one side.
+- **The fragment size is the cause.** `MuxClient` and `MuxServer` hard-code `maxFragmentSize` to 1024. `MuxOutputStream.writeBuffer` sends each full fragment with `futureSendData` and then waits for the writer thread to finish the socket write (`waitForIO`) before refilling the buffer. A stream of N KiB therefore costs N writer-thread handoffs on the calling thread. A JOSS stream pays them too, but interleaved with encoding; the DER encoder holds the stream and writes it all in `drainTo` at flush/close, so every handoff is exposed and nothing overlaps. (Same reason the server side shows it: the response is also one `drainTo`.)
+- **Fragment sweep** (shadow `MuxClient`/`MuxServer` reading `-Djeri.frag`, both ends; us per call, 5 s runs after 5 s warm-up; the container is noisy, take the shape not the third digit):
+
+| fragment | DER batch100 | JOSS batch100 | DER blob64k | JOSS blob64k | DER record | JOSS record |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 024 (today) | 4 559 | 2 928 | 9 979 | 8 978 | 193 | 524 |
+| 2 048 | 3 590 | 2 683 | 5 586 | 5 204 | 192 | 544 |
+| 4 096 | 3 638 | 2 827 | 3 753 | 3 098 | 178 | 498 |
+| 8 192 | 3 436 | 3 098 | 2 597 | 1 948 | 183 | 602 |
+| 16 384 | 3 383 | 3 043 | 2 350 | 1 613 | 192 | 559 |
+
+An earlier, quieter run gave DER `batch100` 4 346 / 3 232 / 2 883 / 2 696 us at 1 024 / 4 096 / 16 384 / 65 000 and JOSS 2 648 / 2 649 / 2 968 / 2 929, with the request leg 1.46 ms and the response leg 1.42 ms at 16 KiB.
+
+- **Reading it.** Small messages (`record`, `ping`) do not change: they fit one fragment. Large messages in both formats get 4 to 6 times cheaper (`blob64k` 10.0 to 2.35 ms for DER, 9.0 to 1.6 ms for JOSS): the 1 KiB fragment is a transport cost shared by both formats and is what makes `blob64k` JERI calls 9 to 10 ms. DER `batch100` falls 25 to 35%. JOSS `batch100` does not improve and may get a few percent worse above 4 KiB (the per-call buffer is allocated at the fragment size, and a pipelined writer already overlapped the handoffs). The DER codec work itself (about 1.8 ms of the call) is what remains.
+- **Options (not done; a change to the shared JERI mux for both formats, awaiting a decision):** (1) raise the default fragment size (4 to 8 KiB captures most of the gain; it is local to the sender and the receiver already accepts up to 0xFFFF), ideally a system property like the ration ones; (2) in `MuxOutputStream.write(byte[], int, int)`, send a large array directly in ration-sized pieces (no copy into the fragment buffer) and wait once for the last future, so the cost of a bulk write is one handoff whatever its size. Option 2 helps only writers that write in bulk (DER's `drainTo`); option 1 helps everyone, but allocates a bigger buffer per request.
