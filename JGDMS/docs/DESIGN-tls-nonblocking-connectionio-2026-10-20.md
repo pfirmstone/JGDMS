@@ -245,6 +245,12 @@ non-blocking only after the hand-over means the handshake's per-read deadline lo
 
 ### 4.6 The server accept path (S0: a pre-authentication denial-of-service fix, independent of the above)
 
+> **Corrected by the S0 board review (2026-10-20), see `docs/BOARD-REVIEW-S0-tls-accept-path-2026-10-20.md`.** The handshake
+> deadline on the engine path is already total, not per read; what is missing is cancellation, write deadlines and a server-only
+> default. Pre-authentication memory is about 56 to 66 KiB, not 16.6 KiB. The name `readWithDeadline` is `fillNetInByDeadline`.
+> The board's shape of S0 (cap, queue with pause-accept, CPU permit, pinned groups, watchdog, mux start deadline, jitter) replaces
+> the bullets below where they differ.
+
 Moving the server handshake off the accept thread is both a prerequisite for scaling new connections and a security fix: a
 peer that connects and sends nothing, or trickles, holds the accept loop (section 2). Do it as its own step, first:
 
