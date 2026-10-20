@@ -159,7 +159,7 @@ call. What opening costs **[measured, section 30]**:
 | UDS | 2.3 ms | ~20 | none (shared selection thread) | 0.2 MB | ~0.8 MB |
 | TCP, channel I/O | 2.3 ms | ~20 | none | 0.2 MB | ~0.8 MB |
 | TCP, stream | 2.2 ms | ~20 | 2 platform | 0.2 MB | ~1.1 MB |
-| TLS | 12 ms | ~45 | 2 platform | 0.6 MB | ~1.9 MB |
+| TLS | 12 ms cold, 5 ms hot (resumed) | ~45 | 2 platform | 0.6 MB | ~1.9 MB |
 
 Striping (the in-flight threshold `K` in `ConnectionManager.connect`), repeated on top of the batching changes:
 UDS +20% at 2 to 4 connections, TCP +10 to 17%, TLS **-17% (K=4) to -35% (K=2)**. Most of the first experiment's TCP gain
@@ -168,11 +168,11 @@ UDS +20% at 2 to 4 connections, TCP +10 to 17%, TLS **-17% (K=4) to -35% (K=2)**
 Options: **T0** one connection (today); **T1** a small lazy bound (2 to 4) for UDS only; **T2** one connection per
 concurrent call with a cap (the RMI shape); **T3** striping that follows the identity-bearing UDS design from the start.
 Related and independent of the choice: **the cold burst.** When N callers find no connection they each open one (the
-current code opens about N), so 16 callers on TLS pay 16 handshakes of 12 ms where one open and waiting callers would pay
+current code opens about N), so 16 callers on TLS pay 16 opens of 12 ms cold or 5 ms hot (the 12 ms is a resumed handshake plus set-up, not certificate cryptography; RESULTS section 34) where one open and waiting callers would pay
 once. Serialising the open step per endpoint is small and removes that cost whichever topology is chosen. **[reasoned,
 the burst itself measured]**
 
-**[review]** "Striping is a loss on TLS" was measured with two platform threads and a 12 ms handshake per connection and a
+**[review]** "Striping is a loss on TLS" was measured with two platform threads and a 12 ms (cold-JIT; 5 ms hot) open per connection and a
 cold burst that opened 16 connections at every K. With TLS-C (no per-connection threads, below) and lazily kept
 connections, 2 to 4 TLS connections may be exactly how the crypto gets spread over cores; keep pool-of-one as a default,
 not as a conclusion. A connection is worth 20 to 45 calls, so any pool must be lazy and sticky. The cold burst is also a

@@ -17,7 +17,7 @@ also the transport with the largest gap to RMI over TLS **[measured]**:
 | thread hand-offs per call, both JVMs | 8.3 | 2 |
 | CPU per call, both JVMs | 240 to 270 us | 58 us |
 | 16 callers | 25 to 32 calls/ms | ~108 calls/ms |
-| opening a connection | 12 ms (a *resumed* handshake, see below) | |
+| opening a connection | 12 ms cold, 5 ms hot (both a *resumed* handshake plus set-up, see below) | |
 
 The same call over TCP with channel I/O (`useNIO`) takes 91 to 107 us with 4.1 hand-offs; the stream path with a mux reader
 and writer thread per connection takes 126 to 145 us with 8.1. TLS cannot use the channel path today because
@@ -35,20 +35,42 @@ which the stream-to-channel move already measured (about 40 us for one caller on
 something on top. A profile of the stream TLS path (question 5) would say how much. **[measured, the rest reasoned]** The
 single-thread crypto ceiling feared in the first review is not the constraint it looked like (section 4.2).
 
-**Session tickets are already in use.** A `-Djavax.net.ssl.debug=ssl:handshake` run of 19 consecutive reconnects (client JVM,
-`ConnectionCost`) shows 19 ClientHellos offering `pre_shared_key`, 19 `NewSessionTicket` messages, and **one** server
-`Certificate` message in all: only the first connection did a full handshake, the other 18 were TLS 1.3 PSK resumptions (no
-certificate exchange, no signatures). The client creates its engine with host and port (`createSSLEngine(serverHost, port)`), so
-the JDK's client session cache is eligible. So the 12 ms above is the cost of a **resumed** connection open; a first connection
-to a peer, and the server's accept-loop rate for new clients (section 4.6), is slower than the 12 ms and 80 per second
-quoted. What the 12 ms is made of is therefore not certificate cryptography: the candidates are JSSE's PSK processing,
-`AuthManager`/credential and permission checks, engine and thread creation, the `Selector` per handshake read, the mux
-handshake (2.3 ms on UDS), and JIT warm-up; a profile of a connection open would say. Open for the board: resumption
-skips the server's re-validation of the client certificate, so credential freshness rests on `maxServerSessionDuration`, the
-per-request `checkCredentials`, and invalidation when a credential is removed (`ServerAuthManager.chooseServerAlias`); check that
-chains of resumptions cannot outlive a rotated or expired SPIFFE credential (a resumed session's creation time is not the
-original's), and that `setEnableSessionCreation(false)` after the handshake does not make the client drop the tickets it
-needs.
+**Session tickets are already in use, and the 12 ms is mostly a JVM that has not finished compiling.** A
+`-Djavax.net.debug=ssl:handshake` run of 19 consecutive reconnects (`ConnectionCost`) shows 19 ClientHellos offering
+`pre_shared_key`, 19 `NewSessionTicket` messages and **one** server `Certificate`: 18 of 19 handshakes were TLS 1.3 PSK
+resumptions, with stateless tickets (server log: `Produced NewSessionTicket stateless`). RESULTS section 34 measures the
+open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs) **[measured]**:
+
+* **The same resumed open costs 11.4 ms in the first 100 reconnects after ConnectionCost's 15 warm-up reconnects, 7.4 ms after
+  600, 5.6 ms after 1 500 and 5.1 to 5.3 ms after 3 000 or more**; the 12 ms is the cold JIT. A hot open is about 4.7 ms over a
+  0.2 ms warm call. A full handshake is 3.5 ms more cold (14.8 to 16.1 ms) and 2.7 to 3.4 ms more hot (7.6 ms).
+* **Hot, resumed, the 5 ms is a chain on one critical path, nothing dominant:** JERI set-up before the socket 0.2, TCP connect
+  0.14, engine set-up 0.13, ClientHello generation 0.7, wait for the server's flight 1.6 (the server's 1.2 of work), client
+  processes it 0.6, mux handshake 1.2 (of which two `Thread.start` on each side 0.4 + 0.4), the call itself 0.65. About 1.6 ms is
+  the key exchange, which JDK 27 does as a hybrid `X25519MLKEM768` even on a resumption (X25519 in Java field arithmetic is 42%
+  of the client's sampled time in the open); `-Djdk.tls.namedGroups=x25519` saves 0.4 ms, `secp256r1` costs 0.5 ms more. It is
+  not certificate cryptography, and **the JGDMS credential, permission and `AuthManager` work is under 0.1 ms.**
+* **The `Selector` per handshake read is not the saving it looked like:** 0.02 to 0.05 ms per `Selector.open` (1 client read and
+  3 server reads per open, 0.07 ms per open hot, 1 to 2%). It is worth removing with the rest of S0 (one `epoll_create` per read)
+  but it is not where the 12 ms went. What is on the path and does disappear with the redesign: the two platform threads per
+  connection per side (0.8 ms hot, 0.9 ms cold in total) and, on the server, the wait for the client's flights on the accept
+  thread (1.5 ms hot).
+* **Resumption and authentication, measured in memory and in the real stack's debug log:** (1) on a resumed handshake the server's
+  trust manager is **not** called; the server sees the peer from the ticket. (2) `getCreationTime()` of a resumed session is the
+  original full handshake's, on both sides, and does not change along a chain of resumptions; with stateless tickets the JDK
+  does not enforce the ticket's lifetime on the server (only the ticket key's life, 1 h plus the session timeout), so a chain can
+  go on for ever: JGDMS's `maxServerSessionDuration` and `maxClientSessionDuration`, which count from `getCreationTime()`, are
+  what bound it, and they are anchored at the last full handshake. (3) A client the server has stopped trusting still resumes with
+  its old ticket and the server sees the OLD identity even if the client's credential was switched; the guards are in the real
+  stack's code, not in JSSE: `getClientSSLContextInfo` calls `checkAuthentication` and builds a new `SSLContext` (empty ticket
+  cache) when the client's credential is destroyed, expired or changed, and `ServerAuthManager.checkCredentials` rejects a request
+  whose client chain has passed its `notAfter` per request, even on a resumed session. A revoked certificate or removed trust
+  anchor is not rechecked until `maxServerSessionDuration` (24 h) after the last full handshake. (4) `setEnableSessionCreation(false)`
+  after the handshake does **not** make the client drop its ticket, in either order with the NewSessionTicket (the JDK's ticket
+  consumer never reads the flag); set before the first handshake of an engine it would fail the handshake, so the current order
+  must be kept. (5) `SSLSession.invalidate()` on the client stops resumption; on the server it does **not** with stateless tickets
+  (the server's session cache is empty, so `ServerAuthManager`'s invalidation loop over `getIds()` revokes nothing), only with
+  `-Djdk.tls.server.enableSessionTicketExtension=false`.
 
 ## 2. What exists today **[code]**
 
@@ -59,8 +81,11 @@ needs.
   path remains for HTTP-proxy tunnels and custom socket factories.
 * **Server** (`SslServerEndpointImpl.SslServerConnection`): the same, server mode with mandatory client authentication;
   the handshake runs **inside `acceptLoop`**, on the accept thread (`serverConnection(socket)` is called before the
-  connection is handed on). One accept thread per listener, so server handshakes are serialised: at 12 ms each, about 80 new
-  connections a second per listener. A peer that connects and sends **nothing** holds the accept loop for the full 60 s
+  connection is handed on). One accept thread per listener, so server handshakes are serialised: **[measured, RESULTS section 34]**
+  a hot listener accepts about 385 resumed (210 full) connections a second on the 4-core container with the clients on the same
+  cores (accept thread busy 97% of the time, about half of that on CPU: the rest is waiting for the client's handshake
+  flights and starting two threads per connection; 80 a second was the cold-JIT figure), and from about 64 simultaneous
+  connectors the 50-entry backlog (`bind` default) overflows and connects take 1 to 9 s. A peer that connects and sends **nothing** holds the accept loop for the full 60 s
   with no cryptography needed, N such connects serialise into N x 60 s with no accepts, and a peer that trickles a byte
   every 59 s holds it for ever (the 60 s bound is per read with progress). This is a pre-authentication denial of
   service, not only a throughput limit. Measured evidence: the 4096-platform-caller TLS point on the maintainer's Windows
@@ -73,7 +98,7 @@ needs.
   `NEED_TASK`: a post-handshake `NEED_WRAP` (a peer `KeyUpdate` asking for ours) is not acted on and works today only because
   JSSE emits the reply with the next application `wrap` (permitted by RFC 8446). It serialises readers and writers with
   `readLock` and `writeLock`. Each handshake read opens a `Selector` and toggles the channel's blocking mode
-  (`readWithDeadline`), which is part of the 12 ms open cost and an easy saving.
+  (`readWithDeadline`); measured at 0.02 to 0.05 ms per read (1 to 2% of an open), so a tidy-up, not the explanation of the 12 ms.
 
 ## 3. Goals, non-goals, invariants
 
@@ -237,8 +262,9 @@ peer that connects and sends nothing, or trickles, holds the accept loop (sectio
 * set the accept backlog explicitly; SYN-level protection is the operating system's and out of scope;
 * the pre-authentication memory per connection is bounded by the TLS record size (about 16.6 KiB; `growNetIn` doubles but
   the record size bounds it); state the bound;
-* cheap addition: `readWithDeadline` opens a `Selector` for every handshake read; use one per connection (or the
-  `SelectionManager`).
+* cheap addition: `readWithDeadline` opens a `Selector` for every handshake read (0.03 ms each, 3 per server handshake); use one
+  per connection (or the `SelectionManager`). A minor saving; the accept thread's time is the waits for the client and the two
+  `Thread.start` in `handleConnection` (0.44 ms), which moving the handshake off it removes.
 
 ### 4.7 Memory
 
