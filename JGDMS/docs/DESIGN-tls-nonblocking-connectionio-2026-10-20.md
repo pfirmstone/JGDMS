@@ -1,6 +1,6 @@
 # Design: a non-blocking, SSLEngine-driven ConnectionIO for the TLS transport
 
-Status: **design for review, nothing implemented.** Written 2026-10-20 for the maintainer and a board review. It follows
+Status: **design for review, nothing implemented; revised after a Fable-seat review (2026-10-20, section 10).** Written 2026-10-20 for the maintainer and a board review. It follows
 `DESIGN-OPTIONS-jeri-transport-architecture-2026-10-20.md` (section D4 sketched this; the Fable-seat review of that
 sketch is folded in here). Labels: **[measured]** from `jgdms-benchmarks/serialization/RESULTS.md` or a scratch
 measurement named here, **[code]** checked in the source on `claude/focused-bohr-t6bwal`, **[estimate]** a guess.
@@ -27,10 +27,13 @@ write it as mux frames. So TLS is stuck on the thread-per-connection stream shap
 **The cost is not the cryptography.** A scratch measurement (`SSLEngine` pair in memory, TLS 1.3, AES-256-GCM, warmed up,
 no sockets): `wrap` of a 64 B to 1 KiB record costs 1.3 to 2.6 us and `unwrap` 1.4 to 2.7 us; a 16 000 B record 3.3 us and
 4.7 us. A call does one wrap and one unwrap on each side, so crypto is about 8 us of the roughly 70 us wall time and 70 us of
-CPU that TLS adds over TCP. The rest is the I/O layer around the engine (the `SslEngineChannel` streams, `doPrivileged` and
-`synchronized` per read and write, copies) and the two extra threads per connection with their hand-offs. **[measured]**
-This matters for the design: a non-blocking engine driver can remove more than the hand-offs, and the single-thread crypto
-ceiling feared in the first review is not the constraint it looked like (section 4.2).
+CPU that TLS adds over TCP. Where the rest goes is **not established**: the per-thread table (RESULTS section 23) shows the
+mux reader and writer threads cost 56 and 66 us over TLS against 49 and 61 over TCP, so the TLS-specific cost in those
+threads is only about 10 to 15 us; most of the TLS stream path's cost is the thread-per-connection shape that TCP pays too,
+which the stream-to-channel move already measured (about 40 us for one caller on TCP). The `SslEngineChannel` layer
+(`doPrivileged` and `readLock`/`writeLock` per read and write, copies, a `Selector` opened per handshake read) adds
+something on top. A profile of the stream TLS path (question 5) would say how much. **[measured, the rest reasoned]** The
+single-thread crypto ceiling feared in the first review is not the constraint it looked like (section 4.2).
 
 ## 2. What exists today **[code]**
 
@@ -42,14 +45,20 @@ ceiling feared in the first review is not the constraint it looked like (section
 * **Server** (`SslServerEndpointImpl.SslServerConnection`): the same, server mode with mandatory client authentication;
   the handshake runs **inside `acceptLoop`**, on the accept thread (`serverConnection(socket)` is called before the
   connection is handed on). One accept thread per listener, so server handshakes are serialised: at 12 ms each, about 80 new
-  connections a second per listener, and one peer that trickles handshake bytes pins the accept thread (the 60 s bound is
-  per read, so a byte every 59 s holds it for ever).
+  connections a second per listener. A peer that connects and sends **nothing** holds the accept loop for the full 60 s
+  with no cryptography needed, N such connects serialise into N x 60 s with no accepts, and a peer that trickles a byte
+  every 59 s holds it for ever (the 60 s bound is per read with progress). This is a pre-authentication denial of
+  service, not only a throughput limit. Measured evidence: the 4096-platform-caller TLS point on the maintainer's Windows
+  workstation had 1900 `Connection refused` errors (the listen backlog overflowed while handshakes queued).
 * **Mux**: `ConnectionManager`/`ServerConnectionManager` choose `Mux(OutputStream, InputStream, ...)` (a `StreamConnectionIO`:
   a writer thread and a reader thread per connection) when `getChannel()` is null and `Mux(SocketChannel, ...)` (a
   `SocketChannelConnectionIO`: the shared selection thread and a batching drainer) otherwise.
-* `SslEngineChannel` already handles `NEED_TASK` inline, `NEED_WRAP`/`NEED_UNWRAP`, `close_notify`, a truncated record, a
-  growing buffer, and a handshake deadline. It is not thread-safe for concurrent readers or concurrent writers (the mux
-  serialises both).
+* `SslEngineChannel` handles `NEED_TASK` inline, `NEED_WRAP`/`NEED_UNWRAP` **during the handshake**, `close_notify`, a
+  truncated record, a growing buffer, and a handshake deadline. Its application read path (`unwrapMore`) only checks
+  `NEED_TASK`: a post-handshake `NEED_WRAP` (a peer `KeyUpdate` asking for ours) is not acted on and works today only because
+  JSSE emits the reply with the next application `wrap` (permitted by RFC 8446). It serialises readers and writers with
+  `readLock` and `writeLock`. Each handshake read opens a `Selector` and toggles the channel's blocking mode
+  (`readWithDeadline`), which is part of the 12 ms open cost and an easy saving.
 
 ## 3. Goals, non-goals, invariants
 
@@ -93,6 +102,23 @@ constructor installs the new `ConnectionIO`. A connection that does not implemen
 `SSLSocket` fallback and every other transport are untouched, and the feature is a system property
 (`org.apache.river.jeri.ssl.channelIO`, off at first).
 
+**The hand-over must be secured, not just described (review).** `detachEngine()` on a public class would give anyone holding
+the `Connection` the engine *and the raw channel*, and the property of invariant 2 would then depend on who holds a
+reference. Required: (i) it succeeds **exactly once**; afterwards the connection's `getInputStream`/`getOutputStream` throw
+(two drivers on one engine must be impossible); (ii) it is callable only by the connection manager, through an internal
+entry point guarded by a dedicated permission or a capability token that only the manager holds; (iii) the connection keeps
+its reference to the live engine for the per-request session checks (`decacheSession` reads the engine's current session,
+and the protocol, after detach); (iv) it takes `readLock` and `writeLock` so the non-final buffer fields are safely
+published to the new owner (the mux's final `connectionIO` field then publishes them onward); (v) what transfers is `netIn`
+unread ciphertext, `appIn` plaintext, `inboundClosed`/`closed`; `netOut` is always flushed in blocking mode, so nothing is
+pending there. Placement: the interface must be visible to `net.jini.jeri.ssl` and `net.jini.jeri.connection` without being
+exported; check the OSGi packaging (`internal.connection` is exported, `internal.mux` is private).
+
+**Buffer convention.** `Mux.processIncomingData` expects one persistent buffer in fill state, consumes whole frames, keeps a
+partial frame's state internally and compacts the buffer. The new IO must `unwrap` into the mux's buffer after any partial
+bytes, in fill mode (not into a separate drained buffer), or a frame split across two TLS records is corrupted. The leftover
+`appIn` from the handshake driver is fed through the same path first.
+
 ### 4.2 Who does what, on which thread
 
 `SSLEngine` allows one thread in `wrap` and one in `unwrap` at the same time, never two in the same method. That maps onto
@@ -124,6 +150,15 @@ many connections multiply it); (c) the shared-thread DoS and head-of-line concer
 A per-event read budget (say 64 KiB of ciphertext per connection per selection round) keeps one busy connection from
 starving the others whichever option is used.
 
+**The real budget of U1 (review).** The selection thread also does the `read` and `epoll` system calls, the
+`processIncomingData` routing, and the reads of **every channel connection in the JVM** (UDS and TCP with `useNIO`), so its
+budget is I/O events per second for the whole process, not "400 000 unwraps". JSSE also takes the engine's own monitor in
+`wrap` and `unwrap` (JDK-internal, `SSLEngineImpl`), so the permitted concurrent `wrap` and `unwrap` on one connection do not
+run in parallel: the selection thread's `unwrap` can wait a few microseconds behind a drainer's `wrap`, and per-connection
+crypto parallelism is not gained. U1 is therefore conditional on a **measured gate** before the default is flipped (S4): the
+selection thread's CPU share (`ThreadProfile` reports it) at 16, 64 and 512 callers must stay well below one core; if not,
+U3 comes first.
+
 ### 4.3 Read path in detail
 
 1. `OP_READ` fires; read into `netIn` (a direct or heap buffer sized `getPacketBufferSize()`; see 4.7).
@@ -132,15 +167,21 @@ starving the others whichever option is used.
    * `OK` with plaintext: pass `app` to `processIncomingData` (it consumes whole frames and keeps a partial one, as for the
      plain channel path).
    * `OK` without plaintext and handshake status `NEED_TASK`: run the delegated tasks inline (rare after the handshake).
-   * `OK` and handshake status `NEED_WRAP`: a `KeyUpdate` with `update_requested` needs our own `KeyUpdate` back; set
-     `wrapRequested` and wake the drainer (if no drainer is active the reader takes the role for one empty `wrap`).
+   * `OK` and handshake status `NEED_WRAP`: a `KeyUpdate` with `update_requested` needs our own `KeyUpdate` back. **Every
+     `wrap` goes through the drainer role**: set `wrapRequested` and take or wake the drainer by the existing protocol
+     (`writing` set under `muxLock`); the reader never calls `wrap` itself. The same holds for our own key-limit
+     `KeyUpdate` (JSSE inserts it into the next `wrap`'s output, so the record(s) a future waits for may include a
+     handshake record), for `close_notify` and for the Error frame.
    * `BUFFER_UNDERFLOW`: need more ciphertext; leave `netIn` compacted and re-arm `OP_READ`.
    * `BUFFER_OVERFLOW`: grow `app` to the engine's current `getApplicationBufferSize()` (bounded) and retry.
    * `CLOSED`: `close_notify` received: treat as end of input; the mux's own Shutdown framing makes truncation detection
      secondary, but a connection that ends without `close_notify` mid-record is an error.
    * any `SSLException`: tear the connection down (invariant 4).
-3. Refuse any handshake message other than `KeyUpdate` and `NewSessionTicket` after the handshake (the status sequence the
-   engine reports, plus `setEnableSessionCreation(false)`), and keep checking that the negotiated protocol is TLS 1.3.
+3. The engine does not expose handshake message types, so "refuse any message but `KeyUpdate`/`NewSessionTicket`" is not
+   observable. The enforceable rule: TLS 1.3 only, `setEnableSessionCreation(false)`, any handshake status after the
+   handshake other than `NOT_HANDSHAKING`, `NEED_WRAP` or `NEED_TASK` is fatal, and `engine.getSession()` identity and
+   protocol are unchanged (the `SSLSocket` path's identity-swap guard, which the engine path dropped; add it back as at least a
+   test, after a forced `KeyUpdate`).
 
 ### 4.4 Write path in detail
 
@@ -149,7 +190,8 @@ drainer hands over to the selector (`OP_WRITE`, as the channel path does) and wr
 empty, so neither `netOut` nor the plaintext queue's wrap output can grow without bound (control frames are unbounded by A3,
 which is why they stay plaintext-side). A future completes when the record(s) containing its bytes are fully in the kernel,
 the same meaning it has on the channel path (buffers may be reused, delivery status may be set). A write deadline (no
-progress for T seconds with `netOut` non-empty) tears the connection down. `wrap` and the channel write run under
+*channel* progress for T seconds with `netOut` non-empty) tears the connection down. A `wrap` failure part-way through a batch
+tears the connection down **without writing `netOut` at all** (the simplest safe rule: no partial record follows a failure). `wrap` and the channel write run under
 `doPrivileged` with the transport context, because the drainer is often a caller's thread.
 
 ### 4.5 Handshake and hand-over
@@ -161,16 +203,27 @@ flight) and plaintext in `appIn`. The new `ConnectionIO` processes those first, 
 mode and registers `OP_READ`. The blocking driver is retired without closing the channel. Setting the channel
 non-blocking only after the hand-over means the handshake's per-read deadline logic is untouched.
 
-### 4.6 The server accept path (independent of the above, and needed for scalability)
+### 4.6 The server accept path (S0: a pre-authentication denial-of-service fix, independent of the above)
 
-Moving the server handshake off the accept thread is a prerequisite for scaling new connections and removes a denial of
-service. Do it as its own step:
+Moving the server handshake off the accept thread is both a prerequisite for scaling new connections and a security fix: a
+peer that connects and sends nothing, or trickles, holds the accept loop (section 2). Do it as its own step, first:
 
-* run `SslServerConnection` construction (the handshake) as a task on the system pool, not in `acceptLoop`;
-* give the whole handshake a **total** deadline (not an inactivity bound per read), default a few seconds;
-* cap the number of handshakes in progress (a semaphore) and, per remote address, the number in progress and open
-  (a pre-authentication limit; board A6), refusing the excess before any crypto;
-* keep `handleConnection`'s subject handling as it is.
+* run `SslServerConnection` construction (the handshake) as a task on the system pool, not in `acceptLoop`, **subject-neutral**
+  as the accept thread is (`Subject.callAs(null)` in `createAcceptThread`) so credential selection reads the
+  `ServerAuthManager`'s captured subject; track the tasks so that closing the listener cancels handshakes in progress
+  (today a connection is added to `connections` only after its handshake);
+* give the whole handshake a **total** deadline (a few seconds), which needs a small change in `SslEngineChannel`, whose
+  deadline is reset on every read with progress;
+* cap the handshakes in progress globally. At the cap, **wait** (a bounded queue, bounded by the total deadline) rather than
+  refuse at once, because immediate refusal amplifies an attack against legitimate clients; refuse only when the queue is
+  full;
+* per-remote-address caps only as an optional override (weak against many addresses, harmful behind NAT); the global cap and
+  the total deadline are the primary control;
+* set the accept backlog explicitly; SYN-level protection is the operating system's and out of scope;
+* the pre-authentication memory per connection is bounded by the TLS record size (about 16.6 KiB; `growNetIn` doubles but
+  the record size bounds it); state the bound;
+* cheap addition: `readWithDeadline` opens a `Selector` for every handshake read; use one per connection (or the
+  `SelectionManager`).
 
 ### 4.7 Memory
 
@@ -182,16 +235,20 @@ two threads per TLS connection is the number to beat **[measured]**.
 
 ### 4.8 `close_notify`, errors, interrupts
 
-On `Mux.shutdown`/`Error`: `closeOutbound()`, `wrap` the alert, one non-blocking best-effort write, close. Non-blocking
-writes are not interrupted into closing the channel, unlike a blocking stream (the board's C-F1 concern does not apply to
-this path), but a caller that is the drainer and is interrupted only has its flag set. A delegated task never blocks the
-selection thread after the handshake (they are quick; if one is not, it is run on the system pool and the connection
-parks that record until it completes).
+Inbound `CLOSED` (a received `close_notify`): `mux.setDown`, a best-effort `close_notify` back **through the drainer**, close;
+no half-close (the mux has no use for it). On `Mux.shutdown` or an Error frame: the same sequence, run by the drainer role
+(`closeOutbound()` from any other thread while a `wrap` is in progress would be two threads in `wrap`), one non-blocking
+best-effort write, close. Non-blocking writes are not interrupted into closing the channel, unlike a blocking stream (the
+board's C-F1 concern does not apply to this path); a caller that is the drainer and is interrupted only has its flag set,
+and a drainer blocked on the engine's monitor is not interruptible, which is acceptable. A post-handshake `NEED_TASK` does
+not occur in JSSE's TLS 1.3 record layer; if it does, run the task inline, log it, and continue.
 
 ## 5. Expected gains **[estimate]**
 
 Basis: TCP stream to channel I/O measured 8.1 to 4.1 hand-offs and 126 to 145 us to 91 to 107 us for one caller, and
-about 50 us of CPU per call. TLS adds crypto (about 8 us) and, today, 60 us of layer overhead the new driver replaces.
+about 50 us of CPU per call; the TLS-specific cost in the mux threads is only 10 to 15 us (section 1), so the gain is mostly
+the stream-to-channel gain (do not count it twice) plus whatever the `SslEngineChannel` layer costs, which a profile would
+say.
 Expected for one caller: roughly 130 to 160 us (from 200 to 230), 4 hand-offs, CPU per call 130 to 160 us (from 240 to 270).
 At 16 callers the gain should follow the TCP stream-to-channel pattern plus the batching a single drainer gives (stream TLS
 already batches per message; the channel drainer batches across callers). These are guesses to be replaced by a prototype
@@ -211,7 +268,8 @@ measurement; the design should be judged on the invariants first.
 
 * **S0** server handshake off the accept thread, total deadline, in-progress and per-address caps (4.6). Independent, valuable
   alone, no new I/O code.
-* **S1** make `SelectionManager` instantiable and keep read interest registered (the permanent `OP_READ` change in the options
+* **S1** stop sharing the one static `SelectionManager` instance (`SelectionManager` already has a public constructor; the
+  singleton is `SocketChannelConnectionIO`'s static) and keep read interest registered (the permanent `OP_READ` change in the options
   document); N readers can come later without redesign.
 * **S2** `SslEngineConnectionIO`, `EngineHandoff`, client and server, behind the property, U1.
 * **S3** measure (single caller, 16, 64, 512, 4096 callers; `ConcurrencyCurve` over TLS; the workstation and the 32/80-core
@@ -240,11 +298,29 @@ measurement; the design should be judged on the invariants first.
 
 ## 9. Questions for the board
 
-1. Is a new internal hand-off interface acceptable as the way to give the mux the engine, with `getChannel()` staying null?
-2. Is U1 (unwrap on the single selection thread) acceptable for the first release, given 1.4 to 4.7 us per record, with U3
-   as the scalability follow-up? Or must N readers with affinity come first?
+1. Is a new internal hand-off acceptable as the way to give the mux the engine, with `getChannel()` staying null, provided
+   it is one-shot, invalidates the connection's streams, and is callable only by the connection manager (section 4.1)?
+2. Is U1 (unwrap on the single selection thread) acceptable for the first release, given 1.4 to 4.7 us per record, provided
+   the measured gate on the selection thread's CPU share holds before the default is flipped, with U3 as the follow-up? Or
+   must N readers with affinity come first?
 3. The server accept-path changes (S0): deadline, caps, and the default numbers.
 4. Memory policy: lazy buffers and release when idle, and the per-connection bound on buffered ciphertext.
 5. Should the first step be a profile of where the 60 us of layer overhead in the stream TLS path goes? If a large share is
    removable inside the stream path (for example `doPrivileged` and `synchronized` per read), part of the gain may be
    available without the new driver; the prototype's number would then be the better comparison.
+
+## 10. Review by the Fable seat (2026-10-20) and what changed
+
+Verdict: well framed, honest labels, the right invariants; not board-ready until three things changed. All three and the
+small misreads are now in the text above:
+1. the engine hand-over is secured (exactly once, streams invalidated, guarded entry, engine kept for the session checks,
+   locks for publication, mux buffer convention) - section 4.1;
+2. every `wrap` goes through the drainer role, JSSE's own monitor serialisation is stated, and the unobservable "refuse other
+   handshake messages" is replaced by the enforceable status and session-identity rule - sections 4.3, 4.4, 4.8;
+3. U1's ceiling is the selection thread's total budget with a measured gate before S4 - section 4.2; and the gain basis no
+   longer double counts the stream threads - sections 1 and 5.
+Also corrected: `SslEngineChannel` handles `NEED_WRAP` only during the handshake; S0 is labelled a pre-authentication DoS fix
+and its details expanded (silent connects, bounded wait, per-address caps as an override, total deadline needing an
+`SslEngineChannel` change, listener close cancelling handshakes, subject-neutral tasks, backlog); the S1 wording.
+Not to do (reviewer): U4, half-close support, a park-the-record mechanism for delegated tasks, per-address caps as the
+primary S0 control. Recommended before any prototype: answer question 5 with one `ThreadProfile` run on the stream TLS path.
