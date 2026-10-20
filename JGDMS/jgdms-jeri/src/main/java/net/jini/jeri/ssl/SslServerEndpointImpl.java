@@ -589,14 +589,14 @@ class SslServerEndpointImpl extends Utilities {
         
         /**
          * The maximum time a session should be used before expiring -- non-final
-         * to facilitate testing.  Use 1 hour to allow the client, which uses
-         * 55 minutes, to renegotiate a new session before the server timeout.
+         * to facilitate testing.  Use 20 minutes to allow the client, which uses
+         * 18 minutes, to renegotiate a new session before the server timeout.
          * The limit counts from the last full handshake, because a resumed
          * session keeps the original creation time; it is also the longest a
          * client whose certificate or trust anchor has since been revoked can
          * go on resuming, since resumption does not call the trust manager.
          */
-        static final long DEFAULT_MAX_SERVER_SESSION_DURATION = 60L * 60L * 1000L;
+        static final long DEFAULT_MAX_SERVER_SESSION_DURATION = 20L * 60L * 1000L;
 
         private final long maxServerSessionDuration =
             ((Long) Security.doPrivileged(

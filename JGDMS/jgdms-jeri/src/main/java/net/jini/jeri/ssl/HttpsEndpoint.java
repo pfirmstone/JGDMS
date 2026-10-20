@@ -295,7 +295,7 @@ import org.apache.river.thread.GetThreadPoolAction;
  * <ul>
  * <li> <code>org.apache.river.jeri.ssl.maxClientSessionDuration</code> - The
  *	maximum number of milliseconds a client-side TLS/SSL session should be
- *	used. The default is 55 minutes. The value should be smaller than the
+ *	used. The default is 18 minutes. The value should be smaller than the
  *	maximum server session duration to allow the client to negotiate a new
  *	session before the server timeout occurs.
  * <li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket

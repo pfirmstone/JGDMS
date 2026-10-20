@@ -76,11 +76,11 @@ class SslConnection extends Utilities implements Connection {
 
     /**
      * The maximum time a client session should be used before expiring --
-     * non-final to facilitate testing.  Use 55 minutes as the default to allow
+     * non-final to facilitate testing.  Use 18 minutes as the default to allow
      * the client to negotiate a new session before the server timeout, which
-     * defaults to 1 hour.
+     * defaults to 20 minutes.
      */
-    static final long DEFAULT_MAX_CLIENT_SESSION_DURATION = 55L * 60L * 1000L;
+    static final long DEFAULT_MAX_CLIENT_SESSION_DURATION = 18L * 60L * 1000L;
 
     private final long maxClientSessionDuration =
 	((Long) Security.doPrivileged(

@@ -28,13 +28,12 @@ import org.junit.Test;
  */
 public class SessionDurationDefaultsTest {
 
-    private static final long HOUR = 60L * 60L * 1000L;
     private static final long MINUTE = 60L * 1000L;
 
     @Test
-    public void serverSessionLimitIsAtMostOneHour() {
+    public void serverSessionLimitIsAtMostTwentyMinutes() {
         long d = SslServerEndpointImpl.SslListenEndpoint.DEFAULT_MAX_SERVER_SESSION_DURATION;
-        Assert.assertTrue("server default " + d, d > 0 && d <= HOUR);
+        Assert.assertTrue("server default " + d, d > 0 && d <= 20L * MINUTE);
     }
 
     @Test
