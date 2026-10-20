@@ -61,8 +61,14 @@ public class RmiBenchmark {
 
     @Setup(Level.Trial)
     public void export() throws Exception {
-        impl = new RmiEcho.Impl();
-        stub = (RmiEcho) UnicastRemoteObject.exportObject(impl, 0);
+        String remote = System.getProperty("bench.proxy.rmi");
+        if (remote != null) {
+            // the service runs in another JVM (see ServerMain): call that one
+            stub = (RmiEcho) ServerMain.readStub(remote);
+        } else {
+            impl = new RmiEcho.Impl();
+            stub = (RmiEcho) UnicastRemoteObject.exportObject(impl, 0);
+        }
         if (stub == impl || !Proxy.isProxyClass(stub.getClass())) {
             throw new IllegalStateException("RMI stub expected, got " + stub.getClass());
         }

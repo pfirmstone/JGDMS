@@ -78,13 +78,19 @@ public class JeriBenchmark {
     @Setup(Level.Trial)
     public void export() throws Exception {
         ClassLoader loader = JeriBenchmark.class.getClassLoader();
-        exporter = new BasicJeriExporter(
+        exporter = System.getProperty("bench.proxy." + format.name()) != null ? null : new BasicJeriExporter(
                 TcpServerEndpoint.getInstance("127.0.0.1", 0),
                 format.ilFactory(loader),
                 false,   // no DGC
                 true);   // keep alive
-        impl = new Echo.Impl();
-        proxy = (Echo) exporter.export(impl);
+        String remote = System.getProperty("bench.proxy." + format.name());
+        if (remote != null) {
+            // the service runs in another JVM (see ServerMain): call that one
+            proxy = (Echo) ServerMain.read(format, remote);
+        } else {
+            impl = new Echo.Impl();
+            proxy = (Echo) exporter.export(impl);
+        }
 
         point  = (Point)  Payloads.create("point");
         record = (Record) Payloads.create("record");
