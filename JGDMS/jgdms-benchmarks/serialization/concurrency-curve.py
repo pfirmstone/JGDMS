@@ -115,8 +115,9 @@ class Server:
         except OSError:
             pass
         try:
-            self.proc.wait(timeout=15)
-        except subprocess.TimeoutExpired:
+            # a server that failed or exited has nothing to shut down: do not wait the full time
+            self.proc.wait(timeout=3 if self.state in ("failed", "exited") else 15)
+        except (subprocess.TimeoutExpired, KeyboardInterrupt):
             self.proc.kill()
             self.proc.wait()
 
@@ -279,6 +280,15 @@ def main():
                         label = "[%d/%d] %s %s %s %s x%d" % (done_n, total, stack, transport, payload, kind, callers)
                         try:
                             if not server.wait_ready():
+                                if not any(r.get("status") == "ok" for r in rows):
+                                    # the same server runs every point: failing before any point has worked means the
+                                    # set-up is wrong, so say so now instead of failing all the points one by one
+                                    server.stop()
+                                    sys.exit("the server JVM did not become ready (%s). Its last output:\n%s\n\n"
+                                             "Rebuild the jar after updating the modules it bundles (for example "
+                                             "'mvn -q -pl jgdms-rmi-tls install -DskipTests' and then 'mvn -q package "
+                                             "-DskipTests' in this directory) and run again." % (
+                                                 server.state or "timeout", "\n".join(server.lines[-20:])))
                                 rec = {"stack": stack, "transport": transport, "payload": payload, "kind": kind,
                                        "callers_requested": callers, "status": "failed",
                                        "reason": "server JVM %s: %s" % (server.state or "timeout", last_line("\n".join(server.lines)))}
@@ -299,6 +309,8 @@ def main():
                                 flush=True)
                         else:
                             print("%s: FAILED (%s)" % (label, rec["reason"]), flush=True)
+    except KeyboardInterrupt:
+        print("\ninterrupted: writing the summary of the %d points run so far" % len(rows), flush=True)
     finally:
         if shared is not None:
             shared.stop()
