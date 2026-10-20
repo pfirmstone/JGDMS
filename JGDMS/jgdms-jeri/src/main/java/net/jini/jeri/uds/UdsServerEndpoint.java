@@ -943,9 +943,10 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * non-POSIX platform this is a best-effort check (the ACL gate on the
 	 * file itself is the primary control there).
 	 *
-	 * <p>This is deliberately not a stronger rule: a group-writable parent
-	 * is accepted, so members of the group can still rename or replace the
-	 * socket's name (not connect to it).  It says nothing about the bind to
+	 * <p>A group-writable parent is treated like a world-writable one:
+	 * members of the group could otherwise rename or replace the socket's
+	 * name (they cannot connect to it).  Only the immediate parent is
+	 * checked, not its ancestors.  The rule says nothing about the bind to
 	 * chmod window, which {@code listen} closes by binding in a private
 	 * staging directory.
 	 */
@@ -965,14 +966,17 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		return; // non-POSIX: file-level ACL (F1) is the control here
 	    }
 	    Set<PosixFilePermission> perms = posix.readAttributes().permissions();
-	    if (perms.contains(PosixFilePermission.OTHERS_WRITE)
+	    if ((perms.contains(PosixFilePermission.OTHERS_WRITE)
+		 || perms.contains(PosixFilePermission.GROUP_WRITE))
 		&& !hasStickyBit(parent))
 	    {
 		throw new IOException(
-		    "refusing to bind a Unix domain socket in world-writable, "
-			+ "non-sticky directory " + parent + ": the owner-only "
-			+ "socket file could be renamed or replaced by another "
-			+ "local user, defeating the access gate");
+		    "refusing to bind a Unix domain socket in group- or "
+			+ "world-writable, non-sticky directory " + parent
+			+ ": the owner-only socket file could be renamed or "
+			+ "replaced by another local user, defeating the access "
+			+ "gate.  Use a directory only this user can write, or "
+			+ "set the sticky bit (chmod +t)");
 	    }
 	}
 

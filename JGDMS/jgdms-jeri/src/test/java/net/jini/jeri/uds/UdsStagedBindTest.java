@@ -235,4 +235,40 @@ public class UdsStagedBindTest {
 	    Assert.assertEquals(List.of("s.sock"), entries(dir));
 	}
     }
+
+    private boolean bindsIn(String mode, boolean sticky) throws Exception {
+	Path d = Files.createTempDirectory(dir, "parent");
+	Files.setPosixFilePermissions(d, PosixFilePermissions.fromString(mode));
+	if (sticky) {
+	    int m = (Integer) Files.getAttribute(d, "unix:mode");
+	    Files.setAttribute(d, "unix:mode", m | 01000);
+	}
+	Path sock = d.resolve("s.sock");
+	Exporter e = exporter(sock);
+	try {
+	    e.export(new UdsEndpointRoundTripTest.EchoImpl());
+	    return true;
+	} catch (IOException refused) {
+	    return false;
+	} finally {
+	    try { e.unexport(true); } catch (Exception ignore) { }
+	}
+    }
+
+    @Test
+    public void groupWritableNonStickyParentIsRefused() throws Exception {
+	Assert.assertFalse(bindsIn("rwxrwx---", false));
+	Assert.assertFalse(bindsIn("rwxr-xrwx", false));
+    }
+
+    @Test
+    public void groupWritableStickyParentIsAccepted() throws Exception {
+	Assert.assertTrue(bindsIn("rwxrwx---", true));
+    }
+
+    @Test
+    public void privateAndReadOnlyForOthersParentsAreAccepted() throws Exception {
+	Assert.assertTrue(bindsIn("rwx------", false));
+	Assert.assertTrue(bindsIn("rwxr-xr-x", false));
+    }
 }
