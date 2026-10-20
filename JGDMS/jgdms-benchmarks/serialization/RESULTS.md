@@ -658,3 +658,21 @@ Container, installed jars, `JeriLoop` (4 s after 5 s warm-up), three alternating
 | JOSS record | 382 | 378 | none |
 
 (Run `JeriBenchmark` on the workstation before quoting; the gain should be there for every payload larger than one fragment, and none for `ping`, `point` and `record`.)
+
+## Thirteenth section: where DER `batch100` unmarshal time goes (container; re-run on the workstation before quoting)
+
+Question: unmarshal of `batch100` is about 850 to 900 us in-process (100 records, 13.8 KB; JOSS 790 to 875 us), about 8 us a record. What is it spent on? Scratch harness `Unmarshal` (decode one pre-encoded stream in a loop, 6 s warm-up), JFR with `jdk.ExecutionSample#period=2ms` and `stackdepth=4096` (the default depth of 64 cuts off the roots of a recursive decode and hides the phase split).
+
+- **The largest single cost is not in the codec: `AtomicSerial.GetArg.callerClass()`.** Every typed `get`/`defaulted` call resolves the calling `@AtomicSerial` class by walking the stack (`StackWalker.walk`, a stream, `findFirst` over `serialClasses()`), once per field read, for every object, in both formats. It showed as 24% of samples under JFR (the sampler under-counts native stack walks), and removing it took the loop from 890 to 345 us.
+- **The identical-semantics shortcut.** `callerClass()` returns `found` if a frame matches, otherwise the single registered class if `serial.size() == 1`, otherwise throws; a matching frame is by definition a member of `serial`. So when exactly one class is registered it returns that class whatever the stack holds, and the walk can be skipped. Prototype (scratch only; a one-line early return in a shadow `AtomicSerial` ahead of the walk, switched by a system property), `Unmarshal`, us per op:
+
+| | walk (today) | shortcut |
+|---|---:|---:|
+| DER batch100 (3 runs) | 964, 825, 883 | **330, 380, 328** |
+| JOSS batch100 | 791 | **295** |
+| DER record | 12.2 | **6.9** |
+
+  About 60% off `batch100` unmarshal in both formats and 43% off `record`. Both formats use the same `GetArg` base, so the DER/JOSS ratio does not change; the absolute cost of every remote call that carries a value drops. A JERI `batch100` call pays two unmarshals (request and response), so roughly 1 ms of its 3.2 ms (container) if the in-process numbers carry over.
+- **Hierarchies are not helped.** A class with an `@AtomicSerial` superclass registers two or more classes, and the stack is the only thing that says which constructor is asking (each level has its own field set; the memo is per `(caller, name)`). A stack query costs 380 to 620 ns even on a shallow stack (`SW` micro-loop: `walk` with a stream 590 to 620, with an iterator 550 to 590, `getCallerClass()` 380 to 420), so there is no cheap stack-based form. Resolving by field name alone would let a subclass read a superclass's field and is a semantic change, not an optimisation.
+- **After the shortcut (320 us for 100 records, 3.2 us a record)** the profile is flat: `ByteBuffer.hashCode` is 10% self time (chain-bytes keys in `StreamSchemaDedup.encodeSite`, `verifiedChain` and `decodeSite` hash the whole chain on every lookup; a key that caches its hash, or one lookup per chain instead of three, would take most of it), `DerReader.decodeLength` 11%, `HashMap.putVal` 8% (the per-object field maps in `DerFieldStore`), `Class.forName` 3%, `validateClassFree` 7% (admission), `verifiedChain` 6%. Phase split of the 320 us: reconstitution of the stream (`reconstituteTopLevelAtomicParts`) 22%, admission (`admit`) 20%, the decode and construction 56%.
+- **Not done:** the shortcut is a change to `jgdms-platform` (`org.apache.river.api.io.AtomicSerial`, shared by JOSS and DER); not applied.
