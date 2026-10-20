@@ -14,6 +14,7 @@
 #   python3 concurrency-curve.py --out curve-x --callers 1,16,256,4096 --kinds virtual --stacks DER,RMI
 #   python3 concurrency-curve.py --out curve-x --transports UDS,TLS --warmup 5 --measure 10
 #   python3 concurrency-curve.py --out curve-x --rate 20000 --callers 64,512    # open loop, 20000 calls/s in all
+#   python3 concurrency-curve.py --out curve-x --prime 1 --callers 64,512,4096  # one connection exists first
 #
 # Works on Linux and Windows (no shell; JAVA_HOME or java on the PATH). Combinations that do not exist are skipped:
 # RMI has no UDS, and its plain-socket variant is called PLAIN (TCP is accepted as a synonym for it, and PLAIN for
@@ -136,7 +137,7 @@ def run_point(jar, jvm_args, server, tls_dir, stack, transport, payload, kind, c
         "-Dthreadprofile.server=" + server.dir, "-Dthreadprofile.serverpid=" + str(server.pid),
         "-cp", jar, CLIENT_CLASS,
         "stack=" + stack, "transport=" + transport, "payload=" + payload, "callers=%d" % callers, "kind=" + kind,
-        "warmup=%s" % args.warmup, "measure=%s" % args.measure, "rate=%s" % args.rate]
+        "warmup=%s" % args.warmup, "measure=%s" % args.measure, "rate=%s" % args.rate, "prime=%d" % args.prime]
     started = time.time()
     try:
         done = subprocess.run(cmd, capture_output=True, text=True, timeout=args.timeout)
@@ -205,6 +206,7 @@ def environment(args, java_version, combo_list):
              "jvm args: %s" % (args.jvm_args or "(none)"),
              "stacks/transports: %s" % ", ".join("%s/%s" % c for c in combo_list),
              "callers: %s" % args.callers, "kinds: %s" % args.kinds, "payloads: %s" % args.payloads,
+             "prime: %d" % args.prime,
              "mode: %s" % ("open loop, %s calls/s" % args.rate if float(args.rate) > 0 else "closed loop"),
              "settings: warmup=%ss measure=%ss timeout=%ss server=%s" % (
                  args.warmup, args.measure, args.timeout, "shared" if args.shared_server else "fresh per point")]
@@ -234,6 +236,9 @@ def main():
     ap.add_argument("--payloads", default="ping", help="ping, record, or both (default ping)")
     ap.add_argument("--warmup", type=float, default=5, help="warm-up seconds per point (default 5)")
     ap.add_argument("--measure", type=float, default=8, help="measured seconds per point (default 8)")
+    ap.add_argument("--prime", type=int, default=0,
+                    help="make this many calls before the callers start (1: one connection exists when they start; "
+                         "default 0 = a cold start, every caller finds none); see ConcurrencyCurve")
     ap.add_argument("--rate", default="0", help="0 (default) = closed loop; R = open loop at R calls per second in all")
     ap.add_argument("--timeout", type=int, help="seconds before a client JVM is killed and the point recorded as "
                     "failed (default warm-up + measure + 120)")

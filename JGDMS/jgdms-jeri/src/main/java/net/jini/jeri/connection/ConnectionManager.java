@@ -26,14 +26,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.AccessController;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
@@ -154,21 +157,73 @@ public final class ConnectionManager {
      */
     private final ConnectionEndpoint ep;
     /**
-     * The OutboundMuxes.
+     * All the OutboundMuxes, in the order they were added. Guarded by this.
      */
-    private final List<OutboundMux> muxes = new ArrayList<OutboundMux>(128);
+    private final Set<OutboundMux> muxes = new LinkedHashSet<OutboundMux>();
+    /**
+     * The muxes that may have room for another request, the most recently
+     * added or freed first, so that requests concentrate on few connections.
+     * It is what {@link #connect} offers the endpoint, so that a call does
+     * not have to look at every mux. An entry can be stale (the mux has been
+     * removed, has gone down or has filled up since); {@link #offer} drops
+     * those as it meets them. Guarded by this.
+     */
+    private final ArrayDeque<OutboundMux> available
+            = new ArrayDeque<OutboundMux>();
+    /**
+     * Muxes that were full and have since lost a request, put here without
+     * taking this monitor by the thread that ended the request; {@link
+     * #connect} moves them back to {@link #available}. At most one entry
+     * per mux.
+     */
+    private final ConcurrentLinkedQueue<OutboundMux> freed
+            = new ConcurrentLinkedQueue<OutboundMux>();
 
     /**
      * Upper bound on the passes {@link #connect} makes when the mux chosen by
-     * the endpoint has filled up in the meantime, after which it opens a new
-     * connection. A safety net: each pass excludes at least one full mux.
+     * the endpoint has filled up or been removed in the meantime, after
+     * which it opens a new connection. A safety net: each pass excludes at
+     * least one mux.
      */
     private static final int MAX_CONNECT_ATTEMPTS = 16;
+
+    /**
+     * The most muxes offered to the endpoint in one pass. The endpoint
+     * chooses among the muxes it is offered; the ones that matter are the
+     * first few, and the cost of a call must not grow with the number of
+     * connections. If the endpoint finds none of them suitable, and there
+     * are more, it is offered all of them (see {@link #offer}).
+     */
+    private static final int OFFER_WINDOW = 4;
 
     /**
      * Number of pending connect calls.
      */
     private int pendingConnects = 0;
+
+    /**
+     * True if this manager is in (or on its way into) reaperSet. Guarded by
+     * this; set false by checkIdle when it tells the reaper to drop the
+     * manager.
+     */
+    private boolean registered = false;
+
+    /**
+     * Number of new connections being opened by connect calls. Guarded by
+     * this. Callers that find no mux with room wait while this is non-zero
+     * instead of opening a connection of their own, so that a burst of
+     * callers on a cold manager opens a few connections, not one each.
+     */
+    private int opening = 0;
+    /**
+     * Number of opens that have finished, successfully or not. Guarded by
+     * this.
+     */
+    private long openEpoch = 0;
+    /**
+     * Number of opens that have failed. Guarded by this.
+     */
+    private long openFailures = 0;
 
     /**
      * Creates a new <code>ConnectionManager</code> that manages client-side
@@ -182,16 +237,171 @@ public final class ConnectionManager {
     }
 
     /**
+     * The muxes offered to the endpoint in one pass: the connections in the
+     * two lists the endpoint is given, and the muxes they belong to.
+     */
+    private static final class Offer {
+        final List<Connection> active = new ArrayList<Connection>(OFFER_WINDOW);
+        final List<Connection> idle = new ArrayList<Connection>(OFFER_WINDOW);
+        final List<OutboundMux> offered = new ArrayList<OutboundMux>(OFFER_WINDOW);
+        /** True if there were muxes with room that were not offered. */
+        boolean truncated;
+
+        /** The mux offered with connection c, or null if c was not offered. */
+        OutboundMux find(Connection c) {
+            for (int i = 0, n = offered.size(); i < n; i++) {
+                if (offered.get(i).getConnection() == c) {
+                    return offered.get(i);
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Chooses a mux for a new request, reserves a slot on it and returns it.
      * Calls connect on the connection endpoint with the active and idle muxes
-     * and the specified handle. If no connection is returned, calls connect
-     * with the handle. In either case, if a new connection is returned, creates
+     * that have room (the first few of them, see {@link #OFFER_WINDOW}) and
+     * the specified handle. If no connection is returned, calls connect with
+     * the handle. In either case, if a new connection is returned, creates
      * and adds a mux for it. In all cases, bumps the newRequest count for the
      * mux and returns it. Removes any dead muxes along the way.
+     *
+     * <p>The cost of the common path does not depend on the number of muxes.
+     * The monitor is not held while the endpoint is called or while a
+     * connection is opened. At most one connection is being opened at a
+     * time by callers that find no mux with room: the others wait for it,
+     * and use it when it is there (unless the open fails, in which case they
+     * open their own, at once and together).
      */
     OutboundMux connect(OutboundRequestHandle handle) throws IOException {
-        synchronized (this) {
-            pendingConnects++;
+        boolean counted = false;    // pendingConnects includes this call
+        boolean interrupted = false;
+        try {
+            /*
+             * Which mux the endpoint is offered is decided under the lock, the
+             * endpoint is called outside it, so by the time it has chosen a
+             * mux other threads may have filled it, or the reaper may have
+             * removed it. The room is therefore checked again, together with
+             * the reservation, in one critical section, and only a mux still
+             * in the manager is used; if the mux chosen has meanwhile filled
+             * up, or is gone, go round again. Do NOT reduce this to checking
+             * only when offering: with many concurrent callers all of them
+             * pass a check made there (e.g. at 255 of 256), are all handed the
+             * same mux, and the surplus fails with "no free sessions". And do
+             * NOT make a mux of a connection the endpoint chose that is no
+             * longer in the manager: the reaper may have closed it, or be
+             * about to.
+             */
+            int attempts = 0;
+            boolean everything = false;     // offer every mux with room
+            boolean dontWait = false;       // an open this call waited for failed
+            for (;;) {
+                Offer offer = null;
+                if (attempts < MAX_CONNECT_ATTEMPTS) {
+                    boolean register = false;
+                    synchronized (this) {
+                        if (!counted) {
+                            pendingConnects++;
+                            counted = true;
+                            register = !registered;
+                            registered = true;
+                        }
+                        offer = offer(everything);
+                        if (offer.offered.isEmpty() && opening > 0 && !dontWait) {
+                            long epoch = openEpoch, failures = openFailures;
+                            interrupted |= awaitOpen(epoch);
+                            dontWait = openFailures != failures;
+                            // the registration, if due, is made below
+                            offer = null;
+                        }
+                    }
+                    if (register) {
+                        register();
+                    }
+                    if (offer == null) {
+                        continue;
+                    }
+                    Connection c = ep.connect(handle, offer.active, offer.idle);
+                    if (c != null) {
+                        OutboundMux mux = offer.find(c);
+                        if (mux == null) {
+                            // A connection the endpoint opened for this request.
+                            OutboundMux added = adopt(newOutboundMux(c));
+                            counted = false;
+                            return added;
+                        }
+                        synchronized (this) {
+                            if (reserve(mux)) {
+                                pendingConnects--;
+                                counted = false;
+                                if (logger.isLoggable(Level.FINEST)) {
+                                    logger.log(Level.FINEST, "using {0}", c);
+                                }
+                                return mux;
+                            }
+                        }
+                        if (logger.isLoggable(Level.FINEST)) {
+                            logger.log(Level.FINEST,
+                                    "{0} is full or gone, retrying", c);
+                        }
+                        attempts++;
+                        continue;
+                    }
+                    if (offer.truncated && !everything) {
+                        // None of the first few is suitable: ask about all.
+                        everything = true;
+                        continue;
+                    }
+                }
+                /*
+                 * No mux to use: open a connection. Callers that get here
+                 * while another is opening one wait for it, then look again.
+                 */
+                synchronized (this) {
+                    if (opening > 0 && !dontWait) {
+                        long epoch = openEpoch, failures = openFailures;
+                        interrupted |= awaitOpen(epoch);
+                        dontWait = openFailures != failures;
+                        continue;
+                    }
+                    opening++;
+                }
+                OutboundMux mux = null;
+                try {
+                    mux = newOutboundMux(ep.connect(handle));
+                } finally {
+                    synchronized (this) {
+                        opening--;
+                        openEpoch++;
+                        if (mux == null) {
+                            openFailures++;
+                        }
+                        notifyAll();
+                    }
+                }
+                OutboundMux added = adopt(mux);
+                counted = false;
+                return added;
+            }
+        } finally {
+            if (counted) {
+                synchronized (this) {
+                    assert pendingConnects > 0;
+                    pendingConnects--;
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
+    }
+
+    /**
+     * Makes sure the reaper knows of this manager; starts it if need be.
+     */
+    private void register() {
+        boolean ok = false;
         try {
             synchronized (reaperSet) {
                 if (reaperSet.isEmpty()) {
@@ -200,95 +410,171 @@ public final class ConnectionManager {
                 }
                 reaperSet.add(this);
             }
-            /*
-             * The scan below only decides which muxes the endpoint is offered.
-             * The endpoint is called outside the lock, so by the time it has
-             * chosen a mux, other threads may have filled it. The room check
-             * is therefore repeated, together with the reservation, in one
-             * critical section; if the chosen mux has meanwhile filled up, go
-             * round again (the scan then leaves that mux out). Do NOT reduce
-             * this to checking only in the scan: with many concurrent callers
-             * all of them pass a check made there (e.g. at 255 of 256), are
-             * all handed the same mux, and the surplus fails with "no free
-             * sessions".
-             */
-            for (int attempt = 0; attempt < MAX_CONNECT_ATTEMPTS; attempt++) {
-                /**
-                 * The active muxes (during connect).
-                 */
-                List<Connection> active = new LinkedList<Connection>();
-                /**
-                 * The idle muxes (during connect).
-                 */
-                List<Connection> idle = new LinkedList<Connection>();
-                synchronized (this) {
-                    for (int i = muxes.size(); --i >= 0;) {
-                        OutboundMux mux = (OutboundMux) muxes.get(i);
-                        try {
-                            int n = mux.requestsInProgress();
-                            if (n == 0) {
-                                idle.add(mux.getConnection());
-                            } else if (n < OutboundMux.MAX_REQUESTS) {
-                                active.add(mux.getConnection());
-                            }
-                        } catch (IOException e) {
-                            muxes.remove(i);
-                        }
-                    }
-                }
-                Connection c = ep.connect(handle, active, idle);
-                if (c == null) {
-                    break;
-                }
-                synchronized (this) {
-                    for (int i = muxes.size(); --i >= 0;) {
-                        OutboundMux mux = (OutboundMux) muxes.get(i);
-                        if (c == mux.getConnection()) {
-                            try {
-                                // Check and reserve in one critical section.
-                                if (mux.requestsInProgress()
-                                        < OutboundMux.MAX_REQUESTS) {
-                                    if (logger.isLoggable(Level.FINEST)) {
-                                        logger.log(Level.FINEST, "using {0}", c);
-                                    }
-                                    mux.newRequestPending();
-                                    return mux;
-                                }
-                                if (logger.isLoggable(Level.FINEST)) {
-                                    logger.log(Level.FINEST,
-                                            "{0} is full, retrying", c);
-                                }
-                            } catch (IOException e) {
-                                muxes.remove(i);
-                            }
-                            c = null;
-                            break;
-                        }
-                    }
-                }
-                if (c != null) {
-                    // A connection the endpoint opened for this request.
-                    OutboundMux mux = newOutboundMux(c);
-                    synchronized (this) {
-                        mux.newRequestPending();
-                        muxes.add(mux);
-                        return mux;
-                    }
-                }
-            }
-            Connection c = ep.connect(handle);
-            OutboundMux mux = newOutboundMux(c);
-            synchronized (this) {
-                mux.newRequestPending();
-                muxes.add(mux);
-                return mux;
-            }
+            ok = true;
         } finally {
-            synchronized (this) {
-                assert pendingConnects > 0;
-                pendingConnects--;
+            if (!ok) {
+                synchronized (this) {
+                    registered = false;
+                }
             }
         }
+    }
+
+    /**
+     * Adds a mux for a connection opened for a request, reserves a slot on
+     * it for that request, and returns it. The pending connect count of the
+     * caller is given up here, in the same critical section.
+     */
+    private synchronized OutboundMux adopt(OutboundMux mux) {
+        mux.newRequestPending();
+        muxes.add(mux);
+        makeAvailable(mux);
+        pendingConnects--;
+        return mux;
+    }
+
+    /**
+     * Waits, uninterruptibly, until an open that was in progress when this
+     * was called has finished or none is in progress. Returns true if the
+     * thread was interrupted while waiting (the caller restores the flag
+     * when it is done, so as not to be woken at once again). Holds this.
+     */
+    private boolean awaitOpen(long epoch) {
+        assert Thread.holdsLock(this);
+        boolean interrupted = false;
+        while (openEpoch == epoch && opening > 0) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        return interrupted;
+    }
+
+    /**
+     * Builds the offer for the endpoint from the muxes that have room, the
+     * most recent first, at most OFFER_WINDOW of them unless everything is
+     * true. Muxes met on the way that have gone down, were removed or have
+     * filled up are dropped from the available muxes. Holds this.
+     */
+    private Offer offer(boolean everything) {
+        assert Thread.holdsLock(this);
+        for (OutboundMux m; (m = freed.poll()) != null;) {
+            m.freedQueued.set(false);
+            if (m.full && !m.removed) {
+                try {
+                    if (m.requestsInProgress() < OutboundMux.MAX_REQUESTS) {
+                        m.full = false;
+                        makeAvailable(m);
+                    }
+                } catch (IOException e) {
+                    drop(m);
+                }
+            }
+        }
+        Offer offer = new Offer();
+        for (Iterator<OutboundMux> it = available.iterator(); it.hasNext();) {
+            OutboundMux m = it.next();
+            int n;
+            try {
+                if (m.removed) {
+                    it.remove();
+                    m.inAvailable = false;
+                    continue;
+                }
+                n = m.requestsInProgress();
+                if (n >= OutboundMux.MAX_REQUESTS && confirmFull(m)) {
+                    it.remove();
+                    m.inAvailable = false;
+                    continue;
+                }
+            } catch (IOException e) {
+                it.remove();
+                m.inAvailable = false;
+                drop(m);
+                continue;
+            }
+            if (!everything && offer.offered.size() == OFFER_WINDOW) {
+                offer.truncated = true;
+                break;
+            }
+            offer.offered.add(m);
+            (n == 0 ? offer.idle : offer.active).add(m.getConnection());
+        }
+        return offer;
+    }
+
+    /**
+     * Reserves a slot for a request on the mux, if it is still in this
+     * manager and has room. The check and the reservation are one critical
+     * section. A mux that is full leaves the available muxes; one that has
+     * gone down is removed. Holds this.
+     */
+    private boolean reserve(OutboundMux mux) {
+        assert Thread.holdsLock(this);
+        if (mux.removed) {
+            return false;
+        }
+        try {
+            if (mux.requestsInProgress() >= OutboundMux.MAX_REQUESTS) {
+                if (confirmFull(mux)) {
+                    dropAvailable(mux);
+                    return false;
+                }
+            }
+            mux.newRequestPending();
+            if (mux.requestsInProgress() >= OutboundMux.MAX_REQUESTS
+                    && confirmFull(mux)) {
+                dropAvailable(mux);
+            }
+            return true;
+        } catch (IOException e) {
+            drop(mux);
+            return false;
+        }
+    }
+
+    /**
+     * Marks the mux as full, so that the end of any of its requests puts it
+     * on the freed queue, and then checks again whether it is full, in case
+     * a request ended before the mark was set (that one would have found the
+     * mux not marked, and said nothing). Returns false if it is not full
+     * after all (the mark is then cleared). Holds this.
+     */
+    private boolean confirmFull(OutboundMux mux) throws IOException {
+        mux.full = true;
+        if (mux.requestsInProgress() < OutboundMux.MAX_REQUESTS) {
+            mux.full = false;
+            return false;
+        }
+        return true;
+    }
+
+    private void makeAvailable(OutboundMux mux) {
+        assert Thread.holdsLock(this);
+        if (!mux.inAvailable && !mux.removed) {
+            mux.inAvailable = true;
+            available.addFirst(mux);
+        }
+    }
+
+    private void dropAvailable(OutboundMux mux) {
+        assert Thread.holdsLock(this);
+        if (mux.inAvailable) {
+            mux.inAvailable = false;
+            available.remove(mux);
+        }
+    }
+
+    /**
+     * Forgets the mux (it has gone down, or is to be closed); the entry in
+     * available, if any, is dropped when met. Holds this.
+     */
+    private void drop(OutboundMux mux) {
+        assert Thread.holdsLock(this);
+        muxes.remove(mux);
+        mux.removed = true;
     }
 
     /**
@@ -297,14 +583,32 @@ public final class ConnectionManager {
      * are pending and no muxes remain.
      */
     synchronized boolean checkIdle(long now, List<OutboundMux> idle) {
-        for (int i = muxes.size(); --i >= 0;) {
-            OutboundMux mux = muxes.get(i);
+        boolean dropped = false;
+        for (Iterator<OutboundMux> it = muxes.iterator(); it.hasNext();) {
+            OutboundMux mux = it.next();
             if (mux.checkIdle(now)) {
-                muxes.remove(i);
+                it.remove();
+                mux.removed = true;
+                dropped = true;
                 idle.add(mux);
             }
         }
-        return pendingConnects == 0 && muxes.isEmpty();
+        if (dropped) {
+            // Rare and off the call path: do not leave the stale entries to
+            // the calls.
+            for (Iterator<OutboundMux> it = available.iterator(); it.hasNext();) {
+                OutboundMux mux = it.next();
+                if (mux.removed) {
+                    it.remove();
+                    mux.inAvailable = false;
+                }
+            }
+        }
+        if (pendingConnects == 0 && muxes.isEmpty()) {
+            registered = false;
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -312,7 +616,7 @@ public final class ConnectionManager {
      */
     void remove(OutboundMux mux) {
         synchronized (this) {
-            muxes.remove(mux);
+            drop(mux);
         }
         mux.shutdown("writeRequestData failed");
     }
@@ -370,6 +674,26 @@ public final class ConnectionManager {
          * ConnectionManager's lock.
          */
         private long idleTime = 0;
+        /**
+         * True once the manager has dropped this mux (idle, down or failed).
+         * Guarded by the manager's lock.
+         */
+        boolean removed;
+        /**
+         * True if the mux is in the manager's available list. Guarded by the
+         * manager's lock.
+         */
+        boolean inAvailable;
+        /**
+         * True if the manager found the mux full and took it out of its
+         * available list: the end of a request then puts it on the freed
+         * queue. Written under the manager's lock, read by any thread.
+         */
+        volatile boolean full;
+        /**
+         * True while this mux is on the freed queue.
+         */
+        final AtomicBoolean freedQueued = new AtomicBoolean();
 
         /**
          * Constructs an instance from the connection's streams.
@@ -451,10 +775,30 @@ public final class ConnectionManager {
                     assert pendingNewRequests > 0;
                     pendingNewRequests--;
                 }
+                noteRoom();
                 if (interrupted) {
                     Thread.currentThread().interrupt();
                 }
             }
+        }
+
+        /**
+         * Tells the manager that this mux, which it found full, may have room
+         * again. Takes no lock, since the thread that ends a request may hold
+         * any; the manager checks the count itself.
+         */
+        void noteRoom() {
+            if (full && freedQueued.compareAndSet(false, true)) {
+                manager.freed.add(this);
+            }
+        }
+
+        /**
+         * A request on this mux has ended.
+         */
+        @Override
+        protected void handleSessionRemoved() {
+            noteRoom();
         }
 
         /**
