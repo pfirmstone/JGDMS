@@ -301,7 +301,7 @@ import net.jini.security.SecurityContext;
  * <ul>
  * <li> <code>org.apache.river.jeri.ssl.maxServerSessionDuration</code> - The
  *	maximum number of milliseconds a server-side TLS/SSL session should be
- *	used before expiring. The default is 24 hours. The value used should be
+ *	used before expiring. The default is 1 hour. The value used should be
  *	larger than the maximum client session duration to allow the client to
  *	negotiate a new session before the server timeout occurs.
  * <li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket

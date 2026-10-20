@@ -76,14 +76,16 @@ class SslConnection extends Utilities implements Connection {
 
     /**
      * The maximum time a client session should be used before expiring --
-     * non-final to facilitate testing.  Use 23.5 hours as the default to allow
+     * non-final to facilitate testing.  Use 55 minutes as the default to allow
      * the client to negotiate a new session before the server timeout, which
-     * defaults to 24 hours.
+     * defaults to 1 hour.
      */
+    static final long DEFAULT_MAX_CLIENT_SESSION_DURATION = 55L * 60L * 1000L;
+
     private final long maxClientSessionDuration =
 	((Long) Security.doPrivileged(
 	    new GetLongAction("org.apache.river.jeri.ssl.maxClientSessionDuration",
-			      (long) (23.5 * 60 * 60 * 1000)))).longValue();
+			      DEFAULT_MAX_CLIENT_SESSION_DURATION))).longValue();
 
     /** Client logger */
     private static final Logger logger = CLIENT_LOGGER;
