@@ -910,3 +910,23 @@ The result is positive and the size depends on the I/O model: TCP (stream I/O, a
 **Virtual-thread pinning (JDK 27, `jdk.VirtualThreadPinned` threshold 0).** TCP and UDS: 61 and 60 events, all in the first 50 to 110 ms (class loading in `ZipFile` under a contended monitor, and one wait for the class initialiser of `Mux`); none in steady state. TLS: none. JDK 24 and later no longer pin on `synchronized`, so this does not say how the same code behaves on JDK 21; the modules here need 25 or later to build, so it was not tested.
 
 **What this changes in the plan (design section 9).** Stage 1 (one write per frame in `StreamConnectionIO.Writer`) and stage 4 stand, but the target is clearer: remove the writer thread from the stream path, as the channel path already does, while keeping an owned writer where an interrupt would close the socket. Stage 3 (striping inside `ConnectionManager`, endpoint-approved candidates) is justified by E3 for TCP and UDS, with a small bound (2 to 4) and a pool of one for TLS until a handshake-aware run says otherwise. Not yet measured: the same experiment on the 6-, 32- and 80-core machines.
+
+### Twenty-third section, correction: server in its own JVM (the Fable review's first point)
+
+`ThreadProfile` now takes `-Dthreadprofile.server=<ServerMain directory> -Dthreadprofile.serverpid=<pid>` and reports the client and the server JVM separately. In the in-process runs above the UDS client and server shared one `MasterPoller`, so the UDS row understated the cost. Separate JVMs, `ping`, container (4 cores), per call:
+
+| | wall us | CPU us, client + server | voluntary switches, client + server |
+|---|---:|---:|---:|
+| JERI DER, UDS, 1 caller | 124 | 71 + 66 = 137 | 3.0 + 3.0 = 6.1 |
+| JERI DER, TCP, 1 caller | 123 | 64 + 103 = 167 | 3.1 + 5.1 = 8.1 |
+| JERI DER, TLS, 1 caller | 209 | 132 + 109 = 241 | 3.2 + 5.1 = 8.3 |
+| RMI over TLS, 1 caller | 56 | 29 + 29 = 58 | 1.0 + 1.0 = 2.0 |
+| JERI DER, UDS, 16 callers | 537 (29.8 calls/ms) | 48 + 39 = 87 | 1.7 + 1.4 = 3.1 |
+| JERI DER, TCP, 16 callers | 595 (26.9) | 48 + 56 = 104 | 1.9 + 2.4 = 4.3 |
+| JERI DER, TLS, 16 callers | 749 (21.4) | 64 + 73 = 137 | 1.7 + 2.1 = 3.9 |
+| RMI over TLS, 16 callers | 147 (108.7) | 18 + 18 = 35 | 0.9 + 0.9 = 1.9 |
+
+What stands and what does not:
+* **Withdrawn:** "a JERI call on UDS is 114 us against 146 on TCP". With the server in its own JVM, one caller takes 124 us on UDS and 123 us on TCP. The stream transport's writer and reader threads still cost two more hand-offs and about 30 us more CPU per call, but at one caller they do not add wall time here.
+* **Stands:** JERI over TLS spends 4 times RMI's CPU and 3.7 times its wall time for one caller; at 16 callers JERI DER uses 65% (UDS), 70% (TCP) and 73% (TLS) of the four cores, RMI over TLS 95%. JERI is waiting, not out of CPU.
+* **Open:** whether the wait is one connection or the single `SelectionManager` poller (UDS), which the plan's two-poller experiment (stage 1b) is to separate.
