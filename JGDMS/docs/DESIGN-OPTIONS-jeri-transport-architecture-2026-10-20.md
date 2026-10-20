@@ -273,15 +273,20 @@ two things that matter for the scalability target:
 
 * **Throughput collapses between 64 and 512 callers.** DER over UDS: 37 to 45 calls/ms at 64 callers, 13 at 512, with p50
   latency 2.4 to 42 ms and p99 150 to 220 ms; over TCP 46 to 47 at 64 and 11 to 16 at 512. RMI plain also falls (99 at 64,
-  30 to 57 at 512) but less. 512 callers is above the mux's 256 sessions per connection, which is the first suspect; it is
-  not diagnosed. On 4 cores 512 callers is also oversubscribed by construction.
+  30 to 57 at 512) but less. 512 callers is above the mux's 256 sessions per connection, which was the first suspect for the
+  failures (confirmed, below) but not for the fall in throughput, which is not diagnosed. On 4 cores 512 callers is also oversubscribed by construction.
 * **Calls fail.** At 512 virtual-thread callers DER over TCP had 16 errors and over UDS 36, `ConnectIOException: no free
-  sessions`. Cause **[reasoned from the code]**: `ConnectionManager.connect` decides under its lock that a mux with fewer
+  sessions`. Cause **[confirmed 2026-10-20 by a failing test and a before/after benchmark]**: `ConnectionManager.connect` decides under its lock that a mux with fewer
   than 256 requests in progress may be reused, but the caller only reserves its slot (`newRequestPending`) after
   `ep.connect(...)` returns, outside that lock, so many callers can pass the check at 255 and all pick the same mux; the
   surplus fails in `MuxClient.newRequest` and the failure is not retried. This is existing behaviour, not caused by the
-  changes above, and it is a correctness bug at high concurrency, not a performance matter. The earlier plan called the fix
-  "CAS slot reservation": re-check and reserve in one critical section, and choose again when the mux is full.
+  changes above, and it is a correctness bug at high concurrency, not a performance matter. **Fixed 2026-10-20**: the room is
+  re-checked and the slot reserved in one critical section, and `connect` chooses again when the mux is full
+  (`ConnectionManagerCapacityTest`; RESULTS section 32). Measured, 4-core container, two runs per point: errors at 512 and
+  1024 virtual-thread callers 8 to 21 per point before (5 of 16 point-runs), 0 of 32 after. **The throughput fall between 64
+  and 512 callers is not this bug and remains** (UDS platform 32 to 48 calls/ms at 64, 13 to 15 at 512, before and after;
+  virtual callers 26 to 36 at 512); with platform callers the client opens about one connection per caller (514 sockets at
+  512 callers in 5 of 8 runs), with virtual callers 85 to 166. The remaining collapse is not diagnosed.
 
 **History (maintainer):** the mux used to have 128 sessions; a stress test overflowed it and the limit was raised to 256
 (`Mux.MAX_SESSION_ID` 0x7F to 0xFF in 3.1.1; the source comment says the session id is now an unsigned byte and 256 is the
@@ -292,8 +297,8 @@ so a connection pool is not an optional optimisation (D2's striping question) bu
 asks for, and the pool's open-on-demand path must be correct (no failure when a mux fills). Going beyond 256 per connection
 would need a new mux protocol version (option B of the first design, a negotiated format).
 
-These need diagnosing and, for the second, fixing before the scalability options are weighed: they sit below every
-architecture choice in this document.
+The first (the fall in throughput) still needs diagnosing before the scalability options are weighed; the second is fixed.
+Both sit below every architecture choice in this document.
 
 ## 4. Combinations
 

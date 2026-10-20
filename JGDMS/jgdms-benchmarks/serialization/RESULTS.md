@@ -1122,3 +1122,67 @@ On Windows use `py concurrency-curve.py --out curve-6core ...` (or `python`), wi
 | RMI | PLAIN | 512 | 56.9 | 1501 | 99025 | 886571 | 1795593 | 32 / 547 | 304 / 857 | 0 |
 
 The 512-caller point of DER over TCP with virtual callers had 16 errors, `ConnectIOException ... no free sessions` from the mux (another run of DER UDS with virtual callers had 36); the tool counts those as errors and keeps the latency of the calls that succeeded, so a point with errors is not comparable with one without. At 4096 callers over TCP (one run each, 3 s + 4 s) every point completed: DER with platform callers 0.5 calls/ms, with virtual callers 13 calls/ms; RMI with platform callers 41 calls/ms and virtual callers 47 calls/ms, with up to about 8 000 client threads in the DER platform run. These too are a first look at what the tool shows, to be repeated on the machines the maintainer named before anyone reads anything into them.
+
+## Thirty-second section: "no free sessions" at many callers, the reservation race in `ConnectionManager.connect` (container, 4 cores, JDK 27 `27-internal`, server in its own JVM; re-run on the workstation before quoting)
+
+**The bug.** `ConnectionManager.connect` put a mux in the list offered to the endpoint if `requestsInProgress() < 256`, called `ep.connect(handle, active, idle)` outside the lock, and only afterwards, in a second `synchronized` block, reserved the slot (`newRequestPending`). With many concurrent callers all of them pass the check (say at 255), the endpoint (TCP and UDS both return the first active connection) hands all of them the same mux, all reserve, and the surplus fails in `MuxClient.newRequest` with `IOException("no free sessions")`, which `ReqIterator.next` does not retry. The limit was 128 before 3.1.1 and became 256; the race is the same, only the threshold moved. 256 is the most the wire format allows (the session id is an unsigned byte).
+
+**The fix** (`ConnectionManager.connect`; nothing else changed: not the endpoints, the mux, the 256 limit or the cold-burst behaviour). The room is checked again, in the same critical section as the reservation, on the mux the endpoint chose. If it is full (or dead, in which case it is also removed) `connect` goes round again: the scan now leaves that mux out, the endpoint is asked again, and if it returns null a new connection is opened. At most 16 passes, then a new connection is opened. `pendingConnects` is counted once per call, not per pass. DO NOT go back to checking only in the scan.
+
+**Tests** (`ConnectionManagerCapacityTest`, 2 tests, about 1 s). (1) `testReservationNeverExceedsCapacity`, deterministic: 255 slots of one mux are reserved through `ConnectionManager.connect` with a fake endpoint that behaves like the real ones (first active connection) and makes 64 callers meet inside `ep.connect`, so that all of them have chosen the mux before any reserves. Without the fix 319 requests are reserved on one mux (8 of 8 runs fail); with it none exceeds 256 and a second connection is opened (8 of 8 pass). (2) `testMoreThanOneConnectionsWorthOfConcurrentRequests`, through the public API: a remote object exported over TCP, 255 callers blocked in the server on the first connection, then 245 more released together; all 500 calls must be in the server at the same time, none may fail, and more than one connection must have been opened. Without the fix it fails with `ConnectIOException ... no free sessions` in 4 of 8 runs (the window is a few microseconds, so this one is a probabilistic catch; a variant with a spin start caught 5 of 8); with the fix 8 of 8 pass. Mutant: replacing the re-check by `>= 0` is caught by (1) 8 of 8 and by (2) 1 of 8.
+
+**Measurement.** `concurrency-curve.py --stacks DER --transports UDS,TCP --kinds virtual,platform --callers 64,256,512,1024 --payloads ping --warmup 3 --measure 6`, once with the shaded benchmark jar built from the jeri classes before the fix (`--jar before.jar`; the `ConnectionManager.class` in it is the unfixed one) and once after, in the order before, after, before, after. Each cell shows run 1 / run 2. 4-core container, one point at a time, noisy, short runs.
+
+| transport | callers | run of | errors | calls/ms | p50 us | p99 us | p99.9 us | client sockets |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| **UDS, virtual-thread callers** | | | | | | | | |
+| UDS | 64 | before | 0 / 0 | 31.5 / 48.9 | 1208 / 867 | 11051 / 7295 | 29508 / 12173 | 62 / 54 |
+| UDS | 64 | after | 0 / 0 | 38.6 / 45.2 | 940 / 912 | 9101 / 7389 | 32801 / 12116 | 66 / 59 |
+| UDS | 256 | before | 0 / 0 | 24.3 / 24.5 | 2922 / 4223 | 75956 / 43352 | 124977 / 62489 | 58 / 238 |
+| UDS | 256 | after | 0 / 0 | 25.9 / 37.9 | 2839 / 2230 | 49840 / 46432 | 90243 / 73728 | 133 / 57 |
+| UDS | 512 | before | 21 / 8 | 35.7 / 28.9 | 1882 / 2836 | 100401 / 118489 | 178127 / 205390 | 85 / 94 |
+| UDS | 512 | after | 0 / 0 | 26.3 / 30.7 | 1065 / 1441 | 99025 / 105382 | 153092 / 180617 | 151 / 94 |
+| UDS | 1024 | before | 0 / 16 | 19.6 / 29.7 | 55837 / 2824 | 204472 / 204079 | 297533 / 385090 | 252 / 94 |
+| UDS | 1024 | after | 0 / 0 | 23.0 / 35.0 | 32457 / 1444 | 183239 / 178913 | 262144 / 245236 | 185 / 94 |
+| **UDS, platform-thread callers** | | | | | | | | |
+| UDS | 64 | before | 0 / 0 | 31.8 / 48.3 | 1043 / 1036 | 15098 / 6496 | 37618 / 12427 | 66 / 66 |
+| UDS | 64 | after | 0 / 0 | 37.1 / 41.9 | 1222 / 1146 | 8569 / 7672 | 24789 / 18874 | 66 / 66 |
+| UDS | 256 | before | 0 / 0 | 46.1 / 24.3 | 4424 / 11379 | 26493 / 51642 | 51839 / 74908 | 48 / 258 |
+| UDS | 256 | after | 0 / 0 | 17.7 / 23.3 | 15974 / 12493 | 65274 / 51937 | 92275 / 77005 | 258 / 258 |
+| UDS | 512 | before | 0 / 0 | 13.9 / 14.5 | 3602 / 38044 | 199754 / 144703 | 288621 / 198967 | 514 / 514 |
+| UDS | 512 | after | 0 / 0 | 12.7 / 15.1 | 43385 / 39027 | 155845 / 135266 | 215351 / 184549 | 489 / 429 |
+| UDS | 1024 | before | 0 / 0 | 8.8 / 7.9 | 126091 / 145621 | 423363 / 449839 | 619184 / 598213 | 941 / 1026 |
+| UDS | 1024 | after | 0 / 0 | 10.3 / 11.9 | 108724 / 95748 | 368050 / 321651 | 544735 / 453771 | 642 / 537 |
+| **TCP, virtual-thread callers** | | | | | | | | |
+| TCP | 64 | before | 0 / 0 | 44.0 / 44.1 | 990 / 1056 | 7508 / 7111 | 13099 / 11035 | 66 / 66 |
+| TCP | 64 | after | 0 / 0 | 44.0 / 48.6 | 1077 / 904 | 6746 / 6648 | 22479 / 10781 | 55 / 66 |
+| TCP | 256 | before | 0 / 0 | 38.7 / 47.3 | 1239 / 1959 | 35946 / 33292 | 53641 / 51773 | 118 / 72 |
+| TCP | 256 | after | 0 / 0 | 30.8 / 41.3 | 1223 / 1414 | 42861 / 37388 | 60654 / 55640 | 147 / 95 |
+| TCP | 512 | before | 0 / 16 | 27.4 / 26.7 | 1456 / 2010 | 94896 / 97911 | 144441 / 133759 | 166 / 156 |
+| TCP | 512 | after | 0 / 0 | 33.4 / 33.1 | 1156 / 1214 | 82903 / 89719 | 119472 / 128057 | 137 / 117 |
+| TCP | 1024 | before | 0 / 13 | 28.9 / 29.3 | 922 / 1761 | 172360 / 260309 | 246940 / 479986 | 187 / 110 |
+| TCP | 1024 | after | 0 / 0 | 19.3 / 26.9 | 2746 / 3525 | 218104 / 259391 | 312214 / 445383 | 304 / 100 |
+| **TCP, platform-thread callers** | | | | | | | | |
+| TCP | 64 | before | 0 / 0 | 44.9 / 49.1 | 1231 / 1145 | 5087 / 4456 | 9011 / 8282 | 66 / 66 |
+| TCP | 64 | after | 0 / 0 | 50.5 / 45.0 | 1076 / 1245 | 4452 / 4960 | 7246 / 10297 | 66 / 66 |
+| TCP | 256 | before | 0 / 0 | 26.2 / 25.5 | 6492 / 9601 | 46105 / 46563 | 84214 / 67633 | 258 / 258 |
+| TCP | 256 | after | 0 / 0 | 24.5 / 23.5 | 4813 / 6083 | 50102 / 53281 | 73138 / 79495 | 258 / 258 |
+| TCP | 512 | before | 0 / 0 | 13.0 / 14.9 | 46760 / 42074 | 178389 / 150077 | 255590 / 210239 | 514 / 514 |
+| TCP | 512 | after | 0 / 0 | 29.9 / 13.6 | 1392 / 45154 | 90636 / 164233 | 135528 / 235799 | 202 / 514 |
+| TCP | 1024 | before | 0 / 0 | 5.6 / 5.8 | 159908 / 185729 | 822608 / 715653 | 1231028 / 3531604 | 854 / 1026 |
+| TCP | 1024 | after | 0 / 0 | 6.1 / 6.0 | 188088 / 187564 | 737149 / 606077 | 3181380 / 845152 | 1026 / 1026 |
+
+**What changed.** The errors are gone. The unfixed jar had errors in 5 of the 16 point-runs with virtual-thread callers (UDS 512 callers: 21 and 8; UDS 1024: 16 in run 2; TCP 512: 16 in run 2; TCP 1024: 13 in run 2), every first error being `ConnectIOException ... nested exception is: java.io.IOException: no free sessions`; there were none at 64 and 256 callers, and none with platform-thread callers. With the fix all 32 point-runs had 0 errors. Platform-thread callers never failed, before or after: their client socket count is about the caller count (see below), so no connection fills.
+
+**What did not change.** The throughput fall between 64 and 512 callers is still there. Calls/ms, run 1 / run 2, at 64 callers then at 512 callers:
+
+| callers | before | after |
+|---|---|---|
+| UDS platform | 31.8 / 48.3 then 13.9 / 14.5 | 37.1 / 41.9 then 12.7 / 15.1 |
+| TCP platform | 44.9 / 49.1 then 13.0 / 14.9 | 50.5 / 45.0 then 29.9 / 13.6 |
+| UDS virtual | 31.5 / 48.9 then 35.7 / 28.9 | 38.6 / 45.2 then 26.3 / 30.7 |
+| TCP virtual | 44.0 / 44.1 then 27.4 / 26.7 | 44.0 / 48.6 then 33.4 / 33.1 |
+
+The failed calls were a small part of the collapse: at most 21 failed calls in a 6 s window of well over 100 000 calls, and calls/ms does not move beyond the run-to-run spread (the two runs of one point differ about as much as before and after do, in nearly every row). The one apparent gain, TCP virtual at 512 (27 to 33 calls/ms, in both runs of each), is the size of the spread seen elsewhere in the table and needs more runs before it is read as an effect. One run (TCP platform 512, after, run 1: 29.9 calls/ms, p50 1.4 ms) is twice the others and was not reproduced by run 2.
+
+**One observation, no explanation attempted.** The client socket count in the driver output is the caller count plus a few with platform-thread callers at 512 (514 in 5 of 8 runs, before and after; 489, 429 and 202 in the others) and 85 to 166 with virtual-thread callers; the one fast run (29.9 calls/ms) had 202 sockets. The fix does not change how many connections a cold burst opens (each of N threads that find no connection opens its own: a separate known issue).
