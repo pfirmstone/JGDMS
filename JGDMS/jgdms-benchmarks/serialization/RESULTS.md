@@ -868,3 +868,45 @@ A JERI call crosses about 8 thread wake-ups (mux writer 2, mux reader 2, the vir
 | `batch100` JERI JOSS, UDS | 0.61 | 1.50 | 2.13 |
 
 What it shows: UDS is 10% faster than TCP loopback for one caller and 28% to 55% for 4 to 16 callers (`ping`), but the shape is the same as on TCP: 4.5 times at 16 callers, far from linear on 4 cores, so the mux (8 voluntary context switches per call, twenty-first section) rather than the socket is what limits it. DER is 3.2 times JOSS on `ping` and 3.2 times on `record` at one caller, and 1.0 to 1.2 times on `batch100`, as on TCP. Single run, one machine type, 4 cores shared with the load generator: do not quote the absolute numbers. Remaining stage 0 work: the single-caller profile on UDS and TLS, per-thread CPU at the knee on the workstation, the connection-threshold experiment, connection counts, `VirtualThreadPinned`.
+
+## Twenty-third section: stage 0 completed, per-thread CPU, the connection-threshold experiment, pinning (container, 4 cores, JDK 27; re-run on the workstation before quoting)
+
+New tool: `ThreadProfile` (Linux only, reads `/proc/self/task`): per-thread CPU time from `schedstat`, voluntary and involuntary context switches, and socket descriptors, per call, for N callers on one proxy, client and server in one JVM. `java -cp target/serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ThreadProfile DER UDS ping 16 8` (stack, transport, payload, callers, seconds). Warm-up 5 s, then the measured window.
+
+**One caller, `ping`, per call:**
+
+| | wall us | CPU us (all threads) | voluntary switches | threads that run |
+|---|---:|---:|---:|---|
+| JERI DER, UDS | 114 | 129 | 5.5 | caller 24, virtual-thread carriers 74, `MasterPoller` 24 |
+| JERI DER, TCP | 146 | 195 | 8.2 | caller 22, carriers 43, unblocker 16, mux reader 49, mux writer 61 |
+| JERI DER, TLS | 199 | 260 | 8.3 | caller 41, carriers 67, unblocker 16, mux reader 56, mux writer 66 |
+| RMI over TLS | 64 | 66 | 2.0 | caller 32, server handler 32 |
+
+**The channel path is already the shape the plan wants.** UDS connections are `SocketChannel`s, so they use `SocketChannelConnectionIO` (the caller writes with `writev`, one shared poller thread, no per-connection writer or reader thread). TCP and TLS use blocking streams, so each connection has a mux writer and a mux reader thread: 2.7 more hand-offs and 65 us more CPU per call. A JERI call on UDS is 114 us against 146 on TCP, though the kernel path also differs. JERI still spends twice RMI's CPU per call on its best transport.
+
+**Sixteen callers, `ping`, 4 cores (CPU use = calls per second x CPU per call / 4 cores):**
+
+| | calls/ms | CPU us/call | cores busy |
+|---|---:|---:|---:|
+| JERI DER, UDS | 37.6 | 65 | 2.4 of 4 (61%) |
+| JERI DER, TCP | 27.1 | 104 | 2.8 (70%) |
+| JERI DER, TLS | 19.2 | 129 | 2.5 (62%) |
+| RMI over TLS | 102.6 | 36 | 3.7 (93%) |
+
+RMI uses the machine; JERI leaves 30 to 40% of it idle. Under load the context switches per call fall (UDS 1.8, TCP 4.1, TLS 3.8), so the hand-off count is not what stops it; a serialization point on the one connection is. The ceiling in the 6-core sweep is therefore not CPU saturation of the mux writer thread (the earlier reading, withdrawn in the twentieth section), it is waiting.
+
+**Connection-threshold experiment (E3).** A scratch patch (not committed) made the in-flight count at which `ConnectionManager.connect` stops offering a connection for reuse a property `K` (default 256, `OutboundMux.MAX_REQUESTS`); a smaller `K` makes the endpoint open another connection once every connection has `K` requests in flight. DER `ping`, 16 callers, calls/ms, 2 to 3 runs each:
+
+| transport | K=256 (today) | K=8 | K=4 | K=2 | K=1 |
+|---|---:|---:|---:|---:|---:|
+| TCP | 30.2, 28.9, 27.1 | 42.9 | 41.1, 44.9 | 44.1 | 41.9 |
+| UDS | 35.7, 38.4, 40.9, 41.1 | 41.5, 46.2, 46.9 | | 42.6 | 33.5 |
+| TLS | 19.1, 20.8, 19.2 | 23.3, 22.7, 21.3 | 21.2, 18.9 | 15.0 | 18.1 |
+
+The result is positive and the size depends on the I/O model: TCP (stream I/O, a writer and a reader thread per connection) gains about 50%, UDS (channel I/O) about 16%, TLS about 14% and noisy. Two to four connections capture all of the TCP gain; more does not help. Single runs per cell with a 10% spread, one 4-core machine: the 32- and 80-core machines decide the size. The decision gate for stage 3 is met for TCP and UDS, marginally for TLS (consistent with the plan of a pool of one for TLS until measured with real handshakes: here the burst of 16 simultaneous first calls already opened 16 connections whatever `K` was, so the cost of a handshake is not isolated by this experiment).
+
+**Connection counts.** With 16 callers starting together the manager opens 16 connections in the burst (34 socket descriptors in the process, client and server ends) at every `K`; with `K=256` only the most recently opened one carries the calls and the others idle until the reaper closes them. The burst is a cost of the current code (16 handshakes on TLS) that a `connect` serialised per endpoint would avoid.
+
+**Virtual-thread pinning (JDK 27, `jdk.VirtualThreadPinned` threshold 0).** TCP and UDS: 61 and 60 events, all in the first 50 to 110 ms (class loading in `ZipFile` under a contended monitor, and one wait for the class initialiser of `Mux`); none in steady state. TLS: none. JDK 24 and later no longer pin on `synchronized`, so this does not say how the same code behaves on JDK 21; the modules here need 25 or later to build, so it was not tested.
+
+**What this changes in the plan (design section 9).** Stage 1 (one write per frame in `StreamConnectionIO.Writer`) and stage 4 stand, but the target is clearer: remove the writer thread from the stream path, as the channel path already does, while keeping an owned writer where an interrupt would close the socket. Stage 3 (striping inside `ConnectionManager`, endpoint-approved candidates) is justified by E3 for TCP and UDS, with a small bound (2 to 4) and a pool of one for TLS until a handshake-aware run says otherwise. Not yet measured: the same experiment on the 6-, 32- and 80-core machines.

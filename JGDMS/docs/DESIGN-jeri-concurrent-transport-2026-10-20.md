@@ -170,3 +170,13 @@ only as the cross-check against the earlier numbers.
 3. **Striping inside `ConnectionManager`**, only if stage 0's threshold experiment is positive: endpoint-approved
    candidates, CAS slot reservation, handshake-aware, a pool of one for SSL/Kerberos.
 4. **A new `ConnectionIO`** only if stages 1 to 3 leave a measured gap.
+
+## 10. Stage 0 outcome (2026-10-20, container; the workstation and the 32/80-core machines still to run)
+
+Full tables are in the twenty-third section of `jgdms-benchmarks/serialization/RESULTS.md`. In short:
+
+* The UDS transport (channel I/O) already needs 5.5 thread hand-offs and 129 us of CPU per call against 8.2 and 195 us for TCP (stream I/O) and 8.3 and 260 us for TLS; RMI over TLS needs 2.0 and 66 us. The per-connection writer and reader threads of `StreamConnectionIO` cost about 2.7 hand-offs and 65 us.
+* At 16 callers on 4 cores JERI leaves 30 to 40% of the CPU idle and RMI over TLS uses 93%: the limit is waiting on one connection, not CPU.
+* E3 (connection threshold) is positive: TCP +50%, UDS +16%, TLS +14% (noisy), with 2 to 4 connections capturing it. Stage 3 may proceed for TCP and UDS; TLS keeps a pool of one until a handshake-aware measurement exists.
+* No steady-state virtual-thread pinning on JDK 27.
+* Decision: proceed to stage 1 (stream path: no writer thread hand-off, one write per frame) and stage 2, then stage 3 with a bound of 2 to 4 and endpoint-approved reuse. The new-provider design stays unapproved.
