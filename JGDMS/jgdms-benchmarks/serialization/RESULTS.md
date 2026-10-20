@@ -729,3 +729,15 @@ In-process, three runs each, old `StreamSchemaDedup` against new, jars rebuilt, 
 
 - **The sampled share overstated the unmarshal gain.** `ByteBuffer.hashCode` is gone from the profile, but the work moved: `ArraysSupport.mismatch` (the `Arrays.equals` on a hit, about 200 bytes) is 6% self time now, and the probe is a fresh copy of the chain that `decodeNested` read out of the reconstituted record, so there is no identity shortcut to take. Marshal gained because the previous-chain comparison avoids the map lookup altogether for runs of one class.
 - **What is left in the `batch100` unmarshal profile** (306 us under JFR, 100 records): `DerReader.decodeLength` 12.7% self, `HashMap.getNode` 7.7%, `ArraysSupport.mismatch` 6%, `Arrays.copyOf` 4%, `Class.forName` 3%, `HashMap.putVal` 3%. `decodeLength` is the one worth a look.
+
+## Sixteenth section: is `DerReader.decodeLength` slow? No (investigation, no code change; container)
+
+The fifteenth section left `DerReader.decodeLength` at 12.7% self time in the `batch100` unmarshal profile. Findings:
+
+- **Its cost per call is about 3 ns.** A loop over 2 870 short TLVs (`skipTlv`, or `readTlvHeader` then `skip`) costs 2.7 to 3.4 ns per TLV, header decode and length included; the header records (`Tag`, `DecodeResult`, `TlvHeader`) are removed by escape analysis (no sample of any of them in `jdk.ObjectAllocationSample`).
+- **It is called 2 870 times per `batch100` decode** (28.7 per record; `record` 60, `blob64k` 33; encoding `batch100` 425), instrumented with a counter in a shadow `DerReader`. At 3 ns that is 8 to 10 us, about 3% of a 270 to 306 us decode, not 12.7%.
+- **The sampled share is skid, not cost.** 94% of the `decodeLength` samples (1 013 of 1 077) are on the line of `requireBytes(n)` in the long-form branch, which only lengths of 128 and more take. JFR attributes a sample to the nearest instruction with debug information, so a stall elsewhere in the inlined walk lands there. The same caution applies to the `ByteBuffer.hashCode` share in the fifteenth section, which also overstated its gain.
+- **What the count does say:** 28.7 length decodes per record is about three passes over the record's TLVs (admission, reconstitution, decode), with an `Arrays.copyOf` and a `readRawContent` copy in each. Removing passes means fusing admission, reconstitution and decode, a design change, not a tuning of the reader; each pass is about 3 ns per TLV, so the gain from one fewer pass is of the order of 10 us in 270.
+- **Allocation:** 75% of the sampled bytes are `byte[]` (the copies); the rest is `HashMap`/`LinkedHashMap` structure. The JFR allocation weights are not reliable for small objects (`LinkedKeySet`, one per object from `ObjectCodec.decodeHierarchy`, showed 11.5% of bytes).
+
+Conclusion: no reader optimisation is worth making; the remaining unmarshal cost is spread across the three passes, the per-object `GetArg`/field-store maps and class resolution (`Class.forName` 3%), and none exceeds a few percent.
