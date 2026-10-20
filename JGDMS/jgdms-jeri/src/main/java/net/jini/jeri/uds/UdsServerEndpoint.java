@@ -541,6 +541,9 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    // into a silent takeover of a running server.
 		    bindReclaimingStaleOnly(serverChannel, socketPath);
 		    boundHere = true;
+		    // Identity of what we just created, so a failed listen below
+		    // removes only that inode.
+		    fileKey = readFileKey(socketPath);
 
 		    // F1: apply the owner-only access gate fail-closed (throws
 		    // if it cannot be applied and the caller did not opt into an
