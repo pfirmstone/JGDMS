@@ -3,6 +3,27 @@
 Status: PROPOSAL for the maintainer's decision (2026-10-20). Nothing in this document is implemented. Container
 numbers are marked; re-measure on the workstation machines before relying on them.
 
+## 0. Production transports (maintainer, 2026-10-20)
+
+TLS is the default for all internet-based communication; plain TCP is not expected in production; UDS is used for
+process isolation. Consequences for this design, to be taken into every stage and gate:
+
+* The production targets are `net.jini.jeri.ssl` (mutual TLS over blocking `SSLSocket`/`SslEngineChannel`; its
+  `Connection.getChannel()` is null) and `net.jini.jeri.uds` (plaintext, channel-based). Plain TCP is a test and
+  benchmark transport only.
+* All measurements so far (`RESULTS.md`) are plain-TCP loopback. They show the codec and the mux path, but not what a
+  production call costs. TLS adds record encryption on every frame and a handshake per connection; UDS removes the
+  network stack and the TLS cost. The design must be re-baselined on both before any stage is judged.
+* Striping (several connections per endpoint) costs a TLS handshake and a session per connection and multiplies
+  credential state; for TLS the default pool size is 1 until measured, and every reuse must go through the endpoint's
+  per-subject/per-constraint choice (board findings A1, B1). For UDS, extra connections are cheap and the pool matters
+  most for many local callers.
+* The seam: SSL and Kerberos accept `setConnManagerFactory`; `UdsEndpoint` and `TcpEndpoint` construct their
+  managers directly (board finding B2). UDS must be brought behind the seam in stage 0.
+* The comparison with Java RMI is not a like-for-like production comparison: RMI has no UDS, and its TLS
+  (`SslRMIClientSocketFactory`) has no mutual-authentication constraint model. The comparable pairs are JERI over
+  TLS against RMI over TLS, and JERI over UDS against itself (JOSS against DER).
+
 ## 1. Why
 
 The 6-core sweep (`jgdms-benchmarks/serialization/RESULTS.md`, twentieth section) shows JERI DER at 0.4 to 0.6 of
