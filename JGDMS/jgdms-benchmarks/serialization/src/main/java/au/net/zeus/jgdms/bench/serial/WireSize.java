@@ -29,12 +29,13 @@ public final class WireSize {
 
     public static void main(String[] args) throws Exception {
         ClassLoader loader = WireSize.class.getClassLoader();
-        System.out.printf("%-10s %10s %10s %8s%n", "payload", "JOSS", "DER", "DER/JOSS");
+        System.out.printf("%-10s %10s %10s %10s %8s%n", "payload", "JOSS", "DER", "JDK/RMI", "DER/JOSS");
         for (String name : Payloads.NAMES) {
             Object o = Payloads.create(name);
             int joss = Format.JOSS.encode(o, loader).length;
             int der = Format.DER.encode(o, loader).length;
-            System.out.printf("%-10s %10d %10d %8.2f%n", name, joss, der, (double) der / joss);
+            int jdk = JdkCodecBenchmark.encode(JdkPayloads.create(name)).length;
+            System.out.printf("%-10s %10d %10d %10d %8.2f%n", name, joss, der, jdk, (double) der / joss);
         }
     }
 }

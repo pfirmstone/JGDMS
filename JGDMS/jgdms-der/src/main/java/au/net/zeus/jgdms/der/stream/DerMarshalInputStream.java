@@ -47,6 +47,43 @@ import org.apache.river.api.io.AtomicObjectInput;
  * is a bounded call-buffer (the caller has already framed the data); a streaming approach
  * would require additional framing beyond the DER TLV layer.
  *
+ * <h2>Whole-stream admission</h2>
+ * <p>
+ * The bytes are all in hand before the first read, so the stream is <em>admitted or rejected as a whole before any
+ * object is built from it</em>. A stream built by a public constructor is admitted before the constructor returns; a
+ * request stream built by a server dispatcher ({@link #forDispatcher}) is admitted in two stages, so that only an
+ * authorized caller pays for the expensive one (see {@link #admitStream()}). What admission verifies, with no class
+ * loaded, no constructor or {@code check} run and nothing registered: that the items are canonically framed and exactly
+ * cover the input and carry only tags the writer emits; the schema-dedup layer in full (every chain parsed and hashed,
+ * every {@code chainRef} resolved, duplicate and unknown-digest rejects, the chain, table and reconstitution ceilings, the
+ * nesting bounds); the same checks inside the {@code [8]} proxy and {@code [16]} collection regions the dedup layer passes
+ * through, including a proxy nested inside a record's payload; the shell of every record; the class-free wire checks
+ * on the scalar, enum and positional items (canonical integers, floats and booleans, strict UTF-8); and the value rules of
+ * every record's interior: each field, collection element, map key and value and value array is checked by the record
+ * decoder's own code (range, canonical float and char, strict UTF-8, the tag the declared wire type requires), each collection
+ * for the outer tag its discipline requires, at most {@code ObjectCodec.MAX_COLLECTION} elements and, for a {@code set:},
+ * {@code bag:} or {@code map:}, the X.690 11.6 order of its elements or keys as delivery will see them. A field the receiving
+ * class never reads is checked as well.
+ * <p>
+ * <b>What it cannot promise.</b> It guarantees the stream is <em>structurally admissible</em> (the wire level and the value
+ * rules that need no class). It does not guarantee that every object will be accepted: {@code check(GetArg)}, a
+ * constructor's invariants, class resolution and whether an enum constant exists need the class and run user code, and are
+ * decided when each object is read, bottom-up (a nested value is constructed before its parent), so a rejection of object
+ * <i>k</i> still happens at the <i>k</i>th read, after objects 1..<i>k</i>-1 were delivered.
+ * <p>
+ * <b>Policy.</b> Full admission also applies the whole-stream {@link DerStreamPolicy}: budgets on the objects and elements the
+ * stream builds and the distinct classes it names (every name the stream makes the loader load: record, ancestor, enum,
+ * proxy-interface, array-component and {@code Class}-value names, from the stream, from {@code [8]}/{@code [16]} regions and
+ * from records), and the refusal of one class name bound to two schemas. There is no class-name list: which classes may be
+ * reconstructed is the {@code DeSerializationPermission} gates' decision. These are new rejects, configurable through
+ * {@code au.net.zeus.jgdms.der.stream.policy.*} system properties (or passed explicitly), with defaults far above anything
+ * measured; a policy reject refuses the whole stream before a class is loaded or a constructor runs, and is logged.
+ * <p>
+ * Admission is a change to what is accepted (STD-008/B.2.7): a stream whose bad part is never read (a malformed,
+ * non-canonical or over-ceiling trailing item, or an unresolvable {@code chainRef}) used to be accepted and is now rejected
+ * up front. A <em>failed read</em> also ends the stream: every later read rethrows, because a failed typed read can leave
+ * the reader inside an item. Streams that are valid and fully consumed are unaffected.
+ *
  * <h2>Typed primitives (positional, sec.15.2)</h2>
  * <p>
  * Each typed read decodes the next DER TLV from the buffer and range-checks the value
@@ -128,19 +165,104 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      */
     public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits)
             throws IOException {
-        this(in, resolution, limits, true);
+        this(in, resolution, limits, null, true, false);
     }
 
-    /** Private: selects between the object-stream format and record-level capture. */
-    private DerMarshalInputStream(InputStream in, ResolutionContext resolution,
-                                  DerInputLimits limits, boolean streamFormat)
+    /**
+     * As {@link #DerMarshalInputStream(InputStream, ResolutionContext, DerInputLimits)} with an explicit whole-stream
+     * {@link DerStreamPolicy} (class-name allow/deny lists, object and element budgets, rebinding) in place of the
+     * system-property-configured default. The policy is applied by full admission, before the constructor returns.
+     *
+     * @param policy the whole-stream policy (must not be null)
+     * @throws IOException if reading from {@code in} fails, it exceeds the byte cap, or the stream is not admissible
+     */
+    public DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                 DerStreamPolicy policy) throws IOException {
+        this(in, resolution, limits, Objects.requireNonNull(policy, "policy"), true, false);
+    }
+
+    /**
+     * Creates the reader a server-side invocation dispatcher uses for a request stream. It is built BEFORE the caller is
+     * authorized (the method descriptor is read from it first), so it admits in two stages: the cheap stage runs here
+     * (framing, tags, budgets: linear in the already-bounded input, no hashing, no dedup table, no class names); the full
+     * stage (every schema chain verified and hashed, every reference resolved, every ceiling metered over the whole stream)
+     * runs when {@link #admitStream()} is called, which the dispatcher does after {@code checkAccess} and before it unmarshals
+     * the arguments, so that only an authorized request pays for it. Until then a read of a record-bearing item
+     * ({@code @AtomicSerial} object, enum, proxy, array, collection) fails with an {@link IOException} naming
+     * {@code admitStream()}; scalar reads (the method hash) are allowed. A custom dispatcher that reads objects before
+     * authorization, or that overrides {@code dispatch}, must call {@code admitStream()} itself.
+     *
+     * <p>The public constructors, by contrast, perform FULL admission before returning (clients reading a response, tests,
+     * the authorization-context block): a stream that is not structurally admissible delivers nothing. (A dispatcher
+     * subclass that overrides {@code createMarshalInputStream} and builds its stream with a public constructor therefore
+     * pays the full cost before the caller is authorized: a cost, not a hole, since nothing is delivered either way.)
+     *
+     * @throws IOException if reading fails, the byte cap is exceeded, or the cheap stage rejects the stream
+     */
+    public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits)
+            throws IOException {
+        return new DerMarshalInputStream(in, resolution, limits, null, true, true);
+    }
+
+    /**
+     * As {@link #forDispatcher(InputStream, ResolutionContext, DerInputLimits)} with an explicit {@link DerStreamPolicy},
+     * applied by {@link #admitStream()}.
+     */
+    public static DerMarshalInputStream forDispatcher(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                                      DerStreamPolicy policy) throws IOException {
+        return new DerMarshalInputStream(in, resolution, limits, Objects.requireNonNull(policy, "policy"), true, true);
+    }
+
+    /** Private: selects between the object-stream format and record-level capture, and the admission mode. */
+    private DerMarshalInputStream(InputStream in, ResolutionContext resolution, DerInputLimits limits,
+                                  DerStreamPolicy policy, boolean streamFormat, boolean deferAdmission)
             throws IOException {
         this.underlying = Objects.requireNonNull(in, "in");
         Objects.requireNonNull(resolution, "resolution");
         Objects.requireNonNull(limits, "limits");
-        byte[] buf = limits.readAllBytesBounded(in); // bounded: refuse oversize input (DoS)
-        this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes());
+        // bounded: refuse oversize input (DoS). The stream format is item-framed, so an item that declares more than
+        // the budget has left is refused before any of it is buffered; a record-level capture is NOT item-framed
+        // (it is the bare canonical record bytes) and keeps the plain bounded read.
+        byte[] buf = streamFormat ? limits.readFramedBounded(in) : limits.readAllBytesBounded(in);
+        this.codec = new DerObjectStreamCodec(streamFormat, limits.maxInputBytes(), policy);
         this.codec.initReader(buf, decodeUnit, resolution);
+        try {
+            if (deferAdmission) {
+                this.codec.deferAdmission();
+                this.codec.admitCheap();
+            } else {
+                this.codec.admit();           // the whole stream is admitted or rejected here; a record-level capture is a no-op
+            }
+        } catch (IOException | RuntimeException | Error e) {
+            decodeUnit.abort();               // a rejected stream registers nothing: no DGC callback can fire for it
+            throw e;
+        }
+    }
+
+    /**
+     * Admits or rejects the whole stream (see {@link #forDispatcher}). Idempotent; a stream built by a public constructor
+     * is already admitted, so this is a no-op for it. A rejection is permanent: it abandons the decode unit (none of its
+     * completion callbacks, such as the client DGC {@code dirty}, will run) and every later read rethrows.
+     *
+     * <p>Guarantees the stream is structurally admissible; it cannot promise every object will be accepted. Constructors,
+     * {@code check(GetArg)} and class resolution are still decided when each object is read, bottom-up, so a Layer-2
+     * rejection of object <i>k</i> still happens at the <i>k</i>th read.
+     *
+     * @throws IOException if the stream is not admissible
+     */
+    @Override
+    public void admitStream() throws IOException {
+        try {
+            codec.admit();
+        } catch (IOException | RuntimeException | Error e) {
+            decodeUnit.abort();
+            throw e;
+        }
+    }
+
+    /** The tally of this stream's last full admission (objects, elements, distinct classes), or {@code null}; a test and diagnostic seam. */
+    StreamPolicyMeter admissionTally() {
+        return codec.admissionTally();
     }
 
     /**
@@ -163,7 +285,7 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
     public static DerMarshalInputStream recordLevelCapture(InputStream in,
                                                            ResolutionContext resolution)
             throws IOException {
-        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, false);
+        return new DerMarshalInputStream(in, resolution, DerInputLimits.DEFAULT, null, false, false);
     }
 
 
@@ -188,21 +310,30 @@ public final class DerMarshalInputStream implements AtomicObjectInput {
      * completion callbacks, e.g. the client DGC batched {@code dirty}, are discarded unrun) before
      * the failure propagates. A stream that failed to decode must not issue leases for the objects
      * it had decoded before the failure.
+     *
+     * <p>The stream is also dead from then on: every later read rethrows. A failed read can leave the reader inside an item
+     * (a typed read of the wrong kind consumes only the header), and a caller that caught the failure and went on would read
+     * the rest of that item as a new item, bytes whole-stream admission never covered as items. This includes the refusal of
+     * a record-bearing read on a dispatcher stream that is not yet admitted.
      */
     private <T> T guarded(IoRead<T> read) throws IOException {
         try {
+            codec.requireNotRejected();
             return read.get();
         } catch (IOException | RuntimeException | Error e) {
             decodeUnit.abort();
+            codec.poison(e);
             throw e;
         }
     }
 
     private <T> T guardedObject(ObjectRead<T> read) throws IOException, ClassNotFoundException {
         try {
+            codec.requireNotRejected();
             return read.get();
         } catch (IOException | ClassNotFoundException | RuntimeException | Error e) {
             decodeUnit.abort();
+            codec.poison(e);
             throw e;
         }
     }

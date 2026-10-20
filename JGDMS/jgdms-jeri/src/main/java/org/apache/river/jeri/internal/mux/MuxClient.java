@@ -53,6 +53,12 @@ public class MuxClient extends Mux {
 	super(out, in, Mux.CLIENT, clientInitialInboundRation, 1024, handshakeTimeout);
     }
 
+    /** For tests: an explicit initial inbound ration and maximum fragment size. */
+    MuxClient(OutputStream out, InputStream in, long handshakeTimeout,
+	      int initialInboundRation, int maxFragmentSize) throws IOException {
+	super(out, in, Mux.CLIENT, initialInboundRation, maxFragmentSize, handshakeTimeout);
+    }
+
     public MuxClient(SocketChannel channel, long handshakeTimeout) throws IOException {
 	super(channel, Mux.CLIENT, clientInitialInboundRation, 1024, handshakeTimeout);
     }

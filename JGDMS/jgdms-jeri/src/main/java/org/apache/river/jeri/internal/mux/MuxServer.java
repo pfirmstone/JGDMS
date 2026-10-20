@@ -113,6 +113,19 @@ public class MuxServer extends Mux {
 	this.serverSubject = Subject.current();
     }
 
+    /** For tests: an explicit initial inbound ration and maximum fragment size. */
+    MuxServer(OutputStream out, InputStream in,
+	      RequestDispatcher requestDispatcher,
+	      int initialInboundRation, int maxFragmentSize)
+	throws IOException
+    {
+	super(out, in, Mux.SERVER, initialInboundRation, maxFragmentSize, 0L);
+
+	this.requestDispatcher = requestDispatcher;
+	this.securityContext = Security.getContext();
+	this.serverSubject = Subject.current();
+    }
+
     public MuxServer(SocketChannel channel,
 		     RequestDispatcher requestDispatcher)
 	throws IOException

@@ -225,9 +225,25 @@ public final class Tag {
      */
     public static DecodeResult decode(byte[] buf, int offset) throws DerException {
         if (buf == null) throw new NullPointerException("buf");
-        if (offset < 0 || offset >= buf.length) {
+        return decode(buf, offset, buf.length);
+    }
+
+    /**
+     * As {@link #decode(byte[], int)}, but the tag must lie entirely before {@code limit}: octets at or
+     * after {@code limit} are treated as absent (a high-tag-number form that would run past it is
+     * "truncated"). A reader over a window of a larger shared buffer passes its own end here, so
+     * decoding a tag can never consume bytes that belong to a following element.
+     *
+     * @param limit exclusive upper bound, {@code <= buf.length}
+     */
+    public static DecodeResult decode(byte[] buf, int offset, int limit) throws DerException {
+        if (buf == null) throw new NullPointerException("buf");
+        if (limit < 0 || limit > buf.length) {
+            throw new IllegalArgumentException("limit " + limit + " outside buffer of length " + buf.length);
+        }
+        if (offset < 0 || offset >= limit) {
             throw new DerException("Tag decode: offset " + offset
-                    + " out of bounds (length=" + buf.length + ")");
+                    + " out of bounds (length=" + limit + ")");
         }
         int first = buf[offset] & 0xFF;
         int cls   = (first >> 6) & 0x03;
@@ -244,7 +260,7 @@ public final class Tag {
         int octetsRead = 1;
         boolean firstContinuation = true;
         while (true) {
-            if (pos >= buf.length) {
+            if (pos >= limit) {
                 throw new DerException("Tag decode: truncated high-tag-number form");
             }
             int b = buf[pos] & 0xFF;

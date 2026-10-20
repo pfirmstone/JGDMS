@@ -428,7 +428,7 @@ final class AnyCodec {
      * INTEGER minimality, IEEE-754 canonical float/double with {@code -0.0}/non-canonical-NaN
      * rejection, BMP-only char, integer overflow rejection).
      */
-    private static Object decodeScalar(int ctxTag, byte[] content) throws DerException {
+    static Object decodeScalar(int ctxTag, byte[] content) throws DerException {
         Tag universalTag;
         String scalarWireType;
         switch (ctxTag) {

@@ -847,4 +847,28 @@ class DerStreamSchemaDedupTest {
         }
         return -1;
     }
+
+    @Test
+    void interleavedClassesResolveToTheirOwnChains() throws Exception {
+        // the encoder recognises a repeated chain by comparing with the previous one first: every interleaving of
+        // three classes must still reference the right chain, which decoding as the right type proves
+        Object[] pool = {
+            new Node((Node) null),
+            new BytesHolder(new byte[] {1, 2, 3}),
+            new VersionedRecord(7, "n", "d"),
+        };
+        java.util.Random rnd = new java.util.Random(11);
+        for (int round = 0; round < 60; round++) {
+            int n = 2 + rnd.nextInt(14);
+            Object[] objs = new Object[n];
+            for (int i = 0; i < n; i++) {
+                Object o = pool[rnd.nextInt(pool.length)];
+                objs[i] = o instanceof Node ? new Node(rnd.nextBoolean() ? null : new Node((Node) null)) : o;
+            }
+            List<Object> back = decodeStream(encodeStream(objs), n);
+            for (int i = 0; i < n; i++) {
+                assertEquals(objs[i].getClass(), back.get(i).getClass(), "round " + round + " item " + i);
+            }
+        }
+    }
 }

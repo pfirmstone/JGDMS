@@ -260,7 +260,7 @@ public final class MarshalledInstanceCodec {
                 verifiedCase = SchemaCase.B_OR_C_MISMATCH;
             }
             T verifiedObject = ObjectCodec.decodeHierarchy(
-                    receiverClass, verifiedChain, rec.payloadBytes(), decodeUnit, resolution);
+                    receiverClass, verifiedChain, rec.payloadView(), decodeUnit, resolution);
             return new Result<>(verifiedObject, verifiedCase);
         }
 
@@ -310,7 +310,7 @@ public final class MarshalledInstanceCodec {
         T object = ObjectCodec.decodeHierarchy(
                 receiverClass,
                 embeddedChain,
-                rec.payloadBytes(),
+                rec.payloadView(),
                 decodeUnit,
                 resolution);
 

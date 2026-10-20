@@ -23,6 +23,7 @@ import java.io.Serializable;
 import net.jini.core.constraint.Confidentiality;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -54,7 +55,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public final class ConfidentialityStrength
-    implements InvocationConstraint, Serializable
+    implements InvocationConstraint, Serializable, Resolve
 {
     /* -- Fields -- */
 
@@ -164,7 +165,7 @@ public final class ConfidentialityStrength
     }
 
     /** Canonicalize so that <code>==</code> can be used. */
-    private Object readResolve() {
+    public Object readResolve() {
 	return value ? STRONG : WEAK;
     }
 }

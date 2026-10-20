@@ -1114,6 +1114,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    checkAccess(impl, method, sc, context, remoteIdentityContext);
 	    
 	    /*
+	     * Admit the whole request stream (a stream that defers admission, such as
+	     * the DER one, refuses to read an object until this point): only an
+	     * authorized caller pays for the full structural check, and a stream that
+	     * fails it delivers nothing.
+	     */
+	    if (in instanceof AtomicObjectInput) ((AtomicObjectInput) in).admitStream();
+
+	    /*
 	     * Unmarshal arguments.
 	     */
 	    Object[] args = unmarshalArguments(impl, method, in, context);

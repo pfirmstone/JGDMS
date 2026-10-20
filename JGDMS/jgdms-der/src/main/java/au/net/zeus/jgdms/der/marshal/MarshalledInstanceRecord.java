@@ -114,6 +114,38 @@ public final class MarshalledInstanceRecord {
         this.payloadFormat = payloadFormat;
     }
 
+    /** Takes the arrays as they are: only for a caller that owns them and will not touch them again (see {@link #adopt}). */
+    private MarshalledInstanceRecord(byte[] payloadBytes, byte[] schemaBytes, byte[] schemaDigest,
+                                     String payloadFormat, boolean adopted) {
+        this.payloadBytes = payloadBytes;
+        this.schemaBytes = schemaBytes;
+        this.schemaDigest = schemaDigest;
+        this.payloadFormat = payloadFormat;
+    }
+
+    /**
+     * Builds a record that <b>keeps the arrays it is given</b> instead of copying them, for the decoder that has just built them
+     * itself (a large payload is then copied once on its way in, not three times). The caller must own the arrays, and neither
+     * it nor anyone else may modify them afterwards; the record never exposes them (every accessor still returns a copy).
+     * Same checks as the public constructor.
+     *
+     * @throws NullPointerException     if any argument is null
+     * @throws IllegalArgumentException if {@code schemaDigest.length != 32}
+     */
+    public static MarshalledInstanceRecord adopt(byte[] payloadBytes, byte[] schemaBytes, byte[] schemaDigest,
+                                                 String payloadFormat) {
+        Objects.requireNonNull(payloadBytes,  "payloadBytes");
+        Objects.requireNonNull(schemaBytes,   "schemaBytes");
+        Objects.requireNonNull(schemaDigest,  "schemaDigest");
+        Objects.requireNonNull(payloadFormat, "payloadFormat");
+        if (schemaDigest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException(
+                    "schemaDigest must be exactly " + DIGEST_LENGTH
+                    + " bytes, got " + schemaDigest.length);
+        }
+        return new MarshalledInstanceRecord(payloadBytes, schemaBytes, schemaDigest, payloadFormat, true);
+    }
+
     // =========================================================================
     // Factory helpers
     // =========================================================================
@@ -192,6 +224,14 @@ public final class MarshalledInstanceRecord {
     }
 
     /**
+     * The payload itself, uncopied, for the decoder in this package that only reads it (a defensive copy of a large payload per
+     * decode was most of what the record cost). Never handed out, never modified.
+     */
+    byte[] payloadView() {
+        return payloadBytes;
+    }
+
+    /**
      * Returns a defensive copy of the concatenated schema chain bytes (leaf-first
      * DER SEQUENCEs). Use {@link #decodeSchemaChain()} to parse these back into
      * {@link AtomicSerialSchemaRecord} objects.
@@ -246,6 +286,36 @@ public final class MarshalledInstanceRecord {
            .octets(schemaDigest)
            .utf8(payloadFormat)
            .end();
+    }
+
+    /** Writes a record's payload into an encoder (see {@link #encodeCanonicalTo}). */
+    @FunctionalInterface
+    public interface PayloadWriter {
+        void writeTo(DerEncoder enc) throws DerException;
+    }
+
+    /**
+     * Appends the canonical record {@code SEQUENCE { payload, schemaBytes, schemaDigest, payloadFormat }} to
+     * {@code enc} with the payload written in place, byte-identical to
+     * {@code fromChain(chain, schemaBytes, payload).encode()} but with no intermediate payload or record array.
+     *
+     * @param schemaBytes the chain's records concatenated leaf-first (as {@link #fromChain(SchemaChain.Result, byte[], byte[])} takes it)
+     * @param payload     writes the payload bytes (the hierarchy encoding) into the OCTET STRING it is handed
+     */
+    public static void encodeCanonicalTo(DerEncoder enc, SchemaChain.Result chain, byte[] schemaBytes,
+                                         PayloadWriter payload) throws DerException {
+        Objects.requireNonNull(enc, "enc");
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(schemaBytes, "schemaBytes");
+        Objects.requireNonNull(payload, "payload");
+        byte[] digest = chain.leafDigest();
+        if (digest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException("schemaDigest must be exactly " + DIGEST_LENGTH
+                    + " bytes, got " + digest.length);
+        }
+        enc.begin(Tag.SEQUENCE).beginOctetString();
+        payload.writeTo(enc);
+        enc.end().octets(schemaBytes).octets(digest).utf8(PAYLOAD_FORMAT).end();
     }
 
     // =========================================================================
@@ -312,8 +382,9 @@ public final class MarshalledInstanceRecord {
                     + " (STD-006 S7.8: the record is exactly four fields)");
         }
 
+        // the arrays were read just above and nothing else holds them: no second copy
         return new MarshalledInstanceRecord(
-                payloadBytes, schemaBytes, schemaDigest, payloadFormat);
+                payloadBytes, schemaBytes, schemaDigest, payloadFormat, true);
     }
 
     // =========================================================================

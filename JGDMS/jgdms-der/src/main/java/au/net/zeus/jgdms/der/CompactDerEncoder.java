@@ -213,6 +213,11 @@ final class CompactDerEncoder extends DerEncoder {
     }
 
     @Override
+    public boolean isClean() {
+        return !failed && depth == 0 && sorted == null;
+    }
+
+    @Override
     public int size() {
         checkUsable();
         requireClosed();

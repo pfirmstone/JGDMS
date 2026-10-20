@@ -294,3 +294,531 @@ dedup pass's reading and rebuilding of the same bytes. Chain parsing and hashing
 near the top. The next SOW should start from the streaming-encoder migration (an encoder that
 writes into one buffer, used by `ObjectCodec`, `StreamSchemaDedup` and `DerObjectStreamCodec`),
 which removes the per-level copies both directions pay.
+
+---
+
+# Third run: after the streaming-encoder work (SOW-DER-Streaming-Encoder A0-A4), 18 October 2026
+
+DER only, same container, JDK (DirtyChai `27-internal`) and JMH protocol as the second run; files `results-a5.json` (full run), `results-a5-gc.json`
+(`-prof gc`), `results-before.json` / `results-after.json` unchanged. Average time per operation, us, +/- the 99.9% interval:
+
+| benchmark | payload | before (`9adc8e6e3`) | after T0-T5 | now (A0-A4) | now/before | now/after T0-T5 |
+|---|---|---:|---:|---:|---:|---:|
+| marshal | record | 4.05 ± 0.24 | 1.76 ± 0.09 | 1.56 ± 0.10 | 0.39 | 0.89 |
+| marshal | batch100 | 454.06 ± 23.68 | 224.04 ± 13.92 | 107.54 ± 9.49 | 0.24 | 0.48 |
+| marshal | blob64k | 276.04 ± 6.12 | 189.55 ± 17.42 | 84.97 ± 3.78 | 0.31 | 0.45 |
+| unmarshal | record | 20.66 ± 1.71 | 14.06 ± 1.56 | 9.39 ± 0.90 | 0.45 | 0.67 |
+| unmarshal | batch100 | 1647.26 ± 75.56 | 1498.92 ± 494.50 | 789.77 ± 82.90 | 0.48 | 0.53 |
+| unmarshal | blob64k | 193.86 ± 6.97 | 200.94 ± 6.38 | 176.13 ± 66.10 | 0.91 | 0.88 |
+| roundTrip | record | 23.83 ± 1.54 | 19.23 ± 10.60 | 11.12 ± 1.08 | 0.47 | 0.58 |
+| roundTrip | batch100 | 2177.79 ± 107.87 | 1658.05 ± 97.96 | 865.58 ± 75.79 | 0.40 | 0.52 |
+| roundTrip | blob64k | 485.10 ± 16.08 | 411.36 ± 18.44 | 264.27 ± 26.97 | 0.54 | 0.64 |
+| JERI | ping | 226.08 ± 12.47 | 198.43 ± 13.85 | 134.00 ± 11.83 | 0.59 | 0.68 |
+| JERI | point | 320.19 ± 18.86 | 297.00 ± 37.46 | 182.54 ± 30.07 | 0.57 | 0.61 |
+| JERI | record | 359.30 ± 37.19 | 331.15 ± 43.34 | 198.49 ± 21.97 | 0.55 | 0.60 |
+| JERI | batch100 | 9391.63 ± 571.45 | 7521.43 ± 596.87 | 4672.40 ± 341.23 | 0.50 | 0.62 |
+| JERI | blob64k | 15790.13 ± 486.55 | 14541.95 ± 1044.58 | 9961.05 ± 520.59 | 0.63 | 0.68 |
+
+The `point` rows (error intervals larger than the score in the earlier runs) are left out of the table. `unmarshal blob64k` now has an interval of 66 us
+on 176 us and is within noise of the second run.
+
+## What the numbers say
+
+- **Read the JERI rows as drift, not codec gain.** `ping` (an empty call, no codec work) fell from 226 to 134 us (0.59) between the first and this run, so this
+  container was running about 40% faster than when the baseline was taken. Every JERI ratio, and to a smaller extent every codec ratio against `before`, carries
+  that; the `now/after` column (second run to now, 0.6-0.7 for `ping`) shows the drift on its own. A fair JERI reading is "not distinguishable from drift except
+  perhaps `batch100`", the same conclusion as the second run. Re-run on the workstation before quoting any ratio.
+- **Marshal is where A0-A4 show up clearly:** `batch100` 0.48 and `blob64k` 0.45 of the second run (drift is at most 0.6-0.7 here, so these exceed it); `record` 0.89 is within
+  drift. Against the original baseline marshal is 0.39 / 0.24 / 0.31 of before.
+- **Unmarshal improved too** (A3 removed the per-level copies in reconstitution): `record` 0.67 and `batch100` 0.53 of the second run, comparable to the drift, so treat them as
+  probable rather than proven; `blob64k` unchanged.
+- **Targets of the first SOW** (small-object marshal about halved; multi-object about 30% faster both ways; `blob64k` marshal in tens of us): met for marshal, and now for
+  multi-object unmarshal; `blob64k` marshal is 85 us, not tens.
+
+## Allocation per operation (`-prof gc`, `gc.alloc.rate.norm`, B/op)
+
+| payload | marshal | unmarshal |
+|---|---:|---:|
+| record | 5 864 | 16 336 |
+| batch100 | 288 855 | 975 086 |
+| blob64k | 528 520 | 927 657 |
+
+There is no baseline `-prof gc` run (the baseline code was not re-built for this), so no before/after allocation ratio is claimed. For the write side only, the plain-loop phase
+bench (`DerStreamPhaseBench`, thread allocation counters) measured before/after A4: `batch100` 436 to 276 KB, `blob64k` 792 to 463 KB, `record` 7.6 to 5.7 KB per encode. Unmarshal still
+allocates about 15 bytes per wire byte for `batch100` and about 14x for `blob64k` (the read side still copies a `byte[]` per TLV and was not part of A4).
+
+## Where the time goes now (JFR `-prof jfr`, `jfr-hotspots.py`, `au.net.zeus.jgdms.der.*`, self time)
+
+| marshal `record` | marshal `batch100` | unmarshal `record` | unmarshal `batch100` |
+|---|---|---|---|
+| `CompactDerEncoder.leaf` 7.8% | `CompactDerEncoder.toByteArray` 7.8% | `CompactDerEncoder.<init>` 3.7% | `DerFieldStore.decodeAllFields` 2.9% |
+| `CompactDerEncoder.beginFrame` 3.9% | `Tag.encodeInto` 5.9% | `StreamSchemaDedup.<init>` 3.2% | `CompactDerEncoder.toByteArray` 2.9% |
+| `StreamSchemaDedup.<init>` 3.7% | `DerWriter.writeHeader` 4.6% | `DerObjectStreamCodec.readObject` 2.6% | `DerReader.decodeLength` 2.9% |
+| `CompactDerEncoder.toByteArray` 3.1% | `CompactDerEncoder.leaf` 3.4% | `DerReader.decodeLength` 2.1% | `CompactDerEncoder.beginFrame` 2.9% |
+| `CompactDerEncoder.<init>` 3.0% | `CompactDerEncoder.endFrame` 3.3% | `Tag.decode` 2.1% | `MarshalledInstanceRecord.decode` 2.4% |
+
+Samples: 881 / 885 / 190 / 170 (the unmarshal rows are indicative only). Compared with the second run: `DerWriter.frame`/`writeTlv`, the byte-array-per-level builder, and the
+dedup `rebuildCollectionOuter`/`transformFieldTlv` frames are gone from the top; what remains is the encoder's own work (header writing, the single compaction pass) and, for the
+small `record`, per-stream construction cost: `CompactDerEncoder.<init>` and `StreamSchemaDedup.<init>` together are about 7% of a one-object marshal and of an unmarshal. That is the
+next cheap target (lazily sized encoder arrays, a pooled or reused dedup table per connection rather than per stream), and it matters only for tiny objects.
+
+
+# Fourth run: after whole-stream admission (SOW-DER-Streaming-Encoder B2), 18 October 2026
+
+Same container, same JMH settings (2 forks x 5 iterations), DER only, `CodecBenchmark.(unmarshal|roundTrip)` and `JeriBenchmark.*`. Compared with the third run's
+payload rows (`results-a5.json`; the marshal rows are unaffected by B2 and were not re-run). Data: `results-b2.json` (with the review follow-ups) and `results-b2-firstcut.json` (the first B2 commit).
+
+What B2 adds to a stream read: a second dedup walk over the whole stream, run before the first object is built (and, for a server request stream, only after the caller is authorized).
+
+| benchmark (us/op, 99.9% error) | A5 | B2 | B2 - A5 | B2 / A5 |
+|---|---:|---:|---:|---:|
+| codec round trip batch100 | 865.58 +- 75.79 | 947.92 +- 78.46 | +82.34 (within noise) | 1.10 |
+| codec round trip blob64k | 264.27 +- 26.97 | 299.96 +- 14.33 | +35.69 (within noise) | 1.14 |
+| codec round trip point | 7.85 +- 0.88 | 9.58 +- 1.13 | +1.74 (within noise) | 1.22 |
+| codec round trip record | 11.12 +- 1.08 | 13.96 +- 1.07 | +2.83 | 1.25 |
+| codec unmarshal batch100 | 789.77 +- 82.90 | 842.70 +- 165.95 | +52.93 (within noise) | 1.07 |
+| codec unmarshal blob64k | 176.13 +- 66.10 | 183.43 +- 10.51 | +7.30 (within noise) | 1.04 |
+| codec unmarshal point | 6.82 +- 0.96 | 7.82 +- 0.86 | +1.00 (within noise) | 1.15 |
+| codec unmarshal record | 9.39 +- 0.90 | 12.31 +- 1.88 | +2.92 | 1.31 |
+| JERI batch100 | 4672.40 +- 341.23 | 4913.44 +- 337.84 | +241.04 (within noise) | 1.05 |
+| JERI blob64k | 9961.05 +- 520.59 | 10323.90 +- 824.73 | +362.85 (within noise) | 1.04 |
+| JERI ping | 134.00 +- 11.83 | 145.30 +- 14.26 | +11.30 (within noise) | 1.08 |
+| JERI point | 182.54 +- 30.07 | 181.69 +- 14.11 | -0.85 (within noise) | 1.00 |
+| JERI record | 198.49 +- 21.97 | 214.50 +- 23.41 | +16.01 (within noise) | 1.08 |
+
+## What the numbers say
+
+- **The added work is a second pass over the stream, so it shows on in-process unmarshal and not on the JERI rows.** `record` unmarshal +2.9 us (31%), `point` +1.0 us (15%), `batch100` +53 us (7%, within noise),
+  `blob64k` +7 us (4%, within noise). Every JERI row is within noise; `ping` (no codec work) moved +8% between the runs, which is the size of the drift on the JERI rows.
+- **The review follow-ups cost nothing measurable** over the first B2 commit (all ratios 0.86 to 1.09, within noise), and reading the `[1]` record in place recovered about 30 us of `blob64k` unmarshal.
+- **The unauthenticated-peer cost (what a peer pays before it is authorized) is the cheap stage only** and was not benchmarked here (SOW B4): it is linear in the already-bounded input and allocates nothing for
+  short-form headers.
+- **Where the added time is:** chain verification (`SchemaChain.decodeChain` and one SHA-256 of the leaf record) happens once in admission and again in delivery, on separate tables by design. A bytes-keyed verified-chain
+  cache shared between the two would remove most of it; it is not built (it couples admission to delivery).
+- Container numbers: re-run on the workstation before quoting.
+
+
+# Fifth run: after the whole-stream policy (SOW-DER-Streaming-Encoder B5), 18 October 2026
+
+Same container and settings as the fourth run (DER only; `results-b5.json`). B5 adds the class-name policy, the object, element and class budgets and the rebinding check to full admission.
+
+| benchmark (us/op, 99.9% error) | A5 | B2 | B5 | B5 - B2 | B5 / A5 |
+|---|---:|---:|---:|---:|---:|
+| codec round trip batch100 | 865.58 +- 75.79 | 947.92 +- 78.46 | 911.19 +- 89.41 | -36.73 (within noise) | 1.05 |
+| codec round trip blob64k | 264.27 +- 26.97 | 299.96 +- 14.33 | 296.38 +- 19.74 | -3.58 (within noise) | 1.12 |
+| codec round trip point | 7.85 +- 0.88 | 9.58 +- 1.13 | 9.67 +- 0.50 | +0.09 (within noise) | 1.23 |
+| codec round trip record | 11.12 +- 1.08 | 13.96 +- 1.07 | 13.64 +- 0.87 | -0.32 (within noise) | 1.23 |
+| codec unmarshal batch100 | 789.77 +- 82.90 | 842.70 +- 165.95 | 763.38 +- 89.71 | -79.32 (within noise) | 0.97 |
+| codec unmarshal blob64k | 176.13 +- 66.10 | 183.43 +- 10.51 | 197.40 +- 39.44 | +13.97 (within noise) | 1.12 |
+| codec unmarshal point | 6.82 +- 0.96 | 7.82 +- 0.86 | 8.06 +- 0.53 | +0.24 (within noise) | 1.18 |
+| codec unmarshal record | 9.39 +- 0.90 | 12.31 +- 1.88 | 11.96 +- 1.47 | -0.35 (within noise) | 1.27 |
+| JERI batch100 | 4672.40 +- 341.23 | 4913.44 +- 337.84 | 4599.30 +- 264.59 | -314.14 (within noise) | 0.98 |
+| JERI blob64k | 9961.05 +- 520.59 | 10323.90 +- 824.73 | 10243.52 +- 523.46 | -80.39 (within noise) | 1.03 |
+| JERI ping | 134.00 +- 11.83 | 145.30 +- 14.26 | 133.27 +- 8.46 | -12.04 (within noise) | 0.99 |
+| JERI point | 182.54 +- 30.07 | 181.69 +- 14.11 | 183.43 +- 12.17 | +1.74 (within noise) | 1.00 |
+| JERI record | 198.49 +- 21.97 | 214.50 +- 23.41 | 195.41 +- 13.35 | -19.09 (within noise) | 0.98 |
+
+- **No measurable change over B2 (the fourth run):** every difference is inside the intervals, and the in-process unmarshal of `record` (the case that shows an added pass most clearly) is 11.96 us against 12.31. The added work is per distinct chain, per record site and one header-skip pass per collection or reference array that is passed through.
+- Against the third run (A5) the cost is still B2's: about +1 us (`point`) and +3 us (`record`) of in-process unmarshal, JERI within noise. Container numbers: re-run on the workstation before quoting.
+
+
+# Sixth run: cost of admission by stage (SOW-DER-Streaming-Encoder B4), 19 October 2026
+
+`AdmissionBenchmark` (`results-b4.json`), DirtyChai JDK 27, container, 2 forks x 5 iterations; **re-run on the workstation before quoting**. Times are per operation; `floor` is the framed bounded read alone (construction before B2); `cheap` is `forDispatcher` (B2's pre-authorization work); `cheapPlusFull` adds `admitStream()`; `decode` is the public constructor and all reads; `dispatcherPath` is cheap, admit, read; `context` is the authorization-context block (public constructor, full admission before authorization); `unauth+ctx` is `context` plus `cheap`.
+
+| payload | floor | cheap | cheapPlusFull | decode | dispatcherPath | context | unauth+ctx |
+|---|---|---|---|---|---|---|---|
+| point (us) | 0.26 +- 0.03 | 0.71 +- 0.16 | 2.47 +- 0.47 | 9.13 +- 1.23 | 9.53 +- 1.75 | 27.76 +- 2.33 | 30.79 +- 4.84 |
+| record (us) | 0.34 +- 0.03 | 0.82 +- 0.20 | 3.13 +- 0.51 | 13.97 +- 1.99 | 14.79 +- 1.99 | 30.10 +- 3.45 | 33.72 +- 5.30 |
+| batch100 (us) | 3.44 +- 3.51 | 3.45 +- 0.82 | 50.62 +- 5.44 | 922.92 +- 138.34 | 1023.66 +- 180.35 | 29.15 +- 5.06 | 34.83 +- 3.44 |
+| blob64k (us) | 45.78 +- 14.37 | 182.10 +- 668.62 | 333.86 +- 1241.97 | 226.90 +- 111.76 | 213.26 +- 41.06 | 30.23 +- 4.24 | 78.34 +- 7.20 |
+| request8 (us) | 1.73 +- 0.11 | 2.24 +- 0.19 | 14.04 +- 1.43 | 165.52 +- 83.35 | 155.88 +- 26.53 | 33.13 +- 8.82 | 33.47 +- 4.76 |
+| blob16m (us) | 9326 +- 756 | 9174 +- 888 | 18767 +- 1864 | 60619 +- 7589 | 61460 +- 9569 | 49 +- 93 | 9476 +- 781 |
+| records16m (us) | 11112 +- 512 | 10889 +- 829 | 44929 +- 4019 | 1118809 +- 217732 | 1118776 +- 153503 | 34 +- 6 | 9445 +- 715 |
+
+Streams: `request8` 3 286 bytes; `blob16m` 16 773 248; `records16m` 15 893 920. `blob64k` cheap and cheapPlusFull are GC-outlier noise (intervals larger than the scores).
+
+- The cheap stage is below 1 us over the read on small streams and unmeasurable on 16 MiB streams (inside the intervals): an unauthenticated peer costs the byte read, as before B2.
+- The full stage (after `checkAccess` only) is 1.8 to 2.3 us on `point`/`record`, 47 us on `batch100`, 11.8 us on `request8`, 9.6 ms on a 16 MiB blob and 34 ms on 16 MiB of small records (3% of delivering them).
+- The side-band authorization-context block is the only full admission before authorization: about 30 us per request in this fixture, independent of the request size.
+
+
+# Seventh run: cost of the record-interior admission checks (SOW-DER-Streaming-Encoder B3), 19 October 2026
+
+`AdmissionBenchmark` again (`results-b3.json`, same container, JMH 2 forks x 5 iterations; **re-run on the workstation before quoting**), against the sixth run (`results-b4.json`, before B3). Times in microseconds per operation.
+
+| payload | cheap (B4 / B3) | full stage = cheapPlusFull - cheap (B4 / B3) | dispatcherPath (B4 / B3) | decode (B4 / B3) |
+|---|---|---|---|---|
+| point | 0.71 / 0.70 | 1.76 / 1.91 | 9.5 / 9.9 | 9.1 / 9.4 |
+| record | 0.82 / 0.78 | 2.31 / 2.72 | 14.8 / 16.4 | 14.0 / 14.3 |
+| batch100 | 3.45 / 3.06 | 47.2 / 70.9 | 1 024 / 1 021 | 923 / 1 067 |
+| request8 | 2.24 / 2.36 | 11.8 / 16.1 | 156 / 171 | 166 / 165 |
+| blob16m | 9 174 / 8 070 | 9 592 / 9 401 | 61 460 / 54 394 | 60 619 / 53 839 |
+| records16m | 10 889 / 9 708 | 34 040 / 61 593 | 1 118 776 / 1 162 404 | 1 118 809 / 1 136 136 |
+
+- The cheap stage (an unauthenticated peer's cost) is unchanged. The full stage, paid only after `checkAccess`, grows by about 0.2 us per record (the decoder's own value checks run on every field, element and key before anything is built); `byte[]` content is checked without a copy, so a 16 MiB blob pays nothing. End to end (dispatcherPath, decode) every row is inside the noise (0.89 to 1.16, intervals overlapping).
+- 16 MiB of small records: full stage 34 -> 62 ms (3% -> 5% of delivering them).
+
+
+# Eighth run: the maintainer's workstation on the current branch, 19 October 2026
+
+Same machine and JDK as the first run (Windows, Xeon E5-1650 v3, DirtyChai `27-internal`, no SecurityManager, JMH 2 forks x 5 iterations), jars installed from this branch
+after B3 (`jgdms-platform`, `jgdms-der`, `jgdms-jeri` rebuilt and installed, then the benchmarks packaged). An earlier run of the same day on stale jars reproduced the first run within a few
+percent on every row, which makes the first run a sound baseline. The raw file is `results-workstation.json` on the workstation (not committed). Times in microseconds per operation.
+
+## DER against the first run (before any of the streaming-encoder work)
+
+| benchmark | payload | first run | now | now / first |
+|---|---|---:|---:|---:|
+| marshal | point | 3.52 | 1.52 | 0.43 |
+| marshal | record | 4.48 | 2.07 | 0.46 |
+| marshal | batch100 | 366.6 | 151.1 | 0.41 |
+| marshal | blob64k | 137.1 | 73.7 | 0.54 |
+| unmarshal | point | 16.44 | 16.13 | 0.98 |
+| unmarshal | record | 23.13 | 25.80 | 1.12 |
+| unmarshal | batch100 | 1 710 | 1 547 | 0.90 |
+| unmarshal | blob64k | 113.4 | 154.8 | **1.37** |
+| roundTrip | point | 19.62 | 20.17 | 1.03 |
+| roundTrip | record | 27.91 | 28.38 | 1.02 |
+| roundTrip | batch100 | 2 086 | 1 685 | 0.81 |
+| roundTrip | blob64k | 258.6 | 242.1 | 0.94 |
+| JERI | ping | 125.2 | 131.7 | 1.05 |
+| JERI | point | 191.0 | 212.5 | 1.11 |
+| JERI | record | 291.2 (+-114) | 237.9 | 0.82 |
+| JERI | batch100 | 6 689 | 5 859 | 0.88 |
+| JERI | blob64k | 9 676 | 9 710 | 1.00 |
+
+JOSS rows are the control and agree with the first run (for example JERI `ping` 249.6 against 240.5, `batch100` 3 181 against 3 382).
+
+- **Marshal is roughly 2x faster everywhere** (0.41 to 0.54), as A1 to A4 intended. On this machine the gain is smaller for `blob64k` (0.54) than in the container (0.31).
+- **Unmarshal has not improved on this machine**: whatever the read-side work saved, the whole-stream admission (B2, B3, B5) added back. Small objects are level (`point` 0.98, `record` 1.12); `batch100` is 10% better; **`blob64k` is 37% worse (113 to 155 us)**, beyond the interval (+-2.4).
+- **Calls (JERI)**: small messages are within noise of the first run (`point` +11%, `record` -18%, `ping` +5%); `batch100` is 12% better; `blob64k` is level. DER against JOSS: `ping` 0.53, `point` 0.60, `record` 0.61, `batch100` 1.84, `blob64k` 0.98 (first run: 0.52, 0.53, 0.78, 1.98, 0.98).
+- **`batch100` over JERI is still not explained by the codec.** Marshal plus unmarshal of `batch100` is about 1.7 ms and the call is 5.9 ms, 5.7 ms above `ping`, so about 4 ms of a DER call is outside the codec (JOSS: 1.4 ms outside). A4 showed the drain and the bounded read are not it. Not investigated.
+
+## Admission, stage by stage (`AdmissionBenchmark`)
+
+| payload | floor | cheap | full stage (cheapPlusFull - cheap) | dispatcherPath | full stage / dispatcherPath |
+|---|---:|---:|---:|---:|---:|
+| point | 0.29 | 0.59 | 2.78 | 16.6 | 17% |
+| record | 0.36 | 0.66 | 4.09 | 25.1 | 16% |
+| batch100 | 2.14 | 2.42 | 82.7 | 1 491 | 5.5% |
+| blob64k | 31.3 | 32.4 | 28.7 | 153.5 | 19% |
+| request8 | 1.50 | 1.92 | 22.1 | 253 | 8.7% |
+| blob16m | 9 578 | 9 750 | 8 807 | 53 496 | 16% |
+| records16m | 9 759 | 10 093 | 78 545 | 1 633 567 | 4.8% |
+
+- **An unauthenticated peer** costs the byte read plus 0.3 to 0.4 us on small requests and about 2% (0.2 to 0.3 ms) on 16 MiB streams; the authorization-context block, the one full admission before authorization, is 52 to 57 us here (31 to 34 us in the container, so this machine is about 1.6x slower on that path).
+- **The full stage costs about 0.8 us per record** on this machine (`batch100` 82.7 us for 100 records; 16 MiB of records 78.5 ms), 5% of delivering them. For `point` and `record` it is 16 to 17% of the in-process read, and for opaque bytes 16 to 19% (`blob64k` 28.7 us, `blob16m` 8.8 ms): about 0.45 ns a byte.
+- **A lead on the `blob64k` unmarshal regression (a hypothesis, not tested):** the verifying walk writes its reconstituted output to a scratch encoder that is always discarded, so a large byte field is copied into that encoder (and again as the encoder grows) only to be thrown away. A discarding output for the verify pass, used where the bytes are not compared, would remove that copy.
+
+
+# Ninth run: admission without materialising the reconstituted bytes (verify-only output), 19 October 2026
+
+`AdmissionBenchmark` again (`results-verifyonly.json`, container, JMH 2 forks x 5 iterations; **re-run on the workstation before quoting**), against the seventh run (`results-b3.json`, same container). The change: the walks that exist only to prove a
+stream admissible now write to `DerEncoder.discarding()`, an encoder that follows the call protocol and keeps nothing, instead of a real encoder whose buffer was filled, doubled and thrown away (SOW B.2.2 had promised a verify pass "without
+materialising reconstituted bytes"; as first built it did). The workstation run of the same day showed `blob64k` unmarshal 37% over the first run, 30 of the extra 41 us being this copy.
+
+| payload | full stage before | full stage now | now / before | decode before / now | dispatcherPath before / now |
+|---|---:|---:|---:|---:|---:|
+| point | 1.92 | 1.91 | 1.00 | 9.4 / 10.5 | 9.9 / 10.0 |
+| record | 2.72 | 2.53 | 0.93 | 14.2 / 16.2 | 16.4 / 15.1 |
+| batch100 | 70.95 | 47.24 | 0.67 | 1 067 / 1 050 | 1 021 / 1 099 |
+| blob64k | 31.54 | 3.11 | **0.10** | 187.2 / 168.7 | 195.2 / 156.6 |
+| request8 | 16.08 | 14.78 | 0.92 | 165.1 / 175.0 | 170.7 / 173.1 |
+| blob16m | 9 401 | about 0 (-16, inside the noise) | 0.00 | 53 839 / 47 067 | 54 394 / 45 300 |
+| records16m | 61 593 | 48 413 | 0.79 | 1 136 136 / 1 171 904 | 1 162 404 / 1 237 398 |
+
+(us per operation; full stage = `cheapPlusFull` - `cheap`; the cheap stage is unchanged, 0.7 to 0.84 us on small requests.)
+
+- Opaque bytes now cost admission nothing measurable: the full stage of a 64 KiB `byte[]` is 3.1 us (was 31.5), of a 16 MiB one nothing above the noise (was 9.4 ms), and the in-process read of the large blob is 13 to 19% faster.
+- Streams of many small records gain 21 to 33% of the full stage (the bytes of every field are no longer copied), and still pay about 0.47 us a record: the value checks of B3 allocate a reader per field and element, a `BigInteger` per integer and a `String` per string.
+  That is the remaining cost, and is not copying; see the follow-ups in the SOW.
+- `point` and `record` read/delivery differences (9.4 -> 10.5, 14.2 -> 16.2) are inside the intervals of this container.
+
+
+# Tenth run: the read path copies a record's payload once, not seven times (SOW-DER-Streaming-Encoder, read-side follow-up), 19 October 2026
+
+`CodecBenchmark` DER `unmarshal` and `roundTrip` with `-prof gc` (container, JMH 2 forks x 5 iterations; `results-readpath-before.json` and `results-readpath-after.json`; **re-run on the workstation before quoting**).
+Before = the code at `fb9bca845` (the discarding verify output); after = that plus the changes below, built and run back to back.
+
+| benchmark | payload | time before | time after | after / before | alloc before | alloc after | after / before |
+|---|---|---:|---:|---:|---:|---:|---:|
+| unmarshal | point | 8.42 | 8.23 | 0.98 | 16 472 B | 14 552 B | 0.88 |
+| unmarshal | record | 13.12 | 11.93 | 0.91 | 21 924 B | 19 120 B | 0.87 |
+| unmarshal | batch100 | 872.8 | 826.0 | 0.95 | 1 007 308 B | 925 829 B | 0.92 |
+| unmarshal | blob64k | 151.8 | **73.9** | **0.49** | 932 163 B | 471 680 B | **0.51** |
+| roundTrip | point | 10.01 | 9.76 | 0.98 | 20 912 B | 19 312 B | 0.92 |
+| roundTrip | record | 14.57 | 14.24 | 0.98 | 28 216 B | 25 452 B | 0.90 |
+| roundTrip | batch100 | 970.5 | 950.5 | 0.98 | 1 301 062 B | 1 212 731 B | 0.93 |
+| roundTrip | blob64k | 241.1 | **166.5** | **0.69** | 1 526 485 B | 1 065 954 B | **0.70** |
+
+Where the 14 copies of a 64 KiB payload went (JFR, outside-TLAB allocation events on the pre-change code): the framed read of the input 4 (a 64 KiB seed, a doubling to 128 KiB because the stream is just over the seed, a trimming copy), the record copied out of
+the input 1, the reconstitution encoder 4 (growth to the payload, growth again to append the chain, `toByteArray`), the record parse 3 (`readOctetString` and two defensive copies in `MarshalledInstanceRecord`), the field 1, the benchmark fixture's own
+clone 1. Now: framed read 4 (unchanged, see below), payload 1, field 1, fixture 1. The read of a record no longer copies it out of the input, no longer rebuilds the canonical four-field record in an encoder to parse it again, and the record keeps the arrays it
+was built from.
+
+- A large opaque record reads 2.0 times faster in process (`blob64k` 151.8 to 73.9 us, below even the pre-streaming-encoder container figure) and allocates half; the allocation of small records falls 8 to 13% (fewer short-lived arrays and a record that is not re-parsed).
+- Not touched: the framed read of the input (`DerInputLimits.readFramedBounded`) still grows its buffer geometrically as bytes arrive and trims at the end; that is the unauthenticated-peer memory rule of B1 (never size the buffer from a declared length), so changing
+  it is a policy decision, not a copy to remove. It is 4 of the 7 remaining copies here.
+
+
+# Eleventh run: the workstation with the verify-only admission output (`fb9bca845`), 20 October 2026
+
+Same machine, JDK and settings as the first and eighth runs; jars installed from `fb9bca845` (the discarding verify output; the read-side change of the tenth section is NOT in this run). The raw file is `results-workstation1.json` on the workstation (not committed). Times in microseconds.
+
+| DER | first run (pre-A1) | eighth run | now | now / first | now / eighth |
+|---|---:|---:|---:|---:|---:|
+| marshal point | 3.52 | 1.52 | 1.53 | 0.43 | 1.00 |
+| marshal record | 4.48 | 2.07 | 2.05 | 0.46 | 0.99 |
+| marshal batch100 | 366.6 | 151.1 | 147.6 | 0.40 | 0.98 |
+| marshal blob64k | 137.1 | 73.7 | 73.8 | 0.54 | 1.00 |
+| unmarshal point | 16.44 | 16.13 | 15.69 | 0.95 | 0.97 |
+| unmarshal record | 23.13 | 25.80 | 23.11 | 1.00 | 0.90 |
+| unmarshal batch100 | 1 710 | 1 547 | 1 464 | 0.86 | 0.95 |
+| unmarshal blob64k | 113.4 | 154.8 | **129.0** | 1.14 | 0.83 |
+| roundTrip point | 19.62 | 20.17 | 19.02 | 0.97 | 0.94 |
+| roundTrip record | 27.91 | 28.38 | 27.90 | 1.00 | 0.98 |
+| roundTrip batch100 | 2 086 | 1 685 | 1 564 | 0.75 | 0.93 |
+| roundTrip blob64k | 258.6 | 242.1 | 211.3 | 0.82 | 0.87 |
+| JERI ping | 125.2 | 131.7 | 122.4 | 0.98 | 0.93 |
+| JERI point | 191.0 | 212.5 | 193.8 | 1.01 | 0.91 |
+| JERI record | 291.2 | 237.9 | 211.7 | 0.73 | 0.89 |
+| JERI batch100 | 6 689 | 5 859 | 5 147 | 0.77 | 0.88 |
+| JERI blob64k | 9 676 | 9 710 | 9 135 | 0.94 | 0.94 |
+
+The JOSS control moved too: JERI `ping` 239.7 (first run 240.5), `point` 352.0 (357.4), `batch100` 2 917 (3 382), `blob64k` 8 541 (9 910). The heavy JOSS rows are 8 to 14% down on the first run, so about that much of the JERI `batch100`/`blob64k` movement is the machine, not the code;
+DER against JOSS is the safer reading: `ping` 0.51, `point` 0.55, `record` 0.55, `batch100` 1.76 (first run 1.98, eighth 1.84), `blob64k` 1.07 (0.98, 0.98).
+
+Admission, stage by stage (full stage = `cheapPlusFull` - `cheap`):
+
+| payload | cheap | full stage now | full stage, eighth run | dispatcherPath |
+|---|---:|---:|---:|---:|
+| point | 0.56 | 2.48 | 2.78 | 15.8 |
+| record | 0.64 | 4.06 | 4.09 | 25.5 |
+| batch100 | 2.35 | 64.1 | 82.7 | 1 416 |
+| blob64k | 31.2 | **6.3** | 28.7 | 124.2 |
+| request8 | 1.86 | 18.4 | 22.1 | 239.8 |
+| blob16m | 9 564 | **about 0** (-162, inside the noise) | 8 807 | 43 568 |
+| records16m | 9 912 | 65 292 | 78 545 | 1 456 946 |
+
+- **The verify-only output does on the workstation what it did in the container**: admitting a 64 KiB `byte[]` costs 6.3 us (was 28.7), a 16 MiB one nothing measurable (was 8.8 ms), `batch100` 64 us (was 83), 16 MiB of records 65 ms (was 79). `unmarshal blob64k` is 129.0 us (was 154.8) and the in-process read of the 16 MiB blob is 43.7 ms (was 53.2).
+- **`unmarshal blob64k` is still 14% over the first run** (129.0 against 113.4). The full stage is now 6.3 us of it; the rest is the read-side copying that the tenth section removes (a 64 KiB record was copied about seven times); that change is in the branch after this run and was not measured here.
+- The cheap stage, which is what an unauthenticated peer costs, is unchanged (0.56 us on `point`, 9.6 ms for the 16 MiB read, which is the read itself: `floor` is 9.5 ms). The side-band context block, the one full admission before authorization, is 50 to 53 us on this machine (fixture-dependent: a two-record object).
+- **JERI `batch100` is still not explained by the codec**: marshal plus unmarshal is about 1.6 ms of a 5.1 ms call, 5.0 ms above `ping`; JOSS: 1.5 ms of 2.9 ms. Investigated in the twelfth section: it is the mux fragment size, not the codec.
+
+## Twelfth section: why a DER `batch100` JERI call costs more than its codec (container; re-run on the workstation before quoting)
+
+The question: a DER `batch100` call is an echo, so the codec round trip (marshal + unmarshal, about 0.9 ms in the container) is paid twice, yet the call costs 4.4 to 4.6 ms; JOSS pays about 2.7 ms. Scratch harnesses (`JeriLoop`: a timed call loop with per-thread CPU; `JeriTime`: an `Echo` whose server method stamps `nanoTime`, which splits a call into request leg and response leg) against the installed jars; nothing in the branch changed.
+
+What was ruled out, and what was found:
+
+- **Not CPU in the codec.** Main-thread CPU per call is the same for both formats (1.49 ms). The extra CPU sits in the mux reader and writer threads (DER 1.5 ms against 1.05 ms) and in thread wake-ups; the DER JVM is about 35% busy.
+- **Not the mux ration.** Client and server `initialInboundRation` at 32 KiB (default), 256 KiB and 4 MiB: DER 4.52 / 4.44 / 4.49 ms. The stream is smaller than the default ration.
+- **Symmetric legs.** `JeriTime`: DER 2.07 to 2.13 ms to reach the server method and 2.27 to 2.34 ms to return; JOSS 1.29 to 1.35 and 1.36 to 1.37. The cost is in sending and receiving a stream, not in one side.
+- **The fragment size is the cause.** `MuxClient` and `MuxServer` hard-code `maxFragmentSize` to 1024. `MuxOutputStream.writeBuffer` sends each full fragment with `futureSendData` and then waits for the writer thread to finish the socket write (`waitForIO`) before refilling the buffer. A stream of N KiB therefore costs N writer-thread handoffs on the calling thread. A JOSS stream pays them too, but interleaved with encoding; the DER encoder holds the stream and writes it all in `drainTo` at flush/close, so every handoff is exposed and nothing overlaps. (Same reason the server side shows it: the response is also one `drainTo`.)
+- **Fragment sweep** (shadow `MuxClient`/`MuxServer` reading `-Djeri.frag`, both ends; us per call, 5 s runs after 5 s warm-up; the container is noisy, take the shape not the third digit):
+
+| fragment | DER batch100 | JOSS batch100 | DER blob64k | JOSS blob64k | DER record | JOSS record |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 024 (today) | 4 559 | 2 928 | 9 979 | 8 978 | 193 | 524 |
+| 2 048 | 3 590 | 2 683 | 5 586 | 5 204 | 192 | 544 |
+| 4 096 | 3 638 | 2 827 | 3 753 | 3 098 | 178 | 498 |
+| 8 192 | 3 436 | 3 098 | 2 597 | 1 948 | 183 | 602 |
+| 16 384 | 3 383 | 3 043 | 2 350 | 1 613 | 192 | 559 |
+
+An earlier, quieter run gave DER `batch100` 4 346 / 3 232 / 2 883 / 2 696 us at 1 024 / 4 096 / 16 384 / 65 000 and JOSS 2 648 / 2 649 / 2 968 / 2 929, with the request leg 1.46 ms and the response leg 1.42 ms at 16 KiB.
+
+- **Reading it.** Small messages (`record`, `ping`) do not change: they fit one fragment. Large messages in both formats get 4 to 6 times cheaper (`blob64k` 10.0 to 2.35 ms for DER, 9.0 to 1.6 ms for JOSS): the 1 KiB fragment is a transport cost shared by both formats and is what makes `blob64k` JERI calls 9 to 10 ms. DER `batch100` falls 25 to 35%. JOSS `batch100` does not improve and may get a few percent worse above 4 KiB (the per-call buffer is allocated at the fragment size, and a pipelined writer already overlapped the handoffs). The DER codec work itself (about 1.8 ms of the call) is what remains.
+- **Options (not done; a change to the shared JERI mux for both formats, awaiting a decision):** (1) raise the default fragment size (4 to 8 KiB captures most of the gain; it is local to the sender and the receiver already accepts up to 0xFFFF), ideally a system property like the ration ones; (2) in `MuxOutputStream.write(byte[], int, int)`, send a large array directly in ration-sized pieces (no copy into the fragment buffer) and wait once for the last future, so the cost of a bulk write is one handoff whatever its size. Option 2 helps only writers that write in bulk (DER's `drainTo`); option 1 helps everyone, but allocates a bigger buffer per request.
+
+Option 2 prototyped and measured (2026-10-20, not in the source tree). The prototype (a patch to `MuxOutputStream` behind `-Djeri.bulk=true`; superseded by the implementation below and removed from `docs/`; it is in the history of commit `64af31df6`): `write(byte[], off, len)` with the fragment buffer empty and `len` at least the fragment size sends the array straight from the caller's array in pieces of `min(0xFFFF, ration)` (no copy into the fragment buffer, same ration wait, open/state handling and `fakeOKtoWrite` rule as `writeBuffer`), queues every piece with `futureSendData`, and waits once for all the futures before returning (the caller's array must not change until written). The fragment size stays 1 KiB. Container, four alternating runs of `JeriLoop` (5 s warm-up, 5 s measured), us per call:
+
+| DER batch100 | run 1 | run 2 | run 3 | run 4 | mean |
+|---|---:|---:|---:|---:|---:|
+| 1 KiB fragments (today) | 4 529 | 4 286 | 4 452 | 4 207 | **4 368** |
+| option 2 (bulk) | 3 222 | 3 043 | 2 928 | 2 872 | **3 016** (-31%) |
+| option 2 + last fragment held back in the buffer | 3 175 | 3 437 | 2 937 | 2 817 | 3 091 (no gain, dropped) |
+| option 1 (16 KiB fragments) | 2 851 | 2 785 | 2 683 | 2 683 | **2 750** (-37%) |
+
+Other payloads (one run each, bulk off / bulk on / 16 KiB fragments): DER `blob64k` 10 015 / 2 480 / 2 049; JOSS `blob64k` 9 196 / **1 422** / 1 576 (JOSS writes a large array in one call too, so it gains from option 2 as well); DER `record` 176 / 177 / 192; JOSS `record` 477 / 528 / 543 (a record fits one fragment: unchanged within noise); JOSS `batch100` 2 715 / 2 916 / 3 115 (no gain; the change is inside the noise for bulk, and larger fragments may cost a little).
+
+Reading it: option 2 gets most of what option 1 gets for DER (31% against 37% on `batch100`) without allocating a larger buffer per request, and on `blob64k` it is as good as or better than 16 KiB fragments in both formats. What it leaves is about 0.27 ms on `batch100`: the data and the end-of-stream marker are two messages (the marker is sent at `close()`; on the server the close is a synchronous send), where a 16 KiB fragment carries the stream and the marker together. Not tested: abort or interrupt while pieces are outstanding, the `fakeOKtoWrite` path, a session that goes down mid-write (the waits are in a `finally`, errors surface from the first failed future), the `jgdms-jeri` unit tests (the prototype was a shadow class on the benchmark class path). It would need those before it went in.
+
+Option 2 implemented (2026-10-20, `MuxOutputStream.writeBulk`, always on). The shipped version differs from the prototype in what it does on failure: the queued pieces wrap the caller's array, so `write` never returns (or throws) until every piece has been written or has failed, even when the thread is interrupted (the wait is uninterruptible, the interrupt is then reported as `IOException("request I/O interrupted")` and takes the session down as before); a failure is added as a suppressed exception when another is already in flight. Two package-private constructors (`MuxClient`, `MuxServer`) take an explicit initial ration and fragment size, for the tests only. `MuxBulkWriteTest` (15 tests, a real `MuxClient` against a real `MuxServer` over loopback; 10 mutants of `writeBulk` each killed): sizes around the fragment size, the ration and 0xFFFF; a large write after buffered bytes, and alternating small and large writes; rations from 256 bytes to 16 MiB and fragments from 64 to 4096; the response direction; concurrent requests; the caller's array being reused at once (and, deterministically, `write` blocked while the client socket is gated); a peer that aborts, a peer that answers without reading (the `fakeOKtoWrite` path); a socket write that fails after the pieces were queued; the connection going down and an interrupt while waiting for ration; an interrupt while waiting for the pieces. `jgdms-jeri` 93 tests (1 skipped, as before), `jgdms-cel` 692, no failures.
+
+Container, installed jars, `JeriLoop` (4 s after 5 s warm-up), three alternating runs each, mean us per call, the original `MuxOutputStream` against the new one:
+
+| call | before | after | change |
+|---|---:|---:|---:|
+| DER batch100 | 4 508 | **3 163** | -30% |
+| JOSS batch100 | 2 542 | 2 554 | none |
+| DER blob64k | 8 749 | **1 478** | 5.9x faster |
+| JOSS blob64k | 7 804 | **1 249** | 6.2x faster |
+| DER record | 161 | 158 | none |
+| JOSS record | 382 | 378 | none |
+
+(Run `JeriBenchmark` on the workstation before quoting; the gain should be there for every payload larger than one fragment, and none for `ping`, `point` and `record`.)
+
+## Thirteenth section: where DER `batch100` unmarshal time goes (container; re-run on the workstation before quoting)
+
+Question: unmarshal of `batch100` is about 850 to 900 us in-process (100 records, 13.8 KB; JOSS 790 to 875 us), about 8 us a record. What is it spent on? Scratch harness `Unmarshal` (decode one pre-encoded stream in a loop, 6 s warm-up), JFR with `jdk.ExecutionSample#period=2ms` and `stackdepth=4096` (the default depth of 64 cuts off the roots of a recursive decode and hides the phase split).
+
+- **The largest single cost is not in the codec: `AtomicSerial.GetArg.callerClass()`.** Every typed `get`/`defaulted` call resolves the calling `@AtomicSerial` class by walking the stack (`StackWalker.walk`, a stream, `findFirst` over `serialClasses()`), once per field read, for every object, in both formats. It showed as 24% of samples under JFR (the sampler under-counts native stack walks), and removing it took the loop from 890 to 345 us.
+- **The identical-semantics shortcut.** `callerClass()` returns `found` if a frame matches, otherwise the single registered class if `serial.size() == 1`, otherwise throws; a matching frame is by definition a member of `serial`. So when exactly one class is registered it returns that class whatever the stack holds, and the walk can be skipped. Prototype (scratch only; a one-line early return in a shadow `AtomicSerial` ahead of the walk, switched by a system property), `Unmarshal`, us per op:
+
+| | walk (today) | shortcut |
+|---|---:|---:|
+| DER batch100 (3 runs) | 964, 825, 883 | **330, 380, 328** |
+| JOSS batch100 | 791 | **295** |
+| DER record | 12.2 | **6.9** |
+
+  About 60% off `batch100` unmarshal in both formats and 43% off `record`. Both formats use the same `GetArg` base, so the DER/JOSS ratio does not change; the absolute cost of every remote call that carries a value drops. A JERI `batch100` call pays two unmarshals (request and response), so roughly 1 ms of its 3.2 ms (container) if the in-process numbers carry over.
+- **Hierarchies are not helped.** A class with an `@AtomicSerial` superclass registers two or more classes, and the stack is the only thing that says which constructor is asking (each level has its own field set; the memo is per `(caller, name)`). A stack query costs 380 to 620 ns even on a shallow stack (`SW` micro-loop: `walk` with a stream 590 to 620, with an iterator 550 to 590, `getCallerClass()` 380 to 420), so there is no cheap stack-based form. Resolving by field name alone would let a subclass read a superclass's field and is a semantic change, not an optimisation.
+- **After the shortcut (320 us for 100 records, 3.2 us a record)** the profile is flat: `ByteBuffer.hashCode` is 10% self time (chain-bytes keys in `StreamSchemaDedup.encodeSite`, `verifiedChain` and `decodeSite` hash the whole chain on every lookup; a key that caches its hash, or one lookup per chain instead of three, would take most of it), `DerReader.decodeLength` 11%, `HashMap.putVal` 8% (the per-object field maps in `DerFieldStore`), `Class.forName` 3%, `validateClassFree` 7% (admission), `verifiedChain` 6%. Phase split of the 320 us: reconstitution of the stream (`reconstituteTopLevelAtomicParts`) 22%, admission (`admit`) 20%, the decode and construction 56%.
+- **Not done:** the shortcut is a change to `jgdms-platform` (`org.apache.river.api.io.AtomicSerial`, shared by JOSS and DER); not applied.
+
+## Fourteenth section: workstation run after the mux bulk write (`results-workstation2.json`), and the `GetArg` shortcut applied
+
+**Workstation run (built from the mux change, before the shortcut below).** Full JMH run, 49 min. Codec rows are unchanged from the previous workstation run (DER `unmarshal batch100` 1 484 against 1 464, `marshal batch100` 156 against 148), as they should be, since only the mux changed. The JERI rows (us per call):
+
+| JERI | DER, eleventh section | DER now | JOSS, eleventh section | JOSS now | DER/JOSS now (was) |
+|---|---:|---:|---:|---:|---:|
+| ping | 122.4 | 124.1 | 239.7 | 304.1 | 0.41 (0.51) |
+| point | 193.8 | 205.2 | 352.0 | 380.7 | 0.54 (0.55) |
+| record | 211.7 | 242.5 | - | 422.4 | 0.57 (0.55) |
+| batch100 | 5 147 | **3 840** | 2 917 | 2 972 | **1.29 (1.76)** |
+| blob64k | 9 135 | **1 409** | 8 541 | **1 238** | 1.14 (1.07) |
+
+- **The mux bulk write is confirmed on the workstation:** DER `batch100` -25%, `blob64k` 6.5 times faster, JOSS `blob64k` 6.9 times faster; JOSS `batch100`, and the single-fragment rows (`ping`, `point`, `record`), unchanged within the noise. The container predicted -30% and 5.9 to 6.2 times.
+- The JOSS control moved on the small rows (`ping` 304 +- 54 against 240 before), so the 0.41 and 0.57 ratios are not the code; the large-payload rows moved by a factor, not a few percent.
+- The DER/JOSS gap on `batch100` fell from 1.76 to 1.29. The remainder is the unmarshal (DER 1.48 ms against JOSS 1.27 ms in `CodecBenchmark`), which the next change addresses in both formats.
+- Admission is where the tenth and eleventh sections left it (full stage after `checkAccess`: `batch100` 58 us, `blob64k` 4 us, `records16m` 70 ms; `context` 52 to 55 us).
+
+**`AtomicSerial.GetArg.callerClass()` returns the single registered class without walking the stack (applied, 2026-10-20).** Platform change, `GetArgCallerResolutionTest` (6 tests, passes on the old code as well, 4 mutants killed); `jgdms-der` 1 484, `jgdms-jeri` 93 (1 skipped), `jgdms-cel` 692, no failures (`jgdms-platform` has 3 failures in `CombinerDebugRecursionTest`, `DefaultPolicyParserTest` and `MultiSubjectGrantAuthorizationTest`, which fail identically on the unchanged tree in this container). Container, jars rebuilt, old `AtomicSerial` against new in the same session, three runs each, mean:
+
+| | before | after |
+|---|---:|---:|
+| in-process unmarshal DER batch100 (us) | 742 | **289** (-61%) |
+| in-process unmarshal JOSS batch100 | 711 | **276** (-61%) |
+| in-process unmarshal DER record | 10.9 | **6.3** (-42%) |
+| in-process unmarshal JOSS record | 73 | 69 (none: the JOSS record path does not read through `GetArg` per field) |
+| in-process unmarshal DER blob64k | 72.5 | 68.3 (-6%, noise) |
+| JERI call DER batch100 (us) | 3 171 | **1 808** (-43%) |
+| JERI call JOSS batch100 | 2 748 | 2 389 (-13%, noisy: 2 880 2 670 2 696 against 2 689 2 218 2 261) |
+| JERI call DER record | 182 | **160** (-12%) |
+| JERI call JOSS record | 564 | 414 (-27%, noisy) |
+
+Re-run on the workstation before quoting; the in-process unmarshal rows are the reliable ones (the JERI rows move with the container's noise). Expected there: `unmarshal batch100` about 1.48 ms to about 0.6 ms for DER, a similar fall for JOSS, and JERI `batch100` about 3.8 ms to about 2.4 ms for DER.
+
+## Fifteenth section: chain-key hash caching (`ByteArrayKey`, container; re-run on the workstation before quoting)
+
+The thirteenth section's profile put `ByteBuffer.hashCode` at 10% of the samples of a `batch100` unmarshal (the digest `table.get` on every `chainRef`, 5%, and `verifiedChain`'s content hash of each nested record's chain, 5%), because the dedup tables were keyed by `ByteBuffer` views and `ByteBuffer.hashCode()` reads a byte at a time through the buffer's bounds checks.
+
+Change: `ByteArrayKey` (the digest table: first eight bytes of the SHA-256 folded to an `int`; the decode-side chain index: `Arrays.hashCode`, a vectorised intrinsic; equality is always a full `Arrays.equals`), and, on the encode side, `encodedByBytes` compares a site's chain with the previously matched one (`Arrays.equals` over the window) before any map lookup. A pure accelerator in both cases. Tests: `ByteArrayKeyTest` (5), three new `StreamSchemaDedupTableTest` cases (every single-bit change of a tabled digest is an unknown digest; every one-byte change, prefix and extension of a verified chain is not verified; 100 chains stay distinct) and an interleaving round trip in `DerStreamSchemaDedupTest` (60 random mixes of three classes decode as the classes encoded); mutants killed: equality by hash only, by an eight-byte prefix, the previous-chain check by length only or by first byte, and the wrong hash flavour for the chain index (replacing the digest hash with a constant survives, correctly: it is a performance change only). `jgdms-der` 1 493 tests, no failures.
+
+In-process, three runs each, old `StreamSchemaDedup` against new, jars rebuilt, us per op:
+
+| DER | before | after | |
+|---|---:|---:|---:|
+| marshal batch100 | 103.4 100.9 106.5 | **80.7 86.5 89.4** | -17% |
+| marshal record | 1.6 | 1.5 | within noise |
+| marshal blob64k | 97.6 | 95.3 | within noise |
+| unmarshal batch100 | 270.7 270.3 269.7 | 259.2 277.6 249.9 | -3%, inside the run-to-run spread |
+| unmarshal record | 6.1 | 5.8 | within noise |
+| unmarshal blob64k | 67.5 | 68.2 | none |
+
+- **The sampled share overstated the unmarshal gain.** `ByteBuffer.hashCode` is gone from the profile, but the work moved: `ArraysSupport.mismatch` (the `Arrays.equals` on a hit, about 200 bytes) is 6% self time now, and the probe is a fresh copy of the chain that `decodeNested` read out of the reconstituted record, so there is no identity shortcut to take. Marshal gained because the previous-chain comparison avoids the map lookup altogether for runs of one class.
+- **What is left in the `batch100` unmarshal profile** (306 us under JFR, 100 records): `DerReader.decodeLength` 12.7% self, `HashMap.getNode` 7.7%, `ArraysSupport.mismatch` 6%, `Arrays.copyOf` 4%, `Class.forName` 3%, `HashMap.putVal` 3%. `decodeLength` is the one worth a look.
+
+## Sixteenth section: is `DerReader.decodeLength` slow? No (investigation, no code change; container)
+
+The fifteenth section left `DerReader.decodeLength` at 12.7% self time in the `batch100` unmarshal profile. Findings:
+
+- **Its cost per call is about 3 ns.** A loop over 2 870 short TLVs (`skipTlv`, or `readTlvHeader` then `skip`) costs 2.7 to 3.4 ns per TLV, header decode and length included; the header records (`Tag`, `DecodeResult`, `TlvHeader`) are removed by escape analysis (no sample of any of them in `jdk.ObjectAllocationSample`).
+- **It is called 2 870 times per `batch100` decode** (28.7 per record; `record` 60, `blob64k` 33; encoding `batch100` 425), instrumented with a counter in a shadow `DerReader`. At 3 ns that is 8 to 10 us, about 3% of a 270 to 306 us decode, not 12.7%.
+- **The sampled share is skid, not cost.** 94% of the `decodeLength` samples (1 013 of 1 077) are on the line of `requireBytes(n)` in the long-form branch, which only lengths of 128 and more take. JFR attributes a sample to the nearest instruction with debug information, so a stall elsewhere in the inlined walk lands there. The same caution applies to the `ByteBuffer.hashCode` share in the fifteenth section, which also overstated its gain.
+- **What the count does say:** 28.7 length decodes per record is about three passes over the record's TLVs (admission, reconstitution, decode), with an `Arrays.copyOf` and a `readRawContent` copy in each. Removing passes means fusing admission, reconstitution and decode, a design change, not a tuning of the reader; each pass is about 3 ns per TLV, so the gain from one fewer pass is of the order of 10 us in 270.
+- **Allocation:** 75% of the sampled bytes are `byte[]` (the copies); the rest is `HashMap`/`LinkedHashMap` structure. The JFR allocation weights are not reliable for small objects (`LinkedKeySet`, one per object from `ObjectCodec.decodeHierarchy`, showed 11.5% of bytes).
+
+Conclusion: no reader optimisation is worth making; the remaining unmarshal cost is spread across the three passes, the per-object `GetArg`/field-store maps and class resolution (`Class.forName` 3%), and none exceeds a few percent.
+
+## Seventeenth section: workstation run with the `GetArg` shortcut and the chain-key hash caching (`results-workstation3.json`)
+
+Built from the branch after the sixteenth section (mux bulk write, `AtomicSerial` shortcut, `ByteArrayKey`). 49 min. Against the previous workstation run (`results-workstation2.json`, fourteenth section: mux bulk write only):
+
+| us per op | DER before | DER now | JOSS before | JOSS now | DER/JOSS now |
+|---|---:|---:|---:|---:|---:|
+| unmarshal point | 14.1 | 9.4 | 98.1 | 114.6 | 0.08 |
+| unmarshal record | 21.7 | 12.9 | 108.9 | 113.1 | 0.11 |
+| unmarshal batch100 | 1 483.6 | **491.2** (-67%) | 1 266.8 | **384.3** (-70%) | 1.28 |
+| unmarshal blob64k | 73.5 | 67.0 | 120.4 | 135.1 | 0.50 |
+| roundTrip batch100 | 1 736.3 | **672.9** | 1 556.9 | **651.4** | 1.03 |
+| marshal batch100 | 156.0 | 165.4 | 214.6 | 213.8 | 0.77 |
+| JERI ping | 124.1 | 125.7 | 304.1 | 273.0 | 0.46 |
+| JERI point | 205.2 | 181.4 | 380.7 | 386.4 | 0.47 |
+| JERI record | 242.5 | 197.0 | 422.4 | 416.7 | 0.47 |
+| JERI batch100 | 3 839.9 | **1 859.8** (-52%) | 2 971.9 | **2 365.0** (-20%) | **0.79** |
+| JERI blob64k | 1 409.0 | 1 442.1 | 1 238.5 | 1 216.4 | 1.19 |
+
+Against the first run (before any of this work): JERI `batch100` DER 6 689 -> 1 860 us (3.6 times), the DER/JOSS ratio 1.98 -> 0.79; `blob64k` DER 9 676 -> 1 442 us.
+
+- **The `GetArg` shortcut is confirmed on the workstation:** unmarshal `batch100` -67% (DER) and -70% (JOSS), the container predicted -61%; `request8` decode 244 -> 92 us; 16 MiB of small records decoded in 476 ms (was 1 597); the authorization-context block, which is pure `GetArg` use, 53 -> 28 us. Both formats gained, as predicted, so DER is still 28% slower than JOSS on unmarshalling a batch of 100 records (491 against 384 us, 4.9 against 3.8 us a record) while 8 to 12 times faster on a single small object. Round trip is level (673 against 651 us).
+- **JERI `batch100` is now faster in DER than in JOSS** (1.86 against 2.37 ms) because DER's marshal is cheaper and the transport no longer penalises it.
+- **The chain-key hash caching is NOT confirmed:** DER `marshal batch100` is 165.4 +- 10.7 us against 156.0 +- 5.3 and 148 in earlier runs, no gain where the container showed -17%. Do not quote the 17%. The change is correct and tested, and costs nothing measurable here; whether to keep it is the maintainer's call (it adds one class and a previous-chain check for a gain that did not reproduce).
+- **Admission is unchanged:** full stage after `checkAccess` `batch100` 59 us (60.8 - 2.5 earlier 58), `blob64k` 6.8 us, `records16m` 80 ms; the cheap stage 0.6 us on `point`.
+- **What is left:** the DER unmarshal of many small objects, 1.1 us a record slower than JOSS; the container profile spreads it over three passes over the stream, per-object maps and class resolution, none above a few percent (sixteenth section).
+
+## Eighteenth section: against Java RMI (JRMP over JDK serialization) (container; re-run on the workstation before quoting)
+
+New benchmarks: `JdkCodecBenchmark` (plain `ObjectOutputStream`/`ObjectInputStream`, the codec RMI marshals with) and `RmiBenchmark` (`UnicastRemoteObject.exportObject`, stub in the same JVM, TCP loopback, one thread, self-check that the call crosses the wire), measured as `CodecBenchmark` and `JeriBenchmark` are. `JdkPayloads` holds Serializable twins of the payloads (same fields, same values; `Payloads` is unchanged so earlier results stay comparable); `RmiEcho` is `Echo` over them; `WireSize` has a JDK column. Java RMI itself is not deprecated for removal (only RMI Activation was), so RMI is a live baseline. No authentication, encryption, constraints or input filter on either side.
+
+Wire size (bytes): point 85 (JDK) / 83 (JOSS) / 118 (DER); record 234 / 264 / 288; batch100 10 955 / 11 237 / 13 835; blob64k 65 640 / 65 638 / 65 664. DER is +39%, +23%, +26% and +0% over JDK serialization.
+
+Container, one session, JMH 1 to 2 forks, wide error bars on the JOSS and JERI rows; us per op:
+
+| | RMI (JOSS) | JERI JOSS | JERI DER | JERI DER / RMI |
+|---|---:|---:|---:|---:|
+| ping | 53 | 344 | 137 | 2.6 |
+| point | 61 | 395 | 153 | 2.5 |
+| record | 64 | 419 | 162 | 2.5 |
+| batch100 | 278 | 2 367 | 1 948 | 7.0 |
+| blob64k | 168 | 1 520 | 1 672 | 10 |
+
+| codec, us | JDK serialization | JGDMS JOSS | DER | DER / JDK |
+|---|---:|---:|---:|---:|
+| marshal record | 0.66 | 3.8 | 1.5 | 2.2 |
+| unmarshal record | 2.8 | 75 | 5.6 | 2.0 |
+| marshal batch100 | 25 | 175 | 86 | 3.4 |
+| unmarshal batch100 | 61 | 301 | 266 | 4.4 |
+| unmarshal blob64k | 16.5 | 111 | 82 | 5.0 |
+
+Reading it. **JDK serialization and RMI are much faster than anything in JGDMS today**: a DER call costs 2.5 times an RMI call for small payloads (about 85 us more per call) and 7 to 10 times for `batch100` and `blob64k`. Of the 1 670 us gap on `batch100`, about 700 us is two DER codec round trips against about 120 us for JDK serialization; the remaining 1 ms is the JERI call path (invocation layers, the mux and its writer/reader threads) that RMI's single-socket JRMP does not have. The `blob64k` gap (1.7 ms against 0.17 ms) is almost all transport: both JERI formats are far slower than RMI on a 64 KiB array that the codec copies in 16 to 80 us, so the mux (fragmenting, rations, thread hand-offs) is the next cost to examine if bulk transfer matters. JGDMS JOSS is the slowest decoder (75 us for a record against 2.8 us for the JDK) because its atomic read validates the class descriptor and runs `GetArg` constructors.
+
+What the cost buys is listed in the final report of this piece of work, not measured here; none of these properties is something Java RMI offers.
+
+## Nineteenth section: workstation run 4 (`results-workstation4.json`), and the endpoint fix
+
+Run 4 repeats run 3 on the same code for the performance paths (the only change since is the endpoint fix below, which no benchmark exercises). It agrees with run 3 within 2 to 10%: DER `unmarshal batch100` 451.9 (run 3: 491.2), JOSS 402.2 (384.3); DER `marshal batch100` 152.1 (165.4; the two runs bracket the 156 of run 2, so the hash-caching change is neither confirmed nor refuted by them); JERI `batch100` DER 1 920 (1 860), JOSS 2 052 (2 365); `blob64k` DER 1 480 (1 442), JOSS 1 244 (1 216); `ping` DER 125.4 (125.7), JOSS 272.5 (273.0); `record` DER 197.4 (197.0), JOSS 410.8 (416.7). JERI DER stays below JOSS on every row except `blob64k`. The JOSS `batch100` JERI row moved most (2 052 against 2 365, error bars +-32 and +-258): the figure to quote for it is the pair.
+
+**Endpoint defect found and fixed.** The scalability sweep calls a service in another JVM through a proxy decoded from a stream. A DER-decoded `TcpEndpoint`, `UdsEndpoint` or `HttpEndpoint` threw a `NullPointerException` from its first `newRequest`, because `getInstance` interns an endpoint and sets up its connection state while the `@AtomicSerial` constructor does not, and `readResolve()` (which does) never runs on a DER or atomic read. Now `TcpEndpoint` and `UdsEndpoint` take the connection manager of the canonical interned instance on first use, and `HttpEndpoint(GetArg)` initialises its connection state; `DerDecodedEndpointTest` (3 tests, failing before the fix, passing after). `KerberosEndpoint` has no `GetArg` constructor and `SslEndpoint` sets its state in its constructor, so they are not affected; `HttpsEndpoint` is not covered by a test. `jgdms-jeri` 96 tests, no failures.
+
+## Twentieth section: scalability sweep on the 6-core workstation (`sweep-6core`, separate server JVM, 1 to 48 caller threads)
+
+Throughput in calls per millisecond summed over all callers (one fork, 5 iterations; error bars are 3 to 30% of the score, widest for RMI `record` and JERI JOSS):
+
+| payload / stack | 1 | 2 | 4 | 8 | 12 | 24 | 48 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ping, JERI DER | 7.90 | 14.92 | 22.37 | 33.48 | 38.60 | 49.02 | 38.23 |
+| ping, JERI JOSS | 3.73 | 7.92 | 14.23 | 19.79 | 25.33 | 26.43 | 26.10 |
+| ping, RMI | 12.89 | 25.48 | 45.80 | 75.06 | 83.39 | 105.04 | 98.64 |
+| record, JERI DER | 5.21 | 10.34 | 16.50 | 25.68 | 28.70 | 31.19 | 30.76 |
+| record, RMI | 9.10 | 18.78 | 34.00 | 51.29 | 58.73 | 69.88 | 61.98 |
+| batch100, JERI DER | 0.54 | 1.22 | 2.30 | 3.23 | 3.91 | 3.81 | 3.78 |
+| batch100, JERI JOSS | 0.46 | 0.87 | 1.36 | 2.15 | 2.02 | 1.84 | 1.76 |
+| batch100, RMI | 2.44 | 4.95 | 9.14 | 12.90 | 12.91 | 14.30 | 14.15 |
+
+- **The hypothesis that JERI DER outperforms RMI under heavy contention is not supported at this size.** DER/RMI throughput is 0.61 to 0.39 for `ping`, 0.57 to 0.50 for `record` and 0.22 to 0.30 for `batch100`, at every thread count up to 48: RMI is 2 to 4 times faster throughout, and the small-payload ratio gets worse with more callers.
+- **What does hold:** DER scales much better than JERI JOSS (`batch100` speed-up 7.0 against 3.8 at 48 callers, throughput 2.1 times JOSS) and, on `batch100`, better than RMI (7.0 against 5.8) from a lower base, so the `batch100` ratio improves from 0.22 to 0.27-0.30. `ping` DER drops from 49 at 24 callers to 38 at 48.
+- **CORRECTION (board gap review, 2026-10-20): the single-writer explanation below is not established.** 0.80 of a core is not saturation (a saturated thread reads about 1.0), the figure is Linux/JDK 21 while this sweep is Windows/JDK 27 on 12 logical CPUs (where `synchronized` no longer pins), and the knee at 24 callers is twice the logical CPUs, i.e. oversubscription with a server JVM on the same machine. Little's law gives about 490 us per call at 24 callers against 127 alone: a latency chain, not CPU. Read the next item as a hypothesis to test, not a finding.
+- **A candidate cause for the ceiling, measured in the container (4 cores, 16 callers, DER `ping`):** the mux writer thread runs at 0.80 of a core and the reader at 0.64. JERI multiplexes all calls to an endpoint over one connection, and each mux connection has one writer and one reader thread, so small calls are limited by one writer thread; RMI opens connections as concurrency rises and has a thread per connection. For `batch100` (codec-bound) the mux threads are at 0.15 to 0.19 of a core and the callers and carriers dominate, which is why DER keeps scaling there. Not yet shown on the 6-, 32- or 80-core machines.
+- **Untested remedy:** more than one connection per endpoint (a configurable pool in the connection manager) would raise the ceiling for small calls. It is a design change with ordering and constraint consequences, so it is an experiment to propose, not something done.

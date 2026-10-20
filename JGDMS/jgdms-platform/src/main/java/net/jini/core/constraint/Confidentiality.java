@@ -21,6 +21,7 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -36,7 +37,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public final class Confidentiality
-				implements InvocationConstraint, Serializable
+				implements InvocationConstraint, Serializable, Resolve
 {
     private static final long serialVersionUID = 6173438948668674131L;
     

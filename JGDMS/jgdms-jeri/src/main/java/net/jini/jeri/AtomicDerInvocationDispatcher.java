@@ -113,7 +113,7 @@ public class AtomicDerInvocationDispatcher extends BasicInvocationDispatcher {
                                                    Collection context)
             throws IOException {
         ClassLoader streamLoader = getStreamLoader(impl);
-        return new DerMarshalInputStream(request.getRequestInputStream(),
+        return DerMarshalInputStream.forDispatcher(request.getRequestInputStream(),
                 new ResolutionContext(streamLoader, integrity, streamLoader), limits);
     }
 
