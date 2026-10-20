@@ -21,8 +21,19 @@
 # X500Principal (a MethodConstraints principals[] element) is the only type a real
 # constrained-proxy graph currently requires. Its wire form is getEncoded() carried
 # VERBATIM (canonical ASN.1 DER of the DN); it must not be re-canonicalized/sorted.
-# Further clean inert value leaves (URI, StackTraceElement, File) are added REACTIVELY
-# only as a real graph surfaces them, each individually vetted. Throwable, Properties,
-# and MarshalledObject are DEFERRED (unresolved security/canonicality defects) and are
-# deliberately NOT listed.
+# URI, URL, File and StackTraceElement were added 2026-10-20 (maintainer decision; each an inert value
+# rebuilt from a string or four plain fields, loading no class and running no code):
+#   URI    - its string form, reparsed with new URI(String);
+#   URL    - its external form, reparsed with new URL(null, String) (equals/hashCode of a URL can
+#            do a name lookup: prefer URI in new protocols);
+#   File   - its file: URI (File.toURI(), so a relative path is sent as an absolute one);
+#   StackTraceElement - declaringClass, methodName, fileName, lineNumber (the loader and module
+#            names are not carried). It has its own serializer, StackTraceElementValueSerializer,
+#            because DerThrowableForm's frames use StackTraceElementSerializer directly.
+# Throwable, Properties and MarshalledObject are DEFERRED (unresolved security/canonicality
+# defects; MarshalledObject is dangerous by decision) and are deliberately NOT listed.
 org.apache.river.api.io.X500PrincipalSerializer
+org.apache.river.api.io.URISerializer
+org.apache.river.api.io.URLSerializer
+org.apache.river.api.io.FileSerializer
+org.apache.river.api.io.StackTraceElementValueSerializer

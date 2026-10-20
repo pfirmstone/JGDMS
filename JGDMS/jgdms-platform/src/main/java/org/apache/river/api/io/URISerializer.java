@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = URI.class)
 @AtomicSerial
-class URISerializer {
+class URISerializer implements Resolve {
 
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
@@ -54,6 +54,9 @@ class URISerializer {
     private final /*transient*/ URI uri;
     
     private static URI check( String uri) throws IOException {
+       if (uri == null) {
+	   throw new InvalidObjectException("null URI");
+       }
        try {
 	   return new URI(uri);
        } catch (URISyntaxException ex) {
@@ -97,8 +100,17 @@ class URISerializer {
 	return hash;
     }
     
-    Object readResolve() throws ObjectStreamException, IOException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (uri != null) return uri;
-	return check(uriExternalForm);
+	try {
+	    return check(uriExternalForm);
+	} catch (ObjectStreamException e) {
+	    throw e;
+	} catch (IOException e) {
+	    InvalidObjectException ex = new InvalidObjectException("Failed to deserialize URI");
+	    ex.initCause(e);
+	    throw ex;
+	}
     }
 }
