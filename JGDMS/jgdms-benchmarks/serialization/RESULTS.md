@@ -767,3 +767,31 @@ Against the first run (before any of this work): JERI `batch100` DER 6 689 -> 1 
 - **The chain-key hash caching is NOT confirmed:** DER `marshal batch100` is 165.4 +- 10.7 us against 156.0 +- 5.3 and 148 in earlier runs, no gain where the container showed -17%. Do not quote the 17%. The change is correct and tested, and costs nothing measurable here; whether to keep it is the maintainer's call (it adds one class and a previous-chain check for a gain that did not reproduce).
 - **Admission is unchanged:** full stage after `checkAccess` `batch100` 59 us (60.8 - 2.5 earlier 58), `blob64k` 6.8 us, `records16m` 80 ms; the cheap stage 0.6 us on `point`.
 - **What is left:** the DER unmarshal of many small objects, 1.1 us a record slower than JOSS; the container profile spreads it over three passes over the stream, per-object maps and class resolution, none above a few percent (sixteenth section).
+
+## Eighteenth section: against Java RMI (JRMP over JDK serialization) (container; re-run on the workstation before quoting)
+
+New benchmarks: `JdkCodecBenchmark` (plain `ObjectOutputStream`/`ObjectInputStream`, the codec RMI marshals with) and `RmiBenchmark` (`UnicastRemoteObject.exportObject`, stub in the same JVM, TCP loopback, one thread, self-check that the call crosses the wire), measured as `CodecBenchmark` and `JeriBenchmark` are. `JdkPayloads` holds Serializable twins of the payloads (same fields, same values; `Payloads` is unchanged so earlier results stay comparable); `RmiEcho` is `Echo` over them; `WireSize` has a JDK column. Java RMI itself is not deprecated for removal (only RMI Activation was), so RMI is a live baseline. No authentication, encryption, constraints or input filter on either side.
+
+Wire size (bytes): point 85 (JDK) / 83 (JOSS) / 118 (DER); record 234 / 264 / 288; batch100 10 955 / 11 237 / 13 835; blob64k 65 640 / 65 638 / 65 664. DER is +39%, +23%, +26% and +0% over JDK serialization.
+
+Container, one session, JMH 1 to 2 forks, wide error bars on the JOSS and JERI rows; us per op:
+
+| | RMI (JOSS) | JERI JOSS | JERI DER | JERI DER / RMI |
+|---|---:|---:|---:|---:|
+| ping | 53 | 344 | 137 | 2.6 |
+| point | 61 | 395 | 153 | 2.5 |
+| record | 64 | 419 | 162 | 2.5 |
+| batch100 | 278 | 2 367 | 1 948 | 7.0 |
+| blob64k | 168 | 1 520 | 1 672 | 10 |
+
+| codec, us | JDK serialization | JGDMS JOSS | DER | DER / JDK |
+|---|---:|---:|---:|---:|
+| marshal record | 0.66 | 3.8 | 1.5 | 2.2 |
+| unmarshal record | 2.8 | 75 | 5.6 | 2.0 |
+| marshal batch100 | 25 | 175 | 86 | 3.4 |
+| unmarshal batch100 | 61 | 301 | 266 | 4.4 |
+| unmarshal blob64k | 16.5 | 111 | 82 | 5.0 |
+
+Reading it. **JDK serialization and RMI are much faster than anything in JGDMS today**: a DER call costs 2.5 times an RMI call for small payloads (about 85 us more per call) and 7 to 10 times for `batch100` and `blob64k`. Of the 1 670 us gap on `batch100`, about 700 us is two DER codec round trips against about 120 us for JDK serialization; the remaining 1 ms is the JERI call path (invocation layers, the mux and its writer/reader threads) that RMI's single-socket JRMP does not have. The `blob64k` gap (1.7 ms against 0.17 ms) is almost all transport: both JERI formats are far slower than RMI on a 64 KiB array that the codec copies in 16 to 80 us, so the mux (fragmenting, rations, thread hand-offs) is the next cost to examine if bulk transfer matters. JGDMS JOSS is the slowest decoder (75 us for a record against 2.8 us for the JDK) because its atomic read validates the class descriptor and runs `GetArg` constructors.
+
+What the cost buys is listed in the final report of this piece of work, not measured here; none of these properties is something Java RMI offers.
