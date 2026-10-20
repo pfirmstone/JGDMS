@@ -478,9 +478,9 @@ final class StreamSchemaDedup {
     /**
      * The per-stream dedup table: chain identity (32-byte SHA-256 over the received
      * leaf-record bytes) → interned chain bytes + parsed records. Iteration order is
-     * insertion order (deterministic); keys are content-compared {@link ByteBuffer}s.
+     * insertion order (deterministic); keys are content-compared {@link ByteArrayKey#ofDigest digest keys}.
      */
-    private final Map<ByteBuffer, TableEntry> table = new LinkedHashMap<>();
+    private final Map<ByteArrayKey, TableEntry> table = new LinkedHashMap<>();
 
     /** Running sum of stored chain-byte lengths (metered at insertion, sec.C.8.2). */
     private long tableBytes = 0;
@@ -551,6 +551,35 @@ final class StreamSchemaDedup {
     private final Map<ByteBuffer, TableEntry> encodeByBytes = new HashMap<>();
 
     /**
+     * ENCODE direction only: the entry the last {@link #encodedByBytes} lookup found or inserted. Consecutive sites very
+     * often carry the same chain (a list of one class), and comparing a window with these bytes is one vectorised
+     * comparison where a map lookup hashes the window byte by byte. A pure accelerator in front of {@link #encodeByBytes}:
+     * it answers only on a full content match.
+     */
+    private TableEntry lastEncoded;
+
+    /** The tabled entry whose chain bytes are exactly {@code in[off, off+len)}, or {@code null}. */
+    private TableEntry encodedByBytes(byte[] in, int off, int len) {
+        TableEntry last = lastEncoded;
+        if (last != null) {
+            byte[] bytes = last.chainBytes();
+            if (bytes.length == len && Arrays.equals(in, off, off + len, bytes, 0, len)) {
+                return last;
+            }
+        }
+        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, off, len));
+        if (e != null) {
+            lastEncoded = e;
+        }
+        return e;
+    }
+
+    private void indexEncoded(byte[] chainBytes, TableEntry entry) {
+        encodeByBytes.put(ByteBuffer.wrap(chainBytes), entry);
+        lastEncoded = entry;
+    }
+
+    /**
      * DECODE direction only: an index over {@link #table} keyed by the chain's bytes as
      * received, used by {@link #verifiedChain}. Every entry is a chain this stream already
      * verified through {@link SchemaChain#decodeChain} at its {@code fullChain} site, so a
@@ -558,7 +587,7 @@ final class StreamSchemaDedup {
      * {@link #insert}, which is metered by the table ceilings, and the index is discarded
      * with the stream. Never consulted for acceptance without a full content comparison.
      */
-    private final Map<ByteBuffer, TableEntry> decodeByBytes = new HashMap<>();
+    private final Map<ByteArrayKey, TableEntry> decodeByBytes = new HashMap<>();
 
     /**
      * @param encoding {@code true} for the encode direction (canonical → stream form),
@@ -862,7 +891,7 @@ final class StreamSchemaDedup {
      * table unless byte-identical to a tabled one, and otherwise take the full path.
      */
     SchemaChain.Result verifiedChain(byte[] chainBytes) {
-        TableEntry e = decodeByBytes.get(ByteBuffer.wrap(chainBytes));
+        TableEntry e = decodeByBytes.get(ByteArrayKey.ofBytes(chainBytes));
         return e == null ? null : new SchemaChain.Result(e.records(), e.digest().clone());
     }
 
@@ -1899,7 +1928,7 @@ final class StreamSchemaDedup {
         // Same bytes as an already-tabled chain => same identity: one content-equality
         // lookup replaces re-hashing the leaf record (pure accelerator, see encodeByBytes).
         // The lookup key is a window onto the input, so a repeat occurrence copies nothing.
-        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, chainOff, chainLen));
+        TableEntry e = encodedByBytes(in, chainOff, chainLen);
         byte[] digest = null;   // set below whenever e == null (the only path that reaches insert)
         List<AtomicSerialSchemaRecord> records = null;
         byte[] chainBytes = null;
@@ -1913,7 +1942,7 @@ final class StreamSchemaDedup {
             } else {
                 digest = leafRecordDigest(chainBytes);
             }
-            e = table.get(ByteBuffer.wrap(digest));
+            e = table.get(ByteArrayKey.ofDigest(digest));
         }
         if (e != null) {
             // Subsequent occurrence: MUST be the reference form — no discretion.
@@ -1927,7 +1956,7 @@ final class StreamSchemaDedup {
             records = SchemaChain.decodeChain(chainBytes, "StreamSchemaDedup(encode)");
         }
         TableEntry inserted = insert(digest, chainBytes, records);
-        encodeByBytes.put(ByteBuffer.wrap(chainBytes), inserted);
+        indexEncoded(chainBytes, inserted);
         return new Site(chainBytes, records, digest,
                 DerWriter.writeTlv(TAG_FULL_CHAIN, chainBytes));
     }
@@ -1940,7 +1969,7 @@ final class StreamSchemaDedup {
      * {@link SchemaChain#decodeChain} when it is malformed, truncated or carries trailing bytes.
      */
     private Site verifyReceivedSite(byte[] in, int chainOff, int chainLen) throws DerException {
-        TableEntry e = encodeByBytes.get(ByteBuffer.wrap(in, chainOff, chainLen));
+        TableEntry e = encodedByBytes(in, chainOff, chainLen);
         if (e != null) {
             if (meter != null) {
                 meter.chain(scope, e.records(), e.digest());     // verified before, but possibly in another region's scope
@@ -1953,11 +1982,11 @@ final class StreamSchemaDedup {
         if (meter != null) {
             meter.chain(scope, records, digest);
         }
-        if (table.containsKey(ByteBuffer.wrap(digest))) {
+        if (table.containsKey(ByteArrayKey.ofDigest(digest))) {
             return new Site(chainBytes, records, digest, NO_OUTPUT);
         }
         TableEntry inserted = insert(digest, chainBytes, records);
-        encodeByBytes.put(ByteBuffer.wrap(chainBytes), inserted);
+        indexEncoded(chainBytes, inserted);
         return new Site(chainBytes, records, digest, NO_OUTPUT);
     }
 
@@ -2045,7 +2074,7 @@ final class StreamSchemaDedup {
             // 3. Duplicate-full reject (sec.C.6.4: the canonical stream would have used
             //    a reference; accepting would admit a second encoding and a rebinding
             //    surface — this is the mandatory-dedup enforcement check, sec.C.9.2).
-            if (table.containsKey(ByteBuffer.wrap(digest))) {
+            if (table.containsKey(ByteArrayKey.ofDigest(digest))) {
                 throw new DerException(
                         "StreamSchemaDedup: duplicate fullChain for an identity already in"
                         + " this stream's table — the pinned rule (sec.C.6.1) requires a"
@@ -2070,7 +2099,7 @@ final class StreamSchemaDedup {
                         "StreamSchemaDedup: chainRef content must be exactly 32 bytes, got "
                         + digest.length + " — rejected");
             }
-            TableEntry e = table.get(ByteBuffer.wrap(digest));
+            TableEntry e = table.get(ByteArrayKey.ofDigest(digest));
             if (e == null) {
                 // Unknown-digest hard reject: never a fetch, never a local/registry
                 // fallback, never a skip (sec.C.7.4).
@@ -2115,10 +2144,10 @@ final class StreamSchemaDedup {
         }
         TableEntry entry = new TableEntry(chainBytes, List.copyOf(records), digest,
                 encoding ? DerWriter.writeTlv(TAG_CHAIN_REF, digest) : null);
-        table.put(ByteBuffer.wrap(digest), entry);
+        table.put(ByteArrayKey.ofDigest(digest), entry);
         mutations++;
         if (!encoding) {
-            decodeByBytes.put(ByteBuffer.wrap(chainBytes), entry);
+            decodeByBytes.put(ByteArrayKey.ofBytes(chainBytes), entry);
         }
         tableBytes += chainBytes.length;
         return entry;
