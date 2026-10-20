@@ -19,6 +19,7 @@ package net.jini.jeri.kerberos;
 
 import org.apache.river.action.GetIntegerAction;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -278,7 +279,7 @@ import org.ietf.jgss.GSSName;
  */
 @AtomicSerial
 public final class KerberosEndpoint
-    implements Endpoint, TrustEquivalence, Serializable
+    implements Endpoint, TrustEquivalence, Serializable, Resolve
 {
     private static final long serialVersionUID = -880347439811805543L;
 
@@ -828,7 +829,7 @@ public final class KerberosEndpoint
     //-----------------------------------
 
     /** Resolves deserialized instance to equivalent canonical instance. */
-    private Object readResolve() {
+    public Object readResolve() {
 	return intern(this);
     }
 

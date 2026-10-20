@@ -58,7 +58,6 @@ import net.jini.jeri.tcp.TcpEndpoint;
 import net.jini.jeri.uds.UdsEndpoint;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -179,7 +178,6 @@ public class ProxyPartsAtomicAuditTest {
      * ClientMaxPrincipal.serialize missing writeArgs, Connection*Time reading a long as an int); remove
      * the @Ignore when those are fixed.
      */
-    @Ignore("known defects awaiting a decision")
     @Test
     public void everyConstraintAProxyCarriesRoundTripsEqualInBothCodecs() throws Exception {
         X500Principal p = new X500Principal("CN=audit");
@@ -217,6 +215,24 @@ public class ProxyPartsAtomicAuditTest {
         }
         if (!problems.isEmpty()) {
             fail("AUDIT\n" + String.join("\n", problems));
+        }
+    }
+
+    /**
+     * Singletons and interned endpoints come back as the canonical instance in both codecs (JOSS through
+     * readResolve; DER through Resolve), so identity-based equality and the shared connection state hold.
+     */
+    @Test
+    public void canonicalPartsComeBackAsTheCanonicalInstance() throws Exception {
+        Object[] canonical = {
+            ConfidentialityStrength.STRONG, ConfidentialityStrength.WEAK,
+            TcpEndpoint.getInstance("127.0.0.1", 7), UdsEndpoint.getInstance("/tmp/jgdms-canon.sock"),
+            HttpEndpoint.getInstance("127.0.0.1", 7),
+            KerberosEndpoint.getInstance("127.0.0.1", 7, new KerberosPrincipal("svc@EXAMPLE.ORG")),
+        };
+        for (Object o : canonical) {
+            org.junit.Assert.assertSame("DER " + o, o, der(o));
+            org.junit.Assert.assertSame("JOSS " + o, o, joss(o));
         }
     }
 }

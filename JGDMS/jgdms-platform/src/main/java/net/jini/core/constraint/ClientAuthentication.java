@@ -21,6 +21,7 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -71,7 +72,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @AtomicSerial
 public final class ClientAuthentication
-				implements InvocationConstraint, Serializable
+				implements InvocationConstraint, Serializable, Resolve
 {
     private static final long serialVersionUID = -6326974440670504555L;
     
@@ -133,7 +134,7 @@ public final class ClientAuthentication
      * Canonicalize so that <code>==</code> can be used.
      * @return true for YES, false for NO
      */
-    private Object readResolve() {
+    public Object readResolve() {
 	return val ? YES : NO;
     }
 }

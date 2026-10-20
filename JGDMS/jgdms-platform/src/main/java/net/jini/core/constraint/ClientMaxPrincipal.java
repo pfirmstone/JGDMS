@@ -78,8 +78,9 @@ public final class ClientMaxPrincipal
         };
     }
     
-    public static void serialize(PutArg arg, ClientMaxPrincipal p){
+    public static void serialize(PutArg arg, ClientMaxPrincipal p) throws IOException {
         arg.put("principals", p.principals.clone());
+        arg.writeArgs();
     }
 
     /**

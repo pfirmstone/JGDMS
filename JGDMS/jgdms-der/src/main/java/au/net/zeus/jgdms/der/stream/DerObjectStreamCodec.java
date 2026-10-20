@@ -2112,8 +2112,11 @@ final class DerObjectStreamCodec {
         // Endpoint-assigned resolution (NEVER the thread-context loader -- Warres).
         Class<?> leafClass = resolution.loadClass(leafClassName);
         try {
-            return MarshalledInstanceCodec.decodeMarshalledInstance(
+            Object decoded = MarshalledInstanceCodec.decodeMarshalledInstance(
                     rec, leafClass, verifiedTopChain, decodeUnit, resolution).object();
+            // JOSS parity, and what nested values and a MarshalledInstance root already get: a value that
+            // implements Resolve (a singleton constraint, a serializer) is replaced by its readResolve()
+            return au.net.zeus.jgdms.der.serial.DerReplacer.resolve(decoded);
         } catch (DerException e) {
             throw new IOException("readObject: decode failed for " + leafClassName, e);
         }

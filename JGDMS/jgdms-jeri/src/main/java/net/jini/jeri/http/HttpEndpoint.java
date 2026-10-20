@@ -53,6 +53,7 @@ import net.jini.jeri.OutboundRequest;
 import net.jini.jeri.OutboundRequestIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
@@ -107,7 +108,7 @@ import org.apache.river.logging.LogUtil;
  **/
 @AtomicSerial
 public final class HttpEndpoint
-    implements Endpoint, TrustEquivalence, Serializable
+    implements Endpoint, TrustEquivalence, Serializable, Resolve
 {
     private static final long serialVersionUID = -7094180943307123931L;
     
@@ -279,7 +280,7 @@ public final class HttpEndpoint
      *
      * Resolves deserialized instance to equivalent canonical instance.
      */
-    private Object readResolve() {
+    public Object readResolve() {
 	return intern(this);
     }
 
