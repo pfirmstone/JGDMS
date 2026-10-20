@@ -159,6 +159,13 @@ public final class ConnectionManager {
     private final List<OutboundMux> muxes = new ArrayList<OutboundMux>(128);
 
     /**
+     * Upper bound on the passes {@link #connect} makes when the mux chosen by
+     * the endpoint has filled up in the meantime, after which it opens a new
+     * connection. A safety net: each pass excludes at least one full mux.
+     */
+    private static final int MAX_CONNECT_ATTEMPTS = 16;
+
+    /**
      * Number of pending connect calls.
      */
     private int pendingConnects = 0;
@@ -185,14 +192,6 @@ public final class ConnectionManager {
         synchronized (this) {
             pendingConnects++;
         }
-        /**
-         * The active muxes (during connect).
-         */
-        List<Connection> active = new LinkedList<Connection>();
-        /**
-         * The idle muxes (during connect).
-         */
-        List<Connection> idle = new LinkedList<Connection>();
         try {
             synchronized (reaperSet) {
                 if (reaperSet.isEmpty()) {
@@ -201,47 +200,86 @@ public final class ConnectionManager {
                 }
                 reaperSet.add(this);
             }
-            Connection c;
-            synchronized (this) {
-                for (int i = muxes.size(); --i >= 0;) {
-                    OutboundMux mux = (OutboundMux) muxes.get(i);
-                    try {
-                        int n = mux.requestsInProgress();
-                        if (n == 0) {
-                            idle.add(mux.getConnection());
-                        } else if (n < OutboundMux.MAX_REQUESTS) {
-                            active.add(mux.getConnection());
+            /*
+             * The scan below only decides which muxes the endpoint is offered.
+             * The endpoint is called outside the lock, so by the time it has
+             * chosen a mux, other threads may have filled it. The room check
+             * is therefore repeated, together with the reservation, in one
+             * critical section; if the chosen mux has meanwhile filled up, go
+             * round again (the scan then leaves that mux out). Do NOT reduce
+             * this to checking only in the scan: with many concurrent callers
+             * all of them pass a check made there (e.g. at 255 of 256), are
+             * all handed the same mux, and the surplus fails with "no free
+             * sessions".
+             */
+            for (int attempt = 0; attempt < MAX_CONNECT_ATTEMPTS; attempt++) {
+                /**
+                 * The active muxes (during connect).
+                 */
+                List<Connection> active = new LinkedList<Connection>();
+                /**
+                 * The idle muxes (during connect).
+                 */
+                List<Connection> idle = new LinkedList<Connection>();
+                synchronized (this) {
+                    for (int i = muxes.size(); --i >= 0;) {
+                        OutboundMux mux = (OutboundMux) muxes.get(i);
+                        try {
+                            int n = mux.requestsInProgress();
+                            if (n == 0) {
+                                idle.add(mux.getConnection());
+                            } else if (n < OutboundMux.MAX_REQUESTS) {
+                                active.add(mux.getConnection());
+                            }
+                        } catch (IOException e) {
+                            muxes.remove(i);
                         }
-                    } catch (IOException e) {
-                        muxes.remove(i);
                     }
                 }
-	    }
-	    c = ep.connect(handle, active, idle);	    
-	    if (c != null) {
-		synchronized (this) {
+                Connection c = ep.connect(handle, active, idle);
+                if (c == null) {
+                    break;
+                }
+                synchronized (this) {
                     for (int i = muxes.size(); --i >= 0;) {
                         OutboundMux mux = (OutboundMux) muxes.get(i);
                         if (c == mux.getConnection()) {
-                            if (logger.isLoggable(Level.FINEST)) {
-                                logger.log(Level.FINEST, "using {0}", c);
+                            try {
+                                // Check and reserve in one critical section.
+                                if (mux.requestsInProgress()
+                                        < OutboundMux.MAX_REQUESTS) {
+                                    if (logger.isLoggable(Level.FINEST)) {
+                                        logger.log(Level.FINEST, "using {0}", c);
+                                    }
+                                    mux.newRequestPending();
+                                    return mux;
+                                }
+                                if (logger.isLoggable(Level.FINEST)) {
+                                    logger.log(Level.FINEST,
+                                            "{0} is full, retrying", c);
+                                }
+                            } catch (IOException e) {
+                                muxes.remove(i);
                             }
-                            mux.newRequestPending();
-                            return mux;
+                            c = null;
+                            break;
                         }
                     }
-		}
-		OutboundMux mux = newOutboundMux(c);
-		synchronized (this) {
-		    mux.newRequestPending();
-                    muxes.add(mux);
-                    return mux;
                 }
-	    }
-	    c = ep.connect(handle);
-	    OutboundMux mux = newOutboundMux(c);
-	    synchronized (this) {
-		mux.newRequestPending();
+                if (c != null) {
+                    // A connection the endpoint opened for this request.
+                    OutboundMux mux = newOutboundMux(c);
+                    synchronized (this) {
+                        mux.newRequestPending();
+                        muxes.add(mux);
+                        return mux;
+                    }
+                }
+            }
+            Connection c = ep.connect(handle);
+            OutboundMux mux = newOutboundMux(c);
+            synchronized (this) {
+                mux.newRequestPending();
                 muxes.add(mux);
                 return mux;
             }
