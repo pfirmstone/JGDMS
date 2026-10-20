@@ -20,9 +20,11 @@ process isolation. Consequences for this design, to be taken into every stage an
   most for many local callers.
 * The seam: SSL and Kerberos accept `setConnManagerFactory`; `UdsEndpoint` and `TcpEndpoint` construct their
   managers directly (board finding B2). UDS must be brought behind the seam in stage 0.
-* The comparison with Java RMI is not a like-for-like production comparison: RMI has no UDS, and its TLS
-  (`SslRMIClientSocketFactory`) has no mutual-authentication constraint model. The comparable pairs are JERI over
-  TLS against RMI over TLS, and JERI over UDS against itself (JOSS against DER).
+* The comparison with Java RMI over secure sockets is like for like: RMI can use SSL socket factories with client
+  authentication, and the maintainer's DirtyChai changes let RMI run requests under the user's `Subject`. The
+  comparable pairs are therefore JERI over TLS against RMI over TLS (mutual authentication, requests run as the caller's
+  Subject on both), and JERI over UDS (JOSS against DER); RMI has no UDS. The RMI benchmark must be configured exactly
+  that way, not as the plain-socket RMI measured so far.
 
 ## 1. Why
 
