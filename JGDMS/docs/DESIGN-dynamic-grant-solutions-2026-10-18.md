@@ -62,7 +62,24 @@ human authors.
   certificate with two SPIFFE URIs, only the other one pinned, fails. If it fails, `ConnectionContext`
   needs a SPIFFE-aware branch.
 
-### Needs the project lead
+### Decisions taken (project lead)
+- **Identity from the bootstrap proxy's own first authenticated call**, through a handler whose class
+  is checked, then pinned as a single authenticated server principal (accepted; departs from SOW 8.2
+  item 5). Needs a read-only JERI accessor for the authenticated server principal of the connection a
+  call used. Applies to every authenticating transport: SSL (SPIFFE principal) and Kerberos
+  (`KerberosPrincipal`; `KerberosEndpoint`'s client connection adds no `ServerSubject` today, so
+  Kerberos clients currently get no identity at all). Unauthenticated transports yield no identity,
+  so no verified grant.
+- **Remotely reconstructed domains (`RemoteContextCodec`) are never "verified"**, and neither
+  `DigestGrant` nor `DigestDomainGrant` implies them. Their trust is an **attestation by the remote
+  endpoint**: a distinct "remote-attested" tier with its own grant (or a `DigestGrant` variant)
+  requiring the attester principal, carried on the domain with a freshness bound; transport must be
+  server-authenticated and integrity-protected with the attester pinned as a single principal;
+  policy names which attesters are trusted for which permissions. Local "verified" stays separate
+  from "attested" and "unverified". Sequenced after the identity and pinning work (the subprocess
+  rebuilds `ServerSubject` from client-asserted principals today).
+
+### Still needs the project lead
 - Whether steady state needs any identity gate beyond the verdict (the `BootstrapPermission` check is
   boot-window-only by design), and whether to drop the non-TLS digest-based boot check
   (`checkBootstrapPermissionByDigest`), which the proposed identity rule would silently remove.
