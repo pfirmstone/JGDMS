@@ -163,6 +163,20 @@ public final class UdsEndpoint
     }
 
     /**
+     * The connection manager of this endpoint. An endpoint made by {@code getInstance} or resolved by
+     * {@code readResolve} has it already; one built by the {@code @AtomicSerial} constructor (a DER or
+     * atomic-JOSS stream) has not been interned, so it takes the manager of the canonical instance here.
+     **/
+    private ConnectionManager connectionManager() {
+	ConnectionManager cm = connectionManager;
+	if (cm == null) {
+	    cm = intern(this).connectionManager;
+	    connectionManager = cm;
+	}
+	return cm;
+    }
+
+    /**
      * Returns canonical instance equivalent to given instance.
      **/
     private static UdsEndpoint intern(UdsEndpoint endpoint) {
@@ -257,7 +271,7 @@ public final class UdsEndpoint
 	try {
 	    Constraints.Distilled distilled =
 		Constraints.distill(constraints, false);
-	    return connectionManager.newRequest(new Handle(distilled));
+	    return connectionManager().newRequest(new Handle(distilled));
 
 	} catch (final UnsupportedConstraintException e) {
 	    return new OutboundRequestIterator() {

@@ -815,6 +815,8 @@ public final class HttpEndpoint
 	     arg.get("port", 0),
 	     arg.get("sf", null, SocketFactory.class)
 	);
+	// built by a stream, not by getInstance: readResolve does not run, so set up the connection state here
+	init();
     }
     
     private static String check(String host, int port) throws InvalidObjectException{
