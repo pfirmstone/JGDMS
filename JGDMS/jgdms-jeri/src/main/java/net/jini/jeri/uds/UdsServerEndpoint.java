@@ -289,16 +289,24 @@ public final class UdsServerEndpoint implements ServerEndpoint {
      *     mode is exactly {@code rwx------}.
      * </ol>
      * A failure of any step throws; the caller then unlinks the socket file
-     * it created.  The residual window (a link swapped in between the two
-     * checks) needs the right to replace entries in the socket's directory,
-     * which {@code validateParentDirectory} has already limited (no
-     * world-writable directory without the sticky bit), and the post-check
-     * detects it.
+     * it created.  If the entry is swapped for a symlink between the two
+     * checks the post-check refuses, but the following {@code chmod} has
+     * already been applied to the link's target (owner-only, and only if this
+     * process may chmod it); only a caller that can replace entries in the
+     * directory can cause that, so the caller must pass a directory only this
+     * process can write.
+     *
+     * <p>{@link #listen} calls this on a socket that is still inside a private
+     * staging directory, where nobody else can swap the entry; the checks are
+     * then a second line of defence, not the only one.
      *
      * @param betweenChecks test seam run between the two checks, always
      *        {@code null} in production
+     * @return the {@code fileKey} of the verified inode, or {@code null} if
+     *         the platform exposes none
      */
-    static void restrictPosixOwnerOnly(Path socketPath, Runnable betweenChecks)
+    static Object restrictPosixOwnerOnly(Path socketPath,
+					 Runnable betweenChecks)
 	throws IOException
     {
 	Set<PosixFilePermission> ownerOnly =
@@ -335,6 +343,7 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 			+ PosixFilePermissions.toString(after.permissions())
 			+ " after chmod, not rwx------");
 	    }
+	    return after.fileKey();
 	} catch (IOException | RuntimeException e) {
 	    // A failed chmod or check is a SECURITY failure, not a FINE log.
 	    throw new IOException(
@@ -494,10 +503,11 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 
 	    Path socketPath = Paths.get(path);
 
-	    // F5/F4: validate the containing directory BEFORE bind, so a
+	    // F5: validate the containing directory BEFORE bind, so a
 	    // world-writable-without-sticky parent (in which the socket file
-	    // could be renamed or symlink-swapped) is rejected up front, and so
-	    // the private parent covers the bind->chmod window (F4).
+	    // could be renamed or symlink-swapped) is rejected up front.  This
+	    // does NOT make the bind->chmod window safe: a group-writable or
+	    // 0755 parent passes.  The window is closed by staging (below).
 	    validateParentDirectory(socketPath);
 
 	    ServerSocketChannel serverChannel =
@@ -505,25 +515,39 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	    boolean ok = false;
 	    boolean boundHere = false;
 	    Object fileKey = null;
+	    Path stagingDir = null;
+	    Path staged = null;
 	    try {
-		// F3: bind FIRST, with no pre-delete.  The OS fails a bind over a
-		// LIVE socket with BindException; the old unconditional
-		// deleteIfExists converted that safe failure into a silent
-		// takeover of a running server.
-		bindReclaimingStaleOnly(serverChannel, socketPath);
-		// From here on the socket file at socketPath was created by US;
-		// if listen fails past this point we must remove it (HIGH-1).
-		boundHere = true;
+		stagingDir = createStagingDirectory(socketPath);
+		if (stagingDir != null) {
+		    /*
+		     * Bind inside a fresh directory only this process can enter,
+		     * restrict the mode there, and only then give the socket its
+		     * public name with link(2).  The inode is never reachable at
+		     * the public path with a mode wider than rwx------, whatever
+		     * the umask (bind creates it as 0777 & ~umask, and a connect
+		     * in that window would be queued and accepted after the
+		     * chmod).  link(2) refuses to replace an existing name, which
+		     * keeps F3: a live incumbent is never taken over.
+		     */
+		    staged = stagingDir.resolve(STAGED_NAME);
+		    fileKey = bindStagedAndLink(serverChannel, staged);
+		} else {
+		    // No POSIX staging possible (Windows ACL platforms, or a
+		    // path too long for the staging name): bind in place.
+		    // F3: bind FIRST, with no pre-delete.  The OS fails a bind
+		    // over a LIVE socket with BindException; the old
+		    // unconditional deleteIfExists converted that safe failure
+		    // into a silent takeover of a running server.
+		    bindReclaimingStaleOnly(serverChannel, socketPath);
+		    boundHere = true;
 
-		// F1: apply the owner-only access gate fail-closed (throws if it
-		// cannot be applied and the caller did not opt into an
-		// unprotected socket).
-		restrictPermissions(socketPath);
-
-		// F3: capture an identity token for the inode we bound, so
-		// close-time unlink only removes OUR socket, never a path that
-		// was replaced.
-		fileKey = readFileKey(socketPath);
+		    // F1: apply the owner-only access gate fail-closed (throws
+		    // if it cannot be applied and the caller did not opt into an
+		    // unprotected socket).
+		    restrictPermissions(socketPath);
+		    fileKey = readFileKey(socketPath);
+		}
 		ok = true;
 	    } finally {
 		if (!ok) {
@@ -538,11 +562,12 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		     * unprotected control socket F1 exists to prevent, at the
 		     * target path.  Remove the file we created -- but ONLY when we
 		     * bound it here, so we never delete a live incumbent's file we
-		     * did not create.
+		     * did not create, and (when the inode is known) only if it is
+		     * still the inode we created.
 		     */
 		    if (boundHere) {
 			try {
-			    Files.deleteIfExists(socketPath);
+			    deleteIfSameInode(socketPath, fileKey);
 			} catch (IOException e) {
 			    if (logger.isLoggable(Level.FINE)) {
 				logger.log(Level.FINE,
@@ -553,6 +578,7 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 			}
 		    }
 		}
+		removeStaging(staged, stagingDir);
 	    }
 
 	    if (logger.isLoggable(Level.FINE)) {
@@ -566,6 +592,192 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 					   Security.getContext(), cookie);
 	    listenHandle.startAccepting();
 	    return listenHandle;
+	}
+
+	/** Name of the socket inside its private staging directory. */
+	private static final String STAGED_NAME = "s";
+
+	/**
+	 * Longest staged socket path, in bytes, that is bound; {@code sun_path}
+	 * holds 108 bytes on Linux and 104 on the BSDs, including the NUL.
+	 */
+	private static final int MAX_STAGED_PATH_BYTES = 100;
+
+	/**
+	 * Creates a fresh directory beside {@code socketPath}, readable only by
+	 * this process, in which the socket is bound before it is given its
+	 * public name; or returns {@code null} when staging does not apply (no
+	 * POSIX view, or the staged path would not fit in {@code sun_path}), in
+	 * which case the caller binds in place.  Runs privileged: the caller has
+	 * already passed {@link #checkPermissions} for {@code socketPath}, and
+	 * the staging entry is an implementation detail of that grant.
+	 */
+	private Path createStagingDirectory(final Path socketPath)
+	    throws IOException
+	{
+	    final Path parent = socketPath.toAbsolutePath().getParent();
+	    if (parent == null
+		|| Files.getFileAttributeView(parent,
+		       PosixFileAttributeView.class,
+		       LinkOption.NOFOLLOW_LINKS) == null)
+	    {
+		return null;
+	    }
+	    try {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<Path>() {
+			public Path run() throws IOException {
+			    for (int attempt = 0; attempt < 16; attempt++) {
+				Path dir = parent.resolve(".uds-" + Long.toHexString(
+				    java.util.concurrent.ThreadLocalRandom
+					.current().nextLong() >>> 24));
+				Path staged = dir.resolve(STAGED_NAME);
+				if (staged.toString().getBytes(
+					java.nio.charset.StandardCharsets.UTF_8
+				    ).length > MAX_STAGED_PATH_BYTES)
+				{
+				    if (logger.isLoggable(Level.WARNING)) {
+					logger.log(Level.WARNING,
+					    "socket path {0} is too long to "
+						+ "stage; binding in place, "
+						+ "which leaves a brief window "
+						+ "in which the socket mode is "
+						+ "umask-derived",
+					    socketPath);
+				    }
+				    return null;
+				}
+				try {
+				    Files.createDirectory(dir,
+					PosixFilePermissions.asFileAttribute(
+					    PosixFilePermissions.fromString(
+						"rwx------")));
+				    return dir;
+				} catch (java.nio.file.FileAlreadyExistsException e) {
+				    // random name collided; try another
+				}
+			    }
+			    throw new IOException(
+				"could not create a staging directory beside "
+				    + socketPath);
+			}
+		    });
+	    } catch (java.security.PrivilegedActionException e) {
+		throw (IOException) e.getCause();
+	    }
+	}
+
+	/**
+	 * Binds {@code serverChannel} at {@code staged}, restricts the socket to
+	 * owner-only, links it to the public path and returns its verified
+	 * {@code fileKey}.  If anything fails after the link, the public name is
+	 * removed again, but only if it is still the inode created here.  Runs
+	 * privileged for the same reason as {@link #createStagingDirectory}.
+	 */
+	private Object bindStagedAndLink(final ServerSocketChannel serverChannel,
+					 final Path staged)
+	    throws IOException
+	{
+	    final Path socketPath = Paths.get(path);
+	    try {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<Object>() {
+			public Object run() throws IOException {
+			    serverChannel.bind(UnixDomainSocketAddress.of(staged));
+			    Object key = restrictPosixOwnerOnly(staged, null);
+			    linkIntoPlace(staged, socketPath);
+			    try {
+				firePostRestrictFaultIfInjected(socketPath);
+				Object linkedKey = readFileKey(socketPath);
+				if (key != null && !key.equals(linkedKey)) {
+				    throw new IOException(
+					"socket path " + path + " was replaced "
+					    + "while it was being linked into "
+					    + "place");
+				}
+			    } catch (IOException | RuntimeException | Error t) {
+				// HIGH-1: never leave the public name behind.
+				try {
+				    deleteIfSameInode(socketPath, key);
+				} catch (IOException e) {
+				    t.addSuppressed(e);
+				}
+				throw t;
+			    }
+			    return key;
+			}
+		    });
+	    } catch (java.security.PrivilegedActionException e) {
+		throw (IOException) e.getCause();
+	    }
+	}
+
+	/** Removes the staged socket name and its directory; best effort. */
+	private void removeStaging(final Path staged, final Path stagingDir) {
+	    if (stagingDir == null) {
+		return;
+	    }
+	    AccessController.doPrivileged(new PrivilegedAction<Void>() {
+		public Void run() {
+		    try {
+			if (staged != null) {
+			    Files.deleteIfExists(staged);
+			}
+			Files.deleteIfExists(stagingDir);
+		    } catch (IOException e) {
+			if (logger.isLoggable(Level.WARNING)) {
+			    logger.log(Level.WARNING,
+				"could not remove staging directory {0}: {1}",
+				new Object[] { stagingDir, e });
+			}
+		    }
+		    return null;
+		}
+	    });
+	}
+
+	/**
+	 * Gives the staged socket its public name with {@code link(2)}, which
+	 * fails if the name exists.  An existing name gets the same treatment as
+	 * a failed bind in {@link #bindReclaimingStaleOnly}: refuse if a live
+	 * server answers or the file is not ours, otherwise remove the stale
+	 * file and link once more.
+	 */
+	private void linkIntoPlace(final Path staged, final Path socketPath)
+	    throws IOException
+	{
+	    try {
+		Files.createLink(socketPath, staged);
+		return;
+	    } catch (java.nio.file.FileAlreadyExistsException first) {
+		reclaimStaleIncumbent(
+		    UnixDomainSocketAddress.of(path), socketPath, first);
+		Files.createLink(socketPath, staged); // retry ONCE
+	    } catch (UnsupportedOperationException | SecurityException e) {
+		throw new IOException("cannot link " + staged + " to "
+		    + socketPath + "; refusing to bind an unprotected "
+		    + "control socket", e);
+	    }
+	}
+
+	/**
+	 * Deletes {@code file} if it is still the inode identified by
+	 * {@code key}; with no key (the platform exposes none) deletes it only
+	 * when it is a socket.
+	 */
+	private static void deleteIfSameInode(Path file, Object key)
+	    throws IOException
+	{
+	    BasicFileAttributes attrs;
+	    try {
+		attrs = Files.readAttributes(file, BasicFileAttributes.class,
+		    LinkOption.NOFOLLOW_LINKS);
+	    } catch (java.nio.file.NoSuchFileException e) {
+		return;
+	    }
+	    if (key != null ? key.equals(attrs.fileKey()) : isSocket(attrs)) {
+		Files.deleteIfExists(file);
+	    }
 	}
 
 	/**
@@ -592,6 +804,22 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		serverChannel.bind(address);
 		return;
 	    } catch (BindException firstBind) {
+		reclaimStaleIncumbent(address, socketPath, firstBind);
+		serverChannel.bind(address); // retry ONCE
+	    }
+	}
+
+	/**
+	 * Called when {@code socketPath} already exists.  Throws unless the
+	 * existing file is a stale leftover (connect refused) that this process
+	 * owns and whose identity did not change during the check, in which case
+	 * it removes the file so the caller can retry once.
+	 */
+	private void reclaimStaleIncumbent(UnixDomainSocketAddress address,
+					   Path socketPath, IOException first)
+	    throws IOException
+	{
+	    {
 		// Path already in use -- distinguish a live incumbent from a
 		// stale leftover file.  Snapshot the file's identity BEFORE the
 		// probe so we can confirm it did not change between probe and
@@ -602,7 +830,7 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    IOException live = new IOException(
 			"a live server already owns the socket path " + path
 			    + "; refusing to take it over");
-		    live.initCause(firstBind);
+		    live.initCause(first);
 		    throw live;
 		}
 		// Refused connect => stale leftover.  Only reclaim it if it is
@@ -613,7 +841,7 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    IOException notOurs = new IOException(
 			"socket path " + path + " already exists and is not "
 			    + "owned by this process; refusing to remove it");
-		    notOurs.initCause(firstBind);
+		    notOurs.initCause(first);
 		    throw notOurs;
 		}
 		/*
@@ -631,16 +859,15 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		    IOException raced = new IOException(
 			"socket path " + path + " changed identity between the "
 			    + "liveness probe and reclaim; refusing to remove it");
-		    raced.initCause(firstBind);
+		    raced.initCause(first);
 		    throw raced;
 		}
 		Files.deleteIfExists(socketPath);
 		if (logger.isLoggable(Level.FINE)) {
 		    logger.log(Level.FINE,
 			"removed stale (refused-connect, owner-matched) socket "
-			    + "file {0}; retrying bind", socketPath);
+			    + "file {0}; retrying", socketPath);
 		}
-		serverChannel.bind(address); // retry ONCE
 	    }
 	}
 
@@ -715,6 +942,12 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * restores per-owner delete/rename protection and is accepted.  On a
 	 * non-POSIX platform this is a best-effort check (the ACL gate on the
 	 * file itself is the primary control there).
+	 *
+	 * <p>This is deliberately not a stronger rule: a group-writable parent
+	 * is accepted, so members of the group can still rename or replace the
+	 * socket's name (not connect to it).  It says nothing about the bind to
+	 * chmod window, which {@code listen} closes by binding in a private
+	 * staging directory.
 	 */
 	private void validateParentDirectory(Path socketPath)
 	    throws IOException
@@ -1062,6 +1295,9 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * was bound to it, and never delete a path whose identity we cannot
 	 * confirm is still ours.
 	 **/
+	private final java.util.concurrent.atomic.AtomicBoolean unlinked =
+	    new java.util.concurrent.atomic.AtomicBoolean();
+
 	private void closeServerChannel() {
 	    try {
 		serverChannel.close();
@@ -1089,6 +1325,16 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	 * even that cannot be established the file is left in place (fail closed).
 	 **/
 	private void unlinkIfStillOurs() {
+	    /*
+	     * Once only.  close() and the accept loop's exit both end up here,
+	     * the second from another thread, possibly after this path has been
+	     * bound again by a new listener; the first unlink frees the inode,
+	     * a new socket is likely to be given the same number, and the
+	     * fileKey comparison below would then accept it as ours.
+	     */
+	    if (!unlinked.compareAndSet(false, true)) {
+		return;
+	    }
 	    try {
 		BasicFileAttributes attrs = Files.readAttributes(
 		    socketPath, BasicFileAttributes.class,
