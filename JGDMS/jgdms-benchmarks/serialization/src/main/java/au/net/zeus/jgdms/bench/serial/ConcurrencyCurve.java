@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.LockSupport;
 import javax.security.auth.Subject;
@@ -74,6 +75,15 @@ import javax.security.auth.Subject;
  * above that callers share 64 histograms with atomic increments, so memory does not grow with the caller count
  * and does not distort the resident-memory figures. One line {@code curve-json: {...}} per run is for the driver.
  *
+ * <p><b>Mean latency and starved callers.</b> The percentiles describe the calls that completed, so callers that get
+ * almost no service hardly appear in them: with 4096 callers a p50 of 488 us beside a p99 of 613 ms can mean that most
+ * callers completed nothing in the window. Two figures make that visible. {@code mean_little_us} is the mean time a
+ * caller spends per call by Little's law, callers / throughput (closed loop only; in an open loop the number of
+ * callers is not the concurrency, so it is null). It is not the mean of the recorded latencies ({@code mean_us}),
+ * which is over the calls that completed and so is blind to callers that did not. {@code callers_completed} is the
+ * number of callers that completed at least one call inside the measured window; below {@code callers_started}
+ * the rest were starved for the whole window.
+ *
  * <p>Written with AI assistance (Claude); see the README.
  */
 public final class ConcurrencyCurve {
@@ -91,6 +101,8 @@ public final class ConcurrencyCurve {
     private static final LongAdder missed = new LongAdder();
     private static final LongAdder allDone = new LongAdder();      // every successful call, warm-up included
     private static final LongAdder completedInWindow = new LongAdder();     // open loop only
+    /** Per caller: 1 once the caller has completed a call inside the measured window. */
+    private static volatile AtomicIntegerArray served = new AtomicIntegerArray(0);
     private static volatile String firstError;
 
     public static void main(String[] args) {
@@ -195,6 +207,7 @@ public final class ConcurrencyCurve {
                 t.join();
             }
         }
+        served = new AtomicIntegerArray(callers);
         int started = 0;
         String startFailure = null;
         List<Thread> threads = new ArrayList<>(Math.min(callers, 8192));
@@ -206,9 +219,9 @@ public final class ConcurrencyCurve {
                     go.await();
                     long base = baseBox[0];
                     if (open) {
-                        openLoop(c, h, shared, base + (long) id * periodNs / callers, periodNs);
+                        openLoop(c, h, shared, id, base + (long) id * periodNs / callers, periodNs);
                     } else {
-                        closedLoop(c, h, shared);
+                        closedLoop(c, h, shared, id);
                     }
                 } catch (InterruptedException ie) {
                     // leaving
@@ -277,11 +290,15 @@ public final class ConcurrencyCurve {
         double p50 = all.percentile(50) / 1e3, p90 = all.percentile(90) / 1e3, p99 = all.percentile(99) / 1e3,
                 p999 = all.percentile(99.9) / 1e3, max = all.max() / 1e3, mean = all.mean() / 1e3;
         long inWindow = open ? completedInWindow.sum() : n;
+        int callersCompleted = callersServed();
+        double littleUs = open ? Double.NaN : LatencyHistogram.littleMeanMicros(started, callsPerMs);
         double cpuClient = perCall(cpuC0, cpuC1, cpuCalls), cpuServer = perCall(cpuS0, cpuS1, cpuCalls);
 
         System.out.printf("%s %s %s %s x%d: %.2f calls/ms, %d calls recorded, window %.1f s, %d errors%s%n", stack, transport, payload, kind,
                 started, callsPerMs, n, windowMs / 1e3, errors.sum(), firstError == null ? "" : " (first: " + firstError + ")");
         System.out.printf("  latency us: p50 %.1f  p90 %.1f  p99 %.1f  p99.9 %.1f  max %.1f  mean %.1f%n", p50, p90, p99, p999, max, mean);
+        System.out.printf("  mean per call by Little's law (callers / throughput): %s us; callers that completed a call in the window: %d of %d%n",
+                Double.isNaN(littleUs) ? "n/a (open loop)" : String.format(Locale.ROOT, "%.1f", littleUs), callersCompleted, started);
         if (open) {
             System.out.printf("  offered %.0f calls/s over %.0f s = %.0f arrivals, completed %d (%d inside the window), missed %d, callers unfinished %d%n",
                     rate, measure, rate * measure, n, completedInWindow.sum(), missed.sum(), unfinished);
@@ -330,6 +347,8 @@ public final class ConcurrencyCurve {
         j.put("cores", cores);
         j.put("os", System.getProperty("os.name"));
         j.put("jdk", System.getProperty("java.version"));
+        j.put("mean_little_us", Double.isNaN(littleUs) ? null : (Object) round(littleUs));
+        j.put("callers_completed", callersCompleted);
         System.out.println("curve-json: " + json(j));
         System.out.flush();
         java.lang.ref.Reference.reachabilityFence(KEEP);
@@ -338,7 +357,7 @@ public final class ConcurrencyCurve {
 
     // ---------------------------------------------------------------- callers
 
-    private static void closedLoop(Call c, LatencyHistogram h, boolean shared) {
+    private static void closedLoop(Call c, LatencyHistogram h, boolean shared, int id) {
         while (!stop) {
             long t0 = System.nanoTime();
             try {
@@ -351,6 +370,7 @@ public final class ConcurrencyCurve {
             allDone.increment();
             long t1 = System.nanoTime();
             if (t1 >= winStart && t1 < winEnd) {
+                markServed(id);
                 if (shared) {
                     h.recordShared(t1 - t0);
                 } else {
@@ -360,7 +380,7 @@ public final class ConcurrencyCurve {
         }
     }
 
-    private static void openLoop(Call c, LatencyHistogram h, boolean shared, long first, long period) {
+    private static void openLoop(Call c, LatencyHistogram h, boolean shared, int id, long first, long period) {
         long ws = winStart, we = winEnd, hardStop = we + DRAIN_NANOS;
         for (long k = 0;; k++) {
             long intended = first + k * period;
@@ -386,6 +406,7 @@ public final class ConcurrencyCurve {
             long t1 = System.nanoTime();
             if (t1 >= ws && t1 < we) {
                 completedInWindow.increment();
+                markServed(id);
             }
             if (intended >= ws) {
                 if (shared) {
@@ -395,6 +416,22 @@ public final class ConcurrencyCurve {
                 }
             }
         }
+    }
+
+    private static void markServed(int id) {
+        AtomicIntegerArray s = served;
+        if (s.get(id) == 0) {
+            s.set(id, 1);
+        }
+    }
+
+    private static int callersServed() {
+        AtomicIntegerArray s = served;
+        int n = 0;
+        for (int i = 0; i < s.length(); i++) {
+            n += s.get(i);
+        }
+        return n;
     }
 
     private static void error(Throwable x) {

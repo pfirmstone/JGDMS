@@ -139,6 +139,16 @@ final class LatencyHistogram {
         return max.get();
     }
 
+    /**
+     * The mean time per call, in microseconds, by Little's law: {@code callers / throughput}, with the throughput in
+     * calls per millisecond. In a closed loop every caller is always inside a call or between two, so this is the
+     * mean latency the callers see, including the time of callers that complete almost nothing. NaN if the
+     * throughput is zero.
+     */
+    static double littleMeanMicros(int callers, double callsPerMs) {
+        return callsPerMs > 0 ? callers * 1000.0 / callsPerMs : Double.NaN;
+    }
+
     /** A quick self-check: {@code java -cp ... au.net.zeus.jgdms.bench.serial.LatencyHistogram}. */
     public static void main(String[] args) {
         LatencyHistogram h = new LatencyHistogram();
@@ -160,6 +170,9 @@ final class LatencyHistogram {
             if (v > highest(i) || v < lowest(i) || (i > 0 && indexOf(lowest(i)) != i) || indexOf(highest(i)) != i) {
                 throw new AssertionError("bucket of " + v + " is " + i + " [" + lowest(i) + "," + highest(i) + "]");
             }
+        }
+        if (Math.abs(littleMeanMicros(64, 32.0) - 2000.0) > 1e-9 || !Double.isNaN(littleMeanMicros(8, 0))) {
+            throw new AssertionError("littleMeanMicros");
         }
         System.out.println("ok, " + LENGTH + " buckets");
     }

@@ -25,6 +25,12 @@
 # saturation the percentiles are subject to coordinated omission. --rate R makes it an open loop (R calls per
 # second in all, latency measured from each call's intended start time); see ConcurrencyCurve.java.
 #
+# The table ends with two columns that make starvation visible: 'mean L us', the mean time per call by Little's law
+# (callers / throughput, closed loop only), and 'callers done', how many callers completed at least one call in the
+# measured window. The percentiles are over the calls that completed, so a point with a p50 of 0.5 ms and a p99 of
+# 600 ms and a 'callers done' far below the callers is a point where most callers were starved. The same two values are
+# in results.jsonl as mean_little_us and callers_completed.
+#
 # Written with AI assistance (Claude); see the README.
 import argparse
 import json
@@ -170,12 +176,12 @@ def fmt(v, spec="%.0f"):
 
 def table(rows):
     cols = ["stack", "transport", "kind", "payload", "callers", "calls/ms", "p50 us", "p99 us", "p99.9 us", "max us",
-            "cli thr", "srv thr", "cli RSS MB", "srv RSS MB", "errors", "status"]
+            "cli thr", "srv thr", "cli RSS MB", "srv RSS MB", "errors", "status", "mean L us", "callers done"]
     body = []
     for r in rows:
         if r.get("status") != "ok":
             body.append([r["stack"], r["transport"], r["kind"], r["payload"], str(r["callers_requested"])] +
-                        ["-"] * 10 + ["FAILED: " + r.get("reason", "")[:60]])
+                        ["-"] * 10 + ["FAILED: " + r.get("reason", "")[:60], "-", "-"])
             continue
         started, asked = r.get("callers_started"), r["callers_requested"]
         callers = str(asked) if started == asked else "%s of %s" % (started, asked)
@@ -183,7 +189,9 @@ def table(rows):
         body.append([r["stack"], r["transport"], r["kind"], r["payload"], callers, fmt(r["calls_per_ms"], "%.2f"),
                      fmt(r["p50_us"], "%.1f"), fmt(r["p99_us"], "%.1f"), fmt(r["p999_us"], "%.1f"),
                      fmt(r["max_us"], "%.0f"), fmt(r.get("client_threads")), fmt(r.get("server_threads")),
-                     fmt(mb(r.get("client_rss_kb"))), fmt(mb(r.get("server_rss_kb"))), str(r.get("errors", 0)), "ok"])
+                     fmt(mb(r.get("client_rss_kb"))), fmt(mb(r.get("server_rss_kb"))), str(r.get("errors", 0)), "ok",
+                     fmt(r.get("mean_little_us"), "%.1f"),
+                     "-" if r.get("callers_completed") is None else "%d" % r["callers_completed"]])
     widths = [max(len(cols[i]), *(len(b[i]) for b in body)) if body else len(cols[i]) for i in range(len(cols))]
     lines = ["  ".join(cols[i].ljust(widths[i]) if i < 4 else cols[i].rjust(widths[i]) for i in range(len(cols)))]
     for b in body:
@@ -303,8 +311,11 @@ def main():
                         with open(jsonl, "a", encoding="utf-8") as f:
                             f.write(json.dumps(rec) + "\n")
                         if rec["status"] == "ok":
-                            print("%s: %.2f calls/ms, p50 %.0f us, p99 %.0f us, p99.9 %.0f us, errors %s%s" % (
-                                label, rec["calls_per_ms"], rec["p50_us"], rec["p99_us"], rec["p999_us"], rec["errors"],
+                            print("%s: %.2f calls/ms, p50 %.0f us, p99 %.0f us, p99.9 %.0f us, mean(L) %s us, "
+                                  "callers done %s of %s, errors %s%s" % (
+                                label, rec["calls_per_ms"], rec["p50_us"], rec["p99_us"], rec["p999_us"],
+                                fmt(rec.get("mean_little_us")), rec.get("callers_completed", "-"),
+                                rec["callers_started"], rec["errors"],
                                 "" if rec["callers_started"] == callers else ", ONLY %d STARTED" % rec["callers_started"]),
                                 flush=True)
                         else:
@@ -315,7 +326,10 @@ def main():
         if shared is not None:
             shared.stop()
     text = table(rows)
-    note = ("\nLatency is per call, in microseconds, over the measured window; threads are OS threads of the JVM "
+    note = ("\nLatency is per call, in microseconds, over the measured window; 'mean L us' is the mean per call by "
+            "Little's law, callers / throughput (closed loop only), and 'callers done' the number of callers that "
+            "completed at least one call in the window (fewer than the callers = some were starved); "
+            "threads are OS threads of the JVM "
             "(Linux /proc), RSS the largest resident set sampled in the window. '-' = not available. " +
             ("Open loop at %s calls/s: latency runs from each call's intended start.\n" % args.rate if float(args.rate) > 0 else
              "CLOSED LOOP: under saturation the percentiles are subject to coordinated omission.\n"))
