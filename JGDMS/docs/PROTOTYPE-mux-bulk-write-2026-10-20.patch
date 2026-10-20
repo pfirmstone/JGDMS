@@ -1,0 +1,85 @@
+--- a/jgdms-jeri/src/main/java/org/apache/river/jeri/internal/mux/MuxOutputStream.java	2026-10-20 01:43:19.125359474 +0000
++++ b/jgdms-jeri/src/main/java/org/apache/river/jeri/internal/mux/MuxOutputStream.java	2026-10-20 01:43:19.126991310 +0000
+@@ -83,6 +83,10 @@
+             return;
+         }
+         while (len > 0) {
++            if (BULK && len >= mux.maxFragmentSize && buffer.position() == 0) {
++                writeBulk(b, off, len);
++                return;
++            }
+             int avail = buffer.remaining();
+             if (len <= avail) {
+                 synchronized (sessionLock) {
+@@ -98,6 +102,71 @@
+         }
+     }
+ 
++    private static final boolean BULK = Boolean.getBoolean("jeri.bulk");
++
++    /**
++     * Sends a large array directly, in ration-sized pieces of at most 0xFFFF
++     * bytes, without copying it into the fragment buffer, and waits once
++     * for the last piece to be written (the caller's array must not change
++     * until then).  The fragment buffer must be empty.
++     */
++    private void writeBulk(byte[] b, int off, int len) throws IOException {
++        java.util.ArrayList<IOFuture> futures = new java.util.ArrayList<>();
++        try {
++            while (len > 0) {
++                IOFuture future;
++                synchronized (sessionLock) {
++                    while (!session.outRationInfinite
++                            && session.getOutRation() < 1
++                            && sessionDown == null
++                            && session.getOutState() == Session.OPEN)
++                    {
++                        try {
++                            sessionLock.wait();
++                        } catch (InterruptedException e) {
++                            String message = "request I/O interrupted";
++                            session.setDown(message, e);
++                            throw new IOException(message, e);
++                        }
++                    }
++                    ensureOpen();
++                    if (fakeOKtoWrite) {
++                        return;
++                    }
++                    int toSend = Math.min(len, 0xFFFF);
++                    if (!session.outRationInfinite) {
++                        toSend = Math.min(toSend, session.getOutRation());
++                        session.setOutRation(session.getOutRation() - toSend);
++                    }
++                    session.setPartialDeliveryStatus(true);
++                    boolean open = session.getOutState() == Session.IDLE;
++                    int op = Mux.DATA | (open ? Mux.DATA_OPEN : 0);
++                    ByteBuffer piece = ByteBuffer.wrap(b, off, toSend);
++                    future = mux.futureSendData(op, session.sessionID, piece);
++                    if (open) {
++                        session.setOutState(Session.OPEN);
++                        session.setInState(Session.OPEN);
++                    }
++                    off += toSend;
++                    len -= toSend;
++                }
++                futures.add(future);
++            }
++        } finally {
++            IOException failure = null;
++            for (IOFuture f : futures) {
++                try {
++                    waitForIO(f);
++                } catch (IOException e) {
++                    if (failure == null) failure = e;
++                }
++            }
++            if (failure != null) {
++                throw failure;
++            }
++        }
++    }
++
+     /** Flush method causes deadlock */
+ //    @Override
+ //    public void flush() throws IOException {
