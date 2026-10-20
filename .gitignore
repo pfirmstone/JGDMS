@@ -477,3 +477,4 @@ JGDMS/services/codebase-downloader/codebase-downloader-dl/target/
 .vs/VSWorkspaceState.json
 /.vs
 JGDMS/results.json
+/JGDMS/jgdms-benchmarks/serialization/sweep-6core

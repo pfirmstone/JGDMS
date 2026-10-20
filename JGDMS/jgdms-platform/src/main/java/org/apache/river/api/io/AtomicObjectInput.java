@@ -104,4 +104,30 @@ public interface AtomicObjectInput extends ObjectInput {
         // automatically when the outermost readObject completes.
     }
 
+    /**
+     * Asks the stream to admit or reject its whole input before any object is built from it. A server-side
+     * dispatcher calls this AFTER the caller has been authorized and BEFORE it unmarshals the call's arguments, so
+     * that the expensive part of admission (verifying every schema chain, resolving every reference and metering every
+     * reconstitution ceiling over the whole stream) is paid only by authorized requests, and so that a stream that is
+     * not structurally admissible delivers nothing at all.
+     *
+     * <p>A stream that defers admission refuses to read a record-bearing item (an {@code @AtomicSerial} object, enum,
+     * proxy, array or collection) until this has been called, and a failed admission is permanent: every later read
+     * rethrows. A rejected stream's decode unit is abandoned, so none of its completion callbacks (the client DGC
+     * {@code dirty}) will run.
+     *
+     * <p>What admission guarantees, and what it does not: that the stream is <em>structurally</em> admissible (framing,
+     * schema chains, references, ceilings). It cannot say that every object will be accepted; an object's constructor,
+     * its {@code check} method and class resolution are still decided when it is read, bottom-up.
+     *
+     * <p>The default is a no-op: a stream that admits at construction, or that has no such notion (JOSS), needs no
+     * signal. Idempotent.
+     *
+     * @throws IOException if the stream is not admissible
+     * @since 4.0
+     */
+    default void admitStream() throws IOException {
+        // No-op by default.
+    }
+
 }

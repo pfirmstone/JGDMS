@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 
 /**
@@ -29,6 +31,9 @@ import java.util.logging.Level;
  * a session of a multiplexed connection.
  */
 class MuxOutputStream extends OutputStream {
+    /** the most data one Data message can carry (a two-octet length) */
+    private static final int MAX_BULK_PIECE = 0xFFFF;
+
     private final Buffer buffer;
     private final Object sessionLock;
     private final Session session;
@@ -83,6 +88,10 @@ class MuxOutputStream extends OutputStream {
             return;
         }
         while (len > 0) {
+            if (len >= mux.maxFragmentSize && buffer.position() == 0) {
+                writeBulk(b, off, len);
+                return;
+            }
             int avail = buffer.remaining();
             if (len <= avail) {
                 synchronized (sessionLock) {
@@ -96,6 +105,124 @@ class MuxOutputStream extends OutputStream {
             len -= avail;
             writeBuffer(false);
         }
+    }
+
+    /**
+     * Sends a large array directly from the caller's array, without copying
+     * it into the fragment buffer.
+     *
+     * <p>A write of at least one fragment would otherwise be cut into
+     * fragments of {@link Mux#maxFragmentSize} bytes, each sent and waited for
+     * before the next is filled, which costs one hand-off to the writer thread
+     * per fragment.  A caller that writes a whole message at once (the DER
+     * stream codec writes its stream in a single call) paid all of them one
+     * after another.  Here the array is queued in pieces of at most 0xFFFF
+     * bytes and at most the current output ration, with the same ration, state
+     * and partial-delivery rules as {@link #writeBuffer}, and the thread waits
+     * once for all of them.  The wait cannot be skipped: the queued buffers
+     * wrap the caller's array, which the caller may reuse as soon as this
+     * method returns, so it is not left until every piece has been written
+     * (or the connection has failed), even if interrupted.
+     *
+     * <p>The fragment buffer must be empty, so that bytes keep their order.
+     * This method must NOT be invoked while synchronized on this session's
+     * lock.
+     */
+    private void writeBulk(byte[] b, int off, int len) throws IOException {
+        assert buffer.position() == 0;
+        ArrayList<IOFuture> futures = new ArrayList<IOFuture>();
+        IOException primary = null;
+        try {
+            while (len > 0) {
+                IOFuture future;
+                synchronized (sessionLock) {
+                    while (!session.outRationInfinite
+                            && session.getOutRation() < 1
+                            && sessionDown == null
+                            && session.getOutState() == Session.OPEN)
+                    {
+                        try {
+                            sessionLock.wait(); // REMIND: timeout?
+                        } catch (InterruptedException e) {
+                            String message = "request I/O interrupted";
+                            session.setDown(message, e);
+                            throw new IOException(message, e);
+                        }
+                    }
+                    ensureOpen();
+                    if (fakeOKtoWrite) {
+                        return;     // the session is over: discard, as writeBuffer does
+                    }
+                    int toSend = Math.min(len, MAX_BULK_PIECE);
+                    if (!session.outRationInfinite) {
+                        toSend = Math.min(toSend, session.getOutRation());
+                        session.setOutRation(session.getOutRation() - toSend);
+                    }
+                    /*
+                     * toSend is zero only for the opening message of a session
+                     * whose peer granted no initial ration; writeBuffer opens
+                     * the session the same way, and the next iteration waits
+                     * for a ration increment.
+                     */
+                    assert toSend > 0 || session.getOutState() == Session.IDLE;
+                    session.setPartialDeliveryStatus(true);
+                    boolean open = session.getOutState() == Session.IDLE;
+                    int op = Mux.DATA | (open ? Mux.DATA_OPEN : 0);
+                    future = mux.futureSendData(op, session.sessionID,
+                                                ByteBuffer.wrap(b, off, toSend));
+                    if (open) {
+                        session.setOutState(Session.OPEN);
+                        session.setInState(Session.OPEN);
+                    }
+                    off += toSend;
+                    len -= toSend;
+                }
+                futures.add(future);
+            }
+        } catch (IOException e) {
+            primary = e;
+            throw e;
+        } finally {
+            IOException failure = awaitAll(futures);
+            if (failure != null) {
+                if (primary == null) {
+                    throw failure;
+                }
+                primary.addSuppressed(failure);
+            }
+        }
+    }
+
+    /**
+     * Waits, without giving up if interrupted, until every future is done,
+     * and returns the first failure (null if there was none).  An interrupt
+     * or a failed write takes the session down, as {@link #waitForIO} does.
+     */
+    private IOException awaitAll(List<IOFuture> futures) {
+        IOException failure = null;
+        InterruptedException interrupted = null;
+        for (IOFuture future : futures) {
+            while (true) {
+                try {
+                    future.waitUntilDone();
+                    break;
+                } catch (InterruptedException e) {
+                    interrupted = e;
+                } catch (IOException e) {
+                    if (failure == null) {
+                        session.setDown(e.getMessage(), e.getCause());
+                        failure = e;
+                    }
+                    break;
+                }
+            }
+        }
+        if (interrupted != null && failure == null) {
+            String message = "request I/O interrupted";
+            session.setDown(message, interrupted);
+            failure = new IOException(message, interrupted);
+        }
+        return failure;
     }
 
     /** Flush method causes deadlock */

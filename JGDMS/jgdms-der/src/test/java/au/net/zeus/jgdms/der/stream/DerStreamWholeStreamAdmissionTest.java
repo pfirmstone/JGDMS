@@ -1,0 +1,681 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package au.net.zeus.jgdms.der.stream;
+
+import au.net.zeus.jgdms.der.DerInputLimits;
+import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.Tag;
+import au.net.zeus.jgdms.der.getarg.ResolutionContext;
+import au.net.zeus.jgdms.der.schema.AtomicSerialFieldDef;
+import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
+import static au.net.zeus.jgdms.der.stream.DerStreamAdmissionCharacterisationTest.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * B2: whole-stream admission. A stream is admitted or rejected as a whole BEFORE any object is built from it.
+ *
+ * <ul>
+ *   <li>every reject class, placed first / in the middle / last of a long stream, rejects the stream with zero objects
+ *       delivered and zero constructors run;</li>
+ *   <li>a dispatcher-created stream admits in two stages (cheap at construction, full at {@code admitStream()}), refuses
+ *       record-bearing reads until then, and a failed admission is permanent;</li>
+ *   <li>admission uses no class loader at all;</li>
+ *   <li>differential against the lazy per-item path over the golden corpus and thousands of mutated streams: admission never
+ *       rejects a stream the lazy path would read to the end, and every wire-level failure the lazy path hits is an admission
+ *       reject.</li>
+ * </ul>
+ */
+class DerStreamWholeStreamAdmissionTest {
+
+    @BeforeEach
+    void reset() {
+        CONSTRUCTED.set(0);
+    }
+
+    // ------------------------------------------------------------------ the reject classes
+
+    /** One way a stream can be structurally bad: the items appended (after the good prefix), and a message fragment. */
+    private record BadTail(String name, byte[] bytes, String message) {}
+
+    static byte[] chain(int n, String className) {
+        // a one-record, zero-field chain; distinct class names make distinct identities
+        return new AtomicSerialSchemaRecord(className + n, List.of()).encode();
+    }
+
+    static byte[] fullChainItem(byte[] chainBytes) {
+        return DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of())))),
+                DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, false, 0), chainBytes),
+                DerWriter.writeUtf8String(FORMAT))));
+    }
+
+    private static List<BadTail> badTails() throws Exception {
+        List<BadTail> out = new ArrayList<>();
+        out.add(new BadTail("unknown digest", unknownDigestItem(), "unknown-digest"));
+        out.add(new BadTail("wrong arm tag", DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(emptyHierarchy()), DerWriter.writeOctetString(new byte[40]),
+                DerWriter.writeUtf8String(FORMAT)))), "SchemaChainRef"));
+        out.add(new BadTail("non-canonical length", new byte[] {(byte) 0xA1, (byte) 0x81, 0x05, 0x30, 0x03, 0x04, 0x01, 0x00}, "Non-canonical"));
+        out.add(new BadTail("truncated item", new byte[] {(byte) 0xA1, 0x20, 0x30, 0x03},
+                ""));       // a truncated header swallows what follows it, so WHICH check fires depends on the position
+        out.add(new BadTail("unknown top-level tag", new byte[] {(byte) 0x9F, 0x21, 0x01, 0x00}, "unexpected top-level tag"));
+        out.add(new BadTail("proxy interior", DerWriter.writeTlv(CTX_PROXY, new byte[] {0x02, 0x01, 0x05, 0x00}), "proxy"));
+        out.add(new BadTail("collection interior", DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:@AtomicSerial"),
+                DerWriter.writeSequence(List.of(DerWriter.writeOctetString(new byte[3]))))), "nested @AtomicSerial site"));
+        // a chain over the chain-bytes ceiling: 65 536 bytes is the cap, so 66 000 bytes of fields is over it
+        List<AtomicSerialFieldDef> fat = new ArrayList<>();
+        for (int i = 0; i < 330; i++) fat.add(new AtomicSerialFieldDef("f" + String.format("%03d", i) + "x".repeat(196), "int"));
+        byte[] fatChain = new AtomicSerialSchemaRecord("Fat", fat).encode();
+        assertTrue(fatChain.length > 65536, "chain size " + fatChain.length);
+        out.add(new BadTail("chain bytes over the ceiling", fullChainItem(fatChain), "maxChainBytes"));
+        // the SAME oversize chain, hidden where the dedup layer does not look (C.6.5): inside a [8] proxy handler record and inside
+        // a [16] collection element. Only the verify-only descent can see these before an object is built.
+        byte[] canonicalRecordWithFatChain = DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of())))),
+                DerWriter.writeOctetString(fatChain), DerWriter.writeOctetString(new byte[32]), DerWriter.writeUtf8String(FORMAT)));
+        out.add(new BadTail("oversize chain inside a [8] handler record", DerWriter.writeTlv(CTX_PROXY, cat(
+                DerWriter.writeInteger(1), DerWriter.writeUtf8String("java.lang.Runnable"),
+                DerWriter.writeTlv(CTX_ATOMIC, canonicalRecordWithFatChain))), "maxChainBytes"));
+        byte[] nestedFat = DerWriter.writeSequence(List.of(DerWriter.writeOctetString(fatChain),
+                DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of()))))));
+        out.add(new BadTail("oversize chain inside a [16] collection element", DerWriter.writeTlv(CTX_COLLECTION, cat(
+                DerWriter.writeUtf8String("list:@AtomicSerial"), DerWriter.writeSequence(List.of(nestedFat)))), "maxChainBytes"));
+        // 257 distinct chains: the table ceiling (256) is breached at the 257th insertion
+        byte[][] items = new byte[257][];
+        for (int i = 0; i < 257; i++) items[i] = fullChainItem(chain(i, "T"));
+        out.add(new BadTail("distinct-chain table ceiling", cat(items), "maxDistinctChainsPerStream"));
+        // a chainRef fan-out bomb is exercised below with a small input cap
+        out.addAll(nestedRegionTails(fatChain));
+        out.addAll(digestAndTokenTails());
+        out.addAll(scalarAndShellTails());
+        return out;
+    }
+
+    // ------------------------------------------------------------------ review follow-ups: what the first cut let through
+
+    static final Tag CTX_NULL_TAG = new Tag(Tag.CLASS_CONTEXT, false, 0);
+
+    /** A one-record chain whose single field is a nested {@code @AtomicSerial} (so its value is a chain site, or a proxy). */
+    static byte[] holderChain() {
+        return new AtomicSerialSchemaRecord("Holder",
+                List.of(new AtomicSerialFieldDef("p", "@AtomicSerial"))).encode();
+    }
+
+    /** A stream-form {@code [1]} item of class Holder whose one field value is {@code fieldTlv}; each carries the full chain. */
+    static byte[] holderItem(byte[] fieldTlv) {
+        byte[] shell = DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of(fieldTlv))));
+        return DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(shell), DerWriter.writeTlv(CTX_NULL_TAG, holderChain()),
+                DerWriter.writeUtf8String(FORMAT))));
+    }
+
+    /** A canonical nested site: {@code SEQUENCE { OCTET STRING(chain), OCTET STRING(payload shell of zero fields) }}. */
+    static byte[] nestedSite(byte[] chainBytes) {
+        return DerWriter.writeSequence(List.of(DerWriter.writeOctetString(chainBytes),
+                DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of()))))));
+    }
+
+    static byte[] proxyTlv(byte[]... afterNames) {
+        byte[] head = cat(DerWriter.writeInteger(1), DerWriter.writeUtf8String("java.lang.Runnable"));
+        return DerWriter.writeTlv(CTX_PROXY, cat(head, cat(afterNames)));
+    }
+
+    /** A proxy, in a record's payload, nested {@code levels} deep: the handler is a Holder whose field is the next proxy. */
+    private static byte[] proxyChain(int levels) {
+        byte[] inner = nestedSite(chain(0, "Leaf"));
+        for (int i = 0; i < levels; i++) {
+            byte[] proxy = proxyTlv(inner);
+            inner = DerWriter.writeSequence(List.of(DerWriter.writeOctetString(holderChain()),
+                    DerWriter.writeOctetString(DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of(proxy)))))));
+        }
+        return inner;
+    }
+
+    /** Proxies the dedup layer passes through, reached from INSIDE a record or a region rather than as a top-level item. */
+    private static List<BadTail> nestedRegionTails(byte[] fatChain) {
+        List<BadTail> out = new ArrayList<>();
+        out.add(new BadTail("oversize chain in a [8] nested in a record payload",
+                holderItem(proxyTlv(nestedSite(fatChain))), "maxChainBytes"));
+        // the same proxy as the field value of a Holder that is itself an element of a [16] collection
+        byte[] holderPayload = DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of(proxyTlv(nestedSite(fatChain))))));
+        byte[] holderSite = DerWriter.writeSequence(List.of(DerWriter.writeOctetString(holderChain()),
+                DerWriter.writeOctetString(holderPayload)));
+        out.add(new BadTail("oversize chain in a [8] nested in a [16] element",
+                DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:@AtomicSerial"),
+                        DerWriter.writeSequence(List.of(holderSite)))),
+                "maxChainBytes"));
+        out.add(new BadTail("nested [8] with an out-of-range interface count",
+                holderItem(DerWriter.writeTlv(CTX_PROXY, cat(DerWriter.writeInteger(0), nestedSite(chain(0, "H"))))),
+                "interface count"));
+        out.add(new BadTail("nested [8] with bytes after its handler",
+                holderItem(proxyTlv(nestedSite(chain(0, "H")), new byte[] {0x05, 0x00})), "trailing bytes"));
+        out.add(new BadTail("nested [8] chain nested past MAX_NESTING",
+                holderItem(proxyTlv(proxyChain(20))), "MAX_NESTING"));
+        return out;
+    }
+
+    private static List<BadTail> digestAndTokenTails() {
+        List<BadTail> out = new ArrayList<>();
+        // a [8] handler record whose schemaDigest field is not its chain's leaf digest: delivery rejects it (the record decoder
+        // checks), so admission must too
+        byte[] shell = DerWriter.writeSequence(List.of(DerWriter.writeSequence(List.of())));
+        out.add(new BadTail("[8] handler record with the wrong schemaDigest", DerWriter.writeTlv(CTX_PROXY, cat(
+                DerWriter.writeInteger(1), DerWriter.writeUtf8String("java.lang.Runnable"),
+                DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(DerWriter.writeOctetString(shell),
+                        DerWriter.writeOctetString(chain(0, "H")), DerWriter.writeOctetString(new byte[32]),
+                        DerWriter.writeUtf8String(FORMAT)))))), "schemaDigest field does not match"));
+        // a second site in a region whose chain shares the first site's leaf record but is not the same chain: the digest is
+        // tabled, the bytes are not the tabled bytes, and delivery's own chain decode rejects the trailing bytes
+        byte[] a = chain(0, "Twin");
+        byte[] aPlusJunk = cat(a, new byte[] {0x05, 0x00});
+        out.add(new BadTail("a region site that reuses a tabled leaf record with different chain bytes",
+                DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:@AtomicSerial"),
+                        DerWriter.writeSequence(List.of(nestedSite(a), nestedSite(aPlusJunk))))), ""));
+        // a collection nested past MAX_NESTING whose element type holds no chain site at all: the old pass-through skipped it
+        out.add(new BadTail("a site-free collection nested past MAX_NESTING", nestedListItem(18, 18), "MAX_NESTING"));
+        return out;
+    }
+
+    /** A {@code [16]} item of token {@code list:^tokenLevels int} whose value is {@code valueLevels} lists deep. */
+    private static byte[] nestedListItem(int tokenLevels, int valueLevels) {
+        byte[] value = DerWriter.writeSequence(List.of());
+        for (int i = 1; i < valueLevels; i++) value = DerWriter.writeSequence(List.of(value));
+        return DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:".repeat(tokenLevels) + "int"), value));
+    }
+
+    private static List<BadTail> scalarAndShellTails() {
+        List<BadTail> out = new ArrayList<>();
+        out.add(new BadTail("[0] NULL with content", new byte[] {(byte) 0x80, 0x01, 0x00}, "NULL TLV must have length 0"));
+        out.add(new BadTail("[2] Boolean that is neither 00 nor FF", new byte[] {(byte) 0x82, 0x01, 0x01}, "0x00 or 0xFF"));
+        out.add(new BadTail("[4] Byte that is a non-canonical integer", new byte[] {(byte) 0x84, 0x02, 0x00, 0x05}, "non-canonical INTEGER"));
+        out.add(new BadTail("[6] Short out of range", new byte[] {(byte) 0x86, 0x03, 0x01, 0x00, 0x00}, "out of short range"));
+        out.add(new BadTail("[10] Integer that overflows", new byte[] {(byte) 0x8A, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00}, "overflow"));
+        out.add(new BadTail("[11] Long that is empty", new byte[] {(byte) 0x8B, 0x00}, "at least 1 byte"));
+        out.add(new BadTail("[12] Float -0.0", new byte[] {(byte) 0x8C, 0x04, (byte) 0x80, 0x00, 0x00, 0x00}, "-0.0"));
+        out.add(new BadTail("[13] Double of the wrong length", new byte[] {(byte) 0x8D, 0x03, 0x00, 0x00, 0x00}, "must be 8 bytes"));
+        out.add(new BadTail("[14] Character that is a surrogate", new byte[] {(byte) 0x8E, 0x03, 0x00, (byte) 0xD8, 0x00}, "surrogate"));
+        out.add(new BadTail("[3] String that is not UTF-8", new byte[] {(byte) 0x83, 0x01, (byte) 0xFF}, ""));
+        out.add(new BadTail("[7] enum with bytes after its two names", DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, true, 7),
+                cat(DerWriter.writeUtf8String("a.B"), DerWriter.writeUtf8String("C"), new byte[] {0x05, 0x00})), "trailing bytes in [7]"));
+        out.add(new BadTail("positional BOOLEAN that is not canonical", new byte[] {0x01, 0x01, 0x01}, ""));
+        out.add(new BadTail("positional INTEGER that is not canonical", new byte[] {0x02, 0x02, 0x00, 0x01}, ""));
+        out.add(new BadTail("positional UTF8String that is not UTF-8", new byte[] {0x0C, 0x01, (byte) 0xFF}, ""));
+        // the shell of a hierarchy whose fields hold no chain site: delivery checks it, so admission walks it
+        byte[] oneInt = new AtomicSerialSchemaRecord("Shelly", List.of(new AtomicSerialFieldDef("n", "int"))).encode();
+        out.add(new BadTail("site-free hierarchy missing a field TLV", shellyItem(oneInt, new byte[0]), "missing a TLV for field"));
+        out.add(new BadTail("site-free hierarchy with a TLV too many", shellyItem(oneInt, cat(new byte[] {0x02, 0x01, 0x01}, new byte[] {0x02, 0x01, 0x02})),
+                "trailing TLVs"));
+        return out;
+    }
+
+    private static byte[] shellyItem(byte[] chainBytes, byte[] classContent) {
+        byte[] shell = DerWriter.writeSequence(List.of(DerWriter.writeTlv(Tag.SEQUENCE, classContent)));
+        return DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(DerWriter.writeOctetString(shell),
+                DerWriter.writeTlv(CTX_NULL_TAG, chainBytes), DerWriter.writeUtf8String(FORMAT))));
+    }
+
+    /** Builds [good x before, bad tail, good x after] so the bad part sits first, in the middle or last. */
+    private static byte[] longStream(BadTail bad, String where) throws IOException {
+        // the good items come from one real encoder so their first item carries the fullChain and the rest chainRefs
+        int before = switch (where) { case "first" -> 0; case "middle" -> 10; default -> 20; };
+        int after = switch (where) { case "first" -> 20; case "middle" -> 10; default -> 0; };
+        int[] ns = new int[before + after];
+        for (int i = 0; i < ns.length; i++) ns[i] = i + 1;
+        byte[] good = goodStream(ns);
+        byte[] items = itemsOf(good);
+        // split the encoded items at the boundary: each good item is a [1] TLV; walk them
+        au.net.zeus.jgdms.der.DerReader r = new au.net.zeus.jgdms.der.DerReader(items);
+        int cut = items.length;
+        try {
+            int idx = 0;
+            while (r.hasMore()) {
+                if (idx == before) { cut = r.position(); break; }
+                r.skipTlv();
+                idx++;
+            }
+        } catch (au.net.zeus.jgdms.der.DerException e) {
+            throw new IllegalStateException(e);
+        }
+        if (before == 0) cut = 0;
+        byte[] head = java.util.Arrays.copyOfRange(items, 0, cut);
+        byte[] tail = java.util.Arrays.copyOfRange(items, cut, items.length);
+        return cat(new byte[] {(byte) 0x8F, 1, 1}, head, bad.bytes, tail);
+    }
+
+    @TestFactory
+    Stream<DynamicTest> everyRejectClassAtEveryPositionRejectsTheWholeStreamBeforeAnythingIsBuilt() throws Exception {
+        List<DynamicTest> tests = new ArrayList<>();
+        for (BadTail bad : badTails()) {
+            for (String where : new String[] {"first", "middle", "last"}) {
+                tests.add(DynamicTest.dynamicTest(bad.name + " / " + where, () -> {
+                    CONSTRUCTED.set(0);
+                    byte[] stream = longStream(bad, where);
+                    // a bad item that is itself a fullChain is "bad" only because of its size/number; a stream whose bad part is a
+                    // DUPLICATE needs an earlier good item, so every "first" case that depends on one is skipped by construction
+                    Run r = readAll(stream, 1000);
+                    assertNotNull(r.failure(), "must be rejected: " + bad.name + " at " + where);
+                    assertEquals(0, r.delivered(), "nothing may be delivered");
+                    assertEquals(0, r.constructed(), "no constructor may run");
+                    assertEquals(0, r.callbacksFired());
+                    assertTrue(DerStreamAdmissionCharacterisationTest.chain(r.failure()).contains(bad.message),
+                            "expected '" + bad.message + "' in " + DerStreamAdmissionCharacterisationTest.chain(r.failure()));
+                }));
+            }
+        }
+        return tests.stream();
+    }
+
+    @Test
+    void aDuplicateFullChainAnywhereAfterTheFirstRejectsTheWholeStream() throws Exception {
+        byte[] first = goodStream(1);                              // fullChain for Counted
+        byte[] dup = itemsOf(goodStream(9));                       // the same chain sent in full again
+        for (int between : new int[] {0, 1, 15}) {
+            int[] ns = new int[between + 1];
+            for (int i = 0; i < ns.length; i++) ns[i] = i + 2;
+            byte[] stream = cat(first, between == 0 ? new byte[0] : itemsOf(goodStreamAfter(between)), dup);
+            CONSTRUCTED.set(0);
+            Run r = readAll(stream, 1000);
+            assertNotNull(r.failure(), "between=" + between);
+            assertEquals(0, r.constructed());
+            assertTrue(DerStreamAdmissionCharacterisationTest.chain(r.failure()).contains("duplicate fullChain"));
+        }
+    }
+
+    /** {@code n} chainRef items for Counted, to follow a stream that already sent its chain. */
+    private static byte[] goodStreamAfter(int n) throws IOException {
+        int[] ns = new int[n + 1];
+        for (int i = 0; i < ns.length; i++) ns[i] = i + 1;
+        byte[] withN = goodStream(ns);
+        byte[] one = goodStream(1);
+        return cat(new byte[] {(byte) 0x8F, 1, 1}, java.util.Arrays.copyOfRange(withN, one.length, withN.length));
+    }
+
+    @Test
+    void aChainRefFanOutBombIsRejectedBeforeAnythingIsBuilt() throws Exception {
+        // a ~64 KB chain re-materialised at every chainRef. With a 1 MiB input cap the per-item ceiling is 8 MiB, which no
+        // single item here reaches (each carries one reference), so what rejects the stream is the WHOLE-stream cumulative
+        // ceiling (x64 = 64 MiB): ~1024 references.
+        List<AtomicSerialFieldDef> fields = new ArrayList<>();
+        for (int i = 0; i < 300; i++) fields.add(new AtomicSerialFieldDef("f" + String.format("%03d", i) + "x".repeat(196), "int"));
+        byte[] big = new AtomicSerialSchemaRecord("Bomb", fields).encode();
+        assertTrue(big.length < 65536 && big.length > 60000);
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(big);
+        // the payload shell the schema calls for: one class SEQUENCE with one TLV per field (the walk checks the shell; it
+        // does not interpret the values, so a 2-byte NULL per field keeps each reference item small)
+        List<byte[]> nulls = new ArrayList<>();
+        for (int i = 0; i < 300; i++) nulls.add(new byte[] {0x05, 0x00});
+        byte[] hier = DerWriter.writeSequence(List.of(DerWriter.writeSequence(nulls)));
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        o.writeBytes(new byte[] {(byte) 0x8F, 1, 1});
+        o.writeBytes(DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(hier),
+                DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, false, 0), big),
+                DerWriter.writeUtf8String(FORMAT)))));
+        byte[] refItem = DerWriter.writeTlv(CTX_ATOMIC, DerWriter.writeSequence(List.of(
+                DerWriter.writeOctetString(hier), DerWriter.writeTlv(REF, digest), DerWriter.writeUtf8String(FORMAT))));
+        for (int i = 0; i < 1100; i++) o.writeBytes(refItem);     // 1100 x ~650 B = 700 KB of input, 70 MB of reconstitution
+        byte[] stream = o.toByteArray();
+        DerInputLimits limits = DerInputLimits.maxBytes(1024 * 1024);
+        IOException e = assertThrows(IOException.class,
+                () -> new DerMarshalInputStream(new ByteArrayInputStream(stream), ResolutionContext.NONE, limits));
+        String all = DerStreamAdmissionCharacterisationTest.chain(e);
+        assertTrue(all.contains("maxReconstitutedBytes") || all.contains("maxStreamReconstitutedBytes"), all);
+    }
+
+    // ------------------------------------------------------------------ what the follow-up checks must NOT reject
+
+    static byte[] streamOf(byte[]... items) {
+        return cat(new byte[] {(byte) 0x8F, 1, 1}, cat(items));
+    }
+
+    @Test
+    void aWellFormedProxyNestedInARecordPayloadIsAdmitted() {
+        // the handler is a valid nested site; whether Holder, Runnable or the handler class RESOLVE is the record decoder's
+        // business (Layer 2), not admission's
+        assertNull(admissionOnly(streamOf(holderItem(proxyTlv(nestedSite(chain(0, "H")))))));
+        assertNull(admissionOnly(streamOf(holderItem(proxyTlv(proxyChain(3))))), "a proxy nested a few levels deep");
+    }
+
+    @Test
+    void theCollectionNestingBoundIsExactlyDeliverys() throws Exception {
+        // delivery decodes a nested collection at depth 0, 1, ..., 16 and rejects the 18th level (depth 17)
+        assertNull(admissionOnly(streamOf(nestedListItem(17, 17))), "17 levels are the most delivery reads");
+        Throwable tooDeep = admissionOnly(streamOf(nestedListItem(18, 18)));
+        assertNotNull(tooDeep);
+        assertTrue(DerStreamAdmissionCharacterisationTest.chain(tooDeep).contains("MAX_NESTING"));
+        // and the lazy path agrees at both ends
+        assertNull(lazyFailure(streamOf(nestedListItem(17, 17))));
+        assertNotNull(lazyFailure(streamOf(nestedListItem(18, 18))));
+    }
+
+    @Test
+    void aTokenNestedDeeperThanAnyValueCanBeIsBoundedWorkNotAStackOverflow() throws Exception {
+        // The token is attacker-controlled; the walk is driven by the VALUE. An empty outer list under a 100 000-level token is
+        // something delivery reads (the empty list ends the recursion), so admission must agree, and must not recurse once per
+        // token level to find out.
+        String token = "list:".repeat(100_000) + "int";
+        byte[] item = DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String(token), DerWriter.writeSequence(List.of())));
+        assertNull(admissionOnly(streamOf(item)));
+        assertNull(lazyFailure(streamOf(item)));
+        // the same token with a value nested past the bound is rejected by both
+        byte[] value = DerWriter.writeSequence(List.of());
+        for (int i = 1; i < 18; i++) value = DerWriter.writeSequence(List.of(value));
+        byte[] deep = DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String(token), value));
+        assertNotNull(admissionOnly(streamOf(deep)));
+        assertNotNull(lazyFailure(streamOf(deep)));
+    }
+
+    @Test
+    void aRegionIsNotHeldToTheStreamsTableCeilings() {
+        // 300 distinct chains in one [16] region: the stream table's 256-chain ceiling does not apply to a region, because
+        // delivery of a region has none (each site is decoded on its own)
+        List<byte[]> sites = new ArrayList<>();
+        for (int i = 0; i < 300; i++) sites.add(nestedSite(chain(i, "R")));
+        byte[] item = DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:@AtomicSerial"), DerWriter.writeSequence(sites)));
+        assertNull(admissionOnly(streamOf(item)));
+        // while the SAME 300 as stream-level fullChains are over the ceiling
+        byte[][] items = new byte[300][];
+        for (int i = 0; i < 300; i++) items[i] = fullChainItem(chain(i, "S"));
+        assertNotNull(admissionOnly(streamOf(items)));
+    }
+
+    @Test
+    void aRegionRepeatingAChainByteForByteIsVerifiedOnce() {
+        byte[] a = chain(0, "Rep");
+        byte[] item = DerWriter.writeTlv(CTX_COLLECTION, cat(DerWriter.writeUtf8String("list:@AtomicSerial"),
+                DerWriter.writeSequence(List.of(nestedSite(a), nestedSite(a), nestedSite(a)))));
+        assertNull(admissionOnly(streamOf(item)));
+    }
+
+    @Test
+    void aFailedTypedReadEndsTheStream() throws Exception {
+        // readUTF on an INTEGER item consumes only the header; without this, the next read would take the INTEGER's CONTENT as a
+        // new item, bytes admission never covered as an item
+        DerObjectStreamCodec c = new DerObjectStreamCodec();
+        c.writeLong(0x0102030405L);
+        c.writeObject("tail");
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        c.drainTo(bos);
+        DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(bos.toByteArray()));
+        assertThrows(IOException.class, in::readUTF);
+        IOException again = assertThrows(IOException.class, in::readLong);
+        assertTrue(again.getMessage().contains("after a failed read"), again.getMessage());
+        assertThrows(IOException.class, in::readObject);
+    }
+
+    @Test
+    void aFailedReadDoesNotEndARecordLevelCapture() throws Exception {
+        // capture contexts are not admitted streams: nothing there changes
+        DerObjectStreamCodec c = new DerObjectStreamCodec(false);
+        c.writeObject("only");
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        c.drainTo(bos);
+        DerMarshalInputStream in = DerMarshalInputStream.recordLevelCapture(new ByteArrayInputStream(bos.toByteArray()), ResolutionContext.NONE);
+        assertThrows(IOException.class, in::readUTF);
+        assertDoesNotThrow(in::close);
+    }
+
+    /** Admission alone (public constructor), no read: null when admitted, else the failure. */
+    private static Throwable admissionOnly(byte[] stream) {
+        return admissionFailure(stream);
+    }
+
+    // ------------------------------------------------------------------ the dispatcher-created (two-stage) stream
+
+    private static DerMarshalInputStream dispatcherStream(byte[] bytes) throws IOException {
+        return DerMarshalInputStream.forDispatcher(new ByteArrayInputStream(bytes), ResolutionContext.NONE, DerInputLimits.DEFAULT);
+    }
+
+    /** [method hash as a long, Counted(1), Counted(2)] as a dispatcher's request stream looks. */
+    private static byte[] requestStream(byte[]... extra) throws IOException {
+        DerObjectStreamCodec c = new DerObjectStreamCodec();
+        c.writeLong(0x1234_5678_9ABCL);
+        c.writeObject(new Counted(1));
+        c.writeObject(new Counted(2));
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        c.drainTo(bos);
+        for (byte[] e : extra) bos.writeBytes(e);
+        return bos.toByteArray();
+    }
+
+    @Test
+    void cheapStageRunsAtConstructionAndTheFullWalkDoesNot() throws Exception {
+        // an unknown-digest item is invisible to the cheap stage: constructing is fine, admitStream() is what rejects
+        DerMarshalInputStream in = dispatcherStream(requestStream(unknownDigestItem()));
+        assertEquals(0x1234_5678_9ABCL, in.readLong(), "the method hash (a scalar) is readable before admission");
+        IOException e = assertThrows(IOException.class, in::admitStream);
+        assertTrue(DerStreamAdmissionCharacterisationTest.chain(e).contains("unknown-digest"));
+        assertEquals(0, CONSTRUCTED.get());
+        // framing errors are the cheap stage's: they reject at construction, before authorization could even run
+        assertThrows(IOException.class, () -> dispatcherStream(requestStream(new byte[] {(byte) 0xA1, 0x20, 0x30, 0x03})));
+        assertThrows(IOException.class, () -> dispatcherStream(requestStream(new byte[] {(byte) 0x9F, 0x21, 0x01, 0x00})));
+    }
+
+    @Test
+    void recordBearingReadsAreRefusedUntilAdmittedAndTheRefusalIsTerminal() throws Exception {
+        DerMarshalInputStream in = dispatcherStream(requestStream());
+        in.readLong();
+        IOException e = assertThrows(IOException.class, in::readObject);
+        assertTrue(e.getMessage().contains("admitStream()"), e.getMessage());
+        assertEquals(0, CONSTRUCTED.get());
+        // The refusal is a failed read, and a failed read ends the stream (it also abandons the decode unit, which is
+        // permanent): admitting afterwards cannot revive it, so a caller cannot refuse, admit and carry on with a unit
+        // that has silently lost its DGC callbacks.
+        IOException again = assertThrows(IOException.class, in::admitStream);
+        assertTrue(again.getMessage().contains("delivers nothing"), again.getMessage());
+        assertThrows(IOException.class, in::readObject);
+        assertThrows(IOException.class, in::readLong);
+        assertEquals(0, CONSTRUCTED.get());
+    }
+
+    @Test
+    void anAdmittedDispatcherStreamDeliversEverything() throws Exception {
+        DerMarshalInputStream in = dispatcherStream(requestStream());
+        assertEquals(0x1234_5678_9ABCL, in.readLong());
+        in.admitStream();
+        in.admitStream();                                             // idempotent
+        assertEquals(1, ((Counted) in.readObject()).n);
+        assertEquals(2, ((Counted) in.readObject()).n);
+        assertEquals(2, CONSTRUCTED.get());
+    }
+
+    @Test
+    void aFailedAdmissionIsPermanentAndAbandonsTheDecodeUnit() throws Exception {
+        AtomicInteger fired = new AtomicInteger();
+        DerMarshalInputStream in = dispatcherStream(requestStream(unknownDigestItem()));
+        in.registerValidation(fired::incrementAndGet, 0);
+        assertThrows(IOException.class, in::admitStream);
+        IOException again = assertThrows(IOException.class, in::admitStream, "a second call rethrows");
+        assertTrue(again.getMessage().contains("rejected by admission"), again.getMessage());
+        assertThrows(IOException.class, in::readLong, "even a scalar read rethrows once the stream is rejected");
+        assertThrows(IOException.class, in::readObject);
+        in.close();
+        assertEquals(0, fired.get());
+        assertEquals(0, CONSTRUCTED.get());
+    }
+
+    @Test
+    void aStreamFromAPublicConstructorIsAlreadyAdmittedSoAdmitStreamIsANoOp() throws Exception {
+        DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(requestStream()));
+        in.admitStream();
+        in.readLong();
+        assertEquals(1, ((Counted) in.readObject()).n);
+    }
+
+    // ------------------------------------------------------------------ admission loads no class and builds nothing
+
+    @Test
+    void admissionNeverTouchesTheClassLoader() throws Exception {
+        AtomicInteger loads = new AtomicInteger();
+        ClassLoader counting = new ClassLoader(DerStreamWholeStreamAdmissionTest.class.getClassLoader()) {
+            @Override public Class<?> loadClass(String name) throws ClassNotFoundException {
+                loads.incrementAndGet();
+                return super.loadClass(name);
+            }
+        };
+        ResolutionContext ctx = new ResolutionContext(counting, false, counting);
+        for (Map.Entry<String, Supplier<Object>> e : DerGoldenBytesTest.corpus().entrySet()) {
+            if (DerGoldenBytesTest.SINGLE_ONLY.contains(e.getKey())) continue;
+            byte[] stream = encodeCorpus(e.getValue());
+            if (stream == null) continue;
+            loads.set(0);
+            DerMarshalInputStream in = new DerMarshalInputStream(new ByteArrayInputStream(stream), ctx, DerInputLimits.DEFAULT);
+            assertEquals(0, loads.get(), e.getKey() + ": admission resolved a class");
+            in.close();
+        }
+    }
+
+    private static byte[] encodeCorpus(Supplier<Object> s) {
+        try {
+            DerObjectStreamCodec c = new DerObjectStreamCodec();
+            Object o = s.get();
+            if (o instanceof DerGoldenBytesTest.MixedStream m) {
+                for (Object item : m.items) writeItem(c, item);
+            } else {
+                writeItem(c, o);
+            }
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            c.drainTo(bos);
+            return bos.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static void writeItem(DerObjectStreamCodec c, Object o) throws IOException {
+        if (o instanceof DerGoldenBytesTest.TopLevelCollection t) c.writeCollection(t.coll, t.token); else c.writeObject(o);
+    }
+
+    // ------------------------------------------------------------------ differential against the lazy per-item path
+
+    /** Reads every item the way the delivery path does, with no admission. Returns null if it read to the end, else the failure. */
+    private static Throwable lazyFailure(byte[] stream) {
+        try {
+            DerObjectStreamCodec c = new DerObjectStreamCodec();
+            c.initReader(stream);
+            while (c.available() > 0) {
+                c.readObject();
+            }
+            return null;
+        } catch (Throwable t) {
+            return t;
+        }
+    }
+
+    /**
+     * The wire-level admission verdict, with the whole-stream POLICY (B5) switched to its most permissive: this test is about
+     * admission agreeing with the lazy path, and a policy reject (a rebinding, a budget, a denied name) is by design a stream the
+     * lazy path would accept. The policy has its own tests.
+     */
+    private static final DerStreamPolicy NO_POLICY = DerStreamPolicy.BUILT_IN.withRejectRebinding(false)
+            .withMaxObjects(Integer.MAX_VALUE).withMaxElements(Integer.MAX_VALUE).withMaxDistinctClasses(Integer.MAX_VALUE);
+
+    private static Throwable admissionFailure(byte[] stream) {
+        try {
+            new DerMarshalInputStream(new ByteArrayInputStream(stream), ResolutionContext.NONE, DerInputLimits.DEFAULT,
+                    NO_POLICY).close();
+            return null;
+        } catch (Throwable t) {
+            return t;
+        }
+    }
+
+    /**
+     * Failures of the kind admission exists to catch: the dedup layer, the top-level item framing, the version octet, and the
+     * class-free wire checks on the scalar, enum and positional items, and (B3) the value rules of a record's interior: a
+     * scalar out of range or not canonical, bad UTF-8, a tag that is not the declared wire type's, a collection with the wrong
+     * outer tag, too many elements or out of order. Admission applies the record decoder's own checks to those, so what the
+     * decoder would reject for them admission must reject first. What stays out of this list is what needs a class or a
+     * constructor: an unknown enum constant, a class that cannot be loaded, {@code check(GetArg)}.
+     */
+    private static boolean isWireLevel(Throwable t) {
+        String m = DerStreamAdmissionCharacterisationTest.chain(t);
+        return isInteriorValueFailure(m) || m.contains("StreamSchemaDedup") || m.contains("stream schema-dedup") || m.contains("failed to read TLV header")
+                || m.contains("readObject: failed to read")
+                || m.contains("boxed ") && !m.contains("ObjectCodec") || m.contains("[0] NULL TLV must have length 0")
+                || m.contains("malformed [7] enum item") || m.contains("trailing bytes in [7] enum item")
+                || m.contains("unexpected top-level tag");
+    }
+
+    /** The messages of the decoder's value rules (B3): range, canonical form, UTF-8, tags, collection shape, order and count. */
+    private static boolean isInteriorValueFailure(String m) {
+        return m.contains("overflows wire type") || m.contains("DER float") || m.contains("DER double") || m.contains("DER char")
+                || m.contains("not well-formed UTF-8") || m.contains("BOOLEAN content") || m.contains("Non-canonical INTEGER")
+                || m.contains("octet order") || m.contains("maxCollection") || m.contains("(tag 0x")
+                || m.contains("unsupported wire type")
+                || m.contains("map entry SEQUENCE has more") || m.contains("map entry must be");
+    }
+
+    @TestFactory
+    Stream<DynamicTest> admissionAgreesWithTheLazyPathOnTheCorpusAndOnMutatedStreams() {
+        int iterations = Integer.getInteger("admission.differential.iterations", 120);
+        List<DynamicTest> tests = new ArrayList<>();
+        for (Map.Entry<String, Supplier<Object>> e : DerGoldenBytesTest.corpus().entrySet()) {
+            if (DerGoldenBytesTest.SINGLE_ONLY.contains(e.getKey())) continue;
+            tests.add(DynamicTest.dynamicTest(e.getKey(), () -> {
+                byte[] valid = encodeCorpus(e.getValue());
+                if (valid == null) return;                                   // not writable through the stream codec
+                assertNull(lazyFailure(valid), "the corpus must read to the end lazily");
+                assertNull(admissionFailure(valid), "the corpus must be admitted");
+                Random r = new Random(0xB2 ^ e.getKey().hashCode());
+                int wireRejects = 0;
+                for (int i = 0; i < iterations; i++) {
+                    StringBuilder how = new StringBuilder();
+                    byte[] items = java.util.Arrays.copyOfRange(valid, 3, valid.length);
+                    byte[] mutated = (i % 3 == 2) ? StreamSchemaDedupEquivalenceTest.mutateBytes(items, r, how)
+                                                  : StreamSchemaDedupEquivalenceTest.mutateTree(items, r, how);
+                    if (mutated == null) continue;
+                    byte[] stream = cat(new byte[] {(byte) 0x8F, 1, 1}, mutated);
+                    Throwable lazy = lazyFailure(stream);
+                    Throwable admitted = admissionFailure(stream);
+                    String ctx = e.getKey() + " #" + i + " [" + how + "]";
+                    if (admitted != null) {
+                        // never a false reject: the lazy path must also have failed somewhere
+                        assertNotNull(lazy, ctx + ": admission rejected a stream the lazy path reads to the end: "
+                                + DerStreamAdmissionCharacterisationTest.chain(admitted));
+                        wireRejects++;
+                    } else if (lazy != null) {
+                        // admitted, yet the lazy path failed: only a Layer-2 / value failure is allowed
+                        assertFalse(isWireLevel(lazy), ctx + ": a wire-level failure escaped admission: "
+                                + DerStreamAdmissionCharacterisationTest.chain(lazy));
+                    }
+                }
+                assertTrue(wireRejects > 0 || iterations < 10, e.getKey() + ": the mutator never produced a rejected stream");
+            }));
+        }
+        return tests.stream();
+    }
+}

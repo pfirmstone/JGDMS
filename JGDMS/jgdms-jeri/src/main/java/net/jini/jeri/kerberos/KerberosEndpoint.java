@@ -18,6 +18,11 @@
 package net.jini.jeri.kerberos;
 
 import org.apache.river.action.GetIntegerAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Resolve;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.KerberosEndpointInternalsAccess;
 import org.apache.river.jeri.internal.connection.BasicConnManagerFactory;
@@ -62,10 +67,6 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.api.io.AtomicSerial;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.PutArg;
-import org.apache.river.api.io.AtomicSerial.SerialForm;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
@@ -278,29 +279,28 @@ import org.ietf.jgss.GSSName;
  */
 @AtomicSerial
 public final class KerberosEndpoint
-    implements Endpoint, TrustEquivalence, Serializable
+    implements Endpoint, TrustEquivalence, Serializable, Resolve
 {
     private static final long serialVersionUID = -880347439811805543L;
 
     public static SerialForm[] serialForm() {
-	return new SerialForm[]{
-	    new SerialForm("serverHost", String.class),
-	    new SerialForm("serverPort", Integer.TYPE),
-	    // KerberosPrincipal is a JDK Serializable, not AtomicSerial, so it is
-	    // carried as its name and name type.
-	    new SerialForm("serverPrincipalName", String.class),
-	    new SerialForm("serverPrincipalNameType", Integer.TYPE),
-	    new SerialForm("csf", SocketFactory.class)
-	};
+        return new SerialForm[] {
+            new SerialForm("serverHost", String.class),
+            new SerialForm("serverPort", Integer.TYPE),
+            new SerialForm("principalName", String.class),
+            new SerialForm("principalNameType", Integer.TYPE),
+            new SerialForm("csf", SocketFactory.class)
+        };
     }
 
     public static void serialize(PutArg arg, KerberosEndpoint ep) throws IOException {
-	arg.put("serverHost", ep.serverHost);
-	arg.put("serverPort", ep.serverPort);
-	arg.put("serverPrincipalName", ep.serverPrincipal.getName());
-	arg.put("serverPrincipalNameType", ep.serverPrincipal.getNameType());
-	arg.put("csf", ep.csf);
-	arg.writeArgs();
+        arg.put("serverHost", ep.serverHost);
+        arg.put("serverPort", ep.serverPort);
+        // KerberosPrincipal is not an @AtomicSerial or supported field type: carry its name and name type
+        arg.put("principalName", ep.serverPrincipal.getName());
+        arg.put("principalNameType", ep.serverPrincipal.getNameType());
+        arg.put("csf", ep.csf);
+        arg.writeArgs();
     }
 
     /** JERI Kerberos client transport logger */
@@ -379,13 +379,13 @@ public final class KerberosEndpoint
      * of the analysis of the constraints and principals in the
      * subject, without checking permissions and private credentials.
      */
-    private transient volatile KerberosUtil.SoftCache softCache;
+    private transient KerberosUtil.SoftCache softCache;
 
     /**
      * The <code>ConnectionEndpoint</code> this endpoint passes
      * to its <code>connManager</code> to create connections.
      */
-    private transient volatile ConnectionEndpointImpl connectionEndpoint;
+    private transient ConnectionEndpointImpl connectionEndpoint;
 
     /**
      * The <code>ConnManager</code> this endpoint uses to create
@@ -429,6 +429,70 @@ public final class KerberosEndpoint
      *         not in the range of <code>1</code> to
      *         <code>65535</code>
      */
+    /**
+     * Constructs an instance from a stream, with the checks of {@code readObject}. Like a
+     * Java-deserialized instance before {@code readResolve}, it is not interned: it takes the
+     * canonical instance's connection state on first use ({@link #ensureInitialized}).
+     */
+    KerberosEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
+	this(arg.get("serverHost", null, String.class),
+	     arg.get("serverPort", 0),
+	     principal(arg.get("principalName", null, String.class), arg.get("principalNameType", 0)),
+	     arg.get("csf", null, SocketFactory.class),
+	     true);
+    }
+
+    private static KerberosPrincipal principal(String name, int nameType) throws InvalidObjectException {
+	if (name == null) {
+	    return null;
+	}
+	try {
+	    return new KerberosPrincipal(name, nameType);
+	} catch (IllegalArgumentException e) {
+	    InvalidObjectException ex = new InvalidObjectException("invalid server principal: " + e.getMessage());
+	    ex.initCause(e);
+	    throw ex;
+	}
+    }
+
+    private KerberosEndpoint(String serverHost, int serverPort,
+			     KerberosPrincipal serverPrincipal,
+			     SocketFactory csf, boolean fromStream)
+	throws InvalidObjectException
+    {
+	if (serverHost == null) {
+	    throw new InvalidObjectException("serverHost is null");
+	} else if (serverPort <= 0 || serverPort > 0xFFFF) {
+	    throw new InvalidObjectException(
+		"server port number out of range 1-65535: serverPort = " + serverPort);
+	} else if (serverPrincipal == null) {
+	    throw new InvalidObjectException("serverPrincipal is null");
+	}
+	this.serverHost = serverHost;
+	this.serverPort = serverPort;
+	this.serverPrincipal = serverPrincipal;
+	this.csf = csf;
+    }
+
+    /**
+     * Gives an instance built from a stream the connection state of its canonical instance, once.
+     * Instances from {@code getInstance} and {@code readResolve} already have it.
+     */
+    private void ensureInitialized() {
+	if (connManager == null) {
+	    synchronized (internTable) {
+		if (connManager == null) {
+		    KerberosEndpoint canonical = intern(this);
+		    if (canonical != this) {
+			softCache = canonical.softCache;
+			connectionEndpoint = canonical.connectionEndpoint;
+			connManager = canonical.connManager;
+		    }
+		}
+	    }
+	}
+    }
+
     private KerberosEndpoint(String serverHost, int serverPort,
 			     KerberosPrincipal serverPrincipal,
 			     SocketFactory csf)
@@ -450,47 +514,6 @@ public final class KerberosEndpoint
 	this.serverPrincipal = serverPrincipal;
 	this.csf = csf;
 	logger.log(Level.FINE, "created {0}", toString()); //previously allowed "this" to escape during construction.
-    }
-
-    /**
-     * Atomic deserialization constructor: applies the same checks as
-     * {@link #readObject}.  The soft cache, connection endpoint and
-     * connection manager are created on first use, as the instance
-     * is not necessarily passed through {@code readResolve}.
-     */
-    KerberosEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
-	this(checkHost(arg.get("serverHost", null, String.class)),
-	     checkPort(arg.get("serverPort", 0)),
-	     checkPrincipal(arg.get("serverPrincipalName", null, String.class),
-			    arg.get("serverPrincipalNameType", 0)),
-	     arg.get("csf", null, SocketFactory.class));
-    }
-
-    private static String checkHost(String host) throws InvalidObjectException {
-	if (host == null) throw new InvalidObjectException("serverHost is null");
-	return host;
-    }
-
-    private static int checkPort(int port) throws InvalidObjectException {
-	if (port <= 0 || port > 0xFFFF) {
-	    throw new InvalidObjectException(
-		"server port number out of range 1-65535: serverPort = " + port);
-	}
-	return port;
-    }
-
-    private static KerberosPrincipal checkPrincipal(String name, int nameType)
-	throws InvalidObjectException
-    {
-	if (name == null) throw new InvalidObjectException("serverPrincipal is null");
-	try {
-	    return new KerberosPrincipal(name, nameType);
-	} catch (IllegalArgumentException e) {
-	    InvalidObjectException ioe = new InvalidObjectException(
-		"invalid serverPrincipal: " + name);
-	    ioe.initCause(e);
-	    throw ioe;
-	}
     }
 
     //-----------------------------------
@@ -806,7 +829,7 @@ public final class KerberosEndpoint
     //-----------------------------------
 
     /** Resolves deserialized instance to equivalent canonical instance. */
-    private Object readResolve() {
+    public Object readResolve() {
 	return intern(this);
     }
 
@@ -830,22 +853,6 @@ public final class KerberosEndpoint
 	}
     }
 
-    /**
-     * Creates the soft cache, connection endpoint and connection manager
-     * if they do not exist yet.  An instance created by the atomic
-     * deserialization constructor is not necessarily interned.
-     */
-    private void ensureInitialized() {
-	if (connManager != null) return;
-	synchronized (this) {
-	    if (connManager == null) {
-		softCache = new KerberosUtil.SoftCache(maxCacheSize);
-		connectionEndpoint = new ConnectionEndpointImpl();
-		connManager = new BasicConnManagerFactory().create(connectionEndpoint);
-	    }
-	}
-    }
-
     /** Returns canonical instance equivalent to given instance. */
     private static KerberosEndpoint intern(KerberosEndpoint endpoint) {
 	synchronized (internTable) {
@@ -858,7 +865,12 @@ public final class KerberosEndpoint
 	    }
 
 	    // construct these only if endpoint passes intern test
-	    endpoint.ensureInitialized();
+	    endpoint.softCache =
+		new KerberosUtil.SoftCache(maxCacheSize);
+	    endpoint.connectionEndpoint =
+		endpoint.new ConnectionEndpointImpl();
+	    endpoint.connManager = new BasicConnManagerFactory().create(
+		endpoint.connectionEndpoint);
 
 	    internTable.put(endpoint, new WeakReference(endpoint));
 	    return endpoint;
@@ -942,7 +954,6 @@ public final class KerberosEndpoint
 					  ConnManagerFactory factory)
 	{
 	    KerberosEndpoint kep = (KerberosEndpoint) endpoint;
-	    kep.ensureInitialized();
 	    kep.connManager = factory.create(kep.connectionEndpoint);
 	}
 

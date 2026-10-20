@@ -366,4 +366,60 @@ class StreamSchemaDedupTableTest {
         assertArrayEquals(rec1, rec2,
                 "full-arm and ref-arm sites must reconstitute byte-identical canonical records");
     }
+
+    // =========================================================================
+    // Index keys: a lookup is a full content comparison, never a hash or prefix match
+    // =========================================================================
+
+    @Test
+    void chainRef_digestDifferingInAnyBitIsUnknown() throws Exception {
+        byte[] c = chain("NearMiss");
+        byte[] digest = sha256(c);
+        StreamSchemaDedup d = new StreamSchemaDedup(false);
+        byte[] full = d.reconstituteTopLevelAtomic(p1Full(c));
+        assertArrayEquals(full, d.reconstituteTopLevelAtomic(p1Ref(digest)), "the exact digest resolves");
+        for (int i = 0; i < digest.length; i++) {
+            for (int bit = 0; bit < 8; bit++) {
+                byte[] near = digest.clone();
+                near[i] ^= (byte) (1 << bit);
+                DerException e = assertThrows(DerException.class,
+                        () -> d.reconstituteTopLevelAtomic(p1Ref(near)),
+                        "a digest differing at byte " + i + " bit " + bit + " must not resolve");
+                assertTrue(e.getMessage().contains("unknown-digest"), e.getMessage());
+            }
+        }
+    }
+
+    @Test
+    void verifiedChain_isAnExactContentMatchOnly() throws Exception {
+        byte[] c = chain("Verified");
+        StreamSchemaDedup d = new StreamSchemaDedup(false);
+        assertNull(d.verifiedChain(c), "nothing is verified before the chain was sent");
+        d.reconstituteTopLevelAtomic(p1Full(c));
+        assertNotNull(d.verifiedChain(c.clone()), "the same bytes, in a different array, are the verified chain");
+        for (int i = 0; i < c.length; i++) {
+            byte[] near = c.clone();
+            near[i] ^= 0x01;
+            assertNull(d.verifiedChain(near), "bytes differing at " + i + " were never verified");
+        }
+        assertNull(d.verifiedChain(java.util.Arrays.copyOf(c, c.length - 1)), "a prefix was never verified");
+        assertNull(d.verifiedChain(java.util.Arrays.copyOf(c, c.length + 1)), "an extension was never verified");
+    }
+
+    @Test
+    void twoChainsAreNotConfusedWhateverTheirDigestsShare() throws Exception {
+        // many chains in one table: each resolves to its own reconstituted record, and to no other
+        StreamSchemaDedup d = new StreamSchemaDedup(false);
+        List<byte[]> chains = new ArrayList<>();
+        List<byte[]> records = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            byte[] c = chain("Many" + i);
+            chains.add(c);
+            records.add(d.reconstituteTopLevelAtomic(p1Full(c)));
+        }
+        for (int i = 99; i >= 0; i--) {
+            assertArrayEquals(records.get(i), d.reconstituteTopLevelAtomic(p1Ref(sha256(chains.get(i)))));
+            assertNotNull(d.verifiedChain(chains.get(i).clone()));
+        }
+    }
 }

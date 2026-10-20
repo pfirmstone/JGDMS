@@ -462,13 +462,13 @@ class DerGoldenBytesTest {
     }
 
     /** Entries whose triple-in-a-stream form is skipped (their single form is already very large). */
-    private static final java.util.Set<String> SINGLE_ONLY =
+    static final java.util.Set<String> SINGLE_ONLY =
             java.util.Set.of("blob-16MiB-minus-1", "list-65536");
 
 
     // ---- corpus ----
 
-    private static Map<String, Supplier<Object>> corpus() {
+    static Map<String, Supplier<Object>> corpus() {
         Map<String, Supplier<Object>> c = new LinkedHashMap<>();
         c.put("bench-point", () -> new Point(7, -42));
         c.put("bench-record", () -> rec(1));

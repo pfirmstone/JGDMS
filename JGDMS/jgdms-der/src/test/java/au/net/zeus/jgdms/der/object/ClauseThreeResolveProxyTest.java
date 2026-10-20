@@ -106,8 +106,13 @@ class ClauseThreeResolveProxyTest {
      * been reviewed as inert / bounded:
      * <ul>
      *   <li>{@code net.jini.core.constraint.Integrity},
-     *       {@code net.jini.core.constraint.ServerAuthentication} — immutable constraint constant
-     *       carriers; {@code readResolve()} returns a canonical singleton, no external effect;</li>
+     *       {@code net.jini.core.constraint.ServerAuthentication},
+     *       {@code net.jini.core.constraint.Confidentiality},
+     *       {@code net.jini.core.constraint.ClientAuthentication},
+     *       {@code net.jini.core.constraint.Delegation} — immutable constraint constant
+     *       carriers; {@code readResolve()} returns a canonical singleton, no external effect.
+     *       (The last three implement {@code Resolve} since 2026-10-20 so that DER canonicalises them
+     *       as it already did the first two; their ctor reads one boolean.)</li>
      *   <li>{@code net.jini.id.UuidFactory$Impl} — a trivial {@code @AtomicSerial} concrete
      *       {@code Uuid} subclass (the base {@code Uuid} is {@code @Serializer}, so it is clause 2;
      *       {@code Impl} is not, so it is clause 3). Inert: an immutable 128-bit value whose
@@ -123,6 +128,9 @@ class ClauseThreeResolveProxyTest {
     private static final Set<String> PINNED_CLAUSE_THREE = new TreeSet<>(Set.of(
             "net.jini.core.constraint.Integrity",
             "net.jini.core.constraint.ServerAuthentication",
+            "net.jini.core.constraint.Confidentiality",
+            "net.jini.core.constraint.ClientAuthentication",
+            "net.jini.core.constraint.Delegation",
             "net.jini.id.UuidFactory$Impl",
             "au.net.zeus.jgdms.der.object.DerProxySerializer"
     ));

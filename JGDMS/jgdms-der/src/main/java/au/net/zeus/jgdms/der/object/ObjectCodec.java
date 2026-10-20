@@ -414,6 +414,12 @@ public final class ObjectCodec {
         return enc.toByteArray();
     }
 
+    /** {@link #encodeHierarchy(Object, SchemaChain.Result)} appended to {@code enc}; same bytes, no intermediate array. */
+    public static void encodeHierarchyTo(Object instance, SchemaChain.Result chain, DerEncoder enc)
+            throws DerException {
+        encodeHierarchyTo(instance, chain, 0, enc);
+    }
+
     /**
      * {@link #encodeHierarchy(Object, SchemaChain.Result, int)} appended to {@code enc} instead of returned: the
      * same bytes, with no intermediate array per class level. On any exception {@code enc} holds a partial
@@ -1593,6 +1599,16 @@ public final class ObjectCodec {
      * encoded. The decoder rejects such a collection, so an encoder that emitted it would produce a
      * stream no conforming peer accepts; failing here makes the error local and immediate.
      */
+    /**
+     * Checks the content octets of a scalar {@code Any} arm ({@code [0]..[9]}) exactly as {@code AnyCodec.decode} will, with no
+     * class loaded: the bridge whole-stream admission uses so an {@code Any} scalar is validated by one code path.
+     *
+     * @throws DerException if the content is not a valid encoding of the arm's scalar kind, or the arm is not a scalar arm
+     */
+    public static void validateAnyScalarArm(int contextTag, byte[] content) throws DerException {
+        AnyCodec.decodeScalar(contextTag, content);
+    }
+
     private static void requireWithinMaxCollection(int count, String fieldName) throws DerException {
         if (count > MAX_COLLECTION) {
             throw new DerException(
@@ -1745,6 +1761,24 @@ public final class ObjectCodec {
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(resolution, "resolution");
+        TopLevelCollectionContent parsed = parseTopLevelCollection(content);
+        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
+        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
+        return decodeCollection(parsed.collectionTlv(), parsed.token(), 0, decodeUnit, resolution, null);
+    }
+
+    /** A {@code [16]} item's content split into its collection wire-type token and its collection TLV. */
+    public record TopLevelCollectionContent(String token, byte[] collectionTlv) {}
+
+    /**
+     * The wire-level front half of {@link #decodeTopLevelCollection}: parses and grammar-validates the token and
+     * cross-checks the Option-A outer tag against it (the AnyCodec fence), constructing nothing. Shared with the stream
+     * layer's admission pass so the two cannot drift.
+     *
+     * @throws DerException if the token is malformed or not a collection token, the collection TLV is missing, or the
+     *                      outer tag lies about the token's discipline
+     */
+    public static TopLevelCollectionContent parseTopLevelCollection(byte[] content) throws DerException {
         DerReader r = new DerReader(content);
         String token;
         try {
@@ -1777,9 +1811,7 @@ public final class ObjectCodec {
                     + Integer.toHexString(expectedTag) + " but the collection TLV opens with 0x"
                     + Integer.toHexString(outerTag) + " -- lying Option-A encoding, rejected");
         }
-        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
-        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
-        return decodeCollection(collTlv, token, 0, decodeUnit, resolution, null);
+        return new TopLevelCollectionContent(token, collTlv);
     }
 
     /**
@@ -2885,17 +2917,13 @@ public final class ObjectCodec {
                 byte[] enc = body.slice(start, end);
                 if (prevEnc != null) {
                     int cmp = CollectionWireTypes.compareOctets(prevEnc, enc);
-                    if (multiset) {
-                        if (cmp > 0) {
-                            throw new DerException("ObjectCodec.decodeCollection: canonicalise "
-                                    + "multiset field (wireType " + wireType + ") is not in "
-                                    + "non-decreasing X.690 §11.6 octet order (fail-secure)");
-                        }
-                    } else if (cmp >= 0) {
-                        throw new DerException("ObjectCodec.decodeCollection: canonicalise set "
-                                + "field (wireType " + wireType + ") is not in strictly ascending "
-                                + "X.690 §11.6 octet order -- unsorted or duplicate element "
-                                + "encoding (fail-secure, §2/§11.6)");
+                    if (CollectionWireTypes.orderViolated(cmp, multiset)) {
+                        throw new DerException(multiset
+                                ? "ObjectCodec.decodeCollection: canonicalise multiset field (wireType "
+                                    + wireType + ") is not in non-decreasing X.690 §11.6 octet order (fail-secure)"
+                                : "ObjectCodec.decodeCollection: canonicalise set field (wireType "
+                                    + wireType + ") is not in strictly ascending X.690 §11.6 octet order -- "
+                                    + "unsorted or duplicate element encoding (fail-secure, §2/§11.6)");
                     }
                 }
                 prevEnc = enc;
@@ -2980,7 +3008,7 @@ public final class ObjectCodec {
             if (canonicalise) {
                 byte[] keyEnc = entry.slice(keyStart, keyEnd);
                 if (prevKeyEnc != null
-                        && CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc) >= 0) {
+                        && CollectionWireTypes.orderViolated(CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc), false)) {
                     throw new DerException("ObjectCodec.decodeCollection: canonicalise map field "
                             + "(wireType " + wireType + ") keys are not in strictly ascending "
                             + "X.690 §11.6 octet order -- unsorted or duplicate key encoding "

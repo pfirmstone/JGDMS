@@ -41,18 +41,18 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DerMarshalInputStreamAbortTest {
 
-    /** [good, good, item whose chainRef names a digest never sent]. */
+    /**
+     * [good, good, item the record's own constructor refuses]. A wire-level reject (such as a chainRef naming a digest never
+     * sent) is now caught when the stream is constructed (B2), so the failure that must abort the unit mid-stream is a Layer-2
+     * one, which admission cannot see.
+     */
     private static byte[] goodGoodBad() throws IOException {
         DerObjectStreamCodec c = new DerObjectStreamCodec();
         c.writeObject(new VersionedRecord(1, "a", "x"));
         c.writeObject(new VersionedRecord(2, "b", "y"));
+        c.writeObject(new DerStreamAdmissionCharacterisationTest.Counted(99));
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         c.drainTo(bos);
-        List<byte[]> kids = new ArrayList<>();
-        kids.add(DerWriter.writeOctetString(DerWriter.writeSequence(List.of())));
-        kids.add(DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, false, 1), new byte[32]));
-        kids.add(DerWriter.writeUtf8String("JGDMS-STD-006/ATOMIC-DER"));
-        bos.write(DerWriter.writeTlv(new Tag(Tag.CLASS_CONTEXT, true, 1), DerWriter.writeSequence(kids)));
         return bos.toByteArray();
     }
 

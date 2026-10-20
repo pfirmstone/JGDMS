@@ -939,4 +939,17 @@ public final class DerFieldStore {
             throws DerException {
         return WireTypes.decodeScalarNoClassLoad(reader, wireType);
     }
+
+    /**
+     * Checks the next TLV of {@code reader} against {@code wireType} the way {@code decodeScalarElement} / the field decoder will,
+     * loading <b>no class</b>, and advances past it (B3: the bridge whole-stream admission uses to apply the decoder's own value
+     * rules to every scalar, {@code String}, {@code byte[]}, enum-name, {@code Class}-name and value-array it walks). Applies to
+     * the kinds {@code WireTypes.decode} handles; {@code @AtomicSerial}, {@code any} and collection tokens are not values of
+     * this kind and the caller walks them itself.
+     *
+     * @throws DerException if the encoding is malformed or out of range for {@code wireType}, or the wire type is unsupported
+     */
+    public static void validateValueClassFree(DerReader reader, String wireType) throws DerException {
+        WireTypes.validateClassFree(reader, wireType);
+    }
 }

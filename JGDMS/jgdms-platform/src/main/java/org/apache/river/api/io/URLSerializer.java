@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType=URL.class)
 @AtomicSerial
-class URLSerializer {
+class URLSerializer implements Resolve {
 
     private static final String URL_EXTERNAL_FORM = "urlExternalForm";
 
@@ -52,7 +52,15 @@ class URLSerializer {
     private final /*transient*/ URL url;
     
     URLSerializer(GetArg arg) throws IOException, ClassNotFoundException {
-	this(new URL(null, arg.get("urlExternalForm", null, String.class)));
+	this(parse(arg.get("urlExternalForm", null, String.class)));
+    }
+
+    /** The URL for an external form received in a stream; nothing is opened or resolved. */
+    private static URL parse(String externalForm) throws IOException {
+	if (externalForm == null) {
+	    throw new java.io.InvalidObjectException("null URL external form");
+	}
+	return new URL(null, externalForm);
     }
     
     URLSerializer(URL url){
@@ -84,9 +92,16 @@ class URLSerializer {
 	return hash;
     }
     
-    Object readResolve() throws ObjectStreamException, MalformedURLException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (url != null) return url;
-	return new URL(null, urlExternalForm);
+	try {
+	    return new URL(null, urlExternalForm);
+	} catch (MalformedURLException e) {
+	    java.io.InvalidObjectException ex = new java.io.InvalidObjectException("Failed to deserialize URL");
+	    ex.initCause(e);
+	    throw ex;
+	}
     }
 
 }

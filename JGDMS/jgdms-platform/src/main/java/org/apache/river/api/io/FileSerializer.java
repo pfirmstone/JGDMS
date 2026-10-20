@@ -33,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  */
 @Serializer(replaceObType = File.class)
 @AtomicSerial
-class FileSerializer {
+class FileSerializer implements Resolve {
 
     private static final String PATH = "path";
     
@@ -56,18 +56,30 @@ class FileSerializer {
 	path = file.toURI();
     }
     
-    public FileSerializer(URI uri){
+    public FileSerializer(URI uri) throws java.io.InvalidObjectException {
 	path = uri;
-	file = new File(uri);
+	file = toFile(uri);
+    }
+
+    /** A File for a file: URI received in a stream; nothing is opened. */
+    private static File toFile(URI uri) throws java.io.InvalidObjectException {
+	try {
+	    return new File(uri);
+	} catch (IllegalArgumentException | NullPointerException e) {
+	    java.io.InvalidObjectException ex = new java.io.InvalidObjectException("Not a file URI");
+	    ex.initCause(e);
+	    throw ex;
+	}
     }
     
     public FileSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get(PATH, null, URI.class));
     }
     
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (file != null) return file;
-	return new File(path);
+	return toFile(path);
     }
     
     @Override
