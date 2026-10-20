@@ -302,6 +302,108 @@ public class ConnectionManagerScalingTest {
         }
     }
 
+    // ------------------------------------------------------------- the reaper
+
+    /**
+     * The reaper's two passes over a manager (the Reaper thread calls
+     * checkIdle on each manager, then shuts down what it was given, without
+     * holding any lock). Returns the muxes to shut down.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static List<MuxClient> reapPasses(ConnectionManager cm) {
+        List idle = new ArrayList();
+        cm.checkIdle(1L, idle);                 // marks the idle muxes idle
+        Assert.assertTrue(idle.isEmpty());
+        cm.checkIdle(Long.MAX_VALUE / 2, idle); // long enough: they are idle
+        return (List<MuxClient>) idle;
+    }
+
+    /**
+     * Endpoint that, once armed, has the reaper take the idle connections out
+     * of the manager after it has been offered them and before it hands one
+     * back: the window in which a call has chosen a connection but not yet
+     * reserved it. The shutdown that follows in the reaper is done at once
+     * or, when {@code shutdownAtOnce} is false, by the test later (the
+     * reaper does it outside the lock, some time after taking the muxes out).
+     */
+    static final class ReapingEndpoint implements ConnectionEndpoint {
+        final LiveEndpoint live;
+        volatile ConnectionManager cm;
+        volatile boolean armed;
+        volatile boolean shutdownAtOnce = true;
+        volatile Connection chosen;
+        volatile List<MuxClient> reaped = new ArrayList<MuxClient>();
+
+        ReapingEndpoint(LiveEndpoint live) {
+            this.live = live;
+        }
+        public Connection connect(OutboundRequestHandle h) throws IOException {
+            return live.connect(h);
+        }
+        public Connection connect(OutboundRequestHandle h,
+                Collection active, Collection idle) {
+            Connection c = live.connect(h, active, idle);
+            if (armed && c != null) {
+                armed = false;
+                chosen = c;
+                reaped = reapPasses(cm);
+                Assert.assertEquals(1, reaped.size());
+                if (shutdownAtOnce) {
+                    shutdownReaped();
+                }
+            }
+            return c;
+        }
+        void shutdownReaped() {
+            for (MuxClient m : reaped) {
+                m.shutdown("idle");             // closes the connection
+            }
+        }
+    }
+
+    /**
+     * A connection the endpoint chose from the idle ones, which the reaper
+     * has taken out of the manager before the call has reserved it, is not
+     * used, whether the reaper has closed it yet or not: the call goes round
+     * again, and gets a working connection. (It used to wrap the connection
+     * in a new mux, whose first request then failed with "Connection closed"
+     * if the reaper had closed it, "channel already registered" or "server
+     * sent bad magic number" if it was still in use by the old mux.)
+     */
+    @Test(timeout = 120000)
+    public void testConnectionClosedByTheReaperAfterItWasChosenIsNotUsed()
+            throws Exception {
+        reapedAfterChosen(true);
+    }
+
+    @Test(timeout = 120000)
+    public void testConnectionTakenOutByTheReaperAfterItWasChosenIsNotUsed()
+            throws Exception {
+        reapedAfterChosen(false);
+    }
+
+    private void reapedAfterChosen(boolean shutdownAtOnce) throws Exception {
+        LiveEndpoint live = new LiveEndpoint();
+        toClose.add(live);
+        ReapingEndpoint ep = new ReapingEndpoint(live);
+        ep.shutdownAtOnce = shutdownAtOnce;
+        ConnectionManager cm = new ConnectionManager(ep);
+        ep.cm = cm;
+        OutboundRequest first = next(cm);       // opens the connection
+        first.abort();                          // and leaves it idle
+        Assert.assertEquals(1, live.opened.get());
+        Connection old = live.connections.get(0);
+
+        ep.armed = true;
+        OutboundRequest second = next(cm);      // must not use the reaped connection
+        Assert.assertSame("the endpoint chose the idle connection", old, ep.chosen);
+        Assert.assertEquals("a new connection was opened", 2, live.opened.get());
+        Assert.assertNotSame(old, live.connections.get(1));
+        second.getRequestOutputStream().write(1);
+        second.abort();
+        ep.shutdownReaped();                    // the reaper, a little later
+    }
+
     // ----------------------------------------------------------- concurrency
 
     /** An endpoint whose opens take a while, and which counts them. */
