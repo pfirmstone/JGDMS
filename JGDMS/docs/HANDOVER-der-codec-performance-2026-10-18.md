@@ -96,6 +96,7 @@ Docs: the rest (SOW creation, board folding, decisions).
 | a0d493143a7120bbe | Opus | ASN.1/DER + dedup | found F1 (non-canonical chain regression); UTF-8 canonical-form view |
 | acf480f8e90d2434d | Fable | adversarial security | verified fast path / ScopedValue sound; B6 critique; admission fail-closed trap |
 | a6e9cd1a17d235581 | Sonnet | transport / fidelity | dispatcher order, DGC-on-close, accept-set change, measurement honesty |
+| a7be4165110042fb3 | Fable | UDS bind fix review (2026-10-20) | confirmed the NOFOLLOW chmod premise; showed the bind-to-chmod window is connectable under umask 002/000 (led to the staging directory); symlink-swap chmod side effect; group-writable parent accepted; SecurityManager read-permission footprint (INFO). Probes: `probe/Probe.java`, `probe/window.py` in the 2026-10-20 session scratchpad. |
 
 ## 9. CURRENCY CHECK (handover-composition, mechanical)
 
