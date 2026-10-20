@@ -1041,3 +1041,28 @@ Channel I/O takes 28% off the single-caller latency (the hand-offs halve) and is
 | client | `Util$TableCache.getTable` (per-call method-hash cache), `WeakIdentityMap` (`checkProxyRemoteMethod`), `HashSet` | 2 500 | 630 ms | 1.0 us |
 
 At 343 us of wall time per call per caller these are 0.4% (mux lock, server), 0.4% (client), 2% (`ConnectionManager`) and 0.3%. TCP is the same shape (`StreamConnectionIO` writer lock waits 200 ms). So on 4 cores the mux lock does not limit throughput; per-call CPU (63 us against RMI's 36) does. The contended fraction grows with the number of cores, so the 32- and 80-core machines are where it would show: run the sweep with a recording and `python3 jfr-monitors.py` on the client and the server recordings.
+
+## Thirtieth section: running the request on the reader (spike), and the cost of opening a connection (container, 4 cores, JDK 27 `27-internal`; re-run on the workstation before quoting)
+
+**Spike: where should the handler run?** `InlineVirtualThreadSpike` and `InlineVirtualThreadHeadOfLineSpike` (run with `--add-opens java.base/java.lang=ALL-UNNAMED`). One platform reader thread blocked in a `Selector` over Unix sockets, one-byte request and reply. The handler runs (a) inline on the reader, (b) as a virtual thread on the default scheduler (what `MuxServer` does), (c) as a virtual thread built with `ThreadBuilders$VirtualThreadBuilder(Executor)` whose scheduler queues the continuation and the reader runs it itself.
+
+| | quick handler, round trip (1 client) | 4 clients, quick handler (calls/ms) | 4 clients, handler parks 500 us (calls/ms) |
+|---|---:|---:|---:|
+| inline on the reader | 32.7 us | 79.5 | 1.5 (the reader is blocked) |
+| virtual thread, default scheduler | 62.7 us | 40.5 | 4.0 |
+| virtual thread scheduled on the reader | 43.0 us | 62.5 | 3.5 |
+
+Scheduling the virtual thread on the reader recovers two thirds of the 30 us the default scheduler's hand-off costs (to 10 us over inline), is 54% faster than the default with four clients, and does not stall the reader when the handler blocks (3.5 against inline's 1.5 calls/ms; a slow handler is resumed by an enqueue and a selector wake-up, which is why it is 12% below the default there). It needs a package-private JDK constructor (`java.lang.ThreadBuilders$VirtualThreadBuilder(Executor)`), reachable here by reflection or by exposing it in the DirtyChai JDK.
+
+**Cost of opening a connection** (`ConnectionCost`; DER `ping`, server in its own JVM; first call on a connection the reaper has just closed against a warm call, 30 samples after 15 warm-up reconnects; `-Dorg.apache.river.jeri.connectionTimeout=30`):
+
+| transport | warm call | first call on a new connection | opening costs |
+|---|---:|---:|---:|
+| UDS | 118 us | 2.4 ms | 2.3 ms (about 20 calls) |
+| TCP, stream | 127 us | 2.3 ms | 2.2 ms |
+| TCP, channel I/O | 116 us | 2.4 ms | 2.3 ms |
+| TLS (mutual, TLS 1.3, ECDSA P-256) | 275 us | 12.3 ms | 12 ms (about 45 calls) |
+
+Resources per connection (64 callers with the scratch `K=1` property forcing a connection each; client JVM; the callers' own threads are counted in the thread deltas): UDS and channel-I/O TCP add no thread (the shared selection thread serves them); stream TCP and TLS add two platform threads (mux reader and writer) per connection; heap grows about 0.2 MB per UDS or TCP connection and about 0.6 MB per TLS connection (SSLEngine buffers and session), and resident memory by roughly 0.8 MB (UDS), 1.1 MB (TCP stream) and 1.9 MB (TLS) per connection including stacks. One file descriptor per connection on each side.
+
+Consequences: striping must open connections lazily and keep them (a connection is worth 20 to 45 calls, so a pool that opens and closes is a loss, which is what the TLS striping result showed). The cold burst is the same cost paid N times: when N callers find no connection they each open one (16 callers on TLS spend 16 x 12 ms of CPU and handshakes), where one caller opening and the rest waiting would pay once.
