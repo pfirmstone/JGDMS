@@ -28,6 +28,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
@@ -119,6 +123,51 @@ final class Session {
     private final Collection<AcknowledgmentSource.Listener> ackListeners;
     private boolean sentAckRequired;
     private boolean receivedAcknowledgment;
+    /** whether the listeners have been told the outcome; they are told once */
+    private boolean ackNotified;
+    /** pending timeout for the acknowledgment, or null */
+    private ScheduledFuture<?> ackTimeoutTask;
+
+    /**
+     * How long a server session waits for the acknowledgment it asked for
+     * before telling its listeners that none will come, in milliseconds;
+     * zero or negative disables the timeout.  The default is that of the
+     * Java RMI distributed garbage collector (15 minutes).
+     */
+    static volatile long ackTimeoutMs = ackTimeoutMillis();
+
+    private static long ackTimeoutMillis() {
+        try {
+            return AccessController.doPrivileged(new PrivilegedAction<Long>() {
+                @Override
+                public Long run() {
+                    return Long.getLong(
+                        "org.apache.river.jeri.mux.ackTimeout", 900000L);
+                }
+            });
+        } catch (SecurityException e) {
+            return 900000L;
+        }
+    }
+
+    /** Fires acknowledgment timeouts; the listeners run on the system pool. */
+    private static final class AckTimer {
+        static final ScheduledThreadPoolExecutor TIMER = create();
+
+        private static ScheduledThreadPoolExecutor create() {
+            ScheduledThreadPoolExecutor t = new ScheduledThreadPoolExecutor(1,
+                new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread th = new Thread(r, "Mux ack timeout");
+                        th.setDaemon(true);
+                        return th;
+                    }
+                });
+            t.setRemoveOnCancelPolicy(true);
+            return t;
+        }
+    }
 
     /**
      *
@@ -300,6 +349,22 @@ final class Session {
                 out.down(ex);
                 in.down(ex);
 		sessionLock.notifyAll();
+	    }
+	}
+    }
+
+    /**
+     * Called when the whole connection is down.  Unlike {@link #setDown}
+     * alone (which a server also reaches by its defensive abort after the
+     * response, while the acknowledgment is still to come), no acknowledgment
+     * can arrive any more, so the listeners, who may hold resources until
+     * they hear, are told.
+     */
+    void connectionDown(String message, Throwable cause) {
+	synchronized (sessionLock) {
+	    setDown(message, cause);
+	    if (sentAckRequired && !receivedAcknowledgment) {
+		notifyAcknowledgmentListeners(false);
 	    }
 	}
     }
@@ -535,9 +600,11 @@ final class Session {
 	    }
 
 	    setInState(TERMINATED);
-	    // REMIND: process dangling acknowledgments here?
-
 	    setDown("old request", null);	// extraneous?
+	    if (sentAckRequired && !receivedAcknowledgment) {
+		// the client began a new request without acknowledging
+		notifyAcknowledgmentListeners(false);
+	    }
 	    sessionLock.notifyAll();
 
 	    mux.removeSession(sessionID);
@@ -568,6 +635,15 @@ final class Session {
     }
 
     private void notifyAcknowledgmentListeners(final boolean received) {
+        assert Thread.holdsLock(sessionLock);
+        if (ackNotified) {
+            return;
+        }
+        ackNotified = true;
+        if (ackTimeoutTask != null) {
+            ackTimeoutTask.cancel(false);
+            ackTimeoutTask = null;
+        }
 	if (!ackListeners.isEmpty()) {
 	    systemThreadPool.execute(
                     new NotifyAcknowledgementListeners(ackListeners, received),
@@ -649,6 +725,20 @@ final class Session {
     void setSentAckRequired(boolean sentAckRequired) {
         assert Thread.holdsLock(sessionLock);
         this.sentAckRequired = sentAckRequired;
+        if (sentAckRequired && !ackNotified && ackTimeoutTask == null
+            && ackTimeoutMs > 0)
+        {
+            ackTimeoutTask = AckTimer.TIMER.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (sessionLock) {
+                        if (!receivedAcknowledgment) {
+                            notifyAcknowledgmentListeners(false);
+                        }
+                    }
+                }
+            }, ackTimeoutMs, TimeUnit.MILLISECONDS);
+        }
     }
 
     /**

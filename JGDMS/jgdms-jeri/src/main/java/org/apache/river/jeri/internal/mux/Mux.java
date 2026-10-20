@@ -110,7 +110,7 @@ abstract class Mux {
 	public void run() {
 	    for (int i = 0, l = sessions.length; i < l; i++) {
 		if (sessions[i] != null)
-		sessions[i].setDown(message, cause);
+		sessions[i].connectionDown(message, cause);
 	    }
 	}
     }
@@ -342,6 +342,18 @@ abstract class Mux {
 	    busySessions.clear(sessionID);
 	    sessions[sessionID] = null;
 	}
+	handleSessionRemoved();
+    }
+
+    /**
+     * Handles indication that a session has been removed from the session
+     * table, so that there is room for one more.
+     *
+     * This method is invoked after muxLock has been released, by the thread
+     * that ended the session, which may hold other locks; implementations
+     * must not block and must not acquire locks. The default does nothing.
+     */
+    protected void handleSessionRemoved() {
     }
 
     /**

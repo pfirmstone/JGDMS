@@ -868,3 +868,483 @@ A JERI call crosses about 8 thread wake-ups (mux writer 2, mux reader 2, the vir
 | `batch100` JERI JOSS, UDS | 0.61 | 1.50 | 2.13 |
 
 What it shows: UDS is 10% faster than TCP loopback for one caller and 28% to 55% for 4 to 16 callers (`ping`), but the shape is the same as on TCP: 4.5 times at 16 callers, far from linear on 4 cores, so the mux (8 voluntary context switches per call, twenty-first section) rather than the socket is what limits it. DER is 3.2 times JOSS on `ping` and 3.2 times on `record` at one caller, and 1.0 to 1.2 times on `batch100`, as on TCP. Single run, one machine type, 4 cores shared with the load generator: do not quote the absolute numbers. Remaining stage 0 work: the single-caller profile on UDS and TLS, per-thread CPU at the knee on the workstation, the connection-threshold experiment, connection counts, `VirtualThreadPinned`.
+
+## Twenty-third section: stage 0 completed, per-thread CPU, the connection-threshold experiment, pinning (container, 4 cores, JDK 27; re-run on the workstation before quoting)
+
+New tool: `ThreadProfile` (Linux only, reads `/proc/self/task`): per-thread CPU time from `schedstat`, voluntary and involuntary context switches, and socket descriptors, per call, for N callers on one proxy, client and server in one JVM. `java -cp target/serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ThreadProfile DER UDS ping 16 8` (stack, transport, payload, callers, seconds). Warm-up 5 s, then the measured window.
+
+**One caller, `ping`, per call:**
+
+| | wall us | CPU us (all threads) | voluntary switches | threads that run |
+|---|---:|---:|---:|---|
+| JERI DER, UDS | 114 | 129 | 5.5 | caller 24, virtual-thread carriers 74, `MasterPoller` 24 |
+| JERI DER, TCP | 146 | 195 | 8.2 | caller 22, carriers 43, unblocker 16, mux reader 49, mux writer 61 |
+| JERI DER, TLS | 199 | 260 | 8.3 | caller 41, carriers 67, unblocker 16, mux reader 56, mux writer 66 |
+| RMI over TLS | 64 | 66 | 2.0 | caller 32, server handler 32 |
+
+**The channel path is already the shape the plan wants.** UDS connections are `SocketChannel`s, so they use `SocketChannelConnectionIO` (the caller writes with `writev`, one shared poller thread, no per-connection writer or reader thread). TCP and TLS use blocking streams, so each connection has a mux writer and a mux reader thread: 2.7 more hand-offs and 65 us more CPU per call. A JERI call on UDS is 114 us against 146 on TCP, though the kernel path also differs. JERI still spends twice RMI's CPU per call on its best transport.
+
+**Sixteen callers, `ping`, 4 cores (CPU use = calls per second x CPU per call / 4 cores):**
+
+| | calls/ms | CPU us/call | cores busy |
+|---|---:|---:|---:|
+| JERI DER, UDS | 37.6 | 65 | 2.4 of 4 (61%) |
+| JERI DER, TCP | 27.1 | 104 | 2.8 (70%) |
+| JERI DER, TLS | 19.2 | 129 | 2.5 (62%) |
+| RMI over TLS | 102.6 | 36 | 3.7 (93%) |
+
+RMI uses the machine; JERI leaves 30 to 40% of it idle. Under load the context switches per call fall (UDS 1.8, TCP 4.1, TLS 3.8), so the hand-off count is not what stops it; a serialization point on the one connection is. The ceiling in the 6-core sweep is therefore not CPU saturation of the mux writer thread (the earlier reading, withdrawn in the twentieth section), it is waiting.
+
+**Connection-threshold experiment (E3).** A scratch patch (not committed) made the in-flight count at which `ConnectionManager.connect` stops offering a connection for reuse a property `K` (default 256, `OutboundMux.MAX_REQUESTS`); a smaller `K` makes the endpoint open another connection once every connection has `K` requests in flight. DER `ping`, 16 callers, calls/ms, 2 to 3 runs each:
+
+| transport | K=256 (today) | K=8 | K=4 | K=2 | K=1 |
+|---|---:|---:|---:|---:|---:|
+| TCP | 30.2, 28.9, 27.1 | 42.9 | 41.1, 44.9 | 44.1 | 41.9 |
+| UDS | 35.7, 38.4, 40.9, 41.1 | 41.5, 46.2, 46.9 | | 42.6 | 33.5 |
+| TLS | 19.1, 20.8, 19.2 | 23.3, 22.7, 21.3 | 21.2, 18.9 | 15.0 | 18.1 |
+
+The result is positive and the size depends on the I/O model: TCP (stream I/O, a writer and a reader thread per connection) gains about 50%, UDS (channel I/O) about 16%, TLS about 14% and noisy. Two to four connections capture all of the TCP gain; more does not help. Single runs per cell with a 10% spread, one 4-core machine: the 32- and 80-core machines decide the size. The decision gate for stage 3 is met for TCP and UDS, marginally for TLS (consistent with the plan of a pool of one for TLS until measured with real handshakes: here the burst of 16 simultaneous first calls already opened 16 connections whatever `K` was, so the cost of a handshake is not isolated by this experiment).
+
+**Connection counts.** With 16 callers starting together the manager opens 16 connections in the burst (34 socket descriptors in the process, client and server ends) at every `K`; with `K=256` only the most recently opened one carries the calls and the others idle until the reaper closes them. The burst is a cost of the current code (16 handshakes on TLS) that a `connect` serialised per endpoint would avoid.
+
+**Virtual-thread pinning (JDK 27, `jdk.VirtualThreadPinned` threshold 0).** TCP and UDS: 61 and 60 events, all in the first 50 to 110 ms (class loading in `ZipFile` under a contended monitor, and one wait for the class initialiser of `Mux`); none in steady state. TLS: none. JDK 24 and later no longer pin on `synchronized`, so this does not say how the same code behaves on JDK 21; the modules here need 25 or later to build, so it was not tested.
+
+**What this changes in the plan (design section 9).** Stage 1 (one write per frame in `StreamConnectionIO.Writer`) and stage 4 stand, but the target is clearer: remove the writer thread from the stream path, as the channel path already does, while keeping an owned writer where an interrupt would close the socket. Stage 3 (striping inside `ConnectionManager`, endpoint-approved candidates) is justified by E3 for TCP and UDS, with a small bound (2 to 4) and a pool of one for TLS until a handshake-aware run says otherwise. Not yet measured: the same experiment on the 6-, 32- and 80-core machines.
+
+### Twenty-third section, correction: server in its own JVM (the Fable review's first point)
+
+`ThreadProfile` now takes `-Dthreadprofile.server=<ServerMain directory> -Dthreadprofile.serverpid=<pid>` and reports the client and the server JVM separately. In the in-process runs above the UDS client and server shared one `MasterPoller`, so the UDS row understated the cost. Separate JVMs, `ping`, container (4 cores), per call:
+
+| | wall us | CPU us, client + server | voluntary switches, client + server |
+|---|---:|---:|---:|
+| JERI DER, UDS, 1 caller | 124 | 71 + 66 = 137 | 3.0 + 3.0 = 6.1 |
+| JERI DER, TCP, 1 caller | 123 | 64 + 103 = 167 | 3.1 + 5.1 = 8.1 |
+| JERI DER, TLS, 1 caller | 209 | 132 + 109 = 241 | 3.2 + 5.1 = 8.3 |
+| RMI over TLS, 1 caller | 56 | 29 + 29 = 58 | 1.0 + 1.0 = 2.0 |
+| JERI DER, UDS, 16 callers | 537 (29.8 calls/ms) | 48 + 39 = 87 | 1.7 + 1.4 = 3.1 |
+| JERI DER, TCP, 16 callers | 595 (26.9) | 48 + 56 = 104 | 1.9 + 2.4 = 4.3 |
+| JERI DER, TLS, 16 callers | 749 (21.4) | 64 + 73 = 137 | 1.7 + 2.1 = 3.9 |
+| RMI over TLS, 16 callers | 147 (108.7) | 18 + 18 = 35 | 0.9 + 0.9 = 1.9 |
+
+What stands and what does not:
+* **Withdrawn:** "a JERI call on UDS is 114 us against 146 on TCP". With the server in its own JVM, one caller takes 124 us on UDS and 123 us on TCP. The stream transport's writer and reader threads still cost two more hand-offs and about 30 us more CPU per call, but at one caller they do not add wall time here.
+* **Stands:** JERI over TLS spends 4 times RMI's CPU and 3.7 times its wall time for one caller; at 16 callers JERI DER uses 65% (UDS), 70% (TCP) and 73% (TLS) of the four cores, RMI over TLS 95%. JERI is waiting, not out of CPU.
+* **Open:** whether the wait is one connection or the single `SelectionManager` poller (UDS), which the plan's two-poller experiment (stage 1b) is to separate.
+
+## Twenty-fourth section: stage 1, one write per message on the stream path (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+`StreamConnectionIO.Writer` wrote every queued buffer on its own: a data message is a 4-byte header buffer and a payload buffer, so each message cost two writes to the connection's output stream, and on a TLS connection two TLS records (each with its own header, authentication tag and encryption call) and two system calls. The writer now gathers the buffers up to the next completion marker (at most one maximal message, 65 539 bytes) and writes them once; the reader's `read` no longer loops on `available()` (one blocking read; on TCP the loop cost a system call per read, on TLS a buffer inspection). UDS uses the channel path and is unchanged.
+
+`ThreadProfile`, DER `ping`, 16 callers, calls/ms, alternating runs of the previous and the new jar:
+
+| transport | before | writer gathers only | writer gathers and reader loop removed |
+|---|---|---|---|
+| TCP | 30.5, 28.5, 27.0, 26.6 | 44.1, 39.9 | 47.9, 42.7, 43.2, 42.0 |
+| TLS | 21.7, 23.0, 20.8, 19.1 | 26.4, 27.3 | 32.1, 26.2, 30.3, 32.6 |
+
+CPU per call at 16 callers falls from about 100 to about 68 us (TCP) and from 105 to 84 us (TLS); voluntary context switches from 4.0 to 3.1. One caller is within the noise of this container (TLS `ping` 185 to 208 us before, 178 to 259 after; TCP 127 before, 121 to 126 after; the machine was noisy: one `record` run took 630 us). So the gain is in throughput under concurrency, about 55% for TCP and 35% for TLS, and it is larger than the connection-threshold experiment's (about 50% for TCP, 14% for TLS), which should be re-measured on top of this change before stage 3 is judged.
+
+Tests: `MuxWriteCoalescingTest` (a small request is one write; order is kept across message sizes up to 200 000 bytes and concurrent callers); the unmodified writer fails it with 100 writes for 50 requests. Mutants: not writing the gathered bytes before completing a future (hangs), not resetting the gathered length (fails) are killed; an early flush at the exact boundary and the defensive direct write of a buffer larger than any message are unobservable through the mux.
+
+## Twenty-fifth section: the poller experiment (stage 1b) and the connection-threshold experiment repeated on stage 1 (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+**Stage 1b, more `SelectionManager` threads for UDS (negative).** A scratch patch (not committed) made the `SelectionManager` `concurrency` a property. DER `ping` over UDS, calls/ms, two runs each:
+
+| concurrency | 1 caller, wall us | CPU us, both JVMs | voluntary switches | 16 callers |
+|---|---:|---:|---:|---:|
+| 1 (today) | 128, 124 | 144, 138 | 6.1 | 33.8, 36.2 |
+| 2 | 145, 146 | 211, 210 | 10.6 | 31.2, 30.1 |
+| 4 | 149, 156 | 219, 232 | 10.6 | 31.2, 31.3 |
+
+More poller threads make it worse (the extra thread only takes over the handler call-backs, a hand-off per message), so the single poller is not what limits UDS at 16 callers on 4 cores. `concurrency` stays 1.
+
+**What does differ: after stage 1 the stream path beats the channel path under concurrency.** DER `ping`, 16 callers, TCP 41 to 53 calls/ms against UDS 35 to 38 (UDS at one caller equals TCP, 121 to 126 us). The owned writer thread drains whatever the 16 callers queued and writes it at once; the channel path writes message by message under the mux lock. Batching, not the thread count, is what the stream path has. Not investigated further.
+
+**Connection-threshold experiment repeated on top of stage 1** (scratch property `K`, DER `ping`, 16 callers, calls/ms, 2 runs):
+
+| transport | K=256 (today) | K=8 | K=4 | K=2 |
+|---|---|---|---|---|
+| TCP | 41.3, 47.0 | 49.1, 46.2 | 51.3, 52.6 | 48.1, 45.1 |
+| UDS | 37.3, 34.6 | 38.0, 38.4 | 44.5, 40.0 | 43.7, 43.9 |
+| TLS | 29.8, 31.4 | 29.4, 29.4 | 24.2, 25.8 | 18.9, 19.7 |
+
+Most of the TCP gain of the first experiment (+50%) was the two writes per message that stage 1 removed; what is left is +10 to 17% for TCP at K=4, +20% for UDS at K=2 to 4, and a loss for TLS that grows as K falls (-17% at K=4, -35% at K=2: more connections mean more TLS records and handshake state for no gain). So striping is justified for UDS at most, and TLS stays at a pool of one. TCP is a test transport.
+
+## Twenty-sixth section: batching on the channel path (UDS) (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+`SocketChannelConnectionIO` wrote each message from the calling thread with `writev`, one system call per message, while holding the mux lock that the reader and every other caller also need. It now has one drainer at a time (`writing`, guarded by the lock): a caller queues its buffers and, if nobody is draining, becomes the drainer and writes outside the lock, up to 16 buffers per `writev`, taking whatever the other callers queued meanwhile; a write that meets a full socket buffer, or eight rounds, is handed to the selection thread (`awaitingWriteReady`), as before. UDS only; TCP and TLS use the stream path.
+
+DER `ping` over UDS, calls/ms, alternating runs of the previous jar and the new one:
+
+| callers | before | after |
+|---|---|---|
+| 16 | 32.3, 31.6, 33.7, 34.6, 32.2, 34.2 | 45.0, 34.3, 45.4, 41.5, 46.0, 45.3 |
+| 1 (wall us per call) | 132, 133, 123, 126, 129, 131 | 139, 143, 136, 141, 136, 130 |
+
+About +30% at 16 callers (CPU per call 80 to 64 us, voluntary switches 2.7 to 2.2) and about 5% slower for one caller (the drain adds a lock round trip and a queue pass; not removed). `record` at 16 callers moved from 26 to 29 (noisy). This brings UDS level with the stream path after stage 1 (TCP 41 to 53).
+
+Tests: `MuxChannelBatchingTest` (4; they pass on the old code too, so they pin behaviour, not the change): sizes up to 2 MB in order, 24 threads sharing one connection, 8 threads of 100 to 300 KB with 4 KiB socket buffers (writes handed to the selection thread), and calls over a connection that is lost (6 x 3 MB) fail rather than hang. Mutants killed: no OP_WRITE interest on hand-over (hangs), callers ignoring `writing` (corrupts), futures never completed (hangs), futures not failed on a write error. Not killed: failing the pending futures when the drainer finds the mux down (defensive).
+
+Test note: small socket buffers on loopback TCP stall the sender for tens of seconds (the receive window never reaches one segment, MSS 65 483), which looked like a mux deadlock for an hour; the tests use Unix domain sockets.
+
+## Twenty-seventh section: where a call's CPU goes, by sampling and by system call (container, 4 cores, JDK 27, server in its own JVM, one caller; re-run on the workstation before quoting)
+
+**Sampling the Java frames (JFR, 1 ms, UDS DER `ping`).** On the server's request-dispatch thread the Java-level samples add up to about 3 to 4 us per call (281 samples over a 13 s run of about 80 000 calls). Of those, building the DER input stream is 20%, the `BasicInvocationDispatcher` client-subject lookup 4%, stack-trace creation about 1%, `StreamSchemaDedup` 4%; `ServerContext.doWithServerContext` and `Subject.callAs` show high inclusive shares only because they wrap the whole dispatch. On the client the poller's samples sit in one line of `Mux.handleData` (the call into `Session.handleData`, which wakes the waiting caller). So the Java code on the call path (codec, remote context, security context, stack traces, constraints) costs a few microseconds of the 60 to 90 us of CPU each JVM spends per call. The rest is in the kernel and the scheduler.
+
+**Counting system calls (`strace -c -f`, 5 s, per call, per JVM):**
+
+| | futex | epoll_wait | epoll_ctl | read | write |
+|---|---:|---:|---:|---:|---:|
+| JERI DER, UDS, client | 6.1 | 3.0 | 1.0 | 1.0 | 1.0 (writev) |
+| JERI DER, UDS, server | 6.1 | 3.0 | 1.0 | 1.0 | 1.0 (writev) |
+| JERI DER, TCP, client | 6.1 | | | 1.0 | 1.0 |
+| JERI DER, TCP, server | 13.3 | | | 1.0 | 1.0 |
+| RMI, plain TCP, client and server | about 0.03 | | | 1 | 1 (and a rare poll) |
+
+An RMI call is one write and one read per side and almost no futex: each thread blocks in its own socket and the kernel wakes it. A JERI call on UDS makes 12 system calls per side, 6 of them futex (cross-thread parking and waking) and 3 `epoll_wait` plus an `epoll_ctl` for each readiness event. On TCP the server makes 13 futex calls per call. The three `epoll_wait`s are the JDK's machinery for a virtual thread waiting in `Selector.select()` (the master poller wakes the virtual thread, whose carrier then polls the selector again and re-arms it): the `SelectionManager` loop runs on a virtual thread.
+
+Conclusion for the design: the cost of a JERI call is its thread hand-offs and the selector machinery, not the codec or the context handling.
+
+## Twenty-eighth section: the selection loop on a platform thread; platform or virtual threads for the pool (container, 4 cores, server in its own JVM; re-run on the workstation before quoting)
+
+Commit 1821b2f25 (2026-05-12, "migrate all executors to virtual threads") replaced the system pool's `Executors.newCachedThreadPool` of platform daemon threads (stack size hint 228) with a virtual thread per task. That put `SelectionManager`'s select loop on a virtual thread, and a virtual thread in `Selector.select()` is woken through the JDK's poller (the 3 `epoll_wait`s and 6 futex calls per call per JVM of the twenty-seventh section). Three arrangements, DER `ping`, two or three alternating runs each:
+
+| | UDS, 1 caller (wall us, switches) | UDS, 16 callers (calls/ms) | TCP, 1 caller (wall us) | TCP, 16 callers | TLS, 1 / 16 callers |
+|---|---|---|---|---|---|
+| all virtual (before) | 134, 132 (6.1) | 37.5, 40.3 | 157, 145 | 40.6, 40.2 | 208, 229 / 24.8, 24.0 |
+| all platform (cached pool) | 92, 91 (4.0) | 36.6, 35.0 | 136, 126 | 28.5, 31.6 | 232, 205 / 21.3, 21.8 |
+| select loop on a platform thread, rest virtual (now) | 90, 95, 88 (4.1) | 45.5, 56.7, 50.7 | unchanged | unchanged | unchanged |
+
+The platform pool halves the UDS single-caller gap but costs 10 to 28% of the TCP and TLS throughput at 16 callers (more runnable threads than cores). Only the select loop needs to be a platform thread: it lives as long as the manager and blocks in `select()`. Done in `SelectionManager`; the pool stays virtual by default, and `-Dorg.apache.river.thread.platform=true` restores the platform-thread cached pool of before 1821b2f25 (keeping the later subject-clearing: the factory creates each thread with no ambient subject).
+
+UDS DER `ping` now: one caller 90 us (was 132), 4.1 voluntary switches across both JVMs (was 6.1), CPU 79 to 99 us per call (was 150); 16 callers 45 to 57 calls/ms (was 33 to 40). For reference RMI over plain TCP is 53 to 80 us for one caller and about 121 calls/ms at 16.
+
+## Twenty-ninth section: channel I/O for TCP, and how contended the mux lock is (container, 4 cores, server in its own JVM; re-run on the 32- and 80-core machines before deciding anything)
+
+**TCP on `SocketChannel` (`-Dorg.apache.river.jeri.tcp.useNIO=true`, an existing switch, default off), DER `ping`/`record`, three alternating runs each:**
+
+| | stream (default) | channel I/O |
+|---|---|---|
+| `ping`, 1 caller, wall us (voluntary switches) | 145, 129, 130 (8.1) | 98, 91, 107 (4.1) |
+| `ping`, 16 callers, calls/ms | 42.2, 44.1, 41.3 | 37.4, 40.6, 38.1 |
+| `record`, 16 callers, calls/ms | 30.5, 27.7, 29.2 | 22.9, 28.5, 29.2 |
+
+Channel I/O takes 28% off the single-caller latency (the hand-offs halve) and is about 8% lower at 16 callers on 4 cores. TLS has no channel path: `SslConnection.getChannel()` is deliberately null because the raw channel carries ciphertext; it would need an `SSLEngine`-driven non-blocking `ConnectionIO`.
+
+**Contended monitors at 16 callers (`jdk.JavaMonitorEnter`, threshold 0; `jfr-monitors.py`).** Only entries that had to wait are recorded. UDS DER `ping`, 46.7 calls/ms for about 13 s (about 600 000 calls):
+
+| JVM | monitor | blocked entries | total blocked | per call |
+|---|---|---:|---:|---:|
+| server | mux lock (`Object`: `MuxServer.handleOpen`, `Session.handleOpen`, `getSession`) | 10 732 | 1 465 ms | 2.4 us |
+| client | mux lock (`Session.handleData`, `getSession`) | 4 586 | 803 ms | 1.3 us |
+| client | `ConnectionManager` (`connect`: `pendingConnects++`, the mux scan) | 19 976 | 4 312 ms | 7.2 us |
+| client | `Util$TableCache.getTable` (per-call method-hash cache), `WeakIdentityMap` (`checkProxyRemoteMethod`), `HashSet` | 2 500 | 630 ms | 1.0 us |
+
+At 343 us of wall time per call per caller these are 0.4% (mux lock, server), 0.4% (client), 2% (`ConnectionManager`) and 0.3%. TCP is the same shape (`StreamConnectionIO` writer lock waits 200 ms). So on 4 cores the mux lock does not limit throughput; per-call CPU (63 us against RMI's 36) does. The contended fraction grows with the number of cores, so the 32- and 80-core machines are where it would show: run the sweep with a recording and `python3 jfr-monitors.py` on the client and the server recordings.
+
+## Thirtieth section: running the request on the reader (spike), and the cost of opening a connection (container, 4 cores, JDK 27 `27-internal`; re-run on the workstation before quoting)
+
+**Spike: where should the handler run?** `InlineVirtualThreadSpike` and `InlineVirtualThreadHeadOfLineSpike` (run with `--add-opens java.base/java.lang=ALL-UNNAMED`). One platform reader thread blocked in a `Selector` over Unix sockets, one-byte request and reply. The handler runs (a) inline on the reader, (b) as a virtual thread on the default scheduler (what `MuxServer` does), (c) as a virtual thread built with `ThreadBuilders$VirtualThreadBuilder(Executor)` whose scheduler queues the continuation and the reader runs it itself.
+
+| | quick handler, round trip (1 client) | 4 clients, quick handler (calls/ms) | 4 clients, handler parks 500 us (calls/ms) |
+|---|---:|---:|---:|
+| inline on the reader | 32.7 us | 79.5 | 1.5 (the reader is blocked) |
+| virtual thread, default scheduler | 62.7 us | 40.5 | 4.0 |
+| virtual thread scheduled on the reader | 43.0 us | 62.5 | 3.5 |
+
+Scheduling the virtual thread on the reader recovers two thirds of the 30 us the default scheduler's hand-off costs (to 10 us over inline), is 54% faster than the default with four clients, and does not stall the reader when the handler blocks (3.5 against inline's 1.5 calls/ms; a slow handler is resumed by an enqueue and a selector wake-up, which is why it is 12% below the default there). It needs a package-private JDK constructor (`java.lang.ThreadBuilders$VirtualThreadBuilder(Executor)`), reachable here by reflection or by exposing it in the DirtyChai JDK.
+
+**Cost of opening a connection** (`ConnectionCost`; DER `ping`, server in its own JVM; first call on a connection the reaper has just closed against a warm call, 30 samples after 15 warm-up reconnects; `-Dorg.apache.river.jeri.connectionTimeout=30`):
+
+| transport | warm call | first call on a new connection | opening costs |
+|---|---:|---:|---:|
+| UDS | 118 us | 2.4 ms | 2.3 ms (about 20 calls) |
+| TCP, stream | 127 us | 2.3 ms | 2.2 ms |
+| TCP, channel I/O | 116 us | 2.4 ms | 2.3 ms |
+| TLS (mutual, TLS 1.3, ECDSA P-256) | 275 us | 12.3 ms | 12 ms (about 45 calls) |
+
+Resources per connection (64 callers with the scratch `K=1` property forcing a connection each; client JVM; the callers' own threads are counted in the thread deltas): UDS and channel-I/O TCP add no thread (the shared selection thread serves them); stream TCP and TLS add two platform threads (mux reader and writer) per connection; heap grows about 0.2 MB per UDS or TCP connection and about 0.6 MB per TLS connection (SSLEngine buffers and session), and resident memory by roughly 0.8 MB (UDS), 1.1 MB (TCP stream) and 1.9 MB (TLS) per connection including stacks. One file descriptor per connection on each side.
+
+Consequences: striping must open connections lazily and keep them (a connection is worth 20 to 45 calls, so a pool that opens and closes is a loss, which is what the TLS striping result showed). The cold burst is the same cost paid N times: when N callers find no connection they each open one (16 callers on TLS spend 16 x 12 ms of CPU and handshakes), where one caller opening and the rest waiting would pay once.
+
+## Thirty-first section: latency and high-concurrency tooling, `ConcurrencyCurve` and `concurrency-curve.py` (tooling only; the table is a smoke run, 4-core container, not for quoting)
+
+The target of the JERI transport is low latency and high scalability, and the earlier sweeps report throughput and medians for 1 to 16 callers on 4 cores, which is RMI's best case. This tool measures what they do not: the latency distribution under load, thousands of callers (platform and virtual threads), and what each run costs in threads, sockets, memory and CPU.
+
+**The tool.** `ConcurrencyCurve` (with `LatencyHistogram`, a log-bucketed histogram of 3 significant digits from 100 ns to 100 s, no dependency) runs one point: N callers on one proxy or stub against a server in its own JVM (`ServerMain`, as `ThreadProfile` does), warm-up, then a measured window. It records the latency of every call that completes in the window with `System.nanoTime`, one histogram per caller up to 64 callers and 64 shared histograms (atomic increments) above that, so memory does not grow with the caller count and does not distort the RSS figures. It prints calls/ms, p50, p90, p99, p99.9, max, the threads, socket descriptors, peak resident memory (VmRSS) and CPU per call of the client and of the server JVM (`/proc`, so Linux only; on other systems those fields are `n/a`, and CPU falls back to `ProcessHandle`), and one `curve-json:` line for the driver. Callers are `Thread.ofPlatform()` or `Thread.ofVirtual()`; if the platform threads cannot all be created (`OutOfMemoryError: unable to create native thread`) the run goes on with the callers that started and says so (`callers_started`). A call that throws is counted (`errors`, `first_error`) and does not stop the run.
+
+`concurrency-curve.py` runs the sweep: a fresh server JVM and a fresh client JVM per point (so the server's threads and memory belong to that point; `--shared-server` reuses one), a timeout per point (a failed or timed-out point is recorded and the sweep goes on), `results.jsonl`, `summary.txt` and `environment.txt` in the output directory. Combinations that do not exist are skipped (RMI has no UDS; RMI's plain variant is `PLAIN`, and `TCP` is accepted for it).
+
+```
+python3 concurrency-curve.py --out curve-80core                       # DER,JOSS,RMI x TCP,UDS,TLS x platform,virtual x 1,8,64,512,4096
+python3 concurrency-curve.py --out curve-x --stacks DER,RMI --transports UDS,TCP --callers 1,8,64,512 --kinds platform,virtual --warmup 3 --measure 4
+python3 concurrency-curve.py --out curve-x --rate 20000 --callers 64,512     # open loop
+java -Dthreadprofile.server=<ServerMain dir> [-Dthreadprofile.serverpid=<pid>] [-Dbench.tls.dir=<dir>] -cp target/serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ConcurrencyCurve stack=DER transport=UDS payload=ping callers=64 kind=virtual warmup=5 measure=8   # one point by hand
+```
+
+On Windows use `py concurrency-curve.py --out curve-6core ...` (or `python`), with `JAVA_HOME` set or `java` on the path; the driver uses argument lists only. `--jvm-args '-Xmx8g -Djdk.virtualThreadScheduler.parallelism=N'` goes to both JVMs. Defaults are warm-up 5 s and measure 8 s per point; with 3 stacks, 3 transports (8 combinations), 2 kinds and 5 caller counts that is 80 points of about 25 s, so plan half an hour, and use `--kinds`, `--stacks` or `--transports` to cut it.
+
+**What it measures, and the caveats.**
+- The default is a **closed loop**: each caller calls again when the last call returns, so the offered load falls as the system slows down. When the system saturates, the percentiles understate what an independent arrival stream would see (coordinated omission); read them as "latency while N callers are in flight". With `rate=R` (`--rate R`) the run is an **open loop**: each caller has its own arrival schedule (one call every N/R seconds, staggered), the latency of a call runs from its intended start to its completion, so a late caller charges its delay to the calls behind it. N bounds the concurrency, a caller more than 10 s late is abandoned and its arrivals counted as `missed`, and `parkNanos` slop (50 us or more) is included in the latency of calls that waited. Only the closed loop has been smoke-tested more than briefly; the open loop was run at 5 000 calls/s (all arrivals completed) and at an overload (200 000 calls/s, where it reported latencies of seconds and the missed arrivals, as it should).
+- The calls/ms and the percentiles are over the window the callers used (`measure_s`), whatever moment the sampling thread got to run. Threads, sockets and RSS are the largest of three samples taken inside the window. CPU per call is the CPU time of all threads (`schedstat`) between two snapshots divided by the calls completed between them.
+- At thousands of platform-thread callers the machine is oversubscribed by construction (and the sampling thread competes with them); virtual-thread callers are the realistic model of a many-client server but share the JDK scheduler (parallelism = cores) with JERI's own virtual threads. Limits such as `ulimit -n`, `ulimit -u` and the memory of the machine are part of the result: record them (`environment.txt` does) and do not raise them to make a point pass.
+- Verified in the container: DER on TCP, UDS and TLS, RMI plain and TLS, platform and virtual callers, 1 to 4096 callers (4096 on DER and RMI over TCP, both kinds), the timeout path, the open loop. Not verified: JOSS (the same code path as DER, not run), the 32- and 80-core machines, Windows (the `/proc` fields are guarded and print `n/a`, but nothing has been run there), 4096 callers on UDS and TLS beyond one DER UDS platform run.
+
+**Smoke run, 4-core container, not for quoting** (`python3 concurrency-curve.py --out smoke --callers 1,8,64,512 --stacks DER,RMI --transports TCP,UDS --kinds platform,virtual --warmup 3 --measure 4`; ping, closed loop, JDK 27, one run per point, a noisy shared container, warm-up and measurement short): this proves the tool runs and shows its output shape; it is not a comparison of the stacks.
+
+| stack | transport | callers | calls/ms | p50 us | p99 us | p99.9 us | max us | client / server threads | client / server RSS MB | errors |
+|---|---|---|---:|---:|---:|---:|---:|---|---|---:|
+| **platform-thread callers** | | | | | | | | | | |
+| DER | TCP | 1 | 5.8 | 129 | 630 | 3813 | 113465 | 29 / 38 | 103 / 112 | 0 |
+| DER | TCP | 8 | 29.4 | 239 | 961 | 3414 | 7081 | 49 / 51 | 186 / 213 | 0 |
+| DER | TCP | 64 | 46.2 | 1202 | 4674 | 7287 | 14487 | 217 / 163 | 390 / 379 | 0 |
+| DER | TCP | 512 | 10.6 | 49644 | 219939 | 325059 | 507093 | 1561 / 1059 | 601 / 430 | 0 |
+| DER | UDS | 1 | 10.7 | 83 | 222 | 2080 | 6638 | 28 / 38 | 118 / 117 | 0 |
+| DER | UDS | 8 | 36.1 | 184 | 766 | 4694 | 11793 | 35 / 37 | 325 / 357 | 0 |
+| DER | UDS | 64 | 37.4 | 964 | 12935 | 26378 | 45331 | 91 / 37 | 931 / 484 | 0 |
+| DER | UDS | 512 | 13.3 | 42140 | 148242 | 205390 | 309347 | 539 / 37 | 426 / 357 | 0 |
+| RMI | PLAIN | 1 | 19.0 | 46 | 116 | 890 | 33649 | 25 / 36 | 135 / 124 | 0 |
+| RMI | PLAIN | 8 | 103.4 | 65 | 243 | 1095 | 6332 | 32 / 43 | 145 / 311 | 0 |
+| RMI | PLAIN | 64 | 99.1 | 467 | 4102 | 16097 | 75671 | 89 / 100 | 204 / 331 | 0 |
+| RMI | PLAIN | 512 | 29.7 | 7569 | 159777 | 375128 | 4642132 | 538 / 548 | 862 / 862 | 0 |
+| **virtual-thread callers** | | | | | | | | | | |
+| DER | TCP | 1 | 5.6 | 153 | 431 | 3602 | 15472 | 32 / 38 | 107 / 108 | 0 |
+| DER | TCP | 8 | 24.0 | 287 | 1551 | 4399 | 7037 | 45 / 51 | 151 / 170 | 0 |
+| DER | TCP | 64 | 47.1 | 950 | 6668 | 12534 | 25368 | 157 / 163 | 382 / 338 | 0 |
+| DER | TCP | 512 | 16.1 | 11125 | 193462 | 277610 | 441300 | 277 / 283 | 589 / 869 | 16 |
+| DER | UDS | 1 | 8.0 | 107 | 280 | 3455 | 13479 | 30 / 38 | 113 / 113 | 0 |
+| DER | UDS | 8 | 29.0 | 230 | 1206 | 4751 | 16415 | 30 / 37 | 239 / 284 | 0 |
+| DER | UDS | 64 | 45.1 | 915 | 7729 | 16384 | 27038 | 30 / 37 | 450 / 445 | 0 |
+| DER | UDS | 512 | 13.6 | 2408 | 216531 | 321913 | 625134 | 30 / 37 | 853 / 527 | 0 |
+| RMI | PLAIN | 1 | 9.7 | 89 | 321 | 1315 | 3691 | 30 / 37 | 99 / 94 | 0 |
+| RMI | PLAIN | 8 | 68.8 | 95 | 463 | 1680 | 10286 | 31 / 43 | 121 / 152 | 0 |
+| RMI | PLAIN | 64 | 87.6 | 125 | 7430 | 46268 | 145057 | 32 / 99 | 300 / 322 | 0 |
+| RMI | PLAIN | 512 | 56.9 | 1501 | 99025 | 886571 | 1795593 | 32 / 547 | 304 / 857 | 0 |
+
+The 512-caller point of DER over TCP with virtual callers had 16 errors, `ConnectIOException ... no free sessions` from the mux (another run of DER UDS with virtual callers had 36); the tool counts those as errors and keeps the latency of the calls that succeeded, so a point with errors is not comparable with one without. At 4096 callers over TCP (one run each, 3 s + 4 s) every point completed: DER with platform callers 0.5 calls/ms, with virtual callers 13 calls/ms; RMI with platform callers 41 calls/ms and virtual callers 47 calls/ms, with up to about 8 000 client threads in the DER platform run. These too are a first look at what the tool shows, to be repeated on the machines the maintainer named before anyone reads anything into them.
+
+## Thirty-second section: "no free sessions" at many callers, the reservation race in `ConnectionManager.connect` (container, 4 cores, JDK 27 `27-internal`, server in its own JVM; re-run on the workstation before quoting)
+
+**The bug.** `ConnectionManager.connect` put a mux in the list offered to the endpoint if `requestsInProgress() < 256`, called `ep.connect(handle, active, idle)` outside the lock, and only afterwards, in a second `synchronized` block, reserved the slot (`newRequestPending`). With many concurrent callers all of them pass the check (say at 255), the endpoint (TCP and UDS both return the first active connection) hands all of them the same mux, all reserve, and the surplus fails in `MuxClient.newRequest` with `IOException("no free sessions")`, which `ReqIterator.next` does not retry. The limit was 128 before 3.1.1 and became 256; the race is the same, only the threshold moved. 256 is the most the wire format allows (the session id is an unsigned byte).
+
+**The fix** (`ConnectionManager.connect`; nothing else changed: not the endpoints, the mux, the 256 limit or the cold-burst behaviour). The room is checked again, in the same critical section as the reservation, on the mux the endpoint chose. If it is full (or dead, in which case it is also removed) `connect` goes round again: the scan now leaves that mux out, the endpoint is asked again, and if it returns null a new connection is opened. At most 16 passes, then a new connection is opened. `pendingConnects` is counted once per call, not per pass. DO NOT go back to checking only in the scan.
+
+**Tests** (`ConnectionManagerCapacityTest`, 2 tests, about 1 s). (1) `testReservationNeverExceedsCapacity`, deterministic: 255 slots of one mux are reserved through `ConnectionManager.connect` with a fake endpoint that behaves like the real ones (first active connection) and makes 64 callers meet inside `ep.connect`, so that all of them have chosen the mux before any reserves. Without the fix 319 requests are reserved on one mux (8 of 8 runs fail); with it none exceeds 256 and a second connection is opened (8 of 8 pass). (2) `testMoreThanOneConnectionsWorthOfConcurrentRequests`, through the public API: a remote object exported over TCP, 255 callers blocked in the server on the first connection, then 245 more released together; all 500 calls must be in the server at the same time, none may fail, and more than one connection must have been opened. Without the fix it fails with `ConnectIOException ... no free sessions` in 4 of 8 runs (the window is a few microseconds, so this one is a probabilistic catch; a variant with a spin start caught 5 of 8); with the fix 8 of 8 pass. Mutant: replacing the re-check by `>= 0` is caught by (1) 8 of 8 and by (2) 1 of 8.
+
+**Measurement.** `concurrency-curve.py --stacks DER --transports UDS,TCP --kinds virtual,platform --callers 64,256,512,1024 --payloads ping --warmup 3 --measure 6`, once with the shaded benchmark jar built from the jeri classes before the fix (`--jar before.jar`; the `ConnectionManager.class` in it is the unfixed one) and once after, in the order before, after, before, after. Each cell shows run 1 / run 2. 4-core container, one point at a time, noisy, short runs.
+
+| transport | callers | run of | errors | calls/ms | p50 us | p99 us | p99.9 us | client sockets |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| **UDS, virtual-thread callers** | | | | | | | | |
+| UDS | 64 | before | 0 / 0 | 31.5 / 48.9 | 1208 / 867 | 11051 / 7295 | 29508 / 12173 | 62 / 54 |
+| UDS | 64 | after | 0 / 0 | 38.6 / 45.2 | 940 / 912 | 9101 / 7389 | 32801 / 12116 | 66 / 59 |
+| UDS | 256 | before | 0 / 0 | 24.3 / 24.5 | 2922 / 4223 | 75956 / 43352 | 124977 / 62489 | 58 / 238 |
+| UDS | 256 | after | 0 / 0 | 25.9 / 37.9 | 2839 / 2230 | 49840 / 46432 | 90243 / 73728 | 133 / 57 |
+| UDS | 512 | before | 21 / 8 | 35.7 / 28.9 | 1882 / 2836 | 100401 / 118489 | 178127 / 205390 | 85 / 94 |
+| UDS | 512 | after | 0 / 0 | 26.3 / 30.7 | 1065 / 1441 | 99025 / 105382 | 153092 / 180617 | 151 / 94 |
+| UDS | 1024 | before | 0 / 16 | 19.6 / 29.7 | 55837 / 2824 | 204472 / 204079 | 297533 / 385090 | 252 / 94 |
+| UDS | 1024 | after | 0 / 0 | 23.0 / 35.0 | 32457 / 1444 | 183239 / 178913 | 262144 / 245236 | 185 / 94 |
+| **UDS, platform-thread callers** | | | | | | | | |
+| UDS | 64 | before | 0 / 0 | 31.8 / 48.3 | 1043 / 1036 | 15098 / 6496 | 37618 / 12427 | 66 / 66 |
+| UDS | 64 | after | 0 / 0 | 37.1 / 41.9 | 1222 / 1146 | 8569 / 7672 | 24789 / 18874 | 66 / 66 |
+| UDS | 256 | before | 0 / 0 | 46.1 / 24.3 | 4424 / 11379 | 26493 / 51642 | 51839 / 74908 | 48 / 258 |
+| UDS | 256 | after | 0 / 0 | 17.7 / 23.3 | 15974 / 12493 | 65274 / 51937 | 92275 / 77005 | 258 / 258 |
+| UDS | 512 | before | 0 / 0 | 13.9 / 14.5 | 3602 / 38044 | 199754 / 144703 | 288621 / 198967 | 514 / 514 |
+| UDS | 512 | after | 0 / 0 | 12.7 / 15.1 | 43385 / 39027 | 155845 / 135266 | 215351 / 184549 | 489 / 429 |
+| UDS | 1024 | before | 0 / 0 | 8.8 / 7.9 | 126091 / 145621 | 423363 / 449839 | 619184 / 598213 | 941 / 1026 |
+| UDS | 1024 | after | 0 / 0 | 10.3 / 11.9 | 108724 / 95748 | 368050 / 321651 | 544735 / 453771 | 642 / 537 |
+| **TCP, virtual-thread callers** | | | | | | | | |
+| TCP | 64 | before | 0 / 0 | 44.0 / 44.1 | 990 / 1056 | 7508 / 7111 | 13099 / 11035 | 66 / 66 |
+| TCP | 64 | after | 0 / 0 | 44.0 / 48.6 | 1077 / 904 | 6746 / 6648 | 22479 / 10781 | 55 / 66 |
+| TCP | 256 | before | 0 / 0 | 38.7 / 47.3 | 1239 / 1959 | 35946 / 33292 | 53641 / 51773 | 118 / 72 |
+| TCP | 256 | after | 0 / 0 | 30.8 / 41.3 | 1223 / 1414 | 42861 / 37388 | 60654 / 55640 | 147 / 95 |
+| TCP | 512 | before | 0 / 16 | 27.4 / 26.7 | 1456 / 2010 | 94896 / 97911 | 144441 / 133759 | 166 / 156 |
+| TCP | 512 | after | 0 / 0 | 33.4 / 33.1 | 1156 / 1214 | 82903 / 89719 | 119472 / 128057 | 137 / 117 |
+| TCP | 1024 | before | 0 / 13 | 28.9 / 29.3 | 922 / 1761 | 172360 / 260309 | 246940 / 479986 | 187 / 110 |
+| TCP | 1024 | after | 0 / 0 | 19.3 / 26.9 | 2746 / 3525 | 218104 / 259391 | 312214 / 445383 | 304 / 100 |
+| **TCP, platform-thread callers** | | | | | | | | |
+| TCP | 64 | before | 0 / 0 | 44.9 / 49.1 | 1231 / 1145 | 5087 / 4456 | 9011 / 8282 | 66 / 66 |
+| TCP | 64 | after | 0 / 0 | 50.5 / 45.0 | 1076 / 1245 | 4452 / 4960 | 7246 / 10297 | 66 / 66 |
+| TCP | 256 | before | 0 / 0 | 26.2 / 25.5 | 6492 / 9601 | 46105 / 46563 | 84214 / 67633 | 258 / 258 |
+| TCP | 256 | after | 0 / 0 | 24.5 / 23.5 | 4813 / 6083 | 50102 / 53281 | 73138 / 79495 | 258 / 258 |
+| TCP | 512 | before | 0 / 0 | 13.0 / 14.9 | 46760 / 42074 | 178389 / 150077 | 255590 / 210239 | 514 / 514 |
+| TCP | 512 | after | 0 / 0 | 29.9 / 13.6 | 1392 / 45154 | 90636 / 164233 | 135528 / 235799 | 202 / 514 |
+| TCP | 1024 | before | 0 / 0 | 5.6 / 5.8 | 159908 / 185729 | 822608 / 715653 | 1231028 / 3531604 | 854 / 1026 |
+| TCP | 1024 | after | 0 / 0 | 6.1 / 6.0 | 188088 / 187564 | 737149 / 606077 | 3181380 / 845152 | 1026 / 1026 |
+
+**What changed.** The errors are gone. The unfixed jar had errors in 5 of the 16 point-runs with virtual-thread callers (UDS 512 callers: 21 and 8; UDS 1024: 16 in run 2; TCP 512: 16 in run 2; TCP 1024: 13 in run 2), every first error being `ConnectIOException ... nested exception is: java.io.IOException: no free sessions`; there were none at 64 and 256 callers, and none with platform-thread callers. With the fix all 32 point-runs had 0 errors. Platform-thread callers never failed, before or after: their client socket count is about the caller count (see below), so no connection fills.
+
+**What did not change.** The throughput fall between 64 and 512 callers is still there. Calls/ms, run 1 / run 2, at 64 callers then at 512 callers:
+
+| callers | before | after |
+|---|---|---|
+| UDS platform | 31.8 / 48.3 then 13.9 / 14.5 | 37.1 / 41.9 then 12.7 / 15.1 |
+| TCP platform | 44.9 / 49.1 then 13.0 / 14.9 | 50.5 / 45.0 then 29.9 / 13.6 |
+| UDS virtual | 31.5 / 48.9 then 35.7 / 28.9 | 38.6 / 45.2 then 26.3 / 30.7 |
+| TCP virtual | 44.0 / 44.1 then 27.4 / 26.7 | 44.0 / 48.6 then 33.4 / 33.1 |
+
+The failed calls were a small part of the collapse: at most 21 failed calls in a 6 s window of well over 100 000 calls, and calls/ms does not move beyond the run-to-run spread (the two runs of one point differ about as much as before and after do, in nearly every row). The one apparent gain, TCP virtual at 512 (27 to 33 calls/ms, in both runs of each), is the size of the spread seen elsewhere in the table and needs more runs before it is read as an effect. One run (TCP platform 512, after, run 1: 29.9 calls/ms, p50 1.4 ms) is twice the others and was not reproduced by run 2.
+
+**One observation, no explanation attempted.** The client socket count in the driver output is the caller count plus a few with platform-thread callers at 512 (514 in 5 of 8 runs, before and after; 489, 429 and 202 in the others) and 85 to 166 with virtual-thread callers; the one fast run (29.9 calls/ms) had 202 sockets. The fix does not change how many connections a cold burst opens (each of N threads that find no connection opens its own: a separate known issue).
+
+## Thirty-third section: why throughput falls between 64 and 512 callers, diagnosed (container, 4 cores, JDK 27 `27-internal`, server in its own JVM, DER, `ping`, closed loop; re-run on the workstation before quoting)
+
+**The question.** Section 32 left the fall open: DER over UDS, platform-thread callers, 32 to 48 calls/ms at 64 callers and 13 to 15 at 512, p50 1 ms to 40 ms; the same shape over TCP and with virtual-thread callers, and less for RMI. Why, and what limits it? The target is low latency and high scalability, so a fall with the number of callers is the main thing to understand before the transport options are weighed (docs/DESIGN-OPTIONS-jeri-transport-architecture-2026-10-20.md, D8).
+
+**Short answer.** The loss is in `ConnectionManager.connect` (and the `ConnectionManager` monitor it takes), not in the transport, the selection thread, the scheduler, the garbage collector or the server. Every call enters `connect`, which under the one `ConnectionManager` monitor walks **all** the muxes (a `BitSet.cardinality()` under each mux's lock, and two lists built) to offer the endpoint the active and idle ones; the endpoint returns the first active one. When 512 callers start together each finds no connection and opens its own (513 sockets), but the endpoint then sends every call to the same one or two muxes (strace: 100% of the client's writes on one descriptor at 64 callers, 52% + 48% on two at 512, the other 460 sockets idle), so the 500 extra connections carry no traffic and cost a longer scan, held under the lock, on every call. With the same callers and 2 to 4 connections throughput does not fall at all.
+
+**Method.** `concurrency-curve.py` for the curve (3 s warm-up, 6 s measured); new tool `collapse-probe.py` (this section) for everything else: a fresh server and client JVM per point, and an external sampler that reads `/proc/<pid>/task/*/{schedstat,status}` of both JVMs before and after a 6 s interval inside the window (CPU, time runnable on a queue, context switches, per thread group) and `/proc/stat` for the machine, with options for `jcmd Thread.print` (`--dump`), a JFR recording of the client (`--jfr`: `jdk.JavaMonitorEnter` from 0 ms, execution samples at 10 ms), `strace -c -f` or per-descriptor `strace` of one JVM (`--strace`, `--strace-fd`; these slow the run a lot, so only ratios are used), and `--prime K`. `ConcurrencyCurve` gained `prime=K`: K calls before the callers start (1: from the main thread; K > 1: K concurrent threads that each open a connection), to set the number of connections apart from the number of callers. Without it nothing changed. **The first probe runs sampled the thread state ten times in the interval and perturbed the run (the sampler's python process made the machine look 87% busy while the JVMs used 1.8 cores); `--light` (two snapshots only; the sampler then costs 0.01 cores) is what every figure below uses.** One run per cell unless two are given; the container is noisy (differences under about 20% are not read).
+
+**1. The curve (DER, UDS, `ping`; calls/ms run 1 / run 2; `concurrency-curve.py`, cold start = every caller finds no connection).**
+
+| callers | platform calls/ms | p50 ms | client sockets | client / server CPU us per call | virtual calls/ms | virtual client sockets |
+|---:|---|---|---|---|---|---|
+| 64 | 39.9 / 55.2 | 1.2 / 0.9 | 65 / 41 | 55 / 36 and 23 / 20 | 35.7 / 41.0 | 64 / 53 |
+| 128 | 32.1 / 34.7 | 1.1 / 1.4 | 129 / 129 | 62 / 57 and 24 / 28 | 40.8 / 38.5 | 91 / 99 |
+| 192 | 28.2 / 31.6 | 1.3 / 0.7 | 193 / 193 | 63 / 61 and 37 / 33 | 41.3 / 32.0 | 85 / 95 |
+| 256 | 26.6 / 21.7 | 2.3 / 12.2 | 223 / 257 | 64 / 79 and 40 / 50 | 36.6 / 30.4 | 88 / 54 |
+| 320 | 19.1 / 18.2 | 19.0 / 18.8 | 321 / 321 | 86 / 92 and 40 / 53 | 39.2 / 36.9 | 93 / 93 |
+| 384 | 16.4 / 16.2 | 26.4 / 26.5 | 385 / 385 | 99 / 93 and 54 / 56 | 24.7 / 28.0 | 188 / 156 |
+| 512 | 13.2 / 13.4 | 42.0 / 41.7 | 513 / 513 | 122 / 121 and 61 / 59 | 19.1 / 25.5 | 299 / 68 |
+
+The fall is **gradual from 64 callers, there is no cliff at 256** (the second connection is not a visible event). The client's CPU per call more than doubles (55 to 122 us) and the server's nearly triples (23 to 61 us): the work per call grows with the number of callers, which pure oversubscription would not do. The client socket count follows the caller count for platform threads (the cold burst), and is smaller and variable for virtual threads (they start one by one and find connections); the two runs of a point differ most where their socket counts differ.
+
+**2. Number of connections against number of callers (512 platform callers, UDS; `--prime K` opens about K connections before the callers start; calls/ms run 1 / run 2).**
+
+| connections opened first | client sockets | calls/ms | p50 ms | client / server CPU us per call |
+|---|---|---|---|---|
+| 1 (K = 1) | 5 / 6 | 53.1 / 62.1 | 6.8 / 6.9 | 40 / 33 and 19 / 17 |
+| 16 | 18 / 18 | 49.9 / 51.7 | 7.8 / 8.1 | 40 / 38 and 17 / 18 |
+| 64 | 28 / 66 | 51.0 / 52.4 | 7.3 / 7.9 | 44 / 44 and 18 / 16 |
+| 128 | 68 / 130 | 45.7 / 34.2 | 7.6 / 0.8 | 47 / 61 and 17 / 28 |
+| 256 | 258 / 258 | 21.4 / 23.4 | 27.7 / 25.6 | 78 / 74 and 44 / 42 |
+| 512 | 148 / 218 | 33.7 / 24.8 | 0.5 / 1.1 | 57 / 71 and 32 / 42 |
+| none (the cold burst, section 1) | 513 | 13.2 / 13.4 | 42 / 42 | 122 / 121 and 61 / 59 |
+
+Throughput is a function of the number of connections: about 50 to 60 calls/ms with 5 to 66, then falling to about 22 at 258 and 13 at 513. The same 512 callers, the same server, the same lock and the same 4 cores. And the whole curve flattens when there is one connection first (`--prime 1`, calls/ms run 1 / run 2): 64 callers 62.7 / 64.1; 128: 59.1 / 60.8; 192: 56.9 / 59.3; 256: 62.3 / 59.9; 320: 64.2 / 61.8; 384: 65.3 / 56.8; **512: 64.5 / 60.5**, with 2 to 4 sockets, the second connection opening at 256 without any visible cost, and p50 growing only as N / throughput (0.8 ms at 64, 7 ms at 512; Little's law). Virtual callers: 42.2 / 43.0 (64) and 41.8 / 41.6 (512) cold in this setup, 60.9 / 60.4 and 78.8 / 79.6 with a connection first. So the 5-fold fall at 512 platform callers (13 against 60+) is the number of connections, and nearly all of it; the 64-caller point itself is also about 20% down (47 cold against 58 to 63 with `--prime 1`, 65 against 2 sockets).
+
+**3. Where the callers are.** `jcmd Thread.print` of the client in the window, 512 platform callers, cold: **492 of 512 `BLOCKED` entering the `ConnectionManager` monitor in `ConnectionManager.connect`**, 16 `BLOCKED` in `OutboundMux.newRequest` (the same monitor, `newRequestPending`), 3 waiting for a reply in `MuxInputStream.read`. At 64 callers: 50 in `connect`, 6 in `newRequest`, 7 waiting for a reply. The server JVM at 512: 3 of its 4 dispatch workers parked, nothing else busy. JFR on the client (`jdk.JavaMonitorEnter` from 0 ms, recordings of about 20 s): the `ConnectionManager` monitor accounts for 215 868 contended enters and 358 s blocked in total at 64 callers (mean 1.7 ms), **157 490 enters and 7 724 s at 512 (mean 49 ms, about 390 threads blocked on average)**, and 79 112 enters and 1 772 s (mean 22 ms) at 512 with a connection first, which still contends but runs at 58 calls/ms; the sites are `connect` line 192 (`pendingConnects++`, the first entry), the scan (224), the reservation (243) and `newRequest` (445, 450): the same monitor entered about six times per call. Execution samples at 512 cold: self time `BitSet.cardinality` 27%, the loop at the start of `UdsEndpoint$ConnectionEndpointImpl.connect` 21% (line 441, which should return at its first element; why it is hot was not established, see below), `HashSet.isEmpty` 13% (at the `reaperSet` entry in `connect`), `LinkedList.node` 9%: 70% of the client's caller-thread CPU samples, against `Mux.readMessageBody` 11%; with a connection first `Mux.readMessageBody` is 58% and `cardinality` 1%.
+
+The lock's capacity is the throughput: 1 / 14.4 calls/ms = 69 us of monitor time per call at 512 cold, against 1 / 47 = 21 us at 64 cold. A scan of 513 muxes with two monitor entries each (`ConnectionManager` is re-entered, the mux lock is taken in `requestsInProgress`) at roughly 100 ns each is about 50 us; consistent, not separately measured.
+
+**4. Per-thread CPU (probe `--light`, 6 s interval, UDS, 512 vs 64 platform callers, cold).**
+
+| | 64 callers | 512 callers |
+|---|---|---|
+| calls/ms | 46.1 | 14.4 |
+| machine: user / system / idle | 57 / 25 / 16.5% | 35 / 26 / 37.5% |
+| client JVM CPU, cores | 2.23 | 1.63 |
+| callers (all threads) CPU, cores; us per call | 1.76; 38 | 1.32; 92 |
+| client selection thread `(JSK) I/O SelectionManager-0` | 39% of a core; 8.5 us/call | 26% of a core; 18 us/call |
+| client runnable-but-waiting (schedstat), cores | 6.8 | 1.35 |
+| server JVM CPU, cores (4 dispatch workers / selection thread) | 0.93 (60% / 20%) | 0.79 (46% / 23%) |
+| involuntary context switches/s, client | 13 189 | 4 910 |
+
+**At 512 callers the machine is 37% idle (about 1.5 of 4 cores) and the client uses less CPU than at 64**: the system is not out of CPU, it is waiting on a lock. That rules out oversubscription as the dominant cause: the run queue at 512 is shorter than at 64.
+
+**5. Hypotheses.**
+
+| | verdict | evidence |
+|---|---|---|
+| (a) 512 platform threads on 4 cores, scheduler oversubscription | **ruled out** as the main cause (at most the part of the 20% that a CPU-bound control shows) | Machine 37% idle and client run-queue wait 1.35 cores at 512 against 6.8 at 64 (section 4). With a connection first, 512 platform callers on UDS reach 60.5 to 64.5 calls/ms against 62.7 to 64.1 at 64. RMI plain, the control with the same 514 threads on the same 4 cores and the machine 99% busy: 108.5 calls/ms at 64, 85.8 at 512, CPU per call 18 to 22 us (client) flat. Virtual callers with `-Djdk.virtualThreadScheduler.parallelism=` 1 / 4 / 16: 53.3 / 39.8 / 34.2 calls/ms at 512 (3 / 80 / 88 sockets): the scheduler size changes the cold burst (parallelism 1 never opens many connections), not the work. |
+| (b) the single selection thread (client) or the dispatch pool (server) saturating | **ruled out** | Client selection thread 26 to 39% of one core, server's 20 to 23% (section 4); 3 of 4 server workers parked at 512. With a connection first the same thread carries 58 calls/ms. |
+| (c) lock contention | **ruled in, the dominant cause**: the `ConnectionManager` monitor | Sections 2 and 3. `jdk.JavaMonitorEnter`: all the large entries are `ConnectionManager`. The mux lock was not the limit: with a connection first, where one or two muxes carry everything, throughput is highest. (Not examined: `JavaMonitorWait`, `ThreadPark`; the thread dump covers where callers wait.) |
+| (d) garbage collection, memory | **ruled out** | `-Xlog:gc`, 16 s runs: client 31 young pauses, 204 ms in all (max 11 ms) at 64 callers, 39 pauses, 226 ms (max 21 ms) at 512; server 220 ms and 139 ms (max 16 ms): about 1% of the time. The allocation per call grows (about 17 KB to about 29 KB on the client, from the sizes of the young collections: the two lists of up to 513 nodes built per call) but at 15 calls/ms is no load. RSS 465 to 1 000 MB, not related to the throughput. |
+| (e) flow control, the second connection at 256, all callers on one connection | **second connection: ruled out; concentration on one or two connections: confirmed, and it is the mechanism** | A connection first: the second connection opens at 256 and nothing falls (above). `strace -f -e write...` of the client, 4 s: 64 callers 14 921 writes, 100% on one descriptor (65 sockets); 512 callers 4 096 writes, 52% and 48% on two descriptors (463 sockets), i.e. the 256-session limit of each, the rest idle. Rations were not examined separately; nothing points at them. |
+| (f) the server | **ruled out as the limit**; its CPU per call is a consequence | 0.8 to 1.0 cores, mostly idle at 512. Its CPU per call rises 20 to 55 us cold and stays 17 to 19 us with a connection first, tracking the number of connections in section 2; consistent with requests reaching it one at a time instead of in batches, not tested. |
+| (g) the load generator | **ruled out** | Client CPU per call with a connection first is 25 to 35 us at 512 and 64 alike, and RMI's 18 to 22 us at 64 and 512 (same driver). The latency histograms are fixed in size (section 31). |
+| strace, system calls per call | **consistent** | `strace -c -f` (slows the run, ratios only): client futex calls per `writev` 6.7 at 64 callers and 27.8 at 512; server 10.2 and 10.6. The client's extra is the park and unpark of callers on the monitor. |
+
+**6. The other transports (probe, 1 run each, calls/ms at 64 then 512; "cold" = no connection first; "first" = `--prime 1`).**
+
+| | cold 64 | cold 512 | first 64 | first 512 | sockets cold 512 / first 512 |
+|---|---|---|---|---|---|
+| DER UDS | 46.1 | 14.4 | 59.1 | 58.8 | 513 / 4 |
+| DER TCP | 47.1 | 13.1 | 52.9 | 62.2 | 514 / 6 |
+| DER TLS (CPU-bound here: machine 1 to 2% idle) | 24.6 | 9.1 | 33.1 | 31.6 | 514 / 41 |
+| RMI plain (control) | 108.5 | 85.8 | | | 514 / - |
+
+In this container TCP and TLS fall as UDS does, and all three hold at 512 with a connection first. TCP's client threads are two per connection (1 561 client threads cold at 512): the same lock, the same cause. The maintainer's workstation (12 logical CPUs, Windows) shows UDS 56 to 26, TCP 50 to 35, TLS 50 to 55 between 64 and 512; this container does not reproduce TLS holding. **The channel path (single selection thread, caller-thread drainer) is therefore not the cause here**: it is the same code in `ConnectionManager` for every transport, and the UDS selection thread is 26% busy at 512 callers. Why TCP falls less and TLS not at all on the workstation is **not established**; the quantity that would decide it is the `client_sockets` of those runs (if TLS, whose handshake takes long, ends the cold burst with far fewer connections than callers, the explanation is the number of connections), and a `--prime 1` run there.
+
+**7. Ranked conclusion.**
+1. (nearly all of the loss at 512 callers: 13 calls/ms cold against 60 with a connection first) The number of connections the cold burst leaves behind, times the per-call scan of all of them under the single `ConnectionManager` monitor; the lock is then the throughput (about 70 us per call at 513 muxes, about 20 us at 65, a few us at 2 to 4), and the callers queue on it (492 of 512 blocked). The extra connections carry no traffic; the endpoint picks the first active mux.
+2. (the 20% at 64 callers, a share of the rest) The same lock at lower dose: 65 muxes cold against 2.
+3. (a consequence, not a cause) The server's CPU per call rising 20 to 55 us, and the client's allocation per call rising.
+
+Not causes: scheduler oversubscription, the selection thread, the dispatch pool, GC, memory, the second connection, the channel path, the load generator.
+
+**8. What remains unexplained.** (i) Why `UdsEndpoint$ConnectionEndpointImpl.connect` line 441 (the loop over the offered active connections, which returns at its first element when there is no `SecurityManager`) is 21% of the samples at 512 cold; it may be the sample attribution of inlined list or monitor code, not established. (ii) How much of the lock's cost is the length of the scan and how much the convoy (a contended monitor hands over through the kernel: 28 futex calls per call): both fall together when the number of connections falls, the experiments here do not separate them. (iii) The distribution of latency at 100 to 250 connections: p50 0.5 to 1.1 ms with p99 about 90 ms (section 2, rows 128 and 512): most callers are served quickly and a few wait very long, an unfairness of the monitor not investigated. (iv) The workstation's TCP and TLS curves (above). (v) Whether the same holds on another JDK or another operating system: not tried. (vi) The server's CPU per call vs batching (f). (vii) What the next limit is with a connection first (about 60 calls/ms on UDS at both 64 and 512; the client uses 2 cores and the server 1.1 to 1.4 of the 4, the machine 18 to 21% idle, 58% of the caller samples still in `connect`): not examined.
+
+**Reproduce.** `python3 collapse-probe.py --light --out probe-x --callers 512 --kind platform [--prime 1] [--transport TCP|TLS] [--stack RMI] [--dump] [--jfr] [--strace client --strace-fd] [--jvm-args '...']`; the curve with `concurrency-curve.py --stacks DER --transports UDS --kinds platform,virtual --callers 64,128,192,256,320,384,512 --warmup 3 --measure 6`.
+
+## Thirty-fourth section: what the 12 ms of opening a TLS connection is made of, full against resumed handshakes, what resumption does to authentication, and how fast a listener accepts new connections (container, 4 cores, JDK 27 `27-internal`, server in its own JVM, TLS 1.3, ECDSA P-256, mutual authentication; re-run on the workstation before quoting)
+
+**The questions.** (A) Section 30 measured 12 ms for the first call on a freshly opened TLS connection against 2.3 ms for UDS and TCP, and a `javax.net.debug` run showed that 18 of 19 handshakes were TLS 1.3 PSK resumptions. Where do the 12 ms go, on the client and on the server? (B) How much slower is a full handshake in this stack? (C) What does resumption do to authentication: is the server's trust manager called again, what is the session's creation time, can a client with a changed credential still resume, does `setEnableSessionCreation(false)` after the handshake lose the ticket, does `invalidate()` stop resumption? (D) How many new connections a second does the listener accept? The maintainer is deciding on the non-blocking TLS redesign (`docs/DESIGN-tls-nonblocking-connectionio-2026-10-20.md`).
+
+**Short answer.**
+1. **The 12 ms is mostly a JVM that has not finished compiling the handshake code, not a property of the protocol.** The same resumed open costs 11.4 ms in the first 100 reconnects after ConnectionCost's 15 warm-up reconnects, 7.4 ms after 600, 5.6 ms after 1 500 and **5.1 to 5.3 ms after 3 000 to 6 000** (flat from there). While it is falling the C1/C2 threads burn 12 to 19 ms of CPU per reconnect in the client JVM. The warm call is 0.16 to 0.46 ms, so a hot resumed open is about 4.7 ms, still twice the 2.3 ms of UDS and TCP.
+2. **Resumed, hot (5.6 ms with tracing): the cost is a chain of small things on one critical path, none dominant.** Roughly: JERI set-up before the socket 0.2, TCP connect 0.14, engine set-up 0.13, ClientHello generation 0.7 (X25519 and ML-KEM key generation), client waits 1.6 for the server's flight (the server computes 1.2 of it, again X25519 and ML-KEM), client processes the flight 0.6, then the mux handshake 1.2 (two platform threads started on each side, 0.3 to 0.4 ms per side) and 0.65 for the call itself. **The JGDMS credential, permission and `AuthManager` work is under 0.1 ms; the `Selector` opened per handshake read is 0.03 ms per read (0.07 ms per open, 1 to 2%); neither is worth a change for latency.** What is real: the JDK 27 default key exchange is a hybrid (`X25519MLKEM768`) done even on a resumption (PSK with ECDHE), about 1.6 ms of the 5.6 hot (traced); limiting both JVMs to `-Djdk.tls.namedGroups=x25519` saves 0.4 ms (8%), `secp256r1` only is 0.5 ms slower. The two platform threads started per connection on each side cost 0.8 ms of the critical path (0.4 client, 0.4 server).
+3. **Full against resumed (this stack): +3.5 ms cold (14.8 to 16.1 against 11.6 to 12.5 ms) and +2.7 to 3.4 ms hot (7.6 to 9.0 against 4.9 to 5.6 ms).** Resumed-hot to full-hot is 1.5 times; certificate work is the JSSE signature and chain verification inside the delegated tasks (client +1.2 ms, server +1.2 ms hot), not the JGDMS callbacks (`checkServerTrusted` 0.01 to 0.03 ms).
+4. **Resumption facts (C), measured in memory and confirmed in the real stack's debug log:** the trust manager is not called on a resumed handshake; the session creation time stays that of the original full handshake along a chain of resumptions; a client that was trusted at ticket issue still resumes after the server stops trusting it, and with a switched credential it is still the OLD identity the server sees; `setEnableSessionCreation(false)` before or after the NewSessionTicket makes no difference; client-side `invalidate()` stops resumption, server-side `invalidate()` does not when the tickets are stateless (the JDK default, and what the real server issues).
+5. **Accept rate (D, partial):** on this box a listener accepts about **385 resumed connections a second (210 full)** from raw clients that share the 4 cores, with the accept thread busy for ~97% of the time but about half of that on CPU (the rest is waiting for the client's handshake messages and starting two threads per connection); from about 64 simultaneous connectors the 50-entry listen queue overflows (kernel `ListenOverflows`) and connects take 1 to 9 s to complete (the Linux form of what Windows reports as `Connection refused`).
+
+**Method.** New tools (all Linux, JDK 25+, shaded jar): `TlsOpenCost` (client: the first call on a reconnect, resumed or full), `tls-open-cost.py` (starts the server JVM, with JFR if asked, runs the client, calls `JfrOpenPhases` for the phase table from `jdk.MethodTrace` events of the connection set-up in both JVMs, correlated by wall clock, and ExecutionSample at 1 ms), `TlsAcceptRate` and `JfrAcceptThread` (D), `TlsResumption` (C). Reconnects as in `ConnectionCost`: `-Dorg.apache.river.jeri.connectionTimeout=30`, 120 ms between samples, 15 warm-up reconnects, median of 60 to 100 samples ("cold" below, the regime of section 30); and a "hot" regime: 3 000 warm-up reconnects, `connectionTimeout=10` and 50 ms between samples, 100 to 300 samples. Full handshakes are forced without any product change: before each reconnect `TlsOpenCost` invalidates, by reflection into the pool of client `SSLContext`s in `net.jini.jeri.ssl.Utilities`, every session in their client session caches, so the ClientHello offers no PSK and the server sends CertificateRequest/Certificate/CertificateVerify (confirmed in the debug log: a full run of 10 connections has 10 server Certificate messages, a resumed run one); everything else (same `SSLContext`, credentials, JIT state) is unchanged. JFR tracing costs up to 0.7 ms hot (4.9 to 5.6 ms resumed with the method traces, 6.4 with the extra JSSE traces), so phase numbers are for proportions; the untraced medians are the headline numbers. The machine was quiet during every timed run (no other benchmark process; checked before and after each run). A 6 000-reconnect run with `connectionTimeout=10` and 50 ms spacing lost no sample; with 30 ms spacing calls failed as the idle reaper closed the connection (`server sent bad magic number`, `Connection closed` while writing the mux header), see "Not established".
+
+**A. Where the time goes (DER `ping`, resumed; median ms of 100 samples; JFR method traces; the offsets are on the client's clock from the start of the first call; the server's accept thread starts 1.26 ms (cold) or 0.60 ms (hot) after the call began).**
+
+| phase (client unless stated) | resumed cold | resumed hot | full cold | full hot | critical path |
+|---|---:|---:|---:|---:|---|
+| first call on the new connection (`TlsOpenCost`, no JFR, 60 to 300 samples) | **12.2** (11.6 to 12.4) | **4.9** (5.1 to 5.3 in the 6 000-reconnect run) | **15.8** (14.8 to 15.8) | **7.6** | |
+| same with the method traces on | 12.5 | 5.6 | 16.1 | 9.0 | |
+| JERI before the socket (`ConnectionManager.connect` to `connectChannel`; includes `SslConnection.<init>` 0.18/0.05 and the credential pool + `checkAuthentication` 0.07/0.02) | 0.49 | 0.21 | 0.45 | 0.29 | yes |
+| TCP connect (`connectChannel`) | 0.27 | 0.14 | 0.27 | 0.18 | yes |
+| `SSLEngine` creation, parameters, `SslEngineChannel.<init>` | 0.27 | 0.13 | 0.26 | 0.13 | yes |
+| ClientHello generation (`beginHandshake`: key shares, PSK binder) | 1.73 | 0.72 | 1.43 | 0.68 | yes |
+| engine wraps and channel writes (ClientHello, Finished; 3 calls) | 0.25 | 0.13 | 0.28 | 0.18 | yes |
+| wait for the server's flight (`fillNetIn`, one read; includes `Selector.open` 0.05/0.02 and register) | 3.74 | 1.59 | 4.11 | 1.94 | yes (the server's work, below) |
+| client processes the flight (`runDelegatedTasks`, 2 tasks) | 1.54 | 0.59 | 3.92 | 1.82 | yes |
+| handshake done at (`jdk.TLSHandshake` marker) | 8.86 | 3.70 | 10.98 | 5.53 | |
+| mux handshake (`OutboundMux.newRequest` = `Mux.start`) of which 2 client `Thread.start` | 2.31 (0.43) | 1.23 (0.40) | 3.83 (0.44) | 2.53 (0.51) | yes |
+| the call itself on the new connection (the rest) | 1.2 | 0.65 | 1.1 | 0.8 | yes |
+| **server accept thread**, `serverConnection` | 8.74 | 3.54 | 12.58 | 6.31 | yes, mostly |
+| - waiting for the client (`fillNetIn`, 3 reads; 3 `Selector.open` 0.11/0.04) | 3.72 | 1.55 | 6.10 | 2.89 | |
+| - delegated tasks (ClientHello consume, ServerHello/EE/Finished produce; full: also the client Certificate and CertificateVerify) | 3.00 | 1.15 | 5.14 (2 tasks) | 2.33 (2 tasks) | yes |
+| - wraps (4 calls), `chooseServerAlias`, `getClientSubject`, `getServerCertificate` | 0.23 + 0.13 | 0.14 + 0.02 | 0.28 + 0.10 | 0.19 + 0.02 | partly |
+| `handleConnection` after the handshake (`ServerConnectionManager`, `MuxServer`, 2 `Thread.start` 0.43/0.38) | 0.55 | 0.48 | 0.57 | 0.55 | yes (the server's reader thread must exist to read the client's header) |
+
+The phases add up to the handshake marker (hot resumed: 0.21 + 0.14 + 0.13 + 0.72 + 0.13 + 1.59 + 0.59 = 3.5 against 3.7). The server's work between receiving the ClientHello and writing its flight (unwrap 0.3 + delegated tasks 1.15 + wraps 0.14) is what the client waits 1.59 for; the server's `serverConnection` for a client that is slow to start (engine creation 0.14 ms before the ClientHello arrives) is overlapped with the client's ClientHello generation.
+
+**Where the CPU goes (execution samples at 1 ms, hot resumed, 150 opens; share of the samples of the calling thread inside the first call, JIT and waiting not sampled).** Client: ClientHello generation 46% (`beginHandshake`); over the whole open X25519 `pointMultiply` alone is 42% of the samples (Java field arithmetic in `IntegerPolynomial25519.mult/square/carryReduce`, 32% of the samples as top frame); `ServerHello` consumption 30% (`KAKeyDerivation.t13DeriveKey` 24%, `Hybrid` decapsulation 21%, `ML_KEM.decapsulate` 7.5%), `Finished` 7%, HKDF 4%, JCA provider look-ups (`Provider.getService`, `GetInstance`) 5%, `AccessController.getContext` through `SubjectDomainCombiner.combine` and `Uri.urlToUri` 4% (the permission machinery, 0.15 ms). Server: ServerHello production 50% (`KAKeyDerivation.encapsulate` 38%: X25519 key generation 15%, X25519 agreement 12%, `ML_KEM.encapsulate` 5%), ClientHello consumption 22% of which `SessionTicketExtension.decrypt` 5%, NewSessionTicket production 5%, `handleConnection` 7%. The hybrid key exchange (`X25519MLKEM768` is the JDK 27 default share) is done on every resumption (JSSE only offers `psk_dhe_ke`). Method-trace times of the same pieces (hot): client key generation 0.32 (hybrid) + 0.41 (X25519, 2 calls), `t13DeriveKey` 0.43, server `encapsulate` 0.66.
+
+**Cold against hot, resumed (`TlsOpenCost`, 120 ms spacing, 1 500 reconnects after 15 warm-up; median first-call ms per block of 100).** 11.4, 9.2, 8.4, 7.8, 7.5, 7.4, 7.4, 7.1, 6.7, 6.3, 6.4, 6.3, 6.1, 6.1, 5.6. With 50 ms spacing and `connectionTimeout=10` for 6 000 reconnects (blocks of 400): 8.6, 6.8, 6.1, 5.5, 5.6, 5.5, 5.3, 5.4, 5.5, 5.5, 5.3, 5.3, 5.3, 5.2, 5.1. CPU per reconnect (thread groups from `/proc/<pid>/task/*/schedstat`; the client's main thread, the server's accept thread which is a virtual thread on a ForkJoin carrier, and the compiler threads): cold resumed client main 6.2 ms + JIT 11.9 ms, server 6.0 ms + JIT 5.3; hot resumed client main 2.65 + JIT 3.4, server 2.56 + JIT 2.1; so even at ~5 ms the JVM is still compiling (3 to 5 ms of JIT CPU per reconnect after 3 000 reconnects).
+
+**Named groups (hot, resumed, untraced, 300 samples, both JVMs).** default (`X25519MLKEM768`, `x25519`, `secp256r1`, ...) 4.9 ms; `-Djdk.tls.namedGroups=x25519` 4.5 ms; `-Djdk.tls.namedGroups=secp256r1` 5.4 ms. Dropping the hybrid group removes a post-quantum protection of the session key (the maintainer's call, not a recommendation); not measured cold.
+
+**B. Full against resumed.** Pairs run back to back (median first call, ms): cold 12.2 / 15.8, 11.6 / 14.8, 12.5 / 16.1 (with traces); hot 4.9 / 7.6 (untraced), 5.6 / 9.0 (traced). So +3.3 to +3.6 cold, +2.7 to +3.4 hot. CPU of the two threads that do the work, per open (excluding JIT): cold client main 6.2 resumed / 8.3 full, server 6.0 / 7.9; hot client 2.65 / 4.0, server 2.56 / 3.80 (+1.4 and +1.2 ms). The extra is JSSE's certificate verification and signing: client delegated tasks 1.54 to 3.92 (cold), 0.59 to 1.82 (hot); server 3.00 to 5.14 (cold), 1.15 to 2.33 (hot); the mux handshake is also 1.3 to 1.5 ms longer on the client because the server finishes later. The JGDMS part of a full handshake is small: `checkServerTrusted` 0.03 / 0.01 ms, `chooseEngineClientAlias` 0.13 / 0.02 ms (cold / hot), `chooseServerAlias` 0.04 to 0.08 ms. **The real stack:** `-Djavax.net.debug=ssl:handshake` on both JVMs, 10 connections each: resumed run: server `Consuming ClientHello` 10, `Resuming session` 9 (the first connection is the only one with CertificateRequest, server Certificate, client Certificate and CertificateVerify), `Produced NewSessionTicket stateless post-handshake message` 10; forced-full run: 10 CertificateRequests, 10 server Certificates, 10 client Certificates, 0 `Resuming session`. **The server issues stateless tickets** (the JDK default `jdk.tls.server.enableSessionTicketExtension=true`), so its session cache holds no sessions (`getServerSessionContext().getIds()` is empty).
+
+**C. Resumption and authentication (`TlsResumption`: client and server `SSLEngine` from one `SSLContext` each, TLS 1.3, `setNeedClientAuth(true)`, trust managers that count and log; run twice, with stateless tickets (the default) and with `-Djdk.tls.server.enableSessionTicketExtension=false` (stateful, the server keeps sessions in its cache)). Plain facts:**
+
+| # | question | result |
+|---|---|---|
+| C1 | On a resumed handshake is the server's trust manager called to validate the client certificate again? | **No.** Connection 1 (full): `checkClientTrusted` 1 call, `checkServerTrusted` 1 call; connections 2 to 6 (resumed): 0 calls on both sides. The server's session still has the peer: `getPeerPrincipal()` is the client's (`CN=client1`) and `getPeerCertificates()` the original chain, carried inside the ticket (stateless) or the cache (stateful). A resumed handshake also sends no Certificate message: server to client 1 880 bytes in the handshake (plus 529 in the post-handshake ticket records) against 2 357 (plus 529) for a full one; the difference is the Certificate, CertificateVerify and CertificateRequest. |
+| C2 | What is `getCreationTime()` of a resumed session, and does it change along a chain of resumptions? | **It is the original session's creation time on both sides, and it never changes** (6 links: client T+11 ms, server T+5 ms for all, `lastAccessedTime` advances). A chain of resumptions is not limited by the first session's age: with the server context's session timeout set to 3 s, connections every 1 s still resumed at 9 s (age 9.2 s). After 4.5 s idle (> 3 s) the stateless server STILL resumed (by reading the JDK source: it checks only the ticket-encryption key's life, `jdk.tls.server.statelessKeyTimeout` 1 h plus the session timeout, not the ticket's own lifetime or age); the stateful server did a full handshake. Consequence for JGDMS: `maxServerSessionDuration` and `maxClientSessionDuration` (`session.getCreationTime() + duration`, checked per request in `SslServerEndpointImpl` and per use in `SslConnection`) are anchored at the last FULL handshake, so a resumption chain cannot extend a session beyond them. |
+| C3 | Can a client whose certificate is no longer accepted still resume, and what does the server see? | **Yes.** After connection 1 the server's trust manager was set to reject `CN=client1`: connection 2 and 3 (same `SSLContext`) resumed, trust manager not called, server sees `CN=client1`; a fresh client `SSLContext` (no ticket) and the same context toward another peer host (no ticket) were rejected (`certificate_unknown`). With the client's key manager switched to a second certificate (`client2`) in the same `SSLContext`, the next connection to the same host and port resumed the OLD session: server sees `CN=client1` (and the client's own `getLocalPrincipal()` is `CN=client1`), `client2` is used only when no ticket applies (new peer host: full handshake, server sees `CN=client2`). So trust revocation and credential replacement take effect for a client only at its next full handshake. **[code, not run in the real stack]** the real stack has three guards: `Utilities.getClientSSLContextInfo` calls `ClientAuthManager.checkAuthentication` (destroyed, expired or changed credentials) before reusing a pooled `SSLContext` and otherwise builds a new one with an empty session cache; `ServerAuthManager.checkCredentials` runs on every request and includes `certificatesValidUntil(clientChain)`, taken from the session's peer chain, so a client certificate that has expired is rejected per request even on a resumed session; and the creation-time limits of C2. Not rechecked on resumption: a revoked certificate or a removed trust anchor, until `maxServerSessionDuration` (24 h by default) from the last full handshake. |
+| C4 | The client calls `engine.setEnableSessionCreation(false)` after the handshake and before the NewSessionTicket is processed: does it still store the ticket and resume? | **Yes, in every order.** Called before the ticket (as `SslConnection.establishEngine` does), after it, and never: connection 2 and 3 resume in all three; the client cache holds the same 2 entries. Why: `sun.security.ssl.NewSessionTicket$T13NewSessionTicketConsumer` never reads `enableSessionCreation`; the flag is consulted only when a handshake would create or establish a session (`ClientHello` lines 539 and 563, `ServerHello` lines 270, 507, 1149, 1168, 1307 in this JDK). It is per engine, and a new engine starts with it `true`. Called BEFORE the first handshake of a new engine with no cached session it fails: `No new session is allowed and no existing session can be resumed` (so the order in `SslConnection`, after `handshake()`, is required). The real server also sets it after its handshake and still produces tickets. |
+| C5 | Does `SSLSession.invalidate()` prevent later resumption? | **Client side: yes** (`engine.getSession().invalidate()` on the original session invalidates its tickets: next connection full; invalidating a resumed session: the next one is full; invalidating every session in the client session context: full). **Server side: only if the server keeps sessions.** Stateless tickets (default): `invalidate()` on the server's original or resumed session, and on every session of the server session context (`getIds()` is empty: 0 sessions), change nothing, the next connection RESUMES. Stateful (`enableSessionTicketExtension=false`): server `invalidate()` of the original, of the resumed session, or of the whole context makes the next connection full. The real server's `session.invalidate()` calls (`ServerAuthManager.chooseServerAlias` over `getServerSessionContext().getIds()`, and the expiry in `processRequestData`) therefore cannot revoke already issued tickets with stateless tickets; the client's `maxClientSessionDuration` invalidation (23.5 h) does work. |
+
+**D. New connections a second (optional, partial).** `TlsAcceptRate`: N raw `SSLSocket` client threads (own `SSLContext` each, so a ticket cache each; the benchmark credentials; they connect, handshake, send the 8-byte mux client header, read the 8-byte server header, close) against `ServerMain`'s TLS listener (`SslServerEndpointImpl.acceptLoop`, handshake on the accept thread). The client JVM shares the 4 cores, so the rates are lower bounds. 10 s measured after a warm-up; accepted connections per second, with the p50 and p99 of connect-to-mux-header and the kernel `ListenOverflows` during the run (whole machine).
+
+| client threads | resumed: per second | p50 / p99 ms | ListenOverflows | full: per second | p50 / p99 ms |
+|---:|---:|---|---:|---:|---|
+| 1 | 199 | 4.0 / 12.9 | 0 | 124 | 6.7 / 18.4 |
+| 4 | 374 | 9.6 / 23.8 | 0 | 213 | 17.7 / 28.7 |
+| 16 | 384 to 392 | 39 / 81 | 0 | 211 | 73 / 108 |
+| 64 | 289 to 415 | 121 to 146 / 200 to 1 340 (max 7 to 9 s) | +169 | 169 | 237 / 1 890 (max 4.3 s) |
+| 128 | 332 (18 in a run with 3 s warm-up) | 135 / 3 700 (max 12 s) | +933 | 103 | 265 / 4 330 |
+| 256 | 134 | 185 / 8 630 | +2 288 | | |
+
+The accept thread (JFR method traces, 16 threads, resumed): per connection **3.4 ms traced, 2.6 ms untraced** (the inverse of 392 per second), made of `serverConnection` 2.79 ms (waiting for the client's handshake messages in `fillNetInByDeadline` 1.13 ms in 2.2 reads, delegated tasks 1.11, wraps 0.16, `Selector.open` 0.03), `handleConnection` 0.57 (two `Thread.start` 0.44) and `accept` 0.03; busy 97% of the time (traced), its carrier thread uses 0.4 to 0.55 of a core (about half of it on CPU). So the rate is the inverse of **handshake CPU + the waits for the peer's two flights + two thread starts**, serialised: the `bind(new InetSocketAddress(port))` default backlog of 50 overflows when more than about 50 connect together, the kernel drops the SYNs, and clients retry after 1, 3 and 7 s (hence the multi-second maxima; Windows refuses instead, which is the likely source of the 1 900 `Connection refused` at 4 096 callers; not reproduced on Windows). With a real network round trip the waits are larger than here. **The design's "about 80 new connections a second per listener" is the cold JVM (12 ms); a hot listener does 385 resumed or 210 full on this box, with the client on the same cores.**
+
+**Not established.** (i) The first connection of a JVM (class loading and interpretation of the whole JSSE and JGDMS path) was not measured in a quiet run; hundreds of ms were seen once in a loaded test. (ii) The split of the hot 5 ms between pure computation and wake-up latencies of the 8 thread hand-offs of the open (accept, accept thread, selector wake-ups, two mux threads each side) is not separated; the traced waits include scheduling delays (0.1 to 0.2 ms per hop from the offsets). (iii) The 3 to 5 ms of JIT CPU per reconnect continues past 3 000 reconnects; where the plateau of 5.1 ms would settle with more is not known. (iv) The effect of `jdk.tls.namedGroups` was measured hot and resumed only; the ML-KEM share cold and for a full handshake is unknown. (v) With `connectionTimeout=10` and spacing near 30 ms, calls failed when the idle reaper closed the connection as the call started (`IOException: server sent bad magic number: 8C000005` once, `Connection closed` while writing the mux header); the race between `ConnectionManager`'s reaper shutdown and a new request was not investigated and may exist with larger timeouts. (vi) C3 and the per-request guards are from reading the code, not from a real-stack test with an expired certificate. (vii) D used raw clients on the same cores, no real network, no Windows; the accept thread's share on CPU is from `schedstat`, the rest from traces. (viii) A burst of N simultaneous first opens: by reading `Utilities.getClientSSLContextInfo`, a pooled client `SSLContext` is removed from the pool while a connection is being established, so concurrent opens each build a new `SSLContext` (empty ticket cache) and handshake in full until the pool has grown; not measured. (ix) Cold and hot numbers from the container are not the workstation's.
+
+**Reproduce.** `python3 tls-open-cost.py open --mode resumed|full --samples 100 --warm 15 --sleep 120` (cold) or `--warm 3000 --sleep 50 --timeout 10` (hot); `--jfr trace|trace2|sample` for the phase table and the sampled profile; `--both=-Djdk.tls.namedGroups=x25519`; `python3 tls-open-cost.py accept --mode resumed|full --threads 1,4,16,64,128 --seconds 10 --warmup 5 [--jfr]`; `java -cp target/serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.TlsResumption [-v]`, once as is and once with `-Djdk.tls.server.enableSessionTicketExtension=false`. Build the jar first (`mvn -o -q -f jgdms-benchmarks/serialization/pom.xml package -DskipTests`).

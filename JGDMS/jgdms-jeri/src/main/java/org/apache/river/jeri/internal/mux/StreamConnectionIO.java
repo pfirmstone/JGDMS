@@ -153,8 +153,51 @@ final class StreamConnectionIO extends ConnectionIO {
 	 */
     }
 
+    /**
+     * Largest amount the writer gathers into one write: a data message is
+     * a 4-byte header and at most 0xFFFF bytes of payload.
+     */
+    private static final int MAX_GATHER = 0xFFFF + 4;
+
     private class Writer implements Runnable {
 	Writer() { }
+
+	/**
+	 * Bytes waiting to be written.  A message is queued as a header buffer
+	 * and a payload buffer; written one after the other, each is a socket
+	 * write, and on a TLS connection each is a TLS record.  They are
+	 * gathered here and written once, so a message costs one write and
+	 * one record.  Used only by the writer thread.
+	 */
+	private byte[] staged = new byte[256];
+	private int stagedLength;
+
+	/** Appends the buffer's remaining bytes, writing first if they would not fit. */
+	private void stage(ByteBuffer buffer) throws IOException {
+	    int n = buffer.remaining();
+	    if (stagedLength + n > MAX_GATHER) {
+		writeStaged();
+	    }
+	    if (n > MAX_GATHER) {
+		outChannel.write(buffer);	// larger than any message: write directly
+		return;
+	    }
+	    if (stagedLength + n > staged.length) {
+		staged = java.util.Arrays.copyOf(staged,
+		    Math.min(MAX_GATHER, Math.max(staged.length * 2, stagedLength + n)));
+	    }
+	    buffer.get(staged, stagedLength, n);
+	    stagedLength += n;
+	}
+
+	/** Writes what has been gathered. */
+	private void writeStaged() throws IOException {
+	    if (stagedLength > 0) {
+		int n = stagedLength;
+		stagedLength = 0;
+		out.write(staged, 0, n);
+	    }
+	}
 
         @Override
 	public void run() {
@@ -197,13 +240,14 @@ final class StreamConnectionIO extends ConnectionIO {
 			Object next = localQueue.getFirst();
 			if (next instanceof ByteBuffer) {
                             Buffer buffer = (Buffer) next;
-			    outChannel.write((ByteBuffer)buffer);
+			    stage((ByteBuffer) buffer);
                             last = buffer;
                             lastIndex = i;
 			    needToFlush = true;
 			} else {
 			    assert next instanceof IOFuture;
 			    if (needToFlush) {
+				writeStaged();
 				out.flush();
 				needToFlush = false;
 			    }
@@ -216,6 +260,7 @@ final class StreamConnectionIO extends ConnectionIO {
 			localQueue.removeFirst();
 		    }
 		    if (needToFlush) {
+			writeStaged();
 			out.flush();
 		    }
 		}
@@ -365,27 +410,22 @@ final class StreamConnectionIO extends ConnectionIO {
 		byte[] array = dst.array();
 		int arrayOffset = dst.arrayOffset();
 
-		int totalRead = 0;
-		int bytesRead = 0;
-		int bytesToRead;
-		while ((bytesToRead = dst.remaining()) > 0) {
-		    if ((totalRead > 0) && !(in.available() > 0)) {
-			break; // block at most once
-		    }
-		    int pos = dst.position();
-		    bytesRead = in.read(array, arrayOffset + pos, bytesToRead);
-		    if (bytesRead < 0) {
-			break;
-		    } else {
-                        ((Buffer)dst).position(pos + bytesRead);
-			totalRead += bytesRead;
-		    }
+		if (!dst.hasRemaining()) {
+		    return 0;
 		}
-		if ((bytesRead < 0) && (totalRead == 0)) {
+		/*
+		 * One blocking read.  The loop that used to follow it, filling
+		 * the buffer while available() reported more, cost a system call
+		 * (or a TLS buffer inspection) per read for little gain: the
+		 * reader is called again at once if there is more.
+		 */
+		int pos = dst.position();
+		int bytesRead = in.read(array, arrayOffset + pos, dst.remaining());
+		if (bytesRead < 0) {
 		    return -1;
 		}
-
-		return totalRead;
+		((Buffer)dst).position(pos + bytesRead);
+		return bytesRead;
 	    }
                 
             @Override

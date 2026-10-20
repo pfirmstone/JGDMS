@@ -170,3 +170,33 @@ only as the cross-check against the earlier numbers.
 3. **Striping inside `ConnectionManager`**, only if stage 0's threshold experiment is positive: endpoint-approved
    candidates, CAS slot reservation, handshake-aware, a pool of one for SSL/Kerberos.
 4. **A new `ConnectionIO`** only if stages 1 to 3 leave a measured gap.
+
+## 10. Stage 0 outcome (2026-10-20, container; the workstation and the 32/80-core machines still to run)
+
+Full tables are in the twenty-third section of `jgdms-benchmarks/serialization/RESULTS.md`. In short:
+
+* (CORRECTED by section 10.1 and the RESULTS correction: with the server in its own JVM UDS and TCP take the same 123 us for one caller; hand-offs 6.1 against 8.1, CPU 137 against 167 us.) The UDS transport (channel I/O) already needs 5.5 thread hand-offs and 129 us of CPU per call against 8.2 and 195 us for TCP (stream I/O) and 8.3 and 260 us for TLS; RMI over TLS needs 2.0 and 66 us. The per-connection writer and reader threads of `StreamConnectionIO` cost about 2.7 hand-offs and 65 us.
+* At 16 callers on 4 cores JERI leaves 30 to 40% of the CPU idle and RMI over TLS uses 93%: the limit is waiting on one connection, not CPU.
+* E3 (connection threshold) is positive: TCP +50%, UDS +16%, TLS +14% (noisy), with 2 to 4 connections capturing it. Stage 3 may proceed for TCP and UDS; TLS keeps a pool of one until a handshake-aware measurement exists.
+* No steady-state virtual-thread pinning on JDK 27.
+* Decision: proceed to stage 1 (stream path: no writer thread hand-off, one write per frame) and stage 2, then stage 3 with a bound of 2 to 4 and endpoint-approved reuse. The new-provider design stays unapproved.
+
+### 10.1 Fable review of stage 0 (2026-10-20) and corrections to section 10
+
+* The UDS rows were measured in one JVM, where the single `SelectionManager` poller (`concurrency = 1`) serves both ends of every connection; production never has that. Re-run UDS with the separate server JVM (`sweep.py` does) and read the client alone before quoting 5.5 hand-offs or "65 us for the stream threads".
+* E3 spread calls over 16 connections that were already open; "2 to 4 connections capture it" is inferred from fill order, not counted (log `using {0}` at FINEST and count per K). Only TCP's +50% is clear; UDS +16% and TLS +14% are within about 1.5 sigma of their baselines, and UDS K=1 (33.5) and TLS K=2 (15.0) were worse than today.
+* "The limit is waiting on one connection" is not established for UDS: the single poller and the common wake-up chain explain the data as well. A two-poller experiment (`SelectionManager` concurrency 2) is needed before striping UDS.
+* Stage order proposed by the reviewer: stage 2 first (a correctness fix that striping and write timeouts would make worse); stage 1 is a TLS lever only (`SslConnection.getChannel()` is always null) and, for TLS, means coalesced single writes from an owned writer, about the 10% of board finding C-F6; a stage 1b for UDS (poller concurrency) before stage 3; stage 3 TCP-first, with the lazy-open rule serialising only the open step so the 16-connection cold burst goes away.
+* Security items not in the board review: UDS increment 2 makes connections identity-bearing (SVID), so a UDS pool must use the same per-subject reuse gate as SSL from the start; stripes can diverge in unfulfilled constraints; striping multiplies server-side connections and handshakes with no per-peer cap or handshake deadline (A6); an interrupted or timed-out write into an `SSLSocket` leaves a partial record, so any write failure, including the interrupted-but-not-failed case, must tear the connection down before another frame; a caller-thread write under `StreamConnectionIO`'s monitor lets a peer that stops reading block every caller, so a write timeout plus teardown comes before removing the writer thread.
+
+## 11. Outcome of stages 2, 1, 1b and the repeated E3 (2026-10-20, container)
+
+* Stage 2 done (`Session.connectionDown`, `handleOpen`, 15-minute timeout, once-only notification; `MuxAckListenerTest`).
+* Stage 1 done (one write per mux message on the stream path; reader without the `available()` loop): DER `ping` at 16 callers TCP +55%, TLS +35%; nothing measurable at one caller.
+* Stage 1b negative: more `SelectionManager` threads make UDS slower; `concurrency` stays 1.
+* E3 repeated on stage 1: striping is worth +20% for UDS (K=2 to 4), +10 to 17% for TCP, and costs TLS 17% (K=4) to 35% (K=2). Stage 3 is therefore at most a UDS change, and UDS increment 2 (identity-bearing connections, SVID) must shape it. The larger lead is batching on the channel path (UDS 35 to 38 calls/ms against TCP 41 to 53 at 16 callers after stage 1).
+* Decision needed from the maintainer: whether to do stage 3 for UDS at all, or first apply the stream path's batching to `SocketChannelConnectionIO`.
+
+## 12. Channel-path batching (2026-10-20)
+
+`SocketChannelConnectionIO` now drains with one writer at a time (section 26 of RESULTS.md): UDS DER `ping` at 16 callers +30% (container), one caller about -5%. UDS and the stream paths are now at similar throughput at 16 callers; the remaining per-call cost is the hand-off count (UDS 6 per call across both JVMs, RMI 2). Open: whether to stripe UDS (+20% at 2 to 4 connections, measured before this change and not repeated on it).

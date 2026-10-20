@@ -106,13 +106,54 @@ class ThreadPool implements Executor, java.util.concurrent.Executor {
     private volatile boolean shutdown = false;
     private final ExecutorService es;
 
+    /**
+     * Whether tasks run on platform threads from a cached pool (daemon
+     * threads with a small stack size hint, the arrangement this pool had
+     * before 1821b2f25) instead of a virtual thread per task, which is the
+     * default.  Platform threads trade throughput at many concurrent
+     * callers (measured 10 to 28% lower for TCP and TLS DER calls with 16
+     * callers) for latency at one caller (12 to 30% lower) and a memory
+     * profile some deployments were tuned for.  Set the system property
+     * {@code org.apache.river.thread.platform} to {@code true} to choose
+     * them.  The mux's selection loop does not depend on this: it always
+     * has its own platform thread.
+     */
+    private static final boolean PLATFORM = AccessController.doPrivileged(
+        (PrivilegedAction<Boolean>) () ->
+            Boolean.getBoolean("org.apache.river.thread.platform"));
+
     ThreadPool() {
-        this(newVirtualThreadPerTaskExecutor());
+        this(PLATFORM ? newPlatformThreadExecutor() : newVirtualThreadPerTaskExecutor());
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
                 Runtime.getRuntime().addShutdownHook(shutdownHook());
                 return null;
+            }
+        });
+    }
+
+    /**
+     * Thread stack size hint given to the jvm to minimise memory consumption,
+     * as this executor can create many threads and the tasks are relatively
+     * simple.  The jvm is free to ignore the hint.
+     */
+    private static final int STACK_SIZE_HINT = 228;
+
+    private static ExecutorService newPlatformThreadExecutor() {
+        return Executors.newCachedThreadPool(new java.util.concurrent.ThreadFactory() {
+            @Override
+            public Thread newThread(final Runnable r) {
+                // A thread keeps the access control context it is created
+                // in, and a cached thread is reused by later tasks: create it
+                // with no ambient subject, as the virtual thread executor is.
+                return Subject.callAs(null, new Callable<Thread>() {
+                    @Override
+                    public Thread call() {
+                        return AccessController.doPrivileged(
+                            new NewThreadAction(r, "idle", true, STACK_SIZE_HINT));
+                    }
+                });
             }
         });
     }

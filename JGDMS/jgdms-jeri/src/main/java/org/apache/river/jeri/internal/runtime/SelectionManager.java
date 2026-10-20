@@ -19,8 +19,6 @@
 package org.apache.river.jeri.internal.runtime;
 
 import org.apache.river.logging.Levels;
-import org.apache.river.thread.Executor;
-import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -31,7 +29,6 @@ import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.security.AccessController;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -85,10 +82,6 @@ public final class SelectionManager {
 
     private static final Logger logger = Logger.getLogger(
 	"org.apache.river.jeri.internal.runtime.SelectionManager");
-
-    /** pool of threads for executing tasks in system thread group */
-    private static final Executor systemThreadPool = (Executor)
-	AccessController.doPrivileged(new GetThreadPoolAction(false));
 
     /** shared Selector used by this SelectionManager */
     private final Selector selector;
@@ -154,8 +147,16 @@ public final class SelectionManager {
 						  SelectionKey.OP_READ);
 
 	for (int i = 0; i < concurrency; i++) {
-	    systemThreadPool.execute(new SelectLoop(),
-				     "I/O SelectionManager-" + i);
+	    /*
+	     * A platform thread, not a task on the system pool: the loop lives
+	     * as long as the manager and blocks in select(), and on a virtual
+	     * thread every readiness event costs a wake of the JDK's poller
+	     * thread, a second poll and a re-arm of the selector (two more
+	     * hand-offs and about four system calls per call in each JVM).
+	     */
+	    Thread loop = new Thread(new SelectLoop(), "(JSK) I/O SelectionManager-" + i);
+	    loop.setDaemon(true);
+	    loop.start();
 	}
 
 	// REMIND: How do these threads and other resources get cleaned up?
