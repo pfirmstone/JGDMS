@@ -18,6 +18,10 @@
 package net.jini.jeri.kerberos;
 
 import org.apache.river.action.GetIntegerAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.KerberosEndpointInternalsAccess;
 import org.apache.river.jeri.internal.connection.BasicConnManagerFactory;
@@ -272,10 +276,31 @@ import org.ietf.jgss.GSSName;
  * @see KerberosTrustVerifier
  * @since 2.0
  */
+@AtomicSerial
 public final class KerberosEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -880347439811805543L;
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm("serverHost", String.class),
+            new SerialForm("serverPort", Integer.TYPE),
+            new SerialForm("principalName", String.class),
+            new SerialForm("principalNameType", Integer.TYPE),
+            new SerialForm("csf", SocketFactory.class)
+        };
+    }
+
+    public static void serialize(PutArg arg, KerberosEndpoint ep) throws IOException {
+        arg.put("serverHost", ep.serverHost);
+        arg.put("serverPort", ep.serverPort);
+        // KerberosPrincipal is not an @AtomicSerial or supported field type: carry its name and name type
+        arg.put("principalName", ep.serverPrincipal.getName());
+        arg.put("principalNameType", ep.serverPrincipal.getNameType());
+        arg.put("csf", ep.csf);
+        arg.writeArgs();
+    }
 
     /** JERI Kerberos client transport logger */
     private static final Logger logger =
@@ -365,7 +390,7 @@ public final class KerberosEndpoint
      * The <code>ConnManager</code> this endpoint uses to create
      * connections.
      */
-    private transient ConnManager connManager;
+    private transient volatile ConnManager connManager;
 
     /**
      * If set to true, causes the endpoint not to connect sockets it
@@ -403,6 +428,70 @@ public final class KerberosEndpoint
      *         not in the range of <code>1</code> to
      *         <code>65535</code>
      */
+    /**
+     * Constructs an instance from a stream, with the checks of {@code readObject}. Like a
+     * Java-deserialized instance before {@code readResolve}, it is not interned: it takes the
+     * canonical instance's connection state on first use ({@link #ensureInitialized}).
+     */
+    KerberosEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
+	this(arg.get("serverHost", null, String.class),
+	     arg.get("serverPort", 0),
+	     principal(arg.get("principalName", null, String.class), arg.get("principalNameType", 0)),
+	     arg.get("csf", null, SocketFactory.class),
+	     true);
+    }
+
+    private static KerberosPrincipal principal(String name, int nameType) throws InvalidObjectException {
+	if (name == null) {
+	    return null;
+	}
+	try {
+	    return new KerberosPrincipal(name, nameType);
+	} catch (IllegalArgumentException e) {
+	    InvalidObjectException ex = new InvalidObjectException("invalid server principal: " + e.getMessage());
+	    ex.initCause(e);
+	    throw ex;
+	}
+    }
+
+    private KerberosEndpoint(String serverHost, int serverPort,
+			     KerberosPrincipal serverPrincipal,
+			     SocketFactory csf, boolean fromStream)
+	throws InvalidObjectException
+    {
+	if (serverHost == null) {
+	    throw new InvalidObjectException("serverHost is null");
+	} else if (serverPort <= 0 || serverPort > 0xFFFF) {
+	    throw new InvalidObjectException(
+		"server port number out of range 1-65535: serverPort = " + serverPort);
+	} else if (serverPrincipal == null) {
+	    throw new InvalidObjectException("serverPrincipal is null");
+	}
+	this.serverHost = serverHost;
+	this.serverPort = serverPort;
+	this.serverPrincipal = serverPrincipal;
+	this.csf = csf;
+    }
+
+    /**
+     * Gives an instance built from a stream the connection state of its canonical instance, once.
+     * Instances from {@code getInstance} and {@code readResolve} already have it.
+     */
+    private void ensureInitialized() {
+	if (connManager == null) {
+	    synchronized (internTable) {
+		if (connManager == null) {
+		    KerberosEndpoint canonical = intern(this);
+		    if (canonical != this) {
+			softCache = canonical.softCache;
+			connectionEndpoint = canonical.connectionEndpoint;
+			connManager = canonical.connManager;
+		    }
+		}
+	    }
+	}
+    }
+
     private KerberosEndpoint(String serverHost, int serverPort,
 			     KerberosPrincipal serverPrincipal,
 			     SocketFactory csf)
@@ -659,6 +748,7 @@ public final class KerberosEndpoint
 	    }
 	}
 
+	ensureInitialized();
 	CacheKey key = new CacheKey(clientSubject, constraints);
 	RequestHandleImpl handle = (RequestHandleImpl) softCache.get(key);
 
