@@ -2076,6 +2076,27 @@ public final class KerberosEndpoint
 	    } else if (context == null) {
 		throw new NullPointerException("context is null");
 	    }
+	    // The server proved it holds the key of serverPrincipal by mutual
+	    // authentication (checked when the context was established, along
+	    // with the target name), so that principal is the authenticated
+	    // server.  Publish it as the SSL transport does: a read-only Subject
+	    // with no credentials (never tickets or GSS credentials), guarded by
+	    // the same permission.
+	    final Subject serverSubject = new Subject(true,
+		Collections.singleton((java.security.Principal) serverPrincipal),
+		Collections.emptySet(), Collections.emptySet());
+	    context.add(new net.jini.io.context.ServerSubject() {
+		private final java.security.Permission getServerSubjectPermission =
+		    new net.jini.io.context.ContextPermission(
+			"net.jini.io.context.ServerSubject.getServerSubject");
+		public Subject getServerSubject() {
+		    SecurityManager sm = System.getSecurityManager();
+		    if (sm != null) {
+			sm.checkPermission(getServerSubjectPermission);
+		    }
+		    return serverSubject;
+		}
+	    });
 	}
 	
 	// javadoc is inherited from the Connection interface
@@ -2250,7 +2271,8 @@ public final class KerberosEndpoint
 		}
 	    }
 
-	    if (!gssContext.getIntegState() ||
+	    if (!gssContext.getMutualAuthState() ||
+		!gssContext.getIntegState() ||
 		(doEncryption && !gssContext.getConfState()) ||
 		(doDelegation && !gssContext.getCredDelegState()) ||
 		!gssContext.getTargName().toString().
