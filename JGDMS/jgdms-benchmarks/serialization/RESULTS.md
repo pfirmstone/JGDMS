@@ -1186,3 +1186,93 @@ The 512-caller point of DER over TCP with virtual callers had 16 errors, `Connec
 The failed calls were a small part of the collapse: at most 21 failed calls in a 6 s window of well over 100 000 calls, and calls/ms does not move beyond the run-to-run spread (the two runs of one point differ about as much as before and after do, in nearly every row). The one apparent gain, TCP virtual at 512 (27 to 33 calls/ms, in both runs of each), is the size of the spread seen elsewhere in the table and needs more runs before it is read as an effect. One run (TCP platform 512, after, run 1: 29.9 calls/ms, p50 1.4 ms) is twice the others and was not reproduced by run 2.
 
 **One observation, no explanation attempted.** The client socket count in the driver output is the caller count plus a few with platform-thread callers at 512 (514 in 5 of 8 runs, before and after; 489, 429 and 202 in the others) and 85 to 166 with virtual-thread callers; the one fast run (29.9 calls/ms) had 202 sockets. The fix does not change how many connections a cold burst opens (each of N threads that find no connection opens its own: a separate known issue).
+
+## Thirty-third section: why throughput falls between 64 and 512 callers, diagnosed (container, 4 cores, JDK 27 `27-internal`, server in its own JVM, DER, `ping`, closed loop; re-run on the workstation before quoting)
+
+**The question.** Section 32 left the fall open: DER over UDS, platform-thread callers, 32 to 48 calls/ms at 64 callers and 13 to 15 at 512, p50 1 ms to 40 ms; the same shape over TCP and with virtual-thread callers, and less for RMI. Why, and what limits it? The target is low latency and high scalability, so a fall with the number of callers is the main thing to understand before the transport options are weighed (docs/DESIGN-OPTIONS-jeri-transport-architecture-2026-10-20.md, D8).
+
+**Short answer.** The loss is in `ConnectionManager.connect` (and the `ConnectionManager` monitor it takes), not in the transport, the selection thread, the scheduler, the garbage collector or the server. Every call enters `connect`, which under the one `ConnectionManager` monitor walks **all** the muxes (a `BitSet.cardinality()` under each mux's lock, and two lists built) to offer the endpoint the active and idle ones; the endpoint returns the first active one. When 512 callers start together each finds no connection and opens its own (513 sockets), but the endpoint then sends every call to the same one or two muxes (strace: 100% of the client's writes on one descriptor at 64 callers, 52% + 48% on two at 512, the other 460 sockets idle), so the 500 extra connections carry no traffic and cost a longer scan, held under the lock, on every call. With the same callers and 2 to 4 connections throughput does not fall at all.
+
+**Method.** `concurrency-curve.py` for the curve (3 s warm-up, 6 s measured); new tool `collapse-probe.py` (this section) for everything else: a fresh server and client JVM per point, and an external sampler that reads `/proc/<pid>/task/*/{schedstat,status}` of both JVMs before and after a 6 s interval inside the window (CPU, time runnable on a queue, context switches, per thread group) and `/proc/stat` for the machine, with options for `jcmd Thread.print` (`--dump`), a JFR recording of the client (`--jfr`: `jdk.JavaMonitorEnter` from 0 ms, execution samples at 10 ms), `strace -c -f` or per-descriptor `strace` of one JVM (`--strace`, `--strace-fd`; these slow the run a lot, so only ratios are used), and `--prime K`. `ConcurrencyCurve` gained `prime=K`: K calls before the callers start (1: from the main thread; K > 1: K concurrent threads that each open a connection), to set the number of connections apart from the number of callers. Without it nothing changed. **The first probe runs sampled the thread state ten times in the interval and perturbed the run (the sampler's python process made the machine look 87% busy while the JVMs used 1.8 cores); `--light` (two snapshots only; the sampler then costs 0.01 cores) is what every figure below uses.** One run per cell unless two are given; the container is noisy (differences under about 20% are not read).
+
+**1. The curve (DER, UDS, `ping`; calls/ms run 1 / run 2; `concurrency-curve.py`, cold start = every caller finds no connection).**
+
+| callers | platform calls/ms | p50 ms | client sockets | client / server CPU us per call | virtual calls/ms | virtual client sockets |
+|---:|---|---|---|---|---|---|
+| 64 | 39.9 / 55.2 | 1.2 / 0.9 | 65 / 41 | 55 / 36 and 23 / 20 | 35.7 / 41.0 | 64 / 53 |
+| 128 | 32.1 / 34.7 | 1.1 / 1.4 | 129 / 129 | 62 / 57 and 24 / 28 | 40.8 / 38.5 | 91 / 99 |
+| 192 | 28.2 / 31.6 | 1.3 / 0.7 | 193 / 193 | 63 / 61 and 37 / 33 | 41.3 / 32.0 | 85 / 95 |
+| 256 | 26.6 / 21.7 | 2.3 / 12.2 | 223 / 257 | 64 / 79 and 40 / 50 | 36.6 / 30.4 | 88 / 54 |
+| 320 | 19.1 / 18.2 | 19.0 / 18.8 | 321 / 321 | 86 / 92 and 40 / 53 | 39.2 / 36.9 | 93 / 93 |
+| 384 | 16.4 / 16.2 | 26.4 / 26.5 | 385 / 385 | 99 / 93 and 54 / 56 | 24.7 / 28.0 | 188 / 156 |
+| 512 | 13.2 / 13.4 | 42.0 / 41.7 | 513 / 513 | 122 / 121 and 61 / 59 | 19.1 / 25.5 | 299 / 68 |
+
+The fall is **gradual from 64 callers, there is no cliff at 256** (the second connection is not a visible event). The client's CPU per call more than doubles (55 to 122 us) and the server's nearly triples (23 to 61 us): the work per call grows with the number of callers, which pure oversubscription would not do. The client socket count follows the caller count for platform threads (the cold burst), and is smaller and variable for virtual threads (they start one by one and find connections); the two runs of a point differ most where their socket counts differ.
+
+**2. Number of connections against number of callers (512 platform callers, UDS; `--prime K` opens about K connections before the callers start; calls/ms run 1 / run 2).**
+
+| connections opened first | client sockets | calls/ms | p50 ms | client / server CPU us per call |
+|---|---|---|---|---|
+| 1 (K = 1) | 5 / 6 | 53.1 / 62.1 | 6.8 / 6.9 | 40 / 33 and 19 / 17 |
+| 16 | 18 / 18 | 49.9 / 51.7 | 7.8 / 8.1 | 40 / 38 and 17 / 18 |
+| 64 | 28 / 66 | 51.0 / 52.4 | 7.3 / 7.9 | 44 / 44 and 18 / 16 |
+| 128 | 68 / 130 | 45.7 / 34.2 | 7.6 / 0.8 | 47 / 61 and 17 / 28 |
+| 256 | 258 / 258 | 21.4 / 23.4 | 27.7 / 25.6 | 78 / 74 and 44 / 42 |
+| 512 | 148 / 218 | 33.7 / 24.8 | 0.5 / 1.1 | 57 / 71 and 32 / 42 |
+| none (the cold burst, section 1) | 513 | 13.2 / 13.4 | 42 / 42 | 122 / 121 and 61 / 59 |
+
+Throughput is a function of the number of connections: about 50 to 60 calls/ms with 5 to 66, then falling to about 22 at 258 and 13 at 513. The same 512 callers, the same server, the same lock and the same 4 cores. And the whole curve flattens when there is one connection first (`--prime 1`, calls/ms run 1 / run 2): 64 callers 62.7 / 64.1; 128: 59.1 / 60.8; 192: 56.9 / 59.3; 256: 62.3 / 59.9; 320: 64.2 / 61.8; 384: 65.3 / 56.8; **512: 64.5 / 60.5**, with 2 to 4 sockets, the second connection opening at 256 without any visible cost, and p50 growing only as N / throughput (0.8 ms at 64, 7 ms at 512; Little's law). Virtual callers: 42.2 / 43.0 (64) and 41.8 / 41.6 (512) cold in this setup, 60.9 / 60.4 and 78.8 / 79.6 with a connection first. So the 5-fold fall at 512 platform callers (13 against 60+) is the number of connections, and nearly all of it; the 64-caller point itself is also about 20% down (47 cold against 58 to 63 with `--prime 1`, 65 against 2 sockets).
+
+**3. Where the callers are.** `jcmd Thread.print` of the client in the window, 512 platform callers, cold: **492 of 512 `BLOCKED` entering the `ConnectionManager` monitor in `ConnectionManager.connect`**, 16 `BLOCKED` in `OutboundMux.newRequest` (the same monitor, `newRequestPending`), 3 waiting for a reply in `MuxInputStream.read`. At 64 callers: 50 in `connect`, 6 in `newRequest`, 7 waiting for a reply. The server JVM at 512: 3 of its 4 dispatch workers parked, nothing else busy. JFR on the client (`jdk.JavaMonitorEnter` from 0 ms, recordings of about 20 s): the `ConnectionManager` monitor accounts for 215 868 contended enters and 358 s blocked in total at 64 callers (mean 1.7 ms), **157 490 enters and 7 724 s at 512 (mean 49 ms, about 390 threads blocked on average)**, and 79 112 enters and 1 772 s (mean 22 ms) at 512 with a connection first, which still contends but runs at 58 calls/ms; the sites are `connect` line 192 (`pendingConnects++`, the first entry), the scan (224), the reservation (243) and `newRequest` (445, 450): the same monitor entered about six times per call. Execution samples at 512 cold: self time `BitSet.cardinality` 27%, the loop at the start of `UdsEndpoint$ConnectionEndpointImpl.connect` 21% (line 441, which should return at its first element; why it is hot was not established, see below), `HashSet.isEmpty` 13% (at the `reaperSet` entry in `connect`), `LinkedList.node` 9%: 70% of the client's caller-thread CPU samples, against `Mux.readMessageBody` 11%; with a connection first `Mux.readMessageBody` is 58% and `cardinality` 1%.
+
+The lock's capacity is the throughput: 1 / 14.4 calls/ms = 69 us of monitor time per call at 512 cold, against 1 / 47 = 21 us at 64 cold. A scan of 513 muxes with two monitor entries each (`ConnectionManager` is re-entered, the mux lock is taken in `requestsInProgress`) at roughly 100 ns each is about 50 us; consistent, not separately measured.
+
+**4. Per-thread CPU (probe `--light`, 6 s interval, UDS, 512 vs 64 platform callers, cold).**
+
+| | 64 callers | 512 callers |
+|---|---|---|
+| calls/ms | 46.1 | 14.4 |
+| machine: user / system / idle | 57 / 25 / 16.5% | 35 / 26 / 37.5% |
+| client JVM CPU, cores | 2.23 | 1.63 |
+| callers (all threads) CPU, cores; us per call | 1.76; 38 | 1.32; 92 |
+| client selection thread `(JSK) I/O SelectionManager-0` | 39% of a core; 8.5 us/call | 26% of a core; 18 us/call |
+| client runnable-but-waiting (schedstat), cores | 6.8 | 1.35 |
+| server JVM CPU, cores (4 dispatch workers / selection thread) | 0.93 (60% / 20%) | 0.79 (46% / 23%) |
+| involuntary context switches/s, client | 13 189 | 4 910 |
+
+**At 512 callers the machine is 37% idle (about 1.5 of 4 cores) and the client uses less CPU than at 64**: the system is not out of CPU, it is waiting on a lock. That rules out oversubscription as the dominant cause: the run queue at 512 is shorter than at 64.
+
+**5. Hypotheses.**
+
+| | verdict | evidence |
+|---|---|---|
+| (a) 512 platform threads on 4 cores, scheduler oversubscription | **ruled out** as the main cause (at most the part of the 20% that a CPU-bound control shows) | Machine 37% idle and client run-queue wait 1.35 cores at 512 against 6.8 at 64 (section 4). With a connection first, 512 platform callers on UDS reach 60.5 to 64.5 calls/ms against 62.7 to 64.1 at 64. RMI plain, the control with the same 514 threads on the same 4 cores and the machine 99% busy: 108.5 calls/ms at 64, 85.8 at 512, CPU per call 18 to 22 us (client) flat. Virtual callers with `-Djdk.virtualThreadScheduler.parallelism=` 1 / 4 / 16: 53.3 / 39.8 / 34.2 calls/ms at 512 (3 / 80 / 88 sockets): the scheduler size changes the cold burst (parallelism 1 never opens many connections), not the work. |
+| (b) the single selection thread (client) or the dispatch pool (server) saturating | **ruled out** | Client selection thread 26 to 39% of one core, server's 20 to 23% (section 4); 3 of 4 server workers parked at 512. With a connection first the same thread carries 58 calls/ms. |
+| (c) lock contention | **ruled in, the dominant cause**: the `ConnectionManager` monitor | Sections 2 and 3. `jdk.JavaMonitorEnter`: all the large entries are `ConnectionManager`. The mux lock was not the limit: with a connection first, where one or two muxes carry everything, throughput is highest. (Not examined: `JavaMonitorWait`, `ThreadPark`; the thread dump covers where callers wait.) |
+| (d) garbage collection, memory | **ruled out** | `-Xlog:gc`, 16 s runs: client 31 young pauses, 204 ms in all (max 11 ms) at 64 callers, 39 pauses, 226 ms (max 21 ms) at 512; server 220 ms and 139 ms (max 16 ms): about 1% of the time. The allocation per call grows (about 17 KB to about 29 KB on the client, from the sizes of the young collections: the two lists of up to 513 nodes built per call) but at 15 calls/ms is no load. RSS 465 to 1 000 MB, not related to the throughput. |
+| (e) flow control, the second connection at 256, all callers on one connection | **second connection: ruled out; concentration on one or two connections: confirmed, and it is the mechanism** | A connection first: the second connection opens at 256 and nothing falls (above). `strace -f -e write...` of the client, 4 s: 64 callers 14 921 writes, 100% on one descriptor (65 sockets); 512 callers 4 096 writes, 52% and 48% on two descriptors (463 sockets), i.e. the 256-session limit of each, the rest idle. Rations were not examined separately; nothing points at them. |
+| (f) the server | **ruled out as the limit**; its CPU per call is a consequence | 0.8 to 1.0 cores, mostly idle at 512. Its CPU per call rises 20 to 55 us cold and stays 17 to 19 us with a connection first, tracking the number of connections in section 2; consistent with requests reaching it one at a time instead of in batches, not tested. |
+| (g) the load generator | **ruled out** | Client CPU per call with a connection first is 25 to 35 us at 512 and 64 alike, and RMI's 18 to 22 us at 64 and 512 (same driver). The latency histograms are fixed in size (section 31). |
+| strace, system calls per call | **consistent** | `strace -c -f` (slows the run, ratios only): client futex calls per `writev` 6.7 at 64 callers and 27.8 at 512; server 10.2 and 10.6. The client's extra is the park and unpark of callers on the monitor. |
+
+**6. The other transports (probe, 1 run each, calls/ms at 64 then 512; "cold" = no connection first; "first" = `--prime 1`).**
+
+| | cold 64 | cold 512 | first 64 | first 512 | sockets cold 512 / first 512 |
+|---|---|---|---|---|---|
+| DER UDS | 46.1 | 14.4 | 59.1 | 58.8 | 513 / 4 |
+| DER TCP | 47.1 | 13.1 | 52.9 | 62.2 | 514 / 6 |
+| DER TLS (CPU-bound here: machine 1 to 2% idle) | 24.6 | 9.1 | 33.1 | 31.6 | 514 / 41 |
+| RMI plain (control) | 108.5 | 85.8 | | | 514 / - |
+
+In this container TCP and TLS fall as UDS does, and all three hold at 512 with a connection first. TCP's client threads are two per connection (1 561 client threads cold at 512): the same lock, the same cause. The maintainer's workstation (12 logical CPUs, Windows) shows UDS 56 to 26, TCP 50 to 35, TLS 50 to 55 between 64 and 512; this container does not reproduce TLS holding. **The channel path (single selection thread, caller-thread drainer) is therefore not the cause here**: it is the same code in `ConnectionManager` for every transport, and the UDS selection thread is 26% busy at 512 callers. Why TCP falls less and TLS not at all on the workstation is **not established**; the quantity that would decide it is the `client_sockets` of those runs (if TLS, whose handshake takes long, ends the cold burst with far fewer connections than callers, the explanation is the number of connections), and a `--prime 1` run there.
+
+**7. Ranked conclusion.**
+1. (nearly all of the loss at 512 callers: 13 calls/ms cold against 60 with a connection first) The number of connections the cold burst leaves behind, times the per-call scan of all of them under the single `ConnectionManager` monitor; the lock is then the throughput (about 70 us per call at 513 muxes, about 20 us at 65, a few us at 2 to 4), and the callers queue on it (492 of 512 blocked). The extra connections carry no traffic; the endpoint picks the first active mux.
+2. (the 20% at 64 callers, a share of the rest) The same lock at lower dose: 65 muxes cold against 2.
+3. (a consequence, not a cause) The server's CPU per call rising 20 to 55 us, and the client's allocation per call rising.
+
+Not causes: scheduler oversubscription, the selection thread, the dispatch pool, GC, memory, the second connection, the channel path, the load generator.
+
+**8. What remains unexplained.** (i) Why `UdsEndpoint$ConnectionEndpointImpl.connect` line 441 (the loop over the offered active connections, which returns at its first element when there is no `SecurityManager`) is 21% of the samples at 512 cold; it may be the sample attribution of inlined list or monitor code, not established. (ii) How much of the lock's cost is the length of the scan and how much the convoy (a contended monitor hands over through the kernel: 28 futex calls per call): both fall together when the number of connections falls, the experiments here do not separate them. (iii) The distribution of latency at 100 to 250 connections: p50 0.5 to 1.1 ms with p99 about 90 ms (section 2, rows 128 and 512): most callers are served quickly and a few wait very long, an unfairness of the monitor not investigated. (iv) The workstation's TCP and TLS curves (above). (v) Whether the same holds on another JDK or another operating system: not tried. (vi) The server's CPU per call vs batching (f). (vii) What the next limit is with a connection first (about 60 calls/ms on UDS at both 64 and 512; the client uses 2 cores and the server 1.1 to 1.4 of the 4, the machine 18 to 21% idle, 58% of the caller samples still in `connect`): not examined.
+
+**Reproduce.** `python3 collapse-probe.py --light --out probe-x --callers 512 --kind platform [--prime 1] [--transport TCP|TLS] [--stack RMI] [--dump] [--jfr] [--strace client --strace-fd] [--jvm-args '...']`; the curve with `concurrency-curve.py --stacks DER --transports UDS --kinds platform,virtual --callers 64,128,192,256,320,384,512 --warmup 3 --measure 6`.

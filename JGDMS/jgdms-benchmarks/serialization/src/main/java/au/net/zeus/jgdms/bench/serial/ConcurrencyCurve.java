@@ -38,7 +38,7 @@ import javax.security.auth.Subject;
  * <pre>
  *   java -Dthreadprofile.server=&lt;dir&gt; [-Dthreadprofile.serverpid=&lt;pid&gt;] [-Dbench.tls.dir=&lt;dir&gt;]
  *        -cp serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ConcurrencyCurve
- *        stack=DER transport=UDS payload=ping callers=64 kind=virtual warmup=5 measure=8 [rate=0]
+ *        stack=DER transport=UDS payload=ping callers=64 kind=virtual warmup=5 measure=8 [rate=0] [prime=0]
  *
  *   stack      DER | JOSS | RMI
  *   transport  TCP | UDS | TLS   (RMI: PLAIN or TLS; RMI has no UDS)
@@ -48,6 +48,10 @@ import javax.security.auth.Subject;
  *   warmup     seconds of warm-up, not measured (default 5)
  *   measure    seconds measured (default 8)
  *   rate       0 (default) = closed loop; otherwise open loop at this many calls per second in total
+ *   prime      K = make K calls before the callers start (1: from the main thread; K > 1: K concurrent threads, each of
+ *              which finds no connection and opens its own, so about K connections exist when the callers start).
+ *              Default 0: all N callers find none and each opens its own, a cold burst. Used by the many-callers
+ *              diagnosis to hold the number of connections apart from the number of callers.
  * </pre>
  * The server is a {@code ServerMain <dir>} JVM (with the same {@code -Dbench.tls.dir} for TLS), named by
  * {@code -Dthreadprofile.server=<dir>}; {@code -Dthreadprofile.serverpid=<pid of ServerMain>} adds that JVM's
@@ -173,6 +177,24 @@ public final class ConcurrencyCurve {
         long[] baseBox = new long[1];
         final long periodNs = open ? Math.max(1, (long) (callers * 1e9 / rate)) : 0;
 
+        int prime = Integer.parseInt(opt.getOrDefault("prime", "0"));
+        if (prime == 1) {
+            c.run();
+        } else if (prime > 1) {      // prime concurrent calls: each finds no connection and opens its own, about prime in all
+            Thread[] pt = new Thread[prime];
+            for (int i = 0; i < prime; i++) {
+                pt[i] = Thread.ofPlatform().daemon().name("prime-" + i).start(() -> {
+                    try {
+                        c.run();
+                    } catch (Exception e) {
+                        errors.increment();
+                    }
+                });
+            }
+            for (Thread t : pt) {
+                t.join();
+            }
+        }
         int started = 0;
         String startFailure = null;
         List<Thread> threads = new ArrayList<>(Math.min(callers, 8192));
@@ -277,6 +299,7 @@ public final class ConcurrencyCurve {
         j.put("payload", payload);
         j.put("kind", kind);
         j.put("mode", open ? "open" : "closed");
+        j.put("prime", opt.getOrDefault("prime", "0"));
         j.put("callers_requested", callers);
         j.put("callers_started", started);
         j.put("warmup_s", warmup);

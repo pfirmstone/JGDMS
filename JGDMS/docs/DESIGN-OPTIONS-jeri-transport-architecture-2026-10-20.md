@@ -274,7 +274,7 @@ two things that matter for the scalability target:
 * **Throughput collapses between 64 and 512 callers.** DER over UDS: 37 to 45 calls/ms at 64 callers, 13 at 512, with p50
   latency 2.4 to 42 ms and p99 150 to 220 ms; over TCP 46 to 47 at 64 and 11 to 16 at 512. RMI plain also falls (99 at 64,
   30 to 57 at 512) but less. 512 callers is above the mux's 256 sessions per connection, which was the first suspect for the
-  failures (confirmed, below) but not for the fall in throughput, which is not diagnosed. On 4 cores 512 callers is also oversubscribed by construction.
+  failures (confirmed, below) but not for the fall in throughput (diagnosed below: the per-call scan of all connections under the `ConnectionManager` monitor; not oversubscription).
 * **Calls fail.** At 512 virtual-thread callers DER over TCP had 16 errors and over UDS 36, `ConnectIOException: no free
   sessions`. Cause **[confirmed 2026-10-20 by a failing test and a before/after benchmark]**: `ConnectionManager.connect` decides under its lock that a mux with fewer
   than 256 requests in progress may be reused, but the caller only reserves its slot (`newRequestPending`) after
@@ -286,7 +286,8 @@ two things that matter for the scalability target:
   1024 virtual-thread callers 8 to 21 per point before (5 of 16 point-runs), 0 of 32 after. **The throughput fall between 64
   and 512 callers is not this bug and remains** (UDS platform 32 to 48 calls/ms at 64, 13 to 15 at 512, before and after;
   virtual callers 26 to 36 at 512); with platform callers the client opens about one connection per caller (514 sockets at
-  512 callers in 5 of 8 runs), with virtual callers 85 to 166. The remaining collapse is not diagnosed.
+  512 callers in 5 of 8 runs), with virtual callers 85 to 166.
+  **The fall is diagnosed (2026-10-20, RESULTS section 33; 4-core container, not for quoting)**: it is `ConnectionManager.connect`, not the transport. Every call scans *all* the muxes (a `BitSet.cardinality()` under each mux lock, two lists built) under the one `ConnectionManager` monitor, and the endpoints return the first active mux. The cold burst leaves one connection per platform-thread caller (513 sockets at 512), the endpoint sends all traffic to one or two of them (strace: 100% of writes on one descriptor at 64 callers, 52% and 48% on two at 512), and the idle rest only lengthen the scan: 492 of 512 callers are `BLOCKED` in `connect`, the `ConnectionManager` monitor is contended about 390 threads deep, and the machine is 37% idle. With the same callers and one connection opened first throughput does not fall (UDS 62.7 / 64.1 calls/ms at 64 callers, 64.5 / 60.5 at 512; TCP 52.9 and 62.2; TLS 33 and 32), against 13 at 512 cold; at 512 callers throughput is a function of the number of connections (50 to 60 calls/ms with 5 to 66, 22 with 258, 13 with 513). Ruled out: scheduler oversubscription, the selection thread (26 to 39% of a core), the server, GC (about 1% of the time), the second connection at 256 (no cost), the channel path (TCP and TLS fall too, in this container, and hold with a connection first) and the load generator. Open: why the maintainer's workstation falls less for TCP and not for TLS (needs the `client_sockets` of those runs).
 
 **History (maintainer):** the mux used to have 128 sessions; a stress test overflowed it and the limit was raised to 256
 (`Mux.MAX_SESSION_ID` 0x7F to 0xFF in 3.1.1; the source comment says the session id is now an unsigned byte and 256 is the
@@ -297,7 +298,7 @@ so a connection pool is not an optional optimisation (D2's striping question) bu
 asks for, and the pool's open-on-demand path must be correct (no failure when a mux fills). Going beyond 256 per connection
 would need a new mux protocol version (option B of the first design, a negotiated format).
 
-The first (the fall in throughput) still needs diagnosing before the scalability options are weighed; the second is fixed.
+Both are now understood: the second is fixed, the first is the per-call scan of every connection under the `ConnectionManager` monitor (a connection-management matter in D2's `ConnectionManager`, not a property of the selection thread or of the mux).
 Both sit below every architecture choice in this document.
 
 ## 4. Combinations
