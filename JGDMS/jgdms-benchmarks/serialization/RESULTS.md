@@ -852,3 +852,19 @@ A JERI call crosses about 8 thread wake-ups (mux writer 2, mux reader 2, the vir
 **Defects found on the way:**
 - `UdsServerEndpoint` cannot bind a socket on Linux: `restrictPermissions` sets the owner-only mode through a `NOFOLLOW_LINKS` attribute view, which the JDK implements by opening the file, and opening a socket file fails with ENXIO ("No such device or address"); the endpoint then refuses to bind. A following chmod works (confirmed in a scratch program). All UDS tests in the repository are commented out, which is why nothing caught it. UDS is a production transport, so there are no UDS numbers yet.
 - `TlsRMIClientSocketFactory` was not `Serializable`, so an RMI stub exported with it could not be marshalled to another JVM (a registry bind or any remote use). Fixed (stateless, all instances equal; `TlsRMIClientSocketFactorySerializationTest`).
+
+## Twenty-second section: UDS now binds; first UDS sweep (container, 4 cores; re-run on the workstation before quoting)
+
+`UdsServerEndpoint` could not bind on Linux until the commits `f27eb98c9` and `81b138766` (see the handover, open item 6), so every earlier UDS row was empty ("skipping transport UDS"). First sweep with the separate server JVM, callers 1, 4 and 16, `sweep.py --transports UDS` (RMI has no UDS, so there is no ratio):
+
+| calls/ms | 1 caller | 4 | 16 |
+|---|---|---|---|
+| `ping` JERI DER, UDS | 7.90 | 22.16 | 35.59 |
+| `ping` JERI DER, TCP (same run set, before the fix) | 7.21 | 14.32 | 27.91 |
+| `ping` JERI JOSS, UDS | 2.50 | 8.87 | 12.58 |
+| `record` JERI DER, UDS | 6.12 | 17.05 | 27.20 |
+| `record` JERI JOSS, UDS | 1.91 | 7.79 | 10.83 |
+| `batch100` JERI DER, UDS | 0.63 | 1.94 | 2.57 |
+| `batch100` JERI JOSS, UDS | 0.61 | 1.50 | 2.13 |
+
+What it shows: UDS is 10% faster than TCP loopback for one caller and 28% to 55% for 4 to 16 callers (`ping`), but the shape is the same as on TCP: 4.5 times at 16 callers, far from linear on 4 cores, so the mux (8 voluntary context switches per call, twenty-first section) rather than the socket is what limits it. DER is 3.2 times JOSS on `ping` and 3.2 times on `record` at one caller, and 1.0 to 1.2 times on `batch100`, as on TCP. Single run, one machine type, 4 cores shared with the load generator: do not quote the absolute numbers. Remaining stage 0 work: the single-caller profile on UDS and TLS, per-thread CPU at the knee on the workstation, the connection-threshold experiment, connection counts, `VirtualThreadPinned`.
