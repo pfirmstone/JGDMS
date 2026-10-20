@@ -27,6 +27,27 @@ human authors.
 | P6 inconclusive | sound with changes | Union (or list) of retained grants is right. Voiding a grant stops future grants only: loaded classes keep running and cached permissions need `policy.refresh()` and `CachingSecurityManager.clearCache`; the verdict listener is leased, so a lapse leaves a stale SAFE. Meaningful with isolation (kill the subprocess pool for the identity). Also void the static `DigestGrant`s and URI grants. |
 | P7 ranking | wrong | **P7.1 withdrawn:** `BootstrapPermission` is deliberately boot-window-only and held only by lookup services and verdict registries; checking it in steady state would refuse every ordinary service. P7.6 withdrawn. Move the unbound verdict (P7.4) and the SCAP-gate bypasses to the top: directory URLs skip the verdict and digest checks, `RFC3986URLClassLoader` follows manifest `Class-Path` (absolute URLs included) so a SAFE jar pulls in unverified jars (grants fail closed, the code still runs), and the non-bootstrap `PreferredClassProvider` path and Entry annotations are the same bypass class. |
 
+### Step 1 implemented (verdict binding), with a correction to the finding
+Checking the registry (`VerdictRegistryImpl.issueHashVerdict` / `getVerdictByHash`) showed that the
+reviewers' "the verdict has no content hash" was only half right. A hash-keyed verdict **is** bound
+to the jar: its single signed URL is the content address `urn:sha256:<hash>`. What was missing was
+the **client comparing it**, so a validly signed verdict for any other hash was accepted. Implemented
+in `PreferredProxyCodebaseProvider`:
+- `checkVerdictForJar` now requires the verdict's signed URL set to be exactly
+  `{urn:sha256:<contentHash>}` (hex case-insensitive); anything else is refused. No STD-002 change
+  or new `contentHash` field is needed for the hash-keyed path.
+- Freshness: a verdict dated more than 5 minutes in the future is refused. A maximum age is
+  available (`jgdms.proxy.verdictMaxAgeMs`) but **defaults to no limit**, because `getVerdictByHash`
+  returns the verdict the registry *published*, which may legitimately be old; a fixed default would
+  refuse good code. Replay of a superseded verdict is addressed by the pinned channel and the
+  bounded cache TTL.
+- The registry channel can be pinned: `setVerdictRegistry(registry, key, alg, principal)` adds
+  `ServerMinPrincipal(principal)` to `Integrity.YES` and `ServerAuthentication.YES`; without a
+  principal it logs a warning that any authenticated server may answer.
+- Tests: `PreferredProxyCodebaseProviderVerdictTest` (wrong hash, extra URL, hex case, future,
+  max age, pinned constraints); removing the hash comparison fails two of them.
+Not yet done: directory URLs and manifest `Class-Path` are still exempt from the verdict check.
+
 ### Corrected order
 1. SCAP verdict binding: URL containment and a freshness check now; a `ServerMinPrincipal` on the registry channel (`constrainRegistryProxy` currently *replaces* the preparer's constraints); then `contentHash` in the signed content.
 2. Identity: derive it from the bootstrap proxy's own authenticated connection, handler class identity checked, single SPIFFE pin on the bootstrap proxy, provenance check on context items. Then the endpoint-and-identity shortcut hygiene.
