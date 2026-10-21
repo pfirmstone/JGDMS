@@ -60,11 +60,13 @@ the client deadline test, replay-flood CPU, descriptor baseline after every fail
 **Defaults:** deadline 10 s; cap 512; queue `min(4096, maxFds/4 - N)`; CPU permits `max(2, cores/4)`; backlog OS maximum;
 per-address cap off; jitter 0.8 to 1.0.
 
-### Open for the maintainer
-1. Accept the shape above, in particular pause-accept and the CPU permit, as the first TLS server-side change.
-2. Pinning named groups on the server (interoperability reviewed by Fable; still a policy choice).
-3. Whether the mux start deadline is in S0 or a follow-up.
-4. Whether client expiry jitter is in S0 or its own change.
+### Maintainer's decisions (2026-10-21)
+1. The shape above is accepted, including pause-accept when the queue is full and the CPU permit.
+2. The server's named groups are pinned to `X25519MLKEM768, x25519, secp256r1`.
+3. The server mux start deadline is in S0.
+4. Client expiry jitter was done separately (commit `f63b647fb`: client limit 15 to 30 minutes per session, server 32 minutes).
+Sequence: the HTTPS accept-thread fix and the explicit backlog land first as separate commits; S0 follows because both edit
+`SslServerEndpointImpl`.
 
 ---
 
