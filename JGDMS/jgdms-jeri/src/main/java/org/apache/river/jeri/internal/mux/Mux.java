@@ -213,16 +213,22 @@ abstract class Mux {
             readState = READ_CLIENT_CONNECTION_HEADER;
         }
 
+        /*
+         * Before the I/O starts: a client header that is processed, or a
+         * connection that goes down, before the timer exists would find none
+         * to cancel, and the timer would keep this connection and its buffers
+         * until it ran out.
+         */
+        if (role == SERVER && startTimeout > 0L) {
+            startTimer = TimeoutScheduler.schedule(
+                this::startTimedOut, startTimeout, TimeUnit.MILLISECONDS);
+        }
+
         try {
             connectionIO.start();
         } catch (IOException e) {
             setDown("I/O error starting connection", e);
             throw e;
-        }
-
-        if (role == SERVER && startTimeout > 0L) {
-            startTimer = TimeoutScheduler.schedule(
-                this::startTimedOut, startTimeout, TimeUnit.MILLISECONDS);
         }
 
         if (role == CLIENT) {

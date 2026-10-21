@@ -210,6 +210,110 @@ public class MuxServerStartTimeoutTest {
         assertTrue("down after " + ms + " ms", ms >= 500 && ms < 3000);
     }
 
+    /**
+     * The client's connection header, as the real client sends it.
+     */
+    private static byte[] clientHeader() throws Exception {
+        ByteArrayOutputStream header = new ByteArrayOutputStream();
+        MuxClient client = new MuxClient(header, new InputStream() {
+            @Override public int read() throws IOException {
+                throw new IOException("no server");
+            }
+        }, 1000, RATION, FRAGMENT);
+        try {
+            client.start();
+        } catch (IOException expected) {
+        }
+        client.shutdown("done");
+        for (int i = 0; i < 100 && header.size() < 8; i++) {
+            Thread.sleep(20);
+        }
+        return header.toByteArray();
+    }
+
+    /** An input that gives the header at once, then says when it is asked for more. */
+    private static final class HeaderThenWait extends InputStream {
+        private final byte[] header;
+        private int at;
+        final CountDownLatch headerConsumed = new CountDownLatch(1);
+        private final CountDownLatch end = new CountDownLatch(1);
+
+        HeaderThenWait(byte[] header) {
+            this.header = header;
+        }
+
+        @Override public int read() throws IOException {
+            byte[] one = new byte[1];
+            return read(one, 0, 1) < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override public int read(byte[] b, int off, int len) throws IOException {
+            if (at < header.length) {
+                int n = Math.min(len, header.length - at);
+                System.arraycopy(header, at, b, off, n);
+                at += n;
+                return n;
+            }
+            /* The header has been processed: the reader is back for more. */
+            headerConsumed.countDown();
+            try {
+                end.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return -1;
+        }
+
+        @Override public void close() {
+            end.countDown();
+        }
+    }
+
+    /**
+     * The timer for the client's header does not outlive a connection whose
+     * client has sent it, however quickly the reader gets there: a header that
+     * is processed before start returns must still find the timer to cancel.
+     * (The processors are kept busy, so that the thread that starts the
+     * connection is often descheduled before it gets on.)
+     */
+    @Test(timeout = 120000)
+    public void theTimerDoesNotOutliveAConnectionThatStarted() throws Exception {
+        byte[] header = clientHeader();
+        assertTrue("the header", header.length >= 8);
+        Thread.sleep(300);
+        int base = org.apache.river.jeri.internal.TimeoutScheduler.pending();
+        List<Thread> burners = new ArrayList<>();
+        java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+        for (int i = 0; i < 2 * Runtime.getRuntime().availableProcessors(); i++) {
+            burners.add(Thread.ofPlatform().daemon().start(() -> {
+                long x = 0;
+                while (!stop.get()) {
+                    x += System.nanoTime();
+                }
+                if (x == 42) {
+                    System.out.print("");
+                }
+            }));
+        }
+        int leaked = 0;
+        try {
+            for (int i = 0; i < 1500; i++) {
+                HeaderThenWait in = new HeaderThenWait(header);
+                Server server = new Server(OutputStream.nullOutputStream(), in, 60000);
+                server.start();
+                assertTrue("header processed", in.headerConsumed.await(10, TimeUnit.SECONDS));
+                if (org.apache.river.jeri.internal.TimeoutScheduler.pending() > base) {
+                    leaked++;
+                }
+                server.shutdown("test over");
+                in.close();
+            }
+        } finally {
+            stop.set(true);
+        }
+        assertEquals("connections that left their start timer behind", 0, leaked);
+    }
+
     @Test
     public void thePropertyIsTheDefaultOtherwise() {
         System.clearProperty(PROPERTY);
