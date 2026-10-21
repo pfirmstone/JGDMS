@@ -443,9 +443,27 @@ public class SubProcessLocalPolicyAdminTest {
                 new SubProcessPolicyAdmin(admin, backend, caller);
         PolicyAdmin pa = front.getSubProcessPolicyAdmin();
 
+        // A verified DigestCodeSource is one the loader computed from the artifact;
+        // a digest asserted through the four argument constructor is unverified and
+        // is never implied. Off DirtyChai there is no DigestCodeSource, and the
+        // grant is only checked for acceptance, using a fake 32-byte SHA-256.
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 32; i++) sb.append("aa");
-        byte[] digestBytes = hexToBytes(sb.toString()); // fake 32-byte SHA-256
+        byte[] digestBytes = hexToBytes(sb.toString());
+        Object digestCodeSource = null;
+        try {
+            Class<?> digestCodeSourceClass = Class.forName("java.security.DigestCodeSource");
+            java.io.File probe = java.io.File.createTempFile("t3probe", ".jar");
+            probe.deleteOnExit();
+            java.nio.file.Files.write(probe.toPath(), new byte[]{1, 2, 3});
+            digestCodeSource = digestCodeSourceClass.getConstructor(
+                    String.class, Certificate[].class, String.class)
+                    .newInstance(probe.toURI().toString(), null, "SHA-256");
+            digestBytes = (byte[]) digestCodeSourceClass.getMethod("getDigest")
+                    .invoke(digestCodeSource);
+        } catch (ClassNotFoundException notOnThisJdk) {
+            // checked below, after the grant has been accepted
+        }
         Permission t3Perm = new RuntimePermission("isolation.t3ceilingProbe");
 
         // Exactly SubProcessGrantOrchestrator.applyVerdictCeiling's grant
@@ -464,22 +482,8 @@ public class SubProcessLocalPolicyAdminTest {
         // Stronger end-to-end proof, skipped gracefully off DirtyChai (where
         // java.security.DigestCodeSource doesn't exist): once rebound to
         // scopePrincipals and installed, the grant actually applies to a
-        // real DigestCodeSource-backed domain carrying those principals --
-        // directly rebutting SubProcessGrantOrchestrator's own javadoc
-        // caveat that a scope mismatch could leave the pushed grant
-        // "silently implying nothing" for the hosted proxy's actual domain.
-        Class<?> digestCodeSourceClass;
-        try {
-            digestCodeSourceClass = Class.forName("java.security.DigestCodeSource");
-        } catch (ClassNotFoundException notOnThisJdk) {
-            Assume.assumeNoException(
-                    "DigestCodeSource only available on DirtyChai", notOnThisJdk);
-            return;
-        }
-        Constructor<?> ctor = digestCodeSourceClass.getConstructor(
-                String.class, Certificate[].class, String.class, byte[].class);
-        Object digestCodeSource = ctor.newInstance(
-                "file:/probe.jar", null, "SHA-256", digestBytes);
+        // real, verified DigestCodeSource-backed domain carrying those principals.
+        Assume.assumeTrue("DigestCodeSource only available on DirtyChai", digestCodeSource != null);
 
         ProtectionDomain hostedProxyDomain = new ProtectionDomain(
                 (CodeSource) digestCodeSource, null, null, new Principal[]{hosted});

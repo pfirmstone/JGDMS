@@ -21,7 +21,10 @@ package org.apache.river.api.security;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -30,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -104,17 +106,31 @@ public class UserSubjectCompilePortabilityTest {
     private static List<Path> mainSources() throws IOException {
         Path root = reactorRoot();
         List<Path> out = new ArrayList<>();
-        try (Stream<Path> walk = Files.walk(root)) {
-            walk.filter(Files::isRegularFile)
-                .filter(p -> p.getFileName().toString().endsWith(".java"))
-                .filter(p -> {
+        // walkFileTree, not Files.walk: IDEs keep transient files under the root
+        // (Visual Studio's .vs/slnx.sqlite-journal) that vanish mid-walk, and
+        // Files.walk throws on them. Those and build output hold no main sources.
+        Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                String n = dir.getFileName() == null ? "" : dir.getFileName().toString();
+                return n.equals(".git") || n.equals(".vs") || n.equals(".idea") || n.equals("target")
+                        ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path p, BasicFileAttributes attrs) {
+                if (attrs.isRegularFile() && p.getFileName().toString().endsWith(".java")) {
                     String s = root.relativize(p).toString().replace('\\', '/');
-                    // Only main sources; never build artefacts (target/classes/
-                    // OSGI-OPT/src/... holds copies of these very files).
-                    return s.contains("/src/main/java/") && !s.contains("/target/");
-                })
-                .forEach(out::add);
-        }
+                    if (s.contains("/src/main/java/") && !s.contains("/target/")) out.add(p);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path p, IOException e) {
+                return FileVisitResult.CONTINUE; // vanished between listing and reading
+            }
+        });
         assertTrue("the scan found only " + out.size() + " main sources under "
                 + root + "; a vacuous scan must not pass", out.size() > 500);
         return out;
