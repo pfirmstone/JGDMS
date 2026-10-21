@@ -59,9 +59,12 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	}
     }
 
-    /** detail message of IOException thrown when 4854354 occurs */
-    private static final String detailMessage4854354 =
-	"A non-blocking socket operation could not be completed immediately";
+    /** How buffers are written to the channel; a test replaces it. */
+    interface Writer {
+	long write(ByteBuffer[] bufs, int offset, int length) throws IOException;
+    }
+
+    volatile Writer writer;
 
     /** socket channel for underlying connection */
     private final SocketChannel channel;
@@ -95,6 +98,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	super(mux);
 	channel.configureBlocking(false);
 	this.channel = channel;
+	this.writer = (bufs, off, len) -> channel.write(bufs, off, len);
 	key = selectionManager.register(channel, new Handler());
     }
 
@@ -245,18 +249,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			return;
 		    }
 		}
-		try {
-		    channel.write(bufs, 0, len);
-		} catch (IOException e) {
-		    // work around 4854354
-		    String message = e.getMessage();
-		    if (message != null && message.contains(detailMessage4854354)) {
-			logger.log(Levels.HANDLED,
-				   "ignoring to work around 4854354", e);
-		    } else {
-			throw e;
-		    }
-		}
+		writer.write(bufs, 0, len);
 		synchronized (mux.muxLock) {
 		    for (int i = 0; i < len; i++) {
 			ByteBuffer bb = bufs[i];
