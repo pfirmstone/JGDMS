@@ -347,6 +347,62 @@ final class S0Fixture {
         }
     }
 
+    private static byte[] hello;
+
+    /** A ClientHello of the trusted client, captured once. */
+    static synchronized byte[] hello() throws Exception {
+        if (hello == null) {
+            hello = captureClientHello();
+        }
+        return hello;
+    }
+
+    /**
+     * Opens connections that send a ClientHello, which takes a place to work
+     * on a handshake on either path, and then wait for the server; the
+     * caller closes them.
+     */
+    static List<Socket> openStuck(Listener l, int n) throws Exception {
+        List<Socket> sockets = new ArrayList<>();
+        byte[] hello = hello();
+        for (int i = 0; i < n; i++) {
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress("localhost", l.port), 5_000);
+            s.setTcpNoDelay(true);
+            s.getOutputStream().write(hello);
+            s.getOutputStream().flush();
+            sockets.add(s);
+        }
+        return sockets;
+    }
+
+    /** Sends a ClientHello and waits until the server closes the connection. */
+    static void sendHello(Listener l) throws Exception {
+        try (Socket s = new Socket("localhost", l.port)) {
+            s.getOutputStream().write(hello());
+            s.getOutputStream().flush();
+            awaitClosed(s, 5_000);
+        }
+    }
+
+    /**
+     * The time in milliseconds after which a connection that has not sent its
+     * first record is dropped: on the engine path, which waits for the first
+     * record, the time that is left for a handshake to work falls short of
+     * what it needs (the minimum budget, at most half the time); on the
+     * SSLSocket path there is no wait for a first record.
+     */
+    static long queueMillis(long timeoutMillis, boolean socketPath) {
+        return socketPath ? timeoutMillis
+            : timeoutMillis - Math.min(2000L, timeoutMillis / 2);
+    }
+
+    /** The counter of the connections that time out where the path first waits. */
+    static HandshakeCounters.Kind queueTimeoutKind(boolean socketPath) {
+        return socketPath ? HandshakeCounters.Kind.TIMEOUT
+                          : HandshakeCounters.Kind.QUEUE_TIMEOUT;
+    }
+
     /** Opens connections that send nothing; the caller closes them. */
     static List<Socket> openSilent(Listener l, int n) throws IOException {
         List<Socket> sockets = new ArrayList<>();

@@ -90,7 +90,7 @@ public class SslServerAcceptPathTest {
             Assert.assertTrue("12 junk connections and a legitimate handshake "
                 + "took " + total + " ms", total < 3000);
             Assert.assertTrue(S0Fixture.await(
-                () -> l.handle.counters().getFailed(HandshakeCounters.Kind.TLS) >= 12,
+                () -> l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK) >= 12,
                 5000));
             Assert.assertTrue("the accept thread must still be running",
                               l.handle.acceptThread().isAlive());
@@ -491,11 +491,11 @@ public class SslServerAcceptPathTest {
                 counted &= assertSettled(l, baseline, "untrusted, socketPath=" + socketPath);
 
                 inject.set(new IllegalStateException("injected"));
-                S0Fixture.sendJunk(l);
+                S0Fixture.sendHello(l);
                 counted &= assertSettled(l, baseline, "exception, socketPath=" + socketPath);
 
                 inject.set(new AssertionError("injected"));
-                S0Fixture.sendJunk(l);
+                S0Fixture.sendHello(l);
                 counted &= assertSettled(l, baseline, "error, socketPath=" + socketPath);
                 inject.set(null);
 

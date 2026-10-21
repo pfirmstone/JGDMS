@@ -176,6 +176,19 @@ final class SslEngineChannel {
         this.appIn.position(0).limit(0);
     }
 
+    /**
+     * Gives the channel ciphertext that was read from the connection ahead of
+     * it, to be read first.  Before the handshake only.
+     */
+    void prime(byte[] ciphertext) {
+        synchronized (readLock) {
+            while (netIn.remaining() < ciphertext.length) {
+                growNetIn();
+            }
+            netIn.put(ciphertext);
+        }
+    }
+
     /** Returns the completed handshake session. */
     SSLSession getSession() {
         return engine.getSession();

@@ -55,8 +55,15 @@ final class HandshakeCounters {
         REJECTED("rejected"),
         /** The connection failed in some other way. */
         IO("I/O error"),
-        /** The handshake did not complete in time. */
-        TIMEOUT("timed out"),
+        /** The handshake was working and did not complete in time. */
+        TIMEOUT("timed out working"),
+        /**
+         * The connection did not send its first record, or was given no turn
+         * to work, before the time that a handshake needs was gone.
+         */
+        QUEUE_TIMEOUT("timed out waiting for a turn"),
+        /** The first bytes were not the start of a TLS ClientHello. */
+        JUNK("not TLS"),
         /** The listener was closed while the handshake was in progress. */
         LISTENER_CLOSED("listener closed"),
         /** A RuntimeException or Error in the handshake task. */
@@ -152,6 +159,9 @@ final class HandshakeCounters {
 
     /** Classifies a handshake failure. */
     static Kind classify(Throwable t) {
+        if (t instanceof FirstRecord.NotTlsException) {
+            return Kind.JUNK;
+        }
         int depth = 0;
         for (Throwable c = t; c != null && depth < 10; c = c.getCause(), depth++) {
             if (c instanceof SocketTimeoutException) {

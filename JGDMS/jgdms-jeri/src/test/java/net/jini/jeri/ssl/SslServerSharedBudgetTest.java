@@ -210,24 +210,32 @@ public class SslServerSharedBudgetTest {
     public void testAListenerPausesForTheBudgetAndIsServedWhenItFrees()
         throws Exception
     {
-        List<S0Fixture.Listener> ls = listeners(2, S0Fixture.MAX_HANDSHAKES, "2",
-            S0Fixture.MAX_QUEUED, "1", S0Fixture.HANDSHAKE_TIMEOUT, "3000");
+        String[] props = { S0Fixture.MAX_HANDSHAKES, "2", S0Fixture.MAX_QUEUED, "1",
+                           S0Fixture.HANDSHAKE_TIMEOUT, "3000" };
+        List<S0Fixture.Listener> ls = listeners(1, props);
         S0Fixture.Listener a = ls.get(0);
-        S0Fixture.Listener b = ls.get(1);
         List<Socket> silent = new ArrayList<>();
+        S0Fixture.Listener b = null;
         try {
+            /* A's accept loop holds a permit before B has one to take. */
+            Assert.assertTrue(S0Fixture.await(
+                () -> a.handle.limits().admission.availablePermits() == 2, 5000));
+            ls.addAll(listeners(1, props));
+            b = ls.get(1);
             /* Three permits: A's accept loop holds one, B's two silent peers the rest. */
-            silent.addAll(S0Fixture.openSilent(b, 2));
+            S0Fixture.Listener bb = b;
+            silent.addAll(S0Fixture.openSilent(bb, 2));
             Assert.assertTrue(S0Fixture.await(() ->
-                b.handle.admittedConnections() == 2
+                bb.handle.admittedConnections() == 2
                 && a.handle.limits().admission.availablePermits() == 0, 5000));
-            long millis = S0Fixture.connectLegit(b);
+            long millis = S0Fixture.connectLegit(bb);
+            /* The silent peers are dropped 1500 ms before the 3000 ms are up. */
             Assert.assertTrue("B paused until its silent peers timed out: "
-                + millis + " ms", millis >= 2000);
+                + millis + " ms", millis >= 1000);
             Assert.assertTrue("and was served then: " + millis + " ms",
                               millis < 15_000);
             Assert.assertTrue(S0Fixture.await(
-                () -> b.handle.inProgressCount() == 0, 10_000));
+                () -> bb.handle.inProgressCount() == 0, 10_000));
         } finally {
             S0Fixture.closeAll(silent);
             closeAll(ls);

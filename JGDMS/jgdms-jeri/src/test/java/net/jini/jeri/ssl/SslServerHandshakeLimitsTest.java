@@ -162,7 +162,7 @@ public class SslServerHandshakeLimitsTest {
             {
                 S0Fixture.connectLegit(l); // warm up
                 int warm = built.count.get();
-                List<Socket> silent = S0Fixture.openSilent(l, 4);
+                List<Socket> silent = S0Fixture.openStuck(l, 4);
                 try {
                     Assert.assertTrue(S0Fixture.await(
                         () -> l.handle.admittedConnections() == 4, 5000));
@@ -267,32 +267,43 @@ public class SslServerHandshakeLimitsTest {
 
     /**
      * The deadline counts from the accept: a connection that waited for a turn
-     * does not get a new full deadline when it has one.
+     * does not get a new full deadline when it has one.  The time that a
+     * handshake needs (here half the deadline of 2400 ms) must be left for it
+     * to be given a turn: a connection that waited for the one that works is
+     * dropped when that falls short, at no cost, and is not counted as one
+     * that timed out in its work.
      */
     @Test(timeout = 60000)
     public void testTheDeadlineIncludesTheWaitForATurn() throws Exception {
-        try (S0Fixture.Listener l = S0Fixture.listen(1, 5, 1500, null, false)) {
-            S0Fixture.connectLegit(l); // warm up
-            Socket first = new Socket("localhost", l.port);
-            Assert.assertTrue(S0Fixture.await(
-                () -> l.handle.runningHandshakes() == 1, 5000));
-            Thread.sleep(300);
-            Socket second = new Socket("localhost", l.port);
-            try {
-                long ms = S0Fixture.awaitClosed(second, 10_000);
-                /*
-                 * The first is cut off 1500 ms after it was accepted, the
-                 * second 1500 ms after it was: about 1500 ms after its connect,
-                 * not 1200 + 1500 ms.
-                 */
-                Assert.assertTrue("the waiting connection was closed after "
-                    + ms + " ms", ms >= 1200 && ms < 2300);
-            } finally {
-                first.close();
-                second.close();
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = S0Fixture.listen(1, 5, 2400, null, socketPath)) {
+                S0Fixture.connectLegit(l); // warm up
+                List<Socket> first = S0Fixture.openStuck(l, 1);
+                Assert.assertTrue(S0Fixture.await(
+                    () -> l.handle.runningHandshakes() == 1, 5000));
+                Thread.sleep(300);
+                List<Socket> second = S0Fixture.openStuck(l, 1);
+                try {
+                    long ms = S0Fixture.awaitClosed(second.get(0), 10_000);
+                    /*
+                     * The first is cut off 2400 ms after it was accepted.  The
+                     * second would then have 300 ms to work in, less than the
+                     * 1200 ms that a handshake must have: it is dropped 1200 ms
+                     * before its own deadline, 2400 - 1200 = 1200 ms after its
+                     * connect, and does not wait for the first.
+                     */
+                    Assert.assertTrue("the waiting connection was closed after "
+                        + ms + " ms, socketPath=" + socketPath,
+                        ms >= 900 && ms < 1900);
+                } finally {
+                    S0Fixture.closeAll(first);
+                    S0Fixture.closeAll(second);
+                }
+                Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
+                    .getFailed(HandshakeCounters.Kind.QUEUE_TIMEOUT) == 1, 3000));
+                Assert.assertEquals("nothing that worked timed out", 0,
+                    l.handle.counters().getFailed(HandshakeCounters.Kind.TIMEOUT));
             }
-            Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
-                .getFailed(HandshakeCounters.Kind.TIMEOUT) == 2, 3000));
         }
     }
 
@@ -331,20 +342,26 @@ public class SslServerHandshakeLimitsTest {
                 assertPermits(l, "untrusted peer, " + what);
 
                 inject.set(new IllegalStateException("injected"));
-                S0Fixture.sendJunk(l);
+                S0Fixture.sendHello(l);
                 assertPermits(l, "exception, " + what);
                 inject.set(new AssertionError("injected"));
-                S0Fixture.sendJunk(l);
+                S0Fixture.sendHello(l);
                 assertPermits(l, "error, " + what);
                 inject.set(null);
 
-                /* Six silent peers: four work and two wait, all time out. */
-                List<Socket> stalled = S0Fixture.openSilent(l, 6);
+                /*
+                 * Six peers that send a ClientHello and wait: four work and
+                 * time out, two wait for a turn and are dropped when the time
+                 * that is left falls short.
+                 */
+                List<Socket> stalled = S0Fixture.openStuck(l, 6);
                 try {
                     Assert.assertTrue(S0Fixture.await(
                         () -> l.handle.admittedConnections() == 6, 5000));
                     Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
-                        .getFailed(HandshakeCounters.Kind.TIMEOUT) == 6, 8000));
+                        .getFailed(HandshakeCounters.Kind.TIMEOUT) == 4
+                        && l.handle.counters()
+                        .getFailed(HandshakeCounters.Kind.QUEUE_TIMEOUT) == 2, 8000));
                 } finally {
                     S0Fixture.closeAll(stalled);
                 }
@@ -426,7 +443,7 @@ public class SslServerHandshakeLimitsTest {
             List<Socket> peers = new ArrayList<>();
             try {
                 /* One works (and is stuck), some wait, the next is not accepted. */
-                peers.addAll(S0Fixture.openSilent(l, 4));
+                peers.addAll(S0Fixture.openStuck(l, 4));
                 Assert.assertTrue(inHook.await(10, TimeUnit.SECONDS));
                 Assert.assertTrue(S0Fixture.await(
                     () -> l.handle.admittedConnections() == 1 + queued, 5000));
@@ -460,6 +477,20 @@ public class SslServerHandshakeLimitsTest {
      */
     @Test(timeout = 120000)
     public void testBurstOfStalledConnectionsIsBounded() throws Exception {
+        burst(true);
+    }
+
+    /**
+     * The same burst of connections that send nothing: they cost a descriptor
+     * and a thread each, wait in the queue, and none of them takes a place to
+     * work on a handshake or has an engine built.
+     */
+    @Test(timeout = 120000)
+    public void testBurstOfSilentConnectionsTakesNoPlaceToWork() throws Exception {
+        burst(false);
+    }
+
+    private static void burst(boolean sendHello) throws Exception {
         Built built = new Built();
         try (S0Fixture.Listener warm = S0Fixture.listen()) {
             S0Fixture.connectLegit(warm);
@@ -474,13 +505,15 @@ public class SslServerHandshakeLimitsTest {
         List<Socket> silent = new ArrayList<>();
         try {
             int n = 2000;
-            silent.addAll(S0Fixture.openSilent(l, n));
+            silent.addAll(sendHello ? S0Fixture.openStuck(l, n)
+                                    : S0Fixture.openSilent(l, n));
             int expectedAdmitted = Math.min(n,
                 l.handle.maxHandshakes() + l.handle.maxQueued());
             Assert.assertTrue(S0Fixture.await(() ->
                 l.handle.admittedConnections() == expectedAdmitted, 30_000));
             Thread.sleep(500);
-            int expectedWorking = Math.min(n, l.handle.maxHandshakes());
+            int expectedWorking = sendHello
+                ? Math.min(n, l.handle.maxHandshakes()) : 0;
             Assert.assertEquals(expectedWorking, l.handle.runningHandshakes());
             Assert.assertEquals("engines are built for the handshakes that work "
                 + "only", expectedWorking, built.count.get());

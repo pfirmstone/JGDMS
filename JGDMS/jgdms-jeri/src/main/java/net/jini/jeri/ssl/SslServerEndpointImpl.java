@@ -1180,6 +1180,17 @@ class SslServerEndpointImpl extends Utilities {
 		static final long DEFAULT_SERVER_HANDSHAKE_TIMEOUT = 10_000L;
 
 		/**
+		 * The system property that sets how much of the time for a handshake
+		 * must be left for a connection to be given a turn to work on it, in
+		 * milliseconds.
+		 */
+		static final String SERVER_MIN_BUDGET_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeMinBudget";
+
+		/** The default time that a handshake must have left to work: 2 seconds. */
+		static final long DEFAULT_SERVER_MIN_BUDGET = 2_000L;
+
+		/**
 		 * The system property that sets the number of server handshakes that
 		 * may compute their first flight at once.
 		 */
@@ -1235,6 +1246,15 @@ class SslServerEndpointImpl extends Utilities {
 		 * accept, or 0 for no limit.
 		 */
 		private final long handshakeTimeoutNanos;
+
+		/**
+		 * The time in nanoseconds that a handshake must have left to be given
+		 * a turn to work.  A connection that waits for its turn until less is
+		 * left is dropped, for it would only be cut off after doing the work.
+		 * At most half the time for a handshake, so that a short time is
+		 * still enough to work in.
+		 */
+		private final long minBudgetNanos;
 
 		/**
 		 * The permits that all the listeners of the JVM share: the sockets
@@ -1321,6 +1341,13 @@ class SslServerEndpointImpl extends Utilities {
 								  DEFAULT_SERVER_HANDSHAKE_TIMEOUT))).longValue();
 			this.handshakeTimeoutNanos = millis > 0
 				? Math.min(millis, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
+				: 0L;
+			long minBudget = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_MIN_BUDGET_PROPERTY,
+								  DEFAULT_SERVER_MIN_BUDGET))).longValue();
+			this.minBudgetNanos = minBudget > 0 && handshakeTimeoutNanos > 0L
+				? Math.min(Math.min(minBudget, Long.MAX_VALUE / 1_000_000L) * 1_000_000L,
+						   handshakeTimeoutNanos / 2)
 				: 0L;
 			this.limits = HandshakeLimits.shared();
 			this.maxHandshakes = limits.maxHandshakes;
@@ -1567,10 +1594,16 @@ class SslServerEndpointImpl extends Utilities {
 			try {
 				try {
 					/*
-					 * Nothing is allocated for the handshake until it has
-					 * a permit, so a connection that waits costs its socket
-					 * and this thread.
+					 * A connection that waits for its turn costs its socket,
+					 * this thread and the bytes of its first record, and
+					 * nothing is allocated for the handshake until it has a
+					 * permit.  It reads that record first, so that a peer
+					 * that goes away is noticed at once, and one that sends no
+					 * ClientHello, or something that is not TLS, never takes a
+					 * place to work in.  (An SSLSocket reads for itself, so
+					 * the connections of that path cannot be read ahead.)
 					 */
+					handshake.readFirstRecord();
 					handshake.awaitPermit();
 					connection = serverConnection(handshake.socket, handshake);
 					java.util.function.Consumer<Handshake> hook = beforeComplete;
@@ -1579,7 +1612,7 @@ class SslServerEndpointImpl extends Utilities {
 					}
 					/*
 					 * The watchdog and this task race to move the handshake
-					 * out of RUNNING; whoever wins decides.  Once this task
+					 * out of WORKING; whoever wins decides.  Once this task
 					 * has won, the watchdog can no longer close the socket,
 					 * so the connection can be handed on.
 					 */
@@ -1661,7 +1694,9 @@ class SslServerEndpointImpl extends Utilities {
 				closedSync = closed;
 			}
 			handshake.disarm();
-			HandshakeCounters.Kind kind = handshake.isTimedOut()
+			HandshakeCounters.Kind kind = handshake.isQueueTimedOut()
+				? HandshakeCounters.Kind.QUEUE_TIMEOUT
+				: handshake.isTimedOut()
 				? HandshakeCounters.Kind.TIMEOUT
 				: closedSync
 					? HandshakeCounters.Kind.LISTENER_CLOSED
@@ -1846,25 +1881,38 @@ class SslServerEndpointImpl extends Utilities {
 		}
 
 		/**
-		 * An accepted socket whose handshake is in progress.  The handshake
-		 * task and the watchdog race to move it from RUNNING, the task to
-		 * DONE when the handshake has finished, the watchdog to TIMED_OUT
-		 * when it has run out of time.  Whoever wins decides: after DONE the
-		 * watchdog never closes the socket, after TIMED_OUT the task never
-		 * hands the connection on.
+		 * An accepted socket whose handshake is in progress.  It is QUEUED
+		 * until it has been given a turn to work, WORKING after that.  The
+		 * handshake task and the watchdog race to move it on: the task from
+		 * QUEUED to WORKING when it is given its turn and from WORKING to DONE
+		 * when the handshake has finished, the watchdog from QUEUED to
+		 * QUEUE_TIMED_OUT when the connection has waited so long that the time
+		 * that is left is less than a handshake needs, and from WORKING to
+		 * TIMED_OUT when it has run out of time.  Whoever wins decides: after
+		 * DONE the watchdog never closes the socket, after a time out the task
+		 * never hands the connection on or goes on to work.
 		 */
 		final class Handshake implements Runnable, SslEngineChannel.ServerGate {
 
-			private static final int RUNNING = 0;
+			private static final int QUEUED = 0;
+			private static final int WORKING = 3;
 			private static final int DONE = 1;
 			private static final int TIMED_OUT = 2;
+			private static final int QUEUE_TIMED_OUT = 4;
 
 			final Socket socket;
 
 			/** The System.nanoTime() at which the time runs out, or 0. */
 			final long deadline;
 
-			private final AtomicInteger state = new AtomicInteger(RUNNING);
+			private final AtomicInteger state = new AtomicInteger(QUEUED);
+
+			/**
+			 * The first record of the connection, which has been read, or
+			 * null: before it is read, if its bytes were given to the
+			 * engine's channel, and where it cannot be read ahead.
+			 */
+			private volatile byte[] firstRecord;
 
 			private volatile ScheduledFuture<?> timer;
 
@@ -1883,9 +1931,40 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
-			 * Waits for a turn to work, for as long as the handshake has
-			 * time.  The time counts from the accept, so the wait comes out
-			 * of it.
+			 * Reads the first record of the connection, while it waits for its
+			 * turn, if the socket has a channel to read it from (it has not on
+			 * the SSLSocket path, where the JDK reads for itself).  A peer that
+			 * does not send a ClientHello is dropped here, whatever it sends.
+			 */
+			void readFirstRecord() throws IOException {
+				java.nio.channels.SocketChannel channel = socket.getChannel();
+				if (channel == null) {
+					return;
+				}
+				waiter = Thread.currentThread();
+				try {
+					firstRecord = FirstRecord.read(channel);
+				} finally {
+					waiter = null;
+				}
+			}
+
+			/**
+			 * Returns the bytes of the first record that were read ahead, and
+			 * forgets them, or null if none were.
+			 */
+			byte[] takeFirstRecord() {
+				byte[] record = firstRecord;
+				firstRecord = null;
+				return record;
+			}
+
+			/**
+			 * Waits for a turn to work, for as long as the handshake has time
+			 * to spare: the time counts from the accept, so the wait comes out
+			 * of it, and a turn is only given if at least the minimum budget
+			 * is left, so that the connection is not cut off after the work.
+			 * One that cannot have a turn in time is dropped at no cost.
 			 */
 			void awaitPermit() throws IOException {
 				waiter = Thread.currentThread();
@@ -1893,19 +1972,40 @@ class SslServerEndpointImpl extends Utilities {
 					if (deadline == 0L) {
 						running.acquire();
 					} else {
-						long left = deadline - System.nanoTime();
+						long left = deadline - System.nanoTime() - minBudgetNanos;
 						if (left <= 0L || !running.tryAcquire(left, TimeUnit.NANOSECONDS)) {
-							throw new java.net.SocketTimeoutException(
-								"timed out waiting for a handshake to be free");
+							dropForWantOfTime();
 						}
 					}
 					working = true;
+					if (deadline != 0L && deadline - System.nanoTime() < minBudgetNanos) {
+						dropForWantOfTime();
+					}
+					if (!state.compareAndSet(QUEUED, WORKING)) {
+						/* The watchdog got there first. */
+						throw new java.net.SocketTimeoutException(
+							"timed out waiting for a handshake to be free");
+					}
+					/* Now the whole of the time is the handshake's own. */
+					disarm();
+					arm(deadline);
 				} catch (InterruptedException e) {
 					throw new java.io.InterruptedIOException(
 						"interrupted waiting for a handshake to be free");
 				} finally {
 					waiter = null;
 				}
+			}
+
+			/**
+			 * Ends the wait of a connection that has been given no turn in
+			 * time: it did nothing that could have been cut short, and is not
+			 * counted as a handshake that timed out.
+			 */
+			private void dropForWantOfTime() throws IOException {
+				state.compareAndSet(QUEUED, QUEUE_TIMED_OUT);
+				throw new java.net.SocketTimeoutException(
+					"timed out waiting for a handshake to be free");
 			}
 
 			/** The permits that this handshake holds one of to compute, or null. */
@@ -2003,12 +2103,23 @@ class SslServerEndpointImpl extends Utilities {
 				handshakeTask(this);
 			}
 
-			/** Starts the watchdog for this handshake. */
+			/**
+			 * Starts the watchdog for this handshake: it ends the wait for a
+			 * turn when so little time is left that a turn would be of no use,
+			 * and the handshake itself when the time has run out.
+			 */
 			void arm() {
 				if (deadline != 0L) {
+					arm(deadline - minBudgetNanos);
+				}
+			}
+
+			private void arm(long at) {
+				if (deadline != 0L) {
+					Runnable task = at == deadline
+						? this::expired : this::expiredQueued;
 					timer = HandshakeWatchdog.schedule(
-						this::expired,
-						Math.max(0L, deadline - System.nanoTime()));
+						task, Math.max(0L, at - System.nanoTime()));
 				}
 			}
 
@@ -2021,13 +2132,26 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
+			 * Called on the watchdog's thread when the time for a connection to
+			 * wait for its turn has run out.  It only decides, like {@link
+			 * #expired}.
+			 */
+			private void expiredQueued() {
+				if (state.compareAndSet(QUEUED, QUEUE_TIMED_OUT)) {
+					HandshakeWatchdog.handOff(this::cancel);
+				}
+			}
+
+			/**
 			 * Called on the watchdog's thread when the time has run out.  It
 			 * only decides, and leaves the closing, which can block, to
 			 * another thread, so that one handshake cannot delay the deadline
 			 * of any other.
 			 */
 			private void expired() {
-				if (state.compareAndSet(RUNNING, TIMED_OUT)) {
+				if (state.compareAndSet(WORKING, TIMED_OUT)
+					|| state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
+				{
 					HandshakeWatchdog.handOff(this::cancel);
 				}
 			}
@@ -2040,7 +2164,9 @@ class SslServerEndpointImpl extends Utilities {
 			 * @return whether the handshake was cut off
 			 */
 			boolean timedOut() {
-				if (!state.compareAndSet(RUNNING, TIMED_OUT)) {
+				if (!state.compareAndSet(WORKING, TIMED_OUT)
+					&& !state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
+				{
 					return false;
 				}
 				cancel();
@@ -2055,13 +2181,20 @@ class SslServerEndpointImpl extends Utilities {
 			 *         the raw socket is closed and the connection is dead
 			 */
 			boolean complete() {
-				boolean won = state.compareAndSet(RUNNING, DONE);
+				boolean won = state.compareAndSet(WORKING, DONE);
 				disarm();
 				return won;
 			}
 
+			/** Whether the watchdog cut the handshake off, working or waiting. */
 			boolean isTimedOut() {
-				return state.get() == TIMED_OUT;
+				int s = state.get();
+				return s == TIMED_OUT || s == QUEUE_TIMED_OUT;
+			}
+
+			/** Whether the connection was dropped before it was given a turn. */
+			boolean isQueueTimedOut() {
+				return state.get() == QUEUE_TIMED_OUT;
 			}
 
 			/**
@@ -2439,6 +2572,11 @@ class SslServerEndpointImpl extends Utilities {
 					if (listenHandle.compute != null) {
 						engineChannel.setTaskRunner(listenHandle.compute.runner(
 							() -> handshake.isTimedOut() || socket.isClosed()));
+					}
+					/* What was read ahead while the connection waited. */
+					byte[] first = handshake.takeFirstRecord();
+					if (first != null) {
+						engineChannel.prime(first);
 					}
 					engineChannel.handshakeServer(handshake);
 					sess = engine.getSession();
