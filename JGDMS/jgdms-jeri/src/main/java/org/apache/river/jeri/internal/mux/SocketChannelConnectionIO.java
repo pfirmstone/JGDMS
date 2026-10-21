@@ -59,24 +59,6 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	}
     }
 
-    /*
-     * Work around 4496906: sun.nio.ch.IOVecWrapper.<clinit> requires
-     * permission to read the system property "sun.arch.data.model".
-     */
-    static {
-	java.security.AccessController.doPrivileged(
-	new java.security.PrivilegedAction() { public Object run() {
-	    try {
-		Class.forName("sun.nio.ch.IOVecWrapper");
-	    } catch (ClassNotFoundException e) {
-		// not on this JVM, or not visible to this bundle: nothing to work around
-	    } catch (LinkageError e) {
-		// likewise
-	    }
-	    return null;
-	} });
-    }
-
     /** detail message of IOException thrown when 4854354 occurs */
     private static final String detailMessage4854354 =
 	"A non-blocking socket operation could not be completed immediately";

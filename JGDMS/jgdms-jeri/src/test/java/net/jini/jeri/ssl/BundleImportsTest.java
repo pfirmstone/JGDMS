@@ -91,26 +91,28 @@ public class BundleImportsTest {
 
     /**
      * {@code HandshakeLimits} asks the JVM for its descriptor limit through
-     * {@code com.sun.management}, and the mux loads {@code sun.nio.ch}'s
-     * IOVecWrapper by name; neither is in Java SE, and the code does without
-     * them: a framework that does not export the packages must still resolve
-     * the bundle.
+     * {@code com.sun.management}, which is not in Java SE, and does without
+     * it: a framework that does not export the package must still resolve the
+     * bundle.  It is the only such import: the code must not name the JDK's
+     * internal packages (a string such as {@code Class.forName("sun.nio.ch...")}
+     * is turned into an import by bnd), optional or not.
      */
     @Test
-    public void testTheJvmSpecificPackagesAreOptionalImports() throws Exception {
-        List<String> imports = imports();
-        for (String name : new String[] { "com.sun.management", "sun.nio.ch" }) {
-            boolean found = false;
-            for (String clause : imports) {
-                if (clause.startsWith(name + ";") || clause.equals(name)) {
-                    found = true;
-                    Assert.assertTrue(name + " must be optional: " + clause,
-                                      optional(clause));
-                }
+    public void testTheOnlyJvmSpecificImportIsOptionalManagement() throws Exception {
+        boolean management = false;
+        for (String clause : imports()) {
+            String name = clause.split(";")[0].trim();
+            if (name.equals("com.sun.management")) {
+                management = true;
+                Assert.assertTrue(clause + " must be optional", optional(clause));
+            } else {
+                Assert.assertFalse("a JDK-internal import: " + clause,
+                    name.startsWith("sun.") || name.startsWith("com.sun.")
+                    || name.startsWith("jdk.") || name.startsWith("sunw."));
             }
-            Assert.assertTrue(name + " is imported, as the code uses it: " + imports,
-                              found);
         }
+        Assert.assertTrue("com.sun.management is imported, as the code uses it",
+                          management);
     }
 
     /** Every import that is not optional is a Java SE package or the project's. */

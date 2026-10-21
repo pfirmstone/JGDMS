@@ -8,10 +8,8 @@
     org.apache.river.jeri.internal,\
     org.apache.river.jeri.internal.connection
 -sources: true
-# Packages that are not part of Java SE and that the code does without:
 # HandshakeLimits reads the descriptor limit from com.sun.management where the
-# JVM has it, and falls back to a fixed limit without it; SocketChannelConnectionIO
-# loads sun.nio.ch.IOVecWrapper by name (a workaround for a JDK bug) and ignores
-# its absence.  BundleImportsTest fails on any other import that is not optional
-# and not in its list.
-Import-Package: com.sun.management;resolution:=optional,sun.nio.ch;resolution:=optional,*
+# JVM has it, and falls back to a fixed limit without it; the one import that is
+# not Java SE.  BundleImportsTest fails on any other import that is not optional
+# and not the project's, and on any sun.* import.
+Import-Package: com.sun.management;resolution:=optional,*
