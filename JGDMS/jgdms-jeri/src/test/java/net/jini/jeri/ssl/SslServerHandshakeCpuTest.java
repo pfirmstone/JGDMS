@@ -123,7 +123,7 @@ public class SslServerHandshakeCpuTest {
      * the default scheduler, and the handshake compute threads do their
      * cryptography; returns the CPU time that they have used.
      */
-    private static long carrierCpuNanos() {
+    static long carrierCpuNanos() {
         ThreadMXBean mx = ManagementFactory.getThreadMXBean();
         long total = 0L;
         long[] ids = mx.getAllThreadIds();
@@ -143,7 +143,7 @@ public class SslServerHandshakeCpuTest {
     }
 
     /** Replays a ClientHello as fast as it can, as an attacker would. */
-    private static final class Flood {
+    static final class Flood {
         final AtomicBoolean stop = new AtomicBoolean();
         final AtomicLong attempts = new AtomicLong();
         final AtomicLong flights = new AtomicLong();

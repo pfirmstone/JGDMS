@@ -350,25 +350,35 @@ import net.jini.security.SecurityContext;
  *	60000. It applies to client connections only; a server uses
  *	org.apache.river.jeri.ssl.serverHandshakeTimeout.
  * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakes</code> -
- *	The largest number of TLS handshakes that a server endpoint
- *	works on at once. Until a handshake is finished the peer has not
- *	been authenticated, and the handshake costs a file descriptor
- *	and about 60 KiB of memory, so a connection that is accepted
- *	when the limit has been reached waits, holding only its socket,
- *	until a handshake ends; see maxServerHandshakeQueue. The default
- *	is the smaller of 512 and an eighth of the number of file
- *	descriptors that the process may open (see maxFileDescriptors).
- *	A value below 1 selects the default.
+ *	The largest number of TLS handshakes that the server endpoints of
+ *	the Java virtual machine work on at once, all together. Until a
+ *	handshake is finished the peer has not been authenticated, and the
+ *	handshake costs a file descriptor and about 60 KiB of memory, so a
+ *	connection that is accepted when the limit has been reached waits,
+ *	holding only its socket, until a handshake ends; see
+ *	maxServerHandshakeQueue. The limit is shared by all the server
+ *	endpoints of the virtual machine, HTTPS ones included, because the
+ *	file descriptors and the memory are the process's. The default is
+ *	the smaller of 512 and an eighth of the number of file descriptors
+ *	that the process may open (see maxFileDescriptors). A value below
+ *	1 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakeQueue</code> -
  *	The largest number of accepted connections that wait for one of
- *	the maxServerHandshakes handshakes to be free. When that many
- *	are waiting the server stops accepting connections until a
- *	handshake ends, and the operating system queues the connections
- *	that arrive, up to the listen backlog (see listenBacklog); they
- *	are neither refused nor closed. The default is the smaller of
- *	4096 and a quarter of the number of file descriptors that the
- *	process may open, less maxServerHandshakes, and at least 0. A
- *	value below 0 selects the default.
+ *	the maxServerHandshakes handshakes to be free, all server
+ *	endpoints of the Java virtual machine together. When that many
+ *	connections are admitted, working or waiting, each endpoint stops
+ *	accepting connections until a handshake ends, and the operating
+ *	system queues the connections that arrive, up to the listen
+ *	backlog (see listenBacklog); they are neither refused nor closed.
+ *	Each endpoint's accept loop also holds one of the places while it
+ *	waits in accept, so the places left for connections are fewer by
+ *	the number of endpoints. The waiting endpoints are served in the
+ *	order in which they began to wait, so none is passed over for
+ *	ever. The default is the smaller of 4096 and a quarter of the
+ *	number of file descriptors that the process may open, less
+ *	maxServerHandshakes, and at least 0; the sockets that the process
+ *	admits are therefore at most a quarter of its descriptors however
+ *	many endpoints it has. A value below 0 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxFileDescriptors</code> - The
  *	number of file descriptors that the process may open, from which
  *	the defaults of maxServerHandshakes and maxServerHandshakeQueue
@@ -389,19 +399,22 @@ import net.jini.security.SecurityContext;
  *	value does not restrict the groups. The groups apply to the
  *	SSLEngine and the SSLSocket paths alike.
  * <li> <code>org.apache.river.jeri.ssl.serverHandshakeCpuPermits</code> -
- *	The number of TLS handshakes of a server endpoint that may be
- *	computing the first flight of the server, its key exchange and
- *	signatures, at one time. A handshake holds a permit from the
- *	moment the server has read a ClientHello until it has written
- *	its first flight, so a peer that replays a ClientHello, reads
- *	the flight and closes costs the server no more than the permits
- *	allow, although each of its connections lasts a few
- *	milliseconds. A handshake waits for a permit within its
+ *	The number of TLS handshakes, in the whole Java virtual machine,
+ *	that may be computing the first flight of the server, its key
+ *	exchange and signatures, at one time. All the server endpoints
+ *	share the permits, so a virtual machine with several endpoints
+ *	lets a peer that floods them with replayed ClientHellos use no
+ *	more processors than one with a single endpoint. A handshake holds
+ *	a permit from the moment the server has read a ClientHello until
+ *	it has written its first flight, so a peer that replays a
+ *	ClientHello, reads the flight and closes costs the server no more
+ *	than the permits allow, although each of its connections lasts a
+ *	few milliseconds. A handshake waits for a permit within its
  *	serverHandshakeTimeout. The default is the larger of 2 and a
  *	quarter of the number of processors. A value below 1 selects the
  *	default. The limit applies to handshakes done with an SSLEngine,
- *	not to those done with an SSLSocket, which are those of HTTPS
- *	and of endpoints with a server socket factory.
+ *	not to those done with an SSLSocket, which are those of HTTPS and
+ *	of endpoints with a server socket factory.
  * <li> <code>org.apache.river.jeri.ssl.serverHandshakeComputeThreads</code> -
  *	The number of platform threads, shared by the server endpoints
  *	of the virtual machine, that do the cryptography of the TLS

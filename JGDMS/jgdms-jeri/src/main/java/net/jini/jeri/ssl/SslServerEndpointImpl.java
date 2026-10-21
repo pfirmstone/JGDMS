@@ -18,7 +18,6 @@
 
 package net.jini.jeri.ssl;
 
-import org.apache.river.action.GetIntegerAction;
 import org.apache.river.action.GetLongAction;
 import org.apache.river.action.GetPropertyAction;
 import org.apache.river.jeri.internal.ListenBacklog;
@@ -1204,7 +1203,7 @@ class SslServerEndpointImpl extends Utilities {
 		 * may compute their first flight at once.
 		 */
 		static final String SERVER_CPU_PERMITS_PROPERTY =
-			"org.apache.river.jeri.ssl.serverHandshakeCpuPermits";
+			HandshakeLimits.CPU_PERMITS_PROPERTY;
 
 		/**
 		 * The system property that sets the named groups, in order of
@@ -1257,32 +1256,17 @@ class SslServerEndpointImpl extends Utilities {
 		private final long handshakeTimeoutNanos;
 
 		/**
-		 * One permit for each accepted connection whose handshake has not
-		 * finished, working or waiting.  The accept loop takes a permit
-		 * before it accepts, so when the waiting connections fill the queue
-		 * it stops accepting, and the connections that arrive wait in the
-		 * operating system's backlog.
+		 * The permits that all the listeners of the JVM share: the sockets
+		 * that may be admitted, the handshakes that may work, and those that
+		 * may compute a first flight.  A listener gives back only the permits
+		 * that its own connections hold.
 		 */
+		private final HandshakeLimits limits;
 		private final Semaphore admission;
-
-		/**
-		 * One permit for each handshake that works.  A handshake gets one
-		 * before anything is allocated for it, in turn.
-		 */
 		private final Semaphore running;
-
+		private final Semaphore cpu;
 		private final int maxHandshakes;
 		private final int maxQueued;
-
-		/**
-		 * One permit for each handshake that computes the first flight of its
-		 * server side.  The limit on the handshakes that work bounds the
-		 * memory and the descriptors; this bounds the CPU, which a peer that
-		 * replays a ClientHello and then closes can spend at a rate of
-		 * thousands a second although each of its connections lasts a few
-		 * milliseconds.
-		 */
-		private final Semaphore cpu;
 		private final int cpuPermits;
 
 		/** The number of times a handshake has been given a permit of {@code cpu}. */
@@ -1347,18 +1331,13 @@ class SslServerEndpointImpl extends Utilities {
 			this.handshakeTimeoutNanos = millis > 0
 				? Math.min(millis, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
 				: 0L;
-			HandshakeLimits limits = HandshakeLimits.get();
+			this.limits = HandshakeLimits.shared();
 			this.maxHandshakes = limits.maxHandshakes;
 			this.maxQueued = limits.maxQueued;
-			this.admission = new Semaphore(maxHandshakes + maxQueued);
-			this.running = new Semaphore(maxHandshakes, true);
-			int permits = ((Integer) Security.doPrivileged(
-				new GetIntegerAction(SERVER_CPU_PERMITS_PROPERTY, -1))).intValue();
-			if (permits < 1) {
-				permits = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
-			}
-			this.cpuPermits = permits;
-			this.cpu = new Semaphore(permits, true);
+			this.cpuPermits = limits.cpuPermits;
+			this.admission = limits.admission;
+			this.running = limits.running;
+			this.cpu = limits.cpu;
 			this.compute = HandshakeCompute.get();
 			this.namedGroups = parseNamedGroups((String) Security.doPrivileged(
 				new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
@@ -2110,7 +2089,12 @@ class SslServerEndpointImpl extends Utilities {
 			return acceptThread;
 		}
 
-		/** Returns the number of handshakes working. */
+		/** Returns the permits that the listeners of the JVM share. */
+		HandshakeLimits limits() {
+			return limits;
+		}
+
+		/** Returns the number of handshakes working, in the whole JVM. */
 		int runningHandshakes() {
 			return maxHandshakes - running.availablePermits();
 		}
