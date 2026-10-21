@@ -19,11 +19,21 @@
 #   storm      ConcurrencyCurve (DER ping over TLS, open loop, 8 callers) against the server with and without a concurrent
 #              TlsAcceptRate storm of full handshakes; the call latency percentiles.
 #
-# The client JVMs share the machine with the server, so every figure is for comparing builds on the same machine.
+# The client JVMs share the machine with the server, so every figure is for comparing builds on the same machine. To keep them
+# apart, --server-cpus and --client-cpus (or --caller-cpus and --storm-cpus for the callers' and the storm's JVMs) restrict the
+# JVMs to cores with taskset; --server-opt adds a JVM option to the server only, --server-main replaces its main class (a wrapper
+# that adds instrumentation); for the storm, --prewarm and --lead keep the start-up of a fresh server and of the storm's own JVM
+# out of the measured window (RESULTS.md, thirty-seventh section), and --storm-class TlsFlood replaces the authenticated
+# handshakes with ClientHello replays or silent connections.
 # Written with AI assistance (Claude); see the README.
 import argparse, json, os, re, subprocess, sys, tempfile, threading, time
 
 PKG = "au.net.zeus.jgdms.bench.serial."
+
+
+def pin(cpus):
+    """The command prefix that restricts a JVM to a set of cores (taskset -c), or nothing."""
+    return ["taskset", "-c", cpus] if cpus else []
 
 
 def java():
@@ -63,7 +73,7 @@ def cpu_ns(pid):
 
 
 class Server:
-    def __init__(self, cp, work, both):
+    def __init__(self, cp, work, both, cpus=None, main=None):
         self.work = work
         self.tls = os.path.join(work, "tls")
         if not os.path.exists(os.path.join(self.tls, "truststore.p12")):
@@ -71,7 +81,7 @@ class Server:
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.dir = os.path.join(work, "srv")
         log = open(os.path.join(work, "srv.log"), "w")
-        cmd = [java()] + both + ["-Dbench.tls.dir=" + self.tls, "-cp", cp, PKG + "ServerMain", self.dir]
+        cmd = pin(cpus) + [java()] + both + ["-Dbench.tls.dir=" + self.tls, "-cp", cp, main or PKG + "ServerMain", self.dir]
         self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT)
         for _ in range(120):
             time.sleep(1)
@@ -118,8 +128,8 @@ class Server:
             self.proc.kill()
 
 
-def client(cp, server, both, cls, args, extra=None):
-    cmd = [java()] + both + ["-Dbench.tls.dir=" + server.tls] + (extra or []) + ["-cp", cp, PKG + cls] + args
+def client(cp, server, both, cls, args, extra=None, cpus=None):
+    cmd = pin(cpus) + [java()] + both + ["-Dbench.tls.dir=" + server.tls] + (extra or []) + ["-cp", cp, PKG + cls] + args
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
 
@@ -136,11 +146,11 @@ def cmd_accept(a):
         for mode in a.modes.split(","):
             for rep in range(a.reps):
                 work = tempfile.mkdtemp(prefix="tls-s0-accept-")
-                srv = Server(a.cp, work, a.both)
+                srv = Server(a.cp, work, a.both + a.server_opt, a.server_cpus, a.server_main)
                 try:
                     cpu0, o0, th0 = cpu_ns(srv.pid), listen_overflows(), proc_status(srv.pid)[0]
                     srv.reset_peaks()
-                    out = client(a.cp, srv, a.both, "TlsAcceptRate", [srv.dir, threads, str(a.seconds), mode, str(a.warmup)]).stdout
+                    out = client(a.cp, srv, a.both, "TlsAcceptRate", [srv.dir, threads, str(a.seconds), mode, str(a.warmup)], cpus=a.client_cpus).stdout
                     cpu1, o1 = cpu_ns(srv.pid), listen_overflows()
                     m = pat.search(out)
                     rec = {"what": "accept", "build": a.label, "mode": mode, "connectors": int(threads), "rep": rep}
@@ -167,11 +177,11 @@ def cmd_adversary(a):
     for silent, junk, every, opens, timeout in scenarios:
         for rep in range(a.reps):
             work = tempfile.mkdtemp(prefix="tls-s0-adv-")
-            srv = Server(a.cp, work, a.both)
+            srv = Server(a.cp, work, a.both + a.server_opt, a.server_cpus, a.server_main)
             try:
                 srv.reset_peaks()
                 args = [srv.dir, "silent=%d" % silent, "junk=%d" % junk, "junkevery=%d" % every, "opens=%d" % opens, "timeout=%d" % timeout]
-                out = client(a.cp, srv, a.both, "TlsAdversary", args).stdout
+                out = client(a.cp, srv, a.both, "TlsAdversary", args, cpus=a.client_cpus).stdout
                 m = pat.search(out)
                 rec = {"what": "adversary", "build": a.label, "silent": silent, "junk": junk, "junk_every_ms": every, "opens": opens, "timeout_ms": timeout, "rep": rep}
                 if m:
@@ -188,23 +198,35 @@ def cmd_storm(a):
     for storm in ((True,) if a.storm_only else (False, True)):
         for rep in range(a.reps):
             work = tempfile.mkdtemp(prefix="tls-s0-storm-")
-            srv = Server(a.cp, work, a.both)
+            srv = Server(a.cp, work, a.both + a.server_opt, a.server_cpus, a.server_main)
             try:
                 warm, measure = 5, a.seconds
-                call = [java()] + a.both + ["-Dbench.tls.dir=" + srv.tls, "-Dthreadprofile.server=" + srv.dir, "-Dthreadprofile.serverpid=%d" % srv.pid,
+                if storm and a.prewarm > 0:   # the same load first, alone, so the server's JIT has compiled the handshake path
+                    pw = [a.storm_class, srv.dir, str(a.storm_threads), str(a.prewarm), a.storm_mode, str(a.storm_rate or 60)]
+                    subprocess.run(pin(a.client_cpus) + [java()] + a.both + ["-Dbench.tls.dir=" + srv.tls, "-cp", a.cp, PKG + pw[0]] + pw[1:],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                call = pin(a.caller_cpus or a.client_cpus) + [java()] + a.both + ["-Dbench.tls.dir=" + srv.tls, "-Dthreadprofile.server=" + srv.dir, "-Dthreadprofile.serverpid=%d" % srv.pid,
                         "-cp", a.cp, PKG + "ConcurrencyCurve", "stack=DER", "transport=TLS", "payload=ping", "callers=%d" % a.callers, "kind=platform",
                         "warmup=%d" % warm, "measure=%d" % measure, "rate=%d" % a.rate]
-                p = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 storm_out = None
-                if storm:
+                sp = None
+
+                def start_storm(seconds):
+                    if a.storm_rate > 0:   # a paced storm: the same offered load for every build
+                        sargs = [a.storm_class, srv.dir, str(a.storm_threads), str(seconds), a.storm_mode, str(a.storm_rate)]
+                    else:                  # as fast as the listener lets it
+                        sargs = ["TlsAcceptRate", srv.dir, str(a.storm_threads), str(seconds), a.storm_mode, "2"]
+                    return subprocess.Popen(pin(a.storm_cpus or a.client_cpus) + [java()] + a.both + ["-Dbench.tls.dir=" + srv.tls, "-cp", a.cp, PKG + sargs[0]] + sargs[1:],
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+                if storm and a.lead > 0:      # the storm's JVM starts first, so its start-up is over when the callers start
+                    sp = start_storm(a.lead + warm + measure + 2)
+                    time.sleep(a.lead)
+                p = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                if storm and a.lead <= 0:
                     time.sleep(warm - 2)
                     # starts 3 s into the callers' warm-up and covers the measured window
-                    if a.storm_rate > 0:   # a paced storm: the same offered load for every build
-                        sargs = ["TlsStorm", srv.dir, str(a.storm_threads), str(measure + 2), a.storm_mode, str(a.storm_rate)]
-                    else:                  # as fast as the listener lets it
-                        sargs = ["TlsAcceptRate", srv.dir, str(a.storm_threads), str(measure + 2), a.storm_mode, "2"]
-                    sp = subprocess.Popen([java()] + a.both + ["-Dbench.tls.dir=" + srv.tls, "-cp", a.cp, PKG + sargs[0]] + sargs[1:],
-                                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                    sp = start_storm(measure + 2)
                 out = p.communicate(timeout=warm + measure + 120)[0]
                 if storm:
                     storm_out = sp.communicate(timeout=120)[0]
@@ -232,6 +254,10 @@ def main():
         p.add_argument("--both", action="append", default=[], help="a JVM option for every JVM (repeatable)")
         p.add_argument("--reps", type=int, default=3)
         p.add_argument("--out", default=None, help="append one JSON object per point to this file")
+        p.add_argument("--server-cpus", default=None, help="restrict the server JVM to these cores (taskset -c list, e.g. 0,1)")
+        p.add_argument("--server-opt", action="append", default=[], help="a JVM option for the server JVM only (repeatable)")
+        p.add_argument("--server-main", default=None, help="the server's main class if not ServerMain (a wrapper that adds instrumentation)")
+        p.add_argument("--client-cpus", default=None, help="restrict every client JVM (callers, storm, connectors) to these cores, e.g. 2,3")
         if name == "accept":
             p.add_argument("--threads", default="1,64,512")
             p.add_argument("--modes", default="resumed,full")
@@ -245,7 +271,12 @@ def main():
             p.add_argument("--callers", type=int, default=8)
             p.add_argument("--rate", type=int, default=2000)
             p.add_argument("--storm-threads", type=int, default=64)
-            p.add_argument("--storm-mode", default="full")
+            p.add_argument("--storm-mode", default="full", help="full or resumed (TlsStorm); replay or silent with --storm-class TlsFlood")
+            p.add_argument("--storm-class", default="TlsStorm", help="the paced load generator: TlsStorm (authenticated handshakes) or TlsFlood (ClientHello replays or silent connects)")
+            p.add_argument("--prewarm", type=int, default=0, help="seconds of the storm alone before the callers start (a fresh server JVM has not compiled the handshake path)")
+            p.add_argument("--caller-cpus", default=None, help="the cores of the callers' JVM if not --client-cpus")
+            p.add_argument("--storm-cpus", default=None, help="the cores of the storm's JVM if not --client-cpus (a storm held to fewer cores than the callers' keeps the callers' cores free)")
+            p.add_argument("--lead", type=int, default=0, help="seconds the storm runs before the callers' JVM starts (its own start-up and the server's JIT are then over); 0: the storm starts 3 s into the callers' warm-up")
             p.add_argument("--storm-only", action="store_true", help="skip the run without a storm")
             p.add_argument("--storm-rate", type=int, default=0, help="new connections a second in the storm; 0: as fast as the listener accepts (TlsAcceptRate)")
     a = ap.parse_args()

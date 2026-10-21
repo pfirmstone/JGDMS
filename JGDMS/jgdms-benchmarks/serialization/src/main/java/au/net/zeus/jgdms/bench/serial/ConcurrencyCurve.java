@@ -294,6 +294,7 @@ public final class ConcurrencyCurve {
         double littleUs = open ? Double.NaN : LatencyHistogram.littleMeanMicros(started, callsPerMs);
         double cpuClient = perCall(cpuC0, cpuC1, cpuCalls), cpuServer = perCall(cpuS0, cpuS1, cpuCalls);
 
+        writeTimeline();
         System.out.printf("%s %s %s %s x%d: %.2f calls/ms, %d calls recorded, window %.1f s, %d errors%s%n", stack, transport, payload, kind,
                 started, callsPerMs, n, windowMs / 1e3, errors.sum(), firstError == null ? "" : " (first: " + firstError + ")");
         System.out.printf("  latency us: p50 %.1f  p90 %.1f  p99 %.1f  p99.9 %.1f  max %.1f  mean %.1f%n", p50, p90, p99, p999, max, mean);
@@ -414,7 +415,32 @@ public final class ConcurrencyCurve {
                 } else {
                     h.record(t1 - intended);
                 }
+                if (timeline != null && t1 - intended > TIMELINE_NANOS) {
+                    timeline.add(new long[] { System.currentTimeMillis(), (t1 - intended) / 1000 });
+                }
             }
+        }
+    }
+
+    /**
+     * With {@code -Dcurve.timeline=<file>}, the calls slower than {@code -Dcurve.timeline.ms} (default 5) are written to the
+     * file when the run ends, one line each: the wall-clock milliseconds at which the call completed and its latency in
+     * microseconds, to line the stalls up with what the server was doing.
+     */
+    private static final java.util.concurrent.ConcurrentLinkedQueue<long[]> timeline =
+        System.getProperty("curve.timeline") == null ? null : new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private static final long TIMELINE_NANOS = Long.getLong("curve.timeline.ms", 5L) * 1_000_000L;
+
+    private static void writeTimeline() {
+        if (timeline == null) {
+            return;
+        }
+        try (java.io.PrintWriter w = new java.io.PrintWriter(new java.io.FileWriter(System.getProperty("curve.timeline")))) {
+            for (long[] x : timeline) {
+                w.println(x[0] + "," + x[1]);
+            }
+        } catch (java.io.IOException e) {
+            System.err.println("timeline: " + e);
         }
     }
 
