@@ -69,6 +69,9 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	    try {
 		Class.forName("sun.nio.ch.IOVecWrapper");
 	    } catch (ClassNotFoundException e) {
+		// not on this JVM, or not visible to this bundle: nothing to work around
+	    } catch (LinkageError e) {
+		// likewise
 	    }
 	    return null;
 	} });
