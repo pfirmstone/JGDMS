@@ -304,6 +304,12 @@ listener do. Facts that the first version of this section had wrong, found by th
   `X25519MLKEM768, x25519, secp256r1` with `SSLParameters.setNamedGroups` (not the JVM-wide property), because the group is the
   client's choice among those enabled and the JVM default list costs the server from 2 ms (x25519) to 27 ms (ffdhe8192) per
   replayed ClientHello. The permit applies to the engine path only; the SSLSocket path is bounded by the other limits.
+* **Handshake compute threads.** The engine's delegated tasks (the ClientHello's key exchange and signature, the client's
+  certificate chain and signature) go to a JVM-wide pool of platform daemon threads, created subject-neutral and not from the
+  system `ThreadPool`, through the `SslEngineChannel.TaskRunner` seam; the handshake's virtual thread waits for the result and
+  releases its carrier. The size is the most processors that handshakes can use for cryptography at once. A task that has not
+  started when its handshake has timed out or its socket has closed is dropped. The client, tests of the engine channel and the
+  SSLSocket path still run tasks inline.
 * **Mux start deadline.** `org.apache.river.jeri.mux.serverStartTimeout` (15 s): a server mux whose client has not sent its
   connection header by then is taken down, which closes the connection and ends its two threads. Wire-format neutral; applies to
   every transport that serves a mux.
@@ -320,6 +326,7 @@ listener do. Facts that the first version of this section had wrong, found by th
 | `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8) / min(4096, maxFds/4 - N) |
 | `ssl.maxFileDescriptors` | what the JVM reports, else 16384 |
 | `ssl.serverHandshakeCpuPermits` | max(2, cores/4) |
+| `ssl.serverHandshakeComputeThreads` | max(1, cores/4); 0 runs the tasks inline on the handshake's virtual thread |
 | `ssl.serverNamedGroups` | `X25519MLKEM768,x25519,secp256r1` (empty: do not pin) |
 | `mux.serverStartTimeout` | 15 000 ms |
 | `ssl.handshakeSummaryInterval` | 30 000 ms |
@@ -331,8 +338,13 @@ listener do. Facts that the first version of this section had wrong, found by th
 cap) delay an open by the 10 s deadline. **A cost:** at the same offered rate of new full handshakes, the p99 of calls on a
 connection that already exists rose from about 10 ms to 100 to 800 ms (30 and 60 new connections a second), and to 20 s when
 the storm runs as fast as the listener accepts. It follows the number of handshakes running at once (with `maxServerHandshakes`
-at 1 it is back to 11 to 19 ms), not the CPU permit, which covers the first flight only. The cause is not found; the old serial
-accept thread was an unintended limit that protected dispatch. This needs a decision (see the section 36 caveats).
+at 1 it is back to 11 to 19 ms), not the CPU permit, which covers the first flight only. **The cause (RESULTS section 37):** a
+handshake's delegated tasks (key exchange and signatures, certificate verification, 2 to 4 ms each) ran inline on a carrier of
+the virtual-thread scheduler, which also runs the threads that dispatch calls; with as many handshakes at work as carriers, a
+dispatch thread waits for a carrier, not for the processor. The 30 and 60 a second figures above came largely from the first
+seconds of a cold server and a cold storm client; with the storm started first and the server warm there is no difference from
+before S0 at those rates, and the 20 s figure includes clients that took the processors the callers need. S0 now runs the delegated tasks on a shared pool of platform threads (`HandshakeCompute`, below), which brings the p99 back to
+the figure before S0 at the accept rate of S0.
 
 **Not built, or not established.** Per-address caps (off by decision: NAT and loopback). The first-byte permit (transport seat
 F11). A non-blocking handshake and any `SelectionManager` change (S1 and S2). Kerberos's deadline and its peer-sized allocation
