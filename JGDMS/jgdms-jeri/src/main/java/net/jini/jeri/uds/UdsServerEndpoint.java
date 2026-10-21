@@ -66,6 +66,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.jeri.connection.ServerConnectionManager;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.logging.LogUtil;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
@@ -116,6 +117,22 @@ import org.apache.river.thread.GetThreadPoolAction;
  *     bound (matched by {@link BasicFileAttributes#fileKey}), never a path that
  *     was replaced.
  * </ul>
+ *
+ * <p>The accept backlog requested when this endpoint binds its listening
+ * socket is set by the <code>org.apache.river.jeri.listenBacklog</code> system
+ * property.  The default is <code>Integer.MAX_VALUE</code>, which each
+ * operating system clamps to its own maximum (on Linux,
+ * <code>net.core.somaxconn</code>); the JDK default of 50 would drop or refuse
+ * connections from more than about 50 simultaneous connectors.  A value below 1
+ * selects the JDK default.  A large backlog lets a remote peer fill kernel
+ * buffers, up to the operating system limit, with connections that are not yet
+ * accepted; operators can lower the value to bound that.
+ *
+ * <p>The time that a client has, after this endpoint has started a connection,
+ * to send the connection header of the multiplexed connection is set by the
+ * <code>org.apache.river.jeri.mux.serverStartTimeout</code> system property, in
+ * milliseconds.  The default is 15000; a value of 0 or less removes the limit.
+ * When the time has passed the server closes the connection.
  **/
 public final class UdsServerEndpoint implements ServerEndpoint {
 
@@ -686,7 +703,8 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 		return AccessController.doPrivileged(
 		    new PrivilegedExceptionAction<Object>() {
 			public Object run() throws IOException {
-			    serverChannel.bind(UnixDomainSocketAddress.of(staged));
+			    serverChannel.bind(UnixDomainSocketAddress.of(staged),
+					       ListenBacklog.get());
 			    Object key = restrictPosixOwnerOnly(staged, null);
 			    linkIntoPlace(staged, socketPath);
 			    try {
@@ -803,12 +821,13 @@ public final class UdsServerEndpoint implements ServerEndpoint {
 	    throws IOException
 	{
 	    UnixDomainSocketAddress address = UnixDomainSocketAddress.of(path);
+	    int backlog = ListenBacklog.get();
 	    try {
-		serverChannel.bind(address);
+		serverChannel.bind(address, backlog);
 		return;
 	    } catch (BindException firstBind) {
 		reclaimStaleIncumbent(address, socketPath, firstBind);
-		serverChannel.bind(address); // retry ONCE
+		serverChannel.bind(address, backlog); // retry ONCE
 	    }
 	}
 

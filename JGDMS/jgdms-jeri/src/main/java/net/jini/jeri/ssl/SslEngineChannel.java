@@ -21,9 +21,11 @@ package net.jini.jeri.ssl;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -71,7 +73,11 @@ import javax.net.ssl.SSLSession;
  * thread, and inline execution keeps the handshake on one carrier without a
  * hand-off.  The future QUIC engine loop shares this assumption
  * ({@code QuicTLSEngine.getDelegatedTask()} is likewise driven inline), so the
- * behaviour is pinned by {@code SslEngineChannelTest}.
+ * behaviour is pinned by {@code SslEngineChannelTest}.  The server is the
+ * exception: its listener sets a {@link #setTaskRunner runner} that moves the
+ * tasks to a few platform threads and waits (see {@code HandshakeCompute}),
+ * because a handshake's tasks take milliseconds without blocking and the
+ * carriers are shared with the threads that dispatch calls.
  *
  * <p>Not thread-safe for concurrent reads, nor for concurrent writes; a single
  * reader and a single writer may proceed concurrently (the read and write sides
@@ -120,20 +126,25 @@ final class SslEngineChannel {
     private volatile boolean inboundClosed = false;
 
     /**
-     * Default handshake read timeout (ms): a GENEROUS bound so a stalled /
-     * slowloris peer cannot pin the single accept-loop thread forever, while
-     * never breaking a legitimately slow-but-progressing handshake.  A peer that
-     * sends <em>nothing</em> for this long during the handshake is treated as
-     * dead.  Overridable via the system property.
+     * Default client handshake timeout (ms): a GENEROUS bound on the whole
+     * handshake, so that a stalled / slowloris server cannot pin the calling
+     * thread forever, while never breaking a legitimately slow handshake.
+     * Overridable via the system property.  It does not apply to the server,
+     * which has {@code org.apache.river.jeri.ssl.serverHandshakeTimeout}.
      */
     static final long DEFAULT_HANDSHAKE_TIMEOUT_MILLIS =
         Long.getLong("org.apache.river.jeri.ssl.handshakeTimeout", 60_000L);
 
     /**
-     * Absolute deadline (System.currentTimeMillis()) by which each handshake
-     * read must make progress, or 0 for no deadline.  Set only while the
-     * handshake runs; application-data reads are never deadline-bounded (they
-     * block normally on the JERI request lifecycle).
+     * Absolute deadline (System.currentTimeMillis()) of the whole handshake,
+     * which every read of peer handshake ciphertext checks, or 0 for no
+     * deadline.  It is fixed when the handshake starts, so a peer that sends a
+     * byte at a time does not extend it.  Set only while a client handshake
+     * runs; application-data reads are never deadline-bounded (they block
+     * normally on the JERI request lifecycle).  A server handshake has no
+     * deadline here: it reads and writes with plain blocking I/O and its
+     * owner ends it, if need be, by closing the raw channel (see {@link
+     * #handshakeServer}).
      */
     private long handshakeReadDeadline = 0L;
 
@@ -163,6 +174,19 @@ final class SslEngineChannel {
         this.handshakeScratch = ByteBuffer.allocate(app);
         // appIn starts "drained" (nothing to read).
         this.appIn.position(0).limit(0);
+    }
+
+    /**
+     * Gives the channel ciphertext that was read from the connection ahead of
+     * it, to be read first.  Before the handshake only.
+     */
+    void prime(byte[] ciphertext) {
+        synchronized (readLock) {
+            while (netIn.remaining() < ciphertext.length) {
+                growNetIn();
+            }
+            netIn.put(ciphertext);
+        }
     }
 
     /** Returns the completed handshake session. */
@@ -205,17 +229,17 @@ final class SslEngineChannel {
     }
 
     /**
-     * Runs the handshake with a read-progress deadline (F2): each blocking read
-     * of peer handshake ciphertext must make progress within {@code
-     * timeoutMillis}, or the handshake fails with an {@link SSLException}.  This
-     * bounds a stalled / slowloris peer that would otherwise pin the (single)
-     * accept-loop thread indefinitely -- the accept thread runs the handshake
-     * synchronously and the unwrap/fillNetIn loop would otherwise block forever
-     * on a peer that connects but never sends.  The bound is on <em>inactivity
-     * per read</em>, not total handshake time, so a legitimately slow-but-
-     * progressing handshake is never broken.
+     * Runs the handshake with a total deadline (F2): the handshake fails with
+     * an {@link SSLException} if it has not finished {@code timeoutMillis}
+     * after it started, however slowly the peer makes progress.  This bounds a
+     * stalled / slowloris peer that would otherwise pin the thread driving the
+     * handshake indefinitely.  The deadline applies to the waits for peer
+     * ciphertext, which a blocking {@link SocketChannel} cannot time out
+     * itself, so it is enforced by waiting on a selector; it does not cover a
+     * write that blocks because the peer does not read.  Used by the client;
+     * the server uses {@link #handshakeServer}.
      *
-     * @param timeoutMillis per-read progress timeout; {@code <= 0} disables it
+     * @param timeoutMillis the total timeout; {@code <= 0} disables it
      */
     void handshake(long timeoutMillis) throws IOException {
         this.handshakeReadDeadline = (timeoutMillis > 0)
@@ -248,6 +272,88 @@ final class SslEngineChannel {
             // Application-data reads are never deadline-bounded.
             this.handshakeReadDeadline = 0L;
         }
+    }
+
+    /**
+     * Runs the server side of the handshake with plain blocking reads and
+     * writes and no deadline of its own.  A blocking {@link SocketChannel}
+     * read or write ends within a millisecond or so, with an {@link
+     * java.nio.channels.AsynchronousCloseException}, when another thread
+     * closes the channel, so the owner bounds the handshake with a timer that
+     * closes the raw channel, which also bounds a write to a peer that does
+     * not read.  It must not call {@link #close}, which writes close_notify
+     * and can itself block.  This avoids a selector, and its file
+     * descriptors, for every read of a connection that is not yet
+     * authenticated.
+     */
+    void handshakeServer() throws IOException {
+        handshakeServer(null);
+    }
+
+    /**
+     * Bounds the CPU that the server side of a handshake spends before the
+     * peer is authenticated.  {@link #begin} is called when the server has
+     * consumed a ClientHello and has the key exchange and the signature of its
+     * first flight to compute, and {@link #end} when that flight has been
+     * computed, before it is written to a peer that may not read it, or the
+     * handshake has ended, whichever is first.  An
+     * implementation can make {@code begin} wait for a permit, so that a peer
+     * that sends one ClientHello after another gets no more of the server's
+     * CPU than the permits allow, however quickly it sends them.
+     */
+    interface ServerGate {
+        void begin() throws IOException;
+        void end();
+    }
+
+    /**
+     * Runs the server side of the handshake as {@link #handshakeServer()}
+     * does, with the work that follows each ClientHello inside the gate.
+     *
+     * @param gate the gate, or null for none
+     */
+    void handshakeServer(ServerGate gate) throws IOException {
+        this.gate = gate;
+        try {
+            handshake(0L);
+        } finally {
+            endGate();
+            this.gate = null;
+        }
+    }
+
+    /** The gate of a server handshake, or null. */
+    private ServerGate gate;
+
+    /** Whether the handshake is between {@code gate.begin} and {@code gate.end}. */
+    private boolean gateHeld;
+
+    /** Whether a ClientHello has been seen and the work that follows is not done. */
+    private boolean helloPending;
+
+    private void beginGate() throws IOException {
+        if (gate != null && !gateHeld) {
+            gate.begin();
+            gateHeld = true;
+        }
+    }
+
+    private void endGate() {
+        if (gateHeld) {
+            gateHeld = false;
+            gate.end();
+        }
+    }
+
+    /**
+     * Returns whether the ciphertext in {@code buf}, ready to be read, starts
+     * a handshake record that carries the start of a ClientHello.
+     */
+    private static boolean startsClientHello(ByteBuffer buf) {
+        int p = buf.position();
+        return buf.remaining() >= 6
+            && buf.get(p) == 22          // handshake record
+            && buf.get(p + 5) == 1;      // ClientHello
     }
 
     /** Adds two non-negative longs, clamping overflow to Long.MAX_VALUE. */
@@ -299,6 +405,15 @@ final class SslEngineChannel {
     private volatile TaskRunner taskRunner = INLINE_RUNNER;
 
     /**
+     * Sets how the engine's delegated tasks run, in place of inline on the
+     * calling thread.  A runner must run each task to completion before it
+     * returns.
+     */
+    void setTaskRunner(TaskRunner runner) {
+        this.taskRunner = runner;
+    }
+
+    /**
      * Runs all currently-pending delegated tasks inline on the calling
      * (virtual) thread.  See the class comment: this is the explicit,
      * virtual-thread-first policy shared with the future QUIC engine loop.
@@ -336,6 +451,13 @@ final class SslEngineChannel {
         synchronized (writeLock) {
             netOut.clear();
             SSLEngineResult result = engine.wrap(EMPTY, netOut);
+            /*
+             * The key exchange and the signatures were computed by the
+             * delegated tasks, and wrap only encrypts what they queued: the
+             * work that a ClientHello causes is done.  A peer that does not
+             * read must not hold the gate while the flight is written.
+             */
+            endGate();
             flush(netOut);
             switch (result.getStatus()) {
                 case OK:
@@ -361,6 +483,9 @@ final class SslEngineChannel {
                 netIn.flip();
                 SSLEngineResult result;
                 try {
+                    if (gate != null && startsClientHello(netIn)) {
+                        helloPending = true;
+                    }
                     // Handshake records carry no application data; unwrap into a
                     // scratch sink so appIn is untouched (and stays "drained"
                     // for the first application read).
@@ -371,7 +496,18 @@ final class SslEngineChannel {
                 }
                 switch (result.getStatus()) {
                     case OK:
-                        return result.getHandshakeStatus();
+                        HandshakeStatus next = result.getHandshakeStatus();
+                        if (helloPending
+                            && (next == HandshakeStatus.NEED_TASK
+                                || next == HandshakeStatus.NEED_WRAP))
+                        {
+                            // The ClientHello is consumed (it may have come in
+                            // pieces) and the key exchange and signatures are
+                            // next: they are what a replayed hello costs.
+                            helloPending = false;
+                            beginGate();
+                        }
+                        return next;
                     case BUFFER_UNDERFLOW:
                         if (!fillNetIn()) {
                             throw new EOFException(
@@ -575,30 +711,33 @@ final class SslEngineChannel {
     }
 
     /**
-     * F2: reads ciphertext into {@code netIn} with a per-read progress deadline
+     * F2: reads ciphertext into {@code netIn} before the handshake deadline
      * (handshake only).  Temporarily puts the channel in non-blocking mode and
      * waits on a {@link java.nio.channels.Selector} for readability up to the
-     * remaining time; a read that makes no progress by the deadline fails the
-     * handshake with an {@link SSLException} (a stalled/slowloris peer).  The
-     * channel is always restored to blocking mode before returning, so
-     * application-data I/O is unaffected.
+     * time that remains; a handshake that has not finished by the deadline
+     * fails with an {@link SSLException} (a stalled/slowloris peer).  An
+     * interrupt of the thread fails the handshake at once.  The channel is
+     * always restored to blocking mode
+     * before returning, so application-data I/O is unaffected.
      */
     private boolean fillNetInByDeadline() throws IOException {
-        java.nio.channels.Selector selector = null;
+        Selector selector = null;
         boolean wasBlocking = channel.isBlocking();
         try {
             channel.configureBlocking(false);
-            selector = java.nio.channels.Selector.open();
+            selector = Selector.open();
             channel.register(selector, java.nio.channels.SelectionKey.OP_READ);
             for (;;) {
+                checkNotInterrupted();
                 long remaining = handshakeReadDeadline - System.currentTimeMillis();
                 if (remaining <= 0L) {
                     throw new SSLException(
-                        "TLS handshake read timed out on " + label
-                        + " (no peer progress within the handshake timeout) -- "
+                        "TLS handshake timed out on " + label
+                        + " (not finished within the handshake timeout) -- "
                         + "fail-secure against a stalled/slowloris peer");
                 }
                 int ready = selector.select(remaining);
+                checkNotInterrupted();
                 if (ready == 0) {
                     // select() woke with nothing ready: either the deadline
                     // elapsed (loop re-checks) or a spurious wakeup (retry).
@@ -627,6 +766,18 @@ final class SslEngineChannel {
             } catch (IOException e) {
                 // channel closing concurrently; the caller handles the failure.
             }
+        }
+    }
+
+    /**
+     * Fails a handshake whose thread was interrupted.  An interrupt makes
+     * every select return at once, so carrying on would spin until the
+     * deadline.
+     */
+    private void checkNotInterrupted() throws IOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException(
+                "TLS handshake interrupted on " + label);
         }
     }
 
@@ -665,6 +816,11 @@ final class SslEngineChannel {
      */
     void close() throws IOException {
         if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        if (!channel.isOpen()) {
+            // Already closed, by the peer's reset or the owner: there is
+            // nobody to write close_notify to.
             return;
         }
         IOException failure = null;

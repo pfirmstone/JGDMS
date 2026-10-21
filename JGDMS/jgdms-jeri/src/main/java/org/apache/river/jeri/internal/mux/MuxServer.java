@@ -19,6 +19,7 @@
 package org.apache.river.jeri.internal.mux;
 
 import org.apache.river.action.GetIntegerAction;
+import org.apache.river.action.GetLongAction;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
@@ -106,7 +107,8 @@ public class MuxServer extends Mux {
 		     RequestDispatcher requestDispatcher)
 	throws IOException
     {
-	super(out, in, Mux.SERVER, serverInitialInboundRation, 1024, 0L);
+	super(out, in, Mux.SERVER, serverInitialInboundRation, 1024,
+	      serverStartTimeout());
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();
@@ -119,18 +121,55 @@ public class MuxServer extends Mux {
 	      int initialInboundRation, int maxFragmentSize)
 	throws IOException
     {
-	super(out, in, Mux.SERVER, initialInboundRation, maxFragmentSize, 0L);
+	this(out, in, requestDispatcher, initialInboundRation, maxFragmentSize,
+	     0L);
+    }
+
+    /**
+     * For tests: as above, with an explicit time that the client has to send
+     * its connection header, in milliseconds.
+     */
+    MuxServer(OutputStream out, InputStream in,
+	      RequestDispatcher requestDispatcher,
+	      int initialInboundRation, int maxFragmentSize,
+	      long startTimeout)
+	throws IOException
+    {
+	super(out, in, Mux.SERVER, initialInboundRation, maxFragmentSize,
+	      startTimeout);
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();
 	this.serverSubject = Subject.current();
     }
 
+    /**
+     * The system property that sets the time, in milliseconds, that a client
+     * has to send its connection header after a server connection starts.
+     */
+    static final String SERVER_START_TIMEOUT_PROPERTY =
+	"org.apache.river.jeri.mux.serverStartTimeout";
+
+    /** The default time for the client's connection header: 15 seconds. */
+    static final long DEFAULT_SERVER_START_TIMEOUT = 15000L;
+
+    /**
+     * Returns the time that a client has to send its connection header: the
+     * value of the system property, read now, or the default.  A value of 0
+     * or less means no limit.
+     */
+    static long serverStartTimeout() {
+	return ((Long) AccessController.doPrivileged(
+	    new GetLongAction(SERVER_START_TIMEOUT_PROPERTY,
+			      DEFAULT_SERVER_START_TIMEOUT))).longValue();
+    }
+
     public MuxServer(SocketChannel channel,
 		     RequestDispatcher requestDispatcher)
 	throws IOException
     {
-	super(channel, Mux.SERVER, serverInitialInboundRation, 1024, 0L);
+	super(channel, Mux.SERVER, serverInitialInboundRation, 1024,
+	      serverStartTimeout());
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();

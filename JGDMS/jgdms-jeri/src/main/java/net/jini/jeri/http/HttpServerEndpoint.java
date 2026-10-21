@@ -18,6 +18,7 @@
 
 package net.jini.jeri.http;
 
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.http.ConnectionTimer;
 import org.apache.river.jeri.internal.http.HttpServerConnection;
 import org.apache.river.jeri.internal.http.HttpServerManager;
@@ -103,7 +104,17 @@ import org.apache.river.jeri.internal.runtime.LocalHost;
  * are specified for <code>equals</code> methods of {@link Endpoint}
  * instances.
  *
- * 
+ * <p>The accept backlog requested when this endpoint binds its listening
+ * socket is set by the <code>org.apache.river.jeri.listenBacklog</code> system
+ * property.  The default is <code>Integer.MAX_VALUE</code>, which each
+ * operating system clamps to its own maximum (on Linux,
+ * <code>net.core.somaxconn</code>); the JDK default of 50 would drop or refuse
+ * connections from more than about 50 simultaneous connectors.  A value below 1
+ * selects the JDK default.  A large backlog lets a remote peer fill kernel
+ * buffers, up to the operating system limit, with connections that are not yet
+ * accepted; operators can lower the value to bound that.  A custom server socket
+ * factory receives the value as the <code>backlog</code> argument.
+ *
  * @see HttpEndpoint
  * @since 2.0
  **/
@@ -623,11 +634,12 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 		throw new NullPointerException();
 	    }
 
+	    int backlog = ListenBacklog.get();
 	    ServerSocket serverSocket;
 	    if (ssf != null) {
-		serverSocket = ssf.createServerSocket(port);
+		serverSocket = ssf.createServerSocket(port, backlog);
 	    } else {
-		serverSocket = new ServerSocket(port);
+		serverSocket = new ServerSocket(port, backlog);
 	    }
 
 	    if (logger.isLoggable(Level.FINE)) {

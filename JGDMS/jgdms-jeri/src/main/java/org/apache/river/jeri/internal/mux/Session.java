@@ -18,6 +18,7 @@
 
 package org.apache.river.jeri.internal.mux;
 
+import org.apache.river.jeri.internal.TimeoutScheduler;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
@@ -29,8 +30,6 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -147,25 +146,6 @@ final class Session {
             });
         } catch (SecurityException e) {
             return 900000L;
-        }
-    }
-
-    /** Fires acknowledgment timeouts; the listeners run on the system pool. */
-    private static final class AckTimer {
-        static final ScheduledThreadPoolExecutor TIMER = create();
-
-        private static ScheduledThreadPoolExecutor create() {
-            ScheduledThreadPoolExecutor t = new ScheduledThreadPoolExecutor(1,
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread th = new Thread(r, "Mux ack timeout");
-                        th.setDaemon(true);
-                        return th;
-                    }
-                });
-            t.setRemoveOnCancelPolicy(true);
-            return t;
         }
     }
 
@@ -728,16 +708,25 @@ final class Session {
         if (sentAckRequired && !ackNotified && ackTimeoutTask == null
             && ackTimeoutMs > 0)
         {
-            ackTimeoutTask = AckTimer.TIMER.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (sessionLock) {
-                        if (!receivedAcknowledgment) {
-                            notifyAcknowledgmentListeners(false);
-                        }
-                    }
-                }
-            }, ackTimeoutMs, TimeUnit.MILLISECONDS);
+            /*
+             * The timer thread serves all the connections: it hands the work,
+             * which takes the session lock, to another thread.
+             */
+            ackTimeoutTask = TimeoutScheduler.schedule(
+                this::ackTimedOut, ackTimeoutMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** Called by the timer when no acknowledgment has come in time. */
+    private void ackTimedOut() {
+        TimeoutScheduler.handOff(this::notifyAckTimeout);
+    }
+
+    private void notifyAckTimeout() {
+        synchronized (sessionLock) {
+            if (!receivedAcknowledgment) {
+                notifyAcknowledgmentListeners(false);
+            }
         }
     }
 

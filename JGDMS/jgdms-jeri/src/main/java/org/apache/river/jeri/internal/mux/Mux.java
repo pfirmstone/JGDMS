@@ -18,6 +18,7 @@
 
 package org.apache.river.jeri.internal.mux;
 
+import org.apache.river.jeri.internal.TimeoutScheduler;
 import org.apache.river.jeri.internal.runtime.HexDumpEncoder;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
@@ -36,6 +37,8 @@ import java.security.AccessController;
 import java.util.BitSet;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -132,7 +135,7 @@ abstract class Mux {
     int initialOutboundRation;		// set from remote connection
     // volatile reads, sync writes on muxLock
     private volatile boolean clientConnectionReady = false; // server header received
-    boolean serverConnectionReady = false;	   // server header sent
+    volatile boolean serverConnectionReady = false;	   // server header sent
 
     // volatile reads, sync writes on muxLock
     volatile boolean muxDown = false;
@@ -144,8 +147,18 @@ abstract class Mux {
 
     private int expectedPingCookie = -1;
     
-    /** ONLY USED BY CLIENT */
+    /**
+     * How long the other end has to complete the start of the connection, in
+     * milliseconds, or 0 for no limit.  A client waits this long for the
+     * server's connection header after it sends its own; a server allows it
+     * for the client's, counted from the start, so that a peer that connects
+     * and sends nothing does not hold the connection and its threads for
+     * ever.
+     */
     private final long startTimeout; // milliseconds
+
+    /** The server's timer for the client's connection header, or null. */
+    private volatile ScheduledFuture<?> startTimer;
 
     /**
      * Constructs a new Mux instance for a connection accessible through
@@ -200,6 +213,17 @@ abstract class Mux {
             readState = READ_CLIENT_CONNECTION_HEADER;
         }
 
+        /*
+         * Before the I/O starts: a client header that is processed, or a
+         * connection that goes down, before the timer exists would find none
+         * to cancel, and the timer would keep this connection and its buffers
+         * until it ran out.
+         */
+        if (role == SERVER && startTimeout > 0L) {
+            startTimer = TimeoutScheduler.schedule(
+                this::startTimedOut, startTimeout, TimeUnit.MILLISECONDS);
+        }
+
         try {
             connectionIO.start();
         } catch (IOException e) {
@@ -230,6 +254,37 @@ abstract class Mux {
                 }
             }
 	}
+    }
+
+    /**
+     * Called by the timer when a server connection has had its time to
+     * start.  The timer thread serves all connections, so it must not wait
+     * for a lock or for a close: it reads the flags that are volatile, and
+     * leaves the rest to another thread, which takes the connection down if
+     * the client has not sent its header by then; that closes the connection
+     * and ends its threads.
+     */
+    private void startTimedOut() {
+        if (muxDown || serverConnectionReady) {
+            return;
+        }
+        TimeoutScheduler.handOff(this::startTimeExpired);
+    }
+
+    /**
+     * Takes the connection down, unless the client's header has arrived, or
+     * the connection is down, in the meantime.
+     */
+    private void startTimeExpired() {
+        setDown("timeout waiting for client connection header", null, true);
+    }
+
+    /** Stops the timer for the start of a server connection. */
+    private void cancelStartTimer() {
+        ScheduledFuture<?> timer = startTimer;
+        if (timer != null) {
+            timer.cancel(false);
+        }
     }
 
     /**
@@ -277,9 +332,24 @@ abstract class Mux {
      * occurs during start up.
      */
     final void setDown(final String message, final Throwable cause) {
+        setDown(message, cause, false);
+    }
+
+    /**
+     * @param unlessStarted whether to leave the connection up if the client's
+     *        header has been processed, which is decided under muxLock, as
+     *        the processing of the header is
+     */
+    private void setDown(final String message, final Throwable cause,
+                         boolean unlessStarted)
+    {
 	SessionShutdownTask sst;
         if (muxDown) return;
+        cancelStartTimer();
 	synchronized (muxLock) {
+	    if (unlessStarted && (muxDown || serverConnectionReady)) {
+	        return;
+	    }
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;
@@ -759,6 +829,7 @@ abstract class Mux {
 
 	    serverConnectionReady = true;
 	}
+        cancelStartTimer();
 
 	readState = READ_MESSAGE_HEADER;
 	return true;
