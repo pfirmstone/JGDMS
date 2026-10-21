@@ -960,7 +960,12 @@ class SslServerEndpointImpl extends Utilities {
 			// producing an anonymous SSL context.
 			initIfNeeded();
 			ServerSocket serverSocket = createServerSocket();
-			return createListenHandle(requestDispatcher, serverSocket);
+			SslListenHandle listenHandle =
+				createListenHandle(requestDispatcher, serverSocket);
+			// Start accepting here, not in createListenHandle, so that an
+			// override of createListenHandle cannot omit it.
+			listenHandle.startAccepting();
+			return listenHandle;
 		}
 
 		/**
@@ -1065,16 +1070,12 @@ class SslServerEndpointImpl extends Utilities {
 		 * Creates a listen handle for the specified dispatcher and server
 		 * socket.
 		 */
-		ListenHandle createListenHandle(RequestDispatcher requestDispatcher,
+		SslListenHandle createListenHandle(RequestDispatcher requestDispatcher,
 										ServerSocket serverSocket)
 															throws IOException
 		{
 			SslListenHandle listenHandle = new SslListenHandle(requestDispatcher, serverSocket, this);
 			logger.log(Level.FINE, "created {0}", listenHandle);
-			// Create and start the accept thread after full construction to
-			// prevent 'this' escaping before SslListenHandle is initialised.
-			listenHandle.acceptThread = listenHandle.createAcceptThread();
-			listenHandle.acceptThread.start();
 			return listenHandle;
 		}
 
@@ -1228,6 +1229,26 @@ class SslServerEndpointImpl extends Utilities {
 					acceptThreadBuilder.name(toString()).unstarted(this::acceptLoop)
 				)
 			);
+		}
+
+		/**
+		 * Creates and starts the accept thread.  Called once by listen,
+		 * after createListenHandle returns, so that {@code this} is fully
+		 * constructed and no subclass can leave the handle without an accept
+		 * thread.  If the thread cannot be started, closes this handle so the
+		 * server socket is not left bound.
+		 */
+		final void startAccepting() {
+			boolean ok = false;
+			try {
+				acceptThread = createAcceptThread();
+				acceptThread.start();
+				ok = true;
+			} finally {
+				if (!ok) {
+					close();
+				}
+			}
 		}
 
 		/** Handles new socket connections. */

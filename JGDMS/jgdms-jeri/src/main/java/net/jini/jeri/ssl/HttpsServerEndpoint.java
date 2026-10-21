@@ -892,7 +892,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
             }
 
 	    @Override
-	    ListenHandle createListenHandle(RequestDispatcher requestDispatcher,
+	    SslListenHandle createListenHandle(RequestDispatcher requestDispatcher,
 					    ServerSocket serverSocket)
 		throws IOException
 	    {
