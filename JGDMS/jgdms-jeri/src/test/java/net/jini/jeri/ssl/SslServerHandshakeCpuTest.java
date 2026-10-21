@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -193,14 +194,27 @@ public class SslServerHandshakeCpuTest {
      * cryptography; returns the CPU time that they have used.
      */
     static long carrierCpuNanos() {
+        return cpuNanos(true, true);
+    }
+
+    /**
+     * The CPU time that the handshake compute threads have used: the work
+     * that the permits gate, when the cryptography is not done inline.
+     */
+    static long computePoolCpuNanos() {
+        return cpuNanos(false, true);
+    }
+
+    private static long cpuNanos(boolean carriers, boolean pool) {
         ThreadMXBean mx = ManagementFactory.getThreadMXBean();
         long total = 0L;
         long[] ids = mx.getAllThreadIds();
         ThreadInfo[] infos = mx.getThreadInfo(ids);
         for (int i = 0; i < ids.length; i++) {
-            if (infos[i] != null && (infos[i].getThreadName().startsWith("ForkJoinPool")
+            if (infos[i] != null && (carriers
+                && infos[i].getThreadName().startsWith("ForkJoinPool")
                 && infos[i].getThreadName().contains("worker")
-                || infos[i].getThreadName().startsWith("TLS handshake compute")))
+                || pool && infos[i].getThreadName().startsWith("TLS handshake compute")))
             {
                 long cpu = mx.getThreadCpuTime(ids[i]);
                 if (cpu > 0) {
@@ -219,11 +233,20 @@ public class SslServerHandshakeCpuTest {
         final List<Thread> threads = new ArrayList<>();
 
         Flood(int port, byte[] hello, int n) {
+            this(port, hello, n, Long.MAX_VALUE);
+        }
+
+        /**
+         * Replays no more than {@code maxAttempts} times in all, so that a
+         * flood against a listener without limits, which on a fast machine
+         * replays several thousand times a second, does not use up the
+         * ephemeral ports of the machine.
+         */
+        Flood(int port, byte[] hello, int n, long maxAttempts) {
             for (int i = 0; i < n; i++) {
                 threads.add(Thread.ofPlatform().name("flood-" + i).start(() -> {
                     byte[] buf = new byte[4096];
-                    while (!stop.get()) {
-                        attempts.incrementAndGet();
+                    while (!stop.get() && attempts.incrementAndGet() <= maxAttempts) {
                         try (Socket s = new Socket()) {
                             s.connect(new InetSocketAddress("localhost", port), 2000);
                             s.setSoTimeout(2000);
@@ -246,61 +269,268 @@ public class SslServerHandshakeCpuTest {
                 t.join(10_000);
             }
         }
+
+        /** Whether it has made all the replays that it may. */
+        boolean done() {
+            for (Thread t : threads) {
+                if (t.isAlive()) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
-    /** What a flood against a listener costs the listener. */
-    private static final class FloodResult {
-        double cores;
+    /**
+     * Sleeps until the time given by {@link System#nanoTime}, or until all of
+     * the floods have made their replays, whichever is first.
+     */
+    static void sleepUntil(long nanoTime, List<Flood> floods)
+        throws InterruptedException
+    {
+        for (;;) {
+            boolean done = true;
+            for (Flood f : floods) {
+                done &= f.done();
+            }
+            long left = nanoTime - System.nanoTime();
+            if (done || left <= 0L) {
+                return;
+            }
+            Thread.sleep(Math.min(20L, left / 1_000_000L + 1L));
+        }
+    }
+
+    /** What a flood against some listeners costs the server, over its windows. */
+    static final class FloodResult {
+        long cpuNanos;
+        long poolCpuNanos;
+        long wallNanos;
         long attempts;
         long flights;
         long legitMillis;
+
+        /** The server's CPU, in cores, while it was flooded. */
+        double cores() {
+            return wallNanos > 0L ? (double) cpuNanos / wallNanos : 0.0;
+        }
+
+        /** The CPU of the handshake compute threads alone, in cores. */
+        double poolCores() {
+            return wallNanos > 0L ? (double) poolCpuNanos / wallNanos : 0.0;
+        }
     }
 
-    private static FloodResult flood(String permits, int seconds) throws Exception {
-        return flood(permits, seconds, false);
+    /** The replays that one window of a flood makes at most, over all of its listeners. */
+    private static final long WINDOW_REPLAYS = 2500L;
+    private static final long WINDOW_NANOS = 1_500_000_000L;
+    private static final int ROUNDS = 4;
+
+    /**
+     * A number of permits that gates nothing: more than a flood has threads.
+     * What a flood costs with so many is what it costs without the permits.
+     */
+    static final String UNGATED = "64";
+
+    /**
+     * The threads that do the cryptography of the engine path in the floods:
+     * more than a flood has permits, so that the permits are what limits it.
+     */
+    private static final String COMPUTE_THREADS = "8";
+
+    /**
+     * The most that a flood may cost with the permits, as a fraction of what
+     * the same flood costs without them, in the same run on the same machine.
+     * The permits bound the time that the flood spends in the work they gate,
+     * the key exchange and signature of the first flight, to one holder at a
+     * time.  The rest (reading the record, starting the thread, the system
+     * calls, the close) is done at the rate of the flights and is not gated,
+     * so what a flood costs with the permits is not their number of cores but
+     * that and an amount that follows the rate, which differs by machine and
+     * operating system; a limit on cores that was fixed in the test was met on
+     * the machine that it was tuned on and missed on another.  On four
+     * processors the fraction was 0.4 to 0.7, and with the permits removed
+     * 0.95 to 1.0.  The bound that does not depend on the rate is the
+     * one on the gated work alone, {@link #assertGatedWorkWithinPermits}.
+     */
+    static final double GATED_FRACTION = 0.8;
+
+    /**
+     * Whether a flood without the permits used enough for a comparison to
+     * show anything.  With one permit a flood has cost up to 1.4 cores, so a
+     * flood that costs less than three quarters of a core more than the
+     * permits without them cannot be told from one that they held back.
+     */
+    static boolean ungatedShows(double ungatedCores, int permits) {
+        return ungatedCores >= permits + 0.75;
     }
 
-    private static FloodResult flood(String permits, int seconds, boolean socketPath)
+    /** The times that the comparison is made again, if the machine was too busy to show it. */
+    private static final int ATTEMPTS = 3;
+
+    /**
+     * Asserts that the permits limit what a replay flood costs the server:
+     * the flood costs clearly less with them than without, on this machine.
+     * Where the flood without them does not use more than the permits allow
+     * (a machine with so few processors, or so busy, that the flood and the
+     * server fill them) it shows nothing, and the test is skipped.
+     */
+    static void assertGatedCostsLess(String what, int permits,
+                                     FloodResult gated, FloodResult ungated)
+    {
+        System.out.println(what + ": " + permits + " permits " + gated.cores()
+            + " cores, " + gated.flights + " flights; without " + ungated.cores()
+            + " cores, " + ungated.flights + " flights; ratio "
+            + gated.cores() / ungated.cores());
+        Assert.assertTrue("the flood got flights: " + gated.flights
+            + " and " + ungated.flights,
+            gated.flights > 100 && ungated.flights > 100);
+        Assume.assumeTrue("a flood without the permits used " + ungated.cores()
+            + " cores here, which shows nothing about " + permits + " permits",
+            ungatedShows(ungated.cores(), permits));
+        Assert.assertTrue(what + " with " + permits + " permits: "
+            + gated.cores() + " cores, without them " + ungated.cores()
+            + " (more than " + GATED_FRACTION + " of it)",
+            gated.cores() <= GATED_FRACTION * ungated.cores());
+    }
+
+    /**
+     * Asserts that the work the permits gate, which on the engine path is
+     * done by the compute threads while the handshake holds a permit and
+     * waits for it, never used more processors than there are permits.  This
+     * holds on every machine however fast the flood comes: the holders take
+     * turns, so the compute threads cannot use more than a processor for
+     * each, whatever else the server does at the rate of the flights.  (A
+     * little over allows for the legitimate client's second flight, which is
+     * not gated.)
+     */
+    static void assertGatedWorkWithinPermits(String what, int permits,
+                                             FloodResult gated)
+    {
+        System.out.println(what + ": compute threads " + gated.poolCores()
+            + " cores of " + gated.cores() + " with " + permits + " permits");
+        Assert.assertTrue(what + ": the compute threads did the gated work: "
+            + gated.poolCores(), gated.poolCores() > 0.0);
+        Assert.assertTrue(what + ": the gated work used " + gated.poolCores()
+            + " cores with " + permits + " permits",
+            gated.poolCores() <= permits + 0.15);
+    }
+
+    /** Floods the listeners for one window and adds what it cost to the result. */
+    private static void window(List<S0Fixture.Listener> listeners, byte[] hello,
+                               int threads, FloodResult result, boolean legit)
         throws Exception
     {
-        byte[] hello = S0Fixture.captureClientHello("x25519");
-        try (S0Fixture.Listener l = S0Fixture.withProperty(PERMITS, permits,
-                 () -> socketPath ? S0Fixture.listenWithSocketFactory()
-                                  : S0Fixture.listen()))
-        {
-            Assert.assertEquals(Integer.parseInt(permits), l.handle.cpuPermits());
-            S0Fixture.connectLegit(l); // warm up
-            S0Fixture.connectLegit(l);
-            Flood warm = new Flood(l.port, hello, 4);
-            Thread.sleep(1500);
-            warm.stop();
-            Assert.assertTrue(S0Fixture.await(
-                () -> l.handle.inProgressCount() == 0, 10_000));
-
-            Flood flood = new Flood(l.port, hello, 6);
-            long cpu0 = carrierCpuNanos();
-            long wall0 = System.nanoTime();
-            long attempts0 = flood.attempts.get();
-            Thread.sleep(seconds * 1000L / 2);
-            FloodResult r = new FloodResult();
+        List<Flood> floods = new ArrayList<>();
+        for (S0Fixture.Listener l : listeners) {
+            floods.add(new Flood(l.port, hello, threads,
+                                 WINDOW_REPLAYS / listeners.size()));
+        }
+        long cpu0 = carrierCpuNanos();
+        long pool0 = computePoolCpuNanos();
+        long wall0 = System.nanoTime();
+        if (legit) {
             /* A legitimate client connects in the middle of the flood. */
-            r.legitMillis = S0Fixture.connectLegit(l);
-            Thread.sleep(seconds * 1000L / 2);
-            long cpu = carrierCpuNanos() - cpu0;
-            long wall = System.nanoTime() - wall0;
-            r.cores = (double) cpu / wall;
-            r.attempts = flood.attempts.get() - attempts0;
-            r.flights = flood.flights.get();
-            flood.stop();
-            Assert.assertTrue(S0Fixture.await(() ->
-                l.handle.inProgressCount() == 0
-                && l.handle.cpuPermitsAvailable() == l.handle.cpuPermits()
-                && l.handle.socketCpuPermitsAvailable() == l.handle.cpuPermits(),
-                15_000));
-            Assert.assertTrue("the permits of the path in use were taken",
-                socketPath ? l.handle.socketCpuEntries() > 0 && l.handle.cpuEntries() == 0
-                           : l.handle.cpuEntries() > 0 && l.handle.socketCpuEntries() == 0);
-            return r;
+            sleepUntil(wall0 + WINDOW_NANOS / 2, floods);
+            result.legitMillis = S0Fixture.connectLegit(listeners.get(0));
+        }
+        sleepUntil(wall0 + WINDOW_NANOS, floods);
+        result.cpuNanos += carrierCpuNanos() - cpu0;
+        result.poolCpuNanos += computePoolCpuNanos() - pool0;
+        result.wallNanos += System.nanoTime() - wall0;
+        for (Flood f : floods) {
+            f.stop();
+            result.attempts += f.attempts.get();
+            result.flights += f.flights.get();
+        }
+        for (S0Fixture.Listener l : listeners) {
+            Assert.assertTrue(S0Fixture.await(
+                () -> l.handle.inProgressCount() == 0, 15_000));
+        }
+    }
+
+    /**
+     * Floods listeners that have the given number of permits and listeners
+     * that have so many that they gate nothing, one set after the other in
+     * short windows, so that both are flooded in the same JVM, with the same
+     * compiled code, and while the machine does whatever else it does.  On
+     * the engine path the cryptography is done by eight compute threads, more
+     * than the default pool (one on four processors) and than the permits, so
+     * that the pool does not bound what a flood can use and the permits do;
+     * the SSLSocket path does it on the handshake's own thread.
+     *
+     * @param threads the number of threads of the flood against each listener
+     * @return what it cost with the permits, and without them
+     */
+    static FloodResult[] floodWithAndWithoutPermits(
+        String permits, int listeners, int threads, boolean socketPath)
+        throws Exception
+    {
+        Assume.assumeTrue("a flood cannot be shown to use more than " + permits
+            + " permits allow on " + Runtime.getRuntime().availableProcessors()
+            + " processors", Runtime.getRuntime().availableProcessors()
+                              >= Integer.parseInt(permits) + 2);
+        byte[] hello = S0Fixture.captureClientHello("x25519");
+        String[] settings = { permits, UNGATED };
+        List<List<S0Fixture.Listener>> sets = new ArrayList<>();
+        try {
+            for (String setting : settings) {
+                List<S0Fixture.Listener> set = new ArrayList<>();
+                sets.add(set);
+                for (int i = 0; i < listeners; i++) {
+                    S0Fixture.Listener l = S0Fixture.withProperties(new String[] {
+                            PERMITS, setting, HandshakeCompute.THREADS_PROPERTY,
+                            socketPath ? "0" : COMPUTE_THREADS },
+                        () -> socketPath ? S0Fixture.listenWithSocketFactory()
+                                         : S0Fixture.listen());
+                    set.add(l);
+                    Assert.assertEquals(Integer.parseInt(setting), l.handle.cpuPermits());
+                    S0Fixture.connectLegit(l); // warm up
+                    S0Fixture.connectLegit(l);
+                }
+            }
+            for (int i = 0; i < settings.length; i++) {
+                window(sets.get(i), hello, threads, new FloodResult(), false);
+            }
+            FloodResult[] results = null;
+            long legitMillis = 0L;
+            for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+                results = new FloodResult[] { new FloodResult(), new FloodResult() };
+                for (int round = 0; round < ROUNDS; round++) {
+                    for (int k = 0; k < settings.length; k++) {
+                        int i = round % 2 == 0 ? k : settings.length - 1 - k;
+                        window(sets.get(i), hello, threads, results[i],
+                               i == 0 && round == 0 && attempt == 0);
+                    }
+                }
+                if (attempt == 0) {
+                    legitMillis = results[0].legitMillis;
+                }
+                if (ungatedShows(results[1].cores(), Integer.parseInt(permits))) {
+                    break;
+                }
+            }
+            results[0].legitMillis = legitMillis;
+            for (List<S0Fixture.Listener> set : sets) {
+                for (S0Fixture.Listener l : set) {
+                    Assert.assertTrue(S0Fixture.await(() ->
+                        l.handle.inProgressCount() == 0
+                        && l.handle.cpuPermitsAvailable() == l.handle.cpuPermits()
+                        && l.handle.socketCpuPermitsAvailable()
+                           == l.handle.cpuPermits(), 15_000));
+                    Assert.assertTrue("the permits of the path in use were taken",
+                        socketPath
+                        ? l.handle.socketCpuEntries() > 0 && l.handle.cpuEntries() == 0
+                        : l.handle.cpuEntries() > 0 && l.handle.socketCpuEntries() == 0);
+                }
+            }
+            return results;
+        } finally {
+            for (List<S0Fixture.Listener> set : sets) {
+                for (S0Fixture.Listener l : set) {
+                    l.close();
+                }
+            }
         }
     }
 
@@ -309,35 +539,33 @@ public class SslServerHandshakeCpuTest {
      * server's first flight and closing, makes the server do the key exchange
      * and a signature each time at no cost to itself.  Each connection lasts a
      * few milliseconds, so the limit on the handshakes at once does not stop
-     * it; the permits do.
+     * it; the permits do, and the flood costs clearly less with them than
+     * without.
      */
-    @Test(timeout = 120000)
+    @Test(timeout = 180000)
     public void testReplayFloodIsBoundedByTheCpuPermits() throws Exception {
-        FloodResult one = flood("1", 6);
-        System.out.println("replay flood, 1 permit: server CPU " + one.cores
-            + " cores, " + one.attempts + " replays, " + one.flights
-            + " flights, legitimate open " + one.legitMillis + " ms");
+        FloodResult[] r = floodWithAndWithoutPermits("1", 1, 6, false);
+        System.out.println("replay flood, 1 permit: " + r[0].attempts
+            + " replays, legitimate open " + r[0].legitMillis);
         Assert.assertTrue("a legitimate client must complete during a flood: "
-            + one.legitMillis + " ms", one.legitMillis < 5000);
-        Assert.assertTrue("server CPU during a replay flood with one permit: "
-            + one.cores + " cores", one.cores <= 1.0 + 0.4);
+            + r[0].legitMillis + " ms", r[0].legitMillis < 5000);
+        assertGatedWorkWithinPermits("replay flood", 1, r[0]);
+        assertGatedCostsLess("replay flood", 1, r[0], r[1]);
     }
 
     /**
      * The same flood against an endpoint that uses SSLSockets, as HTTPS and
-     * endpoints with a server socket factory do, costs no more than one
-     * permit allows: the whole of the handshake is inside the gate.
+     * endpoints with a server socket factory do, costs less with one permit
+     * than without: the whole of the handshake is inside the gate.
      */
-    @Test(timeout = 120000)
+    @Test(timeout = 180000)
     public void testReplayFloodOnTheSocketPathIsBoundedByTheCpuPermits() throws Exception {
-        FloodResult one = flood("1", 6, true);
-        System.out.println("replay flood, socket path, 1 permit: server CPU " + one.cores
-            + " cores, " + one.attempts + " replays, " + one.flights
-            + " flights, legitimate open " + one.legitMillis + " ms");
+        FloodResult[] r = floodWithAndWithoutPermits("1", 1, 6, true);
+        System.out.println("replay flood, socket path, 1 permit: " + r[0].attempts
+            + " replays, legitimate open " + r[0].legitMillis);
         Assert.assertTrue("a legitimate client must complete during a flood: "
-            + one.legitMillis + " ms", one.legitMillis < 5000);
-        Assert.assertTrue("server CPU during a replay flood with one permit: "
-            + one.cores + " cores", one.cores <= 1.0 + 0.4);
+            + r[0].legitMillis + " ms", r[0].legitMillis < 5000);
+        assertGatedCostsLess("replay flood, socket path", 1, r[0], r[1]);
     }
 
     /**

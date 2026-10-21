@@ -33,9 +33,6 @@ import org.junit.Test;
  */
 public class SslServerSharedBudgetTest {
 
-    private static final String PERMITS = HandshakeLimits.CPU_PERMITS_PROPERTY;
-    private static final String COMPUTE_THREADS = HandshakeCompute.THREADS_PROPERTY;
-
     @BeforeClass
     public static void setUpClass() throws Exception {
         S0Fixture.setUp();
@@ -97,49 +94,22 @@ public class SslServerSharedBudgetTest {
 
     /**
      * A replay flood against three listeners at once costs the server what
-     * one permit allows, not one permit for each listener.
+     * one permit allows, not one permit for each listener: clearly less than
+     * the same flood without the permits, on the same machine.  (A limit on
+     * the cores that was fixed in the test was met on one machine and missed
+     * on another, as the work outside the permits follows the rate of the
+     * flood.)
      */
-    @Test(timeout = 120000)
+    @Test(timeout = 180000)
     public void testReplayFloodAcrossListenersIsBoundedByOneSetOfPermits()
         throws Exception
     {
-        byte[] hello = S0Fixture.captureClientHello("x25519");
-        List<S0Fixture.Listener> ls = listeners(3, PERMITS, "1",
-                                                COMPUTE_THREADS, "0");
-        try {
-            for (S0Fixture.Listener l : ls) {
-                S0Fixture.connectLegit(l); // warm up
-                S0Fixture.connectLegit(l);
-            }
-            List<SslServerHandshakeCpuTest.Flood> floods = new ArrayList<>();
-            for (S0Fixture.Listener l : ls) {
-                floods.add(new SslServerHandshakeCpuTest.Flood(l.port, hello, 2));
-            }
-            Thread.sleep(1500); // warm the flood
-            long cpu0 = SslServerHandshakeCpuTest.carrierCpuNanos();
-            long wall0 = System.nanoTime();
-            Thread.sleep(4000);
-            double cores = (double) (SslServerHandshakeCpuTest.carrierCpuNanos() - cpu0)
-                / (System.nanoTime() - wall0);
-            long flights = 0L;
-            for (SslServerHandshakeCpuTest.Flood f : floods) {
-                f.stop();
-                flights += f.flights.get();
-            }
-            System.out.println("replay flood, 3 listeners, 1 permit: server CPU "
-                + cores + " cores, " + flights + " flights");
-            Assert.assertTrue("the flood got flights: " + flights, flights > 100);
-            Assert.assertTrue("server CPU during a replay flood against three "
-                + "listeners with one permit: " + cores + " cores",
-                cores <= 1.0 + 0.4);
-            for (S0Fixture.Listener l : ls) {
-                Assert.assertTrue(S0Fixture.await(() ->
-                    l.handle.cpuPermitsAvailable() == l.handle.cpuPermits(),
-                    15_000));
-            }
-        } finally {
-            closeAll(ls);
-        }
+        SslServerHandshakeCpuTest.FloodResult[] r =
+            SslServerHandshakeCpuTest.floodWithAndWithoutPermits("1", 3, 2, false);
+        SslServerHandshakeCpuTest.assertGatedWorkWithinPermits(
+            "replay flood, 3 listeners", 1, r[0]);
+        SslServerHandshakeCpuTest.assertGatedCostsLess(
+            "replay flood, 3 listeners", 1, r[0], r[1]);
     }
 
     /**
