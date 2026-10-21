@@ -119,6 +119,29 @@ public class SslServerMuxStartTest {
         });
     }
 
+    /**
+     * A peer that resets the connection after the handshake takes the server's
+     * connection down, and closing it fails because close_notify cannot be
+     * written; the connection must leave the listener all the same, not stay
+     * in its set for ever.
+     */
+    @Test(timeout = 60000)
+    public void testConnectionLeavesTheListenerWhenClosingFails() throws Exception {
+        try (S0Fixture.Listener l = serve()) {
+            for (int i = 0; i < 20; i++) {
+                SSLSocket s = (SSLSocket) S0Fixture.clientSocketFactory()
+                    .createSocket("localhost", l.port);
+                s.startHandshake();
+                Assert.assertTrue("the connection is registered",
+                    S0Fixture.await(() -> l.handle.connectionCount() >= 1, 5000));
+                s.setSoLinger(true, 0);
+                s.close();
+                Assert.assertTrue("the slot is released after a reset, round " + i,
+                    S0Fixture.await(() -> l.handle.connectionCount() == 0, 5000));
+            }
+        }
+    }
+
     @Test(timeout = 60000)
     public void testClientThatStartsTheMuxIsNotClosed() throws Exception {
         S0Fixture.withProperty(START_TIMEOUT, "800", (Callable<Void>) () -> {

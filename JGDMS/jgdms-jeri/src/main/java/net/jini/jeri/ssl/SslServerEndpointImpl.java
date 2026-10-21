@@ -2680,12 +2680,20 @@ class SslServerEndpointImpl extends Utilities {
 				logger.log(Level.FINE, "closing {0}", this);
 				closed = true;
 			}
-			if (engineChannel != null) {
-				engineChannel.close();
-			} else {
-				sslSocket.close();
+			try {
+				if (engineChannel != null) {
+					engineChannel.close();
+				} else {
+					sslSocket.close();
+				}
+			} finally {
+				/*
+				 * Closing writes close_notify, which fails if the peer has
+				 * gone; the connection must leave the listener's set all the
+				 * same, or it stays there, with its buffers, for ever.
+				 */
+				if (removeFromListener) listenHandle.noteConnectionClosed(this);
 			}
-			if (removeFromListener) listenHandle.noteConnectionClosed(this);
 		}
 	}
 }// end SslServerEndpointImpl
