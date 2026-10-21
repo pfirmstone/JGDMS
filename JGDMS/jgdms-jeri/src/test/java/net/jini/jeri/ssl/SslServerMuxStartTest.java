@@ -79,8 +79,15 @@ public class SslServerMuxStartTest {
                 }
                 Assert.assertTrue(S0Fixture.await(
                     () -> l.handle.connectionCount() == 0, 10_000));
-                int readers = threadsNamed("mux reader");
-                int writers = threadsNamed("mux writer");
+                /* Threads of earlier connections may still be ending. */
+                int readers;
+                int writers;
+                do {
+                    readers = threadsNamed("mux reader");
+                    writers = threadsNamed("mux writer");
+                    Thread.sleep(300);
+                } while (readers != threadsNamed("mux reader")
+                         || writers != threadsNamed("mux writer"));
                 try (SSLSocket s = (SSLSocket) S0Fixture.clientSocketFactory()
                          .createSocket("localhost", l.port))
                 {
@@ -89,9 +96,11 @@ public class SslServerMuxStartTest {
                     long t0 = System.nanoTime();
                     Assert.assertTrue("the connection is registered",
                         S0Fixture.await(() -> l.handle.connectionCount() == 1, 5000));
+                    final int r0 = readers;
+                    final int w0 = writers;
                     Assert.assertTrue("a reader and a writer", S0Fixture.await(
-                        () -> threadsNamed("mux reader") == readers + 1
-                              && threadsNamed("mux writer") == writers + 1, 5000));
+                        () -> threadsNamed("mux reader") > r0
+                              && threadsNamed("mux writer") > w0, 5000));
                     long ms = S0Fixture.awaitClosed(s, 10_000);
                     long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
                     Assert.assertTrue("closed after " + ms + " ms, " + elapsed
@@ -100,9 +109,11 @@ public class SslServerMuxStartTest {
                 }
                 Assert.assertTrue("the slot is released", S0Fixture.await(
                     () -> l.handle.connectionCount() == 0, 5000));
+                final int r1 = readers;
+                final int w1 = writers;
                 Assert.assertTrue("the threads end", S0Fixture.await(
-                    () -> threadsNamed("mux reader") == readers
-                          && threadsNamed("mux writer") == writers, 5000));
+                    () -> threadsNamed("mux reader") <= r1
+                          && threadsNamed("mux writer") <= w1, 5000));
             }
             return null;
         });

@@ -1485,10 +1485,11 @@ class SslServerEndpointImpl extends Utilities {
 
 		/**
 		 * Starts the task that does the handshake for a newly accepted
-		 * socket, which now owns the permit that the accept loop took.  The task is a virtual thread that the accept thread
-		 * creates, so it is subject-neutral like the accept thread.  If the
-		 * task cannot be started the socket is closed; the accept loop is
-		 * not told, because the peer has done nothing wrong.
+		 * socket, which now owns the permit that the accept loop took.  The
+		 * task is a virtual thread that the accept thread creates, so it is
+		 * subject-neutral like the accept thread.  If the task cannot be
+		 * started the socket is closed; the accept loop is not told, because
+		 * the peer has done nothing wrong.
 		 */
 		void startHandshake(Socket socket) {
 			long deadline = 0L;

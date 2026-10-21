@@ -1,6 +1,6 @@
 # Design: a non-blocking, SSLEngine-driven ConnectionIO for the TLS transport
 
-Status: **design for review, nothing implemented; revised after a Fable-seat review (2026-10-20, section 10).** Written 2026-10-20 for the maintainer and a board review. It follows
+Status: **design for review; only S0 (section 4.6) is implemented; revised after a Fable-seat review (2026-10-20, section 10).** Written 2026-10-20 for the maintainer and a board review. It follows
 `DESIGN-OPTIONS-jeri-transport-architecture-2026-10-20.md` (section D4 sketched this; the Fable-seat review of that
 sketch is folded in here). Labels: **[measured]** from `jgdms-benchmarks/serialization/RESULTS.md` or a scratch
 measurement named here, **[code]** checked in the source on `claude/focused-bohr-t6bwal`, **[estimate]** a guess.
@@ -51,8 +51,8 @@ open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs
   of the client's sampled time in the open); `-Djdk.tls.namedGroups=x25519` saves 0.4 ms, `secp256r1` costs 0.5 ms more. It is
   not certificate cryptography, and **the JGDMS credential, permission and `AuthManager` work is under 0.1 ms.**
 * **The `Selector` per handshake read is not the saving it looked like:** 0.02 to 0.05 ms per `Selector.open` (1 client read and
-  3 server reads per open, 0.07 ms per open hot, 1 to 2%). It is worth removing with the rest of S0 (one `epoll_create` per read)
-  but it is not where the 12 ms went. What is on the path and does disappear with the redesign: the two platform threads per
+  3 server reads per open, 0.07 ms per open hot, 1 to 2%). S0 removed it from the server (plain blocking reads); the client
+  keeps it as its handshake deadline. It is not where the 12 ms went. What is on the path and does disappear with the redesign: the two platform threads per
   connection per side (0.8 ms hot, 0.9 ms cold in total) and, on the server, the wait for the client's flights on the accept
   thread (1.5 ms hot).
 * **Resumption and authentication, measured in memory and in the real stack's debug log:** (1) on a resumed handshake the server's
@@ -79,17 +79,21 @@ open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs
   the caller's thread, bounded per read by the call's connection deadline or a 60 s default. `getInputStream()` and
   `getOutputStream()` return the engine channel's blocking plaintext streams; `getChannel()` returns null. An `SSLSocket`
   path remains for HTTP-proxy tunnels and custom socket factories.
-* **Server** (`SslServerEndpointImpl.SslServerConnection`): the same, server mode with mandatory client authentication;
-  the handshake runs **inside `acceptLoop`**, on the accept thread (`serverConnection(socket)` is called before the
-  connection is handed on). One accept thread per listener, so server handshakes are serialised: **[measured, RESULTS section 34]**
-  a hot listener accepts about 385 resumed (210 full) connections a second on the 4-core container with the clients on the same
-  cores (accept thread busy 97% of the time, about half of that on CPU: the rest is waiting for the client's handshake
-  flights and starting two threads per connection; 80 a second was the cold-JIT figure), and from about 64 simultaneous
-  connectors the 50-entry backlog (`bind` default) overflows and connects take 1 to 9 s. A peer that connects and sends **nothing** holds the accept loop for the full 60 s
-  with no cryptography needed, N such connects serialise into N x 60 s with no accepts, and a peer that trickles a byte
-  every 59 s holds it for ever (the 60 s bound is per read with progress). This is a pre-authentication denial of
-  service, not only a throughput limit. Measured evidence: the 4096-platform-caller TLS point on the maintainer's Windows
-  workstation had 1900 `Connection refused` errors (the listen backlog overflowed while handshakes queued).
+* **Server** (`SslServerEndpointImpl.SslServerConnection`): the same, server mode with mandatory client authentication. Since
+  S0 (section 4.6) the accept loop only accepts and starts a virtual thread per connection that does the handshake, with a total
+  deadline, a cap on the handshakes that work at once, a queue for the rest, a limit on the CPU of the first flight and pinned key
+  exchange groups. **Before S0** (RESULTS section 34, kept here because it is what the design above measured): the handshake ran
+  **inside `acceptLoop`**, on the accept thread, one per listener, so server handshakes were serialised and a hot listener
+  accepted about 385 resumed (210 full) connections a second on the 4-core container with the clients on the same cores (accept
+  thread busy 97% of the time, about half of that on CPU: the rest was waiting for the client's handshake flights and starting two
+  threads per connection; 80 a second was the cold-JIT figure), and from about 64 simultaneous connectors the 50-entry backlog
+  (`bind` default) overflowed and connects took 1 to 9 s. A peer that connected and sent **nothing** held the accept loop for the
+  full 60 s with no cryptography needed, N such connects serialised into N x 60 s with no accepts, and a handshake that failed
+  counted as an accept failure, so 11 junk connections stopped the listener for 10 s. (The deadline was a total one on the
+  engine path, not renewed by each read as this section first said; what was missing was cancellation, a bound on writes and a
+  bound on the SSLSocket path.) This was a pre-authentication denial of service, not only a throughput limit. Measured
+  evidence: the 4096-platform-caller TLS point on the maintainer's Windows workstation had 1900 `Connection refused` errors
+  (the listen backlog overflowed while handshakes queued).
 * **Mux**: `ConnectionManager`/`ServerConnectionManager` choose `Mux(OutputStream, InputStream, ...)` (a `StreamConnectionIO`:
   a writer thread and a reader thread per connection) when `getChannel()` is null and `Mux(SocketChannel, ...)` (a
   `SocketChannelConnectionIO`: the shared selection thread and a batching drainer) otherwise.
@@ -97,8 +101,11 @@ open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs
   truncated record, a growing buffer, and a handshake deadline. Its application read path (`unwrapMore`) only checks
   `NEED_TASK`: a post-handshake `NEED_WRAP` (a peer `KeyUpdate` asking for ours) is not acted on and works today only because
   JSSE emits the reply with the next application `wrap` (permitted by RFC 8446). It serialises readers and writers with
-  `readLock` and `writeLock`. Each handshake read opens a `Selector` and toggles the channel's blocking mode
-  (`readWithDeadline`); measured at 0.02 to 0.05 ms per read (1 to 2% of an open), so a tidy-up, not the explanation of the 12 ms.
+  `readLock` and `writeLock`. The **client** handshake reads through `fillNetInByDeadline`, which opens a `Selector` for each
+  read and toggles the channel's blocking mode (measured at 0.02 to 0.05 ms per read, 1 to 2% of an open, so a tidy-up, not
+  the explanation of the 12 ms); a blocking `SocketChannel` has no read timeout, so that is the client's only handshake
+  deadline. The **server** handshake (`handshakeServer`) uses plain blocking reads and writes and is ended, when it must be, by
+  closing the raw channel.
 
 ## 3. Goals, non-goals, invariants
 
@@ -243,34 +250,95 @@ flight) and plaintext in `appIn`. The new `ConnectionIO` processes those first, 
 mode and registers `OP_READ`. The blocking driver is retired without closing the channel. Setting the channel
 non-blocking only after the hand-over means the handshake's per-read deadline logic is untouched.
 
-### 4.6 The server accept path (S0: a pre-authentication denial-of-service fix, independent of the above)
+### 4.6 The server accept path (S0: a pre-authentication denial-of-service fix, independent of the above; built)
 
-> **Corrected by the S0 board review (2026-10-20), see `docs/BOARD-REVIEW-S0-tls-accept-path-2026-10-20.md`.** The handshake
-> deadline on the engine path is already total, not per read; what is missing is cancellation, write deadlines and a server-only
-> default. Pre-authentication memory is about 56 to 66 KiB, not 16.6 KiB. The name `readWithDeadline` is `fillNetInByDeadline`.
-> The board's shape of S0 (cap, queue with pause-accept, CPU permit, pinned groups, watchdog, mux start deadline, jitter) replaces
-> the bullets below where they differ.
+S0 is built on this branch (the S0 board review and the maintainer's decisions are in
+`docs/BOARD-REVIEW-S0-tls-accept-path-2026-10-20.md`; the measurements are in `jgdms-benchmarks/serialization/RESULTS.md`,
+section 36). It moves the server handshake off the accept thread and bounds what a peer that has not authenticated can make a
+listener do. Facts that the first version of this section had wrong, found by the board's probes and re-checked while building:
 
-Moving the server handshake off the accept thread is both a prerequisite for scaling new connections and a security fix: a
-peer that connects and sends nothing, or trickles, holds the accept loop (section 2). Do it as its own step, first:
+* the engine path's handshake deadline was already **total**, not renewed by every read, but it could only be checked while
+  waiting for ciphertext: closing the socket did not wake the per-read `Selector`, a write to a peer that did not read had no
+  bound at all, and the SSLSocket path (HTTPS, a custom `ServerSocketFactory`) had no bound whatever;
+* a failed handshake counted as an accept failure, so 11 junk connections in 5 s put the accept thread to sleep for 10 s;
+* a pre-authentication connection costs about 60 KiB of heap and a file descriptor (three with the old per-read `Selector`), not 16.6 KiB;
+* the server mux had no start deadline, and `MuxServer`'s `0L` is not a deadline the server could use: the argument is only
+  read by the client, because a server's `start()` waits for nothing.
 
-* run `SslServerConnection` construction (the handshake) as a task on the system pool, not in `acceptLoop`, **subject-neutral**
-  as the accept thread is (`Subject.callAs(null)` in `createAcceptThread`) so credential selection reads the
-  `ServerAuthManager`'s captured subject; track the tasks so that closing the listener cancels handshakes in progress
-  (today a connection is added to `connections` only after its handshake);
-* give the whole handshake a **total** deadline (a few seconds), which needs a small change in `SslEngineChannel`, whose
-  deadline is reset on every read with progress;
-* cap the handshakes in progress globally. At the cap, **wait** (a bounded queue, bounded by the total deadline) rather than
-  refuse at once, because immediate refusal amplifies an attack against legitimate clients; refuse only when the queue is
-  full;
-* per-remote-address caps only as an optional override (weak against many addresses, harmful behind NAT); the global cap and
-  the total deadline are the primary control;
-* set the accept backlog explicitly; SYN-level protection is the operating system's and out of scope;
-* the pre-authentication memory per connection is bounded by the TLS record size (about 16.6 KiB; `growNetIn` doubles but
-  the record size bounds it); state the bound;
-* cheap addition: `readWithDeadline` opens a `Selector` for every handshake read (0.03 ms each, 3 per server handshake); use one
-  per connection (or the `SelectionManager`). A minor saving; the accept thread's time is the waits for the client and the two
-  `Thread.start` in `handleConnection` (0.44 ms), which moving the handshake off it removes.
+**What is built.**
+
+* **Accept loop.** It takes an admission permit, calls `accept()`, sets the socket options, registers the socket in `inProgress`
+  (under the lock that guards `connections` and `closed`), arms the watchdog, and starts a virtual thread for the handshake. Only
+  an `accept()` failure feeds the 10-failures-in-5-s throttle, and its 10 s sleep ends when the listener closes.
+* **Handshake task.** A virtual thread created *from the accept thread* with `acceptThreadBuilder` under `Subject.callAs(null)`
+  (never the system `ThreadPool`, which in platform mode is unbounded and does not make its tasks subject-neutral), so
+  `Subject.current()` is null in it; `handleConnection` keeps its `doPrivileged` and `Subject.callAs(serverSubject)` wrapping, so
+  the mux still captures the service subject. On completion the task removes the socket from `inProgress` and, atomically with
+  the `closed` check, registers the connection; a connection that completes after close is closed, never registered. An
+  exception or `Error` in the handshake or in `handleConnection` closes that connection and leaves nothing registered; it no
+  longer closes the listener.
+* **Total deadline.** `org.apache.river.jeri.ssl.serverHandshakeTimeout` (10 s), counted from the accept and including the wait
+  for a turn. One shared platform daemon thread (`TimeoutScheduler`, created eagerly, privileged, under `callAs(null)`) closes
+  the **raw** socket when the time is up (never `SslEngineChannel.close()`, which takes the write lock and can block writing
+  `close_notify`). A single CAS per handshake (RUNNING to DONE by the task before it registers the connection and disarms the
+  timer; RUNNING to TIMED_OUT by the timer before it closes) means a late timeout cannot close a connection that was handed on
+  and a handshake that timed out is never handed on. The permits and the `inProgress` entry are released exactly once, by the
+  task, after its socket is closed or registered.
+* **Engine path.** The server uses plain blocking reads and writes (`SslEngineChannel.handshakeServer`), no `Selector`: a
+  blocking `SocketChannel` read or write ends within about a millisecond of the raw channel being closed, on platform and
+  virtual threads, which gives the deadline, the cancellation on listener close and the bound on a write to a peer that does not
+  read with one mechanism. The **client** keeps `fillNetInByDeadline` (a blocking channel has no read timeout, so it is the
+  client's only deadline, `handshakeTimeout`, 60 s, unchanged); it now holds its `Selector` in a field so `abort()` can wake it,
+  and an interrupt fails the handshake instead of spinning to the deadline.
+* **SSLSocket path.** `startHandshake()` under `setSoTimeout(time left)` plus the same watchdog; the NULL-suite check stays as the backstop.
+* **Admission.** At most N = min(512, maxFds/8) handshakes work at once and at most Q = min(4096, maxFds/4 - N) accepted
+  connections wait for a turn (`maxFds` from the JVM, 16384 where it cannot say). A waiting connection costs its socket, a
+  parked virtual thread and a timer entry; its `SslEngineChannel` and buffers are built only when it holds a permit. When the
+  queue is full the accept loop stops calling `accept()` until a handshake ends, so on Linux the clients wait in the kernel's
+  accept queue (now `Integer.MAX_VALUE`, clamped to the system maximum), and nothing is accepted and closed. A waiting
+  connection does not notice that its peer has gone until it has a turn or its deadline passes. Per-address caps: not built.
+* **CPU.** The cap bounds concurrency, not rate: a replayer that reads the server's first flight and closes frees its slot in a
+  few milliseconds. A permit of `max(2, cores/4)` is held from the moment the server has consumed a ClientHello until its first
+  flight is written (a ClientHello that arrives in pieces holds nothing until it is complete; one that answers a
+  HelloRetryRequest is counted again; the client's second flight is not in it). The server's named groups are pinned to
+  `X25519MLKEM768, x25519, secp256r1` with `SSLParameters.setNamedGroups` (not the JVM-wide property), because the group is the
+  client's choice among those enabled and the JVM default list costs the server from 2 ms (x25519) to 27 ms (ffdhe8192) per
+  replayed ClientHello. The permit applies to the engine path only; the SSLSocket path is bounded by the other limits.
+* **Mux start deadline.** `org.apache.river.jeri.mux.serverStartTimeout` (15 s): a server mux whose client has not sent its
+  connection header by then is taken down, which closes the connection and ends its two threads. Wire-format neutral; applies to
+  every transport that serves a mux.
+* **Listener close.** Under one lock it marks the handle closed and snapshots `connections` and `inProgress`; it closes the
+  server socket, then the raw sockets of the handshakes in progress (waking the tasks that are blocked reading or writing, and
+  interrupting those that wait for a turn), then the live connections.
+* **Logging and counters.** A failed handshake is logged at FINE; `HandshakeCounters` counts handshakes by outcome and writes
+  one INFO line per 30 s (`handshakeSummaryInterval`) with the number of failures by kind. The peer is named by address before
+  it is authenticated: the SSLSocket factory host argument, `toString()` and the log call no longer make a reverse lookup.
+
+| property (all `org.apache.river.jeri.`) | default |
+|---|---|
+| `ssl.serverHandshakeTimeout` | 10 000 ms, total, from the accept (client: `ssl.handshakeTimeout`, 60 s, unchanged) |
+| `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8) / min(4096, maxFds/4 - N) |
+| `ssl.maxFileDescriptors` | what the JVM reports, else 16384 |
+| `ssl.serverHandshakeCpuPermits` | max(2, cores/4) |
+| `ssl.serverNamedGroups` | `X25519MLKEM768,x25519,secp256r1` (empty: do not pin) |
+| `mux.serverStartTimeout` | 15 000 ms |
+| `ssl.handshakeSummaryInterval` | 30 000 ms |
+| `listenBacklog` | `Integer.MAX_VALUE` (the system maximum) |
+
+**Measured (RESULTS section 36, 4-core container, clients on the same cores).** Accept rate with concurrent connectors 1.65 to
+2.6 times (64 and 512 connectors; 1.2 times with one); 12 junk connections no longer delay the next open (8 s before, under
+25 ms after); silent peers no longer deny the listener (every open failed before, 25 ms after); 600 silent peers (above the
+cap) delay an open by the 10 s deadline. **A cost:** at the same offered rate of new full handshakes, the p99 of calls on a
+connection that already exists rose from about 10 ms to 100 to 800 ms (30 and 60 new connections a second), and to 20 s when
+the storm runs as fast as the listener accepts. It follows the number of handshakes running at once (with `maxServerHandshakes`
+at 1 it is back to 11 to 19 ms), not the CPU permit, which covers the first flight only. The cause is not found; the old serial
+accept thread was an unintended limit that protected dispatch. This needs a decision (see the section 36 caveats).
+
+**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). The first-byte permit (transport seat
+F11). A non-blocking handshake and any `SelectionManager` change (S1 and S2). Kerberos's deadline and its peer-sized allocation
+before authentication. A lockstep storm of full handshakes is not cured by this section; the client's expiry jitter (commit
+`f63b647fb`) spreads it. Windows (the listen queue is clamped near 200 and overflow is a reset, so the in-JVM queue is what
+helps there; `UnixOperatingSystemMXBean` is absent, hence the assumed 16384), macOS, and real wide-area timings were not run.
 
 ### 4.7 Memory
 
@@ -313,8 +381,8 @@ measurement; the design should be judged on the invariants first.
 
 ## 7. Staging
 
-* **S0** server handshake off the accept thread, total deadline, in-progress and per-address caps (4.6). Independent, valuable
-  alone, no new I/O code.
+* **S0** server handshake off the accept thread, total deadline, in-progress cap and queue, CPU permit, pinned groups, mux start
+  deadline (4.6). **Built.** Independent, valuable alone, no new I/O code.
 * **S1** stop sharing the one static `SelectionManager` instance (`SelectionManager` already has a public constructor; the
   singleton is `SocketChannelConnectionIO`'s static) and keep read interest registered (the permanent `OP_READ` change in the options
   document); N readers can come later without redesign.
