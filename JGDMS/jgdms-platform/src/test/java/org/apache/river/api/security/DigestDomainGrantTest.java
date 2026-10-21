@@ -274,14 +274,10 @@ public class DigestDomainGrantTest {
     public void voidAfterSerialization() throws Exception {
         assumeDigest();
         Class<?> a = loader.define(ProxyA.class, computed(jarA));
-        // No permissions: on DirtyChai Permission is not java.io.Serializable.
-        PermissionGrant g = PermissionGrantBuilder.newBuilder()
-                .principals(NONE)
-                .permissions(new Permission[0])
-                .codeSources(expected(jarA))
-                .context(PermissionGrantBuilder.DIGEST_DOMAIN)
-                .clazz(a)
-                .build();
+        // DirtyChai's Permission is not java.io.Serializable, and a grant with no
+        // permissions is void before it is serialized, which would prove nothing.
+        Assume.assumeTrue(java.io.Serializable.class.isAssignableFrom(Permission.class));
+        PermissionGrant g = grantTo(a, new CodeSource[]{expected(jarA)});
         ByteArrayOutputStream bo = new ByteArrayOutputStream();
         try (ObjectOutputStream oo = new ObjectOutputStream(bo)) {
             oo.writeObject(g);
