@@ -18,6 +18,7 @@
 
 package org.apache.river.jeri.internal.mux;
 
+import org.apache.river.jeri.internal.TimeoutScheduler;
 import org.apache.river.jeri.internal.runtime.HexDumpEncoder;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
@@ -36,6 +37,8 @@ import java.security.AccessController;
 import java.util.BitSet;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -144,8 +147,18 @@ abstract class Mux {
 
     private int expectedPingCookie = -1;
     
-    /** ONLY USED BY CLIENT */
+    /**
+     * How long the other end has to complete the start of the connection, in
+     * milliseconds, or 0 for no limit.  A client waits this long for the
+     * server's connection header after it sends its own; a server allows it
+     * for the client's, counted from the start, so that a peer that connects
+     * and sends nothing does not hold the connection and its threads for
+     * ever.
+     */
     private final long startTimeout; // milliseconds
+
+    /** The server's timer for the client's connection header, or null. */
+    private volatile ScheduledFuture<?> startTimer;
 
     /**
      * Constructs a new Mux instance for a connection accessible through
@@ -207,6 +220,11 @@ abstract class Mux {
             throw e;
         }
 
+        if (role == SERVER && startTimeout > 0L) {
+            startTimer = TimeoutScheduler.schedule(
+                this::startTimedOut, startTimeout, TimeUnit.MILLISECONDS);
+        }
+
         if (role == CLIENT) {
             asyncSendClientConnectionHeader();
             long now = System.currentTimeMillis();
@@ -230,6 +248,39 @@ abstract class Mux {
                 }
             }
 	}
+    }
+
+    /**
+     * Called by the timer when a server connection has had its time to
+     * start.  Takes the connection down if the client has not sent its
+     * header; that closes the connection and ends its threads.  The work is
+     * done by another thread, because closing a connection can block, and the
+     * timer thread serves all connections.
+     */
+    private void startTimedOut() {
+        synchronized (muxLock) {
+            if (muxDown || serverConnectionReady) {
+                return;
+            }
+        }
+        Runnable down = new Runnable() {
+            public void run() {
+                setDown("timeout waiting for client connection header", null);
+            }
+        };
+        try {
+            SYSTEM_THREAD_POOL.execute(down, "mux start timeout");
+        } catch (OutOfMemoryError e) {	// assume out of threads
+            down.run();
+        }
+    }
+
+    /** Stops the timer for the start of a server connection. */
+    private void cancelStartTimer() {
+        ScheduledFuture<?> timer = startTimer;
+        if (timer != null) {
+            timer.cancel(false);
+        }
     }
 
     /**
@@ -279,6 +330,7 @@ abstract class Mux {
     final void setDown(final String message, final Throwable cause) {
 	SessionShutdownTask sst;
         if (muxDown) return;
+        cancelStartTimer();
 	synchronized (muxLock) {
 	    muxDown = true;
 	    muxDownMessage = message;
@@ -759,6 +811,7 @@ abstract class Mux {
 
 	    serverConnectionReady = true;
 	}
+        cancelStartTimer();
 
 	readState = READ_MESSAGE_HEADER;
 	return true;

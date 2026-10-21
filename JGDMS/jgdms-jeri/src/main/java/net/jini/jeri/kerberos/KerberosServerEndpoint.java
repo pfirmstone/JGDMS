@@ -261,6 +261,12 @@ import org.ietf.jgss.GSSName;
  * accepted; operators can lower the value to bound that.  A custom server socket
  * factory receives the value as the <code>backlog</code> argument.
  *
+ * <p>The time that a client has, after this endpoint has started a connection,
+ * to send the connection header of the multiplexed connection is set by the
+ * <code>org.apache.river.jeri.mux.serverStartTimeout</code> system property, in
+ * milliseconds.  The default is 15000; a value of 0 or less removes the limit.
+ * When the time has passed the server closes the connection.
+ *
  * @see KerberosEndpoint
  * @see KerberosTrustVerifier
  * @since 2.0

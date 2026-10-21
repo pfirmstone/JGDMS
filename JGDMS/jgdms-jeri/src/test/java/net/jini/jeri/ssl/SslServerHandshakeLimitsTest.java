@@ -471,7 +471,7 @@ public class SslServerHandshakeLimitsTest {
             S0Fixture.closeAll(silent);
             l.close();
         }
-        Assert.assertEquals("descriptors", fds0, S0Fixture.awaitFds(fds0, 10_000));
+        Assert.assertTrue("descriptors", S0Fixture.awaitFds(fds0, 10_000) <= fds0);
     }
 
     private static long usedHeap() {

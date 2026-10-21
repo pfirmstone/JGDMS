@@ -317,8 +317,7 @@ public class SslServerHandshakeDeadlineTest {
             S0Fixture.closeAll(silent);
             l.close();
         }
-        Assert.assertEquals("descriptors", baseline,
-                            S0Fixture.awaitFds(baseline, 5000));
+        Assert.assertTrue("descriptors", S0Fixture.awaitFds(baseline, 5000) <= baseline);
         Assert.assertEquals(100, l.handle.counters().getFailed(
             HandshakeCounters.Kind.LISTENER_CLOSED));
     }

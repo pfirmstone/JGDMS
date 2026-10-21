@@ -402,6 +402,15 @@ import net.jini.security.SecurityContext;
  *	default. The limit applies to handshakes done with an SSLEngine,
  *	not to those done with an SSLSocket, which are those of HTTPS
  *	and of endpoints with a server socket factory.
+ * <li> <code>org.apache.river.jeri.mux.serverStartTimeout</code> - The
+ *	number of milliseconds that a client has to send the connection
+ *	header of the multiplexed connection, after a server has started
+ *	the connection. The header is the first thing a client sends; a
+ *	client that connects, or completes the TLS handshake, and sends
+ *	nothing would otherwise hold the connection and its two threads
+ *	for ever. When the time has passed the server closes the
+ *	connection. The default is 15000. A value of 0 or less removes
+ *	the limit.
  * </ul>
  */
 public final class SslServerEndpoint implements ServerEndpoint {

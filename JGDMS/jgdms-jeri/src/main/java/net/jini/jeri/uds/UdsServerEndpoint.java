@@ -127,6 +127,12 @@ import org.apache.river.thread.GetThreadPoolAction;
  * selects the JDK default.  A large backlog lets a remote peer fill kernel
  * buffers, up to the operating system limit, with connections that are not yet
  * accepted; operators can lower the value to bound that.
+ *
+ * <p>The time that a client has, after this endpoint has started a connection,
+ * to send the connection header of the multiplexed connection is set by the
+ * <code>org.apache.river.jeri.mux.serverStartTimeout</code> system property, in
+ * milliseconds.  The default is 15000; a value of 0 or less removes the limit.
+ * When the time has passed the server closes the connection.
  **/
 public final class UdsServerEndpoint implements ServerEndpoint {
 
