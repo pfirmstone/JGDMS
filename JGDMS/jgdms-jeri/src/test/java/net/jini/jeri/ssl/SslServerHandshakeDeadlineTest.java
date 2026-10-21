@@ -211,6 +211,48 @@ public class SslServerHandshakeDeadlineTest {
     }
 
     /**
+     * The permit that bounds the CPU of the first flight is given back before
+     * the flight is written: a peer that sends a ClientHello and then does not
+     * read, so that the write blocks, holds a handshake and not the processor.
+     */
+    @Test(timeout = 60000)
+    public void testCpuPermitIsNotHeldWhileTheFlightIsWritten() throws Exception {
+        S0Fixture.ConnectionHook small = (socket, real) -> {
+            socket.setSendBufferSize(2048);
+            return real.call();
+        };
+        byte[] hello = S0Fixture.captureClientHello();
+        S0Fixture.Listener l = S0Fixture.withProperties(new String[] {
+                TIMEOUT_PROPERTY, "6000", HandshakeLimits.CPU_PERMITS_PROPERTY, "1" },
+            () -> new S0Fixture.Listener(new S0Fixture.Recorder(), null, small,
+                request -> { }, bigServer));
+        try {
+            Socket s = new Socket();
+            s.setReceiveBufferSize(2048);
+            s.connect(new InetSocketAddress("localhost", l.port));
+            try {
+                s.getOutputStream().write(hello);
+                s.getOutputStream().flush();
+                Assert.assertTrue("the server computed the flight", S0Fixture.await(
+                    () -> l.handle.cpuEntries() == 1, 5000));
+                /* It is blocked in the write; the permit must be free. */
+                Assert.assertTrue("the permit is back while the write is stalled",
+                    S0Fixture.await(() -> l.handle.cpuPermitsAvailable() == 1, 3000));
+                Thread.sleep(1000);
+                Assert.assertEquals("still stalled", 1, l.handle.inProgressCount());
+                Assert.assertEquals("and the permit is still free", 1,
+                                    l.handle.cpuPermitsAvailable());
+            } finally {
+                s.close();
+            }
+            Assert.assertTrue(S0Fixture.await(
+                () -> l.handle.inProgressCount() == 0, 10_000));
+        } finally {
+            l.close();
+        }
+    }
+
+    /**
      * The watchdog that fires after the handshake completed cannot close the
      * connection: the task has won the race.
      */
@@ -289,8 +331,7 @@ public class SslServerHandshakeDeadlineTest {
         try (S0Fixture.Listener warm = listen(false, 30_000)) {
             S0Fixture.connectLegit(warm);
         }
-        S0Fixture.awaitFds(0, 500);
-        int baseline = S0Fixture.openFds();
+        int baseline = S0Fixture.settledFds(500);
         S0Fixture.Listener l = listen(false, 30_000);
         List<Socket> silent = new ArrayList<>();
         try {
@@ -317,9 +358,9 @@ public class SslServerHandshakeDeadlineTest {
             S0Fixture.closeAll(silent);
             l.close();
         }
-        Assert.assertTrue("descriptors", S0Fixture.awaitFds(baseline, 5000) <= baseline);
         Assert.assertEquals(100, l.handle.counters().getFailed(
             HandshakeCounters.Kind.LISTENER_CLOSED));
+        S0Fixture.assumeCounted(S0Fixture.assertFdsBack(baseline, 5000));
     }
 
     /**

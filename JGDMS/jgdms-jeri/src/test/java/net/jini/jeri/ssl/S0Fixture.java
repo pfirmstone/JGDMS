@@ -465,10 +465,52 @@ final class S0Fixture {
                 socketPath ? ServerSocketFactory.getDefault() : null, hook));
     }
 
-    /** Returns the number of descriptors this process has open. */
+    /**
+     * Returns the number of descriptors this process has open, or -1 where
+     * they cannot be counted (that is, off Linux).  A test that depends on the
+     * count must say so with {@link #assertFdsBack}, which skips it there, not
+     * compare against -1 and pass.
+     */
     static int openFds() {
         String[] fds = new File("/proc/self/fd").list();
         return fds == null ? -1 : fds.length;
+    }
+
+    /**
+     * Waits for the threads and descriptors of earlier connections to go, and
+     * returns the number of descriptors that are open then, or -1 where they
+     * cannot be counted.
+     */
+    static int settledFds(long millis) throws InterruptedException {
+        Thread.sleep(millis);
+        return openFds();
+    }
+
+    /**
+     * Checks that the open descriptors fall to the baseline within the time,
+     * unless they cannot be counted (the baseline is -1).
+     *
+     * @return whether they were counted; the test says {@link #assumeCounted}
+     *         of it at its end, so that it is reported as skipped where the
+     *         check could not be made, and not as passed
+     */
+    static boolean assertFdsBack(int baseline, long millis) throws InterruptedException {
+        if (baseline < 0) {
+            return false;
+        }
+        int now = awaitFds(baseline, millis);
+        org.junit.Assert.assertTrue("descriptors " + baseline + " -> " + now,
+                                    now <= baseline);
+        return true;
+    }
+
+    /**
+     * Skips the test, by an assumption, if a check of the descriptors could
+     * not be made.  It comes last in a test, so that the other checks have run.
+     */
+    static void assumeCounted(boolean counted) {
+        org.junit.Assume.assumeTrue(
+            "the open descriptors cannot be counted on this platform", counted);
     }
 
     /** Waits for the count of open descriptors to fall to the baseline. */

@@ -130,8 +130,7 @@ public class SslServerAcceptPathTest {
         try (S0Fixture.Listener warm = S0Fixture.listenWithSocketFactory()) {
             S0Fixture.connectLegit(warm);
         }
-        S0Fixture.awaitFds(0, 500);
-        int baseline = S0Fixture.openFds();
+        int baseline = S0Fixture.settledFds(500);
         S0Fixture.Listener l = S0Fixture.listenWithSocketFactory();
         List<Socket> silent = S0Fixture.openSilent(l, 8);
         try {
@@ -157,9 +156,9 @@ public class SslServerAcceptPathTest {
             S0Fixture.closeAll(silent);
             l.close();
         }
-        Assert.assertTrue("descriptors", S0Fixture.awaitFds(baseline, 5000) <= baseline);
         Assert.assertEquals(0, l.recorder.count());
         Assert.assertEquals(0, l.handle.connectionCount());
+        S0Fixture.assumeCounted(S0Fixture.assertFdsBack(baseline, 5000));
     }
 
     /**
@@ -223,12 +222,52 @@ public class SslServerAcceptPathTest {
             Socket peer = new Socket("localhost", other.getLocalPort());
             Socket accepted = other.accept();
             l.close();
+            /* The accept loop takes the permit before it hands the socket on. */
+            l.handle.limits().admission.acquire();
             l.handle.startHandshake(accepted);
             Assert.assertTrue("the socket must be closed", accepted.isClosed());
             Assert.assertEquals(0, l.handle.inProgressCount());
             peer.close();
         } finally {
             other.close();
+        }
+    }
+
+    /**
+     * If the record of a handshake cannot be made (out of memory), the socket
+     * is closed and the permit that the accept loop took is given back, and
+     * the listener goes on accepting.
+     */
+    @Test(timeout = 60000)
+    public void testOutOfMemoryStartingAHandshakeLeaksNothing() throws Exception {
+        try (S0Fixture.Listener l = S0Fixture.listen()) {
+            S0Fixture.connectLegit(l); // warm up
+            HandshakeLimits limits = l.handle.limits();
+            /* Idle: the accept loop holds one permit while it waits. */
+            Assert.assertTrue(S0Fixture.await(() ->
+                l.handle.admittedConnections() == 0
+                && l.handle.inProgressCount() == 0, 5000));
+            int idle = limits.admission.availablePermits();
+            AtomicInteger calls = new AtomicInteger();
+            l.handle.beforeHandshake = () -> {
+                if (calls.getAndIncrement() == 0) {
+                    throw new OutOfMemoryError("injected");
+                }
+            };
+            try (Socket s = new Socket("localhost", l.port)) {
+                Assert.assertTrue("the socket must be closed",
+                                  S0Fixture.awaitClosed(s, 5000) >= 0);
+            }
+            Assert.assertTrue("the permit is given back", S0Fixture.await(() ->
+                limits.admission.availablePermits() == idle
+                && l.handle.admittedConnections() == 0, 5000));
+            Assert.assertEquals(1, l.handle.counters().getFailed(
+                HandshakeCounters.Kind.INTERNAL));
+            Assert.assertTrue("the listener goes on",
+                              l.handle.acceptThread().isAlive());
+            S0Fixture.connectLegit(l);
+            Assert.assertTrue(S0Fixture.await(() ->
+                limits.admission.availablePermits() == idle, 5000));
         }
     }
 
@@ -418,6 +457,7 @@ public class SslServerAcceptPathTest {
      */
     @Test(timeout = 120000)
     public void testEveryFailureKindReleasesEverything() throws Exception {
+        boolean counted = true;
         for (boolean socketPath : new boolean[] { false, true }) {
             AtomicReference<Throwable> inject = new AtomicReference<>();
             S0Fixture.ConnectionHook hook = (socket, real) -> {
@@ -435,29 +475,28 @@ public class SslServerAcceptPathTest {
                 : S0Fixture.listen(hook);
             try {
                 S0Fixture.connectLegit(l); // warm up
-                S0Fixture.awaitFds(0, 300);
-                int baseline = S0Fixture.openFds();
+                int baseline = S0Fixture.settledFds(300);
                 int served = l.recorder.count();
 
                 S0Fixture.sendJunk(l);
-                assertSettled(l, baseline, "junk, socketPath=" + socketPath);
+                counted &= assertSettled(l, baseline, "junk, socketPath=" + socketPath);
 
                 List<Socket> silent = S0Fixture.openSilent(l, 3);
                 Assert.assertTrue(S0Fixture.await(
                     () -> l.handle.inProgressCount() == 3, 5000));
                 S0Fixture.closeAll(silent);
-                assertSettled(l, baseline, "silent, socketPath=" + socketPath);
+                counted &= assertSettled(l, baseline, "silent, socketPath=" + socketPath);
 
                 S0Fixture.connectStranger(l);
-                assertSettled(l, baseline, "untrusted, socketPath=" + socketPath);
+                counted &= assertSettled(l, baseline, "untrusted, socketPath=" + socketPath);
 
                 inject.set(new IllegalStateException("injected"));
                 S0Fixture.sendJunk(l);
-                assertSettled(l, baseline, "exception, socketPath=" + socketPath);
+                counted &= assertSettled(l, baseline, "exception, socketPath=" + socketPath);
 
                 inject.set(new AssertionError("injected"));
                 S0Fixture.sendJunk(l);
-                assertSettled(l, baseline, "error, socketPath=" + socketPath);
+                counted &= assertSettled(l, baseline, "error, socketPath=" + socketPath);
                 inject.set(null);
 
                 Assert.assertTrue("an Error in a handshake must not close the "
@@ -483,6 +522,7 @@ public class SslServerAcceptPathTest {
                 l.close();
             }
         }
+        S0Fixture.assumeCounted(counted);
     }
 
     private static void handOnAndExpect(S0Fixture.Listener l, int registered)
@@ -502,12 +542,12 @@ public class SslServerAcceptPathTest {
                 () -> l.handle.connectionCount() == registered, 5000));
     }
 
-    private static void assertSettled(S0Fixture.Listener l, int baseline,
-                                      String what) throws Exception
+    /** @return whether the descriptors were counted */
+    private static boolean assertSettled(S0Fixture.Listener l, int baseline,
+                                         String what) throws Exception
     {
         Assert.assertTrue("handshakes in progress after " + what,
             S0Fixture.await(() -> l.handle.inProgressCount() == 0, 5000));
-        Assert.assertTrue("descriptors after " + what,
-                          S0Fixture.awaitFds(baseline, 5000) <= baseline);
+        return S0Fixture.assertFdsBack(baseline, 5000);
     }
 }

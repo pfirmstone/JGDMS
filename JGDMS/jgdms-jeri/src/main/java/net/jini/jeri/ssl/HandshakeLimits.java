@@ -189,9 +189,15 @@ final class HandshakeLimits {
                                  limits.maxQueued))).intValue();
         int permits = ((Integer) Security.doPrivileged(
             new GetIntegerAction(CPU_PERMITS_PROPERTY, -1))).intValue();
-        return new HandshakeLimits(
-            handshakes < 1 ? limits.maxHandshakes : handshakes,
-            queued < 0 ? limits.maxQueued : Math.min(queued, Integer.MAX_VALUE - handshakes),
+        /*
+         * The sockets that are admitted are the working and the waiting ones
+         * together, and the permits for them are an int: whichever of the two
+         * is the default, the sum must not overflow.
+         */
+        long working = handshakes < 1 ? limits.maxHandshakes : handshakes;
+        long waiting = Math.min(queued < 0 ? limits.maxQueued : queued,
+                                Integer.MAX_VALUE - working);
+        return new HandshakeLimits((int) working, (int) waiting,
             permits < 1 ? limits.cpuPermits : permits);
     }
 

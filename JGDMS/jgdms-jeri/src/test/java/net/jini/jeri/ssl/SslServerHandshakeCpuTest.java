@@ -118,6 +118,75 @@ public class SslServerHandshakeCpuTest {
         }
     }
 
+    /** Records the records of a logger while it runs. */
+    private static final class Records extends java.util.logging.Handler {
+        final List<java.util.logging.LogRecord> records = new ArrayList<>();
+
+        public synchronized void publish(java.util.logging.LogRecord r) {
+            records.add(r);
+        }
+
+        public void flush() { }
+
+        public void close() { }
+
+        synchronized String text() {
+            StringBuilder sb = new StringBuilder();
+            for (java.util.logging.LogRecord r : records) {
+                if (r.getLevel().intValue() >= java.util.logging.Level.WARNING.intValue()) {
+                    sb.append(new java.util.logging.SimpleFormatter().formatMessage(r))
+                      .append('\n');
+                }
+            }
+            return sb.toString();
+        }
+    }
+
+    /**
+     * A value that names no group the engine supports must not leave a
+     * listener at which every handshake fails: the groups are not pinned, and
+     * a warning says so.  Names that are not supported are dropped from a list
+     * that has others, with a warning; the spelling of a name may differ in
+     * case.
+     */
+    @Test(timeout = 60000)
+    public void testNamedGroupsThatTheEngineDoesNotSupportAreNotPinned() throws Exception {
+        Records records = new Records();
+        Utilities.SERVER_LOGGER.addHandler(records);
+        try {
+            try (S0Fixture.Listener l = S0Fixture.withProperty(GROUPS, "x25519mlkem",
+                     () -> S0Fixture.listen()))
+            {
+                Assert.assertTrue("a typo does not refuse every client",
+                                  S0Fixture.connectOffering(l, new String[0]));
+                Assert.assertTrue("and pins nothing",
+                                  S0Fixture.connectOffering(l, "ffdhe8192"));
+                Assert.assertTrue(records.text(), records.text().contains("x25519mlkem"));
+                Assert.assertTrue(records.text(), records.text().contains("does not restrict"));
+            }
+            try (S0Fixture.Listener l = S0Fixture.withProperty(GROUPS, "SECP256R1, bogus",
+                     () -> S0Fixture.listen()))
+            {
+                Assert.assertTrue("the group that is supported",
+                                  S0Fixture.connectOffering(l, "secp256r1"));
+                Assert.assertFalse("others are not offered",
+                                   S0Fixture.connectOffering(l, "x25519"));
+                Assert.assertTrue(records.text(), records.text().contains("bogus"));
+            }
+            for (boolean socketPath : new boolean[] { false, true }) {
+                try (S0Fixture.Listener l = S0Fixture.withProperty(GROUPS, "nonsense",
+                         () -> socketPath ? S0Fixture.listenWithSocketFactory()
+                                          : S0Fixture.listen()))
+                {
+                    Assert.assertTrue("socketPath=" + socketPath,
+                                      S0Fixture.connectOffering(l, "secp521r1"));
+                }
+            }
+        } finally {
+            Utilities.SERVER_LOGGER.removeHandler(records);
+        }
+    }
+
     /**
      * Server threads are virtual threads that run on the carrier threads of
      * the default scheduler, and the handshake compute threads do their

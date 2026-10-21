@@ -107,24 +107,6 @@ class SslServerEndpointImpl extends Utilities {
     /** Server logger */
     static final Logger logger = SERVER_LOGGER;
 
-	/**
-	 * Builder for subject-neutral virtual infrastructure threads.
-	 *
-	 * <p>In DirtyChai, {@code Thread} captures {@code Subject.current()} at
-	 * construction time ({@code scopedSubject}) and {@code Thread.runWith}
-	 * re-establishes it as a ScopedValue scope around the entire thread body.
-	 * Infrastructure threads (accept loops, SSL context rebuild) must be
-	 * subject-neutral: they are long-lived, block on I/O, and must not run
-	 * under a caller's subject (confused-deputy risk).
-	 *
-	 * <p>Each call to {@code .start()} or {@code .unstarted()} on this builder
-	 * is wrapped in {@code Subject.callAs(null, ...)} at the call site,
-	 * ensuring each constructed thread captures {@code null} as its
-	 * {@code scopedSubject}.  {@code Thread.runWith} then takes the no-scope
-	 * branch and no ScopedValue subject scope wraps the thread body.
-	 */
-	static final Thread.Builder.OfVirtual acceptThreadBuilder = Thread.ofVirtual();
-
     /** The default server connection manager. */
     private static final ServerConnManager defaultServerConnectionManager =
 	new BasicServerConnManager();
@@ -862,8 +844,8 @@ class SslServerEndpointImpl extends Utilities {
 			if (refreshScheduled) return; // a rebuild is already in flight			
 			refreshScheduled = true;
 			final SslListenEndpoint self = this;
-			Subject.callAs(null, () ->
-				acceptThreadBuilder.name("SSL context rebuild after SPIFFE rotation").start(
+			/* The one way to make a thread: neutral, and the builder is shared. */
+			SslListenHandle.newThread("SSL context rebuild after SPIFFE rotation",
 					new Runnable() {
 						@Override
 						public void run() {
@@ -888,8 +870,7 @@ class SslServerEndpointImpl extends Utilities {
 							}
 						}
 					}
-				)
-			);
+			).start();
 		}
 
 		/**
@@ -1303,6 +1284,12 @@ class SslServerEndpointImpl extends Utilities {
 		private volatile Thread acceptThread;
 
 		/**
+		 * For tests: run by {@code startHandshake} before it makes the record
+		 * of the handshake.
+		 */
+		volatile Runnable beforeHandshake;
+
+		/**
 		 * For tests: run by a handshake task after its connection has been
 		 * built and before it completes the handshake.
 		 */
@@ -1344,9 +1331,18 @@ class SslServerEndpointImpl extends Utilities {
 			this.cpu = limits.cpu;
 			this.socketCpu = limits.socketCpu;
 			this.compute = HandshakeCompute.get();
-			this.namedGroups = parseNamedGroups((String) Security.doPrivileged(
-				new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
-									  DEFAULT_SERVER_NAMED_GROUPS)));
+			String[] supported = null;
+			try {
+				supported = listenEndpoint.getSSLContext()
+					.getSupportedSSLParameters().getNamedGroups();
+			} catch (RuntimeException e) {
+				/* Cannot tell: use the names as they are given. */
+			}
+			this.namedGroups = supportedNamedGroups(parseNamedGroups(
+				(String) Security.doPrivileged(
+					new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
+										  DEFAULT_SERVER_NAMED_GROUPS))),
+				supported, description);
 		}
 
 		/**
@@ -1490,10 +1486,15 @@ class SslServerEndpointImpl extends Utilities {
 					deadline = 1L;
 				}
 			}
-			Handshake handshake = new Handshake(socket, deadline);
+			Handshake handshake = null;
 			admitted.incrementAndGet();
 			boolean started = false;
 			try {
+				Runnable before = beforeHandshake;
+				if (before != null) {
+					before.run();
+				}
+				handshake = new Handshake(socket, deadline);
 				/* Send data without delay */
 				try {
 					socket.setTcpNoDelay(true);
@@ -1523,15 +1524,30 @@ class SslServerEndpointImpl extends Utilities {
 				counters.noteFailed(HandshakeCounters.Kind.INTERNAL);
 				if (logger.isLoggable(Level.FINE)) {
 					logger.log(Level.FINE, "starting handshake with "
-						   + handshake + " throws", t);
+						   + socket + " throws", t);
 				}
 			} finally {
 				if (!started) {
-					synchronized (this) {
-						inProgress.remove(handshake);
+					/*
+					 * Whatever went wrong, even the construction of the
+					 * handshake, the socket is closed and the permit that the
+					 * accept loop took is given back.
+					 */
+					if (handshake != null) {
+						synchronized (this) {
+							inProgress.remove(handshake);
+						}
+						handshake.closeSocket();
+						handshake.release();
+					} else {
+						try {
+							socket.close();
+						} catch (IOException e) {
+							/* Ignore and continue; we're already closing. */
+						}
+						admitted.decrementAndGet();
+						admission.release();
 					}
-					handshake.closeSocket();
-					handshake.release();
 				}
 			}
 		}
@@ -1684,6 +1700,81 @@ class SslServerEndpointImpl extends Utilities {
 			}
 			return names.isEmpty() ? null : names.toArray(new String[0]);
 		}
+
+		/**
+		 * Returns the requested named groups that the engine supports, in the
+		 * order requested, for the engine's own spelling of each name.  A name
+		 * that is dropped is logged at WARNING.  If none is left, every
+		 * handshake would fail, because no client could agree with the server
+		 * on a group, so the groups are not pinned (null is returned) and that
+		 * is logged at WARNING too.
+		 *
+		 * @param requested the groups asked for, or null for none
+		 * @param supported the groups that the engine supports, or null if
+		 *        that is not known, in which case the names are used as given
+		 */
+		static String[] supportedNamedGroups(String[] requested,
+											 String[] supported,
+											 String description)
+		{
+			if (requested == null || supported == null) {
+				return requested;
+			}
+			List<String> usable = new ArrayList<String>();
+			List<String> dropped = new ArrayList<String>();
+			for (String name : requested) {
+				String found = null;
+				for (String s : supported) {
+					if (s.equals(name)) {
+						found = s;
+						break;
+					} else if (found == null && s.equalsIgnoreCase(name)) {
+						found = s;
+					}
+				}
+				if (found == null) {
+					dropped.add(name);
+				} else if (!usable.contains(found)) {
+					usable.add(found);
+				}
+			}
+			if (usable.isEmpty()) {
+				logger.log(Level.WARNING,
+					"{0}: none of the named groups {1} (property "
+					+ SERVER_NAMED_GROUPS_PROPERTY + ") is supported, so the "
+					+ "server does not restrict its named groups",
+					new Object[] { description, Arrays.asList(requested) });
+				return null;
+			}
+			if (!dropped.isEmpty()) {
+				logger.log(Level.WARNING,
+					"{0}: the named groups {1} (property "
+					+ SERVER_NAMED_GROUPS_PROPERTY + ") are not supported and "
+					+ "are not offered",
+					new Object[] { description, dropped });
+			}
+			return usable.toArray(new String[0]);
+		}
+
+		/**
+		 * Builder for subject-neutral virtual infrastructure threads.
+		 *
+		 * <p>In DirtyChai, {@code Thread} captures {@code Subject.current()} at
+		 * construction time ({@code scopedSubject}) and {@code Thread.runWith}
+		 * re-establishes it as a ScopedValue scope around the entire thread body.
+		 * Infrastructure threads (accept loops, SSL context rebuild) must be
+		 * subject-neutral: they are long-lived, block on I/O, and must not run
+		 * under a caller's subject (confused-deputy risk).
+		 *
+		 * <p>Each call to {@code .start()} or {@code .unstarted()} on this builder
+		 * is wrapped in {@code Subject.callAs(null, ...)} at the call site, which
+		 * is {@link #newThread}, the only use of it and why it is private,
+		 * ensuring each constructed thread captures {@code null} as its
+		 * {@code scopedSubject}.  {@code Thread.runWith} then takes the no-scope
+		 * branch and no ScopedValue subject scope wraps the thread body.
+		 */
+		private static final Thread.Builder.OfVirtual acceptThreadBuilder = Thread.ofVirtual();
+
 
 		/**
 		 * Creates an unstarted virtual thread, subject-neutral like the

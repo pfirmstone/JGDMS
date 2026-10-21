@@ -88,6 +88,46 @@ public class SslServerHandshakeLimitsTest {
                      defaults);
     }
 
+    /**
+     * The sockets admitted are the working and the waiting together, and the
+     * permits for them are an int: a limit near the largest int, with the
+     * queue at its default or at its own largest, must not overflow it, which
+     * would leave a listener that never accepts.
+     */
+    @Test(timeout = 60000)
+    public void testHugeLimitsDoNotOverflowTheAdmission() throws Exception {
+        String max = Integer.toString(Integer.MAX_VALUE);
+        for (String queue : new String[] { "-1", "4096", max }) {
+            S0Fixture.withProperties(new String[] {
+                    S0Fixture.MAX_HANDSHAKES, max, S0Fixture.MAX_QUEUED, queue },
+                () -> {
+                    HandshakeLimits l = HandshakeLimits.get();
+                    Assert.assertEquals(Integer.MAX_VALUE, l.maxHandshakes);
+                    Assert.assertTrue("queue " + l.maxQueued, l.maxQueued >= 0);
+                    Assert.assertTrue("no overflow: " + l.maxHandshakes + " + "
+                        + l.maxQueued, (long) l.maxHandshakes + l.maxQueued
+                        <= Integer.MAX_VALUE);
+                    Assert.assertEquals((long) l.maxHandshakes + l.maxQueued,
+                                        l.admission.availablePermits());
+                    return null;
+                });
+        }
+        /* And a listener with them accepts. */
+        try (S0Fixture.Listener l = S0Fixture.listen(Integer.MAX_VALUE, -1, 30_000, null, false)) {
+            Assert.assertTrue(l.handle.limits().admission.availablePermits() > 0);
+            S0Fixture.connectLegit(l);
+        }
+        /* A low working limit with a huge queue is clamped the same way. */
+        S0Fixture.withProperties(new String[] {
+                S0Fixture.MAX_HANDSHAKES, "5", S0Fixture.MAX_QUEUED, max },
+            () -> {
+                HandshakeLimits l = HandshakeLimits.get();
+                Assert.assertEquals(5, l.maxHandshakes);
+                Assert.assertEquals(Integer.MAX_VALUE - 5, l.maxQueued);
+                return null;
+            });
+    }
+
     private static void assertLimits(int handshakes, int queued,
                                      HandshakeLimits limits)
     {
@@ -424,8 +464,7 @@ public class SslServerHandshakeLimitsTest {
         try (S0Fixture.Listener warm = S0Fixture.listen()) {
             S0Fixture.connectLegit(warm);
         }
-        S0Fixture.awaitFds(0, 500);
-        int fds0 = S0Fixture.openFds();
+        int fds0 = S0Fixture.settledFds(500);
         System.gc();
         int threads0 = ManagementFactory.getThreadMXBean().getThreadCount();
         long heap0 = usedHeap();
@@ -449,8 +488,10 @@ public class SslServerHandshakeLimitsTest {
             Assert.assertTrue("platform threads " + threads0 + " -> " + threads,
                               threads - threads0 < 40);
             int fds = S0Fixture.openFds();
-            Assert.assertTrue("descriptors " + fds0 + " -> " + fds + " for "
-                + n + " connections", fds - fds0 <= 2 * n + 50);
+            if (fds0 >= 0) {
+                Assert.assertTrue("descriptors " + fds0 + " -> " + fds + " for "
+                    + n + " connections", fds - fds0 <= 2 * n + 50);
+            }
             System.gc();
             long heap = usedHeap() - heap0;
             System.out.println("burst of " + n + " stalled connections: "
@@ -471,7 +512,7 @@ public class SslServerHandshakeLimitsTest {
             S0Fixture.closeAll(silent);
             l.close();
         }
-        Assert.assertTrue("descriptors", S0Fixture.awaitFds(fds0, 10_000) <= fds0);
+        S0Fixture.assumeCounted(S0Fixture.assertFdsBack(fds0, 10_000));
     }
 
     private static long usedHeap() {

@@ -288,8 +288,8 @@ listener do. Facts that the first version of this section had wrong, found by th
   blocking `SocketChannel` read or write ends within about a millisecond of the raw channel being closed, on platform and
   virtual threads, which gives the deadline, the cancellation on listener close and the bound on a write to a peer that does not
   read with one mechanism. The **client** keeps `fillNetInByDeadline` (a blocking channel has no read timeout, so it is the
-  client's only deadline, `handshakeTimeout`, 60 s, unchanged); it now holds its `Selector` in a field so `abort()` can wake it,
-  and an interrupt fails the handshake instead of spinning to the deadline.
+  client's only deadline, `handshakeTimeout`, 60 s, unchanged); an interrupt
+  fails the handshake instead of spinning to the deadline.
 * **SSLSocket path.** `startHandshake()` under `setSoTimeout(time left)` plus the same watchdog; the NULL-suite check stays as the backstop.
 * **Admission.** At most N = min(512, maxFds/8) handshakes work at once and at most Q = min(4096, maxFds/4 - N) accepted
   connections wait for a turn (`maxFds` from the JVM, 16384 where it cannot say). A waiting connection costs its socket, a

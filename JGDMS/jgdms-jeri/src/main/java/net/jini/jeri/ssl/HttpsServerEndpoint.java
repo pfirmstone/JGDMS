@@ -402,19 +402,24 @@ import net.jini.security.SecurityContext;
  *	are computed. The default is the number that the Java virtual
  *	machine reports, where it can (on Linux and macOS), and 16384
  *	where it cannot (on Windows).
- * <li> <code>org.apache.river.jeri.ssl.serverNamedGroups</code> - The
- *	key exchange groups that a server negotiates, in order of
- *	preference, separated by commas. A client chooses among the
- *	groups that a server enables, and the groups that the Java
- *	virtual machine enables by default cost a server very different
- *	amounts of processor time before it has authenticated the
- *	client: about 2 ms for x25519, 10 ms for secp521r1 and 27 ms for
- *	ffdhe8192. A client that offers none of the groups is refused.
- *	The default is X25519MLKEM768,x25519,secp256r1. The names are
- *	those of SSLParameters.setNamedGroups; a name that the Java
- *	virtual machine does not support is never negotiated. An empty
- *	value does not restrict the groups. The groups apply to the
- *	SSLEngine and the SSLSocket paths alike.
+ * <li> <code>org.apache.river.jeri.ssl.serverNamedGroups</code> -
+ *	The key exchange groups that a server negotiates, in order of
+ *	preference, separated by commas. A client chooses among the groups
+ *	that a server enables, and the groups that the Java virtual
+ *	machine enables by default cost a server very different amounts of
+ *	processor time before it has authenticated the client: about 2 ms
+ *	for x25519, 10 ms for secp521r1 and 27 ms for ffdhe8192. A client
+ *	that offers none of the groups is refused. The default is
+ *	X25519MLKEM768,x25519,secp256r1, which refuses a peer that offers
+ *	only secp384r1, as peers that follow the CNSA or FIPS profiles
+ *	may; set the property to include secp384r1 for them. The names are
+ *	those of SSLParameters.setNamedGroups, and are checked when the
+ *	server starts to listen: a name that the Java virtual machine does
+ *	not support is not offered and is logged at WARNING, and if none
+ *	of the names is supported, so that no client could agree with the
+ *	server on a group, the groups are not restricted and that is
+ *	logged at WARNING. An empty value does not restrict the groups.
+ *	The groups apply to the SSLEngine and the SSLSocket paths alike.
  * <li> <code>org.apache.river.jeri.ssl.serverHandshakeCpuPermits</code> -
  *	The number of TLS handshakes, in the whole Java virtual machine,
  *	that may be computing the first flight of the server, its key
@@ -423,17 +428,18 @@ import net.jini.security.SecurityContext;
  *	lets a peer that floods them with replayed ClientHellos use no
  *	more processors than one with a single endpoint. A handshake done
  *	with an SSLEngine holds a permit from the moment the server has
- *	read a ClientHello until it has written its first flight, so a
- *	peer that replays a ClientHello, reads the flight and closes costs
- *	the server no more than the permits allow, although each of its
- *	connections lasts a few milliseconds. A handshake done with an
- *	SSLSocket, which is those of HTTPS and of endpoints with a server
- *	socket factory, holds a permit for all of the handshake, because
- *	the Java runtime does its reads and writes inside one call that
- *	cannot be split; a peer that sends a ClientHello and then waits
- *	holds it until the handshake times out. There are as many permits
- *	for SSLSockets, kept apart so that such peers cannot hold up the
- *	endpoints that use SSLEngines; among the endpoints that use
+ *	read a ClientHello until its first flight has been computed,
+ *	before it is written, so a peer that replays a ClientHello, reads
+ *	the flight and closes costs the server no more than the permits
+ *	allow, although each of its connections lasts a few milliseconds,
+ *	and a peer that stops reading holds no permit. A handshake done
+ *	with an SSLSocket, which is those of HTTPS and of endpoints with a
+ *	server socket factory, holds a permit for all of the handshake,
+ *	because the Java runtime does its reads and writes inside one call
+ *	that cannot be split; a peer that sends a ClientHello and then
+ *	waits holds it until the handshake times out. There are as many
+ *	permits for SSLSockets, kept apart so that such peers cannot hold
+ *	up the endpoints that use SSLEngines; among the endpoints that use
  *	SSLSockets, this many peers that stall in that way stop the others
  *	from starting a handshake until they time out. A handshake waits
  *	for a permit within its serverHandshakeTimeout. The default is the

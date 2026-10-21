@@ -479,30 +479,6 @@ public class SslEngineChannelTest {
         });
     }
 
-    /** An abort ends a client handshake that waits on its selector. */
-    @Test
-    public void testAbortWakesAClientHandshake() throws Exception {
-        withPeer(sc -> Thread.sleep(30_000), client -> {
-            AtomicReference<Throwable> failure = new AtomicReference<>();
-            Thread t = Thread.ofPlatform().start(() -> {
-                try {
-                    client.handshake(30_000L);
-                } catch (Throwable e) {
-                    failure.set(e);
-                }
-            });
-            Thread.sleep(300);
-            long t0 = System.nanoTime();
-            client.abort();
-            t.join(5000);
-            long ms = (System.nanoTime() - t0) / 1_000_000L;
-            Assert.assertFalse("the handshake must end", t.isAlive());
-            Assert.assertTrue("ended " + ms + " ms after the abort", ms < 1000);
-            Assert.assertTrue(String.valueOf(failure.get()),
-                              failure.get() instanceof java.io.IOException);
-        });
-    }
-
     /**
      * An interrupt of the thread that waits for the peer ends the handshake;
      * it must not make the wait return at once, again and again, until the

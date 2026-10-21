@@ -148,15 +148,6 @@ final class SslEngineChannel {
      */
     private long handshakeReadDeadline = 0L;
 
-    /**
-     * The selector that a client handshake read is waiting on, so that {@link
-     * #abort} can wake it.
-     */
-    private volatile Selector handshakeSelector;
-
-    /** Set by {@link #abort}. */
-    private volatile boolean aborted = false;
-
     private final InputStream in = new EngineInputStream();
     private final OutputStream out = new EngineOutputStream();
 
@@ -232,9 +223,8 @@ final class SslEngineChannel {
      * handshake indefinitely.  The deadline applies to the waits for peer
      * ciphertext, which a blocking {@link SocketChannel} cannot time out
      * itself, so it is enforced by waiting on a selector; it does not cover a
-     * write that blocks because the peer does not read (use {@link #abort}
-     * from a timer for that).  Used by the client; the server uses {@link
-     * #handshakeServer}.
+     * write that blocks because the peer does not read.  Used by the client;
+     * the server uses {@link #handshakeServer}.
      *
      * @param timeoutMillis the total timeout; {@code <= 0} disables it
      */
@@ -292,7 +282,8 @@ final class SslEngineChannel {
      * peer is authenticated.  {@link #begin} is called when the server has
      * consumed a ClientHello and has the key exchange and the signature of its
      * first flight to compute, and {@link #end} when that flight has been
-     * written, or the handshake has ended, whichever is first.  An
+     * computed, before it is written to a peer that may not read it, or the
+     * handshake has ended, whichever is first.  An
      * implementation can make {@code begin} wait for a permit, so that a peer
      * that sends one ClientHello after another gets no more of the server's
      * CPU than the permits allow, however quickly it sends them.
@@ -352,25 +343,6 @@ final class SslEngineChannel {
             && buf.get(p + 5) == 1;      // ClientHello
     }
 
-    /**
-     * Ends a handshake that is in progress on another thread: closes the raw
-     * channel, without writing close_notify, and wakes a client handshake
-     * that is waiting on its selector.  The handshake fails with an {@link
-     * IOException}.
-     */
-    void abort() {
-        aborted = true;
-        try {
-            channel.close();
-        } catch (IOException e) {
-            // closing anyway
-        }
-        Selector selector = handshakeSelector;
-        if (selector != null) {
-            selector.wakeup();
-        }
-    }
-
     /** Adds two non-negative longs, clamping overflow to Long.MAX_VALUE. */
     private static long addClamped(long a, long b) {
         long sum = a + b;
@@ -389,11 +361,6 @@ final class SslEngineChannel {
                     break;
                 case NEED_WRAP:
                     status = handshakeWrap();
-                    if (status == HandshakeStatus.NEED_UNWRAP) {
-                        // The server's flight is written: the work that a
-                        // ClientHello causes is done.
-                        endGate();
-                    }
                     break;
                 case NEED_UNWRAP:
                 case NEED_UNWRAP_AGAIN:
@@ -471,6 +438,13 @@ final class SslEngineChannel {
         synchronized (writeLock) {
             netOut.clear();
             SSLEngineResult result = engine.wrap(EMPTY, netOut);
+            /*
+             * The key exchange and the signatures were computed by the
+             * delegated tasks, and wrap only encrypts what they queued: the
+             * work that a ClientHello causes is done.  A peer that does not
+             * read must not hold the gate while the flight is written.
+             */
+            endGate();
             flush(netOut);
             switch (result.getStatus()) {
                 case OK:
@@ -729,8 +703,8 @@ final class SslEngineChannel {
      * waits on a {@link java.nio.channels.Selector} for readability up to the
      * time that remains; a handshake that has not finished by the deadline
      * fails with an {@link SSLException} (a stalled/slowloris peer).  An
-     * interrupt of the thread, or a call of {@link #abort}, fails the
-     * handshake at once.  The channel is always restored to blocking mode
+     * interrupt of the thread fails the handshake at once.  The channel is
+     * always restored to blocking mode
      * before returning, so application-data I/O is unaffected.
      */
     private boolean fillNetInByDeadline() throws IOException {
@@ -739,10 +713,9 @@ final class SslEngineChannel {
         try {
             channel.configureBlocking(false);
             selector = Selector.open();
-            handshakeSelector = selector;
             channel.register(selector, java.nio.channels.SelectionKey.OP_READ);
             for (;;) {
-                checkNotAborted();
+                checkNotInterrupted();
                 long remaining = handshakeReadDeadline - System.currentTimeMillis();
                 if (remaining <= 0L) {
                     throw new SSLException(
@@ -751,7 +724,7 @@ final class SslEngineChannel {
                         + "fail-secure against a stalled/slowloris peer");
                 }
                 int ready = selector.select(remaining);
-                checkNotAborted();
+                checkNotInterrupted();
                 if (ready == 0) {
                     // select() woke with nothing ready: either the deadline
                     // elapsed (loop re-checks) or a spurious wakeup (retry).
@@ -768,7 +741,6 @@ final class SslEngineChannel {
                 // n == 0: readable but no bytes yet; loop until deadline.
             }
         } finally {
-            handshakeSelector = null;
             if (selector != null) {
                 try { selector.close(); } catch (IOException e) { }
             }
@@ -785,14 +757,11 @@ final class SslEngineChannel {
     }
 
     /**
-     * Fails a handshake that was aborted or whose thread was interrupted.  An
-     * interrupt makes every select return at once, so carrying on would spin
-     * until the deadline.
+     * Fails a handshake whose thread was interrupted.  An interrupt makes
+     * every select return at once, so carrying on would spin until the
+     * deadline.
      */
-    private void checkNotAborted() throws IOException {
-        if (aborted) {
-            throw new java.nio.channels.AsynchronousCloseException();
-        }
+    private void checkNotInterrupted() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedIOException(
                 "TLS handshake interrupted on " + label);
@@ -837,7 +806,7 @@ final class SslEngineChannel {
             return;
         }
         if (!channel.isOpen()) {
-            // Already closed, by abort or by the peer's reset: there is
+            // Already closed, by the peer's reset or the owner: there is
             // nobody to write close_notify to.
             return;
         }
