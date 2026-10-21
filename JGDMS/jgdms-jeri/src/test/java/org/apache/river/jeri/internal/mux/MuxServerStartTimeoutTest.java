@@ -314,6 +314,79 @@ public class MuxServerStartTimeoutTest {
         assertEquals("connections that left their start timer behind", 0, leaked);
     }
 
+    /**
+     * The timer thread serves every connection, so the expiry of one start
+     * timer must not wait for the lock of the connection: a connection whose
+     * lock is held for seconds does not delay the deadline of another.
+     */
+    @Test(timeout = 60000)
+    public void aHeldLockDoesNotDelayTheDeadlineOfAnotherConnection() throws Exception {
+        ServerSocket listener = new ServerSocket(0, 2, InetAddress.getLoopbackAddress());
+        toClose.add(listener);
+        Socket[] peers = new Socket[2];
+        Socket[] accepted = new Socket[2];
+        for (int i = 0; i < 2; i++) {
+            peers[i] = new Socket(InetAddress.getLoopbackAddress(), listener.getLocalPort());
+            accepted[i] = listener.accept();
+            toClose.add(peers[i]);
+            toClose.add(accepted[i]);
+        }
+        Server held = new Server(accepted[0].getOutputStream(),
+                                 accepted[0].getInputStream(), 300);
+        Server other = new Server(accepted[1].getOutputStream(),
+                                  accepted[1].getInputStream(), 1000);
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread holder = Thread.ofPlatform().start(() -> {
+            synchronized (held.muxLock) {
+                locked.countDown();
+                try {
+                    release.await(30, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        try {
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            long t0 = System.nanoTime();
+            held.start();
+            other.start();
+            assertTrue("the other connection must go down on time",
+                       other.down.await(4, TimeUnit.SECONDS));
+            long ms = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+            assertTrue("down after " + ms + " ms", ms >= 900 && ms < 3500);
+            assertFalse("the connection with the lock waits for it",
+                        held.down.await(300, TimeUnit.MILLISECONDS));
+        } finally {
+            release.countDown();
+            holder.join(10_000);
+        }
+        assertTrue("and goes down when the lock is free",
+                   held.down.await(10, TimeUnit.SECONDS));
+    }
+
+    /**
+     * A take-down that was handed to another thread before the header arrived,
+     * and runs after it, leaves the connection up: whether the header has been
+     * processed is decided under the lock that the processing is done under.
+     */
+    @Test(timeout = 60000)
+    public void aTakeDownThatRunsAfterTheHeaderIsNotCarriedOut() throws Exception {
+        HeaderThenWait in = new HeaderThenWait(clientHeader());
+        Server server = new Server(OutputStream.nullOutputStream(), in, 60000);
+        server.start();
+        assertTrue("header processed", in.headerConsumed.await(10, TimeUnit.SECONDS));
+        java.lang.reflect.Method expired =
+            Mux.class.getDeclaredMethod("startTimeExpired");
+        expired.setAccessible(true);
+        expired.invoke(server);
+        assertFalse("a connection that has started stays up",
+                    server.down.await(500, TimeUnit.MILLISECONDS));
+        server.shutdown("test over");
+        in.close();
+    }
+
     @Test
     public void thePropertyIsTheDefaultOtherwise() {
         System.clearProperty(PROPERTY);

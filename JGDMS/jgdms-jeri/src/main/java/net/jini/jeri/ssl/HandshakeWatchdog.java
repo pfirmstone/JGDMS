@@ -26,8 +26,9 @@ import org.apache.river.jeri.internal.TimeoutScheduler;
  * The timer that ends server handshakes which have run out of time.
  *
  * <p>Every accepted connection has a task here from the moment it is
- * accepted; the task closes the raw socket, which ends whatever read or write
- * the handshake is blocked in.  The thread is the shared {@link
+ * accepted; the task only marks the handshake as timed out, and another thread
+ * closes the raw socket, which ends whatever read or write the handshake is
+ * blocked in.  The thread is the shared {@link
  * TimeoutScheduler} one, which serves all the listeners of the JVM, so a flood
  * of connections costs queue entries and not threads.
  */
@@ -37,10 +38,19 @@ final class HandshakeWatchdog {
 
     /**
      * Runs the task after the delay, unless the returned future is cancelled
-     * first.  The task must not block.
+     * first.  The task must not block: it sets some state and calls {@link
+     * #handOff} for anything that can.
      */
     static ScheduledFuture<?> schedule(Runnable task, long delayNanos) {
         return TimeoutScheduler.schedule(task, delayNanos, TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * Runs the task on a thread of its own, from a task of the watchdog, which
+     * must not close sockets itself: a close can block.
+     */
+    static void handOff(Runnable task) {
+        TimeoutScheduler.handOff(task);
     }
 
     /** Returns the number of tasks that are waiting, for tests. */

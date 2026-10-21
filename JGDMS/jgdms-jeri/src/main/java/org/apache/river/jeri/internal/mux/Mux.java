@@ -135,7 +135,7 @@ abstract class Mux {
     int initialOutboundRation;		// set from remote connection
     // volatile reads, sync writes on muxLock
     private volatile boolean clientConnectionReady = false; // server header received
-    boolean serverConnectionReady = false;	   // server header sent
+    volatile boolean serverConnectionReady = false;	   // server header sent
 
     // volatile reads, sync writes on muxLock
     volatile boolean muxDown = false;
@@ -258,27 +258,25 @@ abstract class Mux {
 
     /**
      * Called by the timer when a server connection has had its time to
-     * start.  Takes the connection down if the client has not sent its
-     * header; that closes the connection and ends its threads.  The work is
-     * done by another thread, because closing a connection can block, and the
-     * timer thread serves all connections.
+     * start.  The timer thread serves all connections, so it must not wait
+     * for a lock or for a close: it reads the flags that are volatile, and
+     * leaves the rest to another thread, which takes the connection down if
+     * the client has not sent its header by then; that closes the connection
+     * and ends its threads.
      */
     private void startTimedOut() {
-        synchronized (muxLock) {
-            if (muxDown || serverConnectionReady) {
-                return;
-            }
+        if (muxDown || serverConnectionReady) {
+            return;
         }
-        Runnable down = new Runnable() {
-            public void run() {
-                setDown("timeout waiting for client connection header", null);
-            }
-        };
-        try {
-            SYSTEM_THREAD_POOL.execute(down, "mux start timeout");
-        } catch (OutOfMemoryError e) {	// assume out of threads
-            down.run();
-        }
+        TimeoutScheduler.handOff(this::startTimeExpired);
+    }
+
+    /**
+     * Takes the connection down, unless the client's header has arrived, or
+     * the connection is down, in the meantime.
+     */
+    private void startTimeExpired() {
+        setDown("timeout waiting for client connection header", null, true);
     }
 
     /** Stops the timer for the start of a server connection. */
@@ -334,10 +332,24 @@ abstract class Mux {
      * occurs during start up.
      */
     final void setDown(final String message, final Throwable cause) {
+        setDown(message, cause, false);
+    }
+
+    /**
+     * @param unlessStarted whether to leave the connection up if the client's
+     *        header has been processed, which is decided under muxLock, as
+     *        the processing of the header is
+     */
+    private void setDown(final String message, final Throwable cause,
+                         boolean unlessStarted)
+    {
 	SessionShutdownTask sst;
         if (muxDown) return;
         cancelStartTimer();
 	synchronized (muxLock) {
+	    if (unlessStarted && (muxDown || serverConnectionReady)) {
+	        return;
+	    }
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;

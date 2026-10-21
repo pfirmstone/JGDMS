@@ -1868,9 +1868,17 @@ class SslServerEndpointImpl extends Utilities {
 
 			/**
 			 * Ends the handshake from another thread: closes the raw socket
-			 * and wakes the task if it waits for a permit.
+			 * and wakes the task if it waits for a permit.  The peer owes
+			 * nothing more, so the socket is closed with a reset, which does
+			 * not wait for a linger time that a socket from a custom factory
+			 * may have.
 			 */
 			void cancel() {
+				try {
+					socket.setSoLinger(true, 0);
+				} catch (IOException | RuntimeException e) {
+					/* Ignore and continue; closing is what matters. */
+				}
 				closeSocket();
 				Thread t = waiter;
 				if (t != null) {
@@ -1886,7 +1894,7 @@ class SslServerEndpointImpl extends Utilities {
 			void arm() {
 				if (deadline != 0L) {
 					timer = HandshakeWatchdog.schedule(
-						this::timedOut,
+						this::expired,
 						Math.max(0L, deadline - System.nanoTime()));
 				}
 			}
@@ -1900,9 +1908,21 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
-			 * Called by the watchdog when the time has run out: closes the
-			 * raw socket, unless the task has already completed the
-			 * handshake.
+			 * Called on the watchdog's thread when the time has run out.  It
+			 * only decides, and leaves the closing, which can block, to
+			 * another thread, so that one handshake cannot delay the deadline
+			 * of any other.
+			 */
+			private void expired() {
+				if (state.compareAndSet(RUNNING, TIMED_OUT)) {
+					HandshakeWatchdog.handOff(this::cancel);
+				}
+			}
+
+			/**
+			 * Cuts the handshake off now: closes the raw socket, unless the
+			 * task has already completed the handshake.  What the watchdog
+			 * does, on another thread, when the time has run out.
 			 *
 			 * @return whether the handshake was cut off
 			 */

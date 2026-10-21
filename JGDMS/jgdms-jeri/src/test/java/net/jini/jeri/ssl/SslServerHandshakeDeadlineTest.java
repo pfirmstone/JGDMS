@@ -393,6 +393,8 @@ public class SslServerHandshakeDeadlineTest {
         }
         AtomicReference<Subject> seen = new AtomicReference<>(S0Fixture.server.subject);
         AtomicReference<Thread> thread = new AtomicReference<>();
+        AtomicReference<String> inherited = new AtomicReference<>("not read");
+        InheritableThreadLocal<String> local = new InheritableThreadLocal<>();
         CountDownLatch ran = new CountDownLatch(1);
         try (URLClassLoader loader =
                  new URLClassLoader(urls, ClassLoader.getPlatformClassLoader()))
@@ -404,8 +406,10 @@ public class SslServerHandshakeDeadlineTest {
             schedule.setAccessible(true);
             /* Initialised by the first call, below, under the subject. */
             Subject.callAs(S0Fixture.server.subject, (Callable<Void>) () -> {
+                local.set("the thread that first used the scheduler");
                 schedule.invoke(null, (Runnable) () -> {
                     seen.set(Subject.current());
+                    inherited.set(local.get());
                     thread.set(Thread.currentThread());
                     ran.countDown();
                 }, 1_000_000L);
@@ -413,6 +417,9 @@ public class SslServerHandshakeDeadlineTest {
             });
             Assert.assertTrue(ran.await(10, TimeUnit.SECONDS));
             Assert.assertNull("Subject.current() on the watchdog thread", seen.get());
+            local.remove();
+            Assert.assertNull("inheritable thread locals of the watchdog thread",
+                              inherited.get());
             Assert.assertTrue(thread.get().isDaemon());
             Assert.assertFalse(thread.get().isVirtual());
             Assert.assertSame("the context class loader of the watchdog thread",

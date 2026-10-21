@@ -42,6 +42,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -184,6 +185,10 @@ public class MuxAckListenerTest {
         long start = System.nanoTime();
         assertEquals(Boolean.FALSE, next(WAIT_S * 1000));
         assertTrue("not before the timeout", System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(200));
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            assertFalse("the ack timeout has no timer thread of its own: " + t,
+                        t.getName().equals("Mux ack timeout"));
+        }
         // the acknowledgment arriving late is accepted and does not tell the listeners again
         in.close();
         assertNoMore();

@@ -55,7 +55,8 @@ import org.apache.river.action.GetIntegerAction;
  * handshakes can use for their cryptography at once.
  *
  * <p>The threads are daemon threads created in a privileged action under
- * {@code Subject.callAs(null, ...)}, so that they are subject-neutral like the
+ * {@code Subject.callAs(null, ...)} and without the inheritable thread locals
+ * of the thread that creates them, so that they are subject-neutral like the
  * accept thread, and not those of the system thread pool.  One pool of each
  * size serves the JVM.
  */
@@ -82,9 +83,11 @@ final class HandshakeCompute {
             new LinkedBlockingQueue<Runnable>(),
             task -> AccessController.doPrivileged(
                 (PrivilegedAction<Thread>) () -> Subject.callAs(null, () -> {
-                    Thread t = new Thread(task, "TLS handshake compute "
-                                                + n.incrementAndGet());
-                    t.setDaemon(true);
+                    Thread t = Thread.ofPlatform()
+                        .name("TLS handshake compute " + n.incrementAndGet())
+                        .daemon(true)
+                        .inheritInheritableThreadLocals(false)
+                        .unstarted(task);
                     t.setContextClassLoader(
                         HandshakeCompute.class.getClassLoader());
                     return t;
