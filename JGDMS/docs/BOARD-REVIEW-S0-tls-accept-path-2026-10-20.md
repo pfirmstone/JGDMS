@@ -69,6 +69,13 @@ per-address cap off; jitter 0.8 to 1.0.
    JDK does not pin a carrier thread when a virtual thread blocks inside `synchronized`. S0's server handshakes therefore keep the
    `readLock`/`writeLock` monitors in `SslEngineChannel`. On a stock JDK 21 to 23 runtime the same code pins carriers (probe: 8
    silent peers made a legitimate open take 7.5 s) and is not supported.
+6. Queue full: accept stays paused (the built behaviour); no accept-and-close.
+7. Deadline: queue wait counts inside the 10 s total; a working slot is granted only if at least 2 s remain (property), so a
+   connection is not cut off after doing the work.
+8. The handshake cap N and its default wait for the tail-latency investigation (RESULTS section 37).
+9. A follow-up package (implementation review findings M1 to M4, the low items, the mux start timer leak, and the first-byte
+   gate: a queued connection waits in a blocking read of the first TLS record header inside the deadline, so silent and departed
+   peers cost a queue slot but no working slot) is delegated after the tail-latency investigation lands.
 Sequence: the HTTPS accept-thread fix and the explicit backlog land first as separate commits; S0 follows because both edit
 `SslServerEndpointImpl`.
 
