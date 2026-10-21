@@ -407,6 +407,204 @@ public class SslEngineChannelTest {
     }
 
     /**
+     * Connects a client channel to a peer that accepts and then does whatever
+     * the given behaviour says; returns the client's channel wrapper.
+     */
+    private interface Peer {
+        void run(SocketChannel accepted) throws Exception;
+    }
+
+    private static void withPeer(Peer peer, ClientTest test) throws Exception {
+        Path dir = Files.createTempDirectory("ssl-engine-client-deadline");
+        try {
+            SSLContext ctx = newContext(dir);
+            try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
+                ssc.socket().bind(new InetSocketAddress("localhost", 0));
+                int port = ssc.socket().getLocalPort();
+                final AtomicReference<SocketChannel> accepted = new AtomicReference<>();
+                Thread remote = Thread.ofVirtual().start(() -> {
+                    try {
+                        SocketChannel sc = ssc.accept();
+                        accepted.set(sc);
+                        peer.run(sc);
+                    } catch (Throwable ignore) { }
+                });
+                SocketChannel ch = SocketChannel.open(
+                    new InetSocketAddress("localhost", port));
+                SSLEngine engine = ctx.createSSLEngine("localhost", port);
+                engine.setUseClientMode(true);
+                SslEngineChannel client = new SslEngineChannel(engine, ch, "client");
+                try {
+                    test.run(client);
+                } finally {
+                    try { client.close(); } catch (Exception ignore) { }
+                    remote.interrupt();
+                    remote.join(2000);
+                    SocketChannel a = accepted.get();
+                    if (a != null) try { a.close(); } catch (Exception ignore) { }
+                }
+            }
+        } finally {
+            deleteDir(dir);
+        }
+    }
+
+    private interface ClientTest {
+        void run(SslEngineChannel client) throws Exception;
+    }
+
+    /**
+     * The client's deadline is total: a peer that sends a byte at a time,
+     * each within the time, does not extend it.
+     */
+    @Test
+    public void testHandshakeDeadlineIsTotalNotPerRead() throws Exception {
+        withPeer(sc -> {
+            java.nio.ByteBuffer one = java.nio.ByteBuffer.wrap(new byte[] { 0x16 });
+            for (int i = 0; i < 100; i++) {
+                one.clear();
+                sc.write(one);
+                Thread.sleep(100);
+            }
+        }, client -> {
+            long t0 = System.currentTimeMillis();
+            try {
+                client.handshake(800L);
+                Assert.fail("the handshake against a trickling peer must time out");
+            } catch (javax.net.ssl.SSLException expected) {
+                long elapsed = System.currentTimeMillis() - t0;
+                Assert.assertTrue("failed after " + elapsed + " ms",
+                                  elapsed >= 700 && elapsed < 3000);
+            }
+        });
+    }
+
+    /** An abort ends a client handshake that waits on its selector. */
+    @Test
+    public void testAbortWakesAClientHandshake() throws Exception {
+        withPeer(sc -> Thread.sleep(30_000), client -> {
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread t = Thread.ofPlatform().start(() -> {
+                try {
+                    client.handshake(30_000L);
+                } catch (Throwable e) {
+                    failure.set(e);
+                }
+            });
+            Thread.sleep(300);
+            long t0 = System.nanoTime();
+            client.abort();
+            t.join(5000);
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            Assert.assertFalse("the handshake must end", t.isAlive());
+            Assert.assertTrue("ended " + ms + " ms after the abort", ms < 1000);
+            Assert.assertTrue(String.valueOf(failure.get()),
+                              failure.get() instanceof java.io.IOException);
+        });
+    }
+
+    /**
+     * An interrupt of the thread that waits for the peer ends the handshake;
+     * it must not make the wait return at once, again and again, until the
+     * deadline.
+     */
+    @Test
+    public void testInterruptEndsAClientHandshakeWithoutSpinning() throws Exception {
+        withPeer(sc -> Thread.sleep(30_000), client -> {
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread t = Thread.ofPlatform().start(() -> {
+                try {
+                    client.handshake(30_000L);
+                } catch (Throwable e) {
+                    failure.set(e);
+                }
+            });
+            Thread.sleep(300);
+            long t0 = System.nanoTime();
+            t.interrupt();
+            t.join(5000);
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            Assert.assertFalse("the handshake must end", t.isAlive());
+            Assert.assertTrue("ended " + ms + " ms after the interrupt", ms < 1000);
+            Assert.assertTrue(String.valueOf(failure.get()),
+                              failure.get() instanceof java.io.InterruptedIOException);
+        });
+    }
+
+    /**
+     * A server handshake blocks in plain reads and ends within a moment of
+     * the raw channel being closed, on a platform and on a virtual thread.
+     */
+    @Test
+    public void testServerHandshakeEndsWhenTheRawChannelIsClosed() throws Exception {
+        for (boolean virtual : new boolean[] { false, true }) {
+            withPeer(sc -> Thread.sleep(30_000), client -> {
+                AtomicReference<Throwable> failure = new AtomicReference<>();
+                Runnable body = () -> {
+                    try {
+                        client.handshakeServer();
+                    } catch (Throwable e) {
+                        failure.set(e);
+                    }
+                };
+                Thread t = virtual ? Thread.ofVirtual().start(body)
+                                   : Thread.ofPlatform().start(body);
+                Thread.sleep(300);
+                long t0 = System.nanoTime();
+                client.rawChannel().close();
+                t.join(5000);
+                long ms = (System.nanoTime() - t0) / 1_000_000L;
+                Assert.assertFalse("the handshake must end", t.isAlive());
+                Assert.assertTrue("virtual=" + virtual + ": ended " + ms
+                    + " ms after the close", ms < 500);
+                Assert.assertTrue(String.valueOf(failure.get()),
+                                  failure.get() instanceof java.io.IOException);
+            });
+        }
+    }
+
+    /**
+     * Closing a channel whose raw channel was closed already, as a watchdog
+     * does, neither throws nor tries to write close_notify.
+     */
+    @Test
+    public void testCloseToleratesAClosedRawChannel() throws Exception {
+        Path dir = Files.createTempDirectory("ssl-engine-close-closed");
+        try {
+            SSLContext ctx = newContext(dir);
+            try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
+                ssc.socket().bind(new InetSocketAddress("localhost", 0));
+                int port = ssc.socket().getLocalPort();
+                final AtomicReference<Throwable> serverError = new AtomicReference<>();
+                Thread server = Thread.ofVirtual().start(() -> {
+                    try (SocketChannel sc = ssc.accept()) {
+                        SSLEngine e = ctx.createSSLEngine();
+                        e.setUseClientMode(false);
+                        SslEngineChannel s = new SslEngineChannel(e, sc, "server");
+                        s.handshakeServer();
+                        Thread.sleep(500);
+                    } catch (Throwable t) { serverError.set(t); }
+                });
+                SocketChannel ch = SocketChannel.open(
+                    new InetSocketAddress("localhost", port));
+                SSLEngine engine = ctx.createSSLEngine("localhost", port);
+                engine.setUseClientMode(true);
+                SslEngineChannel client = new SslEngineChannel(engine, ch, "client");
+                client.handshake();
+                client.rawChannel().close();
+                client.close();
+                Assert.assertTrue(client.isClosed());
+                server.join(10_000);
+                if (serverError.get() != null) {
+                    throw new AssertionError("server failed", serverError.get());
+                }
+            }
+        } finally {
+            deleteDir(dir);
+        }
+    }
+
+    /**
      * F1: the engine negotiates TLS 1.3 (the transport pins it and the
      * decacheSession/establish assertions require it).  Confirms the handshake's
      * session protocol is exactly {@code TLSv1.3}.

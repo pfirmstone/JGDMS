@@ -174,7 +174,7 @@ public class SslServerAcceptPathTest {
             int handled = l.recorder.count();
             CountDownLatch entered = new CountDownLatch(1);
             CountDownLatch release = new CountDownLatch(1);
-            l.handle.beforeRegister = () -> {
+            l.handle.beforeComplete = h -> {
                 entered.countDown();
                 try {
                     release.await();

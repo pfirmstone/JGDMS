@@ -53,7 +53,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -1181,6 +1183,16 @@ class SslServerEndpointImpl extends Utilities {
 
     /** Implements ListenHandle */
     static class SslListenHandle extends Utilities implements ListenHandle {
+
+		/**
+		 * The system property that sets how long a server handshake may take,
+		 * in milliseconds, from the accept to the end of the handshake.
+		 */
+		static final String SERVER_HANDSHAKE_TIMEOUT_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeTimeout";
+
+		/** The default total time for a server handshake: 10 seconds. */
+		static final long DEFAULT_SERVER_HANDSHAKE_TIMEOUT = 10_000L;
         
         private final SslListenEndpoint listenEndpoint;
 
@@ -1209,6 +1221,12 @@ class SslServerEndpointImpl extends Utilities {
 		/** Counts the handshakes by outcome and summarises failures. */
 		private final HandshakeCounters counters;
 
+		/**
+		 * The time in nanoseconds that a handshake has, counted from the
+		 * accept, or 0 for no limit.
+		 */
+		private final long handshakeTimeoutNanos;
+
 		/** The string form of this handle, for threads and log lines. */
 		private final String description;
 
@@ -1221,9 +1239,15 @@ class SslServerEndpointImpl extends Utilities {
 
 		/**
 		 * For tests: run by a handshake task after its connection has been
-		 * built and before the connection is registered.
+		 * built and before it completes the handshake.
 		 */
-		volatile Runnable beforeRegister;
+		volatile java.util.function.Consumer<Handshake> beforeComplete;
+
+		/**
+		 * For tests: run by a handshake task after it has completed and
+		 * disarmed the watchdog, and before it registers the connection.
+		 */
+		volatile java.util.function.Consumer<Handshake> afterComplete;
 
 		/** Creates a listen handle */
 		SslListenHandle(RequestDispatcher requestDispatcher,
@@ -1240,6 +1264,12 @@ class SslServerEndpointImpl extends Utilities {
 			this.acceptThread = null;
 			this.description = toString();
 			this.counters = new HandshakeCounters(logger, description);
+			long millis = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_HANDSHAKE_TIMEOUT_PROPERTY,
+								  DEFAULT_SERVER_HANDSHAKE_TIMEOUT))).longValue();
+			this.handshakeTimeoutNanos = millis > 0
+				? Math.min(millis, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
+				: 0L;
 		}
 
 		/**
@@ -1336,7 +1366,14 @@ class SslServerEndpointImpl extends Utilities {
 		 * not told, because the peer has done nothing wrong.
 		 */
 		void startHandshake(Socket socket) {
-			Handshake handshake = new Handshake(socket);
+			long deadline = 0L;
+			if (handshakeTimeoutNanos > 0L) {
+				deadline = System.nanoTime() + handshakeTimeoutNanos;
+				if (deadline == 0L) {
+					deadline = 1L;
+				}
+			}
+			Handshake handshake = new Handshake(socket, deadline);
 			boolean started = false;
 			try {
 				/* Send data without delay */
@@ -1361,6 +1398,7 @@ class SslServerEndpointImpl extends Utilities {
 					inProgress.add(handshake);
 				}
 				counters.noteAccepted();
+				handshake.arm();
 				newThread(description + " handshake", handshake).start();
 				started = true;
 			} catch (Throwable t) {
@@ -1371,6 +1409,7 @@ class SslServerEndpointImpl extends Utilities {
 				}
 			} finally {
 				if (!started) {
+					handshake.disarm();
 					synchronized (this) {
 						inProgress.remove(handshake);
 					}
@@ -1389,11 +1428,23 @@ class SslServerEndpointImpl extends Utilities {
 		private void handshakeTask(Handshake handshake) {
 			SslServerConnection connection = null;
 			Throwable failure = null;
+			boolean complete = false;
 			try {
-				connection = serverConnection(handshake.socket);
-				Runnable hook = beforeRegister;
+				connection = serverConnection(handshake.socket, handshake.deadline);
+				java.util.function.Consumer<Handshake> hook = beforeComplete;
 				if (hook != null) {
-					hook.run();
+					hook.accept(handshake);
+				}
+				/*
+				 * The watchdog and this task race to move the handshake out
+				 * of RUNNING; whoever wins decides.  Once this task has
+				 * won, the watchdog can no longer close the socket, so
+				 * the connection can be handed on.
+				 */
+				complete = handshake.complete();
+				java.util.function.Consumer<Handshake> after = afterComplete;
+				if (after != null) {
+					after.accept(handshake);
 				}
 			} catch (Throwable t) {
 				failure = t;
@@ -1402,7 +1453,7 @@ class SslServerEndpointImpl extends Utilities {
 			try {
 				synchronized (this) {
 					inProgress.remove(handshake);
-					if (failure == null && connection != null && !closed) {
+					if (failure == null && complete && connection != null && !closed) {
 						connections.add(connection);
 						registered = true;
 					}
@@ -1464,11 +1515,14 @@ class SslServerEndpointImpl extends Utilities {
 			synchronized (this) {
 				closedSync = closed;
 			}
-			HandshakeCounters.Kind kind = closedSync
-				? HandshakeCounters.Kind.LISTENER_CLOSED
-				: failure == null
-					? HandshakeCounters.Kind.INTERNAL
-					: HandshakeCounters.classify(failure);
+			handshake.disarm();
+			HandshakeCounters.Kind kind = handshake.isTimedOut()
+				? HandshakeCounters.Kind.TIMEOUT
+				: closedSync
+					? HandshakeCounters.Kind.LISTENER_CLOSED
+					: failure == null
+						? HandshakeCounters.Kind.INTERNAL
+						: HandshakeCounters.classify(failure);
 			counters.noteFailed(kind);
 			if (logger.isLoggable(Level.FINE)) {
 				logger.log(Level.FINE, "handshake with " + handshake
@@ -1554,17 +1608,85 @@ class SslServerEndpointImpl extends Utilities {
 			return true;
 		}
 
-		/** An accepted socket whose handshake is in progress. */
-		private final class Handshake implements Runnable {
+		/**
+		 * An accepted socket whose handshake is in progress.  The handshake
+		 * task and the watchdog race to move it from RUNNING, the task to
+		 * DONE when the handshake has finished, the watchdog to TIMED_OUT
+		 * when it has run out of time.  Whoever wins decides: after DONE the
+		 * watchdog never closes the socket, after TIMED_OUT the task never
+		 * hands the connection on.
+		 */
+		final class Handshake implements Runnable {
+
+			private static final int RUNNING = 0;
+			private static final int DONE = 1;
+			private static final int TIMED_OUT = 2;
 
 			final Socket socket;
 
-			Handshake(Socket socket) {
+			/** The System.nanoTime() at which the time runs out, or 0. */
+			final long deadline;
+
+			private final AtomicInteger state = new AtomicInteger(RUNNING);
+
+			private volatile ScheduledFuture<?> timer;
+
+			Handshake(Socket socket, long deadline) {
 				this.socket = socket;
+				this.deadline = deadline;
 			}
 
 			public void run() {
 				handshakeTask(this);
+			}
+
+			/** Starts the watchdog for this handshake. */
+			void arm() {
+				if (deadline != 0L) {
+					timer = HandshakeWatchdog.schedule(
+						this::timedOut,
+						Math.max(0L, deadline - System.nanoTime()));
+				}
+			}
+
+			/** Stops the watchdog if it has not yet started to run. */
+			void disarm() {
+				ScheduledFuture<?> t = timer;
+				if (t != null) {
+					t.cancel(false);
+				}
+			}
+
+			/**
+			 * Called by the watchdog when the time has run out: closes the
+			 * raw socket, unless the task has already completed the
+			 * handshake.
+			 *
+			 * @return whether the handshake was cut off
+			 */
+			boolean timedOut() {
+				if (!state.compareAndSet(RUNNING, TIMED_OUT)) {
+					return false;
+				}
+				closeSocket();
+				return true;
+			}
+
+			/**
+			 * Called by the task when the handshake has finished: disarms the
+			 * watchdog.
+			 *
+			 * @return false if the watchdog got there first, in which case
+			 *         the raw socket is closed and the connection is dead
+			 */
+			boolean complete() {
+				boolean won = state.compareAndSet(RUNNING, DONE);
+				disarm();
+				return won;
+			}
+
+			boolean isTimedOut() {
+				return state.get() == TIMED_OUT;
 			}
 
 			/**
@@ -1597,11 +1719,16 @@ class SslServerEndpointImpl extends Utilities {
 			listenEndpoint.serverHost + ":" + getPort() + "]";
 		}
 
-		/** Returns a connection for the specified socket. */
-		SslServerConnection serverConnection(Socket socket)
+		/**
+		 * Returns a connection for the specified socket, doing the handshake.
+		 *
+		 * @param deadline the {@code System.nanoTime()} at which the
+		 *        handshake has run out of time, or 0 for no limit
+		 */
+		SslServerConnection serverConnection(Socket socket, long deadline)
 			throws IOException
 		{
-			return new SslServerConnection(this, socket);
+			return new SslServerConnection(this, socket, deadline);
 		}
 
 		/** Handles a newly accepted server connection.
@@ -1823,7 +1950,8 @@ class SslServerEndpointImpl extends Utilities {
 		volatile boolean closed;
 
 		/** Creates a server connection */
-		SslServerConnection(SslListenHandle listenHandle, Socket socket)
+		SslServerConnection(SslListenHandle listenHandle, Socket socket,
+							long deadline)
 			throws IOException
 		{
 			this.listenHandle = listenHandle;
@@ -1861,13 +1989,15 @@ class SslServerEndpointImpl extends Utilities {
 						engine, ch,
 						socket.getInetAddress() + ":" + socket.getPort());
 					/*
-					 * Drive the handshake inline on this (virtual) accept-loop
+					 * Drive the handshake inline on this (virtual) handshake
 					 * thread; delegated tasks run inline too (see
-					 * SslEngineChannel).  The accept loop is subject-neutral, so
+					 * SslEngineChannel).  The thread is subject-neutral, so
 					 * client-auth credential selection reads the ServerAuthManager
-					 * captured subject, not an ambient thread subject.
+					 * captured subject, not an ambient thread subject.  The
+					 * reads and writes block; the watchdog ends the handshake
+					 * by closing the socket if it takes too long.
 					 */
-					engineChannel.handshake();
+					engineChannel.handshakeServer();
 					sess = engine.getSession();
 					/*
 					 * Fail-closed: the negotiated protocol MUST be TLS 1.3
@@ -1894,6 +2024,25 @@ class SslServerEndpointImpl extends Utilities {
 					/* Need to put in server mode before requesting client auth. */
 					sslSocket.setUseClientMode(false);
 					sslSocket.setNeedClientAuth(true);
+					/*
+					 * Handshake explicitly, rather than through getSession,
+					 * which has no time limit and hides the cause of a
+					 * failure.  The read timeout bounds a silent peer to the
+					 * time that is left; the watchdog bounds the whole
+					 * handshake, and a write to a peer that does not read.
+					 */
+					int soTimeout = sslSocket.getSoTimeout();
+					if (deadline != 0L) {
+						long left = TimeUnit.NANOSECONDS.toMillis(
+							deadline - System.nanoTime());
+						if (left <= 0L) {
+							throw new java.net.SocketTimeoutException(
+								"TLS handshake timed out");
+						}
+						sslSocket.setSoTimeout((int) Math.min(left, Integer.MAX_VALUE));
+					}
+					sslSocket.startHandshake();
+					sslSocket.setSoTimeout(soTimeout);
 					sess = sslSocket.getSession();
 					sslSocket.setEnableSessionCreation(false);
 				}

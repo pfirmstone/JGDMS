@@ -351,6 +351,20 @@ import net.jini.security.SecurityContext;
  *	and is written when a handshake fails and the interval has
  *	passed since the last summary. The default is 30000. A value of
  *	0 or less turns the summary off.
+ * <li> <code>org.apache.river.jeri.ssl.serverHandshakeTimeout</code> -
+ *	The number of milliseconds that a server has to complete the TLS
+ *	handshake with a connection, counted from the moment the
+ *	connection is accepted. When it has passed, the server closes
+ *	the connection. The limit covers every wait of the handshake,
+ *	reads and writes, and does not grow when the peer sends a byte
+ *	at a time. It ends when the handshake finishes; it does not
+ *	limit what the peer does afterwards. The default is 10000. A
+ *	value of 0 or less removes the limit.
+ * <li> <code>org.apache.river.jeri.ssl.handshakeTimeout</code> - The
+ *	number of milliseconds that a client allows for the TLS
+ *	handshake with a server, counted from its start. The default is
+ *	60000. It applies to client connections only; a server uses
+ *	org.apache.river.jeri.ssl.serverHandshakeTimeout.
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {
@@ -935,10 +949,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	    }
 
             @Override
-	    SslServerConnection serverConnection(Socket socket)
+	    SslServerConnection serverConnection(Socket socket, long deadline)
 		throws IOException
 	    {
-		return new HttpsServerConnection(this, socket);
+		return new HttpsServerConnection(this, socket, deadline);
 	    }
 
             @Override
@@ -1128,10 +1142,11 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	    private HttpServer httpServer;
 
 	    /** Creates a server connection. */
-	    HttpsServerConnection(HttpsListenHandle listenHandle, Socket socket)
+	    HttpsServerConnection(HttpsListenHandle listenHandle, Socket socket,
+				  long deadline)
 		throws IOException
 	    {
-		super(listenHandle, socket);
+		super(listenHandle, socket, deadline);
 	    }
 
 	    void closeInternal(boolean removeFromListener) throws IOException {

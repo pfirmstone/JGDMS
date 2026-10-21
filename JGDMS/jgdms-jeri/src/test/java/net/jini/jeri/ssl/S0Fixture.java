@@ -194,9 +194,17 @@ final class S0Fixture {
                  ConnectionHook hook, RequestDispatcher requestDispatcher)
             throws IOException
         {
+            this(recorder, ssf, hook, requestDispatcher, server);
+        }
+
+        Listener(Recorder recorder, ServerSocketFactory ssf,
+                 ConnectionHook hook, RequestDispatcher requestDispatcher,
+                 SslEngineSvidFactory.Svid svid)
+            throws IOException
+        {
             this.recorder = recorder;
             this.endpoint = new SslServerEndpointImpl.SslListenEndpoint(
-                server.subject, new X500Principal[] { server.x500 },
+                svid.subject, new X500Principal[] { svid.x500 },
                 "localhost", 0, null, ssf)
             {
                 @Override
@@ -209,13 +217,16 @@ final class S0Fixture {
                     {
                         @Override
                         SslServerEndpointImpl.SslServerConnection
-                        serverConnection(Socket socket) throws IOException {
+                        serverConnection(Socket socket, long deadline)
+                            throws IOException
+                        {
                             if (hook == null) {
-                                return super.serverConnection(socket);
+                                return super.serverConnection(socket, deadline);
                             }
                             try {
                                 return hook.serverConnection(
-                                    socket, () -> super.serverConnection(socket));
+                                    socket,
+                                    () -> super.serverConnection(socket, deadline));
                             } catch (IOException | RuntimeException | Error e) {
                                 throw e;
                             } catch (Exception e) {
@@ -245,6 +256,13 @@ final class S0Fixture {
     /** A listener on the SSLSocket path, as for HTTPS or a socket factory. */
     static Listener listenWithSocketFactory() throws IOException {
         return new Listener(new Recorder(), ServerSocketFactory.getDefault(), null);
+    }
+
+    /** A listener that authenticates as the given server identity. */
+    static Listener listen(SslEngineSvidFactory.Svid svid) throws IOException {
+        return new Listener(new Recorder(), null, null, new RequestDispatcher() {
+            public void dispatch(InboundRequest request) { }
+        }, svid);
     }
 
     static Listener listen(ConnectionHook hook) throws IOException {
@@ -317,6 +335,71 @@ final class S0Fixture {
     static void closeAll(List<Socket> sockets) {
         for (Socket s : sockets) {
             try { s.close(); } catch (IOException ignore) { }
+        }
+    }
+
+    /**
+     * Returns the bytes of a ClientHello from a client that holds the trusted
+     * client credential.  Any server answers it with its first flight, so
+     * replaying it needs no cryptography.
+     */
+    static byte[] captureClientHello() throws Exception {
+        javax.net.ssl.SSLEngine engine = clientContext.createSSLEngine("localhost", 0);
+        engine.setUseClientMode(true);
+        java.nio.ByteBuffer out = java.nio.ByteBuffer.allocate(
+            engine.getSession().getPacketBufferSize());
+        engine.beginHandshake();
+        engine.wrap(java.nio.ByteBuffer.allocate(0), out);
+        out.flip();
+        byte[] hello = new byte[out.remaining()];
+        out.get(hello);
+        return hello;
+    }
+
+    /** Returns the process CPU time in nanoseconds. */
+    static long processCpuNanos() {
+        return ((com.sun.management.OperatingSystemMXBean)
+            java.lang.management.ManagementFactory.getOperatingSystemMXBean())
+            .getProcessCpuTime();
+    }
+
+    /**
+     * Waits until the peer closes the connection, by end of file or reset, and
+     * returns the milliseconds that took, or -1 if it did not within the
+     * limit.
+     */
+    static long awaitClosed(Socket s, long limitMillis) throws IOException {
+        long t0 = System.nanoTime();
+        s.setSoTimeout((int) limitMillis);
+        byte[] buf = new byte[4096];
+        try {
+            while (s.getInputStream().read(buf) >= 0) {
+                if (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) > limitMillis) {
+                    return -1L;
+                }
+            }
+        } catch (java.net.SocketTimeoutException e) {
+            return -1L;
+        } catch (IOException reset) {
+            /* the server closed with unread data: counts as closed */
+        }
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+    }
+
+    /** Runs the action with a system property set, then restores it. */
+    static <T> T withProperty(String name, String value, Callable<T> action)
+        throws Exception
+    {
+        String old = System.getProperty(name);
+        System.setProperty(name, value);
+        try {
+            return action.call();
+        } finally {
+            if (old == null) {
+                System.clearProperty(name);
+            } else {
+                System.setProperty(name, old);
+            }
         }
     }
 
