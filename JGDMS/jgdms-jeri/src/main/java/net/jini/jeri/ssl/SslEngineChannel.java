@@ -280,7 +280,72 @@ final class SslEngineChannel {
      * authenticated.
      */
     void handshakeServer() throws IOException {
-        handshake(0L);
+        handshakeServer(null);
+    }
+
+    /**
+     * Bounds the CPU that the server side of a handshake spends before the
+     * peer is authenticated.  {@link #begin} is called when the server has
+     * consumed a ClientHello and has the key exchange and the signature of its
+     * first flight to compute, and {@link #end} when that flight has been
+     * written, or the handshake has ended, whichever is first.  An
+     * implementation can make {@code begin} wait for a permit, so that a peer
+     * that sends one ClientHello after another gets no more of the server's
+     * CPU than the permits allow, however quickly it sends them.
+     */
+    interface ServerGate {
+        void begin() throws IOException;
+        void end();
+    }
+
+    /**
+     * Runs the server side of the handshake as {@link #handshakeServer()}
+     * does, with the work that follows each ClientHello inside the gate.
+     *
+     * @param gate the gate, or null for none
+     */
+    void handshakeServer(ServerGate gate) throws IOException {
+        this.gate = gate;
+        try {
+            handshake(0L);
+        } finally {
+            endGate();
+            this.gate = null;
+        }
+    }
+
+    /** The gate of a server handshake, or null. */
+    private ServerGate gate;
+
+    /** Whether the handshake is between {@code gate.begin} and {@code gate.end}. */
+    private boolean gateHeld;
+
+    /** Whether a ClientHello has been seen and the work that follows is not done. */
+    private boolean helloPending;
+
+    private void beginGate() throws IOException {
+        if (gate != null && !gateHeld) {
+            gate.begin();
+            gateHeld = true;
+        }
+    }
+
+    private void endGate() {
+        if (gateHeld) {
+            gateHeld = false;
+            gate.end();
+        }
+    }
+
+    /**
+     * Returns whether the ciphertext in {@code buf}, ready to be read, starts
+     * a handshake record that carries the start of a ClientHello.
+     */
+    private static boolean startsClientHello(ByteBuffer buf) {
+        int p = buf.position();
+        return buf.remaining() >= 6
+            && buf.get(p) == 22          // handshake record
+            && buf.get(p + 5) == 1;      // ClientHello
     }
 
     /**
@@ -320,6 +385,11 @@ final class SslEngineChannel {
                     break;
                 case NEED_WRAP:
                     status = handshakeWrap();
+                    if (status == HandshakeStatus.NEED_UNWRAP) {
+                        // The server's flight is written: the work that a
+                        // ClientHello causes is done.
+                        endGate();
+                    }
                     break;
                 case NEED_UNWRAP:
                 case NEED_UNWRAP_AGAIN:
@@ -413,6 +483,9 @@ final class SslEngineChannel {
                 netIn.flip();
                 SSLEngineResult result;
                 try {
+                    if (gate != null && startsClientHello(netIn)) {
+                        helloPending = true;
+                    }
                     // Handshake records carry no application data; unwrap into a
                     // scratch sink so appIn is untouched (and stays "drained"
                     // for the first application read).
@@ -423,7 +496,18 @@ final class SslEngineChannel {
                 }
                 switch (result.getStatus()) {
                     case OK:
-                        return result.getHandshakeStatus();
+                        HandshakeStatus next = result.getHandshakeStatus();
+                        if (helloPending
+                            && (next == HandshakeStatus.NEED_TASK
+                                || next == HandshakeStatus.NEED_WRAP))
+                        {
+                            // The ClientHello is consumed (it may have come in
+                            // pieces) and the key exchange and signatures are
+                            // next: they are what a replayed hello costs.
+                            helloPending = false;
+                            beginGate();
+                        }
+                        return next;
                     case BUFFER_UNDERFLOW:
                         if (!fillNetIn()) {
                             throw new EOFException(

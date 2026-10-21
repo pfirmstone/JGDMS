@@ -338,8 +338,9 @@ public class SslServerHandshakeDeadlineTest {
             long t0 = System.nanoTime();
             Thread t = Thread.ofPlatform().start(() -> {
                 try {
-                    l.handle.serverConnection(accepted,
-                        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(700));
+                    l.handle.serverConnection(accepted, l.handle.new Handshake(
+                        accepted,
+                        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(700)));
                 } catch (Throwable e) {
                     failure.set(e);
                 }

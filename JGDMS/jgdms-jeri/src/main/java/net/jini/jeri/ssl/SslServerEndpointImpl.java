@@ -18,7 +18,9 @@
 
 package net.jini.jeri.ssl;
 
+import org.apache.river.action.GetIntegerAction;
 import org.apache.river.action.GetLongAction;
+import org.apache.river.action.GetPropertyAction;
 import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.connection.BasicServerConnManager;
 import org.apache.river.jeri.internal.connection.ServerConnManager;
@@ -58,6 +60,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -1195,6 +1198,30 @@ class SslServerEndpointImpl extends Utilities {
 
 		/** The default total time for a server handshake: 10 seconds. */
 		static final long DEFAULT_SERVER_HANDSHAKE_TIMEOUT = 10_000L;
+
+		/**
+		 * The system property that sets the number of server handshakes that
+		 * may compute their first flight at once.
+		 */
+		static final String SERVER_CPU_PERMITS_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeCpuPermits";
+
+		/**
+		 * The system property that sets the named groups, in order of
+		 * preference, that a server negotiates, separated by commas.  An empty
+		 * value negotiates whatever the JVM enables.
+		 */
+		static final String SERVER_NAMED_GROUPS_PROPERTY =
+			"org.apache.river.jeri.ssl.serverNamedGroups";
+
+		/**
+		 * The default named groups of a server.  The JVM enables others that
+		 * cost the server much more per handshake, which a peer that chooses
+		 * the group makes the server pay for: secp521r1 about four times and
+		 * ffdhe8192 ten times what x25519 costs.
+		 */
+		static final String DEFAULT_SERVER_NAMED_GROUPS =
+			"X25519MLKEM768,x25519,secp256r1";
         
         private final SslListenEndpoint listenEndpoint;
 
@@ -1246,6 +1273,23 @@ class SslServerEndpointImpl extends Utilities {
 
 		private final int maxHandshakes;
 		private final int maxQueued;
+
+		/**
+		 * One permit for each handshake that computes the first flight of its
+		 * server side.  The limit on the handshakes that work bounds the
+		 * memory and the descriptors; this bounds the CPU, which a peer that
+		 * replays a ClientHello and then closes can spend at a rate of
+		 * thousands a second although each of its connections lasts a few
+		 * milliseconds.
+		 */
+		private final Semaphore cpu;
+		private final int cpuPermits;
+
+		/** The number of times a handshake has been given a permit of {@code cpu}. */
+		private final AtomicLong cpuEntries = new AtomicLong();
+
+		/** The named groups to negotiate, or null for those the JVM enables. */
+		private final String[] namedGroups;
 
 		/**
 		 * The accepted connections that have not finished their handshake.
@@ -1302,6 +1346,16 @@ class SslServerEndpointImpl extends Utilities {
 			this.maxQueued = limits.maxQueued;
 			this.admission = new Semaphore(maxHandshakes + maxQueued);
 			this.running = new Semaphore(maxHandshakes, true);
+			int permits = ((Integer) Security.doPrivileged(
+				new GetIntegerAction(SERVER_CPU_PERMITS_PROPERTY, -1))).intValue();
+			if (permits < 1) {
+				permits = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
+			}
+			this.cpuPermits = permits;
+			this.cpu = new Semaphore(permits, true);
+			this.namedGroups = parseNamedGroups((String) Security.doPrivileged(
+				new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
+									  DEFAULT_SERVER_NAMED_GROUPS)));
 		}
 
 		/**
@@ -1510,7 +1564,7 @@ class SslServerEndpointImpl extends Utilities {
 					 * and this thread.
 					 */
 					handshake.awaitPermit();
-					connection = serverConnection(handshake.socket, handshake.deadline);
+					connection = serverConnection(handshake.socket, handshake);
 					java.util.function.Consumer<Handshake> hook = beforeComplete;
 					if (hook != null) {
 						hook.accept(handshake);
@@ -1623,6 +1677,23 @@ class SslServerEndpointImpl extends Utilities {
 		}
 
 		/**
+		 * Splits a list of named groups separated by commas; returns null for
+		 * a list with no names.
+		 */
+		static String[] parseNamedGroups(String list) {
+			List<String> names = new ArrayList<String>();
+			if (list != null) {
+				for (String name : list.split(",")) {
+					name = name.trim();
+					if (!name.isEmpty()) {
+						names.add(name);
+					}
+				}
+			}
+			return names.isEmpty() ? null : names.toArray(new String[0]);
+		}
+
+		/**
 		 * Creates an unstarted virtual thread, subject-neutral like the
 		 * accept thread, for the given task.
 		 */
@@ -1699,7 +1770,7 @@ class SslServerEndpointImpl extends Utilities {
 		 * watchdog never closes the socket, after TIMED_OUT the task never
 		 * hands the connection on.
 		 */
-		final class Handshake implements Runnable {
+		final class Handshake implements Runnable, SslEngineChannel.ServerGate {
 
 			private static final int RUNNING = 0;
 			private static final int DONE = 1;
@@ -1754,6 +1825,43 @@ class SslServerEndpointImpl extends Utilities {
 				}
 			}
 
+			/** Whether this handshake holds a permit of {@code cpu}. */
+			private boolean computing;
+
+			/**
+			 * Waits for a permit to compute the first flight, for as long as
+			 * the handshake has time.
+			 */
+			public void begin() throws IOException {
+				waiter = Thread.currentThread();
+				try {
+					if (deadline == 0L) {
+						cpu.acquire();
+					} else {
+						long left = deadline - System.nanoTime();
+						if (left <= 0L || !cpu.tryAcquire(left, TimeUnit.NANOSECONDS)) {
+							throw new java.net.SocketTimeoutException(
+								"timed out waiting for the processor");
+						}
+					}
+					computing = true;
+					cpuEntries.incrementAndGet();
+				} catch (InterruptedException e) {
+					throw new java.io.InterruptedIOException(
+						"interrupted waiting for the processor");
+				} finally {
+					waiter = null;
+				}
+			}
+
+			/** Gives the permit to compute back, if this handshake has it. */
+			public void end() {
+				if (computing) {
+					computing = false;
+					cpu.release();
+				}
+			}
+
 			/**
 			 * Gives back the permits and stops the watchdog.  The task calls
 			 * this when the socket is closed or registered; the permits are
@@ -1762,6 +1870,7 @@ class SslServerEndpointImpl extends Utilities {
 			void release() {
 				if (released.compareAndSet(false, true)) {
 					disarm();
+					end();
 					if (working) {
 						running.release();
 					}
@@ -1866,15 +1975,14 @@ class SslServerEndpointImpl extends Utilities {
 		}
 
 		/**
-		 * Returns a connection for the specified socket, doing the handshake.
-		 *
-		 * @param deadline the {@code System.nanoTime()} at which the
-		 *        handshake has run out of time, or 0 for no limit
+		 * Returns a connection for the specified socket, doing the handshake
+		 * that the argument describes: when it has run out of time, and the
+		 * gate on its use of the processor.
 		 */
-		SslServerConnection serverConnection(Socket socket, long deadline)
+		SslServerConnection serverConnection(Socket socket, Handshake handshake)
 			throws IOException
 		{
-			return new SslServerConnection(this, socket, deadline);
+			return new SslServerConnection(this, socket, handshake);
 		}
 
 		/** Handles a newly accepted server connection.
@@ -2004,6 +2112,21 @@ class SslServerEndpointImpl extends Utilities {
 			return admitted.get();
 		}
 
+		/** Returns the number of permits to compute a first flight that are free. */
+		int cpuPermitsAvailable() {
+			return cpu.availablePermits();
+		}
+
+		/** Returns how often a handshake has been given a permit to compute. */
+		long cpuEntries() {
+			return cpuEntries.get();
+		}
+
+		/** Returns the number of permits to compute a first flight. */
+		int cpuPermits() {
+			return cpuPermits;
+		}
+
 		/** Returns the most handshakes that work at once. */
 		int maxHandshakes() {
 			return maxHandshakes;
@@ -2122,9 +2245,10 @@ class SslServerEndpointImpl extends Utilities {
 
 		/** Creates a server connection */
 		SslServerConnection(SslListenHandle listenHandle, Socket socket,
-							long deadline)
+							SslListenHandle.Handshake handshake)
 			throws IOException
 		{
+			long deadline = handshake.deadline;
 			this.listenHandle = listenHandle;
 			this.peerAddress = socket.getInetAddress();
 			this.peerPort = socket.getPort();
@@ -2155,6 +2279,14 @@ class SslServerEndpointImpl extends Utilities {
 					javax.net.ssl.SSLParameters params = engine.getSSLParameters();
 					params.setCipherSuites(getSupportedCipherSuites());
 					params.setProtocols(new String[]{ "TLSv1.3" });
+					/*
+					 * Pin the key exchange groups.  The peer picks from the
+					 * groups the server enables, and the dearest cost the
+					 * server several times as much as the cheapest.
+					 */
+					if (listenHandle.namedGroups != null) {
+						params.setNamedGroups(listenHandle.namedGroups);
+					}
 					engine.setSSLParameters(params);
 					engineChannel = new SslEngineChannel(
 						engine, ch,
@@ -2168,7 +2300,7 @@ class SslServerEndpointImpl extends Utilities {
 					 * reads and writes block; the watchdog ends the handshake
 					 * by closing the socket if it takes too long.
 					 */
-					engineChannel.handshakeServer();
+					engineChannel.handshakeServer(handshake);
 					sess = engine.getSession();
 					/*
 					 * Fail-closed: the negotiated protocol MUST be TLS 1.3
@@ -2195,6 +2327,11 @@ class SslServerEndpointImpl extends Utilities {
 					/* Need to put in server mode before requesting client auth. */
 					sslSocket.setUseClientMode(false);
 					sslSocket.setNeedClientAuth(true);
+					if (listenHandle.namedGroups != null) {
+						javax.net.ssl.SSLParameters sp = sslSocket.getSSLParameters();
+						sp.setNamedGroups(listenHandle.namedGroups);
+						sslSocket.setSSLParameters(sp);
+					}
 					/*
 					 * Handshake explicitly, rather than through getSession,
 					 * which has no time limit and hides the cause of a

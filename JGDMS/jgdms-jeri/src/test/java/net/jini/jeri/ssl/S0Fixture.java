@@ -217,16 +217,16 @@ final class S0Fixture {
                     {
                         @Override
                         SslServerEndpointImpl.SslServerConnection
-                        serverConnection(Socket socket, long deadline)
+                        serverConnection(Socket socket, Handshake handshake)
                             throws IOException
                         {
                             if (hook == null) {
-                                return super.serverConnection(socket, deadline);
+                                return super.serverConnection(socket, handshake);
                             }
                             try {
                                 return hook.serverConnection(
                                     socket,
-                                    () -> super.serverConnection(socket, deadline));
+                                    () -> super.serverConnection(socket, handshake));
                             } catch (IOException | RuntimeException | Error e) {
                                 throw e;
                             } catch (Exception e) {
@@ -294,6 +294,32 @@ final class S0Fixture {
         }
     }
 
+    /**
+     * Makes a TLS connection as the trusted client that offers only the given
+     * named groups, and returns whether the listener handed it on.
+     */
+    static boolean connectOffering(Listener l, String... groups) throws Exception {
+        int before = l.recorder.count();
+        try (SSLSocket s = (SSLSocket) clientContext.getSocketFactory()
+                 .createSocket("localhost", l.port))
+        {
+            s.setSoTimeout(10_000);
+            if (groups.length > 0) {
+                javax.net.ssl.SSLParameters p = s.getSSLParameters();
+                p.setNamedGroups(groups);
+                s.setSSLParameters(p);
+            }
+            try {
+                s.startHandshake();
+                s.getOutputStream().write(0);
+                s.getOutputStream().flush();
+            } catch (IOException refused) {
+                return false;
+            }
+            return l.recorder.await(before + 1, 5_000);
+        }
+    }
+
     /** Makes a TLS connection as the client that the server does not trust. */
     static void connectStranger(Listener l) throws Exception {
         try (SSLSocket s = (SSLSocket) strangerContext.getSocketFactory()
@@ -343,9 +369,14 @@ final class S0Fixture {
      * client credential.  Any server answers it with its first flight, so
      * replaying it needs no cryptography.
      */
-    static byte[] captureClientHello() throws Exception {
+    static byte[] captureClientHello(String... groups) throws Exception {
         javax.net.ssl.SSLEngine engine = clientContext.createSSLEngine("localhost", 0);
         engine.setUseClientMode(true);
+        if (groups.length > 0) {
+            javax.net.ssl.SSLParameters p = engine.getSSLParameters();
+            p.setNamedGroups(groups);
+            engine.setSSLParameters(p);
+        }
         java.nio.ByteBuffer out = java.nio.ByteBuffer.allocate(
             engine.getSession().getPacketBufferSize());
         engine.beginHandshake();

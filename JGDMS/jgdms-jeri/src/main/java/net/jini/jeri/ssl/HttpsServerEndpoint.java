@@ -392,6 +392,33 @@ import net.jini.security.SecurityContext;
  *	are computed. The default is the number that the Java virtual
  *	machine reports, where it can (on Linux and macOS), and 16384
  *	where it cannot (on Windows).
+ * <li> <code>org.apache.river.jeri.ssl.serverNamedGroups</code> - The
+ *	key exchange groups that a server negotiates, in order of
+ *	preference, separated by commas. A client chooses among the
+ *	groups that a server enables, and the groups that the Java
+ *	virtual machine enables by default cost a server very different
+ *	amounts of processor time before it has authenticated the
+ *	client: about 2 ms for x25519, 10 ms for secp521r1 and 27 ms for
+ *	ffdhe8192. A client that offers none of the groups is refused.
+ *	The default is X25519MLKEM768,x25519,secp256r1. The names are
+ *	those of SSLParameters.setNamedGroups; a name that the Java
+ *	virtual machine does not support is never negotiated. An empty
+ *	value does not restrict the groups. The groups apply to the
+ *	SSLEngine and the SSLSocket paths alike.
+ * <li> <code>org.apache.river.jeri.ssl.serverHandshakeCpuPermits</code> -
+ *	The number of TLS handshakes of a server endpoint that may be
+ *	computing the first flight of the server, its key exchange and
+ *	signatures, at one time. A handshake holds a permit from the
+ *	moment the server has read a ClientHello until it has written
+ *	its first flight, so a peer that replays a ClientHello, reads
+ *	the flight and closes costs the server no more than the permits
+ *	allow, although each of its connections lasts a few
+ *	milliseconds. A handshake waits for a permit within its
+ *	serverHandshakeTimeout. The default is the larger of 2 and a
+ *	quarter of the number of processors. A value below 1 selects the
+ *	default. The limit applies to handshakes done with an SSLEngine,
+ *	not to those done with an SSLSocket, which are those of HTTPS
+ *	and of endpoints with a server socket factory.
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {
@@ -976,10 +1003,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	    }
 
             @Override
-	    SslServerConnection serverConnection(Socket socket, long deadline)
+	    SslServerConnection serverConnection(Socket socket, Handshake handshake)
 		throws IOException
 	    {
-		return new HttpsServerConnection(this, socket, deadline);
+		return new HttpsServerConnection(this, socket, handshake);
 	    }
 
             @Override
@@ -1170,10 +1197,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 
 	    /** Creates a server connection. */
 	    HttpsServerConnection(HttpsListenHandle listenHandle, Socket socket,
-				  long deadline)
+				  SslListenHandle.Handshake handshake)
 		throws IOException
 	    {
-		super(listenHandle, socket, deadline);
+		super(listenHandle, socket, handshake);
 	    }
 
 	    void closeInternal(boolean removeFromListener) throws IOException {
