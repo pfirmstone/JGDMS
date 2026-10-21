@@ -107,7 +107,7 @@ public class PreferredClassLoaderCodebaseGrantTest {
 
     private PreferredClassLoader newLoader() {
         return new PreferredClassLoader(new URL[]{jarA, jarB}, 
-                ClassLoader.getPlatformClassLoader(), null, false);
+                ClassLoader.getSystemClassLoader().getParent(), null, false);
     }
 
     private static PermissionGrant grantTo(Class<?> c) {
