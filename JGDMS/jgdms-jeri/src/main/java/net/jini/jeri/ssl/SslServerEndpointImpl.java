@@ -19,6 +19,7 @@
 package net.jini.jeri.ssl;
 
 import org.apache.river.action.GetLongAction;
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.connection.BasicServerConnManager;
 import org.apache.river.jeri.internal.connection.ServerConnManager;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -978,14 +979,15 @@ class SslServerEndpointImpl extends Utilities {
 		 * use a plain {@code ServerSocket} (it drives TLS over an SSLSocket).
 		 */
 		ServerSocket createServerSocket() throws IOException {
+			int backlog = ListenBacklog.get();
 			if (serverSocketFactory != null) {
-				return serverSocketFactory.createServerSocket(port);
+				return serverSocketFactory.createServerSocket(port, backlog);
 			}
 			java.nio.channels.ServerSocketChannel ssc =
 				java.nio.channels.ServerSocketChannel.open();
 			boolean ok = false;
 			try {
-				ssc.socket().bind(new java.net.InetSocketAddress(port));
+				ssc.socket().bind(new java.net.InetSocketAddress(port), backlog);
 				ServerSocket serverSocket = ssc.socket();
 				ok = true;
 				return serverSocket;

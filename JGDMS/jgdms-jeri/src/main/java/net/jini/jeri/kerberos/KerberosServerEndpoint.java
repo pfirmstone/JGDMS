@@ -61,6 +61,7 @@ import net.jini.jeri.kerberos.KerberosUtil.ConfigIter;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 import org.apache.river.action.GetIntegerAction;
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.connection.BasicServerConnManager;
 import org.apache.river.jeri.internal.connection.ServerConnManager;
 import org.apache.river.jeri.internal.runtime.LocalHost;
@@ -249,7 +250,17 @@ import org.ietf.jgss.GSSName;
  * with the client KerberosPrincipal and empty public and privileged credential
  * sets.
  *
- * 
+ * <p>The accept backlog requested when this endpoint binds its listening
+ * socket is set by the <code>org.apache.river.jeri.listenBacklog</code> system
+ * property.  The default is <code>Integer.MAX_VALUE</code>, which each
+ * operating system clamps to its own maximum (on Linux,
+ * <code>net.core.somaxconn</code>); the JDK default of 50 would drop or refuse
+ * connections from more than about 50 simultaneous connectors.  A value below 1
+ * selects the JDK default.  A large backlog lets a remote peer fill kernel
+ * buffers, up to the operating system limit, with connections that are not yet
+ * accepted; operators can lower the value to bound that.  A custom server socket
+ * factory receives the value as the <code>backlog</code> argument.
+ *
  * @see KerberosEndpoint
  * @see KerberosTrustVerifier
  * @since 2.0
@@ -1397,14 +1408,15 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    ServerSocket serverSocket;
 	    boolean done = false;
 	    try {
+		int backlog = ListenBacklog.get();
 		if (ssf != null) {
-		    serverSocket = ssf.createServerSocket(port);
+		    serverSocket = ssf.createServerSocket(port, backlog);
 		    if (logger.isLoggable(Level.FINE)) {
 			logger.log(Level.FINE, "created {0} using factory " +
 				   "{1}", new Object[]{serverSocket, ssf});
 		    }
 		} else {
-		    serverSocket = new ServerSocket(port);
+		    serverSocket = new ServerSocket(port, backlog);
 		    logger.log(Level.FINE, "created {0}", serverSocket);
 		}
 		done = true;

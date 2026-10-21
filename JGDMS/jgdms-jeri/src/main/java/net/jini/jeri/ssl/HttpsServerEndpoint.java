@@ -18,6 +18,7 @@
 
 package net.jini.jeri.ssl;
 
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.http.ConnectionTimer;
 import org.apache.river.jeri.internal.http.HttpServerConnection;
 import org.apache.river.jeri.internal.http.HttpServerManager;
@@ -329,6 +330,18 @@ import net.jini.security.SecurityContext;
  * <li> <code>org.apache.river.jeri.https.responseAckTimeout</code> - The number of
  *	milliseconds to wait for acknowledgments from {@link
  *	AcknowledgmentSource} instances. The default is <code>15000</code>.
+ * <li> <code>org.apache.river.jeri.listenBacklog</code> - The accept backlog
+ *	requested when the server endpoint binds its listening socket, which is
+ *	the number of connections the operating system queues for a listener
+ *	that has not yet accepted them. The default is
+ *	<code>Integer.MAX_VALUE</code>, which each operating system clamps to
+ *	its own maximum (on Linux, <code>net.core.somaxconn</code>); the JDK
+ *	default of 50 would drop or refuse connections from more than about 50
+ *	simultaneous connectors. A value below 1 selects the JDK default. A
+ *	large backlog lets a remote peer fill kernel buffers, up to the
+ *	operating system limit, with connections that are not yet accepted;
+ *	operators can lower the value to bound that. A custom server socket
+ *	factory receives the value as the <code>backlog</code> argument.
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {
@@ -886,9 +899,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
              */
             @Override
             java.net.ServerSocket createServerSocket() throws IOException {
+                int backlog = ListenBacklog.get();
                 return serverSocketFactory != null
-                    ? serverSocketFactory.createServerSocket(port)
-                    : new java.net.ServerSocket(port);
+                    ? serverSocketFactory.createServerSocket(port, backlog)
+                    : new java.net.ServerSocket(port, backlog);
             }
 
 	    @Override

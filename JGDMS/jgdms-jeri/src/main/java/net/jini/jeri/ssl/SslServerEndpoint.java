@@ -313,6 +313,18 @@ import net.jini.security.SecurityContext;
  *	the JSSE implementation. Suites appearing earlier in the list will be
  *	preferred to ones appearing later for suites that support the same
  *	requirements and preferences.
+ * <li> <code>org.apache.river.jeri.listenBacklog</code> - The accept backlog
+ *	requested when the server endpoint binds its listening socket, which is
+ *	the number of connections the operating system queues for a listener
+ *	that has not yet accepted them. The default is
+ *	<code>Integer.MAX_VALUE</code>, which each operating system clamps to
+ *	its own maximum (on Linux, <code>net.core.somaxconn</code>); the JDK
+ *	default of 50 would drop or refuse connections from more than about 50
+ *	simultaneous connectors. A value below 1 selects the JDK default. A
+ *	large backlog lets a remote peer fill kernel buffers, up to the
+ *	operating system limit, with connections that are not yet accepted;
+ *	operators can lower the value to bound that. A custom server socket
+ *	factory receives the value as the <code>backlog</code> argument.
  * </ul>
  */
 public final class SslServerEndpoint implements ServerEndpoint {
