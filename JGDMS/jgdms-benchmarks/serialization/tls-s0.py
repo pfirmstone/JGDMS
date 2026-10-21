@@ -195,7 +195,7 @@ def cmd_adversary(a):
 
 
 def cmd_storm(a):
-    for storm in ((True,) if a.storm_only else (False, True)):
+    for storm in ((True,) if a.storm_only else (False,) if a.idle_only else (False, True)):
         for rep in range(a.reps):
             work = tempfile.mkdtemp(prefix="tls-s0-storm-")
             srv = Server(a.cp, work, a.both + a.server_opt, a.server_cpus, a.server_main)
@@ -277,6 +277,7 @@ def main():
             p.add_argument("--caller-cpus", default=None, help="the cores of the callers' JVM if not --client-cpus")
             p.add_argument("--storm-cpus", default=None, help="the cores of the storm's JVM if not --client-cpus (a storm held to fewer cores than the callers' keeps the callers' cores free)")
             p.add_argument("--lead", type=int, default=0, help="seconds the storm runs before the callers' JVM starts (its own start-up and the server's JIT are then over); 0: the storm starts 3 s into the callers' warm-up")
+            p.add_argument("--idle-only", action="store_true", help="only the run without a storm")
             p.add_argument("--storm-only", action="store_true", help="skip the run without a storm")
             p.add_argument("--storm-rate", type=int, default=0, help="new connections a second in the storm; 0: as fast as the listener accepts (TlsAcceptRate)")
     a = ap.parse_args()

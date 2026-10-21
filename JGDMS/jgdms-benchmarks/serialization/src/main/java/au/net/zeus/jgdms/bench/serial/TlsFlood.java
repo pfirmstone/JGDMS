@@ -1,6 +1,6 @@
 // Copyright (C) 2026 the original author or authors.
 // Licensed under the Apache License, Version 2.0.
-// Written with AI assistance (Claude); see the README.
+// Written with AI assistance; see the README.
 //
 // A paced flood of connections that never authenticate, to load a JERI TLS listener with the cheapest work an unauthenticated
 // peer can ask for while something else is timed (TlsStorm does full authenticated handshakes). Two modes:
@@ -57,7 +57,7 @@ public class TlsFlood {
             ts[t] = new Thread(() -> {
                 try {
                     long next = System.nanoTime() + periodNanos * id / threads;
-                    while (next < end) {
+                    while (next < end && System.nanoTime() < end) {
                         long wait = next - System.nanoTime();
                         if (wait > 0) Thread.sleep(wait / 1_000_000, (int) (wait % 1_000_000)); else late.incrementAndGet();
                         next += periodNanos;
