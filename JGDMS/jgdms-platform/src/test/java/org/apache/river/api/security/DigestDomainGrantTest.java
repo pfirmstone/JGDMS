@@ -162,7 +162,9 @@ public class DigestDomainGrantTest {
         assumeDigest();
         Class<?> a = loader.define(ProxyA.class, computed(jarA));
         PermissionGrant g = grantTo(a, new CodeSource[]{expected(jarA), expected(jarB)});
-        assertTrue(g instanceof DigestDomainGrant);
+        // By name: on DirtyChai the class lives in java.base, where this
+        // package-private class is not accessible from the test's package.
+        assertEquals("org.apache.river.api.security.DigestDomainGrant", g.getClass().getName());
         assertTrue("A", g.implies(a.getProtectionDomain()));
         // B has no domain yet when the grant is made.
         Class<?> b = loader.define(ProxyB.class, computed(jarB));
@@ -182,7 +184,13 @@ public class DigestDomainGrantTest {
         // Same location as A, different content.
         File f = new File(dir, "a.jar");
         Files.write(f.toPath(), Files.readAllBytes(new File(dir, "outside.jar").toPath()));
-        assertFalse("changed content", g.implies(domain(computed(jarA), loader)));
+        try {
+            assertFalse("changed content", g.implies(domain(computed(jarA), loader)));
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            // DirtyChai's DigestCodeSource refuses to compute a second digest for a
+            // location it has already recorded: the change is stopped earlier.
+            assertTrue(e.getCause() instanceof SecurityException);
+        }
         // Right location and digest, other signers than the verifier saw.
         assertFalse("other signers", g.implies(domain(computed(jarOutside, new FakeCertificate("x")), loader)));
     }
@@ -266,7 +274,14 @@ public class DigestDomainGrantTest {
     public void voidAfterSerialization() throws Exception {
         assumeDigest();
         Class<?> a = loader.define(ProxyA.class, computed(jarA));
-        PermissionGrant g = grantTo(a, new CodeSource[]{expected(jarA)});
+        // No permissions: on DirtyChai Permission is not java.io.Serializable.
+        PermissionGrant g = PermissionGrantBuilder.newBuilder()
+                .principals(NONE)
+                .permissions(new Permission[0])
+                .codeSources(expected(jarA))
+                .context(PermissionGrantBuilder.DIGEST_DOMAIN)
+                .clazz(a)
+                .build();
         ByteArrayOutputStream bo = new ByteArrayOutputStream();
         try (ObjectOutputStream oo = new ObjectOutputStream(bo)) {
             oo.writeObject(g);
