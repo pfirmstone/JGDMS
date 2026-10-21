@@ -67,7 +67,9 @@ final class Variants {
         }
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         if (javac.run(null, null, err, args.toArray(new String[0])) != 0) {
-            throw new IllegalStateException("compile failed: " + err);
+            throw new IllegalStateException("compile failed (classpath=" + cp + ", AtomicSerial from "
+                    + AtomicSerial.class.getProtectionDomain().getCodeSource() + ", module "
+                    + AtomicSerial.class.getModule() + "): " + err);
         }
         return new URLClassLoader(new URL[] {dir.toUri().toURL()}, AtomicSerial.class.getClassLoader());
     }
