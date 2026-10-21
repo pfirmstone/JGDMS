@@ -65,6 +65,10 @@ per-address cap off; jitter 0.8 to 1.0.
 2. The server's named groups are pinned to `X25519MLKEM768, x25519, secp256r1`.
 3. The server mux start deadline is in S0.
 4. Client expiry jitter was done separately (commit `f63b647fb`: client limit 15 to 30 minutes per session, server 32 minutes).
+5. Runtime assumption (2026-10-21, cold implementation review finding H1 closed): JGDMS runs in production only on DirtyChai, whose
+   JDK does not pin a carrier thread when a virtual thread blocks inside `synchronized`. S0's server handshakes therefore keep the
+   `readLock`/`writeLock` monitors in `SslEngineChannel`. On a stock JDK 21 to 23 runtime the same code pins carriers (probe: 8
+   silent peers made a legitimate open take 7.5 s) and is not supported.
 Sequence: the HTTPS accept-thread fix and the explicit backlog land first as separate commits; S0 follows because both edit
 `SslServerEndpointImpl`.
 
