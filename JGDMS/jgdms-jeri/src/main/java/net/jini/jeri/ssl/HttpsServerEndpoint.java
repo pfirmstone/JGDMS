@@ -356,15 +356,42 @@ import net.jini.security.SecurityContext;
  *	handshake with a connection, counted from the moment the
  *	connection is accepted. When it has passed, the server closes
  *	the connection. The limit covers every wait of the handshake,
- *	reads and writes, and does not grow when the peer sends a byte
- *	at a time. It ends when the handshake finishes; it does not
- *	limit what the peer does afterwards. The default is 10000. A
- *	value of 0 or less removes the limit.
+ *	reads and writes, and the time that a connection spends waiting
+ *	for its turn (see maxServerHandshakes), and does not grow when
+ *	the peer sends a byte at a time. It ends when the handshake
+ *	finishes; it does not limit what the peer does afterwards. The
+ *	default is 10000. A value of 0 or less removes the limit.
  * <li> <code>org.apache.river.jeri.ssl.handshakeTimeout</code> - The
  *	number of milliseconds that a client allows for the TLS
  *	handshake with a server, counted from its start. The default is
  *	60000. It applies to client connections only; a server uses
  *	org.apache.river.jeri.ssl.serverHandshakeTimeout.
+ * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakes</code> -
+ *	The largest number of TLS handshakes that a server endpoint
+ *	works on at once. Until a handshake is finished the peer has not
+ *	been authenticated, and the handshake costs a file descriptor
+ *	and about 60 KiB of memory, so a connection that is accepted
+ *	when the limit has been reached waits, holding only its socket,
+ *	until a handshake ends; see maxServerHandshakeQueue. The default
+ *	is the smaller of 512 and an eighth of the number of file
+ *	descriptors that the process may open (see maxFileDescriptors).
+ *	A value below 1 selects the default.
+ * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakeQueue</code> -
+ *	The largest number of accepted connections that wait for one of
+ *	the maxServerHandshakes handshakes to be free. When that many
+ *	are waiting the server stops accepting connections until a
+ *	handshake ends, and the operating system queues the connections
+ *	that arrive, up to the listen backlog (see listenBacklog); they
+ *	are neither refused nor closed. The default is the smaller of
+ *	4096 and a quarter of the number of file descriptors that the
+ *	process may open, less maxServerHandshakes, and at least 0. A
+ *	value below 0 selects the default.
+ * <li> <code>org.apache.river.jeri.ssl.maxFileDescriptors</code> - The
+ *	number of file descriptors that the process may open, from which
+ *	the defaults of maxServerHandshakes and maxServerHandshakeQueue
+ *	are computed. The default is the number that the Java virtual
+ *	machine reports, where it can (on Linux and macOS), and 16384
+ *	where it cannot (on Windows).
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {

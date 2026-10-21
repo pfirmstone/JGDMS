@@ -21,6 +21,7 @@ package net.jini.jeri.ssl;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -151,6 +152,12 @@ final class HandshakeCounters {
 
     /** Classifies a handshake failure. */
     static Kind classify(Throwable t) {
+        int depth = 0;
+        for (Throwable c = t; c != null && depth < 10; c = c.getCause(), depth++) {
+            if (c instanceof SocketTimeoutException) {
+                return Kind.TIMEOUT;
+            }
+        }
         if (t instanceof EOFException
             || t instanceof ClosedChannelException
             || t instanceof SocketException)

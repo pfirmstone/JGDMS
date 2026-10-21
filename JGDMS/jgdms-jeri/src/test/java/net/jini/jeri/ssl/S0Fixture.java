@@ -390,17 +390,48 @@ final class S0Fixture {
     static <T> T withProperty(String name, String value, Callable<T> action)
         throws Exception
     {
-        String old = System.getProperty(name);
-        System.setProperty(name, value);
+        return withProperties(new String[] { name, value }, action);
+    }
+
+    /** Runs the action with system properties set, then restores them. */
+    static <T> T withProperties(String[] namesAndValues, Callable<T> action)
+        throws Exception
+    {
+        int n = namesAndValues.length / 2;
+        String[] old = new String[n];
+        for (int i = 0; i < n; i++) {
+            old[i] = System.getProperty(namesAndValues[2 * i]);
+            System.setProperty(namesAndValues[2 * i], namesAndValues[2 * i + 1]);
+        }
         try {
             return action.call();
         } finally {
-            if (old == null) {
-                System.clearProperty(name);
-            } else {
-                System.setProperty(name, old);
+            for (int i = 0; i < n; i++) {
+                if (old[i] == null) {
+                    System.clearProperty(namesAndValues[2 * i]);
+                } else {
+                    System.setProperty(namesAndValues[2 * i], old[i]);
+                }
             }
         }
+    }
+
+    static final String MAX_HANDSHAKES = HandshakeLimits.MAX_HANDSHAKES_PROPERTY;
+    static final String MAX_QUEUED = HandshakeLimits.MAX_QUEUED_PROPERTY;
+    static final String HANDSHAKE_TIMEOUT =
+        "org.apache.river.jeri.ssl.serverHandshakeTimeout";
+
+    /** A listener with the given limit, queue and handshake timeout. */
+    static Listener listen(int handshakes, int queued, long timeoutMillis,
+                           ConnectionHook hook, boolean socketPath)
+        throws Exception
+    {
+        return withProperties(new String[] {
+                MAX_HANDSHAKES, Integer.toString(handshakes),
+                MAX_QUEUED, Integer.toString(queued),
+                HANDSHAKE_TIMEOUT, Long.toString(timeoutMillis) },
+            () -> new Listener(new Recorder(),
+                socketPath ? ServerSocketFactory.getDefault() : null, hook));
     }
 
     /** Returns the number of descriptors this process has open. */
