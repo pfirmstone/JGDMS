@@ -79,6 +79,40 @@ per-address cap off; jitter 0.8 to 1.0.
 Sequence: the HTTPS accept-thread fix and the explicit backlog land first as separate commits; S0 follows because both edit
 `SslServerEndpointImpl`.
 
+### Addendum: what was built for decisions 5 to 9 (the follow-up package, 2026-10-21)
+One commit for each stage; the measurements are in `jgdms-benchmarks/serialization/RESULTS.md`, section 38.
+1. **Budgets for the JVM (`03893dcf9`, review M2).** One `HandshakeLimits` instance (one for each distinct setting of the
+   properties) holds the admission count, the working places and the CPU permits for every listener, HTTPS included. Each accept
+   loop holds one admission permit while it waits in `accept()`, takes another before it accepts, and pauses when none is free;
+   the semaphore is fair, so the loops that wait are served in turn and none is passed over for ever (a hot listener cannot
+   starve another for longer than the connections ahead of it live). Sockets admitted by the process stay within maxFds/4.
+   A listener's close releases only its own connections' permits.
+2. **Timer (`e002ed60c`, review M3 and the second timer thread).** `TimeoutScheduler` stays public (its callers are in three
+   packages) but refuses any caller but the mux and the TLS watchdog, with or without a security manager; a permission would
+   protect nothing without a security manager. Its tasks only decide and hand blocking work (socket close, mux take-down,
+   acknowledgment notices) to a virtual thread; the mux start timer reads volatile flags and no longer takes the lock; the OOM
+   fallback no longer runs on the timer thread. The mux's acknowledgment timer, a second timer thread, is a task of the same
+   scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals.
+3. **SSLSocket path CPU (`752d6bfe3`, review M4).** `startHandshake()` runs inside a permit, waited for within the deadline and
+   released in a `finally`. The permits are a separate set of the same size: the call cannot be split into work and waits, so a
+   peer that sends a ClientHello and stops holds its permit until the deadline, and sharing the engine path's permits would let
+   two such peers on an HTTPS listener stop every other TLS listener. Not a deadlock; a cross-path denial of service.
+4. **Small items (`dcb5eb823`).** The CPU gate ends after the first `wrap`, before any flush (L1); the admission count is
+   computed in long and clamped (L2); server named groups are intersected with the engine's at listen, with warnings and a
+   fall back to not pinning (L3); `com.sun.management` is an optional import (L4); tests that count descriptors are skipped,
+   not passed, where they cannot (I8); the dead client `abort()` is removed (I1); the rotation thread uses the synchronized
+   builder, which only `newThread` can now reach (I4); the timer thread has no inheritable thread locals (I5); a failure to make
+   the handshake record closes the socket and releases the permit (I6).
+5. **First-record read and minimum budget (`9f563a353`, decisions 7 and 9).** A connection waits for its turn in a blocking read
+   of its first TLS record on its virtual thread; junk is closed at once and counted, a departed peer is removed at once, the
+   bytes are given to the engine channel when the connection takes a place to work. A place is given only with at least
+   `serverHandshakeMinBudget` (2 s, at most half the timeout) left; otherwise the connection is dropped at no cost and counted
+   as a queue timeout, apart from working timeouts. Not covered: the SSLSocket path (the JDK reads for itself), and a peer that
+   leaves after its record is complete while it waits for a place to work. Decision 8 (the cap) stands: min(512, maxFds/8).
+6. **After the follow-up (not in the package as first scoped).** `sun.nio.ch` is no longer imported (`e8abed7a5`, `1aa52d443`:
+   the IOVecWrapper workaround is removed and the manifest test fails on any `sun.*` import), and the workaround for JDK bug
+   4854354 is removed (`8dc35b03a`).
+
 ---
 
 ## Report: security seat
