@@ -421,17 +421,24 @@ import net.jini.security.SecurityContext;
  *	exchange and signatures, at one time. All the server endpoints
  *	share the permits, so a virtual machine with several endpoints
  *	lets a peer that floods them with replayed ClientHellos use no
- *	more processors than one with a single endpoint. A handshake holds
- *	a permit from the moment the server has read a ClientHello until
- *	it has written its first flight, so a peer that replays a
- *	ClientHello, reads the flight and closes costs the server no more
- *	than the permits allow, although each of its connections lasts a
- *	few milliseconds. A handshake waits for a permit within its
- *	serverHandshakeTimeout. The default is the larger of 2 and a
- *	quarter of the number of processors. A value below 1 selects the
- *	default. The limit applies to handshakes done with an SSLEngine,
- *	not to those done with an SSLSocket, which are those of HTTPS and
- *	of endpoints with a server socket factory.
+ *	more processors than one with a single endpoint. A handshake done
+ *	with an SSLEngine holds a permit from the moment the server has
+ *	read a ClientHello until it has written its first flight, so a
+ *	peer that replays a ClientHello, reads the flight and closes costs
+ *	the server no more than the permits allow, although each of its
+ *	connections lasts a few milliseconds. A handshake done with an
+ *	SSLSocket, which is those of HTTPS and of endpoints with a server
+ *	socket factory, holds a permit for all of the handshake, because
+ *	the Java runtime does its reads and writes inside one call that
+ *	cannot be split; a peer that sends a ClientHello and then waits
+ *	holds it until the handshake times out. There are as many permits
+ *	for SSLSockets, kept apart so that such peers cannot hold up the
+ *	endpoints that use SSLEngines; among the endpoints that use
+ *	SSLSockets, this many peers that stall in that way stop the others
+ *	from starting a handshake until they time out. A handshake waits
+ *	for a permit within its serverHandshakeTimeout. The default is the
+ *	larger of 2 and a quarter of the number of processors. A value
+ *	below 1 selects the default.
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {

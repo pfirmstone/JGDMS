@@ -188,9 +188,16 @@ public class SslServerHandshakeCpuTest {
     }
 
     private static FloodResult flood(String permits, int seconds) throws Exception {
+        return flood(permits, seconds, false);
+    }
+
+    private static FloodResult flood(String permits, int seconds, boolean socketPath)
+        throws Exception
+    {
         byte[] hello = S0Fixture.captureClientHello("x25519");
         try (S0Fixture.Listener l = S0Fixture.withProperty(PERMITS, permits,
-                 () -> S0Fixture.listen()))
+                 () -> socketPath ? S0Fixture.listenWithSocketFactory()
+                                  : S0Fixture.listen()))
         {
             Assert.assertEquals(Integer.parseInt(permits), l.handle.cpuPermits());
             S0Fixture.connectLegit(l); // warm up
@@ -218,7 +225,12 @@ public class SslServerHandshakeCpuTest {
             flood.stop();
             Assert.assertTrue(S0Fixture.await(() ->
                 l.handle.inProgressCount() == 0
-                && l.handle.cpuPermitsAvailable() == l.handle.cpuPermits(), 15_000));
+                && l.handle.cpuPermitsAvailable() == l.handle.cpuPermits()
+                && l.handle.socketCpuPermitsAvailable() == l.handle.cpuPermits(),
+                15_000));
+            Assert.assertTrue("the permits of the path in use were taken",
+                socketPath ? l.handle.socketCpuEntries() > 0 && l.handle.cpuEntries() == 0
+                           : l.handle.cpuEntries() > 0 && l.handle.socketCpuEntries() == 0);
             return r;
         }
     }
@@ -240,6 +252,65 @@ public class SslServerHandshakeCpuTest {
             + one.legitMillis + " ms", one.legitMillis < 5000);
         Assert.assertTrue("server CPU during a replay flood with one permit: "
             + one.cores + " cores", one.cores <= 1.0 + 0.4);
+    }
+
+    /**
+     * The same flood against an endpoint that uses SSLSockets, as HTTPS and
+     * endpoints with a server socket factory do, costs no more than one
+     * permit allows: the whole of the handshake is inside the gate.
+     */
+    @Test(timeout = 120000)
+    public void testReplayFloodOnTheSocketPathIsBoundedByTheCpuPermits() throws Exception {
+        FloodResult one = flood("1", 6, true);
+        System.out.println("replay flood, socket path, 1 permit: server CPU " + one.cores
+            + " cores, " + one.attempts + " replays, " + one.flights
+            + " flights, legitimate open " + one.legitMillis + " ms");
+        Assert.assertTrue("a legitimate client must complete during a flood: "
+            + one.legitMillis + " ms", one.legitMillis < 5000);
+        Assert.assertTrue("server CPU during a replay flood with one permit: "
+            + one.cores + " cores", one.cores <= 1.0 + 0.4);
+    }
+
+    /**
+     * Peers that send a ClientHello to an endpoint that uses SSLSockets and
+     * then wait hold its permits until they time out, since the JDK does the
+     * waiting inside the handshake; they must not hold up the endpoints that
+     * use SSLEngines, which have permits of their own.
+     */
+    @Test(timeout = 60000)
+    public void testStalledSocketPathPeersDoNotStarveTheEnginePath() throws Exception {
+        byte[] hello = S0Fixture.captureClientHello("x25519");
+        S0Fixture.Listener socketListener = S0Fixture.withProperties(
+            new String[] { PERMITS, "1", S0Fixture.HANDSHAKE_TIMEOUT, "8000" },
+            () -> S0Fixture.listenWithSocketFactory());
+        S0Fixture.Listener engineListener = S0Fixture.withProperties(
+            new String[] { PERMITS, "1", S0Fixture.HANDSHAKE_TIMEOUT, "8000" },
+            () -> S0Fixture.listen());
+        try (S0Fixture.Listener sl = socketListener; S0Fixture.Listener el = engineListener) {
+            S0Fixture.connectLegit(el); // warm up
+            S0Fixture.connectLegit(sl);
+            List<Socket> stalled = new ArrayList<>();
+            try {
+                Socket s = new Socket("localhost", sl.port);
+                stalled.add(s);
+                s.getOutputStream().write(hello);
+                s.getOutputStream().flush();
+                s.setSoTimeout(5000);
+                Assert.assertTrue("a flight", s.getInputStream().read(new byte[4096]) > 0);
+                Assert.assertEquals("the permit is held while it waits", 0,
+                                    sl.handle.socketCpuPermitsAvailable());
+                long millis = S0Fixture.connectLegit(el);
+                Assert.assertTrue("the engine path was served at once: " + millis
+                    + " ms", millis < 3000);
+                Assert.assertEquals(el.handle.cpuPermits(),
+                                    el.handle.cpuPermitsAvailable());
+            } finally {
+                S0Fixture.closeAll(stalled);
+            }
+            Assert.assertTrue("the permit comes back", S0Fixture.await(() ->
+                sl.handle.socketCpuPermitsAvailable() == sl.handle.cpuPermits()
+                && sl.handle.inProgressCount() == 0, 10_000));
+        }
     }
 
     /**

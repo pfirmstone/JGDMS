@@ -1265,12 +1265,16 @@ class SslServerEndpointImpl extends Utilities {
 		private final Semaphore admission;
 		private final Semaphore running;
 		private final Semaphore cpu;
+		private final Semaphore socketCpu;
 		private final int maxHandshakes;
 		private final int maxQueued;
 		private final int cpuPermits;
 
 		/** The number of times a handshake has been given a permit of {@code cpu}. */
 		private final AtomicLong cpuEntries = new AtomicLong();
+
+		/** The number of times a handshake has been given a permit of {@code socketCpu}. */
+		private final AtomicLong socketCpuEntries = new AtomicLong();
 
 		/** The named groups to negotiate, or null for those the JVM enables. */
 		private final String[] namedGroups;
@@ -1338,6 +1342,7 @@ class SslServerEndpointImpl extends Utilities {
 			this.admission = limits.admission;
 			this.running = limits.running;
 			this.cpu = limits.cpu;
+			this.socketCpu = limits.socketCpu;
 			this.compute = HandshakeCompute.get();
 			this.namedGroups = parseNamedGroups((String) Security.doPrivileged(
 				new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
@@ -1812,30 +1817,46 @@ class SslServerEndpointImpl extends Utilities {
 				}
 			}
 
-			/** Whether this handshake holds a permit of {@code cpu}. */
-			private boolean computing;
+			/** The permits that this handshake holds one of to compute, or null. */
+			private volatile Semaphore computing;
 
 			/**
 			 * Waits for a permit to compute the first flight, for as long as
 			 * the handshake has time.
 			 */
 			public void begin() throws IOException {
+				acquireToCompute(cpu, "the processor");
+				cpuEntries.incrementAndGet();
+			}
+
+			/**
+			 * Waits for a permit to do the handshake with an SSLSocket, for as
+			 * long as the handshake has time.  The permit is given back by
+			 * {@link #end}.
+			 */
+			void beginSocket() throws IOException {
+				acquireToCompute(socketCpu, "the processor");
+				socketCpuEntries.incrementAndGet();
+			}
+
+			private void acquireToCompute(Semaphore permits, String what)
+				throws IOException
+			{
 				waiter = Thread.currentThread();
 				try {
 					if (deadline == 0L) {
-						cpu.acquire();
+						permits.acquire();
 					} else {
 						long left = deadline - System.nanoTime();
-						if (left <= 0L || !cpu.tryAcquire(left, TimeUnit.NANOSECONDS)) {
+						if (left <= 0L || !permits.tryAcquire(left, TimeUnit.NANOSECONDS)) {
 							throw new java.net.SocketTimeoutException(
-								"timed out waiting for the processor");
+								"timed out waiting for " + what);
 						}
 					}
-					computing = true;
-					cpuEntries.incrementAndGet();
+					computing = permits;
 				} catch (InterruptedException e) {
 					throw new java.io.InterruptedIOException(
-						"interrupted waiting for the processor");
+						"interrupted waiting for " + what);
 				} finally {
 					waiter = null;
 				}
@@ -1843,9 +1864,10 @@ class SslServerEndpointImpl extends Utilities {
 
 			/** Gives the permit to compute back, if this handshake has it. */
 			public void end() {
-				if (computing) {
-					computing = false;
-					cpu.release();
+				Semaphore permits = computing;
+				if (permits != null) {
+					computing = null;
+					permits.release();
 				}
 			}
 
@@ -2134,6 +2156,16 @@ class SslServerEndpointImpl extends Utilities {
 			return cpuEntries.get();
 		}
 
+		/** Returns the number of permits to do a handshake with an SSLSocket that are free. */
+		int socketCpuPermitsAvailable() {
+			return socketCpu.availablePermits();
+		}
+
+		/** Returns how often a handshake has been given a permit to do one with an SSLSocket. */
+		long socketCpuEntries() {
+			return socketCpuEntries.get();
+		}
+
 		/** Returns the number of permits to compute a first flight. */
 		int cpuPermits() {
 			return cpuPermits;
@@ -2352,22 +2384,30 @@ class SslServerEndpointImpl extends Utilities {
 					/*
 					 * Handshake explicitly, rather than through getSession,
 					 * which has no time limit and hides the cause of a
-					 * failure.  The read timeout bounds a silent peer to the
-					 * time that is left; the watchdog bounds the whole
-					 * handshake, and a write to a peer that does not read.
+					 * failure.  The handshake cannot be split into its work
+					 * and its waits, so the permit that bounds the work is
+					 * held for all of it, which the time that is left bounds:
+					 * the read timeout cuts off a silent peer, and the
+					 * watchdog the whole handshake, and a write to a peer that
+					 * does not read.
 					 */
-					int soTimeout = sslSocket.getSoTimeout();
-					if (deadline != 0L) {
-						long left = TimeUnit.NANOSECONDS.toMillis(
-							deadline - System.nanoTime());
-						if (left <= 0L) {
-							throw new java.net.SocketTimeoutException(
-								"TLS handshake timed out");
+					handshake.beginSocket();
+					try {
+						int soTimeout = sslSocket.getSoTimeout();
+						if (deadline != 0L) {
+							long left = TimeUnit.NANOSECONDS.toMillis(
+								deadline - System.nanoTime());
+							if (left <= 0L) {
+								throw new java.net.SocketTimeoutException(
+									"TLS handshake timed out");
+							}
+							sslSocket.setSoTimeout((int) Math.min(left, Integer.MAX_VALUE));
 						}
-						sslSocket.setSoTimeout((int) Math.min(left, Integer.MAX_VALUE));
+						sslSocket.startHandshake();
+						sslSocket.setSoTimeout(soTimeout);
+					} finally {
+						handshake.end();
 					}
-					sslSocket.startHandshake();
-					sslSocket.setSoTimeout(soTimeout);
 					sess = sslSocket.getSession();
 					sslSocket.setEnableSessionCreation(false);
 				}

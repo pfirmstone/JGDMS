@@ -112,6 +112,20 @@ final class HandshakeLimits {
      */
     final Semaphore cpu;
 
+    /**
+     * One permit for each handshake done with an SSLSocket, which holds it
+     * for the whole of its {@code startHandshake}.  The JDK does the reads and
+     * the writes of the handshake inside that call, so it cannot be split, as
+     * the first flight of an SSLEngine handshake is, into the work for the
+     * processor and the waits for the peer, and a peer that sends a
+     * ClientHello and then waits holds its permit until its handshake times
+     * out.  The permits are separate from those of {@link #cpu}, so that such
+     * peers, which can only be on the endpoints that use SSLSockets (HTTPS and
+     * those with a server socket factory), cannot hold up the handshakes of
+     * the other endpoints.  There are as many as the others.
+     */
+    final Semaphore socketCpu;
+
     private static final Map<String, HandshakeLimits> SHARED = new HashMap<>();
 
     HandshakeLimits(int maxHandshakes, int maxQueued) {
@@ -125,6 +139,7 @@ final class HandshakeLimits {
         this.admission = new Semaphore(maxHandshakes + maxQueued, true);
         this.running = new Semaphore(maxHandshakes, true);
         this.cpu = new Semaphore(cpuPermits, true);
+        this.socketCpu = new Semaphore(cpuPermits, true);
     }
 
     /** Returns the larger of 2 and a quarter of the processors. */
