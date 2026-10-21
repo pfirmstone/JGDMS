@@ -59,7 +59,8 @@ final class Variants {
             Files.writeString(f, e.getValue());
         }
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
-        String cp = AtomicSerial.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        // Path.of(URI), not URL.getPath(): on Windows getPath() is "/C:/..." which javac cannot use.
+        String cp = Path.of(AtomicSerial.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
         List<String> args = new java.util.ArrayList<>(List.of("-d", dir.toString(), "-cp", cp, "-proc:none", "-nowarn"));
         for (String name : sources.keySet()) {
             args.add(dir.resolve(name).toString());
