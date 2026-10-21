@@ -420,6 +420,15 @@ system properties: <p>
      operating system limit, with connections that are not yet accepted;
      operators can lower the value to bound that.  A custom server socket
      factory receives the value as the <code>backlog</code> argument.
+<li> <code>org.apache.river.jeri.ssl.handshakeSummaryInterval</code> -
+     The number of milliseconds between the summary lines, written at
+     INFO, of the TLS handshakes that failed on a server endpoint. Each
+     failed handshake is logged at FINE only, because a peer that is not
+     authenticated can cause as many as it likes; the summary gives the
+     number of connections that failed in each way, and is written when
+     a handshake fails and the interval has passed since the last
+     summary. The default is 30000. A value of 0 or less turns the
+     summary off.
 </ul> <p>
 
 The following system properties are recognized by HTTPS implementation
