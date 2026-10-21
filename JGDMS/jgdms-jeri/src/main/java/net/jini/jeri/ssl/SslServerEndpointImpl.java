@@ -1292,6 +1292,12 @@ class SslServerEndpointImpl extends Utilities {
 		private final String[] namedGroups;
 
 		/**
+		 * The threads that do the cryptography of the handshakes, or null to
+		 * do it inline on each handshake's virtual thread.
+		 */
+		final HandshakeCompute compute;
+
+		/**
 		 * The accepted connections that have not finished their handshake.
 		 * Not the same as the permits taken: the accept loop holds one while
 		 * it waits in accept.
@@ -1353,6 +1359,7 @@ class SslServerEndpointImpl extends Utilities {
 			}
 			this.cpuPermits = permits;
 			this.cpu = new Semaphore(permits, true);
+			this.compute = HandshakeCompute.get();
 			this.namedGroups = parseNamedGroups((String) Security.doPrivileged(
 				new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
 									  DEFAULT_SERVER_NAMED_GROUPS)));
@@ -2294,13 +2301,18 @@ class SslServerEndpointImpl extends Utilities {
 						socket.getInetAddress() + ":" + socket.getPort());
 					/*
 					 * Drive the handshake inline on this (virtual) handshake
-					 * thread; delegated tasks run inline too (see
-					 * SslEngineChannel).  The thread is subject-neutral, so
+					 * thread; delegated tasks run on the handshake compute
+					 * threads, or inline if there are none (see
+					 * HandshakeCompute).  The thread is subject-neutral, so
 					 * client-auth credential selection reads the ServerAuthManager
 					 * captured subject, not an ambient thread subject.  The
 					 * reads and writes block; the watchdog ends the handshake
 					 * by closing the socket if it takes too long.
 					 */
+					if (listenHandle.compute != null) {
+						engineChannel.setTaskRunner(listenHandle.compute.runner(
+							() -> handshake.isTimedOut() || socket.isClosed()));
+					}
 					engineChannel.handshakeServer(handshake);
 					sess = engine.getSession();
 					/*

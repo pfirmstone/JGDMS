@@ -73,7 +73,11 @@ import javax.net.ssl.SSLSession;
  * thread, and inline execution keeps the handshake on one carrier without a
  * hand-off.  The future QUIC engine loop shares this assumption
  * ({@code QuicTLSEngine.getDelegatedTask()} is likewise driven inline), so the
- * behaviour is pinned by {@code SslEngineChannelTest}.
+ * behaviour is pinned by {@code SslEngineChannelTest}.  The server is the
+ * exception: its listener sets a {@link #setTaskRunner runner} that moves the
+ * tasks to a few platform threads and waits (see {@code HandshakeCompute}),
+ * because a handshake's tasks take milliseconds without blocking and the
+ * carriers are shared with the threads that dispatch calls.
  *
  * <p>Not thread-safe for concurrent reads, nor for concurrent writes; a single
  * reader and a single writer may proceed concurrently (the read and write sides
@@ -419,6 +423,15 @@ final class SslEngineChannel {
     static final TaskRunner INLINE_RUNNER = Runnable::run;
 
     private volatile TaskRunner taskRunner = INLINE_RUNNER;
+
+    /**
+     * Sets how the engine's delegated tasks run, in place of inline on the
+     * calling thread.  A runner must run each task to completion before it
+     * returns.
+     */
+    void setTaskRunner(TaskRunner runner) {
+        this.taskRunner = runner;
+    }
 
     /**
      * Runs all currently-pending delegated tasks inline on the calling

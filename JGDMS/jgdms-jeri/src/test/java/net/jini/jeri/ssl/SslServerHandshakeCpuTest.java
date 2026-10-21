@@ -120,7 +120,8 @@ public class SslServerHandshakeCpuTest {
 
     /**
      * Server threads are virtual threads that run on the carrier threads of
-     * the default scheduler; returns the CPU time that they have used.
+     * the default scheduler, and the handshake compute threads do their
+     * cryptography; returns the CPU time that they have used.
      */
     private static long carrierCpuNanos() {
         ThreadMXBean mx = ManagementFactory.getThreadMXBean();
@@ -128,8 +129,9 @@ public class SslServerHandshakeCpuTest {
         long[] ids = mx.getAllThreadIds();
         ThreadInfo[] infos = mx.getThreadInfo(ids);
         for (int i = 0; i < ids.length; i++) {
-            if (infos[i] != null && infos[i].getThreadName().startsWith("ForkJoinPool")
-                && infos[i].getThreadName().contains("worker"))
+            if (infos[i] != null && (infos[i].getThreadName().startsWith("ForkJoinPool")
+                && infos[i].getThreadName().contains("worker")
+                || infos[i].getThreadName().startsWith("TLS handshake compute")))
             {
                 long cpu = mx.getThreadCpuTime(ids[i]);
                 if (cpu > 0) {

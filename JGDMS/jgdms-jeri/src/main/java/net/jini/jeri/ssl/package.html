@@ -496,6 +496,19 @@ system properties: <p>
      below 1 selects the default. The limit applies to handshakes done
      with an SSLEngine, not to those done with an SSLSocket, which are
      those of HTTPS and of endpoints with a server socket factory.
+<li> <code>org.apache.river.jeri.ssl.serverHandshakeComputeThreads</code> -
+     The number of platform threads, shared by the server endpoints of
+     the virtual machine, that do the cryptography of the TLS handshakes
+     done with an SSLEngine: the key exchange and signature of the first
+     flight and the certificate verification of the second. The handshake
+     waits for the result on its virtual thread and gives up its carrier
+     thread, so that calls on connections that already exist are not
+     queued behind a handshake's computation, and handshakes can use no
+     more processors for it than this number. The default is a quarter of the
+     number of processors, at least 1. A value of 0 does the computation
+     on the handshake's virtual thread; a negative value selects the
+     default. The setting does not apply to handshakes done with an
+     SSLSocket.
 <li> <code>org.apache.river.jeri.mux.serverStartTimeout</code> - The
      number of milliseconds that a client has to send the connection
      header of the multiplexed connection, after a server has started
