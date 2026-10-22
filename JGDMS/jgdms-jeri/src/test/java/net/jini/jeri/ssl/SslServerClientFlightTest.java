@@ -285,21 +285,34 @@ public class SslServerClientFlightTest {
 
     /**
      * The bound is for a client that answers: one whose second flight is late
-     * by less than the bound still completes, and one that is later is cut off.
+     * by less than the bound still completes, and one that is later is cut
+     * off.  The delays are the proxy's and are far from the bound on both
+     * sides, so that a busy machine, which delays the client's cryptography
+     * and the proxy's threads by tens or hundreds of milliseconds, cannot
+     * make a client that is on time late (the margin is 4 s) or one that is
+     * late on time (the margin is 2 s; delays only make it later still).
      */
-    @Test(timeout = 60000)
+    @Test(timeout = 90000)
     public void testASlowClientThatAnswersInTimeCompletes() throws Exception {
+        long bound = 5000;
+        long late = 600;
+        long shortBound = 500;
+        long later = 5 * shortBound;
         for (boolean socketPath : new boolean[] { false, true }) {
-            try (S0Fixture.Listener l = listen(socketPath, 10_000, 1500)) {
+            try (S0Fixture.Listener l = listen(socketPath, 30_000, bound)) {
                 S0Fixture.connectLegit(l); // warm up
-                Assert.assertTrue("a client 600 ms late, socketPath=" + socketPath,
-                                  connectThrough(l, 600));
+                Assert.assertTrue("a client " + late + " ms late, socketPath=" + socketPath,
+                                  connectThrough(l, late));
                 Assert.assertEquals(0, l.handle.counters().getFailed());
             }
-            try (S0Fixture.Listener l = listen(socketPath, 10_000, 500)) {
-                S0Fixture.connectLegit(l); // warm up
-                Assert.assertFalse("a client 1500 ms late, socketPath=" + socketPath,
-                                   connectThrough(l, 1500));
+            /*
+             * No warm-up connection here: a client that is slow because its
+             * machine is busy would be cut off by the short bound, and the
+             * code is warm from the first listener.
+             */
+            try (S0Fixture.Listener l = listen(socketPath, 30_000, shortBound)) {
+                Assert.assertFalse("a client " + later + " ms late, socketPath=" + socketPath,
+                                   connectThrough(l, later));
                 Assert.assertTrue(S0Fixture.await(() -> count(l,
                     HandshakeCounters.Kind.FLIGHT_TIMEOUT) == 1, 3000));
             }

@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -231,19 +232,7 @@ public final class TimeoutScheduler {
                                1L, TimeUnit.SECONDS);
             } catch (Throwable ignore) {
                 // shut down or out of memory: only the last resort is left
-                long lost = LOST.incrementAndGet();
-                try {
-                    long since = LOSS_LOG.report(System.nanoTime());
-                    if (since > 0L) {
-                        Logger.getLogger(TimeoutScheduler.class.getName()).log(
-                            Level.SEVERE, "could not hand off a task of the "
-                            + "connection timeout scheduler; {0} lost since the "
-                            + "last line, {1} lost so far",
-                            new Object[] { since, lost });
-                    }
-                } catch (Throwable ignored) {
-                    // out of memory: counted, nothing more can be done
-                }
+                noteLoss();
                 if (lastResort != null) {
                     try {
                         lastResort.run();
@@ -252,6 +241,77 @@ public final class TimeoutScheduler {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Counts a task that was lost and writes the line about it if one is due;
+     * if not, arranges for the line to be written when it is due, so that the
+     * last losses of a burst are reported although no later one comes.
+     */
+    static void noteLoss() {
+        long lost = LOST.incrementAndGet();
+        try {
+            LossLog log = lossLog;
+            long now = System.nanoTime();
+            long since = log.report(now);
+            if (since > 0L) {
+                writeLossLine(since, lost);
+            } else {
+                scheduleLossFlush(log, now);
+            }
+        } catch (Throwable ignored) {
+            // out of memory: counted, nothing more can be done
+        }
+    }
+
+    private static void writeLossLine(long since, long lost) {
+        Logger.getLogger(TimeoutScheduler.class.getName()).log(
+            Level.SEVERE, "could not hand off a task of the "
+            + "connection timeout scheduler; {0} lost since the "
+            + "last line, {1} lost so far",
+            new Object[] { since, lost });
+    }
+
+    /**
+     * Has the timer write the line about the lost tasks that have not been
+     * reported when it is due.  If the timer cannot take the task now (the
+     * losses come from a JVM that is out of memory), the next loss tries
+     * again.
+     */
+    private static void scheduleLossFlush(LossLog log, long now) {
+        if (!FLUSH_SCHEDULED.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            flushTask = TIMER.schedule(() -> flushLosses(log), log.dueIn(now),
+                                       TimeUnit.NANOSECONDS);
+        } catch (Throwable t) {
+            FLUSH_SCHEDULED.set(false);
+        }
+    }
+
+    /**
+     * Runs on the timer's thread: writes the line, on a thread of its own as
+     * a task must not block, or on this one if there is none.
+     */
+    static void flushLosses(LossLog log) {
+        FLUSH_SCHEDULED.set(false);
+        long now = System.nanoTime();
+        long since = log.flush(now);
+        if (since > 0L) {
+            long lost = LOST.get();
+            try {
+                HAND_OFF.execute(() -> writeLossLine(since, lost));
+            } catch (Throwable t) {
+                try {
+                    writeLossLine(since, lost);
+                } catch (Throwable ignored) {
+                    // out of memory: counted, nothing more can be done
+                }
+            }
+        } else if (log.dueIn(now) >= 0L) {
+            scheduleLossFlush(log, now);
         }
     }
 
@@ -338,6 +398,9 @@ public final class TimeoutScheduler {
      * them: the first at once, then at most one for each interval, with the
      * number lost since the last line, so that a flood of expiries while the
      * JVM is out of threads or memory writes a line, not a line for each.
+     * The losses that a line has not been written for are reported by the
+     * next line, or, if no more come, when {@link #flush} is called after the
+     * interval has passed.
      */
     static final class LossLog {
         private final long intervalNanos;
@@ -364,13 +427,67 @@ public final class TimeoutScheduler {
             unreported = 0L;
             return n;
         }
+
+        /**
+         * Returns the number of lost tasks that a line written now is about,
+         * or 0 if there is none to report or a line is not due yet.
+         */
+        synchronized long flush(long nowNanos) {
+            if (unreported == 0L || nowNanos - lastNanos < intervalNanos) {
+                return 0L;
+            }
+            lastNanos = nowNanos;
+            long n = unreported;
+            unreported = 0L;
+            return n;
+        }
+
+        /**
+         * Returns the nanoseconds until a line about the lost tasks that have
+         * not been reported is due, 0 if it is due now, or -1 if there are
+         * none.
+         */
+        synchronized long dueIn(long nowNanos) {
+            if (unreported == 0L) {
+                return -1L;
+            }
+            return Math.max(0L, intervalNanos - (nowNanos - lastNanos));
+        }
     }
 
     /** The interval between lines about lost tasks: 30 seconds. */
-    private static final LossLog LOSS_LOG = new LossLog(30_000_000_000L);
+    private static final long LOSS_INTERVAL_NANOS = 30_000_000_000L;
 
-    /** Returns the number of tasks that are waiting, for tests. */
+    private static volatile LossLog lossLog = new LossLog(LOSS_INTERVAL_NANOS);
+
+    /** Whether the timer holds a task that will write the line about the lost tasks. */
+    private static final AtomicBoolean FLUSH_SCHEDULED = new AtomicBoolean();
+
+    private static volatile ScheduledFuture<?> flushTask;
+
+    /**
+     * For tests: starts the account of lost tasks again with the interval,
+     * or the usual one if it is 0 or less.
+     */
+    static void resetLossLog(long intervalNanos) {
+        lossLog = new LossLog(intervalNanos > 0L ? intervalNanos : LOSS_INTERVAL_NANOS);
+        ScheduledFuture<?> task = flushTask;
+        if (task != null) {
+            task.cancel(false);
+        }
+        FLUSH_SCHEDULED.set(false);
+    }
+
+    /** For tests: whether the timer holds a task that will write the line about lost tasks. */
+    static boolean flushScheduled() {
+        return FLUSH_SCHEDULED.get();
+    }
+
+    /**
+     * Returns the number of tasks that are waiting, for tests, not counting
+     * the one that writes the line about lost tasks.
+     */
     public static int pending() {
-        return TIMER.getQueue().size();
+        return TIMER.getQueue().size() - (FLUSH_SCHEDULED.get() ? 1 : 0);
     }
 }

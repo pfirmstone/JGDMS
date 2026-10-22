@@ -217,6 +217,14 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
      Item 9's claim that a bound of 8 records limits the JDK's copying "to nothing", design 4.6 and the class comment of
      `ClientHelloReader` presented the many-record cost as closed; they now say that it was closed for the first ClientHello and,
      with stage 1, for the second and for the client's flight.
+   - Stage 3 (small items): the last losses of a burst of lost timer tasks are written by a timer task when the interval has
+     passed, although no later loss comes (`TimeoutScheduler.noteLoss`; the task is not counted by `pending()`, and if the timer
+     cannot take it the next loss tries again); `testASlowClientThatAnswersInTimeCompletes` has a bound of 5000 ms against a client
+     600 ms late (the margin was 900 ms), and none of its connections is made against the short bound; 10 runs pinned to one CPU
+     with 8 busy loops passed, as did 10 of the old test, so the load did not reproduce the flakiness (RESULTS section 41). The
+     API note: `TimeoutScheduler.inject(int)` became `inject(boolean, boolean)` and `FAIL_HAND_OFF` and `FAIL_RETRY` were removed
+     in the exported package `org.apache.river.jeri.internal`; the class was added by this branch (`6879a461d`) and is in no
+     release, nothing in the repository refers to the old signature, and the change is not a break against the 3.1.0 baseline.
    Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
 
 ---
