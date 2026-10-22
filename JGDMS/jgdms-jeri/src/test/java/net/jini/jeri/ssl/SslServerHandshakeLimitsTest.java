@@ -376,9 +376,13 @@ public class SslServerHandshakeLimitsTest {
                 List<Socket> open = S0Fixture.openSilent(l, 7);
                 Assert.assertTrue(S0Fixture.await(
                     () -> l.handle.admittedConnections() == 7, 5000));
+                Thread acceptor = l.handle.acceptThread();
                 l.close();
                 assertPermits(l, "listener closed, " + what);
-                Assert.assertFalse(l.handle.acceptThread().isAlive());
+                /* The loop ends after the close returns, not before. */
+                acceptor.join(10_000);
+                Assert.assertFalse("the accept thread must end at close, " + what,
+                                   acceptor.isAlive());
                 S0Fixture.closeAll(open);
             } finally {
                 l.close();

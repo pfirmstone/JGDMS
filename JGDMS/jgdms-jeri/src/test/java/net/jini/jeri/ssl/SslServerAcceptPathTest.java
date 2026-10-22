@@ -243,7 +243,7 @@ public class SslServerAcceptPathTest {
         try (S0Fixture.Listener l = S0Fixture.listen()) {
             S0Fixture.connectLegit(l); // warm up
             HandshakeLimits limits = l.handle.limits();
-            /* Idle: the accept loop holds one permit while it waits. */
+            /* Idle: the accept loop holds no permit while it waits. */
             Assert.assertTrue(S0Fixture.await(() ->
                 l.handle.admittedConnections() == 0
                 && l.handle.inProgressCount() == 0, 5000));

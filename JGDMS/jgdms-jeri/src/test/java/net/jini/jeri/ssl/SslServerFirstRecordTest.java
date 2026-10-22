@@ -136,12 +136,20 @@ public class SslServerFirstRecordTest {
             record(22, 3, 1, 300, 1, 6), 6));
         Assert.assertEquals(5 + 16384, FirstRecord.check(
             record(22, 3, 3, 16384, 1, 5), 5));
+        /* A handshake message may be split into records of any size but 0. */
+        for (int length = 1; length <= 4; length++) {
+            Assert.assertEquals(5 + length, FirstRecord.check(
+                record(22, 3, 1, length, 1, 6), 6));
+            Assert.assertEquals(5 + length, FirstRecord.check(
+                record(22, 3, 1, length, 1, 5), 5));
+        }
         byte[][] junk = {
             record(23, 3, 3, 100, 1, 6),     // application data
             record(21, 3, 3, 2, 1, 6),       // alert
             record(22, 2, 0, 100, 1, 6),     // not SSL 3 or TLS
             record(22, 3, 5, 100, 1, 6),     // a version that does not exist
-            record(22, 3, 1, 3, 1, 6),       // too short for a handshake message
+            record(22, 3, 1, 0, 1, 6),       // no bytes: forbidden for a handshake
+            record(22, 3, 1, 0, 1, 5),       // known from the header
             record(22, 3, 1, 16385, 1, 6),   // longer than a record may be
             record(22, 3, 1, 100, 2, 6),     // a ServerHello
             "GET / HTTP/1.1\r\n".getBytes(),
@@ -164,7 +172,7 @@ public class SslServerFirstRecordTest {
     /** The record is read in whatever pieces, and nothing after it is taken. */
     @Test
     public void testReadTakesOneRecordAndNothingMore() throws Exception {
-        for (int length : new int[] { 4, 100, 511, 512, 1500, 16384 }) {
+        for (int length : new int[] { 1, 2, 3, 4, 100, 511, 512, 1500, 16384 }) {
             byte[] hello = record(22, 3, 1, length, 1, 5 + length);
             for (int i = 6; i < hello.length; i++) {
                 hello[i] = (byte) i;
@@ -524,6 +532,54 @@ public class SslServerFirstRecordTest {
                                       proxy.pieces.get() >= 8);
                 }
                 Assert.assertEquals(0, l.handle.counters().getFailed());
+            }
+        }
+    }
+
+    /** Re-frames the one record of a ClientHello as records of {@code size} bytes. */
+    private static byte[] inRecords(byte[] hello, int size) {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        for (int at = 5; at < hello.length; at += size) {
+            int n = Math.min(size, hello.length - at);
+            out.write(hello[0]);
+            out.write(hello[1]);
+            out.write(hello[2]);
+            out.write(n >> 8);
+            out.write(n);
+            out.write(hello, at, n);
+        }
+        return out.toByteArray();
+    }
+
+    /**
+     * A record of 1 to 3 bytes is a legal fragment of a ClientHello and the
+     * JDK reads one: the connection is answered with the server's flight, not
+     * dropped as junk, on both paths.
+     */
+    @Test(timeout = 60000)
+    public void testClientHelloInRecordsOfOneAndThreeBytes() throws Exception {
+        byte[] hello = S0Fixture.captureClientHello("x25519");
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = listen(null, socketPath, 10_000)) {
+                S0Fixture.connectLegit(l); // warm up
+                for (int size : new int[] { 1, 3 }) {
+                    try (Socket s = new Socket("localhost", l.port)) {
+                        s.setTcpNoDelay(true);
+                        s.getOutputStream().write(inRecords(hello, size));
+                        s.getOutputStream().flush();
+                        s.setSoTimeout(5000);
+                        byte[] flight = new byte[4096];
+                        int n = s.getInputStream().read(flight);
+                        String what = "records of " + size + ", socketPath=" + socketPath;
+                        Assert.assertTrue("a flight, " + what, n > 0);
+                        Assert.assertEquals("a handshake record, not an alert, " + what,
+                                            22, flight[0]);
+                    }
+                }
+                Assert.assertEquals("none was taken for junk, socketPath=" + socketPath,
+                    0, l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK));
+                Assert.assertTrue(S0Fixture.await(
+                    () -> l.handle.inProgressCount() == 0, 5000));
             }
         }
     }

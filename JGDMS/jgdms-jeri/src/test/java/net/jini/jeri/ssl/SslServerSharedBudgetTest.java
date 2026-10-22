@@ -74,6 +74,57 @@ public class SslServerSharedBudgetTest {
         return n;
     }
 
+    /**
+     * No listener is passed over for ever, no handshake for ever by the ones
+     * that came later: the permits that are waited for are fair.
+     */
+    @Test(timeout = 60000)
+    public void testThePermitsAreFair() throws Exception {
+        try (S0Fixture.Listener l = S0Fixture.listen()) {
+            HandshakeLimits limits = l.handle.limits();
+            Assert.assertTrue("admission", limits.admission.isFair());
+            Assert.assertTrue("running", limits.running.isFair());
+            Assert.assertTrue("cpu", limits.cpu.isFair());
+            Assert.assertTrue("socketCpu", limits.socketCpu.isFair());
+        }
+    }
+
+    /**
+     * A listener that is idle in accept holds no place: with a budget of one,
+     * a second listener is served although the first has never had a peer.
+     * (With a place held for each loop that waits, listeners as many as the
+     * places left the later ones accepting nothing, and logging nothing.)
+     */
+    @Test(timeout = 60000)
+    public void testAnIdleListenerTakesNoPlaceFromAnother() throws Exception {
+        String[] props = { S0Fixture.MAX_HANDSHAKES, "1", S0Fixture.MAX_QUEUED, "0",
+                           S0Fixture.HANDSHAKE_TIMEOUT, "30000" };
+        List<S0Fixture.Listener> ls = listeners(2, props);
+        try {
+            S0Fixture.Listener a = ls.get(0);
+            S0Fixture.Listener b = ls.get(1);
+            Assert.assertEquals(1, a.handle.limits().admission.availablePermits());
+            long t0 = System.nanoTime();
+            try (javax.net.ssl.SSLSocket s = (javax.net.ssl.SSLSocket)
+                     S0Fixture.clientSocketFactory().createSocket("localhost", b.port))
+            {
+                s.setSoTimeout(5000);
+                s.startHandshake();
+                s.getOutputStream().write(0);
+                s.getOutputStream().flush();
+                Assert.assertTrue("B served", b.recorder.await(1, 5000));
+            }
+            long ms = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - t0);
+            Assert.assertTrue("B served after " + ms + " ms", ms < 5000);
+            Assert.assertTrue("and the place is back", S0Fixture.await(() ->
+                a.handle.limits().admission.availablePermits() == 1, 5000));
+            S0Fixture.connectLegit(a);
+        } finally {
+            closeAll(ls);
+        }
+    }
+
     /** The listeners of the JVM share the permits. */
     @Test(timeout = 60000)
     public void testListenersShareOneSetOfPermits() throws Exception {
@@ -84,9 +135,9 @@ public class SslServerSharedBudgetTest {
             for (S0Fixture.Listener l : ls) {
                 Assert.assertSame(first, l.handle.limits());
             }
-            /* One for the accept loop of each. */
-            Assert.assertTrue(S0Fixture.await(
-                () -> first.admission.availablePermits() == 11 - 3, 5000));
+            /* An accept loop that waits holds none. */
+            Thread.sleep(300);
+            Assert.assertEquals(11, first.admission.availablePermits());
         } finally {
             closeAll(ls);
         }
@@ -126,9 +177,8 @@ public class SslServerSharedBudgetTest {
             for (S0Fixture.Listener l : ls) {
                 silent.addAll(S0Fixture.openSilent(l, 8));
             }
-            /* Each listener's accept loop holds a permit while it waits. */
             Assert.assertTrue("the budget fills: " + admitted(ls), S0Fixture.await(
-                () -> admitted(ls) >= capacity - ls.size(), 10_000));
+                () -> admitted(ls) == capacity, 10_000));
             Thread.sleep(500);
             Assert.assertTrue("admitted " + admitted(ls) + " of " + capacity,
                               admitted(ls) <= capacity);
@@ -159,12 +209,16 @@ public class SslServerSharedBudgetTest {
                 silent.addAll(S0Fixture.openSilent(l, 8));
             }
             Assert.assertTrue(S0Fixture.await(
-                () -> admitted(ls) >= capacity - ls.size(), 10_000));
+                () -> admitted(ls) == capacity, 10_000));
             Thread.sleep(500);
-            /* The 24 client sockets are in this process too. */
+            /*
+             * The 24 client sockets are in this process too.  A listener
+             * whose loop passed its wait before the budget was full holds
+             * one more accepted socket that waits for a place.
+             */
             int fds = S0Fixture.openFds() - fdBase - silent.size();
             Assert.assertTrue("descriptors of the server side: " + fds
-                + " for a budget of " + capacity, fds <= capacity + 4);
+                + " for a budget of " + capacity, fds <= capacity + ls.size() + 4);
         } finally {
             S0Fixture.closeAll(silent);
             closeAll(ls);
@@ -187,16 +241,15 @@ public class SslServerSharedBudgetTest {
         List<Socket> silent = new ArrayList<>();
         S0Fixture.Listener b = null;
         try {
-            /* A's accept loop holds a permit before B has one to take. */
-            Assert.assertTrue(S0Fixture.await(
-                () -> a.handle.limits().admission.availablePermits() == 2, 5000));
+            /* A is idle: its accept loop holds no permit. */
+            Assert.assertEquals(3, a.handle.limits().admission.availablePermits());
             ls.addAll(listeners(1, props));
             b = ls.get(1);
-            /* Three permits: A's accept loop holds one, B's two silent peers the rest. */
+            /* Three permits, all taken by B's silent peers. */
             S0Fixture.Listener bb = b;
-            silent.addAll(S0Fixture.openSilent(bb, 2));
+            silent.addAll(S0Fixture.openSilent(bb, 3));
             Assert.assertTrue(S0Fixture.await(() ->
-                bb.handle.admittedConnections() == 2
+                bb.handle.admittedConnections() == 3
                 && a.handle.limits().admission.availablePermits() == 0, 5000));
             long millis = S0Fixture.connectLegit(bb);
             /* The silent peers are dropped 1500 ms before the 3000 ms are up. */
@@ -228,14 +281,14 @@ public class SslServerSharedBudgetTest {
             Assert.assertTrue(S0Fixture.await(() ->
                 a.handle.admittedConnections() == 2
                 && b.handle.admittedConnections() == 2
-                && limits.admission.availablePermits() == capacity - 4 - 2, 5000));
+                && limits.admission.availablePermits() == capacity - 4, 5000));
 
             a.close();
             a.close();
             Assert.assertTrue("A's permits come back: "
                 + limits.admission.availablePermits(), S0Fixture.await(() ->
                 a.handle.admittedConnections() == 0
-                && limits.admission.availablePermits() == capacity - 2 - 1, 5000));
+                && limits.admission.availablePermits() == capacity - 2, 5000));
             Assert.assertEquals("B keeps its connections", 2,
                                 b.handle.admittedConnections());
             Assert.assertEquals("B's working permits are not released",

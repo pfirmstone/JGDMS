@@ -1258,7 +1258,8 @@ class SslServerEndpointImpl extends Utilities {
 		private final long minBudgetNanos;
 
 		/**
-		 * The permits that all the listeners of the JVM share: the sockets
+		 * The permits that all the listeners that use this copy of the
+		 * classes share (see {@code HandshakeLimits}): the sockets
 		 * that may be admitted, the handshakes that may work, and those that
 		 * may compute a first flight.  A listener gives back only the permits
 		 * that its own connections hold.
@@ -1288,9 +1289,8 @@ class SslServerEndpointImpl extends Utilities {
 		final HandshakeCompute compute;
 
 		/**
-		 * The accepted connections that have not finished their handshake.
-		 * Not the same as the permits taken: the accept loop holds one while
-		 * it waits in accept.
+		 * The accepted connections that have not finished their handshake,
+		 * which are the permits of {@code admission} that are taken.
 		 */
 		private final AtomicInteger admitted = new AtomicInteger();
 
@@ -1412,28 +1412,42 @@ class SslServerEndpointImpl extends Utilities {
 			while (true) {
 				Socket socket = null;
 				Throwable exception;
-				boolean admitted = false;
 				try {
 					/*
 					 * Wait here, not in accept, while the handshakes in
 					 * progress and the connections waiting for one fill the
-					 * limit; the operating system queues what arrives.
+					 * limit; the operating system queues what arrives.  The
+					 * wait takes no place: a listener that is idle in accept
+					 * must not hold one, or the listeners of a process would
+					 * fill the limit with their idle accept loops.
+					 */
+					if (!awaitFreePlace()) {
+						break;
+					}
+					socket = serverSocket.accept();
+					/*
+					 * The place is taken now that there is a connection to
+					 * give it to.  Another listener may have taken the last
+					 * one meanwhile; then this connection waits here, with no
+					 * more than one for each listener beyond the limit, until
+					 * a place is free.
 					 */
 					if (!awaitAdmission()) {
 						break;
 					}
-					admitted = true;
-					socket = serverSocket.accept();
-					admitted = false;
-					startHandshake(socket);
+					/* The handshake now owns the socket and the place. */
+					Socket accepted = socket;
+					socket = null;
+					startHandshake(accepted);
 					continue;
 				} catch (Exception e) {
 					exception = e;
 				} catch (Error e) {
 					exception = e;
 				} finally {
-					if (admitted) {
-						admission.release();
+					if (socket != null) {
+						/* Accepted, but not admitted: the listener is closing. */
+						closeQuietly(socket);
 					}
 				}
 				/* Problem occurred */
@@ -1477,8 +1491,38 @@ class SslServerEndpointImpl extends Utilities {
 		}
 
 		/**
-		 * Takes the permit that lets the accept loop accept one more
-		 * connection, waiting for one if the limit is reached.
+		 * Waits until the limit leaves a place for one more connection,
+		 * without taking it.  The semaphore is fair, so the loops that wait
+		 * are served in turn: a loop passes when the place that it was next in
+		 * line for is free, and gives it back at once.
+		 *
+		 * @return false if the listener was closed or the thread interrupted
+		 */
+		private boolean awaitFreePlace() {
+			try {
+				admission.acquire();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+			admission.release();
+			synchronized (this) {
+				return !closed;
+			}
+		}
+
+		/** Closes a socket that will not be used; a failure is of no interest. */
+		private void closeQuietly(Socket socket) {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				/* Ignore and continue; we're already closing. */
+			}
+		}
+
+		/**
+		 * Takes the permit that admits the connection that has just been
+		 * accepted, waiting for one if the limit is reached.
 		 *
 		 * @return false if the listener was closed or the thread interrupted
 		 */
@@ -2164,7 +2208,7 @@ class SslServerEndpointImpl extends Utilities {
 			 */
 			private void expiredQueued() {
 				if (state.compareAndSet(QUEUED, QUEUE_TIMED_OUT)) {
-					HandshakeWatchdog.handOff(this::cancel);
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
 				}
 			}
 
@@ -2172,13 +2216,16 @@ class SslServerEndpointImpl extends Utilities {
 			 * Called on the watchdog's thread when the time has run out.  It
 			 * only decides, and leaves the closing, which can block, to
 			 * another thread, so that one handshake cannot delay the deadline
-			 * of any other.
+			 * of any other.  Only if no thread can be started, even to try
+			 * again, is the close done on the watchdog's thread: it is
+			 * abortive, so it does not wait, and without it the socket and the
+			 * permits would be held for ever.
 			 */
 			private void expired() {
 				if (state.compareAndSet(WORKING, TIMED_OUT)
 					|| state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
 				{
-					HandshakeWatchdog.handOff(this::cancel);
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
 				}
 			}
 

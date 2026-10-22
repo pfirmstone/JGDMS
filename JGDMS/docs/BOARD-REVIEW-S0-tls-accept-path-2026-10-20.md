@@ -81,10 +81,16 @@ Sequence: the HTTPS accept-thread fix and the explicit backlog land first as sep
 
 ### Addendum: what was built for decisions 5 to 9 (the follow-up package, 2026-10-21)
 One commit for each stage; the measurements are in `jgdms-benchmarks/serialization/RESULTS.md`, section 38.
-1. **Budgets for the JVM (`03893dcf9`, review M2).** One `HandshakeLimits` instance (one for each distinct setting of the
+1. **Budgets for the process (`03893dcf9`, review M2; reworded after L2 of the cold review).** "Process" means the listeners that
+   use one copy of the classes: the budgets, the `TimeoutScheduler` thread and the compute pool are statics of a class loader, so
+   a second copy in the JVM (an OSGi bundle beside a classpath copy, two bundle revisions after a refresh, two web applications)
+   has its own, and a refreshed bundle leaves its old timer thread until the JVM ends. One `HandshakeLimits` instance (one for each distinct setting of the
    properties) holds the admission count, the working places and the CPU permits for every listener, HTTPS included. Each accept
-   loop holds one admission permit while it waits in `accept()`, takes another before it accepts, and pauses when none is free;
-   the semaphore is fair, so the loops that wait are served in turn and none is passed over for ever (a hot listener cannot
+   loop waits, without holding a permit, until one is free, accepts, takes the permit for the connection, and pauses (stops calling
+   `accept()`) when none is free; at most one connection per listener is accepted beyond the permits. (The first version held a
+   permit in every loop that idled in `accept()`; the cold review, L1, showed that with listeners >= N+Q a later listener
+   never accepted and logged nothing.)
+   The semaphore is fair, so the loops that wait are served in turn and none is passed over for ever (a hot listener cannot
    starve another for longer than the connections ahead of it live). Sockets admitted by the process stay within maxFds/4.
    A listener's close releases only its own connections' permits.
 2. **Timer (`e002ed60c`, review M3 and the second timer thread).** `TimeoutScheduler` stays public (its callers are in three

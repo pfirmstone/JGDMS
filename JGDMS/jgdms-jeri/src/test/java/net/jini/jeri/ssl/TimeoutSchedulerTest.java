@@ -72,6 +72,111 @@ public class TimeoutSchedulerTest {
         Assert.assertEquals("nothing ran", 0L, ran.get());
     }
 
+    /**
+     * A class of the name of a caller, defined by another class loader (as in
+     * another bundle revision or web application), is not that caller.
+     */
+    @Test(timeout = 30000)
+    public void testAClassOfTheSameNameFromAnotherLoaderIsRefused() throws Exception {
+        IsolatedLoader loader = new IsolatedLoader(getClass().getClassLoader(),
+            java.util.Set.of("net.jini.jeri.ssl.HandshakeWatchdog"),
+            getClass().getProtectionDomain());
+        Class<?> copy = Class.forName("net.jini.jeri.ssl.HandshakeWatchdog", true, loader);
+        Assert.assertNotSame("a copy", HandshakeWatchdog.class, copy);
+        Assert.assertSame(loader, copy.getClassLoader());
+        java.lang.reflect.Method schedule = copy.getDeclaredMethod(
+            "schedule", Runnable.class, long.class);
+        schedule.setAccessible(true);
+        java.lang.reflect.Method handOff = copy.getDeclaredMethod(
+            "handOff", Runnable.class);
+        handOff.setAccessible(true);
+        AtomicLong ran = new AtomicLong();
+        try {
+            schedule.invoke(null, (Runnable) ran::incrementAndGet, 1_000_000L);
+            Assert.fail("the copy scheduled a task");
+        } catch (java.lang.reflect.InvocationTargetException expected) {
+            Assert.assertTrue(String.valueOf(expected.getCause()),
+                              expected.getCause() instanceof SecurityException);
+        }
+        try {
+            handOff.invoke(null, (Runnable) ran::incrementAndGet);
+            Assert.fail("the copy handed off a task");
+        } catch (java.lang.reflect.InvocationTargetException expected) {
+            Assert.assertTrue(String.valueOf(expected.getCause()),
+                              expected.getCause() instanceof SecurityException);
+        }
+        Thread.sleep(300);
+        Assert.assertEquals("nothing ran", 0L, ran.get());
+    }
+
+    /**
+     * A hand-off that cannot be made, nor repeated, is not dropped: the last
+     * resort runs on the calling thread, which is the timer's, and the loss
+     * is counted.
+     */
+    @Test(timeout = 30000)
+    public void testAHandOffThatCannotBeMadeRunsTheLastResortAndIsCounted()
+        throws Exception
+    {
+        AtomicReference<Thread> timer = new AtomicReference<>();
+        AtomicReference<Thread> resort = new AtomicReference<>();
+        AtomicLong handedOff = new AtomicLong();
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        long lost = HandshakeWatchdog.lost();
+        HandshakeWatchdog.inject(TimeoutScheduler.FAIL_HAND_OFF | TimeoutScheduler.FAIL_RETRY);
+        try {
+            HandshakeWatchdog.schedule(() -> {
+                timer.set(Thread.currentThread());
+                HandshakeWatchdog.handOff(handedOff::incrementAndGet, () -> {
+                    resort.set(Thread.currentThread());
+                    done.countDown();
+                });
+            }, TimeUnit.MILLISECONDS.toNanos(20));
+            Assert.assertTrue(done.await(10, TimeUnit.SECONDS));
+        } finally {
+            HandshakeWatchdog.inject(0);
+        }
+        Assert.assertSame("on the timer thread", timer.get(), resort.get());
+        Assert.assertEquals("counted", lost + 1, HandshakeWatchdog.lost());
+        /* One that can be repeated is not lost: it is handed off a second later. */
+        HandshakeWatchdog.inject(TimeoutScheduler.FAIL_HAND_OFF);
+        java.util.concurrent.CountDownLatch repeated = new java.util.concurrent.CountDownLatch(1);
+        try {
+            HandshakeWatchdog.handOff(repeated::countDown, () -> Assert.fail("lost"));
+            Thread.sleep(200);
+        } finally {
+            HandshakeWatchdog.inject(0);
+        }
+        Assert.assertTrue("handed off at the repeat", repeated.await(10, TimeUnit.SECONDS));
+        Assert.assertEquals("not counted", lost + 1, HandshakeWatchdog.lost());
+        Assert.assertEquals(0L, handedOff.get());
+    }
+
+    /**
+     * A handshake whose close cannot be handed off, nor the hand-off
+     * repeated, is still closed at its deadline, by the watchdog's own
+     * thread: the socket and the permits are not held for ever.
+     */
+    @Test(timeout = 30000)
+    public void testAHandshakeWhoseCloseCannotBeHandedOffIsStillClosed() throws Exception {
+        long lost = HandshakeWatchdog.lost();
+        try (S0Fixture.Listener l = S0Fixture.listen(2, 5, 1000, null, false)) {
+            S0Fixture.connectLegit(l); // warm up
+            HandshakeWatchdog.inject(TimeoutScheduler.FAIL_HAND_OFF | TimeoutScheduler.FAIL_RETRY);
+            try (Socket s = new Socket("localhost", l.port)) {
+                long ms = S0Fixture.awaitClosed(s, 6000);
+                Assert.assertTrue("closed after " + ms + " ms", ms >= 0 && ms < 4000);
+            } finally {
+                HandshakeWatchdog.inject(0);
+            }
+            Assert.assertEquals("counted", lost + 1, HandshakeWatchdog.lost());
+            Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
+                .getFailed(HandshakeCounters.Kind.QUEUE_TIMEOUT) == 1
+                && l.handle.inProgressCount() == 0
+                && l.handle.admittedConnections() == 0, 5000));
+        }
+    }
+
     /** The watchdog, which is a caller, can use it, and its tasks run neutral. */
     @Test(timeout = 30000)
     public void testTheWatchdogCanScheduleAndHandOff() throws Exception {

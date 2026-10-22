@@ -83,7 +83,7 @@ open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs
   S0 (section 4.6) the accept loop only accepts and starts a virtual thread per connection that does the handshake, with a total
   deadline, a cap on the handshakes that work at once, a queue for the rest (in which a connection reads its first TLS record,
   so that only a peer that has sent a ClientHello takes a place to work), a limit on the CPU of the first flight and pinned key
-  exchange groups, the budgets shared by all the listeners of the JVM. **Before S0** (RESULTS section 34, kept here because it is what the design above measured): the handshake ran
+  exchange groups, the budgets shared by all the listeners that use one copy of the classes (section 4.6). **Before S0** (RESULTS section 34, kept here because it is what the design above measured): the handshake ran
   **inside `acceptLoop`**, on the accept thread, one per listener, so server handshakes were serialised and a hot listener
   accepted about 385 resumed (210 full) connections a second on the 4-core container with the clients on the same cores (accept
   thread busy 97% of the time, about half of that on CPU: the rest was waiting for the client's handshake flights and starting two
@@ -319,13 +319,21 @@ listener do. Facts that the first version of this section had wrong, found by th
   fails the handshake instead of spinning to the deadline.
 * **SSLSocket path.** The first record is read ahead as above; then `startHandshake()` under `setSoTimeout(time left)` plus the
   same watchdog, and inside a permit of its own (see CPU); the NULL-suite check stays as the backstop.
-* **Admission, for the JVM.** The budgets belong to the process, which has the descriptors and the processors, so one
+* **Admission, for the process.** The budgets belong to the process, which has the descriptors and the processors, so one
   `HandshakeLimits` instance (one for each distinct setting of the properties, which is one in a process whose properties do not
-  change) is shared by every listener, HTTPS included. At most N = min(512, maxFds/8) handshakes work at once in the JVM and at
+  change) is shared by every listener, HTTPS included. "The process" means the listeners that use one copy of the classes:
+  the instance, the `TimeoutScheduler` thread and the `HandshakeCompute` pool are statics, so they belong to a class loader.
+  Two copies in one JVM (an OSGi bundle beside a copy on the class path, two bundle revisions after a refresh, two web
+  applications) have two budgets and two timer threads, and the limits hold for each copy, not for the JVM. A refreshed bundle
+  leaves the timer thread of its old revision, with that revision's class loader, until the JVM ends (the thread is a daemon
+  and has no stop; the leak predates this section, the budget sharing does not). At most N = min(512, maxFds/8) handshakes work at once in the JVM and at
   most Q = min(4096, maxFds/4 - N) accepted connections wait for a turn (`maxFds` from the JVM, 16384 where it cannot say), so
   the sockets that a process admits are at most a quarter of its descriptors however many listeners it has. Each accept loop
-  takes a permit of the shared count before it calls `accept()` and holds it while it waits there, so the places left for
-  connections are fewer by the number of listeners; when the count is exhausted the accept loops stop calling `accept()`, each
+  waits for a permit of the shared count to be free before it calls `accept()`, without taking it, and takes it when it has
+  accepted a connection (an idle listener holds nothing; the first version held a permit for every loop that waited in
+  `accept()`, so with as many listeners as places, a later listener never accepted and logged nothing). Another listener may take
+  the last permit in between; then the accepted connection waits for one, so at most one connection per listener is accepted
+  beyond the places; when the count is exhausted the accept loops stop calling `accept()`, each
   for its own listener, and the queue of the loops that wait is first in, first out, so no listener is passed over for ever (and
   none can hold another up for longer than the connections ahead of it live). On Linux the clients wait in the kernel's accept
   queue (`Integer.MAX_VALUE`, clamped to the system maximum), and nothing is accepted and closed. A listener's close gives back
@@ -333,7 +341,7 @@ listener do. Facts that the first version of this section had wrong, found by th
   `SslEngineChannel` and buffers are built only when it holds a place to work. The counts are clamped in `long`, so a limit near
   the largest int cannot overflow them. Per-address caps: not built.
 * **CPU.** The cap bounds concurrency, not rate: a replayer that reads the server's first flight and closes frees its slot in a
-  few milliseconds. A permit of `max(2, cores/4)`, one set for the JVM, is held from the moment the server has consumed a
+  few milliseconds. A permit of `max(2, cores/4)`, one set for each copy of the classes in the JVM, is held from the moment the server has consumed a
   ClientHello until its first flight has been computed, before it is written (a ClientHello that arrives in pieces holds nothing
   until it is complete; one that answers a HelloRetryRequest is counted again; the client's second flight is not in it; a peer
   that stops reading holds no permit, because the permit is given back after the first `wrap`, which only encrypts what the
@@ -356,7 +364,7 @@ listener do. Facts that the first version of this section had wrong, found by th
   both are bounded by the number of handshakes that work at once and by the deadline. A replay that stalls still holds one place
   to work (not a permit to compute) until the deadline, on both paths: that is what the cap on the handshakes at once is for.
 * **Handshake compute threads.** The engine's delegated tasks (the ClientHello's key exchange and signature, the client's
-  certificate chain and signature) go to a JVM-wide pool of platform daemon threads, created subject-neutral and not from the
+  certificate chain and signature) go to a pool of platform daemon threads, one for each copy of the classes in the JVM,, created subject-neutral and not from the
   system `ThreadPool`, through the `SslEngineChannel.TaskRunner` seam; the handshake's virtual thread waits for the result and
   releases its carrier. The size is the most processors that handshakes can use for cryptography at once. A task that has not
   started when its handshake has timed out or its socket has closed is dropped. The client, tests of the engine channel and the
@@ -378,9 +386,9 @@ listener do. Facts that the first version of this section had wrong, found by th
 |---|---|
 | `ssl.serverHandshakeTimeout` | 10 000 ms, total, from the accept (client: `ssl.handshakeTimeout`, 60 s, unchanged) |
 | `ssl.serverHandshakeMinBudget` | 2 000 ms, at most half the timeout: the time that must be left to be given a turn |
-| `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8) / min(4096, maxFds/4 - N), for the whole JVM |
+| `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8) / min(4096, maxFds/4 - N), for each copy of the classes in the JVM |
 | `ssl.maxFileDescriptors` | what the JVM reports, else 16384 |
-| `ssl.serverHandshakeCpuPermits` | max(2, cores/4), for the whole JVM; the SSLSocket path has as many of its own |
+| `ssl.serverHandshakeCpuPermits` | max(2, cores/4), for each copy of the classes in the JVM; the SSLSocket path has as many of its own |
 | `ssl.serverHandshakeComputeThreads` | max(1, cores/4); 0 runs the tasks inline on the handshake's virtual thread |
 | `ssl.serverNamedGroups` | `X25519MLKEM768,x25519,secp256r1` (empty: do not pin) |
 | `mux.serverStartTimeout` | 15 000 ms |

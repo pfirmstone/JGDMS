@@ -382,51 +382,52 @@ import net.jini.security.SecurityContext;
  *	handshake with a server, counted from its start. The default is
  *	60000. It applies to client connections only; a server uses
  *	org.apache.river.jeri.ssl.serverHandshakeTimeout.
- * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakes</code> -
- *	The largest number of TLS handshakes that the server endpoints of
- *	the Java virtual machine work on at once, all together. Until a
- *	handshake is finished the peer has not been authenticated, and a
- *	handshake that works costs a file descriptor and about 60 KiB of
- *	memory. A connection that is accepted waits for its turn to work,
- *	and a connection that uses an SSLEngine takes a turn only when its
- *	first TLS record, the one that carries the start of a ClientHello,
- *	has arrived, which the server reads while the connection waits. A
- *	peer that sends nothing, or a part of the record only, therefore
- *	holds a place in the queue (see maxServerHandshakeQueue) and never
- *	one of these; one that sends something that is not the start of a
- *	TLS ClientHello is closed as soon as that is seen; and one that
- *	closes the connection is removed at once. A connection that waits
- *	holds its socket, a virtual thread and the bytes of its first
- *	record that have arrived, at most 16389. The Java runtime reads
- *	for itself the handshakes done with an SSLSocket, which are those
- *	of HTTPS and of endpoints with a server socket factory, so there a
- *	silent peer takes one of these places until its handshake times
- *	out. The limit is shared by all the server endpoints of the
- *	virtual machine, HTTPS ones included, because the file descriptors
- *	and the memory are the process's. The default is the smaller of
- *	512 and an eighth of the number of file descriptors that the
- *	process may open (see maxFileDescriptors). A value below 1 selects
- *	the default.
+ * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakes</code> - The
+ *	largest number of TLS handshakes that the server endpoints of the Java
+ *	virtual machine work on at once, all together. Until a handshake is
+ *	finished the peer has not been authenticated, and a handshake that
+ *	works costs a file descriptor and about 60 KiB of memory. A connection
+ *	that is accepted waits for its turn to work, and a connection takes a
+ *	turn only when its first TLS record, the one that carries the start of
+ *	a ClientHello, has arrived, which the server reads while the
+ *	connection waits. A peer that sends nothing, or a part of the record
+ *	only, therefore holds a place in the queue (see
+ *	maxServerHandshakeQueue) and never one of these; one that sends
+ *	something that is not the start of a TLS ClientHello is closed as soon
+ *	as that is seen; and one that closes the connection is removed at
+ *	once. A connection that waits holds its socket, a virtual thread and
+ *	the bytes of its first record that have arrived, at most 16389. The
+ *	same holds for the handshakes done with an SSLSocket, which are those
+ *	of HTTPS and of endpoints with a server socket factory. The limit is
+ *	shared by all the server endpoints that use the same copy of the
+ *	jgdms-jeri classes (one class loader, or one OSGi bundle revision),
+ *	HTTPS ones included, because the file descriptors and the memory are
+ *	the process's; a second copy in the same virtual machine has limits,
+ *	and a timer thread, of its own, and a bundle that is refreshed leaves
+ *	the timer thread of its old revision running until the virtual machine
+ *	ends. The default is the smaller of 512 and an eighth of the number of
+ *	file descriptors that the process may open (see maxFileDescriptors). A
+ *	value below 1 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakeQueue</code> -
- *	The largest number of accepted connections that wait for one of
- *	the maxServerHandshakes handshakes to be free, all server
- *	endpoints of the Java virtual machine together. A connection that
- *	waits holds a place in this queue from its accept until its
- *	handshake ends, whether it has yet sent its first record or not
- *	(see maxServerHandshakes). When that many connections are
- *	admitted, working or waiting, each endpoint stops accepting
- *	connections until a handshake ends, and the operating system
+ *	The largest number of accepted connections that wait for one of the
+ *	maxServerHandshakes handshakes to be free, all server endpoints of the
+ *	Java virtual machine together. A connection that waits holds a place
+ *	in this queue from its accept until its handshake ends, whether it has
+ *	yet sent its first record or not (see maxServerHandshakes). When that
+ *	many connections are admitted, working or waiting, each endpoint stops
+ *	accepting connections until a handshake ends, and the operating system
  *	queues the connections that arrive, up to the listen backlog (see
- *	listenBacklog); they are neither refused nor closed. Each
- *	endpoint's accept loop also holds one of the places while it waits
- *	in accept, so the places left for connections are fewer by the
- *	number of endpoints. The waiting endpoints are served in the order
- *	in which they began to wait, so none is passed over for ever. The
- *	default is the smaller of 4096 and a quarter of the number of file
- *	descriptors that the process may open, less maxServerHandshakes,
- *	and at least 0; the sockets that the process admits are therefore
- *	at most a quarter of its descriptors however many endpoints it
- *	has. A value below 0 selects the default.
+ *	listenBacklog); they are neither refused nor closed. An endpoint's
+ *	accept loop holds no place while it waits in accept: it waits until a
+ *	place is free before it calls accept, and takes the place when it has
+ *	accepted a connection, so as many connections as there are endpoints
+ *	can be accepted beyond the places while they wait for one. The waiting
+ *	endpoints are served in the order in which they began to wait, so none
+ *	is passed over for ever. The default is the smaller of 4096 and a
+ *	quarter of the number of file descriptors that the process may open,
+ *	less maxServerHandshakes, and at least 0; the sockets that the process
+ *	admits are therefore at most a quarter of its descriptors however many
+ *	endpoints it has. A value below 0 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxFileDescriptors</code> - The
  *	number of file descriptors that the process may open, from which
  *	the defaults of maxServerHandshakes and maxServerHandshakeQueue
@@ -452,7 +453,8 @@ import net.jini.security.SecurityContext;
  *	logged at WARNING. An empty value does not restrict the groups.
  *	The groups apply to the SSLEngine and the SSLSocket paths alike.
  * <li> <code>org.apache.river.jeri.ssl.serverHandshakeCpuPermits</code> -
- *	The number of TLS handshakes, in the whole Java virtual machine,
+ *	The number of TLS handshakes, in the Java virtual machine (see
+ *	maxServerHandshakes for what is shared),
  *	that may be computing the first flight of the server, its key
  *	exchange and signatures, at one time. All the server endpoints
  *	share the permits, so a virtual machine with several endpoints

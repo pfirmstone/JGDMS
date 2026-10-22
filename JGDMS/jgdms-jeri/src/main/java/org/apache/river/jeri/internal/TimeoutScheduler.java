@@ -27,6 +27,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.security.auth.Subject;
 
 /**
@@ -35,7 +38,11 @@ import javax.security.auth.Subject;
  * mux connection whose peer has not sent its header, a mux request whose
  * acknowledgment has not come.
  *
- * <p>One thread serves all the endpoints of the JVM, so a flood of
+ * <p>One thread serves all the endpoints that use this copy of the class (it
+ * is a static, so one for each class loader: a second copy of jgdms-jeri in
+ * the same JVM has a thread of its own, and a bundle that is refreshed leaves
+ * the thread of its old revision, with that revision's class loader, until
+ * the JVM ends), so a flood of
  * connections costs queue entries and not threads, and so one task that
  * waits delays every deadline.  A task must therefore only flip some state
  * and, if there is anything to close or to notify, call {@link #handOff} to
@@ -100,6 +107,8 @@ public final class TimeoutScheduler {
             StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE));
 
     private static final ScheduledThreadPoolExecutor TIMER = create();
+
+    private static final AtomicLong LOST = new AtomicLong();
 
     private static final Executor HAND_OFF = Executors.newThreadPerTaskExecutor(
         new ThreadFactory() {
@@ -173,27 +182,95 @@ public final class TimeoutScheduler {
     /**
      * Runs the task on a thread of its own, which is allowed to block, so
      * that the timer thread is not held up.  If no thread can be started the
-     * attempt is repeated a second later, never made on the timer thread.
+     * attempt is repeated a second later, never made on the timer thread; if
+     * the repeat cannot be scheduled either, the task is lost and counted.
      *
      * @throws SecurityException if the caller is not one of the classes that
      *         may use the scheduler
      */
     public static void handOff(Runnable task) {
         check(CALLER.getCallerClass());
-        run(task);
+        run(task, null);
     }
 
-    private static void run(Runnable task) {
+    /**
+     * Runs the task as {@link #handOff(Runnable)} does, and if no thread can
+     * be started, even to try again, runs the last resort on the calling
+     * thread, which may be the timer's, and counts it.  The last resort must
+     * be quick and must not block, and does what is left to do when the task
+     * cannot be: closing a socket abortively, for example.
+     *
+     * @throws SecurityException if the caller is not one of the classes that
+     *         may use the scheduler
+     */
+    public static void handOff(Runnable task, Runnable lastResort) {
+        check(CALLER.getCallerClass());
+        run(task, lastResort);
+    }
+
+    private static void run(Runnable task, Runnable lastResort) {
         try {
+            if ((injected & FAIL_HAND_OFF) != 0) {
+                throw new java.util.concurrent.RejectedExecutionException("injected");
+            }
             HAND_OFF.execute(task);
         } catch (Throwable t) {
             // out of threads or memory: try again, off this thread
             try {
-                TIMER.schedule(() -> run(task), 1L, TimeUnit.SECONDS);
+                if ((injected & FAIL_RETRY) != 0) {
+                    throw new java.util.concurrent.RejectedExecutionException("injected");
+                }
+                TIMER.schedule(() -> run(task, lastResort), 1L, TimeUnit.SECONDS);
             } catch (Throwable ignore) {
-                // shut down or out of memory: nothing more can be done
+                // shut down or out of memory: only the last resort is left
+                long lost = LOST.incrementAndGet();
+                try {
+                    Logger.getLogger(TimeoutScheduler.class.getName()).log(
+                        Level.SEVERE, "could not hand off a task of the "
+                        + "connection timeout scheduler; {0} lost so far", lost);
+                } catch (Throwable ignored) {
+                    // out of memory: counted, nothing more can be done
+                }
+                if (lastResort != null) {
+                    try {
+                        lastResort.run();
+                    } catch (Throwable ignored) {
+                        // nothing more can be done
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Returns how many tasks could not be handed off, nor the hand-off
+     * repeated, since the class was initialised, and so were not run (their
+     * last resort, if they had one, was).
+     */
+    public static long lost() {
+        return LOST.get();
+    }
+
+    /** For tests: the hand-off of a task fails. */
+    public static final int FAIL_HAND_OFF = 1;
+
+    /** For tests: the repeat of a failed hand-off cannot be scheduled. */
+    public static final int FAIL_RETRY = 2;
+
+    /** For tests: the failures to inject, a mask of the constants above. */
+    private static volatile int injected;
+
+    /**
+     * For tests: makes the hand-off of tasks fail as given, or no longer, with
+     * 0.  Like the other methods, it may be called by the callers of the
+     * scheduler only.
+     *
+     * @throws SecurityException if the caller is not one of the classes that
+     *         may use the scheduler
+     */
+    public static void inject(int failures) {
+        check(CALLER.getCallerClass());
+        injected = failures;
     }
 
     /** Returns the number of tasks that are waiting, for tests. */

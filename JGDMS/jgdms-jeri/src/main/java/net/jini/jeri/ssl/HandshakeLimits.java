@@ -41,11 +41,17 @@ import org.apache.river.action.GetLongAction;
  *
  * <p>The descriptors and the processors belong to the process, not to a
  * listener, so the permits are kept here and {@link #shared} returns the one
- * instance that every listener of the JVM uses: a process with several
- * listeners admits no more sockets, and lets handshakes compute on no more
- * processors, than one with a single listener.  An instance is made for each
- * distinct setting of the properties, so a process whose properties do not
- * change has one.
+ * instance that every listener that uses this copy of the classes shares: a
+ * process with several listeners admits no more sockets, and lets handshakes
+ * compute on no more processors, than one with a single listener.  An
+ * instance is made for each distinct setting of the properties, so a process
+ * whose properties do not change has one.
+ *
+ * <p>The instance is a static of the class, so it is shared by the classes of
+ * one class loader, not of one JVM: a second copy of jgdms-jeri in the same
+ * JVM (a bundle beside a copy on the class path, two bundle revisions after
+ * a refresh, two web applications) has permits, and a timer thread, of its
+ * own, and the limits then hold for each copy, not for the process.
  */
 final class HandshakeLimits {
 
@@ -88,12 +94,17 @@ final class HandshakeLimits {
 
     /**
      * One permit for each accepted connection whose handshake has not
-     * finished, working or waiting, and one for each accept loop while it
-     * waits in accept.  An accept loop takes a permit before it accepts, so
-     * when the waiting connections fill the queue it stops accepting, and the
-     * connections that arrive wait in the operating system's backlog.  The
-     * queue of the loops that wait is first in, first out, so that no listener
-     * is passed over for ever.
+     * finished, working or waiting.  An accept loop waits for a permit to be
+     * free before it accepts, and takes it when it has accepted a connection,
+     * so when the waiting connections fill the queue it stops accepting, and
+     * the connections that arrive wait in the operating system's backlog; and
+     * a loop that is idle in accept holds none, so listeners that have no
+     * peers take nothing from those that have.  The queue of the loops that
+     * wait is first in, first out, so that no listener is passed over for
+     * ever; the semaphore must be fair for that.  Another listener may take the
+     * last permit between a loop's wait and its accept, and then the accepted
+     * connection waits for a permit: at most one connection for each listener
+     * is accepted beyond the permits.
      */
     final Semaphore admission;
 
@@ -153,8 +164,9 @@ final class HandshakeLimits {
     }
 
     /**
-     * Returns the instance that the listeners of the JVM share, for the
-     * system properties as they are now.
+     * Returns the instance that the listeners that use this copy of the
+     * classes share (see the class comment), for the system properties as
+     * they are now.
      */
     static HandshakeLimits shared() {
         HandshakeLimits limits = get();

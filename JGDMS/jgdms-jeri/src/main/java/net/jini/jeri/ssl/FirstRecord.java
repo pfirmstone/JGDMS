@@ -71,7 +71,10 @@ final class FirstRecord {
 
     /**
      * Checks the bytes that have arrived of a connection's first record, as
-     * far as they go.
+     * far as they go.  The record must be a handshake record of version 3.x
+     * whose length is 1 to 16384, and, once its first byte is there, that
+     * byte must be the type of a ClientHello; the rest of the message may be
+     * in the records that follow.
      *
      * @param bytes the bytes read, from the start, in positions 0 to {@code
      *        have - 1}
@@ -93,7 +96,13 @@ final class FirstRecord {
         int total = 0;
         if (have >= HEADER) {
             int length = ((bytes[3] & 0xff) << 8) | (bytes[4] & 0xff);
-            if (length < 4 || length > MAX_LENGTH) {
+            /*
+             * Any length from 1: a handshake message may be split over
+             * records, and only a record with no bytes is forbidden for a
+             * handshake (RFC 8446, 5.1).  A ClientHello in records of one byte
+             * is not what a client sends, but the JDK reads it.
+             */
+            if (length < 1 || length > MAX_LENGTH) {
                 throw new NotTlsException("not a ClientHello: record of " + length + " bytes");
             }
             total = HEADER + length;
