@@ -405,9 +405,19 @@ import net.jini.security.SecurityContext;
  *	the process's; a second copy in the same virtual machine has limits,
  *	and a timer thread, of its own, and a bundle that is refreshed leaves
  *	the timer thread of its old revision running until the virtual machine
- *	ends. The default is the smaller of 512 and an eighth of the number of
- *	file descriptors that the process may open (see maxFileDescriptors). A
- *	value below 1 selects the default.
+ *	ends. The default is the smallest of 512, an eighth of the number of
+ *	file descriptors that the process may open (see maxFileDescriptors),
+ *	and four times the number of processors (at least 16). A handshake on
+ *	a local network is bound by the processor, so more of them at once
+ *	only share the same processor time and each finishes later; on a
+ *	machine of 12 logical processors a limit of 48 completed about as many
+ *	connections a second as one of 512 under a flood of new connections
+ *	(within the spread between runs), with none of the failures that the
+ *	larger limit had. On a link with a long round trip a handshake mostly
+ *	waits for the peer, and the rate of new connections is about this
+ *	limit divided by the time a handshake takes: 48 at a round trip of 300
+ *	ms allows roughly 80 new connections a second, so raise the limit for
+ *	such links. A value below 1 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakeQueue</code> -
  *	The largest number of accepted connections that wait for one of the
  *	maxServerHandshakes handshakes to be free, all server endpoints of the

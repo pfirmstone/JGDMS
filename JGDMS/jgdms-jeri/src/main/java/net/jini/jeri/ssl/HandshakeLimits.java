@@ -39,6 +39,23 @@ import org.apache.river.action.GetLongAction;
  * connections at most a quarter of them less the working ones (and 4096), which
  * leaves room for the established connections and for everything else.
  *
+ * <p>The handshakes that work at once are also at most a small multiple of the
+ * processors, four times as many and at least 16.  On a local network a
+ * handshake is bound by the processor (the key exchange, the signatures, the
+ * verification of the certificates), so more of them at once only share the
+ * same processor time among more of them: each finishes later, and at the
+ * deadline many are cut off after they have done their work and their peers
+ * try again.  Measured on a machine of 12 logical processors, with 4096
+ * connectors opening connections as fast as they could: a limit of 512 gave
+ * 314 and 620 connections a second with 809 and 70 failures and a 99th
+ * percentile of 12 s, with windows of seconds in which nothing completed
+ * although hundreds of handshakes were working; a limit of 48 gave 658 and 517
+ * a second, no failures and a 99th percentile of 8 s.  On a link with a long
+ * round trip a handshake mostly waits for the peer, and the rate is about the
+ * limit divided by the time a handshake takes: 48 handshakes at a round trip
+ * of 300 ms allow about 80 new connections a second, so the limit should be
+ * raised for such links (see {@link #MAX_HANDSHAKES_PROPERTY}).
+ *
  * <p>The descriptors and the processors belong to the process, not to a
  * listener, so the permits are kept here and {@link #shared} returns the one
  * instance that every listener that uses this copy of the classes shares: a
@@ -55,7 +72,11 @@ import org.apache.river.action.GetLongAction;
  */
 final class HandshakeLimits {
 
-    /** The system property that sets the number of handshakes at once. */
+    /**
+     * The system property that sets the number of handshakes at once.  The
+     * default is the least of 512, an eighth of the descriptors and four for
+     * each processor (at least 16).
+     */
     static final String MAX_HANDSHAKES_PROPERTY =
         "org.apache.river.jeri.ssl.maxServerHandshakes";
 
@@ -81,6 +102,12 @@ final class HandshakeLimits {
         "org.apache.river.jeri.ssl.serverHandshakeCpuPermits";
 
     static final int MAX_HANDSHAKES_CEILING = 512;
+
+    /** The handshakes at once that a machine of any size may work on. */
+    static final int MIN_HANDSHAKES_FOR_PROCESSORS = 16;
+
+    /** The handshakes at once that each processor adds to that. */
+    static final int HANDSHAKES_PER_PROCESSOR = 4;
     static final int MAX_QUEUED_CEILING = 4096;
 
     /** The handshakes that work at once. */
@@ -182,10 +209,27 @@ final class HandshakeLimits {
         }
     }
 
-    /** Returns the limits for a process that may open this many descriptors. */
+    /**
+     * Returns the limits for a process that may open this many descriptors,
+     * on the processors of this machine.
+     */
     static HandshakeLimits forDescriptors(long maxDescriptors) {
+        return forDescriptors(maxDescriptors,
+                              Runtime.getRuntime().availableProcessors());
+    }
+
+    /**
+     * Returns the limits for a process that may open this many descriptors
+     * and has this many processors: the handshakes at once are the least of
+     * 512, an eighth of the descriptors, and four for each processor (and at
+     * least 16).
+     */
+    static HandshakeLimits forDescriptors(long maxDescriptors, int processors) {
+        long forProcessors = Math.max(MIN_HANDSHAKES_FOR_PROCESSORS,
+            (long) HANDSHAKES_PER_PROCESSOR * Math.max(1, processors));
         long handshakes = Math.max(1L,
-            Math.min(MAX_HANDSHAKES_CEILING, maxDescriptors / 8));
+            Math.min(Math.min(MAX_HANDSHAKES_CEILING, maxDescriptors / 8),
+                     forProcessors));
         long queued = Math.max(0L,
             Math.min(MAX_QUEUED_CEILING, maxDescriptors / 4 - handshakes));
         return new HandshakeLimits((int) handshakes, (int) queued);

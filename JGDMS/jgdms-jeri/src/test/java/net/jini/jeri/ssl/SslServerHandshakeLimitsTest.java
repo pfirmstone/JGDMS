@@ -48,20 +48,56 @@ public class SslServerHandshakeLimitsTest {
 
     @Test
     public void testDefaultsFollowTheDescriptorLimit() {
-        assertLimits(512, 4096, HandshakeLimits.forDescriptors(20000));
-        assertLimits(512, 3584, HandshakeLimits.forDescriptors(16384));
-        assertLimits(128, 128, HandshakeLimits.forDescriptors(1024));
-        assertLimits(8, 8, HandshakeLimits.forDescriptors(64));
-        assertLimits(1, 1, HandshakeLimits.forDescriptors(8));
-        assertLimits(1, 0, HandshakeLimits.forDescriptors(1));
+        /* Many processors, so that the descriptors are what limits. */
+        assertLimits(512, 4096, HandshakeLimits.forDescriptors(20000, 1000));
+        assertLimits(512, 3584, HandshakeLimits.forDescriptors(16384, 1000));
+        assertLimits(128, 128, HandshakeLimits.forDescriptors(1024, 1000));
+        assertLimits(8, 8, HandshakeLimits.forDescriptors(64, 1000));
+        assertLimits(1, 1, HandshakeLimits.forDescriptors(8, 1000));
+        assertLimits(1, 0, HandshakeLimits.forDescriptors(1, 1000));
+    }
+
+    /**
+     * The handshakes at once are at most four for each processor, and at least
+     * 16 where the descriptors allow them; the queue takes up what the working
+     * handshakes leave of a quarter of the descriptors.
+     */
+    @Test
+    public void testDefaultsFollowTheProcessors() {
+        assertLimits(48, 4048, HandshakeLimits.forDescriptors(16384, 12));
+        assertLimits(16, 4080, HandshakeLimits.forDescriptors(16384, 4));
+        assertLimits(16, 4080, HandshakeLimits.forDescriptors(16384, 1));
+        assertLimits(16, 4080, HandshakeLimits.forDescriptors(16384, 0));
+        assertLimits(256, 3840, HandshakeLimits.forDescriptors(16384, 64));
+        assertLimits(512, 3584, HandshakeLimits.forDescriptors(16384, 128));
+        assertLimits(512, 3584, HandshakeLimits.forDescriptors(16384, 4000));
+        /* The descriptors still limit a machine with many processors. */
+        assertLimits(128, 128, HandshakeLimits.forDescriptors(1024, 64));
+        assertLimits(8, 8, HandshakeLimits.forDescriptors(64, 4));
+        /* And the machine's own processors are what the default uses. */
+        Assert.assertEquals(HandshakeLimits.forDescriptors(16384,
+            Runtime.getRuntime().availableProcessors()).maxHandshakes,
+            HandshakeLimits.forDescriptors(16384).maxHandshakes);
     }
 
     @Test
     public void testPropertiesOverrideTheDefaults() throws Exception {
+        /* 4000 descriptors allow 500 handshakes; the processors may allow fewer. */
+        HandshakeLimits for4000 = HandshakeLimits.forDescriptors(4000);
         S0Fixture.withProperties(new String[] {
                 HandshakeLimits.MAX_DESCRIPTORS_PROPERTY, "4000" },
             () -> {
                 Assert.assertEquals(4000L, HandshakeLimits.maxDescriptors());
+                assertLimits(for4000.maxHandshakes, for4000.maxQueued,
+                             HandshakeLimits.get());
+                Assert.assertTrue(for4000.maxHandshakes <= 500);
+                return null;
+            });
+        /* Explicit values are used as they are, however many the processors allow. */
+        S0Fixture.withProperties(new String[] {
+                HandshakeLimits.MAX_DESCRIPTORS_PROPERTY, "4000",
+                S0Fixture.MAX_HANDSHAKES, "500", S0Fixture.MAX_QUEUED, "500" },
+            () -> {
                 assertLimits(500, 500, HandshakeLimits.get());
                 return null;
             });
@@ -76,7 +112,8 @@ public class SslServerHandshakeLimitsTest {
                 HandshakeLimits.MAX_DESCRIPTORS_PROPERTY, "4000",
                 S0Fixture.MAX_HANDSHAKES, "0", S0Fixture.MAX_QUEUED, "-1" },
             () -> {
-                assertLimits(500, 500, HandshakeLimits.get());
+                assertLimits(for4000.maxHandshakes, for4000.maxQueued,
+                             HandshakeLimits.get());
                 return null;
             });
         /* What the operating system reports is the default. */

@@ -326,7 +326,7 @@ listener do. Facts that the first version of this section had wrong, found by th
   Two copies in one JVM (an OSGi bundle beside a copy on the class path, two bundle revisions after a refresh, two web
   applications) have two budgets and two timer threads, and the limits hold for each copy, not for the JVM. A refreshed bundle
   leaves the timer thread of its old revision, with that revision's class loader, until the JVM ends (the thread is a daemon
-  and has no stop; the leak predates this section, the budget sharing does not). At most N = min(512, maxFds/8) handshakes work at once in the JVM and at
+  and has no stop; the leak predates this section, the budget sharing does not). At most N = min(512, maxFds/8, max(16, 4 x processors)) handshakes work at once in the JVM and at
   most Q = min(4096, maxFds/4 - N) accepted connections wait for a turn (`maxFds` from the JVM, 16384 where it cannot say), so
   the sockets that a process admits are at most a quarter of its descriptors however many listeners it has. Each accept loop
   waits for a permit of the shared count to be free before it calls `accept()`, without taking it, and takes it when it has
@@ -339,7 +339,16 @@ listener do. Facts that the first version of this section had wrong, found by th
   queue (`Integer.MAX_VALUE`, clamped to the system maximum), and nothing is accepted and closed. A listener's close gives back
   only the permits that its own connections hold. A waiting connection costs what the first-record bullet says; its
   `SslEngineChannel` and buffers are built only when it holds a place to work. The counts are clamped in `long`, so a limit near
-  the largest int cannot overflow them. Per-address caps: not built.
+  the largest int cannot overflow them. The cap N is also at most four for each processor, and at least
+  16 (the first version was 512 whatever the machine): a handshake on a local network is bound by the processor, so more
+  handshakes at once only share the same processor time among more of them, each finishes later, and at the deadline many are cut
+  off after they have done their work. Measured by the maintainer on a Windows machine of 6 cores and 12 logical processors, with
+  `TlsAcceptRate` at 4096 connectors, full handshakes, the default timeout: cap 512 gave 314 and 620 connections a second with
+  809 and 70 failures and a p99 of 12 s (the server's logs showed windows with no completion while hundreds of handshakes were in
+  progress); cap 96 gave 414 a second with 298 failures and a p99 of 10.3 s; cap 48 gave 658 and 517 a second with no failures
+  and a p99 of 8.0 to 8.2 s (maximum 8.3 s). On a link with a long round trip a handshake mostly waits for the peer, and the
+  rate of new connections is about N divided by the time a handshake takes: 48 at a round trip of 300 ms allows roughly 80 a
+  second, so such deployments should raise `ssl.maxServerHandshakes`. Per-address caps: not built.
 * **CPU.** The cap bounds concurrency, not rate: a replayer that reads the server's first flight and closes frees its slot in a
   few milliseconds. A permit of `max(2, cores/4)`, one set for each copy of the classes in the JVM, is held from the moment the server has consumed a
   ClientHello until its first flight has been computed, before it is written (a ClientHello that arrives in pieces holds nothing
@@ -386,7 +395,7 @@ listener do. Facts that the first version of this section had wrong, found by th
 |---|---|
 | `ssl.serverHandshakeTimeout` | 10 000 ms, total, from the accept (client: `ssl.handshakeTimeout`, 60 s, unchanged) |
 | `ssl.serverHandshakeMinBudget` | 2 000 ms, at most half the timeout: the time that must be left to be given a turn |
-| `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8) / min(4096, maxFds/4 - N), for each copy of the classes in the JVM |
+| `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8, max(16, 4 x processors)) / min(4096, maxFds/4 - N), for each copy of the classes in the JVM |
 | `ssl.maxFileDescriptors` | what the JVM reports, else 16384 |
 | `ssl.serverHandshakeCpuPermits` | max(2, cores/4), for each copy of the classes in the JVM; the SSLSocket path has as many of its own |
 | `ssl.serverHandshakeComputeThreads` | max(1, cores/4); 0 runs the tasks inline on the handshake's virtual thread |

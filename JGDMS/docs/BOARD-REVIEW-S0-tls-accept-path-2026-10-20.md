@@ -127,10 +127,25 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    as a queue timeout, apart from working timeouts. The SSLSocket path is covered too (item 3). Not covered: a peer that
    leaves after its record is complete while it waits for a place to work, and a peer that replays a captured ClientHello and
    stalls, which passes the gate, takes a place to work and (on either path) holds it until the deadline; silent peers cost
-   a queue slot and no place only if they are silent from the first byte. Decision 8 (the cap) stands: min(512, maxFds/8).
+   a queue slot and no place only if they are silent from the first byte. Decision 8 (the cap) was changed afterwards, see item 8.
 6. **After the follow-up (not in the package as first scoped).** `sun.nio.ch` is no longer imported (`e8abed7a5`, `1aa52d443`:
    the IOVecWrapper workaround is removed and the manifest test fails on any `sun.*` import), and the workaround for JDK bug
    4854354 is removed (`8dc35b03a`).
+7. **After the cold review of the follow-up (H1, M1, M2, L1 to L6).** One commit for each stage. `f83bd9dc0` (H1): the SSLSocket
+   path reads its first record, takes its permit afterwards, and gives it back at the first flight (item 3; M2's residual,
+   a replay that stalls holds a place to work until the deadline on both paths, is stated in item 5). `6205732ab` (M1): the
+   four permissions that the timeout scheduler needs of jgdms-jeri's domain are documented and pinned by a test (item 2).
+   `7bf6cf91b`: an idle accept loop holds no place (L1, item 1); a first record of 1 to 3 bytes is accepted (L4); a hand-off
+   that cannot be made runs a last resort, the close of the socket, and is counted (L5); "per JVM" reads "per copy of the
+   classes" (L2, item 1); the accept thread is joined before it is asserted dead (L6); the fairness of the semaphores and the
+   class loader half of the scheduler's caller check are tested (L3). Not done: a test that the gate ends before the flush
+   (L3, the gate-after-flush mutant): it needs a flight larger than the kernel's buffers or a delegating socket channel, and
+   neither is cheap; the mutant still survives.
+8. **The cap follows the processors.** Decision 8 chose `min(512, maxFds/8)`. On the maintainer's 12-logical-processor Windows
+   machine a cap of 512 under 4096 connectors gave 314 and 620 connections a second, with up to 809 failures and a p99 of 12 s,
+   and cap 48 gave 658 and 517 with none and 8 s (RESULTS section 39). The default is now `min(512, maxFds/8, max(16, 4 x
+   processors))`; the property still overrides it, and slow links, where a handshake mostly waits for the peer, should raise it
+   (48 at a round trip of 300 ms allows about 80 new connections a second). Not re-run on Windows.
 
 ---
 
