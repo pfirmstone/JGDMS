@@ -333,7 +333,8 @@ listener do. Facts that the first version of this section had wrong, found by th
   client's only deadline, `handshakeTimeout`, 60 s, unchanged); an interrupt
   fails the handshake instead of spinning to the deadline.
 * **SSLSocket path.** The ClientHello is read ahead as above; then `startHandshake()` under `setSoTimeout(time left)` plus the
-  same watchdog, and inside a permit of its own (see CPU); the NULL-suite check stays as the backstop.
+  same watchdog, and inside a permit of its own (see CPU); TLS 1.3 is the only enabled protocol, as on the engine path, and the
+  negotiated protocol is checked after the handshake ("Refusing non-TLS-1.3 connection"); the NULL-suite check stays as the backstop.
 * **Admission, for the process.** The budgets belong to the process, which has the descriptors and the processors, so one
   `HandshakeLimits` instance (one for each distinct setting of the properties, which is one in a process whose properties do not
   change) is shared by every listener, HTTPS included. "The process" means the listeners that use one copy of the classes:
@@ -383,9 +384,19 @@ listener do. Facts that the first version of this section had wrong, found by th
   permit for the work of the flight, as on the engine path, and not for the deadline; a peer that does not read the flight, so that
   the write of it blocks, holds it until the handshake times out (a flight is a few kilobytes, which the kernel's buffers take
   unless the peer's window is closed). These permits are a set of their own, as many as the others and shared in the JVM,
-  so that such peers on an HTTPS listener cannot hold up the engine path. Residuals: the work that follows a
-  HelloRetryRequest (a second ClientHello) is not within a permit on this path, and the peer's second flight is not on either;
-  both are bounded by the number of handshakes that work at once. A replay that stalls holds one place to work (not a permit to
+  so that such peers on an HTTPS listener cannot hold up the engine path. A HelloRetryRequest (the peer's key
+  share is for a group the server does not pin) is a ServerHello whose random is the RFC 8446 constant; the wrapper recognises it
+  in the bytes of the flight, gives the permit back with that flight (the wait for the second ClientHello holds none), reads the
+  second ClientHello whole, like the queue phase reads the first (with the compatibility ChangeCipherSpec that precedes it
+  accepted once), and takes a permit again before the JDK is given its first byte, for the work of the flight that follows it. (A
+  hold of the permit from the first ClientHello to the flight after the second, which would be simpler, lets a peer that sends a
+  ClientHello with an unpinned key share and stops hold a permit for the post-flight bound each: `permits / X` such connections a
+  second stop every HTTPS handshake.)  The engine path enters its gate again for the second ClientHello: its sniff of the start of
+  a ClientHello in the ciphertext sees the second hello after the ChangeCipherSpec, because the engine unwraps one record at a
+  time (a test pins it: the gate is entered twice, and a mutant that enters it once fails). The SSLSocket path takes TLS 1.3 only,
+  like the engine path (TLS 1.2 is used by no client; its second flight, in plain records that any capture can replay, was
+  processed outside the permit). Residual: the peer's second flight (certificate chain and signature) is not within a permit on
+  either path, and is bounded by the number of handshakes that work at once. A replay that stalls holds one place to work (not a permit to
   compute) for the post-flight bound, below, and not until the deadline, on both paths.
 * **Post-flight bound.** The server's flight is the last thing a replayer needs to pay for: it sends a captured ClientHello,
   reads the flight and stops, and the handshake then waits for an answer that never comes. Before this bound the place to work

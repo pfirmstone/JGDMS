@@ -348,6 +348,76 @@ public class SslServerClientHelloTest {
         Assert.assertArrayEquals(most, ClientHelloReader.read(inPieces(most, 4000)));
     }
 
+    /**
+     * The second ClientHello, after a HelloRetryRequest, may come behind the
+     * compatibility ChangeCipherSpec of TLS 1.3, once, and then is read as
+     * the first is; the first never may.
+     */
+    @Test
+    public void testReadAfterRetryTakesAChangeCipherSpecBeforeTheHello() throws Exception {
+        byte[] ccs = { 20, 3, 3, 0, 1, 1 };
+        byte[] after = { 20, 3, 3, 0, 1, 1 };
+        for (int[] shape : new int[][] { { }, { 1, 3 }, { 100, 100 } }) {
+            byte[] hello = message(300, shape);
+            for (int piece : new int[] { 1, 5, 6, 7, 100000 }) {
+                Script script = inPieces(concat(ccs, hello, after), piece);
+                Assert.assertArrayEquals("with a ChangeCipherSpec, pieces of " + piece,
+                    concat(ccs, hello), ClientHelloReader.readAfterRetry(asStream(script)));
+                Assert.assertEquals(after.length, script.unread());
+                script = inPieces(concat(hello, after), piece);
+                Assert.assertArrayEquals("without one, pieces of " + piece,
+                    hello, ClientHelloReader.readAfterRetry(asStream(script)));
+                Assert.assertEquals(after.length, script.unread());
+            }
+        }
+        byte[] hello = message(300);
+        byte[][] junk = {
+            concat(ccs, ccs, hello),                              // a second one
+            concat(new byte[] { 20, 3, 3, 0, 2, 1, 1 }, hello),   // two bytes
+            concat(new byte[] { 20, 3, 3, 0, 1, 2 }, hello),      // not the value 1
+            concat(new byte[] { 20, 2, 0, 0, 1, 1 }, hello),      // not version 3
+            concat(new byte[] { 20, 3, 3, 1, 1, 1 }, hello),      // a length of 257
+        };
+        for (int i = 0; i < junk.length; i++) {
+            Script script = inPieces(junk[i], 1000);
+            script.eof = false;
+            try {
+                ClientHelloReader.readAfterRetry(asStream(script));
+                Assert.fail("junk " + i + " was accepted");
+            } catch (ClientHelloReader.NotTlsException expected) {
+            }
+        }
+        /* The first hello may not be preceded by one. */
+        Script first = inPieces(concat(ccs, hello), 1000);
+        first.eof = false;
+        try {
+            ClientHelloReader.read(first);
+            Assert.fail("a ChangeCipherSpec before the first ClientHello");
+        } catch (ClientHelloReader.NotTlsException expected) {
+        }
+        /* A ChangeCipherSpec alone is not a hello. */
+        try {
+            ClientHelloReader.readAfterRetry(asStream(new Script(ccs)));
+            Assert.fail();
+        } catch (EOFException expected) {
+        }
+    }
+
+    /** The script as a stream. */
+    private static InputStream asStream(Script script) {
+        return new InputStream() {
+            public int read() throws IOException {
+                byte[] one = new byte[1];
+                int n = read(one, 0, 1);
+                return n < 0 ? -1 : one[0] & 0xff;
+            }
+
+            public int read(byte[] b, int off, int len) throws IOException {
+                return script.read(ByteBuffer.wrap(b, off, len));
+            }
+        };
+    }
+
     private static final String[] ONE_PLACE = {
         S0Fixture.MAX_HANDSHAKES, "2", S0Fixture.MAX_QUEUED, "400" };
 

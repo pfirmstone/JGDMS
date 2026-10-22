@@ -2178,6 +2178,16 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
+			 * Called by the layered socket of the SSLSocket path when the peer
+			 * has answered a HelloRetryRequest with its second ClientHello,
+			 * before the JDK works on it: the permit to compute is taken again
+			 * for that work, as the engine path's gate is entered again.
+			 */
+			public void helloRetryAnswered() throws IOException {
+				beginSocket();
+			}
+
+			/**
 			 * Called when the server has written a flight and waits for the
 			 * peer to answer it.  The work for the processor that the flight
 			 * took is done, so the permit goes back, and the peer has the time
@@ -2809,6 +2819,14 @@ class SslServerEndpointImpl extends Utilities {
 					/* Need to put in server mode before requesting client auth. */
 					sslSocket.setUseClientMode(false);
 					sslSocket.setNeedClientAuth(true);
+					/*
+					 * TLS 1.3 only, as on the engine path, which its permits and
+					 * its bounds are made for: a TLS 1.2 handshake has the
+					 * client's certificate and key exchange in plain records
+					 * that can be replayed from any capture, and its server
+					 * does the work for them outside the permit.
+					 */
+					sslSocket.setEnabledProtocols(new String[]{ "TLSv1.3" });
 					if (listenHandle.namedGroups != null) {
 						javax.net.ssl.SSLParameters sp = sslSocket.getSSLParameters();
 						sp.setNamedGroups(listenHandle.namedGroups);
@@ -2845,6 +2863,12 @@ class SslServerEndpointImpl extends Utilities {
 						handshake.end();
 					}
 					sess = sslSocket.getSession();
+					if (!"TLSv1.3".equals(sess.getProtocol())) {
+						throw new SecurityException(
+							"Refusing non-TLS-1.3 connection: negotiated "
+							+ sess.getProtocol()
+							+ " (the SSLSocket transport requires TLS 1.3)");
+					}
 					sslSocket.setEnableSessionCreation(false);
 				}
 				session = sess;

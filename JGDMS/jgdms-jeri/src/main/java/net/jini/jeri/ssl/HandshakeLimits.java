@@ -164,8 +164,11 @@ final class HandshakeLimits {
      * times out.  The permits are separate from those of {@link #cpu}, so that
      * such peers, which can only be on the endpoints that use SSLSockets (HTTPS
      * and those with a server socket factory), cannot hold up the handshakes of
-     * the other endpoints.  There are as many as the others.  Work that follows
-     * a HelloRetryRequest is not within a permit on this path.
+     * the other endpoints.  There are as many as the others.  A handshake
+     * that the server answers with a HelloRetryRequest gives its permit
+     * back with that flight, and takes one again when the second
+     * ClientHello has been read whole (the wrapper reads it, as the queue
+     * phase reads the first), for the work of the flight that follows it.
      */
     final Semaphore socketCpu;
 

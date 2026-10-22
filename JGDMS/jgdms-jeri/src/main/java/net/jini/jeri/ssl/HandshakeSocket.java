@@ -18,6 +18,7 @@
 
 package net.jini.jeri.ssl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -61,6 +62,13 @@ final class HandshakeSocket extends Socket {
     /** Set by a write, after which the next read is the wait for the answer. */
     private volatile boolean written;
 
+    /** The first bytes of the flight that is being written, which tell a HelloRetryRequest. */
+    private final byte[] head = new byte[HelloRetryRequest.LENGTH];
+    private int headHave;
+
+    /** The second ClientHello, read ahead, which the JDK reads before the socket, or null. */
+    private volatile InputStream second;
+
     /** What the handshake that owns the socket is told. */
     interface Watch {
         /**
@@ -76,36 +84,63 @@ final class HandshakeSocket extends Socket {
         void beforePeerRead();
 
         void afterPeerRead();
+
+        /**
+         * The peer has answered a HelloRetryRequest with a whole second
+         * ClientHello, and the JDK is about to work on it.  Called before the
+         * JDK is given its first byte, and may wait, within the time of the
+         * handshake, for the permit to do that work.
+         */
+        void helloRetryAnswered() throws IOException;
     }
 
     /**
      * @param socket the connected socket of the peer
      * @param rawIn the one input stream of the socket
      * @param rawOut the one output stream of the socket
-     * @param watch told of the flights written and of the reads, until {@link
+     * @param told told of the flights written and of the reads, until {@link
      *        #finish}
      */
     HandshakeSocket(Socket socket, InputStream rawIn, OutputStream rawOut,
-                    Watch watch)
+                    Watch told)
     {
         this.socket = socket;
-        this.watch = watch;
+        this.watch = told;
         this.in = new InputStream() {
             public int read() throws IOException {
-                Watch w = watch();
-                if (w == null) {
-                    return rawIn.read();
-                }
-                w.beforePeerRead();
-                try {
-                    return rawIn.read();
-                } finally {
-                    w.afterPeerRead();
-                }
+                byte[] one = new byte[1];
+                int n = read(one, 0, 1);
+                return n < 0 ? -1 : one[0] & 0xff;
             }
 
             public int read(byte[] b, int off, int len) throws IOException {
-                Watch w = watch();
+                Watch w = watch;
+                if (w != null) {
+                    if (written) {
+                        written = false;
+                        boolean retry = HelloRetryRequest.starts(head, 0, headHave);
+                        w.flightWritten();
+                        if (retry) {
+                            /*
+                             * The permit went back with the flight, and the peer
+                             * owes a second ClientHello.  It is read whole,
+                             * as the first was, and the permit is taken again for
+                             * the work that follows it, so that the wait for it
+                             * holds none.
+                             */
+                            second = new ByteArrayInputStream(
+                                ClientHelloReader.readAfterRetry(watched(w, rawIn)));
+                            w.helloRetryAnswered();
+                        }
+                    }
+                }
+                if (second != null) {
+                    int n = second.read(b, off, len);
+                    if (n >= 0) {
+                        return n;
+                    }
+                    second = null;
+                }
                 if (w == null) {
                     return rawIn.read(b, off, len);
                 }
@@ -118,7 +153,8 @@ final class HandshakeSocket extends Socket {
             }
 
             public int available() throws IOException {
-                return rawIn.available();
+                InputStream s = second;
+                return (s == null ? 0 : s.available()) + rawIn.available();
             }
 
             public void close() throws IOException {
@@ -127,12 +163,21 @@ final class HandshakeSocket extends Socket {
         };
         this.out = new OutputStream() {
             public void write(int b) throws IOException {
-                written = true;
-                rawOut.write(b);
+                write(new byte[] { (byte) b }, 0, 1);
             }
 
             public void write(byte[] b, int off, int len) throws IOException {
-                written = true;
+                if (watch != null) {
+                    if (!written) {
+                        written = true;
+                        headHave = 0;
+                    }
+                    int n = Math.min(len, head.length - headHave);
+                    if (n > 0) {
+                        System.arraycopy(b, off, head, headHave, n);
+                        headHave += n;
+                    }
+                }
                 rawOut.write(b, off, len);
             }
 
@@ -146,18 +191,24 @@ final class HandshakeSocket extends Socket {
         };
     }
 
-    /**
-     * Returns the handshake to tell of a read that is about to be made, after
-     * telling it that a flight has been written if one was, or null if the
-     * handshake is over.
-     */
-    private Watch watch() {
-        Watch w = watch;
-        if (w != null && written) {
-            written = false;
-            w.flightWritten();
-        }
-        return w;
+    /** The stream, with each read that blocks told to the handshake. */
+    private static InputStream watched(Watch w, InputStream rawIn) {
+        return new InputStream() {
+            public int read() throws IOException {
+                byte[] one = new byte[1];
+                int n = read(one, 0, 1);
+                return n < 0 ? -1 : one[0] & 0xff;
+            }
+
+            public int read(byte[] b, int off, int len) throws IOException {
+                w.beforePeerRead();
+                try {
+                    return rawIn.read(b, off, len);
+                } finally {
+                    w.afterPeerRead();
+                }
+            }
+        };
     }
 
     /**

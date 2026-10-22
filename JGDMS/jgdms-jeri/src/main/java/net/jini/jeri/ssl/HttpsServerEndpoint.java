@@ -521,15 +521,19 @@ import net.jini.security.SecurityContext;
  *	is layered over; a peer that replays a ClientHello and then stalls
  *	holds a permit for the work of the first flight, and one that does
  *	not read the flight, so that the write blocks, until the handshake
- *	times out. The work that follows a HelloRetryRequest is not within a
- *	permit on this path. There are as many permits for SSLSockets, kept
- *	apart so that peers that block the write of the flight cannot hold
- *	up the endpoints that use SSLEngines; among the endpoints that use
- *	SSLSockets, this many such peers stop the others from starting a
- *	handshake until they time out. A handshake waits for a permit within
- *	its serverHandshakeTimeout. The default is the larger of 2 and a
- *	quarter of the number of processors. A value below 1 selects the
- *	default.
+ *	times out. A handshake that the server answers with a
+ *	HelloRetryRequest (the peer's key share is for a group the server
+ *	does not enable) takes a permit again for the work that follows the
+ *	peer's second ClientHello, which the server reads whole first, and
+ *	holds none while it waits for it. Handshakes done with an SSLSocket
+ *	accept TLS 1.3 only, as those done with an SSLEngine do. There are
+ *	as many permits for SSLSockets, kept apart so that peers that block
+ *	the write of the flight cannot hold up the endpoints that use
+ *	SSLEngines; among the endpoints that use SSLSockets, this many such
+ *	peers stop the others from starting a handshake until they time out.
+ *	A handshake waits for a permit within its serverHandshakeTimeout.
+ *	The default is the larger of 2 and a quarter of the number of
+ *	processors. A value below 1 selects the default.
  * </ul>
  */
 public final class HttpsServerEndpoint implements ServerEndpoint {

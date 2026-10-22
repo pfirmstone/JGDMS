@@ -91,6 +91,12 @@ final class ClientHelloReader {
     /** The handshake message type of a ClientHello. */
     private static final int CLIENT_HELLO = 1;
 
+    /** The record type of a ChangeCipherSpec record. */
+    private static final int CHANGE_CIPHER_SPEC = 20;
+
+    /** The bytes of the compatibility ChangeCipherSpec record of TLS 1.3. */
+    private static final int CHANGE_CIPHER_SPEC_LENGTH = HEADER + 1;
+
     private static final int INITIAL_CAPACITY = 512;
 
     private ClientHelloReader() { }
@@ -165,6 +171,27 @@ final class ClientHelloReader {
     }
 
     /**
+     * Checks the bytes of a ChangeCipherSpec record that has begun at {@code
+     * start}: version 3.x and one byte, 1.
+     *
+     * @return the length of the record once its header is in, else 0
+     */
+    private static int checkChangeCipherSpec(byte[] bytes, int start, int have)
+        throws NotTlsException
+    {
+        int n = have - start;
+        if ((n >= 2 && bytes[start + 1] != 3)
+            || (n >= 3 && (bytes[start + 2] & 0xff) > 4)
+            || (n >= 4 && bytes[start + 3] != 0)
+            || (n >= 5 && bytes[start + 4] != 1)
+            || (n >= CHANGE_CIPHER_SPEC_LENGTH && bytes[start + HEADER] != 1))
+        {
+            throw new NotTlsException("not a ChangeCipherSpec before a ClientHello");
+        }
+        return n >= HEADER ? CHANGE_CIPHER_SPEC_LENGTH : 0;
+    }
+
+    /**
      * Reads the records of the connection's ClientHello, and nothing after
      * the last of them, and returns them, headers included, as they came.
      *
@@ -178,7 +205,8 @@ final class ClientHelloReader {
      * @throws IOException if the connection fails or is closed by its owner
      */
     static byte[] read(ReadableByteChannel channel) throws IOException {
-        return read((bytes, off, len) -> channel.read(ByteBuffer.wrap(bytes, off, len)));
+        return read((bytes, off, len) -> channel.read(ByteBuffer.wrap(bytes, off, len)),
+                    false);
     }
 
     /**
@@ -188,7 +216,18 @@ final class ClientHelloReader {
      * the ClientHello.
      */
     static byte[] read(InputStream in) throws IOException {
-        return read((bytes, off, len) -> in.read(bytes, off, len));
+        return read((bytes, off, len) -> in.read(bytes, off, len), false);
+    }
+
+    /**
+     * Reads the second ClientHello of a handshake that the server answered
+     * with a HelloRetryRequest, as {@link #read(InputStream)} reads the first.
+     * The client may send the compatibility ChangeCipherSpec record of TLS
+     * 1.3 (RFC 8446, appendix D.4) before it, which is returned with it, and
+     * is not one of the records of the message.
+     */
+    static byte[] readAfterRetry(InputStream in) throws IOException {
+        return read((bytes, off, len) -> in.read(bytes, off, len), true);
     }
 
     /** Where the bytes come from. */
@@ -197,7 +236,7 @@ final class ClientHelloReader {
         int read(byte[] bytes, int off, int len) throws IOException;
     }
 
-    private static byte[] read(Source source) throws IOException {
+    private static byte[] read(Source source, boolean changeCipherSpec) throws IOException {
         byte[] bytes = new byte[INITIAL_CAPACITY];
         int have = 0;
         /* Where the record that is being read begins, and how long it is, or 0. */
@@ -211,6 +250,8 @@ final class ClientHelloReader {
         int payload = 0;
         /* The length of the message with its header, once it is known. */
         int message = -1;
+        /* Whether a ChangeCipherSpec may still come before the message. */
+        boolean ccsAllowed = changeCipherSpec;
         for (;;) {
             /* Never past the record: what follows it is not ours to take. */
             int wanted = start + (total > 0 ? total : HEADER);
@@ -226,6 +267,16 @@ final class ClientHelloReader {
                     : "the peer closed the connection in its ClientHello");
             }
             have += n;
+            if (ccsAllowed && have > start && bytes[start] == CHANGE_CIPHER_SPEC) {
+                total = checkChangeCipherSpec(bytes, start, have);
+                if (total > 0 && have >= start + total) {
+                    ccsAllowed = false;
+                    start = have;
+                    total = 0;
+                }
+                continue;
+            }
+            ccsAllowed = false;
             total = check(bytes, start, have, records == 0);
             if (total > 0 && message >= 0 && total - HEADER > message - payload) {
                 throw new NotTlsException("not a ClientHello: a record of "

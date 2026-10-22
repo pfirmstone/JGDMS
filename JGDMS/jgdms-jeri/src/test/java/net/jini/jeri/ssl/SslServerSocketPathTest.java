@@ -267,6 +267,9 @@ public class SslServerSocketPathTest {
         public void afterPeerRead() {
             returned.incrementAndGet();
         }
+
+        public void helloRetryAnswered() {
+        }
     }
 
     /**
