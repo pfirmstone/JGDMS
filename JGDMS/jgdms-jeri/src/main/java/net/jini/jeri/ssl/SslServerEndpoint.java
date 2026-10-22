@@ -384,14 +384,31 @@ import net.jini.security.SecurityContext;
  *	by this time (in seconds) connections a second, each with a
  *	complete ClientHello: at the default of 3000 and a limit of 16 (4
  *	processors) about 5 a second, at 48 (12 logical processors) 16 a
- *	second. The value must be longer than the round trip to the
- *	slowest client plus the time that client needs to compute its
- *	answer (its verification of the server's certificate and its
- *	signature: some milliseconds, more on a busy or cold client or
- *	with a slow signature algorithm); a client that answers later is
- *	refused and has to reconnect. A handshake that takes a
- *	HelloRetryRequest waits for each of its two answers. The default
- *	is 3000. A value of 0 or less removes the limit.
+ *	second. The time is allowed for each flight, and is not shared
+ *	between them: a handshake that takes a HelloRetryRequest waits for
+ *	each of its two answers, so a peer that makes the server retry
+ *	holds its place for up to twice this time (about 5.8 seconds with
+ *	the default), and keeping every place taken costs it half as many
+ *	connections a second. The value must cover everything that the
+ *	client does between the end of the server's flight and the end of
+ *	its answer: the round trip; one or more round trips more when the
+ *	server's flight, or the client's answer, is larger than the
+ *	sender's initial congestion window (about 14 KB, as with a long
+ *	certificate chain), and when a segment is lost (a retransmission
+ *	timeout is at least the round trip plus 200 ms); and the client's
+ *	computation, which is the verification of the server's certificate
+ *	chain, including any online revocation check (OCSP or CRL: the JDK
+ *	allows such a check 15 s by default), and the signature of its
+ *	CertificateVerify, some milliseconds in software, 100 to 500 ms or
+ *	more with a hardware security module or a token, and as long as
+ *	its user takes if it asks for a PIN. As estimates, not
+ *	measurements: at a round trip of 300 ms about 0.35 to 0.8 s is
+ *	needed, and at 1000 ms about 1.5 to 2.5 s. The default is safe for
+ *	ordinary links and tight for clients on satellite or lossy links,
+ *	clients with an interactive PIN and clients that check revocation
+ *	online: raise the value for them. A client that answers later is
+ *	refused and has to reconnect. The default is 3000. A value of 0 or
+ *	less removes the limit.
  * <li> <code>org.apache.river.jeri.ssl.handshakeTimeout</code> - The
  *	number of milliseconds that a client allows for the TLS
  *	handshake with a server, counted from its start. The default is
@@ -404,66 +421,75 @@ import net.jini.security.SecurityContext;
  *	works costs a file descriptor and about 60 KiB of memory. A connection
  *	that is accepted waits for its turn to work, and a connection takes a
  *	turn only when the whole of its ClientHello has arrived, which the
- *	server reads while the connection waits: every record of it is
- *	checked as it comes, a message of more than 32768 bytes (the most
- *	that the JDK takes) or one in more than 8 records is refused, and
- *	nothing is read after its last byte. A peer that sends nothing, or a
- *	part of a ClientHello only, therefore holds a place in the queue
- *	(see maxServerHandshakeQueue) and never one of these; one that sends
+ *	server reads while the connection waits: every record of it is checked
+ *	as it comes, a message of more than 32768 bytes (the most that the JDK
+ *	takes) or one in more than 8 records is refused, and nothing is read
+ *	after its last byte. The second ClientHello of a client that is sent a
+ *	HelloRetryRequest is read in the same way, and the records that the
+ *	peer sends after its ClientHellos are counted: a peer that sends more
+ *	than 16 and one more for every 256 bytes is closed as sending something
+ *	that is not TLS. A peer that sends nothing, or a part of a ClientHello
+ *	only, therefore holds a place in the queue (see
+ *	maxServerHandshakeQueue) and never one of these; one that sends
  *	something that is not a TLS ClientHello is closed as soon as that is
  *	seen; and one that closes the connection is removed at once. A
- *	connection that waits holds its socket, a virtual thread and the
- *	bytes of its ClientHello that have arrived, at most 32812. The same
- *	holds for the handshakes done with an SSLSocket, which are those of
- *	HTTPS and of endpoints with a server socket factory. The limit is
- *	shared by all the server endpoints that use the same copy of the
- *	jgdms-jeri classes (one class loader, or one OSGi bundle revision),
- *	HTTPS ones included, because the file descriptors and the memory are
- *	the process's; a second copy in the same virtual machine has limits,
- *	and a timer thread, of its own, and a bundle that is refreshed
- *	leaves the timer thread of its old revision running until the
- *	virtual machine ends. The default is the smallest of 512, an eighth
- *	of the number of file descriptors that the process may open (see
- *	maxFileDescriptors), and four times the number of processors (at
- *	least 16). A handshake on a local network is bound by the processor,
- *	so more of them at once only share the same processor time and each
- *	finishes later; on a machine of 12 logical processors a limit of 48
- *	completed about as many connections a second as one of 512 under a
- *	flood of new connections (within the spread between runs), with none
- *	of the failures that the larger limit had. This limit bounds how
+ *	connection that waits holds its socket, a virtual thread and the bytes
+ *	of its ClientHello that have arrived, at most 32812. The same holds for
+ *	the handshakes done with an SSLSocket, which are those of HTTPS and of
+ *	endpoints with a server socket factory. The limit is shared by all the
+ *	server endpoints that use the same copy of the jgdms-jeri classes (one
+ *	class loader, or one OSGi bundle revision), HTTPS ones included,
+ *	because the file descriptors and the memory are the process's; a second
+ *	copy in the same virtual machine has limits, and a timer thread, of its
+ *	own, and a bundle that is refreshed leaves the timer thread of its old
+ *	revision running until the virtual machine ends. The default is the
+ *	smallest of 512, an eighth of the number of file descriptors that the
+ *	process may open (see maxFileDescriptors), and four times the number of
+ *	processors (at least 16). A handshake on a local network is bound by
+ *	the processor, so more of them at once only share the same processor
+ *	time and each finishes later; on a machine of 12 logical processors a
+ *	limit of 48 completed about as many connections a second as one of 512
+ *	under a flood of new connections (within the spread between runs), with
+ *	none of the failures that the larger limit had. This limit bounds how
  *	many connections a peer can keep the server from serving, and the
- *	places are held for a time, so it also bounds a rate. A peer that
- *	sends a complete ClientHello (which it can replay from any capture),
- *	reads the server's flight and stops holds a place for at most
- *	serverHandshakeClientFlightTimeout, 3000 ms by default, so keeping
- *	every place taken costs it about this limit divided by that time in
- *	connections a second: 5 a second at the default limit of 16 (4
- *	processors), 16 a second at 48 (12 logical processors); a peer that
- *	sends less than a whole ClientHello holds a place in the queue only.
- *	On a link with a long round trip a handshake mostly waits for the
- *	peer, and holds its place for one round trip, or two when the server
- *	asks for a second ClientHello (HelloRetryRequest) or its flight is
- *	larger than the sender's initial window, so the rate of new
- *	connections is about this limit divided by one to two round trips
- *	(one round trip / two): at a limit of 16, 160 / 80 a second at 100
- *	ms and 53 / 27 at 300 ms; at 48, 480 / 240 at 100 ms and 160 / 80 at
- *	300 ms. Connections that come faster wait in the queue (see
+ *	places are held for a time, so it also bounds a rate. A peer that sends
+ *	a complete ClientHello (which it can replay from any capture), reads
+ *	the server's flight and stops holds a place for
+ *	serverHandshakeClientFlightTimeout, 3000 ms by default, for each flight
+ *	of the server that it is asked to answer, so keeping every place taken
+ *	costs it about this limit divided by that time in connections a second:
+ *	5 a second at the default limit of 16 (4 processors), 16 a second at 48
+ *	(12 logical processors). A peer whose key share is for a group that the
+ *	server does not enable is sent a HelloRetryRequest first, answers it
+ *	with a second ClientHello and is sent a second flight; the time is
+ *	renewed at each flight, so it holds its place for about twice that time
+ *	(5.8 seconds measured with the default) and keeping every place taken
+ *	costs it half as many connections a second: about 2.7 at a limit of 16
+ *	and 8 at 48. A peer that sends less than a whole ClientHello holds a
+ *	place in the queue only. On a link with a long round trip a handshake
+ *	mostly waits for the peer, and holds its place for one round trip, or
+ *	two when the server asks for a second ClientHello (HelloRetryRequest)
+ *	or its flight is larger than the sender's initial window, so the rate
+ *	of new connections is about this limit divided by one to two round
+ *	trips (one round trip / two): at a limit of 16, 160 / 80 a second at
+ *	100 ms and 53 / 27 at 300 ms; at 48, 480 / 240 at 100 ms and 160 / 80
+ *	at 300 ms. Connections that come faster wait in the queue (see
  *	maxServerHandshakeQueue) and are closed when so little of
- *	serverHandshakeTimeout is left that serverHandshakeMinBudget cannot
- *	be given them, which their clients see as a failure to connect and
- *	may retry: after a restart, 1000 clients 300 ms away that reconnect
- *	at once are served at 27 to 53 a second at a limit of 16, so only
- *	about 200 to 400 are served in the 8 s that the minimum budget
- *	leaves, and the rest retry. Raise the limit for such links; each
- *	place costs a descriptor and about 60 KiB, and the processor time is
- *	shared among more handshakes. A value below 1 selects the default.
+ *	serverHandshakeTimeout is left that serverHandshakeMinBudget cannot be
+ *	given them, which their clients see as a failure to connect and may
+ *	retry: after a restart, 1000 clients 300 ms away that reconnect at once
+ *	are served at 27 to 53 a second at a limit of 16, so only about 200 to
+ *	400 are served in the 8 s that the minimum budget leaves, and the rest
+ *	retry. Raise the limit for such links; each place costs a descriptor
+ *	and about 60 KiB, and the processor time is shared among more
+ *	handshakes. A value below 1 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxServerHandshakeQueue</code> -
  *	The largest number of accepted connections that wait for one of the
  *	maxServerHandshakes handshakes to be free, all server endpoints of the
- *	Java virtual machine together. A connection that waits holds a place
- *	in this queue from its accept until its handshake ends, whether it has
- *	yet sent its ClientHello or not (see maxServerHandshakes). When that
- *	many connections are admitted, working or waiting, each endpoint stops
+ *	Java virtual machine together. A connection that waits holds a place in
+ *	this queue from its accept until its handshake ends, whether it has yet
+ *	sent its ClientHello or not (see maxServerHandshakes). When that many
+ *	connections are admitted, working or waiting, each endpoint stops
  *	accepting connections until a handshake ends, and the operating system
  *	queues the connections that arrive, up to the listen backlog (see
  *	listenBacklog); they are neither refused nor closed. An endpoint's
@@ -474,13 +500,19 @@ import net.jini.security.SecurityContext;
  *	endpoints are served in the order in which they began to wait, so none
  *	is passed over for ever. The default is the smaller of 4096 and a
  *	quarter of the number of file descriptors that the process may open,
- *	less maxServerHandshakes, and at least 0; the sockets that the
- *	process admits are therefore at most a quarter of its descriptors
- *	however many endpoints it has; each endpoint may also hold one more
- *	socket that it has accepted and cannot yet admit, as the paragraph
- *	says, so the sockets that wait or work are at most a quarter of the
- *	descriptors plus one for each endpoint. A value below 0 selects the
- *	default.
+ *	less maxServerHandshakes, and at least 0; the sockets that the process
+ *	admits are therefore at most a quarter of its descriptors however many
+ *	endpoints it has; each endpoint may also hold one more socket that it
+ *	has accepted and cannot yet admit, as the paragraph says, so the
+ *	sockets that wait or work are at most a quarter of the descriptors plus
+ *	one for each endpoint. A connection that waits holds the bytes of its
+ *	ClientHello that have arrived, up to 32812, so a full queue holds up to
+ *	that many bytes for each of its places in addition to the cost of the
+ *	handshakes that work (about 134 MB at the ceiling of 4096), which peers
+ *	that each send a ClientHello less one byte and stop can hold for up to
+ *	serverHandshakeTimeout less serverHandshakeMinBudget (8 s by default)
+ *	at a cost to them of about 16 MB a second, 512 connections a second; on
+ *	a small heap lower the queue. A value below 0 selects the default.
  * <li> <code>org.apache.river.jeri.ssl.maxFileDescriptors</code> - The
  *	number of file descriptors that the process may open, from which
  *	the defaults of maxServerHandshakes and maxServerHandshakeQueue

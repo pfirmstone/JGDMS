@@ -131,6 +131,38 @@ public class SslServerClientFlightTest {
     }
 
     /**
+     * The wait for the second ClientHello is a wait for the peer's answer to
+     * the HelloRetryRequest, which is a flight of the server: a peer that is
+     * sent one and goes silent is cut off after the bound and counted as one
+     * that did not answer, on either path, and not at the deadline, which is
+     * far off.
+     */
+    @Test(timeout = 60000)
+    public void testASilentPeerAfterARetryIsCutOffAfterTheBound() throws Exception {
+        long bound = 800;
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = listen(socketPath, 20_000, bound)) {
+                S0Fixture.connectLegit(l); // warm up
+                try (S0EngineClient c = new S0EngineClient(l.port, "secp384r1", "secp256r1")) {
+                    c.sendFlight();
+                    c.receiveFlight();
+                    /* The peer has the HelloRetryRequest and says nothing. */
+                    long ms = S0Fixture.awaitClosed(c.socket, 15_000);
+                    Assert.assertTrue("socketPath=" + socketPath + ": closed after " + ms
+                        + " ms, the bound is " + bound + " and the deadline 20000",
+                        ms >= bound - 300 && ms < bound + 2000);
+                }
+                Assert.assertTrue("counted as one that did not answer, socketPath="
+                    + socketPath, S0Fixture.await(() -> count(l,
+                        HandshakeCounters.Kind.FLIGHT_TIMEOUT) == 1, 3000));
+                Assert.assertEquals("not a handshake that ran out of time", 0,
+                                    count(l, HandshakeCounters.Kind.TIMEOUT));
+                assertFree(l, "socketPath=" + socketPath);
+            }
+        }
+    }
+
+    /**
      * The bound is on the time that the handshake waits for the peer, not on
      * the arrival of its first byte: a peer that sends a byte now and then
      * does not renew it.

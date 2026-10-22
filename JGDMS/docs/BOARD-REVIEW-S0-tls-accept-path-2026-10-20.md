@@ -160,7 +160,10 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
      `FirstRecord`): every record is checked as it arrives, the message is the 32768 bytes the JDK takes at most, in at most 8
      records, and nothing after its last record is read; the bytes go to the engine and the SSLSocket as they came. Records are
      not re-framed: a bound of 8 limits the JDK's copying (190 ms for 32 KiB in records of one byte) to nothing, takes no copy and
-     writes no header, and a legitimate client sends one record (the JDK) or two. A peer that has sent part of a ClientHello holds a
+     writes no header, and a legitimate client sends one record (the JDK) or two. (This closed the first ClientHello only. The
+     second ClientHello, after a HelloRetryRequest, was still put together by the engine itself on the engine path, a record at a
+     time and before the gate, at 210 ms to 3.2 s of CPU for 32 KB in records of one byte: the third cold review's M1, item 10.)
+     A peer that has sent part of a ClientHello holds a
      queue place and nothing else, on both paths (a six-byte fragment held a place and, on the SSLSocket path, a permit, until the
      deadline).
    - `6d9f4489f` (H2, and the previous M2): the post-flight bound, `serverHandshakeClientFlightTimeout` (3 s, 0 removes it): the
@@ -168,7 +171,8 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
      deadline. The watchdog gets a second entry for the read under way (a socket timeout would renew with every byte and the JDK
      sets `SO_TIMEOUT` itself; a per-phase deadline would count the server's own compute against the client). Cost of keeping
      the places taken: N / X connections a second, about 5 at N = 16 (4 cores) and 16 at N = 48 (12 logical processors), each with
-     a complete, replayable ClientHello; before, N / T, 1.6 and 4.8. Counted apart: "client did not answer the server's flight".
+     a complete, replayable ClientHello; before, N / T, 1.6 and 4.8 (N / X was right for a peer that does not make the server
+     retry; for one that does it is N / (2X), item 10). Counted apart: "client did not answer the server's flight".
    - `1e60099cc` (M1): TLS 1.3 only on the SSLSocket path, with the same check after the handshake. The permit across a
      HelloRetryRequest is not held from the first ClientHello to the flight after the second, as the maintainer's text had it:
      that holds a permit for the whole post-flight bound for a peer that makes the server retry and stops, and `permits / X` such
@@ -185,6 +189,34 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
      300 ms away drain at 27 to 53 a second at N = 16, 200 to 400 fit in the 8 s that the minimum budget leaves, and the rest
      retry; operators on slow links should raise `maxServerHandshakes`), that the sockets of the process are a quarter of the
      descriptors plus one accepted socket for each endpoint, and that the peer's second flight is not within a permit.
+   Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
+10. **After the third cold review of the follow-up (M1, L1 to L4, INFO).** One commit for each stage; the measurements are in
+   RESULTS section 41. Decisions kept as given: production runs on DirtyChai only (no carrier pinning; `synchronized` stays);
+   accept stays paused when the queue is full; queue wait counts inside the total deadline with the minimum budget; no policy
+   file is created or edited; no new mandatory import (`BundleImportsTest` green); TLS 1.2 is not used; per-address caps stay
+   off; the cap default is unchanged; the post-flight bound stays 3 s for each flight, and one budget is not shared by the two
+   flights of a handshake with a HelloRetryRequest (the consequence is documented, L1).
+   - Stage 1 (M1, and the related item): the engine path reads the second ClientHello with `ClientHelloReader.readAfterRetry`
+     (whole message, every record checked, at most 8 records and 32768 bytes, the post-flight bound applying to its reads) and
+     gives the engine the bytes in one piece, as the SSLSocket path does; the HelloRetryRequest is recognised in the bytes of
+     the wrap (`HelloRetryRequest.starts`). The client's encrypted second flight went through the same reassembly by the JDK, on
+     both paths, with nothing to bound it, and was real: the engine path cost 82 ms to 2.2 s (median 300 ms) for a Certificate
+     message of 30 KB in 5100 records of six bytes, the SSLSocket path 270 ms to 3.3 s (median 300 ms). `RecordCounter` counts
+     the records that follow the ClientHellos on both paths and closes a peer, as junk, that has sent more than 16 and one for
+     every 256 bytes. It is not "a cap on the records the engine unwraps before the gate ends": the gate is released when the
+     server's flight is computed, before the client's flight is read, so no gate is held while the client's flight is read, by
+     design.
+   - Stage 2 (L1 to L4, the claims of M2): documents. Added the test that the review found missing (a peer that is sent a
+     HelloRetryRequest and goes silent is cut off at the bound, counted as one that did not answer, on both paths; both
+     mutants, the SSLSocket read unwatched and the engine read unwatched, fail it). L1: a peer that makes the server retry holds
+     its place for about 2X (5.8 s measured by the review), so keeping the places costs N / (2X): 2.7 a second at N = 16, 8 at N =
+     48; the Javadoc of `maxServerHandshakes` and `serverHandshakeClientFlightTimeout` (`SslServerEndpoint`,
+     `HttpsServerEndpoint`, `package.html`) and design 4.6 say so. L3: what X must cover (round trips, loss, the client's crypto
+     and revocation checks, a PIN), with the estimates (0.35 to 0.8 s at 300 ms, 1.5 to 2.5 s at 1000 ms), and that operators
+     raise it for satellite links and interactive-PIN clients. L4: a full queue holds about 32 812 x Q bytes, 134 MB at Q = 4096.
+     Item 9's claim that a bound of 8 records limits the JDK's copying "to nothing", design 4.6 and the class comment of
+     `ClientHelloReader` presented the many-record cost as closed; they now say that it was closed for the first ClientHello and,
+     with stage 1, for the second and for the client's flight.
    Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
 
 ---

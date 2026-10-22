@@ -54,7 +54,12 @@ import java.nio.channels.ReadableByteChannel;
  * it takes.  (The bytes are not re-framed into larger records: a bound on the
  * number is as safe and takes no copy; a client that splits its ClientHello
  * into more than {@link #MAX_RECORDS} records is not one that this server
- * can serve.)
+ * can serve.)  The second ClientHello of a handshake that has a
+ * HelloRetryRequest is read in the same way, on the engine path as on the
+ * SSLSocket path ({@link #readAfterRetry}); the engine path did not at first,
+ * and put it together itself, which cost as much as the first did.  What the
+ * peer sends after its ClientHellos is encrypted, and is not read here: its
+ * records are counted by {@link RecordCounter}.
  *
  * <p>The read blocks.  It is ended, as every wait of a handshake is, by the
  * owner closing the raw socket.
