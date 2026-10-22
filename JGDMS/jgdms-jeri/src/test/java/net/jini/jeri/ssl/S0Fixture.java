@@ -26,16 +26,21 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.security.Principal;
+import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import javax.net.ServerSocketFactory;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
 import net.jini.jeri.InboundRequest;
@@ -420,6 +425,63 @@ final class S0Fixture {
     /** A client-mode engine of the trusted client, to drive a handshake by hand. */
     static javax.net.ssl.SSLEngine clientEngine() {
         javax.net.ssl.SSLEngine engine = clientContext.createSSLEngine("localhost", 0);
+        engine.setUseClientMode(true);
+        return engine;
+    }
+
+    /**
+     * A client-mode engine of the trusted client whose certificate chain has
+     * {@code extra} copies of its last certificate added, so that its
+     * Certificate message is long: about 380 bytes for each copy.  The server
+     * does not accept the chain, but reads all of the message first.
+     */
+    static SSLEngine clientEngineWithLongChain(int extra) throws Exception {
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (InputStream in = Files.newInputStream(dir.resolve("client.p12"))) {
+            ks.load(in, "changeit".toCharArray());
+        }
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+        kmf.init(ks, "changeit".toCharArray());
+        X509ExtendedKeyManager base = (X509ExtendedKeyManager) kmf.getKeyManagers()[0];
+        X509ExtendedKeyManager longer = new X509ExtendedKeyManager() {
+            public String[] getClientAliases(String k, Principal[] i) {
+                return base.getClientAliases(k, i);
+            }
+            public String chooseClientAlias(String[] k, Principal[] i, Socket s) {
+                return base.chooseClientAlias(k, i, s);
+            }
+            public String chooseEngineClientAlias(String[] k, Principal[] i, SSLEngine e) {
+                return base.chooseEngineClientAlias(k, i, e);
+            }
+            public String[] getServerAliases(String k, Principal[] i) {
+                return base.getServerAliases(k, i);
+            }
+            public String chooseServerAlias(String k, Principal[] i, Socket s) {
+                return base.chooseServerAlias(k, i, s);
+            }
+            public X509Certificate[] getCertificateChain(String alias) {
+                X509Certificate[] chain = base.getCertificateChain(alias);
+                X509Certificate[] all = new X509Certificate[chain.length + extra];
+                System.arraycopy(chain, 0, all, 0, chain.length);
+                for (int i = 0; i < extra; i++) {
+                    all[chain.length + i] = chain[chain.length - 1];
+                }
+                return all;
+            }
+            public PrivateKey getPrivateKey(String alias) {
+                return base.getPrivateKey(alias);
+            }
+        };
+        TrustManager[] trustAll = { new X509TrustManager() {
+            public void checkClientTrusted(X509Certificate[] c, String t) { }
+            public void checkServerTrusted(X509Certificate[] c, String t) { }
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        } };
+        SSLContext ctx = SSLContext.getInstance("TLSv1.3");
+        ctx.init(new KeyManager[] { longer }, trustAll, null);
+        SSLEngine engine = ctx.createSSLEngine("localhost", 0);
         engine.setUseClientMode(true);
         return engine;
     }

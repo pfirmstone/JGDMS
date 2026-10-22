@@ -69,6 +69,12 @@ final class HandshakeSocket extends Socket {
     /** The second ClientHello, read ahead, which the JDK reads before the socket, or null. */
     private volatile InputStream second;
 
+    /**
+     * Counts the records that the JDK reads from the peer while the handshake
+     * runs, after the ClientHellos, which are read whole and checked.
+     */
+    private final RecordCounter records = new RecordCounter();
+
     /** What the handshake that owns the socket is told. */
     interface Watch {
         /**
@@ -144,12 +150,17 @@ final class HandshakeSocket extends Socket {
                 if (w == null) {
                     return rawIn.read(b, off, len);
                 }
+                int n;
                 w.beforePeerRead();
                 try {
-                    return rawIn.read(b, off, len);
+                    n = rawIn.read(b, off, len);
                 } finally {
                     w.afterPeerRead();
                 }
+                if (n > 0) {
+                    records.count(b, off, n);
+                }
+                return n;
             }
 
             public int available() throws IOException {

@@ -51,21 +51,31 @@ final class S0EngineClient implements AutoCloseable {
      *        share, or none for the JDK's own
      */
     S0EngineClient(int port, String... groups) throws IOException {
+        this(port, engineOffering(groups));
+    }
+
+    /** A client over a new connection that is driven by the given engine. */
+    S0EngineClient(int port, SSLEngine engine) throws IOException {
         socket = new Socket("localhost", port);
         socket.setTcpNoDelay(true);
         socket.setSoTimeout(10_000);
         in = socket.getInputStream();
         out = socket.getOutputStream();
-        engine = S0Fixture.clientEngine();
+        this.engine = engine;
+        net = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+        app = ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
+        rx.limit(0);
+        engine.beginHandshake();
+    }
+
+    private static SSLEngine engineOffering(String... groups) {
+        SSLEngine engine = S0Fixture.clientEngine();
         if (groups.length > 0) {
             SSLParameters p = engine.getSSLParameters();
             p.setNamedGroups(groups);
             engine.setSSLParameters(p);
         }
-        net = ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
-        app = ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
-        rx.limit(0);
-        engine.beginHandshake();
+        return engine;
     }
 
     private void tasks() {
@@ -97,6 +107,53 @@ final class S0EngineClient implements AutoCloseable {
                 throw new IllegalStateException("nothing to send: " + st);
             }
         }
+    }
+
+    /**
+     * Limits the packets that the engine makes, so that the records it sends
+     * carry as little as the JDK lets them, from here on.
+     */
+    void setMaximumPacketSize(int size) {
+        SSLParameters p = engine.getSSLParameters();
+        p.setMaximumPacketSize(size);
+        engine.setSSLParameters(p);
+    }
+
+    /**
+     * Makes everything that the client has to send before it waits for the
+     * server, without sending it, and returns the bytes: the flight, however
+     * many records the engine makes of it.
+     */
+    byte[] flight() throws IOException {
+        java.io.ByteArrayOutputStream all = new java.io.ByteArrayOutputStream();
+        for (;;) {
+            HandshakeStatus st = engine.getHandshakeStatus();
+            if (st == HandshakeStatus.NEED_TASK) {
+                tasks();
+            } else if (st == HandshakeStatus.NEED_WRAP) {
+                net.clear();
+                engine.wrap(ByteBuffer.allocate(0), net);
+                net.flip();
+                byte[] bytes = new byte[net.remaining()];
+                net.get(bytes);
+                all.write(bytes);
+            } else {
+                return all.toByteArray();
+            }
+        }
+    }
+
+    /** Sends the bytes in one write. */
+    void send(byte[] bytes) throws IOException {
+        out.write(bytes);
+        out.flush();
+    }
+
+    /** Sends everything that the client has to send before it waits for the server. */
+    byte[] sendAll() throws IOException {
+        byte[] bytes = flight();
+        send(bytes);
+        return bytes;
     }
 
     /**

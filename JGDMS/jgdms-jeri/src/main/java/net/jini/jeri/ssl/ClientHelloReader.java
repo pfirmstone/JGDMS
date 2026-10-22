@@ -230,8 +230,18 @@ final class ClientHelloReader {
         return read((bytes, off, len) -> in.read(bytes, off, len), true);
     }
 
+    /**
+     * Reads the second ClientHello from a source of bytes, as {@link
+     * #readAfterRetry(InputStream)} does from a stream, for the engine path,
+     * which reads what the connection has sent ahead of it from its own
+     * buffer before the channel.
+     */
+    static byte[] readAfterRetry(Source source) throws IOException {
+        return read(source, true);
+    }
+
     /** Where the bytes come from. */
-    private interface Source {
+    interface Source {
         /** Reads at least one and at most {@code len} bytes; -1 at the end. */
         int read(byte[] bytes, int off, int len) throws IOException;
     }
