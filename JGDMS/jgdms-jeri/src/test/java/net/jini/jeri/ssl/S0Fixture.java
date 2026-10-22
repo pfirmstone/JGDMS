@@ -512,6 +512,8 @@ final class S0Fixture {
     static final String MAX_QUEUED = HandshakeLimits.MAX_QUEUED_PROPERTY;
     static final String HANDSHAKE_TIMEOUT =
         "org.apache.river.jeri.ssl.serverHandshakeTimeout";
+    static final String FLIGHT_TIMEOUT =
+        "org.apache.river.jeri.ssl.serverHandshakeClientFlightTimeout";
 
     /** A listener with the given limit, queue and handshake timeout. */
     static Listener listen(int handshakes, int queued, long timeoutMillis,

@@ -31,16 +31,18 @@ import java.util.Set;
 
 /**
  * The socket that a server's {@code SSLSocket} is layered over, which tells
- * when the server's first flight has been written.
+ * when the server has written a flight and waits for the peer's answer.
  *
  * <p>The JDK does the whole of a handshake inside {@code startHandshake}, so
  * the work for the processor (the key exchange and the signature that follow
  * the ClientHello) cannot be told from the waits for the peer, as it can with
  * an {@code SSLEngine}.  What can be seen is the streams: the JDK writes the
  * server's flight and then reads the answer of the peer.  So the first read
- * after the first write ends the window in which the handshake holds its
- * permit to compute, and a peer that replays a ClientHello and then stalls
- * holds that permit for no longer than the work takes.
+ * after a write ends the window in which the handshake holds its permit to
+ * compute, and a peer that replays a ClientHello and then stalls holds that
+ * permit for no longer than the work takes.  The reads that follow are the
+ * waits for the peer, and are told to the handshake, which bounds how long
+ * they may take.
  *
  * <p>Everything else is the underlying socket's: the addresses, the options,
  * the timeouts, the shutdowns and the close.  The streams are the ones that
@@ -52,35 +54,67 @@ final class HandshakeSocket extends Socket {
     private final Socket socket;
     private final InputStream in;
     private final OutputStream out;
-    private final Runnable flightWritten;
 
-    /** Set by the first write, after which the next read ends the window. */
+    /** The handshake that is told of the flights and the reads, or null once it is over. */
+    private volatile Watch watch;
+
+    /** Set by a write, after which the next read is the wait for the answer. */
     private volatile boolean written;
 
-    /** Set when the window has ended, once. */
-    private volatile boolean ended;
+    /** What the handshake that owns the socket is told. */
+    interface Watch {
+        /**
+         * The server has written a flight and the JDK now reads the peer's
+         * answer.  Called by the first read after a write.
+         */
+        void flightWritten();
+
+        /**
+         * The JDK is about to block in a read from the peer, and {@link
+         * #afterPeerRead} when it has returned.
+         */
+        void beforePeerRead();
+
+        void afterPeerRead();
+    }
 
     /**
      * @param socket the connected socket of the peer
      * @param rawIn the one input stream of the socket
      * @param rawOut the one output stream of the socket
-     * @param flightWritten run once, on the first read that follows the first
-     *        write
+     * @param watch told of the flights written and of the reads, until {@link
+     *        #finish}
      */
     HandshakeSocket(Socket socket, InputStream rawIn, OutputStream rawOut,
-                    Runnable flightWritten)
+                    Watch watch)
     {
         this.socket = socket;
-        this.flightWritten = flightWritten;
+        this.watch = watch;
         this.in = new InputStream() {
             public int read() throws IOException {
-                end();
-                return rawIn.read();
+                Watch w = watch();
+                if (w == null) {
+                    return rawIn.read();
+                }
+                w.beforePeerRead();
+                try {
+                    return rawIn.read();
+                } finally {
+                    w.afterPeerRead();
+                }
             }
 
             public int read(byte[] b, int off, int len) throws IOException {
-                end();
-                return rawIn.read(b, off, len);
+                Watch w = watch();
+                if (w == null) {
+                    return rawIn.read(b, off, len);
+                }
+                w.beforePeerRead();
+                try {
+                    return rawIn.read(b, off, len);
+                } finally {
+                    w.afterPeerRead();
+                }
             }
 
             public int available() throws IOException {
@@ -112,11 +146,27 @@ final class HandshakeSocket extends Socket {
         };
     }
 
-    private void end() {
-        if (written && !ended) {
-            ended = true;
-            flightWritten.run();
+    /**
+     * Returns the handshake to tell of a read that is about to be made, after
+     * telling it that a flight has been written if one was, or null if the
+     * handshake is over.
+     */
+    private Watch watch() {
+        Watch w = watch;
+        if (w != null && written) {
+            written = false;
+            w.flightWritten();
         }
+        return w;
+    }
+
+    /**
+     * Ends the telling: the handshake is over, and the streams are the
+     * socket's own.  The reads that follow, the connection's own, do not
+     * reach the handshake.
+     */
+    void finish() {
+        watch = null;
     }
 
     @Override

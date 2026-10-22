@@ -385,8 +385,29 @@ listener do. Facts that the first version of this section had wrong, found by th
   unless the peer's window is closed). These permits are a set of their own, as many as the others and shared in the JVM,
   so that such peers on an HTTPS listener cannot hold up the engine path. Residuals: the work that follows a
   HelloRetryRequest (a second ClientHello) is not within a permit on this path, and the peer's second flight is not on either;
-  both are bounded by the number of handshakes that work at once and by the deadline. A replay that stalls still holds one place
-  to work (not a permit to compute) until the deadline, on both paths: that is what the cap on the handshakes at once is for.
+  both are bounded by the number of handshakes that work at once. A replay that stalls holds one place to work (not a permit to
+  compute) for the post-flight bound, below, and not until the deadline, on both paths.
+* **Post-flight bound.** The server's flight is the last thing a replayer needs to pay for: it sends a captured ClientHello,
+  reads the flight and stops, and the handshake then waits for an answer that never comes. Before this bound the place to work
+  was held until the deadline T, so the places could be kept
+  taken at N / T connections a second; N = 16 and T = 10 s is 1.6 a second, which is also what 16 six-byte fragments cost before
+  the ClientHello was read whole (the second cold review, H2: with the cap lowered to follow the processors the attack was ten to
+  thirty times cheaper than at the old cap). Now the peer has `ssl.serverHandshakeClientFlightTimeout` (X, 3 s, 0 removes it)
+  for each flight it is asked to answer, whatever is left of T, and the places are held for X: N / X a second, which is 5 for
+  N = 16 and 16 for N = 48. The time is added up over the handshake's reads that wait for the peer after the flight is
+  written, so a peer that sends a byte now and then does not renew it (a bound on the arrival of the first byte of the answer
+  would be met by one byte); time the server spends computing, or waiting for a compute thread, is not counted. A flight is
+  "written" on the engine path when a `wrap` leaves the engine waiting to unwrap, after the flush (the same place the CPU gate
+  ends, and again after a HelloRetryRequest), and on the SSLSocket path at the first read that follows a write, which
+  `HandshakeSocket` sees. Mechanism: the watchdog, with a second entry for the read that is under way, scheduled before the read
+  and cancelled after it, which closes the raw socket as the deadline's entry does and decides by the same CAS (WORKING to
+  FLIGHT_TIMED_OUT). The alternatives were a socket timeout (it applies to one read, so a trickle renews it, and the JDK sets and
+  restores `SO_TIMEOUT` itself on the SSLSocket path) and a per-phase absolute deadline (it would count the server's own compute
+  time and the queue for a compute thread against the client, which cuts off legitimate clients on a busy server); the watchdog
+  needs no change to the engine's reads or the JDK's and works the same way on both paths. A handshake that ends this way is
+  counted as "client did not answer the server's flight", apart from a working timeout. X must exceed the round trip plus the time
+  the client takes to compute its answer; it costs a legitimate client nothing it was not already paying, since the answer arrives
+  one round trip plus the client's cryptography after the flight, and a client later than X is refused (and reconnects).
 * **Handshake compute threads.** The engine's delegated tasks (the ClientHello's key exchange and signature, the client's
   certificate chain and signature) go to a pool of platform daemon threads, one for each copy of the classes in the JVM,, created subject-neutral and not from the
   system `ThreadPool`, through the `SslEngineChannel.TaskRunner` seam; the handshake's virtual thread waits for the result and
@@ -418,6 +439,7 @@ listener do. Facts that the first version of this section had wrong, found by th
 | `ssl.serverHandshakeMinBudget` | 2 000 ms, at most half the timeout: the time that must be left to be given a turn |
 | `ssl.maxServerHandshakes` / `ssl.maxServerHandshakeQueue` | min(512, maxFds/8, max(16, 4 x processors)) / min(4096, maxFds/4 - N), for each copy of the classes in the JVM |
 | `ssl.maxFileDescriptors` | what the JVM reports, else 16384 |
+| `ssl.serverHandshakeClientFlightTimeout` | 3 000 ms, for each flight of the server, added up over the reads that wait for the answer; 0 removes it |
 | `ssl.serverHandshakeCpuPermits` | max(2, cores/4), for each copy of the classes in the JVM; the SSLSocket path has as many of its own |
 | `ssl.serverHandshakeComputeThreads` | max(1, cores/4); 0 runs the tasks inline on the handshake's virtual thread |
 | `ssl.serverNamedGroups` | `X25519MLKEM768,x25519,secp256r1` (empty: do not pin) |

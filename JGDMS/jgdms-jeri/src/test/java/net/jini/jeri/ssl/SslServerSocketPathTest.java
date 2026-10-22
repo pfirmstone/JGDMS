@@ -250,17 +250,39 @@ public class SslServerSocketPathTest {
         }
     }
 
-    /** What the layered socket gives to the JDK is the socket's own. */
+    /** Counts what the layered socket tells the handshake. */
+    private static final class Told implements HandshakeSocket.Watch {
+        final AtomicInteger flights = new AtomicInteger();
+        final AtomicInteger reads = new AtomicInteger();
+        final AtomicInteger returned = new AtomicInteger();
+
+        public void flightWritten() {
+            flights.incrementAndGet();
+        }
+
+        public void beforePeerRead() {
+            reads.incrementAndGet();
+        }
+
+        public void afterPeerRead() {
+            returned.incrementAndGet();
+        }
+    }
+
+    /**
+     * What the layered socket gives to the JDK is the socket's own, and what
+     * it tells the handshake is each flight, once, by the first read after
+     * the writes, and each read that waits for the peer.
+     */
     @Test(timeout = 60000)
-    public void testHandshakeSocketDelegatesAndEndsTheWindowOnce() throws Exception {
+    public void testHandshakeSocketDelegatesAndTellsTheFlights() throws Exception {
         try (ServerSocket server = new ServerSocket(0, 5, InetAddress.getLoopbackAddress());
              Socket client = new Socket(InetAddress.getLoopbackAddress(), server.getLocalPort());
              Socket accepted = server.accept())
         {
-            AtomicInteger ended = new AtomicInteger();
+            Told told = new Told();
             HandshakeSocket h = new HandshakeSocket(accepted,
-                accepted.getInputStream(), accepted.getOutputStream(),
-                ended::incrementAndGet);
+                accepted.getInputStream(), accepted.getOutputStream(), told);
             Assert.assertTrue(h.isConnected());
             Assert.assertNull("no channel", h.getChannel());
             Assert.assertEquals(accepted.getPort(), h.getPort());
@@ -274,26 +296,42 @@ public class SslServerSocketPathTest {
             h.setTcpNoDelay(true);
             Assert.assertTrue(accepted.getTcpNoDelay());
 
-            /* A read before any write does not end the window. */
+            /* A read before any write is a wait for the peer, but no flight. */
             client.getOutputStream().write(new byte[] { 1, 2, 3 });
             client.getOutputStream().flush();
             Assert.assertEquals(1, h.getInputStream().read());
-            Assert.assertEquals("a read before the first write", 0, ended.get());
+            Assert.assertEquals("a read before the first write", 0, told.flights.get());
+            Assert.assertEquals(1, told.reads.get());
+            Assert.assertEquals(1, told.returned.get());
 
             h.getOutputStream().write(new byte[] { 9 });
             h.getOutputStream().flush();
-            Assert.assertEquals("a write does not end it", 0, ended.get());
+            Assert.assertEquals("a write is not told", 0, told.flights.get());
             client.setSoTimeout(5000);
             Assert.assertEquals(9, client.getInputStream().read());
 
             Assert.assertEquals(2, h.getInputStream().read());
-            Assert.assertEquals("the first read after the write", 1, ended.get());
+            Assert.assertEquals("the first read after the write", 1, told.flights.get());
             Assert.assertEquals(3, h.getInputStream().read());
+            Assert.assertEquals("and no more for the reads that follow", 1, told.flights.get());
             h.getOutputStream().write(new byte[] { 8 });
+            h.getOutputStream().write(new byte[] { 7 });
             Assert.assertEquals(8, client.getInputStream().read());
+            Assert.assertEquals(7, client.getInputStream().read());
             client.getOutputStream().write(4);
             Assert.assertEquals(4, h.getInputStream().read());
-            Assert.assertEquals("once", 1, ended.get());
+            Assert.assertEquals("a second flight", 2, told.flights.get());
+            Assert.assertEquals(told.reads.get(), told.returned.get());
+
+            h.finish();
+            client.getOutputStream().write(5);
+            int reads = told.reads.get();
+            Assert.assertEquals(5, h.getInputStream().read());
+            h.getOutputStream().write(6);
+            client.getOutputStream().write(6);
+            Assert.assertEquals(6, h.getInputStream().read());
+            Assert.assertEquals("after the handshake nothing is told", reads, told.reads.get());
+            Assert.assertEquals(2, told.flights.get());
 
             h.shutdownOutput();
             Assert.assertTrue(accepted.isOutputShutdown());

@@ -1192,6 +1192,16 @@ class SslServerEndpointImpl extends Utilities {
 		static final long DEFAULT_SERVER_MIN_BUDGET = 2_000L;
 
 		/**
+		 * The system property that sets how long a server handshake waits for
+		 * the peer to answer a flight of the server, in milliseconds.
+		 */
+		static final String SERVER_CLIENT_FLIGHT_TIMEOUT_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeClientFlightTimeout";
+
+		/** The default time to wait for the answer to a flight: 3 seconds. */
+		static final long DEFAULT_SERVER_CLIENT_FLIGHT_TIMEOUT = 3_000L;
+
+		/**
 		 * The system property that sets the number of server handshakes that
 		 * may compute their first flight at once.
 		 */
@@ -1256,6 +1266,13 @@ class SslServerEndpointImpl extends Utilities {
 		 * still enough to work in.
 		 */
 		private final long minBudgetNanos;
+
+		/**
+		 * The time in nanoseconds that a handshake waits, in all, for the peer
+		 * to answer a flight of the server, whatever time is left, or 0 for no
+		 * such limit.
+		 */
+		private final long clientFlightNanos;
 
 		/**
 		 * The permits that all the listeners that use this copy of the
@@ -1349,6 +1366,12 @@ class SslServerEndpointImpl extends Utilities {
 			this.minBudgetNanos = minBudget > 0 && handshakeTimeoutNanos > 0L
 				? Math.min(Math.min(minBudget, Long.MAX_VALUE / 1_000_000L) * 1_000_000L,
 						   handshakeTimeoutNanos / 2)
+				: 0L;
+			long flight = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_CLIENT_FLIGHT_TIMEOUT_PROPERTY,
+								  DEFAULT_SERVER_CLIENT_FLIGHT_TIMEOUT))).longValue();
+			this.clientFlightNanos = flight > 0
+				? Math.min(flight, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
 				: 0L;
 			this.limits = HandshakeLimits.shared();
 			this.maxHandshakes = limits.maxHandshakes;
@@ -1742,6 +1765,8 @@ class SslServerEndpointImpl extends Utilities {
 			handshake.disarm();
 			HandshakeCounters.Kind kind = handshake.isQueueTimedOut()
 				? HandshakeCounters.Kind.QUEUE_TIMEOUT
+				: handshake.isFlightTimedOut()
+				? HandshakeCounters.Kind.FLIGHT_TIMEOUT
 				: handshake.isTimedOut()
 				? HandshakeCounters.Kind.TIMEOUT
 				: closedSync
@@ -1934,17 +1959,22 @@ class SslServerEndpointImpl extends Utilities {
 		 * when the handshake has finished, the watchdog from QUEUED to
 		 * QUEUE_TIMED_OUT when the connection has waited so long that the time
 		 * that is left is less than a handshake needs, and from WORKING to
-		 * TIMED_OUT when it has run out of time.  Whoever wins decides: after
-		 * DONE the watchdog never closes the socket, after a time out the task
-		 * never hands the connection on or goes on to work.
+		 * TIMED_OUT when it has run out of time, or to FLIGHT_TIMED_OUT when
+		 * the peer has taken too long to answer a flight of the server.
+		 * Whoever wins decides: after DONE the watchdog never closes the
+		 * socket, after a time out the task never hands the connection on or
+		 * goes on to work.
 		 */
-		final class Handshake implements Runnable, SslEngineChannel.ServerGate {
+		final class Handshake implements Runnable, SslEngineChannel.ServerGate,
+				HandshakeSocket.Watch
+		{
 
 			private static final int QUEUED = 0;
 			private static final int WORKING = 3;
 			private static final int DONE = 1;
 			private static final int TIMED_OUT = 2;
 			private static final int QUEUE_TIMED_OUT = 4;
+			private static final int FLIGHT_TIMED_OUT = 5;
 
 			final Socket socket;
 
@@ -1969,6 +1999,20 @@ class SslServerEndpointImpl extends Utilities {
 			private volatile InputStream socketInput;
 
 			private volatile ScheduledFuture<?> timer;
+
+			/**
+			 * The time in nanoseconds that the peer has left, in all, to
+			 * answer the flight that the server wrote last, or 0 if the server
+			 * does not wait for an answer or no such time is set.  Only the
+			 * handshake's own thread reads or sets it.
+			 */
+			private long flightLeft;
+
+			/** The System.nanoTime() at which the read under way began, or 0. */
+			private long flightRead;
+
+			/** The watchdog's entry for the read under way, or null. */
+			private volatile ScheduledFuture<?> flightTimer;
 
 			/** Whether this handshake holds a permit of {@code running}. */
 			private volatile boolean working;
@@ -2134,6 +2178,63 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
+			 * Called when the server has written a flight and waits for the
+			 * peer to answer it.  The work for the processor that the flight
+			 * took is done, so the permit goes back, and the peer has the time
+			 * that is set for the whole of its answer, which each of its reads
+			 * takes from, however slowly it sends.  A peer that replays a
+			 * ClientHello, reads the flight and stops therefore holds its
+			 * place for that time and not for the rest of the deadline.
+			 */
+			public void flightWritten() {
+				end();
+				flightLeft = clientFlightNanos;
+			}
+
+			/**
+			 * Called before the handshake blocks to read from the peer.  While
+			 * the peer owes an answer, the watchdog is given the time that it
+			 * has left, unless the deadline of the handshake is nearer.
+			 */
+			public void beforePeerRead() {
+				long left = flightLeft;
+				if (left <= 0L) {
+					return;
+				}
+				long now = System.nanoTime();
+				flightRead = now;
+				if (deadline != 0L && deadline - now <= left) {
+					/* The watchdog of the handshake ends it first. */
+					return;
+				}
+				flightTimer = HandshakeWatchdog.schedule(this::flightExpired, left);
+			}
+
+			/** Called when a read from the peer has returned, with bytes or without. */
+			public void afterPeerRead() {
+				ScheduledFuture<?> t = flightTimer;
+				if (t != null) {
+					flightTimer = null;
+					t.cancel(false);
+				}
+				long began = flightRead;
+				if (began != 0L) {
+					flightRead = 0L;
+					flightLeft = Math.max(1L, flightLeft - (System.nanoTime() - began));
+				}
+			}
+
+			/**
+			 * Called on the watchdog's thread when the peer has run out of
+			 * time to answer.  It only decides, like {@link #expired}.
+			 */
+			private void flightExpired() {
+				if (state.compareAndSet(WORKING, FLIGHT_TIMED_OUT)) {
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
+				}
+			}
+
+			/**
 			 * Gives back the permits and stops the watchdog.  The task calls
 			 * this when the socket is closed or registered; the permits are
 			 * given back once however often it is called.
@@ -2200,6 +2301,10 @@ class SslServerEndpointImpl extends Utilities {
 				if (t != null) {
 					t.cancel(false);
 				}
+				t = flightTimer;
+				if (t != null) {
+					t.cancel(false);
+				}
 			}
 
 			/**
@@ -2263,7 +2368,12 @@ class SslServerEndpointImpl extends Utilities {
 			/** Whether the watchdog cut the handshake off, working or waiting. */
 			boolean isTimedOut() {
 				int s = state.get();
-				return s == TIMED_OUT || s == QUEUE_TIMED_OUT;
+				return s == TIMED_OUT || s == QUEUE_TIMED_OUT || s == FLIGHT_TIMED_OUT;
+			}
+
+			/** Whether the watchdog cut the handshake off for want of an answer to a flight. */
+			boolean isFlightTimedOut() {
+				return state.get() == FLIGHT_TIMED_OUT;
 			}
 
 			/** Whether the connection was dropped before it was given a turn. */
@@ -2469,6 +2579,11 @@ class SslServerEndpointImpl extends Utilities {
 		/** Returns the number of permits to compute a first flight. */
 		int cpuPermits() {
 			return cpuPermits;
+		}
+
+		/** Returns the milliseconds that a handshake waits for the answer to a flight, or 0. */
+		long clientFlightMillis() {
+			return TimeUnit.NANOSECONDS.toMillis(clientFlightNanos);
 		}
 
 		/** Returns the most handshakes that work at once. */
@@ -2685,7 +2800,7 @@ class SslServerEndpointImpl extends Utilities {
 					byte[] first = handshake.takeClientHello();
 					HandshakeSocket layered = new HandshakeSocket(socket,
 						handshake.socketInput(), socket.getOutputStream(),
-						handshake::end);
+						handshake);
 					sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
 						layered, new java.io.ByteArrayInputStream(
 							first != null ? first : new byte[0]),
@@ -2726,6 +2841,7 @@ class SslServerEndpointImpl extends Utilities {
 						sslSocket.startHandshake();
 						sslSocket.setSoTimeout(soTimeout);
 					} finally {
+						layered.finish();
 						handshake.end();
 					}
 					sess = sslSocket.getSession();

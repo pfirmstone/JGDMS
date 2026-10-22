@@ -68,6 +68,8 @@ final class HandshakeCounters {
         IO("I/O error"),
         /** The handshake was working and did not complete in time. */
         TIMEOUT("timed out working"),
+        /** The peer did not answer a flight of the server in the time allowed. */
+        FLIGHT_TIMEOUT("client did not answer the server's flight"),
         /**
          * The connection did not send its ClientHello, or was given no turn
          * to work, before the time that a handshake needs was gone.

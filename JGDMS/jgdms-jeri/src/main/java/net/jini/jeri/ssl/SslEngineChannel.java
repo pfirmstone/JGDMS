@@ -304,6 +304,21 @@ final class SslEngineChannel {
     interface ServerGate {
         void begin() throws IOException;
         void end();
+
+        /**
+         * Called when the server has written a flight and waits for the peer
+         * to answer it, after the flight is out.
+         */
+        default void flightWritten() { }
+
+        /**
+         * Called before a read from the peer during the handshake, which
+         * blocks, and {@link #afterPeerRead} after it, so that an
+         * implementation can bound the time that the peer takes.
+         */
+        default void beforePeerRead() { }
+
+        default void afterPeerRead() { }
     }
 
     /**
@@ -462,6 +477,12 @@ final class SslEngineChannel {
             switch (result.getStatus()) {
                 case OK:
                 case CLOSED:
+                    if (gate != null
+                        && result.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP)
+                    {
+                        // The flight is out and the peer's answer is next.
+                        gate.flightWritten();
+                    }
                     return result.getHandshakeStatus();
                 case BUFFER_OVERFLOW:
                     // netOut sized to packet buffer; a handshake record should
@@ -706,8 +727,16 @@ final class SslEngineChannel {
         if (handshakeReadDeadline > 0L) {
             return fillNetInByDeadline();
         }
-        int n = channel.read(netIn);
-        return n >= 0;
+        ServerGate g = gate;
+        if (g == null) {
+            return channel.read(netIn) >= 0;
+        }
+        g.beforePeerRead();
+        try {
+            return channel.read(netIn) >= 0;
+        } finally {
+            g.afterPeerRead();
+        }
     }
 
     /**

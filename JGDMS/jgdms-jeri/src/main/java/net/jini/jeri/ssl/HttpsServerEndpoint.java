@@ -383,6 +383,32 @@ import net.jini.security.SecurityContext;
  *	serverHandshakeTimeout, so that a short timeout is still long
  *	enough to work in. The default is 2000. A value of 0 or less gives
  *	a connection its turn however little time is left.
+ * <li> <code>org.apache.river.jeri.ssl.serverHandshakeClientFlightTimeout</code> -
+ *	The number of milliseconds that a server handshake waits for the
+ *	peer to answer a flight of the server (the ServerHello, the
+ *	certificate and the signature, which the peer answers with its own
+ *	certificate, signature and Finished), counted from the moment the
+ *	flight has been written and added up over the reads that wait for
+ *	the answer, so that a peer which sends a byte now and then does
+ *	not renew it. When it has passed, whatever is left of
+ *	serverHandshakeTimeout, the server closes the connection, and
+ *	counts it apart from the handshakes that ran out of time ("client
+ *	did not answer the server's flight"). Without it a peer that
+ *	replays a captured ClientHello, reads the flight and stops holds
+ *	one of the places of maxServerHandshakes until
+ *	serverHandshakeTimeout; with it, for this time only, so the peers
+ *	that keep the places taken must make maxServerHandshakes divided
+ *	by this time (in seconds) connections a second, each with a
+ *	complete ClientHello: at the default of 3000 and a limit of 16 (4
+ *	processors) about 5 a second, at 48 (12 logical processors) 16 a
+ *	second. The value must be longer than the round trip to the
+ *	slowest client plus the time that client needs to compute its
+ *	answer (its verification of the server's certificate and its
+ *	signature: some milliseconds, more on a busy or cold client or
+ *	with a slow signature algorithm); a client that answers later is
+ *	refused and has to reconnect. A handshake that takes a
+ *	HelloRetryRequest waits for each of its two answers. The default
+ *	is 3000. A value of 0 or less removes the limit.
  * <li> <code>org.apache.river.jeri.ssl.handshakeTimeout</code> - The
  *	number of milliseconds that a client allows for the TLS
  *	handshake with a server, counted from its start. The default is
