@@ -57,10 +57,14 @@ public class TimeoutSchedulerPermissionTest {
     private static final class Outcome {
         final String result;
         final String output;
+        final Process process;
+        final boolean timedOut;
 
-        Outcome(String result, String output) {
+        Outcome(String result, String output, Process process, boolean timedOut) {
             this.result = result;
             this.output = output;
+            this.process = process;
+            this.timedOut = timedOut;
         }
     }
 
@@ -70,6 +74,16 @@ public class TimeoutSchedulerPermissionTest {
 
     /** Runs the scenario in a JVM of its own, with the permissions granted to jgdms-jeri's domain. */
     private static Outcome run(String... granted) throws Exception {
+        Outcome outcome = run(60_000L, granted);
+        Assert.assertFalse("the scenario did not end: " + outcome.output, outcome.timedOut);
+        Assert.assertNotNull("no result: " + outcome.output, outcome.result);
+        Assume.assumeFalse("no security manager can be installed here: " + outcome.result,
+                           outcome.result.startsWith("UNSUPPORTED"));
+        return outcome;
+    }
+
+    /** Runs the child for at most the time, and destroys it if it has not ended. */
+    private static Outcome run(long timeoutMillis, String... granted) throws Exception {
         List<String> command = new ArrayList<>();
         command.add(Paths.get(System.getProperty("java.home"), "bin",
             System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java")
@@ -81,27 +95,68 @@ public class TimeoutSchedulerPermissionTest {
         command.addAll(Arrays.asList(granted));
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
         StringBuilder output = new StringBuilder();
-        String result = null;
-        try (BufferedReader in = new BufferedReader(
-                 new InputStreamReader(process.getInputStream())))
-        {
-            for (String line; (line = in.readLine()) != null; ) {
-                output.append(line).append('\n');
-                if (line.startsWith("OK") || line.startsWith("FAILED")
-                    || line.startsWith("UNSUPPORTED"))
-                {
-                    result = line;
+        String[] result = new String[1];
+        /*
+         * The output is read on a thread of its own, so that a child that
+         * stops writing without exiting cannot hold up the wait for it, and
+         * the child is destroyed whatever happens, so that none is orphaned.
+         */
+        Thread reader = new Thread(() -> {
+            try (BufferedReader in = new BufferedReader(
+                     new InputStreamReader(process.getInputStream())))
+            {
+                for (String line; (line = in.readLine()) != null; ) {
+                    synchronized (output) {
+                        output.append(line).append('\n');
+                        if (line.startsWith("OK") || line.startsWith("FAILED")
+                            || line.startsWith("UNSUPPORTED"))
+                        {
+                            result[0] = line;
+                        }
+                    }
                 }
+            } catch (java.io.IOException closed) {
+                /* The child was destroyed. */
+            }
+        }, "scheduler probe output");
+        reader.setDaemon(true);
+        reader.start();
+        boolean timedOut = false;
+        try {
+            if (!process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
+                timedOut = true;
+                process.destroyForcibly();
+            }
+            reader.join(10_000);
+        } finally {
+            if (process.isAlive()) {
+                process.destroyForcibly();
             }
         }
-        if (!process.waitFor(60, TimeUnit.SECONDS)) {
-            process.destroyForcibly();
-            Assert.fail("the scenario did not end: " + output);
+        String line;
+        String text;
+        synchronized (output) {
+            line = result[0];
+            text = output.toString();
         }
-        Assert.assertNotNull("no result: " + output, result);
-        Assume.assumeFalse("no security manager can be installed here: " + result,
-                           result.startsWith("UNSUPPORTED"));
-        return new Outcome(result, output.toString());
+        return new Outcome(line, text, process, timedOut);
+    }
+
+    /**
+     * A child that writes a line and then neither writes nor ends is cut off
+     * at the time given and destroyed, not waited for in a read that never
+     * returns, and none is left running.
+     */
+    @Test(timeout = 60000)
+    public void testAChildThatHangsIsDestroyed() throws Exception {
+        long t0 = System.nanoTime();
+        Outcome outcome = run(3000L, "HANG");
+        long ms = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+        Assert.assertTrue("gave up after " + ms + " ms", outcome.timedOut && ms < 15_000);
+        Assert.assertTrue("the child's line was read: " + outcome.output,
+                          outcome.output.contains("alive"));
+        Assert.assertTrue("and the child is gone", outcome.process.waitFor(10, TimeUnit.SECONDS));
+        Assert.assertFalse(outcome.process.isAlive());
     }
 
     /**

@@ -102,6 +102,9 @@ public final class TimeoutScheduler {
         "org.apache.river.jeri.internal.mux.Session",
         "net.jini.jeri.ssl.HandshakeWatchdog");
 
+    /** The class that may inject failures, for tests: the TLS watchdog's. */
+    private static final String INJECTOR = "net.jini.jeri.ssl.HandshakeWatchdog";
+
     private static final StackWalker CALLER = AccessController.doPrivileged(
         (PrivilegedAction<StackWalker>) () ->
             StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE));
@@ -176,7 +179,9 @@ public final class TimeoutScheduler {
                                               TimeUnit unit)
     {
         check(CALLER.getCallerClass());
-        return TIMER.schedule(task, delay, unit);
+        Injection injection = OWN.get();
+        return TIMER.schedule(
+            injection == null ? task : carrying(injection, task), delay, unit);
     }
 
     /**
@@ -209,25 +214,33 @@ public final class TimeoutScheduler {
     }
 
     private static void run(Runnable task, Runnable lastResort) {
+        Injection injection = current();
         try {
-            if ((injected & FAIL_HAND_OFF) != 0) {
+            if (injection != null && injection.handOff) {
                 throw new java.util.concurrent.RejectedExecutionException("injected");
             }
             HAND_OFF.execute(task);
         } catch (Throwable t) {
             // out of threads or memory: try again, off this thread
             try {
-                if ((injected & FAIL_RETRY) != 0) {
+                if (injection != null && injection.retry) {
                     throw new java.util.concurrent.RejectedExecutionException("injected");
                 }
-                TIMER.schedule(() -> run(task, lastResort), 1L, TimeUnit.SECONDS);
+                Runnable again = () -> run(task, lastResort);
+                TIMER.schedule(injection == null ? again : carrying(injection, again),
+                               1L, TimeUnit.SECONDS);
             } catch (Throwable ignore) {
                 // shut down or out of memory: only the last resort is left
                 long lost = LOST.incrementAndGet();
                 try {
-                    Logger.getLogger(TimeoutScheduler.class.getName()).log(
-                        Level.SEVERE, "could not hand off a task of the "
-                        + "connection timeout scheduler; {0} lost so far", lost);
+                    long since = LOSS_LOG.report(System.nanoTime());
+                    if (since > 0L) {
+                        Logger.getLogger(TimeoutScheduler.class.getName()).log(
+                            Level.SEVERE, "could not hand off a task of the "
+                            + "connection timeout scheduler; {0} lost since the "
+                            + "last line, {1} lost so far",
+                            new Object[] { since, lost });
+                    }
                 } catch (Throwable ignored) {
                     // out of memory: counted, nothing more can be done
                 }
@@ -251,27 +264,110 @@ public final class TimeoutScheduler {
         return LOST.get();
     }
 
-    /** For tests: the hand-off of a task fails. */
-    public static final int FAIL_HAND_OFF = 1;
+    /**
+     * For tests: the failures to inject into the hand-offs of one thread, and
+     * of the tasks that thread schedules.  A thread that never calls {@link
+     * #inject} has none, and the tasks that it schedules are not wrapped.
+     */
+    private static final class Injection {
+        volatile boolean handOff;
+        volatile boolean retry;
+    }
 
-    /** For tests: the repeat of a failed hand-off cannot be scheduled. */
-    public static final int FAIL_RETRY = 2;
-
-    /** For tests: the failures to inject, a mask of the constants above. */
-    private static volatile int injected;
+    /** The injection of the calling thread, if it has asked for one. */
+    private static final ThreadLocal<Injection> OWN = new ThreadLocal<>();
 
     /**
-     * For tests: makes the hand-off of tasks fail as given, or no longer, with
-     * 0.  Like the other methods, it may be called by the callers of the
-     * scheduler only.
-     *
-     * @throws SecurityException if the caller is not one of the classes that
-     *         may use the scheduler
+     * On the timer's thread, while it runs a task that a thread with an
+     * injection scheduled, the injection of that thread.
      */
-    public static void inject(int failures) {
-        check(CALLER.getCallerClass());
-        injected = failures;
+    private static final ThreadLocal<Injection> RUNNING = new ThreadLocal<>();
+
+    private static Injection current() {
+        Injection injection = RUNNING.get();
+        return injection != null ? injection : OWN.get();
     }
+
+    /** The task, run with the injection of the thread that scheduled it. */
+    private static Runnable carrying(Injection injection, Runnable task) {
+        return () -> {
+            RUNNING.set(injection);
+            try {
+                task.run();
+            } finally {
+                RUNNING.remove();
+            }
+        };
+    }
+
+    /**
+     * For tests: makes the hand-offs of the calling thread, and of the tasks
+     * that it schedules from now on, fail as given, or no longer, with false
+     * and false.  No other thread's hand-offs are affected, so a test cannot
+     * fail a hand-off of another component that runs in the same JVM.  The
+     * injection can be changed afterwards and the tasks already scheduled see
+     * the change.  It is public only because the callers are in other
+     * packages, and it may be called by the TLS watchdog's class only, which
+     * is used by tests alone: a call from any other class, or loader, fails
+     * with a {@link SecurityException}.
+     *
+     * @param handOff the hand-off of a task fails
+     * @param retry the repeat of a failed hand-off cannot be scheduled
+     * @throws SecurityException if the caller is not the class that may inject
+     */
+    public static void inject(boolean handOff, boolean retry) {
+        Class<?> caller = CALLER.getCallerClass();
+        if (caller.getClassLoader() != TimeoutScheduler.class.getClassLoader()
+            || !INJECTOR.equals(caller.getName()))
+        {
+            throw new SecurityException(
+                caller.getName() + " may not inject failures into the "
+                + "connection timeout scheduler");
+        }
+        Injection injection = OWN.get();
+        if (injection == null) {
+            injection = new Injection();
+            OWN.set(injection);
+        }
+        injection.handOff = handOff;
+        injection.retry = retry;
+    }
+
+    /**
+     * Counts the tasks that were lost, and says when to write a line about
+     * them: the first at once, then at most one for each interval, with the
+     * number lost since the last line, so that a flood of expiries while the
+     * JVM is out of threads or memory writes a line, not a line for each.
+     */
+    static final class LossLog {
+        private final long intervalNanos;
+        private boolean any;
+        private long lastNanos;
+        private long unreported;
+
+        LossLog(long intervalNanos) {
+            this.intervalNanos = intervalNanos;
+        }
+
+        /**
+         * Notes a task lost at the time, and returns the number of lost tasks
+         * that a line written now is about, or 0 if no line is due.
+         */
+        synchronized long report(long nowNanos) {
+            unreported++;
+            if (any && nowNanos - lastNanos < intervalNanos) {
+                return 0L;
+            }
+            any = true;
+            lastNanos = nowNanos;
+            long n = unreported;
+            unreported = 0L;
+            return n;
+        }
+    }
+
+    /** The interval between lines about lost tasks: 30 seconds. */
+    private static final LossLog LOSS_LOG = new LossLog(30_000_000_000L);
 
     /** Returns the number of tasks that are waiting, for tests. */
     public static int pending() {

@@ -17,9 +17,15 @@
  */
 package net.jini.jeri.ssl;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.net.ServerSocketFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -262,6 +268,131 @@ public class SslServerSharedBudgetTest {
         } finally {
             S0Fixture.closeAll(silent);
             closeAll(ls);
+        }
+    }
+
+    /**
+     * A server socket factory whose sockets count the connections that the
+     * listener accepts, and can hold the accept back until the test lets it.
+     */
+    private static final class CountingFactory extends ServerSocketFactory {
+        final AtomicInteger accepted = new AtomicInteger();
+        final CountDownLatch proceed;
+        /** Set when the listener has called accept and waits to be let. */
+        volatile boolean calledAccept;
+
+        CountingFactory(CountDownLatch proceed) {
+            this.proceed = proceed;
+        }
+
+        public ServerSocket createServerSocket(int port) throws IOException {
+            return createServerSocket(port, 50, null);
+        }
+
+        public ServerSocket createServerSocket(int port, int backlog) throws IOException {
+            return createServerSocket(port, backlog, null);
+        }
+
+        public ServerSocket createServerSocket(int port, int backlog, InetAddress a)
+            throws IOException
+        {
+            return new ServerSocket(port, backlog, a) {
+                @Override
+                public Socket accept() throws IOException {
+                    calledAccept = true;
+                    if (proceed != null) {
+                        try {
+                            proceed.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new java.io.InterruptedIOException();
+                        }
+                    }
+                    Socket s = super.accept();
+                    accepted.incrementAndGet();
+                    return s;
+                }
+            };
+        }
+    }
+
+    private static S0Fixture.Listener listenWith(ServerSocketFactory factory, String... props)
+        throws Exception
+    {
+        return S0Fixture.withProperties(props,
+            () -> new S0Fixture.Listener(new S0Fixture.Recorder(), factory, null));
+    }
+
+    /**
+     * When the budget is full a listener does not call accept at all: the
+     * connection that arrives waits in the operating system's queue, not as an
+     * accepted socket (and a descriptor) of the process that nothing can serve
+     * yet, and is accepted when a place is free.
+     */
+    @Test(timeout = 60000)
+    public void testAFullBudgetPausesTheAcceptItself() throws Exception {
+        CountingFactory factory = new CountingFactory(null);
+        List<Socket> silent = new ArrayList<>();
+        try (S0Fixture.Listener l = listenWith(factory, S0Fixture.MAX_HANDSHAKES, "2",
+                 S0Fixture.MAX_QUEUED, "1", S0Fixture.HANDSHAKE_TIMEOUT, "60000"))
+        {
+            silent.addAll(S0Fixture.openSilent(l, 3));
+            Assert.assertTrue(S0Fixture.await(() -> l.handle.admittedConnections() == 3
+                                              && factory.accepted.get() == 3, 5000));
+            /* A fourth connects, and is not accepted. */
+            silent.addAll(S0Fixture.openSilent(l, 1));
+            Thread.sleep(500);
+            Assert.assertEquals("accepted while the budget was full", 3,
+                                factory.accepted.get());
+            Assert.assertEquals(3, l.handle.admittedConnections());
+            /* A place is free: it is accepted. */
+            silent.get(0).close();
+            Assert.assertTrue("accepted when a place was free: " + factory.accepted.get(),
+                S0Fixture.await(() -> factory.accepted.get() == 4
+                                      && l.handle.admittedConnections() == 3, 5000));
+        } finally {
+            S0Fixture.closeAll(silent);
+        }
+    }
+
+    /**
+     * A connection that was accepted but could not be admitted, because
+     * another listener took the last place meanwhile, is closed when its
+     * listener closes, not left open for the peer and for the garbage
+     * collector to find.
+     */
+    @Test(timeout = 60000)
+    public void testASocketAcceptedButNotAdmittedIsClosedWithItsListener() throws Exception {
+        CountDownLatch proceed = new CountDownLatch(1);
+        CountingFactory held = new CountingFactory(proceed);
+        String[] props = { S0Fixture.MAX_HANDSHAKES, "1", S0Fixture.MAX_QUEUED, "0",
+                           S0Fixture.HANDSHAKE_TIMEOUT, "60000" };
+        List<Socket> peers = new ArrayList<>();
+        S0Fixture.Listener b = listenWith(held, props);
+        try (S0Fixture.Listener a = S0Fixture.withProperties(props, () -> S0Fixture.listen())) {
+            /* B's loop passed its wait for a place and is about to accept. */
+            Assert.assertTrue(S0Fixture.await(() -> held.calledAccept, 5000));
+            Assert.assertEquals(1, a.handle.limits().admission.availablePermits());
+            /* A takes the one place. */
+            peers.addAll(S0Fixture.openSilent(a, 1));
+            Assert.assertTrue(S0Fixture.await(() ->
+                a.handle.limits().admission.availablePermits() == 0, 5000));
+            /* B accepts a connection that has no place to go to. */
+            peers.addAll(S0Fixture.openSilent(b, 1));
+            proceed.countDown();
+            Assert.assertTrue(S0Fixture.await(() -> held.accepted.get() == 1, 5000));
+            Thread.sleep(300);
+            Assert.assertEquals("it is not admitted", 0, b.handle.admittedConnections());
+            Assert.assertEquals("and is open", -1L, S0Fixture.awaitClosed(peers.get(1), 300));
+            b.close();
+            long ms = S0Fixture.awaitClosed(peers.get(1), 5000);
+            Assert.assertTrue("closed with its listener: " + ms, ms >= 0);
+            Assert.assertEquals("the place of A is still A's", 0,
+                                a.handle.limits().admission.availablePermits());
+        } finally {
+            proceed.countDown();
+            S0Fixture.closeAll(peers);
+            b.close();
         }
     }
 

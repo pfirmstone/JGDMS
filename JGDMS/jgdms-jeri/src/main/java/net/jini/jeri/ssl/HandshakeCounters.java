@@ -196,11 +196,28 @@ final class HandshakeCounters {
         }
         long now = System.nanoTime();
         long last = lastSummaryNanos.get();
-        if (now - last >= summaryIntervalNanos
-            && lastSummaryNanos.compareAndSet(last, now))
-        {
-            summarize(now - last);
+        if (now - last >= summaryIntervalNanos) {
+            if (lastSummaryNanos.compareAndSet(last, now)) {
+                summarize(now - last);
+            }
+        } else if (unreported()) {
+            /*
+             * A line was written after this task was scheduled, and a failure
+             * that came after it found the task pending and scheduled none:
+             * it is reported when the interval from that line has passed.
+             */
+            startTimer(last + summaryIntervalNanos - now);
         }
+    }
+
+    /** Returns whether a failure has been counted that no line has reported. */
+    private synchronized boolean unreported() {
+        for (int i = 0; i < KINDS.length; i++) {
+            if (failed.get(i) > reportedFailed[i]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -62,9 +62,13 @@ final class HandshakeWatchdog {
         TimeoutScheduler.handOff(task, lastResort);
     }
 
-    /** For tests: makes the hand-off of tasks fail, or no longer, with 0. */
-    static void inject(int failures) {
-        TimeoutScheduler.inject(failures);
+    /**
+     * For tests: makes the hand-offs of the calling thread, and of the tasks
+     * that it schedules, fail as given, or no longer, with false and false.
+     * Nothing else in the JVM is affected.
+     */
+    static void inject(boolean handOff, boolean retry) {
+        TimeoutScheduler.inject(handOff, retry);
     }
 
     /** Returns the number of tasks that were lost, for tests. */

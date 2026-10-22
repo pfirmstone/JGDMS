@@ -69,6 +69,13 @@ public final class TimeoutSchedulerProbe {
     }
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 1 && args[0].equals("HANG")) {
+            /* For the test of the parent: a child that writes and then neither writes nor ends. */
+            System.out.println("alive");
+            System.out.flush();
+            Thread.sleep(600_000L);
+            return;
+        }
         Permissions granted = new Permissions();
         for (String spec : args) {
             if (spec.equals("ALL")) {

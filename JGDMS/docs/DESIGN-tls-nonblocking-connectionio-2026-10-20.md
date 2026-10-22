@@ -81,9 +81,9 @@ open (server in its own JVM, 4 cores, JFR method traces and samples in both JVMs
   path remains for HTTP-proxy tunnels and custom socket factories.
 * **Server** (`SslServerEndpointImpl.SslServerConnection`): the same, server mode with mandatory client authentication. Since
   S0 (section 4.6) the accept loop only accepts and starts a virtual thread per connection that does the handshake, with a total
-  deadline, a cap on the handshakes that work at once, a queue for the rest (in which a connection reads its first TLS record,
-  so that only a peer that has sent a ClientHello takes a place to work), a limit on the CPU of the first flight and pinned key
-  exchange groups, the budgets shared by all the listeners that use one copy of the classes (section 4.6). **Before S0** (RESULTS section 34, kept here because it is what the design above measured): the handshake ran
+  deadline, a cap on the handshakes that work at once, a queue for the rest (in which a connection reads its whole ClientHello,
+  so that only a peer that has sent a complete one takes a place to work), a limit on the CPU of the first flight, a bound on
+  how long the peer may take to answer the server's flight, TLS 1.3 only on both paths, and pinned key exchange groups, the budgets shared by all the listeners that use one copy of the classes (section 4.6). **Before S0** (RESULTS section 34, kept here because it is what the design above measured): the handshake ran
   **inside `acceptLoop`**, on the accept thread, one per listener, so server handshakes were serialised and a hot listener
   accepted about 385 resumed (210 full) connections a second on the 4-core container with the clients on the same cores (accept
   thread busy 97% of the time, about half of that on CPU: the rest was waiting for the client's handshake flights and starting two
@@ -344,7 +344,8 @@ listener do. Facts that the first version of this section had wrong, found by th
   leaves the timer thread of its old revision, with that revision's class loader, until the JVM ends (the thread is a daemon
   and has no stop; the leak predates this section, the budget sharing does not). At most N = min(512, maxFds/8, max(16, 4 x processors)) handshakes work at once in the JVM and at
   most Q = min(4096, maxFds/4 - N) accepted connections wait for a turn (`maxFds` from the JVM, 16384 where it cannot say), so
-  the sockets that a process admits are at most a quarter of its descriptors however many listeners it has. Each accept loop
+  the sockets that a process admits are at most a quarter of its descriptors however many listeners it has (and each listener may
+  hold one more that it has accepted and cannot yet admit, see below: a quarter plus one for each listener). Each accept loop
   waits for a permit of the shared count to be free before it calls `accept()`, without taking it, and takes it when it has
   accepted a connection (an idle listener holds nothing; the first version held a permit for every loop that waited in
   `accept()`, so with as many listeners as places, a later listener never accepted and logged nothing). Another listener may take
@@ -362,11 +363,25 @@ listener do. Facts that the first version of this section had wrong, found by th
   `TlsAcceptRate` at 4096 connectors, full handshakes, the default timeout: cap 512 gave 314 and 620 connections a second with
   809 and 70 failures and a p99 of 12 s (the server's logs showed windows with no completion while hundreds of handshakes were in
   progress); cap 96 gave 414 a second with 298 failures and a p99 of 10.3 s; cap 48 gave 658 and 517 a second with no failures
-  and a p99 of 8.0 to 8.2 s (maximum 8.3 s). On a link with a long round trip a handshake mostly waits for the peer, and the
-  rate of new connections is about N divided by the time a handshake takes: 48 at a round trip of 300 ms allows roughly 80 a
-  second, so such deployments should raise `ssl.maxServerHandshakes`. Per-address caps: not built.
-* **CPU.** The cap bounds concurrency, not rate: a replayer that reads the server's first flight and closes frees its slot in a
-  few milliseconds. A permit of `max(2, cores/4)`, one set for each copy of the classes in the JVM, is held from the moment the server has consumed a
+  and a p99 of 8.0 to 8.2 s (maximum 8.3 s). On a link with a long round trip a handshake mostly waits for the peer and holds its place for one round
+  trip, or two (a HelloRetryRequest, or a flight larger than the sender's initial window), so the rate of new connections is
+  about N divided by one to two round trips (one round trip / two): N = 16: 160 / 80 a second at 100 ms, 53 / 27 at 300 ms;
+  N = 48: 480 / 240 at 100 ms, 160 / 80 at 300 ms. Connections that arrive faster wait in the queue and are dropped, as queue
+  timeouts, when less than the minimum budget is left, which their clients see as a failed connect and may retry (an HTTPS client
+  may not): after a restart, 1000 clients 300 ms away reconnecting at once drain at 27 to 53 a second with N = 16, only about 200
+  to 400 of them fit in the 8 s that the minimum budget leaves, and the rest retry. Operators on slow links should raise
+  `ssl.maxServerHandshakes`; each place costs a descriptor and about 60 KiB, and the processor time is shared among more
+  handshakes. What a hostile peer can do with the places is in the next bullet. Per-address caps: not built (off by decision:
+  NAT and loopback).
+* **CPU.** The cap bounds concurrency; the rate at which a peer can keep the places taken is the cap divided by the time it
+  holds one. A peer that has sent a complete ClientHello and then stalls holds a place for at most the post-flight bound X (below)
+  and never past the deadline T from its accept, so stopping every handshake costs about N / X connections a second, each with a
+  complete ClientHello (replayable from any capture, no cryptography): 5 a second at N = 16 (4 cores) and 16 a second at N = 48
+  (12 logical processors), X = 3 s; one that stalls before the ClientHello is complete holds a queue place only, for at most T minus the
+  minimum budget (8 s): filling the default queue of 4096 takes about 512 such connections a second, and while it is full the
+  listeners stop accepting and the clients wait in the operating system's backlog. A
+  replayer that reads the server's first flight and closes frees its place in a few milliseconds, so what it can spend is
+  bounded by the permits below and not by the cap. A permit of `max(2, cores/4)`, one set for each copy of the classes in the JVM, is held from the moment the server has consumed a
   ClientHello until its first flight has been computed, before it is written (a ClientHello that arrives in pieces holds nothing
   until it is complete; one that answers a HelloRetryRequest is counted again; the client's second flight is not in it; a peer
   that stops reading holds no permit, because the permit is given back after the first `wrap`, which only encrypts what the
@@ -481,7 +496,7 @@ to 3.3 without (measured before the permit of that path was moved behind the fir
 the test of the current build compares the same flood with and without permits on both paths). The established-call p99 in a warm storm is not worse than before in the same session, but that session did not
 reproduce section 37's quiet figures for either build (bimodal, hundreds of milliseconds at the open-loop rates).
 
-**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). A read for a departed peer once its first record is in and it waits for a place to work (it would need a peek at the
+**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). A read for a departed peer once its ClientHello is in and it waits for a place to work (it would need a peek at the
 socket that Java does not offer without consuming a byte). A non-blocking handshake and any `SelectionManager` change (S1 and S2). Kerberos's deadline and its peer-sized allocation
 before authentication. A lockstep storm of full handshakes is not cured by this section; the client's expiry jitter (commit
 `f63b647fb`) spreads it. Windows (the listen queue is clamped near 200 and overflow is a reset, so the in-JVM queue is what

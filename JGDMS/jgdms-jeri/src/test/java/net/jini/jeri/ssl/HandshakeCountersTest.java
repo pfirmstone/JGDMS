@@ -80,6 +80,50 @@ public class HandshakeCountersTest {
     }
 
     /**
+     * A failure that comes right after a line was written, while the timer
+     * task of the interval before is still pending (its hand-off is late, as
+     * it is under a flood), is reported within about an interval from that
+     * line, and not left until the listener closes or another failure comes.
+     * The late hand-off is made by an injected failure of the hand-off, which
+     * is repeated a second later.
+     */
+    @Test(timeout = 30000)
+    public void testAFailureThatFoundTheTimerPendingIsStillReported() throws Exception {
+        long interval = 1000;
+        Lines lines = new Lines();
+        HandshakeCounters c = counters(logger(lines), interval);
+        HandshakeWatchdog.inject(true, false);
+        try {
+            long t0 = System.nanoTime();
+            c.noteFailed(HandshakeCounters.Kind.TLS);              // A: a timer for t0 + 1 s
+            Thread.sleep(interval + 150);                           // it fired; its hand-off failed
+            Assert.assertEquals("nothing is written yet: the task is late", 0,
+                                lines.copy().size());
+            c.noteFailed(HandshakeCounters.Kind.TLS);              // B: due, writes A and B
+            Assert.assertEquals(lines.copy().toString(), 1, lines.copy().size());
+            Thread.sleep(100);
+            c.noteFailed(HandshakeCounters.Kind.PEER_CLOSED);      // C: the late task is pending
+            HandshakeWatchdog.inject(false, false);                 // its repeat succeeds, at 2 s
+            Assert.assertEquals("C is not written by the failure itself", 1,
+                                lines.copy().size());
+            /* The repeat finds the line of B newer than an interval, and sets a timer for C. */
+            Assert.assertTrue("C is reported by the timer: " + lines.copy(),
+                S0Fixture.await(() -> lines.copy().size() == 2, 4000));
+            long millis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - t0);
+            Assert.assertTrue("within about an interval of B's line: " + millis + " ms",
+                              millis < 2 * interval + 1500);
+            String line = lines.copy().get(1);
+            Assert.assertTrue(line, line.contains("failed 1 (peer closed 1)"));
+        } finally {
+            HandshakeWatchdog.inject(false, false);
+            c.close();
+        }
+        Assert.assertEquals("and nothing is left for the close: " + lines.copy(),
+                            2, lines.copy().size());
+    }
+
+    /**
      * Failures that come shortly after the start and then stop are reported
      * within about an interval, although no more failures come to write the
      * line: the line is written by a timer.
