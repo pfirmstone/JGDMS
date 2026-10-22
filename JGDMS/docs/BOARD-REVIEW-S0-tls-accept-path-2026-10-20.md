@@ -113,7 +113,8 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    deadline (a legitimate open took 7.7 s, against 0.1 s before that commit). Now the first record is read ahead on this path too
    (item 5), the permit is taken only after it has arrived, and it is given back when the server has written its first flight
    and the JDK reads from the peer. Residual: a peer that does not read the flight, so that the write blocks, holds a permit until
-   the deadline; the work after a HelloRetryRequest is not within a permit on this path.
+   the deadline; the work after a HelloRetryRequest is not within a permit on this path. (Item 9 supersedes this: the first record
+   was one fragment of a ClientHello, a HelloRetryRequest took the permit away, and TLS 1.2 was served.)
 4. **Small items (`dcb5eb823`).** The CPU gate ends after the first `wrap`, before any flush (L1); the admission count is
    computed in long and clamped (L2); server named groups are intersected with the engine's at listen, with warnings and a
    fall back to not pinning (L3); `com.sun.management` is an optional import (L4); tests that count descriptors are skipped,
@@ -128,6 +129,8 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    leaves after its record is complete while it waits for a place to work, and a peer that replays a captured ClientHello and
    stalls, which passes the gate, takes a place to work and (on either path) holds it until the deadline; silent peers cost
    a queue slot and no place only if they are silent from the first byte. Decision 8 (the cap) was changed afterwards, see item 8.
+   (Item 9: the gate reads the whole ClientHello, not one record, and a peer that replays and stalls holds its place for the
+   post-flight bound and not until the deadline.)
 6. **After the follow-up (not in the package as first scoped).** `sun.nio.ch` is no longer imported (`e8abed7a5`, `1aa52d443`:
    the IOVecWrapper workaround is removed and the manifest test fails on any `sun.*` import), and the workaround for JDK bug
    4854354 is removed (`8dc35b03a`).
@@ -146,7 +149,43 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    machine a cap of 512 under 4096 connectors gave 314 and 620 connections a second, with up to 809 failures and a p99 of 12 s,
    and cap 48 gave 658 and 517 with none and 8 s (RESULTS section 39). The default is now `min(512, maxFds/8, max(16, 4 x
    processors))`; the property still overrides it, and slow links, where a handshake mostly waits for the peer, should raise it
-   (48 at a round trip of 300 ms allows about 80 new connections a second). Not re-run on Windows.
+   (48 at a round trip of 300 ms allows about 80 new connections a second). Not re-run on Windows. The cold review of the follow-up
+   showed what the lower cap did to the cost of an attack (item 9, H2) and the documents now state it.
+9. **After the second cold review of the follow-up (H1, H2, M1, M2, L1 to L6).** One commit for each stage; the measurements
+   are in RESULTS section 40. Decisions kept as given: production runs on DirtyChai only (monitors stay); accept stays paused
+   when the queue is full; queue wait counts inside the total deadline with the minimum budget; no policy file is created or
+   edited (the one new property read, `serverHandshakeClientFlightTimeout`, is one more `PropertyPermission` for polpAudit to
+   record); no new mandatory import; the cap default is unchanged; per-address caps stay off.
+   - `31e07c84f` (H1, M2, and the base of H2): the queue phase reads the whole ClientHello (`ClientHelloReader`, which replaces
+     `FirstRecord`): every record is checked as it arrives, the message is the 32768 bytes the JDK takes at most, in at most 8
+     records, and nothing after its last record is read; the bytes go to the engine and the SSLSocket as they came. Records are
+     not re-framed: a bound of 8 limits the JDK's copying (190 ms for 32 KiB in records of one byte) to nothing, takes no copy and
+     writes no header, and a legitimate client sends one record (the JDK) or two. A peer that has sent part of a ClientHello holds a
+     queue place and nothing else, on both paths (a six-byte fragment held a place and, on the SSLSocket path, a permit, until the
+     deadline).
+   - `6d9f4489f` (H2, and the previous M2): the post-flight bound, `serverHandshakeClientFlightTimeout` (3 s, 0 removes it): the
+     peer has that long, added up over the reads that wait for it, to answer each flight of the server, whatever is left of the
+     deadline. The watchdog gets a second entry for the read under way (a socket timeout would renew with every byte and the JDK
+     sets `SO_TIMEOUT` itself; a per-phase deadline would count the server's own compute against the client). Cost of keeping
+     the places taken: N / X connections a second, about 5 at N = 16 (4 cores) and 16 at N = 48 (12 logical processors), each with
+     a complete, replayable ClientHello; before, N / T, 1.6 and 4.8. Counted apart: "client did not answer the server's flight".
+   - `1e60099cc` (M1): TLS 1.3 only on the SSLSocket path, with the same check after the handshake. The permit across a
+     HelloRetryRequest is not held from the first ClientHello to the flight after the second, as the maintainer's text had it:
+     that holds a permit for the whole post-flight bound for a peer that makes the server retry and stops, and `permits / X` such
+     connections a second stop every HTTPS handshake (the engine path's gate is empty during that wait). The layered socket
+     recognises the HelloRetryRequest, gives the permit back with that flight, reads the second ClientHello whole (a
+     ChangeCipherSpec may precede it) and takes a permit again for the work that follows. Premise checked: the engine path
+     already entered its gate again for the second ClientHello (the test passes against the unchanged channel; a mutant that
+     enters the gate once fails it), so the engine channel is unchanged.
+   - `0060fc266` (L1, L2, L4, L5, L6, and the documents of L3): the summary timer re-arms itself; two accept-loop claims have
+     tests that fail without them; the injection seam is the injecting thread's and has no public constants; the child of the
+     security-manager test is read on a thread and destroyed; lost tasks are logged once, then at most once for each 30 s; the
+     documents state the attacker cost at the defaults, the slow-link capacity (rate about N divided by one to two round trips:
+     N = 16, 160 / 80 a second at 100 ms and 53 / 27 at 300 ms; N = 48, 480 / 240 and 160 / 80), the reconnect storm (1000 clients
+     300 ms away drain at 27 to 53 a second at N = 16, 200 to 400 fit in the 8 s that the minimum budget leaves, and the rest
+     retry; operators on slow links should raise `maxServerHandshakes`), that the sockets of the process are a quarter of the
+     descriptors plus one accepted socket for each endpoint, and that the peer's second flight is not within a permit.
+   Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
 
 ---
 

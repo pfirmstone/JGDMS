@@ -496,7 +496,16 @@ to 3.3 without (measured before the permit of that path was moved behind the fir
 the test of the current build compares the same flood with and without permits on both paths). The established-call p99 in a warm storm is not worse than before in the same session, but that session did not
 reproduce section 37's quiet figures for either build (bimodal, hundreds of milliseconds at the open-loop rates).
 
-**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). A read for a departed peer once its ClientHello is in and it waits for a place to work (it would need a peek at the
+**Measured after the second follow-up (RESULTS section 40).** The accept rate with full handshakes is unchanged beyond the spread
+(64 connectors 236 a second before, 233 after, nine runs each; 512 connectors 312 before with one collapsed run, 329 after).
+Fragment peers (six bytes of a ClientHello, 5 and 50 a second) left a legitimate open at 0 to 1 in 15 s before, 102 and 107 a
+second after, the same as with no flood; a peer that replays a ClientHello, reads the flight and stops was held 10.0 s before and
+3.0 s after, and at 3 connections a second a legitimate open went from 3 in 15 s to 104 a second, while at 8 a second (above N / X
+= 5.3) both builds are stopped. Calls on established connections in a warm storm: p99 median 6.2 ms before and 6.9 ms after at 60
+new connections a second (15 runs each; 1 and 3 runs with a tail over 30 ms, not established), 10 ms in both as fast as
+accepted. Windows, macOS and a real network were not run.
+
+**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). The peer's second flight (certificate chain and signature) is not within a CPU permit on either path; the handshakes that work at once bound it. A read for a departed peer once its ClientHello is in and it waits for a place to work (it would need a peek at the
 socket that Java does not offer without consuming a byte). A non-blocking handshake and any `SelectionManager` change (S1 and S2). Kerberos's deadline and its peer-sized allocation
 before authentication. A lockstep storm of full handshakes is not cured by this section; the client's expiry jitter (commit
 `f63b647fb`) spreads it. Windows (the listen queue is clamped near 200 and overflow is a reset, so the in-JVM queue is what
