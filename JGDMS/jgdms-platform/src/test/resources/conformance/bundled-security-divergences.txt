@@ -1,0 +1,12 @@
+# Divergences between this module's org.apache.river.api.security classes and
+# the copies DirtyChai bundles in java.base that are accepted, see
+# BundledCopyConformanceTest.
+#
+# One per line, as the test reports it:
+#
+#     class kind member | reason
+#
+# kind is one of: missing (a class the JDK is expected to bundle and does not),
+# flags, superclass, interface, serialVersionUID, constructor, method, field,
+# constructor-modifiers, method-modifiers, field-modifiers.  The reason is
+# required.  Blank lines and lines beginning with # are ignored.
