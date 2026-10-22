@@ -404,10 +404,18 @@ public class SslServerHandshakeDeadlineTest {
         }
     }
 
-    /** The watchdog drops its entry for a handshake when the handshake ends. */
+    /**
+     * The watchdog drops its entry for a handshake when the handshake ends.
+     * (The summary of the failures has a timer task of its own, one at most;
+     * it is turned off here so that the entries of the handshakes alone are
+     * counted.)
+     */
     @Test(timeout = 60000)
     public void testWatchdogEntriesAreRemovedWhenHandshakesEnd() throws Exception {
-        try (S0Fixture.Listener l = listen(false, 60_000)) {
+        try (S0Fixture.Listener l = S0Fixture.withProperty(
+                 "org.apache.river.jeri.ssl.handshakeSummaryInterval", "0",
+                 () -> listen(false, 60_000)))
+        {
             S0Fixture.connectLegit(l); // warm up
             Assert.assertTrue(S0Fixture.await(
                 () -> l.handle.inProgressCount() == 0, 3000));

@@ -2411,6 +2411,8 @@ class SslServerEndpointImpl extends Utilities {
 					}
 				}
 			}
+			/* Reports the failures that have not been, and stops the timer. */
+			counters.close();
 		}
 
 		/** Returns the number of registered connections. */

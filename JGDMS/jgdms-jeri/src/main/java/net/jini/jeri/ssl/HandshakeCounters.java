@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.logging.Level;
@@ -38,10 +40,19 @@ import org.apache.river.action.GetLongAction;
  * <p>A handshake fails for reasons the server cannot control, and on a
  * listener that is reachable from the internet a scanner or a health check
  * can make thousands of them, so each failure is logged at FINE only and the
- * operator sees a summary line with the counts by kind.  The summary is
- * written by the thread that records a failure, when the interval has passed
- * since the last one; there is no timer.  The counters are always current and
- * are read by tests through {@link #getFailed(Kind)} and the other accessors.
+ * operator sees a summary line with the counts by kind.  The line says how
+ * many handshakes failed, were accepted and completed in the time since the
+ * last line; they are the counts of that time, not of one set of connections,
+ * for a connection that fails now may have been accepted earlier.
+ *
+ * <p>A failure is reported at once if the interval has passed since the last
+ * line, by the thread that records it, and otherwise by a timer, when the
+ * interval has passed, so that the last failures of a burst are reported
+ * within about an interval although no more come; there is at most one timer
+ * task, and a line is written by another thread than the timer's, which must
+ * not wait.  Closing the listener writes what is left.  The counters are
+ * always current and are read by tests through {@link #getFailed(Kind)} and
+ * the other accessors.
  */
 final class HandshakeCounters {
 
@@ -96,6 +107,15 @@ final class HandshakeCounters {
 
     private final AtomicLong lastSummaryNanos = new AtomicLong(System.nanoTime());
 
+    /** Whether a task of the timer is waiting to write the summary. */
+    private final AtomicBoolean timerPending = new AtomicBoolean();
+
+    /** The task that is waiting, while {@code timerPending}. */
+    private volatile ScheduledFuture<?> timer;
+
+    /** Set when the listener is closed; no timer is started after it. */
+    private volatile boolean closed;
+
     HandshakeCounters(Logger logger, String listener) {
         this.logger = logger;
         this.listener = listener;
@@ -118,10 +138,58 @@ final class HandshakeCounters {
         completed.incrementAndGet();
     }
 
-    /** Notes a handshake that failed, and writes a summary if one is due. */
+    /**
+     * Notes a handshake that failed, and writes a summary if one is due, or
+     * has a timer write it when it falls due.
+     */
     void noteFailed(Kind kind) {
         failed.incrementAndGet(kind.ordinal());
         if (summaryIntervalNanos == 0L) {
+            return;
+        }
+        long now = System.nanoTime();
+        long last = lastSummaryNanos.get();
+        if (now - last >= summaryIntervalNanos) {
+            if (lastSummaryNanos.compareAndSet(last, now)) {
+                summarize(now - last);
+            }
+        } else {
+            startTimer(last + summaryIntervalNanos - now);
+        }
+    }
+
+    /**
+     * Has the summary written after the delay, unless a timer task is waiting
+     * to write it already.
+     */
+    private void startTimer(long delayNanos) {
+        if (closed || !timerPending.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            timer = HandshakeWatchdog.schedule(this::timerDue, delayNanos);
+            if (closed) {
+                /* Closed meanwhile: close may not have seen the task. */
+                timer.cancel(false);
+            }
+        } catch (RuntimeException e) {
+            /* The timer is shut down or out of memory: close reports. */
+            timerPending.set(false);
+        }
+    }
+
+    /**
+     * Runs on the timer's thread, which must not wait: only hands the
+     * writing of the line to another thread.
+     */
+    private void timerDue() {
+        HandshakeWatchdog.handOff(this::report);
+    }
+
+    /** Writes the summary of what the timer was waiting for, if it is due. */
+    private void report() {
+        timerPending.set(false);
+        if (closed) {
             return;
         }
         long now = System.nanoTime();
@@ -131,6 +199,27 @@ final class HandshakeCounters {
         {
             summarize(now - last);
         }
+    }
+
+    /**
+     * Stops the timer and writes what has not been reported, whether the
+     * interval has passed or not.  Called when the listener is closed; a
+     * failure that is counted after that, as the handshakes that the close
+     * cut off are, is reported by the next failure of an interval later, if
+     * there is one.
+     */
+    void close() {
+        closed = true;
+        ScheduledFuture<?> t = timer;
+        if (t != null) {
+            t.cancel(false);
+        }
+        if (summaryIntervalNanos == 0L) {
+            return;
+        }
+        long now = System.nanoTime();
+        long last = lastSummaryNanos.getAndSet(now);
+        summarize(now - last);
     }
 
     /** Returns the number of connections accepted. */
@@ -211,12 +300,11 @@ final class HandshakeCounters {
             return;
         }
         logger.log(Level.INFO,
-                   "{0}: {1} of {2} connections failed the TLS handshake in "
-                   + "the last {3} s ({4}), {5} completed",
+                   "{0}: TLS handshakes failed {1} ({2}), accepted {3}, "
+                   + "completed {4} in the last {5} s",
                    new Object[] {
-                       listener, total, acceptedDelta,
-                       Math.max(1L, elapsedNanos / 1_000_000_000L),
-                       sb, completedDelta
+                       listener, total, sb, acceptedDelta, completedDelta,
+                       Math.max(1L, elapsedNanos / 1_000_000_000L)
                    });
     }
 }

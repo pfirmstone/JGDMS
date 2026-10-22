@@ -138,7 +138,8 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    `7bf6cf91b`: an idle accept loop holds no place (L1, item 1); a first record of 1 to 3 bytes is accepted (L4); a hand-off
    that cannot be made runs a last resort, the close of the socket, and is counted (L5); "per JVM" reads "per copy of the
    classes" (L2, item 1); the accept thread is joined before it is asserted dead (L6); the fairness of the semaphores and the
-   class loader half of the scheduler's caller check are tested (L3). Not done: a test that the gate ends before the flush
+   class loader half of the scheduler's caller check are tested (L3). The summary line (stage 5) is written by a timer for
+   the last failures of a burst and by the close, and counts accepted, completed and failed over the same window, with no "of". Not done: a test that the gate ends before the flush
    (L3, the gate-after-flush mutant): it needs a flight larger than the kernel's buffers or a delegating socket channel, and
    neither is cheap; the mutant still survives.
 8. **The cap follows the processors.** Decision 8 chose `min(512, maxFds/8)`. On the maintainer's 12-logical-processor Windows

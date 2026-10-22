@@ -343,14 +343,20 @@ import net.jini.security.SecurityContext;
  *	operators can lower the value to bound that. A custom server socket
  *	factory receives the value as the <code>backlog</code> argument.
  * <li> <code>org.apache.river.jeri.ssl.handshakeSummaryInterval</code> -
- *	The number of milliseconds between the summary lines, written at
- *	INFO, of the TLS handshakes that failed on a server endpoint.
- *	Each failed handshake is logged at FINE only, because a peer
- *	that is not authenticated can cause as many as it likes; the
- *	summary gives the number of connections that failed in each way,
- *	and is written when a handshake fails and the interval has
- *	passed since the last summary. The default is 30000. A value of
- *	0 or less turns the summary off.
+ *	The number of milliseconds between the summary lines, written at INFO,
+ *	of the TLS handshakes that failed on a server endpoint. Each failed
+ *	handshake is logged at FINE only, because a peer that is not
+ *	authenticated can cause as many as it likes; the summary gives the
+ *	number of handshakes that failed in each way, and how many were
+ *	accepted and completed, in the time since the last summary (they are
+ *	counts of that time, not of one set of connections). A summary is
+ *	written when a handshake fails and the interval has passed since the
+ *	last, or, if no more fail, when the interval has passed, so that the
+ *	last failures of a burst are reported within about an interval; the
+ *	listener writes what is left when it closes. At most one line is
+ *	written for each interval, apart from the one at close, and none if
+ *	nothing failed. The default is 30000. A value of 0 or less turns the
+ *	summary off.
  * <li> <code>org.apache.river.jeri.ssl.serverHandshakeTimeout</code> -
  *	The number of milliseconds that a server has to complete the TLS
  *	handshake with a connection, counted from the moment the

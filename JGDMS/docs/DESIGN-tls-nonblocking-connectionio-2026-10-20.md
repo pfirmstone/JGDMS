@@ -388,7 +388,13 @@ listener do. Facts that the first version of this section had wrong, found by th
   interrupting those that wait for a turn), then the live connections.
 * **Logging and counters.** A failed handshake is logged at FINE; `HandshakeCounters` counts handshakes by outcome (including
   junk, peers that left, queue timeouts and working timeouts, each its own count) and writes
-  one INFO line per 30 s (`handshakeSummaryInterval`) with the number of failures by kind. The peer is named by address before
+  one INFO line per 30 s at most (`handshakeSummaryInterval`): "failed N (reasons), accepted M, completed K in the last X s",
+  three counts of the same time and no "of" (a failure counted now may belong to a connection accepted windows ago). A failure
+  that comes when the interval has passed since the last line writes it at once; otherwise one timer task for the listener (on
+  the shared `TimeoutScheduler`, which hands the writing to a virtual thread) writes it when the interval has passed, so the last
+  failures of a burst are reported within about an interval although no more come, and closing the listener cancels the task and
+  writes what is left. (The first version wrote only when a failure came after the interval, so a run's last failures could go
+  unreported, and its line put counts of different sets against each other, "227 of 215".) The peer is named by address before
   it is authenticated: the SSLSocket factory host argument, `toString()` and the log call no longer make a reverse lookup.
 
 | property (all `org.apache.river.jeri.`) | default |
