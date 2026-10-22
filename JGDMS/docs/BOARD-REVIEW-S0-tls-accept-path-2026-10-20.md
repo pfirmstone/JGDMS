@@ -92,7 +92,13 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    protect nothing without a security manager. Its tasks only decide and hand blocking work (socket close, mux take-down,
    acknowledgment notices) to a virtual thread; the mux start timer reads volatile flags and no longer takes the lock; the OOM
    fallback no longer runs on the timer thread. The mux's acknowledgment timer, a second timer thread, is a task of the same
-   scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals.
+   scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals. Under a security
+   manager the class needs four permissions of its own protection domain, jgdms-jeri's, and none of its callers
+   (`getStackWalkerWithClassReference`, `AuthPermission callAs`, `createPlatformThread`, `setContextClassLoader`; listed in the
+   class Javadoc and pinned by `TimeoutSchedulerPermissionTest`, which runs the class under a security manager that checks
+   them). The lookup of the caller's class was already inside `doPrivileged`; what the cold review found missing was that no
+   policy granted the permission to jgdms-jeri's domain. The grants are not in any policy file of the repository: DirtyChai's
+   polpAudit generates them and the maintainer reviews them.
 3. **SSLSocket path CPU (`752d6bfe3`, review M4; corrected after the cold review, H1).** `startHandshake()` runs inside a permit,
    waited for within the deadline and released in a `finally`. The permits are a separate set of the same size, so that peers
    that block on the path cannot stop the engine path's listeners. As first built the permit was taken before the peer had sent
