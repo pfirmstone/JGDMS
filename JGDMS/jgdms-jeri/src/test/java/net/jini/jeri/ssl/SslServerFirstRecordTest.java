@@ -434,7 +434,7 @@ public class SslServerFirstRecordTest {
                     Assert.assertEquals("no place to work for " + part + " bytes",
                                         0, l.handle.runningHandshakes());
                     long ms = S0Fixture.awaitClosed(s, 10_000);
-                    long expected = S0Fixture.queueMillis(2400, false);
+                    long expected = S0Fixture.queueMillis(2400);
                     Assert.assertTrue(part + " bytes: closed after " + ms + " ms",
                         ms >= expected - 300 && ms < expected + 2000);
                 }
@@ -495,32 +495,36 @@ public class SslServerFirstRecordTest {
 
     /**
      * The first bytes that were read while the connection waited are not
-     * lost: a ClientHello that arrives in pieces of a few bytes, split in the
-     * header and in the body, is answered, and the handshake completes.
+     * lost, on either path: a ClientHello that arrives in pieces of a few
+     * bytes, split in the header and in the body, is answered, and the
+     * handshake completes.
      */
     @Test(timeout = 60000)
     public void testBytesReadAheadAreNotLost() throws Exception {
-        try (S0Fixture.Listener l = listen(null, false, 10_000)) {
-            S0Fixture.connectLegit(l); // warm up
-            int before = l.recorder.count();
-            try (SplittingProxy proxy = new SplittingProxy(l.port,
-                     new int[] { 1, 1, 3, 1, 20, 300, 5, 700 }))
-            {
-                try (javax.net.ssl.SSLSocket s = (javax.net.ssl.SSLSocket)
-                         S0Fixture.clientSocketFactory()
-                             .createSocket("localhost", proxy.port))
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = listen(null, socketPath, 10_000)) {
+                S0Fixture.connectLegit(l); // warm up
+                int before = l.recorder.count();
+                try (SplittingProxy proxy = new SplittingProxy(l.port,
+                         new int[] { 1, 1, 3, 1, 20, 300, 5, 700 }))
                 {
-                    s.setSoTimeout(15_000);
-                    s.startHandshake();
-                    s.getOutputStream().write(0);
-                    s.getOutputStream().flush();
-                    Assert.assertTrue("the connection was handed on",
-                                      l.recorder.await(before + 1, 15_000));
+                    try (javax.net.ssl.SSLSocket s = (javax.net.ssl.SSLSocket)
+                             S0Fixture.clientSocketFactory()
+                                 .createSocket("localhost", proxy.port))
+                    {
+                        s.setSoTimeout(15_000);
+                        s.startHandshake();
+                        s.getOutputStream().write(0);
+                        s.getOutputStream().flush();
+                        Assert.assertTrue("the connection was handed on, socketPath="
+                                          + socketPath,
+                                          l.recorder.await(before + 1, 15_000));
+                    }
+                    Assert.assertTrue("the hello was split into pieces: " + proxy.pieces.get(),
+                                      proxy.pieces.get() >= 8);
                 }
-                Assert.assertTrue("the hello was split into pieces: " + proxy.pieces.get(),
-                                  proxy.pieces.get() >= 8);
+                Assert.assertEquals(0, l.handle.counters().getFailed());
             }
-            Assert.assertEquals(0, l.handle.counters().getFailed());
         }
     }
 
@@ -589,25 +593,20 @@ public class SslServerFirstRecordTest {
     }
 
     /**
-     * An SSLSocket reads for itself, so the connections of that path cannot be
-     * read ahead: silent peers take the places to work there.
+     * The first record of a connection on the SSLSocket path is read ahead
+     * too: silent peers wait their turn and take no place to work.
      */
     @Test(timeout = 60000)
-    public void testTheSocketPathCannotReadAhead() throws Exception {
+    public void testSilentPeersOnTheSocketPathTakeNoPlaceToWork() throws Exception {
         try (S0Fixture.Listener l = listen(null, true, 6000)) {
             S0Fixture.connectLegit(l); // warm up
-            List<Socket> silent = S0Fixture.openSilent(l, 2);
+            List<Socket> silent = S0Fixture.openSilent(l, 3);
             try {
                 Assert.assertTrue(S0Fixture.await(
-                    () -> l.handle.runningHandshakes() == 2, 5000));
-                Socket third = new Socket("localhost", l.port);
-                try {
-                    Assert.assertTrue(S0Fixture.await(
-                        () -> l.handle.admittedConnections() == 3, 5000));
-                    Assert.assertEquals(2, l.handle.runningHandshakes());
-                } finally {
-                    third.close();
-                }
+                    () -> l.handle.admittedConnections() == 3, 5000));
+                Thread.sleep(300);
+                Assert.assertEquals("no place to work for a silent peer", 0,
+                                    l.handle.runningHandshakes());
             } finally {
                 S0Fixture.closeAll(silent);
             }

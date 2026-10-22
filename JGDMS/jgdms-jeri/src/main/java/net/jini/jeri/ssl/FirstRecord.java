@@ -20,6 +20,7 @@ package net.jini.jeri.ssl;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
@@ -35,7 +36,8 @@ import java.nio.channels.ReadableByteChannel;
  * waits is its socket, its thread and the bytes of this one record, which are
  * at most 16389 and are allocated as they arrive, not when the record
  * announces its length: nothing of the engine.  The bytes are given to the
- * engine's channel when the connection has its turn, so that none are lost.
+ * engine's channel, or to the SSLSocket of a socket that has no channel, when
+ * the connection has its turn, so that none are lost.
  *
  * <p>The read blocks.  It is ended, as every wait of a handshake is, by the
  * owner closing the raw socket.
@@ -113,6 +115,25 @@ final class FirstRecord {
      * @throws IOException if the connection fails or is closed by its owner
      */
     static byte[] read(ReadableByteChannel channel) throws IOException {
+        return read((bytes, off, len) -> channel.read(ByteBuffer.wrap(bytes, off, len)));
+    }
+
+    /**
+     * Reads the first record from a stream, as {@link #read(ReadableByteChannel)}
+     * does from a channel, for a socket that has no channel.  The stream is
+     * not closed, and nothing is read from it after the record.
+     */
+    static byte[] read(InputStream in) throws IOException {
+        return read((bytes, off, len) -> in.read(bytes, off, len));
+    }
+
+    /** Where the bytes come from. */
+    private interface Source {
+        /** Reads at least one and at most {@code len} bytes; -1 at the end. */
+        int read(byte[] bytes, int off, int len) throws IOException;
+    }
+
+    private static byte[] read(Source source) throws IOException {
         byte[] bytes = new byte[INITIAL_CAPACITY];
         int have = 0;
         int total = 0;
@@ -124,8 +145,7 @@ final class FirstRecord {
                 bytes = java.util.Arrays.copyOf(bytes,
                     Math.min(wanted, bytes.length * 2));
             }
-            ByteBuffer buf = ByteBuffer.wrap(bytes, have, Math.min(wanted, bytes.length) - have);
-            int n = channel.read(buf);
+            int n = source.read(bytes, have, Math.min(wanted, bytes.length) - have);
             if (n < 0) {
                 throw new EOFException(have == 0
                     ? "the peer closed the connection without sending anything"

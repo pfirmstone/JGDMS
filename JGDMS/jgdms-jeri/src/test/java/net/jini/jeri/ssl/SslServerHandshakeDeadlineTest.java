@@ -80,13 +80,13 @@ public class SslServerHandshakeDeadlineTest {
                 S0Fixture.connectLegit(l); // warm up
                 try (Socket s = new Socket("localhost", l.port)) {
                     long ms = S0Fixture.awaitClosed(s, 10_000);
-                    long expected = S0Fixture.queueMillis(1000, socketPath);
+                    long expected = S0Fixture.queueMillis(1000);
                     Assert.assertTrue("silent peer, socketPath=" + socketPath
                         + ": closed after " + ms + " ms", ms >= expected - 200
                         && ms < expected + 2000);
                 }
                 Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
-                    .getFailed(S0Fixture.queueTimeoutKind(socketPath)) == 1, 3000));
+                    .getFailed(S0Fixture.queueTimeoutKind()) == 1, 3000));
                 Assert.assertEquals(0, l.handle.inProgressCount());
             }
         }
@@ -134,13 +134,13 @@ public class SslServerHandshakeDeadlineTest {
                                 System.nanoTime() - t0);
                         }
                     }
-                    long expected = S0Fixture.queueMillis(1500, socketPath);
+                    long expected = S0Fixture.queueMillis(1500);
                     Assert.assertTrue("trickling peer, socketPath=" + socketPath
                         + ": closed after " + ms + " ms", ms >= expected - 300
                         && ms < expected + 2000);
                 }
                 Assert.assertTrue(S0Fixture.await(() -> l.handle.counters()
-                    .getFailed(S0Fixture.queueTimeoutKind(socketPath)) == 1, 3000));
+                    .getFailed(S0Fixture.queueTimeoutKind()) == 1, 3000));
             }
         }
     }

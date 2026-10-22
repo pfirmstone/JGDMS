@@ -296,7 +296,7 @@ listener do. Facts that the first version of this section had wrong, found by th
   disarms the timer; QUEUED to QUEUE_TIMED_OUT or WORKING to TIMED_OUT by the timer) means a late timeout cannot close a
   connection that was handed on and a handshake that timed out is never handed on. The permits and the `inProgress` entry are
   released exactly once, by the task, after its socket is closed or registered.
-* **First record, engine path.** While a connection waits for its turn it reads, on its own virtual thread, the first TLS record
+* **First record.** While a connection waits for its turn it reads, on its own virtual thread, the first TLS record
   (`FirstRecord`): the 5-byte header, checked as it arrives (handshake record, version 3.x, length 4 to 16384, then a ClientHello
   as the handshake message), and the rest of the record, allocated as the bytes arrive (512 bytes to start with, doubling), never a
   byte beyond the record. Bytes that cannot start a ClientHello (an HTTP request, SSL 2, an alert, a record of the wrong length)
@@ -304,17 +304,21 @@ listener do. Facts that the first version of this section had wrong, found by th
   left; a peer that sends only part of a record is cut off when the wait ends. The bytes are given to the engine's channel
   (`SslEngineChannel.prime`) when the connection takes its turn, so none are lost. What a waiting connection holds is its socket,
   its virtual thread and at most 16 389 bytes, and nothing of the engine. Once the whole record is in, the connection waits for a
-  place to work without reading, so a peer that leaves then is noticed when it has its turn. The SSLSocket path cannot read ahead
-  (the JDK owns the socket and its streams, and wrapping the socket to peek would change how the SSLSocket is made), so there a
-  silent peer still takes a place to work, until the handshake times out.
+  place to work without reading, so a peer that leaves then is noticed when it has its turn. A socket with no channel (the SSLSocket
+  path: HTTPS, a custom `ServerSocketFactory`) is read the same way, through its input stream, which is taken once (a factory's
+  socket may return a new, buffering stream at each call); the bytes are given to the JDK with
+  `SSLSocketFactory.createSocket(socket, consumed, autoClose)`, which makes a socket in server mode that reads `consumed` first
+  and then the socket. The watchdog is armed before the read, as on the engine path. (The first version of this section, and of
+  commit `752d6bfe3`, said the SSLSocket path could not read ahead; it can, and without the gate a peer that connected and sent
+  nothing held one of the socket path's permits to compute for the whole deadline.)
 * **Engine path.** The server uses plain blocking reads and writes (`SslEngineChannel.handshakeServer`), no `Selector`: a
   blocking `SocketChannel` read or write ends within about a millisecond of the raw channel being closed, on platform and
   virtual threads, which gives the deadline, the cancellation on listener close and the bound on a write to a peer that does not
   read with one mechanism. The **client** keeps `fillNetInByDeadline` (a blocking channel has no read timeout, so it is the
   client's only deadline, `handshakeTimeout`, 60 s, unchanged); an interrupt
   fails the handshake instead of spinning to the deadline.
-* **SSLSocket path.** `startHandshake()` under `setSoTimeout(time left)` plus the same watchdog, and inside a permit of its own
-  (see CPU); the NULL-suite check stays as the backstop.
+* **SSLSocket path.** The first record is read ahead as above; then `startHandshake()` under `setSoTimeout(time left)` plus the
+  same watchdog, and inside a permit of its own (see CPU); the NULL-suite check stays as the backstop.
 * **Admission, for the JVM.** The budgets belong to the process, which has the descriptors and the processors, so one
   `HandshakeLimits` instance (one for each distinct setting of the properties, which is one in a process whose properties do not
   change) is shared by every listener, HTTPS included. At most N = min(512, maxFds/8) handshakes work at once in the JVM and at
@@ -339,11 +343,18 @@ listener do. Facts that the first version of this section had wrong, found by th
   replayed ClientHello; the names are checked against the engine's at listen (unsupported names are dropped with a warning, and a
   list with none left is not applied, with a warning), and a peer that offers only secp384r1, as peers that follow the CNSA or
   FIPS profiles may, is refused with the default. The SSLSocket path (HTTPS, a custom `ServerSocketFactory`) cannot be split
-  into its work and its waits, so its handshake holds a permit for the whole of `startHandshake()`, waited for within the
-  deadline and given back in a `finally`. Those permits are a set of their own, as many as the others and shared in the JVM:
-  a peer that sends a ClientHello and stops holds its permit until the handshake times out, and sharing the engine path's permits
-  would let two such peers on an HTTPS listener stop every other TLS listener of the JVM. On the SSLSocket path that many
-  stalled peers do stop the others of that path until they time out; this is the cost of not being able to read ahead there.
+  into its work and its waits inside `startHandshake()`, so its permit is taken when the first record of the ClientHello is in
+  (never before: a peer that connects and sends nothing, or junk, takes none) and is given back by a thin socket that the
+  SSLSocket is layered over (`HandshakeSocket`): it notes the first write after the ClientHello, the server's first flight, and
+  ends the window at the first read after it, which is the JDK waiting for the peer's second flight. The task also gives it back
+  in a `finally`, whatever happens, and at most once. A peer that replays a captured ClientHello and stalls therefore holds a
+  permit for the work of the flight, as on the engine path, and not for the deadline; a peer that does not read the flight, so that
+  the write of it blocks, holds it until the handshake times out (a flight is a few kilobytes, which the kernel's buffers take
+  unless the peer's window is closed). These permits are a set of their own, as many as the others and shared in the JVM,
+  so that such peers on an HTTPS listener cannot hold up the engine path. Residuals: the work that follows a
+  HelloRetryRequest (a second ClientHello) is not within a permit on this path, and the peer's second flight is not on either;
+  both are bounded by the number of handshakes that work at once and by the deadline. A replay that stalls still holds one place
+  to work (not a permit to compute) until the deadline, on both paths: that is what the cap on the handshakes at once is for.
 * **Handshake compute threads.** The engine's delegated tasks (the ClientHello's key exchange and signature, the client's
   certificate chain and signature) go to a JVM-wide pool of platform daemon threads, created subject-neutral and not from the
   system `ThreadPool`, through the `SslEngineChannel.TaskRunner` seam; the handshake's virtual thread waits for the result and
@@ -395,11 +406,11 @@ starve a legitimate open: at 60 silent connections a second the open took a medi
 (1 837 opens) after, and the first open behind 600 held silent peers waited 9.9 s before and 43 to 67 ms after (the paragraph
 above that says 600 silent peers delay an open by the deadline describes the build before the first-record read). A replay flood
 costs about 1.7 cores on the engine path in both builds, and on the SSLSocket path about 2.0 cores with its permits against 2.7
-to 3.3 without. The established-call p99 in a warm storm is not worse than before in the same session, but that session did not
+to 3.3 without (measured before the permit of that path was moved behind the first record and given back at the first flight;
+the test of the current build compares the same flood with and without permits on both paths). The established-call p99 in a warm storm is not worse than before in the same session, but that session did not
 reproduce section 37's quiet figures for either build (bimodal, hundreds of milliseconds at the open-loop rates).
 
-**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). A first-record read on the SSLSocket path
-(see above). A read for a departed peer once its first record is in and it waits for a place to work (it would need a peek at the
+**Not built, or not established.** Per-address caps (off by decision: NAT and loopback). A read for a departed peer once its first record is in and it waits for a place to work (it would need a peek at the
 socket that Java does not offer without consuming a byte). A non-blocking handshake and any `SelectionManager` change (S1 and S2). Kerberos's deadline and its peer-sized allocation
 before authentication. A lockstep storm of full handshakes is not cured by this section; the client's expiry jitter (commit
 `f63b647fb`) spreads it. Windows (the listen queue is clamped near 200 and overflow is a reset, so the in-JVM queue is what

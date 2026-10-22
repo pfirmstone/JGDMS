@@ -539,16 +539,22 @@ system properties: <p>
      peer that replays a ClientHello, reads the flight and closes costs
      the server no more than the permits allow, although each of its
      connections lasts a few milliseconds, and a peer that stops reading
-     holds no permit. A handshake done with an SSLSocket, which is those
-     of HTTPS and of endpoints with a server socket factory, holds a
-     permit for all of the handshake, because the Java runtime does its
-     reads and writes inside one call that cannot be split; a peer that
-     sends a ClientHello and then waits holds it until the handshake
-     times out. There are as many permits for SSLSockets, kept apart so
-     that such peers cannot hold up the endpoints that use SSLEngines;
-     among the endpoints that use SSLSockets, this many peers that stall
-     in that way stop the others from starting a handshake until they
-     time out. A handshake waits for a permit within its
+     holds no permit. A handshake done with an SSLSocket, which is those of
+     HTTPS and of endpoints with a server socket factory, takes a permit only
+     when the peer has sent the first record of a ClientHello, so a peer that
+     sends nothing, or something that is not TLS, takes none. The Java
+     runtime does its reads and writes inside one call that cannot be split,
+     so the permit is given back when the server has written its first flight
+     and next reads from the peer, which is seen on the socket that the
+     SSLSocket is layered over; a peer that replays a ClientHello and then
+     stalls holds a permit for the work of the first flight, and one that
+     does not read the flight, so that the write blocks, until the handshake
+     times out. The work that follows a HelloRetryRequest is not within a
+     permit on this path. There are as many permits for SSLSockets, kept
+     apart so that peers that block the write of the flight cannot hold up
+     the endpoints that use SSLEngines; among the endpoints that use
+     SSLSockets, this many such peers stop the others from starting a
+     handshake until they time out. A handshake waits for a permit within its
      serverHandshakeTimeout. The default is the larger of 2 and a quarter
      of the number of processors. A value below 1 selects the default.
 <li> <code>org.apache.river.jeri.ssl.serverHandshakeComputeThreads</code> -

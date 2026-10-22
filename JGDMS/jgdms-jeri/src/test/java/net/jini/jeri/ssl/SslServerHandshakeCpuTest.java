@@ -570,9 +570,9 @@ public class SslServerHandshakeCpuTest {
 
     /**
      * Peers that send a ClientHello to an endpoint that uses SSLSockets and
-     * then wait hold its permits until they time out, since the JDK does the
-     * waiting inside the handshake; they must not hold up the endpoints that
-     * use SSLEngines, which have permits of their own.
+     * then wait hold its permit only while the server writes its first
+     * flight, and in any case not the permits of the endpoints that use
+     * SSLEngines, which are separate.
      */
     @Test(timeout = 60000)
     public void testStalledSocketPathPeersDoNotStarveTheEnginePath() throws Exception {
@@ -594,8 +594,11 @@ public class SslServerHandshakeCpuTest {
                 s.getOutputStream().flush();
                 s.setSoTimeout(5000);
                 Assert.assertTrue("a flight", s.getInputStream().read(new byte[4096]) > 0);
-                Assert.assertEquals("the permit is held while it waits", 0,
-                                    sl.handle.socketCpuPermitsAvailable());
+                Assert.assertTrue("the permit is not held while it waits",
+                    S0Fixture.await(() -> sl.handle.socketCpuPermitsAvailable()
+                                          == sl.handle.cpuPermits(), 3000));
+                Assert.assertEquals("the handshake waits for the peer", 1,
+                                    sl.handle.inProgressCount());
                 long millis = S0Fixture.connectLegit(el);
                 Assert.assertTrue("the engine path was served at once: " + millis
                     + " ms", millis < 3000);

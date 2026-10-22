@@ -387,20 +387,17 @@ final class S0Fixture {
 
     /**
      * The time in milliseconds after which a connection that has not sent its
-     * first record is dropped: on the engine path, which waits for the first
-     * record, the time that is left for a handshake to work falls short of
-     * what it needs (the minimum budget, at most half the time); on the
-     * SSLSocket path there is no wait for a first record.
+     * first record is dropped, on either path: the time that is left for a
+     * handshake to work falls short of what it needs (the minimum budget, at
+     * most half the time).
      */
-    static long queueMillis(long timeoutMillis, boolean socketPath) {
-        return socketPath ? timeoutMillis
-            : timeoutMillis - Math.min(2000L, timeoutMillis / 2);
+    static long queueMillis(long timeoutMillis) {
+        return timeoutMillis - Math.min(2000L, timeoutMillis / 2);
     }
 
-    /** The counter of the connections that time out where the path first waits. */
-    static HandshakeCounters.Kind queueTimeoutKind(boolean socketPath) {
-        return socketPath ? HandshakeCounters.Kind.TIMEOUT
-                          : HandshakeCounters.Kind.QUEUE_TIMEOUT;
+    /** The counter of the connections that time out before their first record. */
+    static HandshakeCounters.Kind queueTimeoutKind() {
+        return HandshakeCounters.Kind.QUEUE_TIMEOUT;
     }
 
     /** Opens connections that send nothing; the caller closes them. */

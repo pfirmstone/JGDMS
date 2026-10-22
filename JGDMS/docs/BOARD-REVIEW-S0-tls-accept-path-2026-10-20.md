@@ -93,10 +93,15 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    acknowledgment notices) to a virtual thread; the mux start timer reads volatile flags and no longer takes the lock; the OOM
    fallback no longer runs on the timer thread. The mux's acknowledgment timer, a second timer thread, is a task of the same
    scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals.
-3. **SSLSocket path CPU (`752d6bfe3`, review M4).** `startHandshake()` runs inside a permit, waited for within the deadline and
-   released in a `finally`. The permits are a separate set of the same size: the call cannot be split into work and waits, so a
-   peer that sends a ClientHello and stops holds its permit until the deadline, and sharing the engine path's permits would let
-   two such peers on an HTTPS listener stop every other TLS listener. Not a deadlock; a cross-path denial of service.
+3. **SSLSocket path CPU (`752d6bfe3`, review M4; corrected after the cold review, H1).** `startHandshake()` runs inside a permit,
+   waited for within the deadline and released in a `finally`. The permits are a separate set of the same size, so that peers
+   that block on the path cannot stop the engine path's listeners. As first built the permit was taken before the peer had sent
+   a byte, and the text here said that "a peer that sends a ClientHello and stops holds its permit"; in fact a peer that sent
+   nothing held it, so `permits` silent connects (2 by default) stopped every HTTPS and custom-factory listener of the JVM for the
+   deadline (a legitimate open took 7.7 s, against 0.1 s before that commit). Now the first record is read ahead on this path too
+   (item 5), the permit is taken only after it has arrived, and it is given back when the server has written its first flight
+   and the JDK reads from the peer. Residual: a peer that does not read the flight, so that the write blocks, holds a permit until
+   the deadline; the work after a HelloRetryRequest is not within a permit on this path.
 4. **Small items (`dcb5eb823`).** The CPU gate ends after the first `wrap`, before any flush (L1); the admission count is
    computed in long and clamped (L2); server named groups are intersected with the engine's at listen, with warnings and a
    fall back to not pinning (L3); `com.sun.management` is an optional import (L4); tests that count descriptors are skipped,
@@ -107,8 +112,10 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    of its first TLS record on its virtual thread; junk is closed at once and counted, a departed peer is removed at once, the
    bytes are given to the engine channel when the connection takes a place to work. A place is given only with at least
    `serverHandshakeMinBudget` (2 s, at most half the timeout) left; otherwise the connection is dropped at no cost and counted
-   as a queue timeout, apart from working timeouts. Not covered: the SSLSocket path (the JDK reads for itself), and a peer that
-   leaves after its record is complete while it waits for a place to work. Decision 8 (the cap) stands: min(512, maxFds/8).
+   as a queue timeout, apart from working timeouts. The SSLSocket path is covered too (item 3). Not covered: a peer that
+   leaves after its record is complete while it waits for a place to work, and a peer that replays a captured ClientHello and
+   stalls, which passes the gate, takes a place to work and (on either path) holds it until the deadline; silent peers cost
+   a queue slot and no place only if they are silent from the first byte. Decision 8 (the cap) stands: min(512, maxFds/8).
 6. **After the follow-up (not in the package as first scoped).** `sun.nio.ch` is no longer imported (`e8abed7a5`, `1aa52d443`:
    the IOVecWrapper workaround is removed and the manifest test fails on any `sun.*` import), and the workaround for JDK bug
    4854354 is removed (`8dc35b03a`).

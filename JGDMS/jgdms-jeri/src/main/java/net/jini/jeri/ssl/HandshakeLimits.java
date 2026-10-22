@@ -113,16 +113,21 @@ final class HandshakeLimits {
     final Semaphore cpu;
 
     /**
-     * One permit for each handshake done with an SSLSocket, which holds it
-     * for the whole of its {@code startHandshake}.  The JDK does the reads and
-     * the writes of the handshake inside that call, so it cannot be split, as
-     * the first flight of an SSLEngine handshake is, into the work for the
-     * processor and the waits for the peer, and a peer that sends a
-     * ClientHello and then waits holds its permit until its handshake times
-     * out.  The permits are separate from those of {@link #cpu}, so that such
-     * peers, which can only be on the endpoints that use SSLSockets (HTTPS and
-     * those with a server socket factory), cannot hold up the handshakes of
-     * the other endpoints.  There are as many as the others.
+     * One permit for each handshake done with an SSLSocket, which is taken
+     * when the peer has sent the first record of a ClientHello, never before,
+     * and given back when the server has written its first flight and reads
+     * from the peer.  The JDK does the reads and the writes of the handshake
+     * inside {@code startHandshake}, so the work for the processor cannot be
+     * told from the waits for the peer, as it can with the first flight of an
+     * SSLEngine handshake; the streams of the socket that the SSLSocket is
+     * layered over show it ({@link HandshakeSocket}).  A peer that replays a
+     * ClientHello and then stalls holds a permit for that work, and one that
+     * does not read the flight, so that the write blocks, until its handshake
+     * times out.  The permits are separate from those of {@link #cpu}, so that
+     * such peers, which can only be on the endpoints that use SSLSockets (HTTPS
+     * and those with a server socket factory), cannot hold up the handshakes of
+     * the other endpoints.  There are as many as the others.  Work that follows
+     * a HelloRetryRequest is not within a permit on this path.
      */
     final Semaphore socketCpu;
 
