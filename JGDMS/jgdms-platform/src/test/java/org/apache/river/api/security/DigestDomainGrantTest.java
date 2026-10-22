@@ -20,11 +20,13 @@ package org.apache.river.api.security;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.Externalizable;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URL;
@@ -53,6 +55,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import tests.support.DigestCodeSources;
 import tests.support.MyPrincipal;
 
 /**
@@ -61,8 +64,13 @@ import tests.support.MyPrincipal;
  * to one ClassLoader, whether or not the domain exists yet, and to no other.
  * <p>
  * Needs {@code java.security.DigestCodeSource} (DirtyChai), which is reached 
- * by reflection; on a stock JDK the positive cases are skipped and the
- * fail-closed cases run.
+ * by reflection; on a JDK that does not have the constructors needed the 
+ * positive cases are skipped and the fail-closed cases run.
+ * <p>
+ * The grant classes tested are those of this module, which the surefire
+ * argLine patches into {@code java.base} over any copy the JDK bundles, so
+ * they are not in this test's runtime package: the package-private ones, 
+ * {@code DigestDomainGrant}, are reached by name, not by reference.
  */
 public class DigestDomainGrantTest {
 
@@ -108,32 +116,28 @@ public class DigestDomainGrantTest {
 
     // ---- DigestCodeSource, by reflection -----------------------------------
 
-    private static Class<?> digestClass() {
-        try {
-            return Class.forName("java.security.DigestCodeSource");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }
-
+    /** Skips the test unless the DigestCodeSource has what the test needs. */
     private static void assumeDigest() {
-        Assume.assumeNotNull(digestClass());
+        Assume.assumeNotNull(DigestCodeSources.usable());
     }
 
-    /** A digest computed from the jar: what the loader makes. */
+    /**
+     * A digest computed from the jar: what the loader makes.
+     * 
+     * @throws SecurityException as DigestCodeSource does, when the jar is not
+     * what it was when its digest was first computed.
+     */
     private static CodeSource computed(URL jar, Certificate... certs) throws Exception {
-        Constructor<?> c = digestClass().getConstructor(String.class, Certificate[].class, String.class);
-        return (CodeSource) c.newInstance(jar.toString(), certs.length == 0 ? null : certs, "SHA-256");
+        return DigestCodeSources.computed(jar.toString(), certs.length == 0 ? null : certs, "SHA-256");
     }
 
     /** An expected identity, or a forgery: the digest is asserted, not computed. */
     private static CodeSource asserted(URL jar, byte[] digest, String alg, Certificate... certs) throws Exception {
-        Constructor<?> c = digestClass().getConstructor(String.class, Certificate[].class, String.class, byte[].class);
-        return (CodeSource) c.newInstance(jar.toString(), certs.length == 0 ? null : certs, alg, digest);
+        return DigestCodeSources.asserted(jar.toString(), certs.length == 0 ? null : certs, alg, digest);
     }
 
     private static byte[] digestOf(CodeSource cs) throws Exception {
-        return (byte[]) digestClass().getMethod("getDigest").invoke(cs);
+        return DigestCodeSources.digestOf(cs);
     }
 
     /** The identity the verifier established for a jar: the supplied digest. */
@@ -141,10 +145,19 @@ public class DigestDomainGrantTest {
         return asserted(jar, digestOf(computed(jar, certs)), "SHA-256", certs);
     }
 
+    /** DigestDomainGrant is package-private, in java.base when it is patched in. */
+    private static boolean isDigestDomainGrant(PermissionGrant g) throws Exception {
+        return Class.forName("org.apache.river.api.security.DigestDomainGrant").isInstance(g);
+    }
+
     private PermissionGrant grantTo(Class<?> c, CodeSource[] codebase, Principal... pals) {
+        return grantTo(PERM, c, codebase, pals);
+    }
+
+    private PermissionGrant grantTo(Permission perm, Class<?> c, CodeSource[] codebase, Principal... pals) {
         return PermissionGrantBuilder.newBuilder()
                 .principals(pals)
-                .permissions(new Permission[]{PERM})
+                .permissions(new Permission[]{perm})
                 .codeSources(codebase)
                 .context(PermissionGrantBuilder.DIGEST_DOMAIN)
                 .clazz(c)
@@ -162,7 +175,7 @@ public class DigestDomainGrantTest {
         assumeDigest();
         Class<?> a = loader.define(ProxyA.class, computed(jarA));
         PermissionGrant g = grantTo(a, new CodeSource[]{expected(jarA), expected(jarB)});
-        assertTrue(g instanceof DigestDomainGrant);
+        assertTrue(isDigestDomainGrant(g));
         assertTrue("A", g.implies(a.getProtectionDomain()));
         // B has no domain yet when the grant is made.
         Class<?> b = loader.define(ProxyB.class, computed(jarB));
@@ -182,7 +195,19 @@ public class DigestDomainGrantTest {
         // Same location as A, different content.
         File f = new File(dir, "a.jar");
         Files.write(f.toPath(), Files.readAllBytes(new File(dir, "outside.jar").toPath()));
-        assertFalse("changed content", g.implies(domain(computed(jarA), loader)));
+        try {
+            assertFalse("changed content", g.implies(domain(computed(jarA), loader)));
+        } catch (SecurityException refused) {
+            // DigestCodeSource remembers the digest first computed for a
+            // location and refuses to compute another: the changed jar never
+            // becomes a code source to be implied, which is closed too. The
+            // grant is not affected by the change, A's domain is still implied.
+            assertTrue("A, as it was loaded", g.implies(a.getProtectionDomain()));
+        }
+        // Whichever way, the digest of the changed content, asserted for A's 
+        // location, is not what the verifier established.
+        assertFalse("changed content, digest asserted", g.implies(
+                domain(asserted(jarA, digestOf(computed(jarOutside)), "SHA-256"), loader)));
         // Right location and digest, other signers than the verifier saw.
         assertFalse("other signers", g.implies(domain(computed(jarOutside, new FakeCertificate("x")), loader)));
     }
@@ -262,11 +287,32 @@ public class DigestDomainGrantTest {
         assertFalse(g.implies(computed(jarA), NONE));
     }
 
+    /**
+     * A Permission that can be serialized and read back.  DirtyChai's 
+     * Permission is not Serializable, nor are RuntimePermission and the 
+     * other JDK permissions, so a builder holding one cannot be written, 
+     * and a Serializable subclass cannot be read, Permission having no 
+     * constructor without arguments.  An Externalizable one can.
+     */
+    public static final class SerialPermission extends Permission implements Externalizable {
+        public SerialPermission() {
+            super("digest.domain.grant.serial");
+        }
+        @Override public boolean implies(Permission p) { return p instanceof SerialPermission; }
+        @Override public boolean equals(Object o) { return o instanceof SerialPermission; }
+        @Override public int hashCode() { return 17; }
+        @Override public String getActions() { return ""; }
+        @Override public void writeExternal(ObjectOutput out) { }
+        @Override public void readExternal(ObjectInput in) { }
+    }
+
     @Test
     public void voidAfterSerialization() throws Exception {
         assumeDigest();
         Class<?> a = loader.define(ProxyA.class, computed(jarA));
-        PermissionGrant g = grantTo(a, new CodeSource[]{expected(jarA)});
+        PermissionGrant g = grantTo(new SerialPermission(), a, new CodeSource[]{expected(jarA)});
+        assertFalse("control: not void before", g.isVoid());
+        assertTrue("control: implies before", g.implies(a.getProtectionDomain()));
         ByteArrayOutputStream bo = new ByteArrayOutputStream();
         try (ObjectOutputStream oo = new ObjectOutputStream(bo)) {
             oo.writeObject(g);
@@ -304,7 +350,7 @@ public class DigestDomainGrantTest {
                     .context(PermissionGrantBuilder.DIGEST_DOMAIN).build();
             fail("no class");
         } catch (IllegalArgumentException expected) { }
-        if (digestClass() != null) {
+        if (DigestCodeSources.usable() != null) {
             try {
                 b.codeSources(asserted(jarA, SHA, "SHA-512")).build();
                 fail("digest algorithm other than SHA-256");

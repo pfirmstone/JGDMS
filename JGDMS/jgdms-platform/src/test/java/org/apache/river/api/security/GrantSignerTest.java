@@ -35,6 +35,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import tests.support.DigestCodeSources;
 
 /**
  * Signer handling of {@link CertificateGrant}, {@link URIGrant} and 
@@ -188,7 +189,7 @@ public class GrantSignerTest {
     @Test
     public void digestIgnoresLocationAndRequiresDigestAndSigners() throws Exception {
         Class<?> dcs = digestCodeSourceClass();
-        Assume.assumeNotNull(dcs); // Stock JDK: fail closed, covered above.
+        Assume.assumeNotNull(dcs); // A JDK without the DigestCodeSource needed: fail closed, covered above.
         // Real jars, a digest the code source computed from the jar is what
         // a loader makes: a digest asserted by a caller is not identity.
         File dir = Files.createTempDirectory("digest-grant").toFile();
@@ -235,12 +236,9 @@ public class GrantSignerTest {
         return f;
     }
 
+    /** The DigestCodeSource, if it has what this test needs, otherwise null. */
     private static Class<?> digestCodeSourceClass() {
-        try {
-            return Class.forName("java.security.DigestCodeSource");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
+        return DigestCodeSources.usable();
     }
 
     private static ProtectionDomain domain(CodeSource cs) {

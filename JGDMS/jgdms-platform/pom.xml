@@ -44,6 +44,10 @@
 
     <properties>
         <high.scale.lib.version>1.0.6</high.scale.lib.version>
+        <!-- Patched into java.base for the tests, see the surefire argLine.
+             More directories may follow, separated by the path separator;
+             they are searched after the first. -->
+        <jgdms.security.patch>${project.build.directory}/security-patch</jgdms.security.patch>
     </properties>
 
     <dependencies>
@@ -128,14 +132,92 @@
                     </configuration>
             </plugin>
             <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <!-- The org.apache.river.api.security classes that a JDK may
+                         bundle in java.base, with the classes of the package
+                         that they use, for the patch-module option (see the
+                         surefire argLine).  The boot loader sees nothing else
+                         of this module: add a class here when one of these
+                         starts to use it. -->
+                    <execution>
+                        <id>security-patch</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/security-patch</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.outputDirectory}</directory>
+                                    <includes>
+                                        <include>org/apache/river/api/security/CertificateGrant*.class</include>
+                                        <include>org/apache/river/api/security/ClassLoaderGrant*.class</include>
+                                        <include>org/apache/river/api/security/CodeSourceKey*.class</include>
+                                        <include>org/apache/river/api/security/DigestDomainGrant*.class</include>
+                                        <include>org/apache/river/api/security/DigestGrant*.class</include>
+                                        <include>org/apache/river/api/security/PermissionComparator*.class</include>
+                                        <include>org/apache/river/api/security/PermissionDelegate*.class</include>
+                                        <include>org/apache/river/api/security/PermissionGrant*.class</include>
+                                        <include>org/apache/river/api/security/PrincipalGrant*.class</include>
+                                        <include>org/apache/river/api/security/ProtectionDomainGrant*.class</include>
+                                        <include>org/apache/river/api/security/ScalableNestedPolicy*.class</include>
+                                        <include>org/apache/river/api/security/SubjectDomain*.class</include>
+                                        <include>org/apache/river/api/security/URIGrant*.class</include>
+                                        <include>org/apache/river/api/security/UnresolvedPrincipal*.class</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                    <!-- What those classes use from other packages, appended to
+                         the boot class path, where java.base can see it. -->
+                    <execution>
+                        <id>security-boot</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/security-boot</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.outputDirectory}</directory>
+                                    <includes>
+                                        <include>org/apache/river/api/net/URIEncoderDecoder*.class</include>
+                                        <include>org/apache/river/api/net/Uri*.class</include>
+                                        <include>org/apache/river/impl/Messages*.class</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- Permit tests to install a SecurityManager on JDK 17+
                          (JEP 411). This only *allows* setSecurityManager; no SM
                          is installed unless a test does so explicitly. Needed by
-                         AgentDelegationCeilingTest. -->
-                    <argLine>-Djava.security.manager=allow</argLine>
+                         AgentDelegationCeilingTest.
+
+                         The org.apache.river.api.security classes of this module
+                         are the ones tested, not those a JDK may bundle in
+                         java.base: the patch-module option replaces them, and
+                         adds those the JDK does not have.  The other classes
+                         of the package stay on the class path, as the
+                         bundled copies' siblings do on a JDK that has them.
+                         What the patched classes use from other packages is
+                         appended to the boot class path, which java.base
+                         must be able to read.  The package must be exported
+                         and open to the tests (a JDK that already exports
+                         it is not harmed by this). -->
+                    <argLine>-Djava.security.manager=allow --patch-module java.base=${jgdms.security.patch} -Xbootclasspath/a:${project.build.directory}/security-boot --add-reads java.base=ALL-UNNAMED --add-exports java.base/org.apache.river.api.security=ALL-UNNAMED --add-opens java.base/org.apache.river.api.security=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
         </plugins>

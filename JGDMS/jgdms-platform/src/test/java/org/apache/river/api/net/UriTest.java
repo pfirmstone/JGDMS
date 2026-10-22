@@ -1742,11 +1742,14 @@ public class UriTest extends TestCase {
     public void testCaseStringEquals() throws Exception {
         String a = "zabckel%5f%20klw";
         String b = "ZABCKEL%5F%20KLW";
-        boolean result = Uri.asciiStringsUpperCaseEqual(a, b);
+        // Uri's package-private methods are reached reflectively: Uri may be
+        // loaded by the boot loader (see the surefire argLine in the pom), in
+        // another runtime package than this test.
+        boolean result = (Boolean) packagePrivate("asciiStringsUpperCaseEqual", a, b);
         Assert.assertTrue(result);
-        result = Uri.asciiStringsLowerCaseEqual(a, b);
+        result = (Boolean) packagePrivate("asciiStringsLowerCaseEqual", a, b);
         Assert.assertTrue(result);
-        String A = Uri.toAsciiUpperCase(a);
+        String A = (String) packagePrivate("toAsciiUpperCase", a);
         System.out.println(a);
         System.out.println(A);
         System.out.println(a.toCharArray());
@@ -1754,4 +1757,12 @@ public class UriTest extends TestCase {
         Assert.assertEquals(A, b);
     }
     
+    private static Object packagePrivate(String name, String... args) throws Exception {
+        Class<?>[] types = new Class<?>[args.length];
+        java.util.Arrays.fill(types, String.class);
+        java.lang.reflect.Method m = Uri.class.getDeclaredMethod(name, types);
+        m.setAccessible(true);
+        return m.invoke(null, (Object[]) args);
+    }
+
 }
