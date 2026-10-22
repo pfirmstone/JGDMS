@@ -417,6 +417,13 @@ final class S0Fixture {
         }
     }
 
+    /** A client-mode engine of the trusted client, to drive a handshake by hand. */
+    static javax.net.ssl.SSLEngine clientEngine() {
+        javax.net.ssl.SSLEngine engine = clientContext.createSSLEngine("localhost", 0);
+        engine.setUseClientMode(true);
+        return engine;
+    }
+
     /**
      * Returns the bytes of a ClientHello from a client that holds the trusted
      * client credential.  Any server answers it with its first flight, so
@@ -490,7 +497,8 @@ final class S0Fixture {
         try {
             return action.call();
         } finally {
-            for (int i = 0; i < n; i++) {
+            /* In reverse, so that a name given twice is restored to what it was. */
+            for (int i = n - 1; i >= 0; i--) {
                 if (old[i] == null) {
                     System.clearProperty(namesAndValues[2 * i]);
                 } else {

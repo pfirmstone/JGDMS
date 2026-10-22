@@ -1640,16 +1640,16 @@ class SslServerEndpointImpl extends Utilities {
 				try {
 					/*
 					 * A connection that waits for its turn costs its socket,
-					 * this thread and the bytes of its first record, and
+					 * this thread and the bytes of its ClientHello, and
 					 * nothing is allocated for the handshake until it has a
-					 * permit.  It reads that record first, so that a peer
-					 * that goes away is noticed at once, and one that sends no
-					 * ClientHello, or something that is not TLS, never takes a
-					 * place to work in or a permit to compute.  A socket with
-					 * no channel is read through its input stream, and the
-					 * SSLSocket is given the bytes.
+					 * permit.  It reads the whole ClientHello first, so that a
+					 * peer that goes away is noticed at once, and one that
+					 * sends no ClientHello, a part of one, or something that is
+					 * not TLS, never takes a place to work in or a permit to
+					 * compute.  A socket with no channel is read through its
+					 * input stream, and the SSLSocket is given the bytes.
 					 */
-					handshake.readFirstRecord();
+					handshake.readClientHello();
 					handshake.awaitPermit();
 					connection = serverConnection(handshake.socket, handshake);
 					java.util.function.Consumer<Handshake> hook = beforeComplete;
@@ -1954,11 +1954,11 @@ class SslServerEndpointImpl extends Utilities {
 			private final AtomicInteger state = new AtomicInteger(QUEUED);
 
 			/**
-			 * The first record of the connection, which has been read, or
-			 * null: before it is read, and once its bytes were given to the
-			 * engine's channel or to the SSLSocket.
+			 * The records of the connection's ClientHello, which have been
+			 * read, or null: before they are read, and once their bytes were
+			 * given to the engine's channel or to the SSLSocket.
 			 */
-			private volatile byte[] firstRecord;
+			private volatile byte[] clientHello;
 
 			/**
 			 * The input stream of a socket that has no channel, which is
@@ -1985,19 +1985,20 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
-			 * Reads the first record of the connection, while it waits for its
-			 * turn: from the channel of the socket, or, if it has none (the
+			 * Reads the whole ClientHello of the connection, while it waits for
+			 * its turn: from the channel of the socket, or, if it has none (the
 			 * SSLSocket path), from its input stream.  A peer that does not
-			 * send a ClientHello is dropped here, whatever it sends.  The read
+			 * send a ClientHello is dropped here, whatever it sends, and so is
+			 * one that has not sent all of it when the time runs out.  The read
 			 * is ended by the watchdog, which closes the socket.
 			 */
-			void readFirstRecord() throws IOException {
+			void readClientHello() throws IOException {
 				waiter = Thread.currentThread();
 				try {
 					java.nio.channels.SocketChannel channel = socket.getChannel();
-					firstRecord = channel != null
-						? FirstRecord.read(channel)
-						: FirstRecord.read(socketInput());
+					clientHello = channel != null
+						? ClientHelloReader.read(channel)
+						: ClientHelloReader.read(socketInput());
 				} finally {
 					waiter = null;
 				}
@@ -2017,13 +2018,13 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
-			 * Returns the bytes of the first record that were read ahead, and
+			 * Returns the bytes of the ClientHello that were read ahead, and
 			 * forgets them, or null if none were.
 			 */
-			byte[] takeFirstRecord() {
-				byte[] record = firstRecord;
-				firstRecord = null;
-				return record;
+			byte[] takeClientHello() {
+				byte[] hello = clientHello;
+				clientHello = null;
+				return hello;
 			}
 
 			/**
@@ -2090,7 +2091,7 @@ class SslServerEndpointImpl extends Utilities {
 
 			/**
 			 * Waits for a permit to do the handshake with an SSLSocket, for as
-			 * long as the handshake has time.  The first record has been read
+			 * long as the handshake has time.  The ClientHello has been read
 			 * by then.  The permit is given back by {@link #end}, which the
 			 * layered socket calls when the server has written its first
 			 * flight and reads from the peer, and the task calls whatever
@@ -2649,7 +2650,7 @@ class SslServerEndpointImpl extends Utilities {
 							() -> handshake.isTimedOut() || socket.isClosed()));
 					}
 					/* What was read ahead while the connection waited. */
-					byte[] first = handshake.takeFirstRecord();
+					byte[] first = handshake.takeClientHello();
 					if (first != null) {
 						engineChannel.prime(first);
 					}
@@ -2672,15 +2673,16 @@ class SslServerEndpointImpl extends Utilities {
 					/*
 					 * Fallback (custom serverSocketFactory / HTTPS): channel-less
 					 * accepted socket, drive TLS via SSLSocket as before.  The
-					 * first record has been read from the socket, so that a
-					 * peer that sends no ClientHello takes no permit; the
+					 * ClientHello has been read from the socket, so that a
+					 * peer that sends no ClientHello, or part of one, takes no
+					 * permit; the
 					 * JDK is given its bytes first and reads on from the
 					 * socket.  A socket made so is in server mode.  The socket
 					 * it is layered over notes when the first flight has been
 					 * written, and gives the permit back then.
 					 */
 					engineChannel = null;
-					byte[] first = handshake.takeFirstRecord();
+					byte[] first = handshake.takeClientHello();
 					HandshakeSocket layered = new HandshakeSocket(socket,
 						handshake.socketInput(), socket.getOutputStream(),
 						handshake::end);

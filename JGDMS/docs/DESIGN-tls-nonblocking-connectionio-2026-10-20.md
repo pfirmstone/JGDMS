@@ -296,28 +296,43 @@ listener do. Facts that the first version of this section had wrong, found by th
   disarms the timer; QUEUED to QUEUE_TIMED_OUT or WORKING to TIMED_OUT by the timer) means a late timeout cannot close a
   connection that was handed on and a handshake that timed out is never handed on. The permits and the `inProgress` entry are
   released exactly once, by the task, after its socket is closed or registered.
-* **First record.** While a connection waits for its turn it reads, on its own virtual thread, the first TLS record
-  (`FirstRecord`): the 5-byte header, checked as it arrives (handshake record, version 3.x, length 4 to 16384, then a ClientHello
-  as the handshake message), and the rest of the record, allocated as the bytes arrive (512 bytes to start with, doubling), never a
-  byte beyond the record. Bytes that cannot start a ClientHello (an HTTP request, SSL 2, an alert, a record of the wrong length)
-  close the connection at once and count as junk; end of file or a reset removes the connection at once and counts as a peer that
-  left; a peer that sends only part of a record is cut off when the wait ends. The bytes are given to the engine's channel
-  (`SslEngineChannel.prime`) when the connection takes its turn, so none are lost. What a waiting connection holds is its socket,
-  its virtual thread and at most 16 389 bytes, and nothing of the engine. Once the whole record is in, the connection waits for a
-  place to work without reading, so a peer that leaves then is noticed when it has its turn. A socket with no channel (the SSLSocket
-  path: HTTPS, a custom `ServerSocketFactory`) is read the same way, through its input stream, which is taken once (a factory's
-  socket may return a new, buffering stream at each call); the bytes are given to the JDK with
+* **The ClientHello (`ClientHelloReader`; first built as a read of the first record only).** While a connection waits for its
+  turn it reads, on its own virtual thread, its whole ClientHello: a handshake message that the peer may split over records.
+  Every record header is checked as it arrives (handshake record, version 3.x, length 1 to 16384, no other record type in
+  between), the first byte of the message must be the type of a ClientHello, the 4-byte message header (which may itself be split
+  over records) gives its length, which must not exceed the 32768 that the JDK takes (`jdk.tls.maxHandshakeMessageSize`), a record
+  may not carry more than the message has left, and the message may be in at most 8 records. Records are read whole and nothing
+  after the last record of the message is read (the compatibility ChangeCipherSpec of a client that offers early data stays in the
+  socket). The buffer is allocated as the bytes arrive (512 bytes to start with, doubling), so a queued connection holds at
+  most 32 812 bytes (4 + 32768 + 8 headers of 5) besides its socket and its virtual thread, and nothing of the engine. Bytes that
+  cannot be such a ClientHello (an HTTP request, SSL 2, an alert, an over-long length, a ninth record, bytes after the end of the
+  message) close the connection at once and count as junk; end of file or a reset removes the connection at once and counts as a
+  peer that left; a peer that has sent only part of its ClientHello is cut off when the wait ends and counts as a queue timeout.
+  A peer that has sent a part of a ClientHello therefore holds a place in the queue and nothing else, on either path. The bytes are
+  given to the engine's channel (`SslEngineChannel.prime`) when the connection takes its turn, unchanged, so none are lost. Why a
+  bound on the number of records and not a re-framing into larger ones: the JDK copies everything it has of a fragmented
+  handshake message for every record that follows (`SSLSocketInputRecord`, `SSLEngineInputRecord`), so a 32 KiB message in
+  records of one byte cost a server about 190 ms of processor time (a probe: 192 KB on the wire, 60 times a gated flight),
+  outside every permit; a bound of 8 records limits that to a few kilobytes of copying, takes no copy of the bytes and no
+  re-written header, and a message of the longest size needs only three records of the longest length. A client that splits its
+  ClientHello into more than 8 records is not served; the JDK client sends one record, and a split meant to slip past a filter
+  is into two (other clients' stacks were not examined). Once the whole ClientHello is in, the
+  connection waits for a place to work without reading, so a peer that leaves then is noticed when it has its turn. A socket with
+  no channel (the SSLSocket path: HTTPS, a custom `ServerSocketFactory`) is read the same way, through its input stream, which is
+  taken once (a factory's socket may return a new, buffering stream at each call); the bytes are given to the JDK with
   `SSLSocketFactory.createSocket(socket, consumed, autoClose)`, which makes a socket in server mode that reads `consumed` first
   and then the socket. The watchdog is armed before the read, as on the engine path. (The first version of this section, and of
   commit `752d6bfe3`, said the SSLSocket path could not read ahead; it can, and without the gate a peer that connected and sent
-  nothing held one of the socket path's permits to compute for the whole deadline.)
+  nothing held one of the socket path's permits to compute for the whole deadline. The second version read one record, which a
+  peer could make a fragment of one byte: 16 such connections held every place to work, and on the SSLSocket path `permits` of
+  them held the permits, until the deadline; the second review's H1 and H2.)
 * **Engine path.** The server uses plain blocking reads and writes (`SslEngineChannel.handshakeServer`), no `Selector`: a
   blocking `SocketChannel` read or write ends within about a millisecond of the raw channel being closed, on platform and
   virtual threads, which gives the deadline, the cancellation on listener close and the bound on a write to a peer that does not
   read with one mechanism. The **client** keeps `fillNetInByDeadline` (a blocking channel has no read timeout, so it is the
   client's only deadline, `handshakeTimeout`, 60 s, unchanged); an interrupt
   fails the handshake instead of spinning to the deadline.
-* **SSLSocket path.** The first record is read ahead as above; then `startHandshake()` under `setSoTimeout(time left)` plus the
+* **SSLSocket path.** The ClientHello is read ahead as above; then `startHandshake()` under `setSoTimeout(time left)` plus the
   same watchdog, and inside a permit of its own (see CPU); the NULL-suite check stays as the backstop.
 * **Admission, for the process.** The budgets belong to the process, which has the descriptors and the processors, so one
   `HandshakeLimits` instance (one for each distinct setting of the properties, which is one in a process whose properties do not
@@ -360,8 +375,8 @@ listener do. Facts that the first version of this section had wrong, found by th
   replayed ClientHello; the names are checked against the engine's at listen (unsupported names are dropped with a warning, and a
   list with none left is not applied, with a warning), and a peer that offers only secp384r1, as peers that follow the CNSA or
   FIPS profiles may, is refused with the default. The SSLSocket path (HTTPS, a custom `ServerSocketFactory`) cannot be split
-  into its work and its waits inside `startHandshake()`, so its permit is taken when the first record of the ClientHello is in
-  (never before: a peer that connects and sends nothing, or junk, takes none) and is given back by a thin socket that the
+  into its work and its waits inside `startHandshake()`, so its permit is taken when the whole ClientHello is in
+  (never before: a peer that connects and sends nothing, a part of a ClientHello, or junk, takes none) and is given back by a thin socket that the
   SSLSocket is layered over (`HandshakeSocket`): it notes the first write after the ClientHello, the server's first flight, and
   ends the window at the first read after it, which is the JDK waiting for the peer's second flight. The task also gives it back
   in a `finally`, whatever happens, and at most once. A peer that replays a captured ClientHello and stalls therefore holds a

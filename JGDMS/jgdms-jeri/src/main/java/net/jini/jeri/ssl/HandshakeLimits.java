@@ -152,7 +152,7 @@ final class HandshakeLimits {
 
     /**
      * One permit for each handshake done with an SSLSocket, which is taken
-     * when the peer has sent the first record of a ClientHello, never before,
+     * when the peer has sent the whole of a ClientHello, never before,
      * and given back when the server has written its first flight and reads
      * from the peer.  The JDK does the reads and the writes of the handshake
      * inside {@code startHandshake}, so the work for the processor cannot be

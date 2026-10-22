@@ -69,11 +69,11 @@ final class HandshakeCounters {
         /** The handshake was working and did not complete in time. */
         TIMEOUT("timed out working"),
         /**
-         * The connection did not send its first record, or was given no turn
+         * The connection did not send its ClientHello, or was given no turn
          * to work, before the time that a handshake needs was gone.
          */
         QUEUE_TIMEOUT("timed out waiting for a turn"),
-        /** The first bytes were not the start of a TLS ClientHello. */
+        /** The bytes were not a TLS ClientHello that the server takes. */
         JUNK("not TLS"),
         /** The listener was closed while the handshake was in progress. */
         LISTENER_CLOSED("listener closed"),
@@ -248,7 +248,7 @@ final class HandshakeCounters {
 
     /** Classifies a handshake failure. */
     static Kind classify(Throwable t) {
-        if (t instanceof FirstRecord.NotTlsException) {
+        if (t instanceof ClientHelloReader.NotTlsException) {
             return Kind.JUNK;
         }
         int depth = 0;
