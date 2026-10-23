@@ -14,6 +14,7 @@ Status of every item is OPEN unless stated. Owner is the maintainer.
 | P1 | `PermissionDelegate` (DirtyChai `cea19f32b`, a new 57-line file, mostly Javadoc) is AI-assisted. | The same file was created in JGDMS by `c2d8ef94c` (56 lines, 2026-06-17 13:28 +1000, with an AI co-author trailer) and moved to DirtyChai by `cea19f32b` (17:06 the same day, message "support for PermissionDelegate needs to be moved to DirtyChai"). The two differ only in one Javadoc sentence. | **Maintainer's determination (2026-10-23): counts as AI-assisted. To be rewritten by a human in DirtyChai.** Afterwards JGDMS can take the rewritten version (human code may flow DirtyChai to JGDMS). |
 | P2 | `PrincipalGrant.toString`, the comment block for the UnresolvedPermission case (DirtyChai `f8520cdaa`, 2026-05-06 11:19Z, +28/-9 lines in `PrincipalGrant`). | Matches text in JGDMS `52d23da0c` (2026-05-06 03:33Z, authored by a bot account with the maintainer as co-author, about 30 changed lines). Derivation PLAUSIBLE, timestamps CONFIRMED. | Undetermined. Maintainer to review. |
 | P3 | `CertificateGrant.impliesSigners` (DirtyChai `adb890e9f`, 2026-10-18 08:03Z, a 6-line method). | Same name and logic as JGDMS `1c8ef5ba1` (07:55Z, AI co-author trailer, a much larger commit). The logic is the obvious null/empty/containsAll check. Derivation PLAUSIBLE. | Undetermined. Maintainer to review. |
+| P6 | `DigestGrant` and `DigestDomainGrant` in DirtyChai versus JGDMS. `DigestGrant` originated in DirtyChai (`ce6a8e833`, 2026-05-11, human, "Implement DigestCodeSource and Policy grants that contain URL digests") and was ported to JGDMS the same day by a bot account (`c0e0fb870`, "Port DirtyChai improvements"): the direction is the allowed one. `DigestDomainGrant` was written in JGDMS on 2026-10-18 (`c490a95de`, AI co-author trailer, SOW section 7); DirtyChai's version was written on 2026-10-20 in three "Refactoring of Security Policy" commits, two days later. The analysis found them to be two independent implementations (different superclass, different builder rules), so no derivation is shown. | Dates read from git in both repositories. | Maintainer to confirm that DirtyChai's `DigestDomainGrant` was written independently. |
 | P4 | Unreviewed beyond the three above. | The analysis compared 13 files against git history in a window; it did not audit every DirtyChai line against every JGDMS commit. | A full review is open if wanted. |
 | P5 | Outbound to OpenJDK needs GPLv2 + Classpath Exception under the OCA; the DirtyChai files carry ASF Apache-2.0 headers, and `UnresolvedPrincipal` is Apache Harmony derived (author A. V. Varlamov). | Headers read in the files. | A legal question for the maintainer, not decided here. |
 
@@ -69,3 +70,15 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 
 Human code may flow DirtyChai to JGDMS (Apache-2.0 headers on both sides: keep them and name the DirtyChai commit); no
 AI-assisted code should be written into DirtyChai.
+
+## F. Package layout under consideration (maintainer, 2026-10-23)
+
+The classes in `org.apache.river.api.security` that are not of Apache River origin could move to `au.net.zeus.jgdms.api.policy`, to
+minimise what shares the package with DirtyChai's bundled classes. By the date each file was first added in this repository's
+history (which includes the River history), the JGDMS-only classes added in 2026 are: `ExternallyVoidablePermissionGrant`
+(2026-05-14), `LocalPrincipalProvider` (05-25), `LeasedDelegation` and `LeasedPermissionGrant` (06-16), `OneShot` and
+`OneShotLeasedPermissionGrant` (07-06), `UserSubjectSupport` (08-18) and `CodeSourceKey` (10-18). The leased grants are not in
+DirtyChai (maintainer). Open points: whether the River-origin JGDMS-only classes (for example `ConcurrentPolicyFile`,
+`DefaultPolicyParser`, `PolicyUtils`) stay, since while any JGDMS class stays in the package it remains split across the boot and
+app loaders; the effect on references (policy files, DER/serializer registries, bnd `-exportcontents` and `packageinfo`, the
+compat-gate ledger, `qa`); and whether the 2026 classes are in the compat-gate baseline at all.
