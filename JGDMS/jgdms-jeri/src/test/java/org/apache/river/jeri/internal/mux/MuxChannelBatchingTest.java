@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -104,6 +105,10 @@ public class MuxChannelBatchingTest {
         final SocketChannel serverChannel;
 
         Pair(int bufferSize) throws Exception {
+            this(bufferSize, ECHO);
+        }
+
+        Pair(int bufferSize, RequestDispatcher dispatcher) throws Exception {
             // A Unix domain socket pair: small socket buffers on loopback TCP stall the
             // sender until the persist timer fires (the receive window never reaches one
             // segment), which says nothing about the mux.
@@ -130,7 +135,7 @@ public class MuxChannelBatchingTest {
             toClose.add(clientChannel);
             toClose.add(serverChannel);
             MuxChannelBatchingTest.this.pairRef = this;
-            server = new MuxServer(serverChannel, ECHO);
+            server = new MuxServer(serverChannel, dispatcher);
             client = new MuxClient(clientChannel, 15000);
             toClose.add(() -> client.shutdown("test over"));
             toClose.add(() -> server.shutdown("test over"));
@@ -274,7 +279,22 @@ public class MuxChannelBatchingTest {
 
     @Test
     public void losingTheConnectionFailsWhatIsWaitingInsteadOfHanging() throws Exception {
-        Pair p = new Pair(4096);
+        // The server holds every reply until the connection has been cut, so no call can
+        // complete first however fast the transport is.
+        final CountDownLatch cut = new CountDownLatch(1);
+        Pair p = new Pair(4096, new RequestDispatcher() {
+            @Override public void dispatch(InboundRequest request) {
+                try {
+                    readAll(request.getRequestInputStream());
+                    cut.await();
+                    OutputStream out = request.getResponseOutputStream();
+                    out.write(1);
+                    out.close();
+                } catch (IOException | InterruptedException e) {
+                    request.abort();
+                }
+            }
+        });
         List<Future<Object>> results = new ArrayList<>();
         for (int t = 0; t < 6; t++) {
             results.add(pool.submit((Callable<Object>) () -> {
@@ -289,6 +309,7 @@ public class MuxChannelBatchingTest {
         }
         Thread.sleep(200);
         p.serverChannel.close();
+        cut.countDown();
         for (Future<Object> f : results) {
             Object r = get(f);
             assertTrue("a call over a lost connection must fail, not " + r, r instanceof IOException);

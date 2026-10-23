@@ -237,7 +237,12 @@ public class SslServerHelloRetryTest {
                 c.receiveFlight();
                 Assert.assertTrue("the HelloRetryRequest and the flight: " + EVENTS,
                                   FREE.size() >= 2);
-                for (int free : FREE) {
+                List<Integer> freeSeen;
+                synchronized (FREE) {
+                    // iterating a synchronizedList needs its lock; the server thread appends to it
+                    freeSeen = new ArrayList<>(FREE);
+                }
+                for (int free : freeSeen) {
                     Assert.assertEquals("a write of the server without the permit: " + EVENTS,
                                         0, free);
                 }
