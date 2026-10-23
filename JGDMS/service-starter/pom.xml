@@ -49,6 +49,14 @@
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Compile-time stubs of the org.apache.river.api.security classes that DirtyChai bundles in
+             java.base; not transitive from jgdms-platform, because the scope is provided. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-dirtychai-stubs</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-url-integrity</artifactId>

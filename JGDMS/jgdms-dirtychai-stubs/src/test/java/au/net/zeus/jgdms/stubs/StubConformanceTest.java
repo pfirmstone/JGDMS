@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.stubs;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
@@ -35,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,46 +41,44 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Detects drift between this module's {@code org.apache.river.api.security}
- * classes and the copies a JDK (DirtyChai) bundles in {@code java.base}.
+ * Detects drift between the compile-time stubs of {@code org.apache.river.api.security}
+ * (this module) and the classes a JDK (DirtyChai) bundles in {@code java.base}.
  * <p>
- * On such a JDK the bundled copy is what runs, unless it is patched over, so
- * code compiled here against this module's copy meets the JDK's: a public
- * or protected member that only this module's copy has is a
- * {@code NoSuchMethodError} or {@code NoSuchFieldError} waiting for a call,
- * and a class that has changed its kind, its superclass or its interfaces
- * can break callers as well.  This test compares the two, by their class
- * files, and fails on what the JDK's copy lacks or has differently, unless
- * it is listed in {@code conformance/bundled-security-divergences.txt}, one
- * divergence and the reason it is accepted per line.  What only the JDK's
- * copy has is reported, not failed.
+ * Code is compiled against the stubs and run against the JDK's classes, so a public
+ * or protected member that only the stubs have is a {@code NoSuchMethodError} or
+ * {@code NoSuchFieldError} waiting for a call, and a class that has changed its kind,
+ * its superclass or its interfaces can break callers as well.  This test compares the
+ * two, by their class files, and fails on what the JDK's class lacks or has differently,
+ * unless it is listed in {@code conformance/stub-divergences.txt}, one divergence and
+ * the reason it is accepted per line.  What only the JDK's classes have (members that
+ * the stubs leave out, such as package-private ones) is reported, not failed.
  * <p>
- * The JDK's copy is read from the runtime image ({@code jrt:/}), which shows
- * the classes of the image whatever has been patched into the module, or from
- * a directory of class files named by the system property
- * {@value #JDK_CLASSES}.  The test is skipped when the JDK has no copy of the
- * package.  This module's copy is read from the class files it was built into.
+ * The JDK's classes are read from the runtime image ({@code jrt:/}), which shows the
+ * classes of the image whatever has been patched into the module, or from a directory
+ * of class files named by the system property {@value #JDK_CLASSES}.  The test is
+ * skipped when the JDK has no copy of the package (a stock JDK).  The stubs are read
+ * from the class files this module built, in the directory named by the system property
+ * {@value #STUB_CLASSES}.
  * <p>
- * Only public and protected members are compared; the others cannot be
- * reached from another runtime package, which is the position of the classes
- * of this package that the JDK does not bundle.  Private nested classes are
- * not compared.
+ * Only public and protected members are compared; the others cannot be reached from
+ * another runtime package.  Private nested classes are not compared.
  */
-public class BundledCopyConformanceTest {
+public class StubConformanceTest {
 
     /** A directory holding {@code org/apache/river/api/security/*.class}, to be used instead of the runtime image. */
     static final String JDK_CLASSES = "jgdms.conformance.jdkClasses";
 
+    /** The directory this module's classes were built into. */
+    static final String STUB_CLASSES = "jgdms.stubs.classes";
+
     private static final String PACKAGE = "org/apache/river/api/security/";
 
-    private static final String ALLOWED = "conformance/bundled-security-divergences.txt";
+    private static final String ALLOWED = "conformance/stub-divergences.txt";
 
     /**
      * The classes of the package that DirtyChai bundles: they are copies,
@@ -119,9 +115,9 @@ public class BundledCopyConformanceTest {
     @Test
     public void jdkCopyConformsToThisModulesCopy() throws Exception {
         Map<String, byte[]> jdk = jdkClasses();
-        Assume.assumeFalse("The runtime has no copy of org.apache.river.api.security", jdk.isEmpty());
+        Assume.assumeFalse("The runtime has no org.apache.river.api.security classes (not a DirtyChai JDK)", jdk.isEmpty());
         Map<String, byte[]> own = ownClasses();
-        assertFalse("This module's classes of org.apache.river.api.security were not found", own.isEmpty());
+        assertFalse("The stubs were not found in " + System.getProperty(STUB_CLASSES, "target/classes"), own.isEmpty());
 
         Set<String> bundled = new LinkedHashSet<String>();
         for (String b : BUNDLED) bundled.add(PACKAGE + b);
@@ -149,7 +145,7 @@ public class BundledCopyConformanceTest {
         Set<String> ownOnly = new TreeSet<String>(own.keySet());
         ownOnly.removeAll(jdk.keySet());
         ownOnly.removeAll(bundled);
-        report.add(ownOnly.size() + " classes only in this module, which the JDK is not expected to bundle,"
+        report.add(ownOnly.size() + " classes only in the stubs, which the JDK is not expected to bundle,"
                 + " not compared");
 
         Map<String, String> allowed = allowed();
@@ -167,13 +163,13 @@ public class BundledCopyConformanceTest {
         Set<String> unused = new TreeSet<String>(allowed.keySet());
         unused.removeAll(used);
         for (String id : unused) report.add("allowed, but no longer a divergence: " + id);
-        System.out.println("BundledCopyConformanceTest: " + compared.size() + " classes compared, "
+        System.out.println("StubConformanceTest: " + compared.size() + " classes compared, "
                 + divergences.size() + " divergences, " + used.size() + " allowed");
         for (String line : report) System.out.println("  " + line);
 
         if (!failures.isEmpty()) {
             StringBuilder sb = new StringBuilder();
-            sb.append("The JDK's copy of org.apache.river.api.security lacks or differs from this module's in:");
+            sb.append("The JDK's org.apache.river.api.security classes lack or differ from the stubs in:");
             int count = 0;
             for (Map.Entry<String, List<Divergence>> e : failures.entrySet()) {
                 sb.append("\n ").append(dotted(e.getKey()));
@@ -183,8 +179,8 @@ public class BundledCopyConformanceTest {
                     count++;
                 }
             }
-            sb.append("\n").append(count).append(" divergences. Each is a call that can fail where the JDK's copy runs;")
-              .append(" decide each, and if it is accepted list it in ").append(ALLOWED)
+            sb.append("\n").append(count).append(" divergences. Each is a call that can fail where the JDK's class runs; regenerate the stubs (tools/stubgen) or ")
+              .append("list it in ").append(ALLOWED)
               .append(" as 'class kind member | reason'.");
             fail(sb.toString());
         }
@@ -271,6 +267,9 @@ public class BundledCopyConformanceTest {
             } else if (other == null) {
                 out.add(new Divergence(name, m.kind, m.signature(),
                         "the JDK's copy has no such " + m.kind + ", " + flags(m.flags, MEMBER_MASK)));
+            } else if (!eq(m.constant, other.constant)) {
+                out.add(new Divergence(name, "field-constant", m.signature(),
+                        "the stubs inline " + m.constant + " into callers, the JDK has " + other.constant));
             } else if (m.flags != other.flags) {
                 out.add(new Divergence(name, m.kind + "-modifiers", m.signature(),
                         "this module: " + flags(m.flags, MEMBER_MASK) + ", JDK: " + flags(other.flags, MEMBER_MASK)));
@@ -340,7 +339,7 @@ public class BundledCopyConformanceTest {
 
     private static Map<String, String> allowed() throws IOException {
         Map<String, String> allowed = new LinkedHashMap<String, String>();
-        InputStream in = BundledCopyConformanceTest.class.getClassLoader().getResourceAsStream(ALLOWED);
+        InputStream in = StubConformanceTest.class.getClassLoader().getResourceAsStream(ALLOWED);
         if (in == null) return allowed;
         try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             for (String line; (line = r.readLine()) != null;) {
@@ -384,36 +383,17 @@ public class BundledCopyConformanceTest {
         return classes;
     }
 
-    /**
-     * This module's copy, keyed by internal name, from where it was built,
-     * found by a class of the package that is not patched into java.base.
-     */
+    /** The stubs, keyed by internal name, from the class files this module built. */
     private static Map<String, byte[]> ownClasses() throws Exception {
-        URL location = DefaultPolicyScanner.class.getProtectionDomain().getCodeSource().getLocation();
+        String dir = System.getProperty(STUB_CLASSES, "target/classes");
         Map<String, byte[]> classes = new TreeMap<String, byte[]>();
-        File where = new File(location.toURI());
-        if (where.isDirectory()) {
-            File[] files = new File(where, PACKAGE).listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    String file = f.getName();
-                    if (file.endsWith(".class")) {
-                        classes.put(PACKAGE + file.substring(0, file.length() - ".class".length()),
-                                Files.readAllBytes(f.toPath()));
-                    }
-                }
-            }
-        } else {
-            try (JarFile jar = new JarFile(where)) {
-                for (Enumeration<JarEntry> en = jar.entries(); en.hasMoreElements();) {
-                    JarEntry entry = en.nextElement();
-                    String n = entry.getName();
-                    if (n.startsWith(PACKAGE) && n.endsWith(".class")
-                            && n.indexOf('/', PACKAGE.length()) < 0) {
-                        try (InputStream in = jar.getInputStream(entry)) {
-                            classes.put(n.substring(0, n.length() - ".class".length()), in.readAllBytes());
-                        }
-                    }
+        File[] files = new File(dir, PACKAGE).listFiles();
+        if (files != null) {
+            for (File f : files) {
+                String file = f.getName();
+                if (file.endsWith(".class")) {
+                    classes.put(PACKAGE + file.substring(0, file.length() - ".class".length()),
+                            Files.readAllBytes(f.toPath()));
                 }
             }
         }
@@ -427,6 +407,8 @@ public class BundledCopyConformanceTest {
         final String name;
         final String descriptor;
         final int flags;
+        /** The ConstantValue of a field, which javac inlines into the code that uses it, or null. */
+        Object constant;
 
         Member(String kind, String name, String descriptor, int flags) {
             this.kind = kind;
@@ -516,11 +498,13 @@ public class BundledCopyConformanceTest {
                 int tag = in.readUnsignedByte();
                 switch (tag) {
                     case 1: pool[i] = in.readUTF(); break;
-                    case 3: case 4: in.readInt(); break;
+                    case 3: pool[i] = "int:" + in.readInt(); break;
+                    case 4: pool[i] = "float:" + Float.intBitsToFloat(in.readInt()); break;
                     case 5: pool[i] = in.readLong(); i++; break;
-                    case 6: in.readLong(); i++; break;
+                    case 6: pool[i] = "double:" + Double.longBitsToDouble(in.readLong()); i++; break;
                     case 7: pool[i] = Integer.valueOf(in.readUnsignedShort()); break;
-                    case 8: case 16: case 19: case 20: in.readUnsignedShort(); break;
+                    case 8: pool[i] = new int[]{in.readUnsignedShort()}; break;
+                    case 16: case 19: case 20: in.readUnsignedShort(); break;
                     case 9: case 10: case 11: case 12: case 17: case 18: in.readInt(); break;
                     case 15: in.readUnsignedByte(); in.readUnsignedShort(); break;
                     default: throw new IOException("constant pool tag " + tag);
@@ -542,7 +526,9 @@ public class BundledCopyConformanceTest {
                 if (name.equals("serialVersionUID") && desc.equals("J") && constant instanceof Long) {
                     c.serialVersionUID = (Long) constant;
                 }
-                c.add(new Member("field", name, desc, f));
+                Member field = new Member("field", name, desc, f);
+                field.constant = constant instanceof int[] ? "string:" + pool[((int[]) constant)[0]] : constant;
+                c.add(field);
             }
             n = in.readUnsignedShort();
             for (int i = 0; i < n; i++) {
@@ -563,7 +549,9 @@ public class BundledCopyConformanceTest {
         private void add(Member m) {
             if ((m.flags & ACC_SYNTHETIC) != 0) return;
             if ((m.flags & (ACC_PUBLIC | ACC_PROTECTED)) == 0) return;
-            members.put(m.key(), new Member(m.kind, m.name, m.descriptor, m.flags & MEMBER_MASK));
+            Member copy = new Member(m.kind, m.name, m.descriptor, m.flags & MEMBER_MASK);
+            copy.constant = m.constant;
+            members.put(m.key(), copy);
         }
 
         private static String className(Object[] pool, int index) {

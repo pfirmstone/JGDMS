@@ -1,0 +1,677 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import java.io.IOException;
+import java.lang.classfile.Annotation;
+import java.lang.classfile.AnnotationValue;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.ClassSignature;
+import java.lang.classfile.FieldModel;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.MethodSignature;
+import java.lang.classfile.Signature;
+import java.lang.classfile.attribute.InnerClassInfo;
+import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.classfile.constantpool.ConstantValueEntry;
+import java.lang.classfile.constantpool.DoubleEntry;
+import java.lang.classfile.constantpool.FloatEntry;
+import java.lang.classfile.constantpool.IntegerEntry;
+import java.lang.classfile.constantpool.LongEntry;
+import java.lang.classfile.constantpool.StringEntry;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
+
+/**
+ * Writes signature-only Java source stubs for classes that a JDK (DirtyChai) bundles,
+ * from their class files.  The stubs let JGDMS compile against those classes on a JDK
+ * that does not have them; they are never to be run.
+ * <p>
+ * Usage:
+ * <pre>
+ * java tools/stubgen/StubGen.java [--classes DIR|jrt:] [--list FILE] [--package P] --out DIR [--check]
+ * </pre>
+ * <ul>
+ * <li>{@code --classes}: a directory holding the package's class files (default
+ *     {@code $JGDMS_DC_CLASSES}), or {@code jrt:} for the running image's java.base.
+ * <li>{@code --list}: the simple names of the top level classes to stub, one per line
+ *     (default {@code tools/stubgen/classes.txt}, relative to the working directory).
+ * <li>{@code --out}: the root of the source tree to write.
+ * <li>{@code --check}: write nothing; exit 1 and name the files if {@code --out} differs.
+ * </ul>
+ * A stub keeps the kind, modifiers, generic signatures, superclass, interfaces,
+ * {@code @Deprecated}/{@code @FunctionalInterface} and the public and protected members
+ * (plus package-private abstract methods, which a subclass in the package must
+ * implement, and {@code serialVersionUID}).  Constant fields keep their values, so that
+ * javac inlines them as it does against the real class.  Every other body throws
+ * {@code UnsupportedOperationException}.  Parameters are named {@code arg0...}.
+ * Output is deterministic: it follows the member order of the class files.
+ */
+public final class StubGen {
+
+    static final int PUBLIC = 0x0001, PRIVATE = 0x0002, PROTECTED = 0x0004, STATIC = 0x0008, FINAL = 0x0010,
+            VARARGS = 0x0080, BRIDGE = 0x0040, INTERFACE = 0x0200, ABSTRACT = 0x0400, SYNTHETIC = 0x1000,
+            ANNOTATION = 0x2000, ENUM = 0x4000;
+
+    static final String HEADER = """
+            /*
+             * Licensed to the Apache Software Foundation (ASF) under one or more
+             * contributor license agreements.  See the NOTICE file distributed with
+             * this work for additional information regarding copyright ownership.
+             * The ASF licenses this file to You under the Apache License, Version 2.0
+             * (the "License"); you may not use this file except in compliance with
+             * the License.  You may obtain a copy of the License at
+             *
+             *      http://www.apache.org/licenses/LICENSE-2.0
+             *
+             * Unless required by applicable law or agreed to in writing, software
+             * distributed under the License is distributed on an "AS IS" BASIS,
+             * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+             * See the License for the specific language governing permissions and
+             * limitations under the License.
+             */
+
+            // GENERATED by tools/stubgen/StubGen.java from the class files of a DirtyChai JDK.
+            // DO NOT EDIT: regenerate.  A compile-time stub: it keeps the API of the class
+            // that java.base of DirtyChai bundles, so that code can be compiled where the
+            // class is missing.  It must never be run; DirtyChai supplies the class.
+
+            """;
+
+    private final Path classes;
+    private final String pkgInternal;
+    /** All class models of the package, by internal name. */
+    private final Map<String, ClassModel> models = new LinkedHashMap<>();
+    private final Map<String, Info> infos = new LinkedHashMap<>();
+
+    StubGen(Path classes, String pkgInternal) {
+        this.classes = classes;
+        this.pkgInternal = pkgInternal;
+    }
+
+    public static void main(String[] args) throws Exception {
+        String classes = System.getenv("JGDMS_DC_CLASSES");
+        Path list = null;
+        Path out = null;
+        String pkg = "org.apache.river.api.security";
+        boolean check = false;
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--classes" -> classes = args[++i];
+                case "--list" -> list = Path.of(args[++i]);
+                case "--out" -> out = Path.of(args[++i]);
+                case "--package" -> pkg = args[++i];
+                case "--check" -> check = true;
+                default -> throw new IllegalArgumentException("unknown option " + args[i]);
+            }
+        }
+        if (classes == null || out == null) {
+            System.err.println("usage: StubGen --classes DIR|jrt: --out DIR [--list FILE] [--package P] [--check]");
+            System.exit(2);
+        }
+        if (list == null) {
+            list = Path.of("tools/stubgen/classes.txt");
+        }
+        String pkgInternal = pkg.replace('.', '/');
+        Path dir;
+        if (classes.startsWith("jrt:")) {
+            FileSystem jrt = FileSystems.getFileSystem(URI.create("jrt:/"));
+            dir = jrt.getPath("/modules/java.base/" + pkgInternal);
+        } else {
+            dir = Path.of(classes).resolve(pkgInternal);
+        }
+        if (!Files.isDirectory(dir)) throw new IOException("no class files in " + dir);
+        StubGen gen = new StubGen(dir, pkgInternal);
+        List<String> names = new ArrayList<>();
+        for (String l : Files.readAllLines(list)) {
+            l = l.strip();
+            if (!l.isEmpty() && !l.startsWith("#")) names.add(l);
+        }
+        Map<String, String> sources = gen.generate(names);
+        int bad = 0;
+        for (Map.Entry<String, String> e : sources.entrySet()) {
+            Path target = out.resolve(pkgInternal).resolve(e.getKey() + ".java");
+            if (check) {
+                String have = Files.exists(target) ? Files.readString(target, StandardCharsets.UTF_8) : null;
+                if (!e.getValue().equals(have)) {
+                    System.out.println("DIFFERS: " + target);
+                    bad++;
+                }
+            } else {
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, e.getValue(), StandardCharsets.UTF_8);
+            }
+        }
+        if (check) {
+            // Stubs that the list no longer names.
+            Path pdir = out.resolve(pkgInternal);
+            if (Files.isDirectory(pdir)) {
+                try (var ds = Files.newDirectoryStream(pdir, "*.java")) {
+                    for (Path p : ds) {
+                        String n = p.getFileName().toString().replace(".java", "");
+                        if (!sources.containsKey(n)) {
+                            System.out.println("EXTRA: " + p);
+                            bad++;
+                        }
+                    }
+                }
+            }
+            System.out.println(bad == 0 ? "stubs are up to date (" + sources.size() + " files)" : bad + " stub files differ");
+            System.exit(bad == 0 ? 0 : 1);
+        }
+        System.out.println("wrote " + sources.size() + " stub files under " + out.resolve(pkgInternal));
+    }
+
+    // ------------------------------------------------------------------
+
+    /** What the stub of one class needs to know of another class of the package. */
+    record Info(String name, int flags, String superName, List<Ctor> ctors) {}
+    record Ctor(int flags, String descriptor, List<String> exceptions) {}
+
+    Map<String, String> generate(List<String> simpleNames) throws IOException {
+        try (var ds = Files.newDirectoryStream(classes, "*.class")) {
+            for (Path p : ds) {
+                ClassModel cm = ClassFile.of().parse(Files.readAllBytes(p));
+                models.put(cm.thisClass().asInternalName(), cm);
+            }
+        }
+        for (ClassModel cm : models.values()) {
+            List<Ctor> ctors = new ArrayList<>();
+            for (MethodModel m : cm.methods()) {
+                if (m.methodName().equalsString("<init>")) {
+                    ctors.add(new Ctor(m.flags().flagsMask(), m.methodType().stringValue(), exceptions(m)));
+                }
+            }
+            infos.put(cm.thisClass().asInternalName(), new Info(cm.thisClass().asInternalName(), classFlags(cm),
+                    cm.superclass().map(ClassEntry::asInternalName).orElse(null), ctors));
+        }
+        Map<String, String> out = new TreeMap<>();
+        for (String n : simpleNames) {
+            ClassModel cm = models.get(pkgInternal + "/" + n);
+            if (cm == null) throw new IOException("no class file for " + n + " in " + classes);
+            StringBuilder sb = new StringBuilder(HEADER);
+            sb.append("package ").append(pkgInternal.replace('/', '.')).append(";\n\n");
+            writeClass(sb, cm, 0, false);
+            out.put(n, sb.toString());
+        }
+        return out;
+    }
+
+    /** The access flags of a class: of a nested class, those of its InnerClasses entry. */
+    private int classFlags(ClassModel cm) {
+        String self = cm.thisClass().asInternalName();
+        for (var ic : cm.findAttribute(Attributes.innerClasses()).map(a -> a.classes()).orElse(List.of())) {
+            if (ic.innerClass().asInternalName().equals(self)) return ic.flagsMask();
+        }
+        return cm.flags().flagsMask();
+    }
+
+    private static List<String> exceptions(MethodModel m) {
+        List<String> l = new ArrayList<>();
+        m.findAttribute(Attributes.exceptions()).ifPresent(a -> a.exceptions().forEach(e -> l.add(e.asInternalName())));
+        return l;
+    }
+
+    private void writeClass(StringBuilder sb, ClassModel cm, int depth, boolean nested) throws IOException {
+        String self = cm.thisClass().asInternalName();
+        int flags = classFlags(cm);
+        boolean isInterface = (flags & INTERFACE) != 0;
+        if ((flags & ENUM) != 0) throw new IOException("enums are not supported: " + self);
+        String simple = self.substring(self.lastIndexOf('/') + 1);
+        simple = simple.substring(simple.lastIndexOf('$') + 1);
+        String ind = "    ".repeat(depth);
+
+        // Annotations that matter to compilation.
+        boolean functional = false;
+        for (Annotation a : annotations(cm.findAttribute(Attributes.runtimeVisibleAnnotations()).map(x -> x.annotations()))) {
+            String t = a.className().stringValue();
+            if (t.equals("Ljava/lang/Deprecated;")) sb.append(ind).append(deprecated(a)).append('\n');
+            else if (t.equals("Ljava/lang/FunctionalInterface;")) sb.append(ind).append("@FunctionalInterface\n");
+        }
+
+        // Header: modifiers, name, type parameters, superclass, interfaces.
+        sb.append(ind);
+        if ((flags & PUBLIC) != 0) sb.append("public ");
+        else if ((flags & PROTECTED) != 0) sb.append("protected ");
+        if (nested && (flags & STATIC) != 0 && !isInterface) sb.append("static ");
+        if ((flags & ABSTRACT) != 0 && !isInterface) sb.append("abstract ");
+        if ((flags & FINAL) != 0) sb.append("final ");
+        sb.append(isInterface ? "interface " : "class ").append(simple);
+
+        String superName = cm.superclass().map(ClassEntry::asInternalName).orElse(null);
+        String superSrc = superName == null ? null : typeName(superName);
+        List<String> ifaces = new ArrayList<>();
+        for (ClassEntry e : cm.interfaces()) ifaces.add(typeName(e.asInternalName()));
+        Optional<String> sig = cm.findAttribute(Attributes.signature()).map(s -> s.signature().stringValue());
+        if (sig.isPresent()) {
+            ClassSignature cs = ClassSignature.parseFrom(sig.get());
+            sb.append(typeParams(cs.typeParameters()));
+            superSrc = render(cs.superclassSignature());
+            ifaces.clear();
+            for (Signature i : cs.superinterfaceSignatures()) ifaces.add(render(i));
+        }
+        if (!isInterface && superSrc != null && !superSrc.equals("java.lang.Object")) {
+            sb.append(" extends ").append(superSrc);
+        }
+        if (!ifaces.isEmpty()) {
+            sb.append(isInterface ? " extends " : " implements ").append(String.join(", ", ifaces));
+        }
+        sb.append(" {\n");
+
+        // Fields.
+        for (FieldModel f : cm.fields()) {
+            int ff = f.flags().flagsMask();
+            String name = f.fieldName().stringValue();
+            boolean suid = name.equals("serialVersionUID") && f.fieldType().equalsString("J");
+            if ((ff & SYNTHETIC) != 0) continue;
+            if ((ff & PRIVATE) != 0 && !suid) continue;
+            if ((ff & (PUBLIC | PROTECTED)) == 0 && !suid) continue;
+            ConstantValueEntry cv = f.findAttribute(Attributes.constantValue()).map(c -> c.constant()).orElse(null);
+            String type = f.findAttribute(Attributes.signature())
+                    .map(s -> render(Signature.parseFrom(s.signature().stringValue())))
+                    .orElseGet(() -> descType(f.fieldType().stringValue()));
+            sb.append(ind).append("    ");
+            sb.append(suid ? "private " : access(ff));
+            if ((ff & STATIC) != 0 && !isInterface) sb.append("static ");
+            if ((ff & FINAL) != 0 && !isInterface) sb.append("final ");
+            sb.append(type).append(' ').append(name);
+            if (cv != null) {
+                sb.append(" = ").append(literal(cv, f.fieldType().stringValue()));
+            } else if ((ff & FINAL) != 0 && (ff & STATIC) != 0) {
+                sb.append(" = ").append(zero(f.fieldType().stringValue()));
+            }
+            sb.append(";\n");
+        }
+
+        // Constructors, then methods, in class file order.
+        boolean anyCtor = false;
+        if (!isInterface) {
+            for (MethodModel m : cm.methods()) {
+                if (!m.methodName().equalsString("<init>")) continue;
+                int mf = m.flags().flagsMask();
+                if ((mf & SYNTHETIC) != 0 || (mf & PRIVATE) != 0) continue;
+                // Public and protected constructors are API.  A package-private one is emitted
+                // only for a class with a subclass among the stubs, whose constructors call it.
+                if ((mf & (PUBLIC | PROTECTED)) == 0 && !hasSubclass(self)) continue;
+                anyCtor = true;
+                writeCtor(sb, cm, m, simple, nested, depth);
+            }
+        }
+        for (MethodModel m : cm.methods()) {
+            String mn = m.methodName().stringValue();
+            int mf = m.flags().flagsMask();
+            if (mn.equals("<init>") || mn.equals("<clinit>")) continue;
+            if ((mf & (SYNTHETIC | BRIDGE)) != 0 || (mf & PRIVATE) != 0) continue;
+            boolean api = (mf & (PUBLIC | PROTECTED)) != 0;
+            // A package-private abstract method has to be implemented by a subclass in the package.
+            if (!api && (mf & ABSTRACT) == 0) continue;
+            writeMethod(sb, cm, m, isInterface, depth);
+        }
+        if (!isInterface && !anyCtor) {
+            // Without a constructor of its own javac would add a public default one.
+            sb.append(ind).append("    private ").append(simple).append("()");
+            appendSuperCall(sb, self, superName, ind, null);
+            sb.append(" { ");
+            if (needsSuperCall(superName)) sb.append(superCall(superName)).append("; ");
+            sb.append("throw new UnsupportedOperationException(\"").append(message(self, "<init>")).append("\"); }\n");
+        }
+
+        // Nested classes that are part of the API.
+        for (InnerClassInfo ic : cm.findAttribute(Attributes.innerClasses()).map(a -> a.classes()).orElse(List.of())) {
+            if (ic.outerClass().isEmpty() || !ic.outerClass().get().asInternalName().equals(self)) continue;
+            if ((ic.flagsMask() & (PRIVATE | SYNTHETIC)) != 0) continue;
+            ClassModel inner = models.get(ic.innerClass().asInternalName());
+            if (inner == null) throw new IOException("no class file for " + ic.innerClass().asInternalName());
+            sb.append('\n');
+            writeClass(sb, inner, depth + 1, true);
+        }
+        sb.append(ind).append("}\n");
+    }
+
+    private static List<Annotation> annotations(Optional<List<Annotation>> o) {
+        return o.orElse(List.of());
+    }
+
+    private static String deprecated(Annotation a) {
+        List<String> parts = new ArrayList<>();
+        for (var e : a.elements()) {
+            String n = e.name().stringValue();
+            AnnotationValue v = e.value();
+            if (v instanceof AnnotationValue.OfString s) parts.add(n + " = " + quote(s.stringValue()));
+            else if (v instanceof AnnotationValue.OfBoolean b) parts.add(n + " = " + b.booleanValue());
+        }
+        return parts.isEmpty() ? "@Deprecated" : "@Deprecated(" + String.join(", ", parts) + ")";
+    }
+
+    private static String access(int f) {
+        return (f & PUBLIC) != 0 ? "public " : (f & PROTECTED) != 0 ? "protected " : "";
+    }
+
+    private static String message(String cls, String member) {
+        String simple = cls.substring(cls.lastIndexOf('/') + 1).replace('$', '.');
+        return "requires DirtyChai: " + simple + (member.equals("<init>") ? " constructor" : "." + member);
+    }
+
+    private void writeCtor(StringBuilder sb, ClassModel cm, MethodModel m, String simple, boolean nested, int depth) {
+        String ind = "    ".repeat(depth);
+        int mf = m.flags().flagsMask();
+        String self = cm.thisClass().asInternalName();
+        String superName = cm.superclass().map(ClassEntry::asInternalName).orElse(null);
+        Signature[] params = params(m, true, nested && (classFlags(cm) & STATIC) == 0);
+        List<String> ptypes = new ArrayList<>();
+        for (Signature s : params) ptypes.add(render(s));
+        MethodSignature ms = methodSig(m);
+        sb.append(ind).append("    ").append(access(mf));
+        if (ms != null) sb.append(typeParamsPrefix(ms.typeParameters()));
+        sb.append(simple).append('(').append(paramList(ptypes, (mf & VARARGS) != 0)).append(')');
+        List<String> thr = throwsList(m, ms);
+        // The explicit super() call may need the exceptions of the super constructor.
+        String call = needsSuperCall(superName) ? superCall(superName) : null;
+        if (call != null) {
+            for (String t : superThrows(superName)) if (!thr.contains(typeName(t))) thr.add(typeName(t));
+        }
+        if (!thr.isEmpty()) sb.append(" throws ").append(String.join(", ", thr));
+        sb.append(" { ");
+        if (call != null) sb.append(call).append("; ");
+        sb.append("throw new UnsupportedOperationException(\"").append(message(self, "<init>")).append("\"); }\n");
+    }
+
+    private void appendSuperCall(StringBuilder sb, String self, String superName, String ind, Object unused) {
+        if (needsSuperCall(superName)) {
+            List<String> thr = new ArrayList<>();
+            for (String t : superThrows(superName)) thr.add(typeName(t));
+            if (!thr.isEmpty()) sb.append(" throws ").append(String.join(", ", thr));
+        }
+    }
+
+    /** The constructor of the superclass that the stub's constructors call, or null if the default one will do. */
+    private Ctor superCtor(String superName) {
+        if (superName == null || superName.equals("java/lang/Object")) return null;
+        List<Ctor> cands = new ArrayList<>();
+        Info in = infos.get(superName);
+        if (in != null) {
+            for (Ctor c : in.ctors()) if ((c.flags() & PRIVATE) == 0 && (c.flags() & SYNTHETIC) == 0) cands.add(c);
+        } else {
+            try {
+                Class<?> k = Class.forName(superName.replace('/', '.'), false, null);
+                for (var c : k.getDeclaredConstructors()) {
+                    if ((c.getModifiers() & (java.lang.reflect.Modifier.PUBLIC | java.lang.reflect.Modifier.PROTECTED)) == 0) continue;
+                    List<String> ex = new ArrayList<>();
+                    for (Class<?> e : c.getExceptionTypes()) ex.add(e.getName().replace('.', '/'));
+                    cands.add(new Ctor(c.getModifiers(), java.lang.invoke.MethodType.methodType(void.class, c.getParameterTypes())
+                            .toMethodDescriptorString(), ex));
+                }
+            } catch (ClassNotFoundException e) {
+                throw new IllegalStateException("cannot find superclass " + superName, e);
+            }
+        }
+        if (cands.isEmpty()) return null;
+        Ctor best = null;
+        for (Ctor c : cands) {
+            if (MethodTypeDesc.ofDescriptor(c.descriptor()).parameterCount() == 0) return null;
+            if (best == null || MethodTypeDesc.ofDescriptor(c.descriptor()).parameterCount()
+                    < MethodTypeDesc.ofDescriptor(best.descriptor()).parameterCount()) best = c;
+        }
+        return best;
+    }
+
+    /** Whether a class of the package extends the class: the stubs of the subclass call its constructors. */
+    private boolean hasSubclass(String name) {
+        for (Info i : infos.values()) if (name.equals(i.superName())) return true;
+        return false;
+    }
+
+    private boolean needsSuperCall(String superName) {
+        return superCtor(superName) != null;
+    }
+
+    private List<String> superThrows(String superName) {
+        Ctor c = superCtor(superName);
+        return c == null ? List.of() : c.exceptions();
+    }
+
+    private String superCall(String superName) {
+        Ctor c = superCtor(superName);
+        MethodTypeDesc d = MethodTypeDesc.ofDescriptor(c.descriptor());
+        List<String> args = new ArrayList<>();
+        for (ClassDesc p : d.parameterList()) {
+            args.add(p.isPrimitive() ? "(" + descType(p.descriptorString()) + ") " + zero(p.descriptorString())
+                    : "(" + descType(p.descriptorString()) + ") null");
+        }
+        return "super(" + String.join(", ", args) + ")";
+    }
+
+    private void writeMethod(StringBuilder sb, ClassModel cm, MethodModel m, boolean isInterface, int depth) {
+        String ind = "    ".repeat(depth);
+        int mf = m.flags().flagsMask();
+        String self = cm.thisClass().asInternalName();
+        String name = m.methodName().stringValue();
+        MethodSignature ms = methodSig(m);
+        Signature[] params = params(m, false, false);
+        List<String> ptypes = new ArrayList<>();
+        for (Signature s : params) ptypes.add(render(s));
+        String ret = ms != null ? render(ms.result()) : descType(MethodTypeDesc.ofDescriptor(m.methodType().stringValue()).returnType().descriptorString());
+        boolean isAbstract = (mf & ABSTRACT) != 0;
+        sb.append(ind).append("    ");
+        // Deprecation is a hint only; keep it where it is declared so that -Xlint output matches.
+        for (Annotation a : annotations(m.findAttribute(Attributes.runtimeVisibleAnnotations()).map(x -> x.annotations()))) {
+            if (a.className().stringValue().equals("Ljava/lang/Deprecated;")) sb.append(deprecated(a)).append("\n").append(ind).append("    ");
+        }
+        if (isInterface) {
+            if ((mf & STATIC) != 0) sb.append("static ");
+            else if (!isAbstract) sb.append("default ");
+            if ((mf & PROTECTED) != 0) throw new IllegalStateException("protected interface method");
+        } else {
+            sb.append(access(mf));
+            if (isAbstract) sb.append("abstract ");
+            if ((mf & STATIC) != 0) sb.append("static ");
+            if ((mf & FINAL) != 0) sb.append("final ");
+        }
+        if (ms != null) sb.append(typeParamsPrefix(ms.typeParameters()));
+        sb.append(ret).append(' ').append(name).append('(').append(paramList(ptypes, (mf & VARARGS) != 0)).append(')');
+        List<String> thr = throwsList(m, ms);
+        if (!thr.isEmpty()) sb.append(" throws ").append(String.join(", ", thr));
+        if (isAbstract) {
+            sb.append(";\n");
+        } else {
+            sb.append(" { throw new UnsupportedOperationException(\"").append(message(self, name)).append("\"); }\n");
+        }
+    }
+
+    private static MethodSignature methodSig(MethodModel m) {
+        return m.findAttribute(Attributes.signature()).map(s -> MethodSignature.parseFrom(s.signature().stringValue())).orElse(null);
+    }
+
+    /** The parameter types of a method, from its Signature attribute or descriptor. */
+    private Signature[] params(MethodModel m, boolean ctor, boolean dropOuter) {
+        MethodSignature ms = methodSig(m);
+        List<Signature> l = new ArrayList<>();
+        if (ms != null) {
+            l.addAll(ms.arguments());
+        } else {
+            for (ClassDesc p : MethodTypeDesc.ofDescriptor(m.methodType().stringValue()).parameterList()) {
+                l.add(Signature.parseFrom(p.descriptorString()));
+            }
+            if (dropOuter && !l.isEmpty()) l.remove(0);
+        }
+        return l.toArray(new Signature[0]);
+    }
+
+    private List<String> throwsList(MethodModel m, MethodSignature ms) {
+        List<String> l = new ArrayList<>();
+        if (ms != null && !ms.throwableSignatures().isEmpty()) {
+            for (Signature t : ms.throwableSignatures()) l.add(render(t));
+        } else {
+            for (String e : exceptions(m)) l.add(typeName(e));
+        }
+        return l;
+    }
+
+    private static String paramList(List<String> types, boolean varargs) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < types.size(); i++) {
+            if (i > 0) sb.append(", ");
+            String t = types.get(i);
+            if (varargs && i == types.size() - 1 && t.endsWith("[]")) t = t.substring(0, t.length() - 2) + "...";
+            sb.append(t).append(" arg").append(i);
+        }
+        return sb.toString();
+    }
+
+    // ---- types -----------------------------------------------------------
+
+    /** Source name of an internal class name: nested classes are written with a dot. */
+    private static String typeName(String internal) {
+        return internal.replace('/', '.').replace('$', '.');
+    }
+
+    private static String descType(String desc) {
+        return render(Signature.parseFrom(desc));
+    }
+
+    private String typeParams(List<Signature.TypeParam> ps) {
+        if (ps.isEmpty()) return "";
+        List<String> l = new ArrayList<>();
+        for (Signature.TypeParam p : ps) l.add(typeParam(p));
+        return "<" + String.join(", ", l) + ">";
+    }
+
+    private String typeParamsPrefix(List<Signature.TypeParam> ps) {
+        return ps.isEmpty() ? "" : typeParams(ps) + " ";
+    }
+
+    private static String typeParam(Signature.TypeParam p) {
+        List<String> bounds = new ArrayList<>();
+        p.classBound().ifPresent(b -> bounds.add(render(b)));
+        for (Signature b : p.interfaceBounds()) bounds.add(render(b));
+        bounds.removeIf(b -> b.equals("java.lang.Object") && p.interfaceBounds().isEmpty());
+        return bounds.isEmpty() ? p.identifier() : p.identifier() + " extends " + String.join(" & ", bounds);
+    }
+
+    static String render(Signature s) {
+        if (s instanceof Signature.BaseTypeSig b) {
+            return switch (b.baseType()) {
+                case 'B' -> "byte"; case 'C' -> "char"; case 'D' -> "double"; case 'F' -> "float";
+                case 'I' -> "int"; case 'J' -> "long"; case 'S' -> "short"; case 'Z' -> "boolean";
+                case 'V' -> "void";
+                default -> throw new IllegalStateException("base type " + b.baseType());
+            };
+        } else if (s instanceof Signature.ArrayTypeSig a) {
+            return render(a.componentSignature()) + "[]";
+        } else if (s instanceof Signature.TypeVarSig t) {
+            return t.identifier();
+        } else if (s instanceof Signature.ClassTypeSig c) {
+            StringBuilder sb = new StringBuilder();
+            if (c.outerType().isPresent()) {
+                String n = c.className();
+                sb.append(render(c.outerType().get())).append('.').append(n.substring(Math.max(n.lastIndexOf('$'), n.lastIndexOf('/')) + 1));
+            } else {
+                sb.append(typeName(c.className()));
+            }
+            if (!c.typeArgs().isEmpty()) {
+                List<String> args = new ArrayList<>();
+                for (Signature.TypeArg a : c.typeArgs()) args.add(renderArg(a));
+                sb.append('<').append(String.join(", ", args)).append('>');
+            }
+            return sb.toString();
+        }
+        throw new IllegalStateException("signature " + s);
+    }
+
+    private static String renderArg(Signature.TypeArg a) {
+        if (a instanceof Signature.TypeArg.Unbounded) return "?";
+        Signature.TypeArg.Bounded b = (Signature.TypeArg.Bounded) a;
+        return switch (b.wildcardIndicator()) {
+            case NONE -> render(b.boundType());
+            case EXTENDS -> "? extends " + render(b.boundType());
+            case SUPER -> "? super " + render(b.boundType());
+        };
+    }
+
+    // ---- constants -------------------------------------------------------
+
+    private static String zero(String desc) {
+        return switch (desc) {
+            case "Z" -> "false";
+            case "J" -> "0L";
+            case "F" -> "0f";
+            case "D" -> "0d";
+            case "B", "C", "S", "I" -> "0";
+            default -> "null";
+        };
+    }
+
+    private static String literal(ConstantValueEntry cv, String desc) {
+        if (cv instanceof IntegerEntry i) {
+            int v = i.intValue();
+            return switch (desc) {
+                case "Z" -> v != 0 ? "true" : "false";
+                case "C" -> "(char) " + v;
+                case "B" -> "(byte) " + v;
+                case "S" -> "(short) " + v;
+                default -> v == Integer.MIN_VALUE ? "Integer.MIN_VALUE" : Integer.toString(v);
+            };
+        } else if (cv instanceof LongEntry l) {
+            return l.longValue() == Long.MIN_VALUE ? "Long.MIN_VALUE" : l.longValue() + "L";
+        } else if (cv instanceof FloatEntry f) {
+            float v = f.floatValue();
+            if (Float.isNaN(v)) return "Float.NaN";
+            if (Float.isInfinite(v)) return v > 0 ? "Float.POSITIVE_INFINITY" : "Float.NEGATIVE_INFINITY";
+            return Float.toString(v) + "f";
+        } else if (cv instanceof DoubleEntry d) {
+            double v = d.doubleValue();
+            if (Double.isNaN(v)) return "Double.NaN";
+            if (Double.isInfinite(v)) return v > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+            return Double.toString(v) + "d";
+        } else if (cv instanceof StringEntry s) {
+            return quote(s.stringValue());
+        }
+        throw new IllegalStateException("constant " + cv);
+    }
+
+    private static String quote(String s) {
+        StringBuilder sb = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20 || c > 0x7e) sb.append(String.format("\\u%04x", (int) c));
+                    else sb.append(c);
+                }
+            }
+        }
+        return sb.append('"').toString();
+    }
+}

@@ -60,6 +60,7 @@
     <module>jgdms-pref-class-loader</module>
     <module>jgdms-activation-parameters</module>
     <module>jgdms-activation</module>
+    <module>jgdms-dirtychai-stubs</module>
     <module>jgdms-platform</module>
     <module>jgdms-der</module>
     <module>jgdms-cel</module>

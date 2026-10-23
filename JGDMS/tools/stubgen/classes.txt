@@ -1,0 +1,15 @@
+# The classes of org.apache.river.api.security that DirtyChai bundles in java.base.
+# Nested classes that are not private are stubbed with their outer class.
+CertificateGrant
+ClassLoaderGrant
+DigestDomainGrant
+DigestGrant
+PermissionDelegate
+PermissionGrant
+PermissionGrantBuilder
+PermissionGrantBuilderImp
+PrincipalGrant
+ProtectionDomainGrant
+ScalableNestedPolicy
+URIGrant
+UnresolvedPrincipal
