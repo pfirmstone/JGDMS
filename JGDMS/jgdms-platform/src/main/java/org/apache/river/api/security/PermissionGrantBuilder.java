@@ -250,6 +250,7 @@ public abstract class PermissionGrantBuilder {
      * used for PermissionGrant.
      * @return PermissionGrantBuilder.
      */
+    @SuppressWarnings("rawtypes")
     public abstract PermissionGrantBuilder clazz(Class cl);
     /**
      * Sets the Certificate[] a CodeSource must have to receive the PermissionGrant.

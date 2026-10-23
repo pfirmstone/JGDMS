@@ -62,6 +62,7 @@ import java.util.Set;
  * 
  * @since 4.0.0
  */
+@SuppressWarnings("serial")
 final class DigestDomainGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
     // The ClassLoader of the granted class, not that of its domain: a

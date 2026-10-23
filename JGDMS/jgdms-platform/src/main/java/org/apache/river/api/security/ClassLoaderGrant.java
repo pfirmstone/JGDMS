@@ -41,6 +41,7 @@ import java.security.ProtectionDomain;
  * @author Peter Firmstone
  * @since 3.0.0
  */
+@SuppressWarnings("serial")
 class ClassLoaderGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
     // Null for a grant to all domains.

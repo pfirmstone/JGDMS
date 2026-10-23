@@ -44,7 +44,7 @@ public final class UnresolvedPrincipal implements Principal {
     /** 
      * Wildcard value denotes any class and/or any name. 
      */
-    static final String WILDCARD = DefaultPolicyScanner.PrincipalEntry.WILDCARD;
+    static final String WILDCARD = "*";
 
     // Class name
     private final String klass;

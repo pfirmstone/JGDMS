@@ -46,10 +46,11 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     private static final long serialVersionUID = 1L;
     // Null object pattern for CodeSource.
     protected static final CodeSource nullCS = new CodeSource((URL) null, (Certificate[]) null);
+    @SuppressWarnings("serial")
     protected final Set<Principal> pals;
     private final int hashCode;
     private boolean hasUnresolved;
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked","rawtypes"})
     PrincipalGrant(Principal[] pals, Permission[] perm){
         super(perm);
         if ( pals != null ){

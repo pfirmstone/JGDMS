@@ -41,6 +41,7 @@ import org.apache.river.api.net.Uri;
  * @author Peter Firmstone
  * @since 3.0.0
  */
+@SuppressWarnings("serial")
 class URIGrant extends CertificateGrant {
     private static final long serialVersionUID = 1L;
     private final Collection<Uri> location;

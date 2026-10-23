@@ -59,8 +59,10 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     /*@serial */
     private Certificate[] certs;
     /*@serial */
+    @SuppressWarnings("serial")
     private Principal[] principals;
     /*@serial */
+    @SuppressWarnings("serial")
     private Permission[] permissions;
     /*@serial */
     private int context;
@@ -125,6 +127,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
 
+    @SuppressWarnings("rawtypes")
     public PermissionGrantBuilder clazz(Class cl) {
         if (cl != null) {
 	    ProtectionDomain pd = cl.getProtectionDomain();
