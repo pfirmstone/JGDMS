@@ -114,3 +114,33 @@ in the `security-patch` list of the jgdms-platform surefire configuration (the c
 Still open from this section: whether the River-origin JGDMS-only classes (for example `ConcurrentPolicyFile`,
 `DefaultPolicyParser`, `PolicyUtils`) stay. While any JGDMS class stays in the package it remains split across the boot and app
 loaders.
+
+## G. Planned for the future: compile-time stubs instead of copies (maintainer, 2026-10-23)
+
+Not done yet. For now `jgdms-platform` keeps its full copies of the 13 classes it shares with DirtyChai, and its tests patch them
+into `java.base` (see J5). The intent of having the classes in JGDMS is that JGDMS compiles on OpenJDK. Stock JDK 21 to 23 is
+compile-only: it cannot run this security code safely (no digest support, code identity by name, which can be DNS-spoofed, no
+class-loading gates). OSGi runs on DirtyChai and must use DirtyChai's classes. So the copies are to be replaced by generated,
+signature-only stubs used at compile time only, with DirtyChai's classes the only ones that run.
+
+An experiment was done on a throwaway local branch (`stubs-experiment`, commit `91b1531c3` on top of `67bd83fba`, never pushed;
+worktree `/tmp/claude-0/stubs-wt` in the 2026-10-23 session, which is not durable). Its findings:
+
+* A generator (`tools/stubgen/StubGen.java`, JDK 24+ `java.lang.classfile`) writes the 13 stubs from DirtyChai's compiled classes
+  or `jrt:/`: 488 lines (188 of code) against 2781 lines of copies. Regeneration takes about 2 s. A new module
+  `jgdms-dirtychai-stubs` holds them, with `DIRTYCHAI-COMMIT` pinned to `ed4691471e3469418ec82c42bccf87af40160b7e` and a
+  conformance test; the dependency is `provided` scope (not transitive, so seven poms declared it; better once in the parent pom).
+* `jgdms-platform` and the dependents that build offline compiled on a stock JDK 21.0.12 with the stubs and the copies deleted.
+* With DirtyChai's classes supplying the real behaviour (an emulation), the platform tests were test-for-test the same as with
+  the copies except three tests of copy-only behaviour (the null-class CLASSLOADER "all domains" grant, a serialization round
+  trip, the `toString` text), which are the behaviours expected to go (D2, J7).
+* The platform bundle's `Export-Package` and `Import-Package` for the shared package were unchanged. An OSGi framework on
+  DirtyChai probably needs `org.osgi.framework.bootdelegation=org.apache.river.api.security` (not `system.packages.extra`, which
+  would make the system bundle a second exporter). Not tested: no framework was available offline. Felix 7.0.5 is downloadable
+  from Maven Central through the session proxy, so a resolution test is possible.
+* To do before adopting: declare the stubs dependency once in the parent pom; decide the conformance-test policy when the CI JDK is
+  older than the pin; wire `DirtyChaiCheck` (a fail-fast check that the 13 classes come from the boot loader) into the policy
+  entry points and add an API fingerprint check; a compat-gate ledger entry (the five public shared classes would show as
+  removed); update `GETTING_STARTED.md` (stock OpenJDK is compile-only), the `jwt-integration-tests.yml` Temurin 21 leg, and
+  `findbugs-exclude.xml`; settle `CodeSourceKey` (delete once its four users in the shared package are gone, unless the
+  verified-code decorator still needs it).
