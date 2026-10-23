@@ -46,6 +46,7 @@ import javax.security.auth.Subject;
  * @see PermissionGrant
  */
 public abstract class PermissionGrantBuilder {
+    PermissionGrantBuilder(){}
    
     /**
      * The PermissionGrant generated will apply to all classes loaded by
@@ -327,11 +328,7 @@ public abstract class PermissionGrantBuilder {
      * 
      * @param codeSources one per verified jar
      * @return this builder
-     * @throws UnsupportedOperationException if the implementation does not
-     * support {@link #DIGEST_DOMAIN}.
      * @since 4.0.0
      */
-    public PermissionGrantBuilder codeSources(CodeSource... codeSources) {
-        throw new UnsupportedOperationException();
-    }
+    public abstract PermissionGrantBuilder codeSources(CodeSource... codeSources);
 }
