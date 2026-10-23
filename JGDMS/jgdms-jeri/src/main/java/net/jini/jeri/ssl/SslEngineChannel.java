@@ -355,8 +355,15 @@ final class SslEngineChannel {
     private boolean retryPending;
 
     /**
-     * Counts the records of the peer during a server handshake that has a
-     * gate, or is null.
+     * Counts the records of the peer that the engine takes during a server
+     * handshake that has a gate, or is null.  The records are counted where
+     * the engine consumes them, in {@link #handshakeUnwrap}, one for each
+     * call of {@code unwrap}, and not as the channel brings the bytes in: a
+     * read of the channel may bring in, behind the client's Finished, the
+     * application data that the client sent right after it, which is not a
+     * record of the handshake and which the handshake never takes.  The count
+     * ends with the handshake, at the {@code unwrap} that makes the engine
+     * report that it is finished.
      */
     private RecordCounter records;
 
@@ -530,6 +537,22 @@ final class SslEngineChannel {
                  * given it in one piece.
                  */
                 retryPending = false;
+                /*
+                 * The second ClientHello is read from the channel, and
+                 * appended to what netIn holds, which is nothing: the engine
+                 * consumed the first ClientHello whole, the server's
+                 * HelloRetryRequest has been written since, and the reader of
+                 * the first took no byte after the first.  Bytes in netIn here
+                 * would be put in front of the second ClientHello, outside the
+                 * checks of the reader, so that it is refused.
+                 */
+                if (netIn.position() != 0) {
+                    throw new SSLException(
+                        "TLS handshake failed: " + netIn.position()
+                        + " bytes of the peer are already buffered ahead of its"
+                        + " second ClientHello, which is read from the channel"
+                        + " alone and put after them");
+                }
                 byte[] second = ClientHelloReader.readAfterRetry(this::pullHello);
                 while (netIn.remaining() < second.length) {
                     growNetIn();
@@ -547,7 +570,19 @@ final class SslEngineChannel {
                     // scratch sink so appIn is untouched (and stays "drained"
                     // for the first application read).
                     handshakeScratch.clear();
+                    int at = netIn.position();
                     result = engine.unwrap(netIn, handshakeScratch);
+                    /*
+                     * One record, and only one, is consumed by each unwrap
+                     * (a ClientHello is checked by its own reader, whole,
+                     * before the engine has it).  What is counted is what the
+                     * engine takes, so that bytes that the channel brought in
+                     * behind the Finished are not.
+                     */
+                    if (records != null && !helloPending && result.bytesConsumed() > 0) {
+                        records.count(netIn.array(), netIn.arrayOffset() + at,
+                                      result.bytesConsumed());
+                    }
                 } finally {
                     netIn.compact();
                 }
@@ -767,17 +802,12 @@ final class SslEngineChannel {
         if (g == null) {
             return channel.read(netIn) >= 0;
         }
-        int at = netIn.position();
         g.beforePeerRead();
         try {
-            if (channel.read(netIn) < 0) {
-                return false;
-            }
+            return channel.read(netIn) >= 0;
         } finally {
             g.afterPeerRead();
         }
-        records.count(netIn.array(), netIn.arrayOffset() + at, netIn.position() - at);
-        return true;
     }
 
     /**

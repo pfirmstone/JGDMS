@@ -19,7 +19,16 @@ package net.jini.jeri.ssl;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -399,6 +408,144 @@ public class SslServerSecondFlightTest {
                     assertNothingHeld(l, socketPath);
                 }
             }
+        }
+    }
+
+    /**
+     * The wire bytes of {@code n} records of application data of one byte
+     * each, as the client's engine makes them, which are 39 bytes each.
+     */
+    private static byte[] applicationRecords(S0EngineClient c, int n) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        java.nio.ByteBuffer net = java.nio.ByteBuffer.allocate(
+            c.engine.getSession().getPacketBufferSize());
+        for (int i = 0; i < n; i++) {
+            net.clear();
+            c.engine.wrap(java.nio.ByteBuffer.wrap(new byte[] { (byte) i }), net);
+            net.flip();
+            byte[] record = new byte[net.remaining()];
+            net.get(record);
+            out.write(record);
+        }
+        return out.toByteArray();
+    }
+
+    /**
+     * After the ClientHello has been sent: everything that the client sends
+     * until it has sent its Finished, with what the server sends in between
+     * read, and nothing of it sent.
+     */
+    private static byte[] restOfTheHandshake(S0EngineClient c) throws Exception {
+        ByteArrayOutputStream all = new ByteArrayOutputStream();
+        while (!c.finished()) {
+            if (c.engine.getHandshakeStatus()
+                == javax.net.ssl.SSLEngineResult.HandshakeStatus.NEED_UNWRAP)
+            {
+                c.receiveFlight();
+            } else {
+                all.write(c.flight());
+            }
+        }
+        return all.toByteArray();
+    }
+
+    /**
+     * A client that sends its application data right behind its Finished, in
+     * the same write, is served however many records that is: the records of
+     * the handshake are counted, and the engine path counted every byte that a
+     * read of the channel brought in, so that twenty records of one byte
+     * (39 bytes each) behind the Finished were refused as junk, where the
+     * SSLSocket path, which counts what the JDK takes for the handshake,
+     * served them.  The bound is on the records the handshake consumes.
+     */
+    @Test(timeout = 180000)
+    public void testApplicationRecordsPipelinedBehindTheFinishedAreServed() throws Exception {
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = listen(socketPath)) {
+                S0Fixture.connectLegit(l); // warm up
+                for (int n : new int[] { 1, 14, 20, 40, 200 }) {
+                    long junk = l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK);
+                    long failed = l.handle.counters().getFailed();
+                    int before = l.recorder.count();
+                    try (S0EngineClient c = new S0EngineClient(l.port)) {
+                        c.sendFlight();
+                        byte[] flight = restOfTheHandshake(c);
+                        byte[] application = applicationRecords(c, n);
+                        Assert.assertEquals("records of one byte are 39 bytes",
+                                            n * 39, application.length);
+                        c.send(concat(flight, application));
+                        Assert.assertTrue(n + " records of application data behind the Finished"
+                            + " were not served, socketPath=" + socketPath,
+                            l.recorder.await(before + 1, 10_000));
+                        Thread.sleep(100);
+                    }
+                    Assert.assertEquals("none of them is junk, n=" + n + ", socketPath="
+                        + socketPath, junk,
+                        l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK));
+                    Assert.assertEquals("nothing failed, n=" + n + ", socketPath=" + socketPath,
+                        failed, l.handle.counters().getFailed());
+                    assertNothingHeld(l, socketPath);
+                }
+            }
+        }
+    }
+
+    /**
+     * The engine path reads the second ClientHello from the channel alone and
+     * puts it after what its buffer holds, which is nothing when the
+     * HelloRetryRequest has been written.  If bytes were there, they would
+     * be put in front of the ClientHello, outside the checks of its reader, so
+     * the handshake fails instead.  Nothing sends such bytes today; the seam is
+     * {@code prime}, called from the gate when the flight is out.
+     */
+    @Test(timeout = 60000)
+    public void testBytesAheadOfTheSecondClientHelloFailTheHandshake() throws Exception {
+        try (S0Fixture.Listener l = listen(false);
+             ServerSocketChannel ssc = ServerSocketChannel.open())
+        {
+            ssc.bind(new InetSocketAddress("localhost", 0));
+            AtomicReference<Throwable> outcome = new AtomicReference<>();
+            CountDownLatch done = new CountDownLatch(1);
+            Thread server = new Thread(() -> {
+                try (SocketChannel ch = ssc.accept()) {
+                    SSLEngine engine = l.endpoint.getSSLContext().createSSLEngine();
+                    engine.setUseClientMode(false);
+                    engine.setNeedClientAuth(true);
+                    SSLParameters p = engine.getSSLParameters();
+                    p.setProtocols(new String[] { "TLSv1.3" });
+                    p.setNamedGroups(new String[] { "secp256r1" });
+                    engine.setSSLParameters(p);
+                    SslEngineChannel sec = new SslEngineChannel(engine, ch, "test");
+                    sec.prime(ClientHelloReader.read(ch));
+                    boolean[] primed = new boolean[1];
+                    sec.handshakeServer(new SslEngineChannel.ServerGate() {
+                        public void begin() { }
+                        public void end() { }
+                        public void flightWritten() {
+                            if (!primed[0]) {
+                                primed[0] = true;
+                                sec.prime(new byte[] { 23 });
+                            }
+                        }
+                    });
+                    outcome.set(new AssertionError("the handshake went on"));
+                } catch (Throwable t) {
+                    outcome.set(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+            server.start();
+            try (S0EngineClient c = new S0EngineClient(ssc.socket().getLocalPort(), RETRY)) {
+                c.sendFlight();
+                c.receiveFlight();
+                c.sendAll();
+                Assert.assertTrue("the handshake ended", done.await(20, TimeUnit.SECONDS));
+            }
+            Throwable t = outcome.get();
+            Assert.assertTrue("an SSLException: " + t, t instanceof SSLException);
+            Assert.assertTrue(t.getMessage(), t.getMessage().contains(
+                "1 bytes of the peer are already buffered ahead of its second ClientHello"));
         }
     }
 

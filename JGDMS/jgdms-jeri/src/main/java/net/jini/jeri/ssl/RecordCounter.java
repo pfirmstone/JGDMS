@@ -35,8 +35,11 @@ package net.jini.jeri.ssl;
  * which has the keys, can frame them as it likes.  What the server can see
  * is the framing: a record has a header of five bytes whatever it carries.
  *
- * <p>So the bytes that follow the ClientHellos are counted as they arrive,
- * whatever the records carry, and the peer is refused when it has sent more
+ * <p>So the bytes that follow the ClientHellos are counted, whatever the
+ * records carry, as the SSLSocket path reads them, and on the engine path as
+ * the engine consumes them, a record at a time (so that what the peer sends
+ * behind its Finished, which the handshake does not take, is not counted),
+ * and the peer is refused when it has sent more
  * records than {@link #FREE} and one for every {@link #BYTES_PER_RECORD}
  * bytes that it has sent.  A client that frames its flight as the standard
  * allows, in records of up to 16 KiB or, if it asked for a smaller size (RFC
