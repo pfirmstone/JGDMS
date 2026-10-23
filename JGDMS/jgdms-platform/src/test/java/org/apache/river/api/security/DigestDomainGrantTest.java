@@ -306,6 +306,50 @@ public class DigestDomainGrantTest {
     }
 
     /**
+     * D1: a CLASSLOADER grant is tied to a ClassLoader and is dynamic only, so
+     * it never implies a CodeSource, whatever the CodeSource is (null, plain,
+     * the one of the granted class), whatever the Principals, and whether or
+     * not the grant has a class. DirtyChai's copy before dafbac90a inherited
+     * {@code PrincipalGrant.implies(CodeSource, Principal[])}, which was true
+     * for every CodeSource when the Principals matched, and for a grant
+     * without Principals, always.
+     */
+    @Test
+    public void classLoaderGrantNeverImpliesACodeSource() throws Exception {
+        SecurityCopy.assumeCurrentCopy("a CLASSLOADER grant that implies no CodeSource");
+        Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
+        Principal p = new MyPrincipal("p");
+        Principal q = new MyPrincipal("q");
+        CodeSource plain = new CodeSource(jarB, (Certificate[]) null);
+        CodeSource ofA = a.getProtectionDomain().getCodeSource();
+        for (boolean withClass : new boolean[]{false, true}) {
+            for (Principal[] grantee : new Principal[][]{NONE, {p}}) {
+                PermissionGrantBuilder b = PermissionGrantBuilder.newBuilder()
+                        .principals(grantee)
+                        .permissions(new Permission[]{PERM})
+                        .context(PermissionGrantBuilder.CLASSLOADER);
+                if (withClass) b.clazz(a);
+                PermissionGrant g = b.build();
+                String what = (withClass ? "with class" : "without class") + ", grantee " + Arrays.asList(grantee);
+                assertEquals(what + ": void without a class", !withClass, g.isVoid());
+                for (CodeSource cs : new CodeSource[]{null, plain, ofA}) {
+                    for (Principal[] pals : new Principal[][]{NONE, {p}, {q}, {p, q}}) {
+                        assertFalse(what + ": implies(" + cs + ", " + Arrays.asList(pals) + ")",
+                                g.implies(cs, pals));
+                    }
+                }
+                try (Loader other = new Loader(new URL[]{jarA})) {
+                    assertFalse(what + ": a domain of the CodeSource but another loader",
+                            g.implies(domain(ofA, other, p)));
+                }
+                // The grant itself is live when it has a class: the loader is implied.
+                assertEquals(what + ": the loader of the class", withClass,
+                        g.implies(domain(ofA, loader, p)));
+            }
+        }
+    }
+
+    /**
      * A Permission that can be serialized and read back.  DirtyChai's 
      * Permission is not Serializable, nor are RuntimePermission and the 
      * other JDK permissions, so a builder holding one cannot be written, 
