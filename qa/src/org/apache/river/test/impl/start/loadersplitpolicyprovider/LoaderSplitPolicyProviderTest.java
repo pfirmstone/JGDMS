@@ -140,8 +140,11 @@ public class LoaderSplitPolicyProviderTest extends QATestEnvironment implements 
 //	}
 
 	perm = new RuntimePermission("defaultPolicyGrant");
+	// A dynamic grant is tied to the class loader of a class: a grant with
+	// a null class is void, it no longer applies to all domains.  Grant to
+	// the class loader of this test, which is that of myPd.
 	((DynamicPolicy) dynDefPolicy).grant(
-	    null, null, new Permission[]{ perm });
+	    LoaderSplitPolicyProviderTest.class, null, new Permission[]{ perm });
 
 	if (!pol.implies(myPd, perm) ||
 	    pol.implies(fooPd, perm) ||
@@ -194,13 +197,19 @@ public class LoaderSplitPolicyProviderTest extends QATestEnvironment implements 
 //	}
 
 	perm = new RuntimePermission("loaderPolicyGrant");
+	// A grant with a null class is void, it no longer applies to all
+	// domains, so grant to the class loaders of fooPd and barPd.  nullPd
+	// has no class loader, a dynamic grant cannot apply to it: only the
+	// static permissions of the loader policy do (loaderPolicyStatic).
 	((DynamicPolicy) dynLdrPolicy).grant(
-	    null, null, new Permission[]{ perm });
+	    fooCl, null, new Permission[]{ perm });
+	((DynamicPolicy) dynLdrPolicy).grant(
+	    barCl, null, new Permission[]{ perm });
 
 	if (pol.implies(myPd, perm) ||
 	    !pol.implies(fooPd, perm) ||
 	    !pol.implies(barPd, perm) ||
-	    !pol.implies(nullPd, perm))
+	    pol.implies(nullPd, perm))
 	{
 	    throw new TestException("Does not satisfy implies conditions for "
                     + perm + ".");
@@ -209,7 +218,7 @@ public class LoaderSplitPolicyProviderTest extends QATestEnvironment implements 
 	if (contains(pol.getPermissions(myPd), perm) ||
 	    !contains(pol.getPermissions(fooPd), perm) ||
 	    !contains(pol.getPermissions(barPd), perm) ||
-	    !contains(pol.getPermissions(nullPd), perm))
+	    contains(pol.getPermissions(nullPd), perm))
 	{
 	    throw new TestException(
                     "Does not satisfy getPermissions conditions for " + perm

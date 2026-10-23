@@ -26,10 +26,10 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 | Id | Item | Evidence | Proposed action |
 |---|---|---|---|
 | D1 | `ClassLoaderGrant.implies(CodeSource, Principal[])` is inherited from `PrincipalGrant` and returns `implies(pal)`: a loader grant implies ANY CodeSource, including null, whenever the principals match. A privileged grant would imply AllPermission for any CodeSource. | CONFIRMED by running the public API against both copies. Latent today: the only caller, `ConcurrentPolicyFile.getPermissions(CodeSource)`, only iterates grants parsed from the policy file. Breaks DirtyChai's own rule that a null CodeSource is never implied. | Override in `ClassLoaderGrant` to return false (DirtyChai's `DigestDomainGrant` already does). |
-| D2 | A CLASSLOADER grant with no `clazz()` is void in DirtyChai trunk (`841105767`, 2026-10-21). JGDMS (and this container's older JDK) treats it as applying to all domains, as `DynamicPolicy.grant(null, ...)` promises. | CONFIRMED by the probes. QA `GrantNoPrincipalCase02` and `NullCases` rely on "all domains"; they would likely fail on a trunk JDK (PLAUSIBLE, not run). JGDMS tests `classLoaderGrantWithoutAClassCoversEveryDomain` and `classLoaderGrantSerializesThroughItsBuilder` fail against DirtyChai's classes. | Decide whether void is intended. If not, restore "all domains". |
+| D2 | A CLASSLOADER grant with no `clazz()` is void in DirtyChai trunk (`841105767`, 2026-10-21). JGDMS (and this container's older JDK) treated it as applying to all domains, as `DynamicPolicy.grant(null, ...)` promised. | CONFIRMED by probes of the public API, rerun 2026-10-23 on the emulated trunk (`ed4691471` classes) and on the JGDMS copy; see "D2 observed" below. | **INTENDED (maintainer, 2026-10-23): the grant is tied to a ClassLoader's class and is garbage-collected when that loader is removed; "no class" is the state of a grant whose loader is gone, so it must never silently become "all domains".** JGDMS adopted it (see "D2 done in JGDMS" below). |
 | D3 | Deserializing a DIGEST_DOMAIN grant throws in DirtyChai (`readResolve` no longer returns the null grant; `build()` throws `IllegalArgumentException("ClassLoader must not be null")`). JGDMS returns the void grant. | Read from the code; NOT run on DirtyChai. | **INTENDED (maintainer, 2026-10-23): serialization support is being removed from these classes because it is not good security practice, and making it throw was easier than implementing it. No DirtyChai change. See J7 for the JGDMS side.** |
 | D4 | `ClassLoaderGrant.impliesEquivalent`: JGDMS compares loaders only; DirtyChai also requires equal principals and non-null loaders (stricter). `equals`/`hashCode` differ (JGDMS includes the domain reference by identity; DirtyChai compares loader, principals, permissions and, for digest grants, the sources). | Read from the code. | Decide which is intended. |
-| D5 | DIGEST_DOMAIN rules: DirtyChai requires `DigestCodeSource` instances and compares signers IN ORDER; JGDMS requires `clazz()`, compares signers as a SET, and matches via `CodeSourceKey` including `isVerifiedDigest`. | Read from the code. | Decide whether signer order is part of identity. |
+| D5 | DIGEST_DOMAIN rules: DirtyChai requires `DigestCodeSource` instances and compares signers IN ORDER (through `DigestCodeSource.equals`); JGDMS required `clazz()`, compared signers as a SET, and matched via `CodeSourceKey` including `isVerifiedDigest`. | Read from the code. | **RULED (maintainer, 2026-10-23): `DigestDomainGrant` is a dynamic grant that lasts only as long as the ClassLoader it is granted to; it applies iff the `DigestCodeSource` is one that this ClassLoader loaded, or it isn't. Signer order, signer-set comparison and `isVerifiedDigest`-based matching are NOT the identity model.** DONE in the JGDMS copy, see "D5 done in JGDMS" below. |
 | D6 | `SubjectDomain` (live principals) is not visible to DirtyChai's bundled `PrincipalGrant`, which cannot see that app-loaded class, so JGDMS's live-principal support is lost on DirtyChai. | CONFIRMED by class-loading probe (`BuiltinClassLoader.loadClassOrNull` special-cases this package: java.base first, then the class path). | **RESOLVED by removal (maintainer, 2026-10-23): `SubjectDomain` was removed ("We are implementing better solutions to the problem it attempts to solve"); superseded by the multi-subject work (`JGDMS-STD-003`). No `java.base` interface is needed and nothing is lost on DirtyChai: JGDMS's `PrincipalGrant.getPrincipals` now reads `pd.getPrincipals()` only, as DirtyChai's does. Removed with it: `Security.doAs` and `Security.doAsPrivileged` (two overloads each; no callers anywhere in the repository) and the private `DistributedSubjectCombiner` and `SubjectProtectionDomain`. Accepted break, ledger category G.** |
 | D7 | `java.security.Permission` in DirtyChai is not `Serializable`, so `PermissionGrantBuilderImp.writeObject` cannot serialise any ordinary JDK permission: `NotSerializableException`. | CONFIRMED by the maintainer's test run. | **INTENDED (maintainer, 2026-10-23): same decision as D3, serialization is being removed.** The JGDMS test that needed a test-local serialisable permission documents a behaviour that is going away (J7). |
 | D8 | `clazz()` state: DirtyChai resets domain, loader and `hasDomain` on every call; JGDMS keeps the previous state on `clazz(null)`. | CONFIRMED. DirtyChai behaviour is the better one (see J1). | JGDMS adopts DirtyChai's. |
@@ -40,7 +40,7 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 |---|---|---|---|
 | J1 | Builder reuse bug: `clazz(X).clazz(null)` leaves the grant bound to X. | CONFIRMED. | Port DirtyChai's reset; add a builder-reuse test. |
 | J2 | `PrincipalGrant.toString` puts the comma after the last principal and none between (DirtyChai fixed this in `f8520cdaa`). Both forms parse back through JGDMS's lenient parser; only DirtyChai's is standard syntax. | CONFIRMED. | Port the fix, but see P2 (the comment text) first. |
-| J3 | The superclass change in commits `b9cc0212d` (`ClassLoaderGrant` and `DigestDomainGrant` now extend `PrincipalGrant`) re-implemented `ProtectionDomainGrant`'s logic inside the two classes. It removed two API divergences but grew the source diff (`ClassLoaderGrant` from +55/-35 to +86/-36) and hid the semantic gap from the API-level test. | CONFIRMED. | Treat as interim; revisit when the DirtyChai items D1 to D5 are settled. |
+| J3 | The superclass change in commits `b9cc0212d` (`ClassLoaderGrant` and `DigestDomainGrant` now extend `PrincipalGrant`) re-implemented `ProtectionDomainGrant`'s logic inside the two classes. It removed two API divergences but grew the source diff (`ClassLoaderGrant` from +55/-35 to +86/-36) and hid the semantic gap from the API-level test. | CONFIRMED. | Treat as interim. D2 and D5 are now settled and the JGDMS copies follow them (the "all domains" mode and the domain/signer-set bookkeeping are gone from `ClassLoaderGrant` and `DigestDomainGrant`); D1 and D4 are still open, revisit when they are. |
 | J4 | `jgdms-platform` compiles with `--release 21`, so DirtyChai-only APIs (`DigestCodeSource`, `CodeSource.getUriLocation()`, `SocketPermission.init()` and the `au.zeus.*` helpers) are invisible, which is why the JGDMS copies reach some of them by reflection. "Identical modulo imports" is therefore not reachable. | CONFIRMED. | A fixed, mechanical adaptation patch is the realistic residue. |
 | J5 | `jgdms-platform`'s surefire run patched a hand-listed set of classes into `java.base` (`-Xbootclasspath/a` for four more). | CONFIRMED (previous test work). | **DONE (maintainer's decision, 2026-10-23):** that machinery is removed. The tests run against whichever copy the JDK loads and use public (and, for JGDMS-only subclasses, protected) API only; see "Running the jgdms-platform tests" at the end of section F. |
 | J6 | Semantic differences between the two copies are not covered by any test. `BundledCopyConformanceTest` compares only public/protected API (empty allow list, 0 API divergences against the emulated trunk). | CONFIRMED. | Add an unpatched execution of the public-API semantic tests with a semantic allow list; add package-private checks and a pinned-commit sync script (no serial-form or cross-copy serialization checks: serialization is being removed, J7) (recommended stages 1 to 3 below). |
@@ -48,13 +48,97 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 
 ## D. Questions the maintainer has to decide first
 
-1. Is the void null-class CLASSLOADER grant in DirtyChai trunk intended (D2)?
+1. ~~Is the void null-class CLASSLOADER grant in DirtyChai trunk intended (D2)?~~ Yes, intended (2026-10-23). New: a PROTECTIONDOMAIN grant built without a class is still a grant to ALL domains in both copies (observed 2026-10-23: `isVoid()` false, implies any domain). Is that intended, or should it be void like the CLASSLOADER grant?
 2. Will `ClassLoaderGrant.implies(CodeSource, Principal[])` be fixed in DirtyChai (D1)?
-3. Does signer order matter for digest identity (D5)?
+3. ~~Does signer order matter for digest identity (D5)?~~ Ruled 2026-10-23, see D5. Open from the ruling: `DigestDomainGrant` still compares a domain's `DigestCodeSource` with the supplied ones through `DigestCodeSource.equals` (DirtyChai does the same), which compares certificates in order; and `ProtectionDomainGrant` (JGDMS: `CodeSourceKey`, signer SET; DirtyChai: its own `CodeSourceKey`, `Arrays.equals` on certificates, signer ORDER) was not covered by the ruling. Does the ruling extend to it, and is the `unverified()` guard (kept, see below) wanted?
 4. ~~`SubjectDomain` into java.base, or drop live principals (D6)?~~ Decided 2026-10-23: removed, no `java.base` interface (see D6).
 5. Are stock-JDK and OSGi support kept for these classes?
 6. What is the conclusion on P2 and P3, and how will P1 be rewritten?
 7. When is serialization removed on the JGDMS side (J7), and does anything still send a `PermissionGrant` over the wire?
+
+### D2 observed and done (2026-10-23)
+
+Probed through the public API (`PermissionGrantBuilder`, `PermissionGrant`), with a throwaway program run on (a) the classes of the
+pinned trunk `ed4691471` (which includes `841105767`) patched over `java.base` of `/opt/dirtychai/jdk-27`, (b) this repository's
+copy on a stock JDK 21 and (c) the unpatched `/opt/dirtychai/jdk-27` image. The image is OLDER than `841105767`: it has no
+`DigestDomainGrant` and treats a null-class CLASSLOADER grant as "all domains", so `/opt/dirtychai/jdk-27` alone does not show the
+trunk behaviour; the compiled trunk classes are needed.
+
+Observed on the trunk (CLASSLOADER, no `clazz()`): `build()` does not throw and returns a `ClassLoaderGrant`; `isVoid()` is true;
+`isDyanamic()` true; `implies` is false for a ProtectionDomain with a loader, with a null loader, for a null ProtectionDomain, for
+`implies(ClassLoader, ...)` with any loader and with null; two such grants with equal principals and permissions are `equals`.
+`clazz(String.class)` (a bootstrap class, no loader) is void too. One more difference, which is D1 and not D2: on the trunk
+`implies(CodeSource, Principal[])` of that void grant is TRUE (inherited from `PrincipalGrant`); the JGDMS copy returns false.
+Observed on the old image and on the unmodified JGDMS copy: `isVoid()` false, every domain implied.
+
+JGDMS changes (the JGDMS copy only; no DirtyChai code was written or changed):
+
+* `ClassLoaderGrant`: a grant without a domain is void and implies nothing; two such grants are `equals` as on the trunk;
+  Javadoc and `toString` no longer say "all domains". `build()` still does not throw, as on the trunk (throwing would be a
+  second behaviour to maintain, and a void grant is already unable to widen anything).
+* `PermissionGrantBuilder` (`CLASSLOADER`, `clazz`) and `DynamicPolicy` (`grant`, `getGrants`) and `Security.grant` Javadoc: the
+  "null means all domains" promises are replaced by "null grants nothing" (`getGrants(null, ...)` returns an empty array).
+* `DynamicPolicyProvider.grant(null, ...)`: still checks `GrantPermission` and null elements, then stores nothing (the void grant
+  would only sit there until `refresh()`); it does not throw. A caller that relied on a universal grant now gets none, which fails
+  closed. No caller in this repository passes a null class (`Security.grant`, the proxy preparers, `ActivatableInvocationHandler`,
+  the policy providers all pass the class of a proxy); `ConcurrentPolicyFile` and the policy parsers have no `classLoader` grant
+  syntax, so a policy file cannot ask for it.
+* Tests: `DigestDomainGrantTest.classLoaderGrantWithoutAClassIsVoid` (replaces `classLoaderGrantWithoutAClassCoversEveryDomain`;
+  runs on both copies, skipped only on a copy older than `DIGEST_DOMAIN`), `dynamicPolicyGrantWithoutAClassGrantsNothing` (new),
+  and `classLoaderGrantSerializesThroughItsBuilder` (JGDMS copy only, serialization, J7: a no-class grant is void before and after).
+* QA (not run here, the harness needs the Ant build, the HTTP class server and the QA jars; changed by reading, and the
+  dynamic-policy assertions were reproduced in a small stand-alone program on both copies): `GrantNoPrincipalCase01/02`,
+  `RefreshNoPrincipal`, `GetGrantsNoPrincipal` (through `checkGetGrants`), `NullCases`, and
+  `LoaderSplitPolicyProviderTest` now expect that a grant with a null class grants nothing (the null ProtectionDomain is no
+  longer implied; `getGrants(null, ...)` is empty); the loader-split test grants to the classes of the loaders instead of null.
+  `SubPoliciesTest` and `NullCasesTest` (aggregate provider) only check which exception a `grant(null, ...)` call throws and
+  needed no change. `GrantTest1/2/3` and `Grant_Test` use a mock provider.
+
+### D5 inventory and what was done (2026-10-23)
+
+Every use of `CodeSourceKey` (package-private, `org.apache.river.api.security`), before the change:
+
+| User | What for | Needed for D5? |
+|---|---|---|
+| `PermissionGrantBuilderImp.buildDigestDomainGrant` | validated each supplied code source (usable location, has a digest, algorithm SHA-256) and built the `Set<CodeSourceKey>` handed to `DigestDomainGrant` | yes |
+| `DigestDomainGrant` | held the keys as the grant's identity (`verified`); `implies(pd)` took `CodeSourceKey.of(pd.getCodeSource())` and tested set membership after `isVerifiedDigest`; keys also in `equals`, `hashCode`, `impliesEquivalent`, `toString` | yes |
+| `DigestGrant` | `CodeSourceKey.isVerifiedDigest(codeSource)` only: a policy-file digest grant (a `URIGrant` subclass, not bound to a loader) ignores digests asserted by a caller | no |
+| `ProtectionDomainGrant.impliesCodeSource` | compares the CodeSource of a domain rebuilt by a DomainCombiner with that of the granted domain without `CodeSource.equals` (DNS): location Uri, signers (as a set) and digest | no |
+| `CodeSourceKey` itself | the key, plus `isVerifiedDigest` | n/a |
+
+Compare DirtyChai `ed4691471`, read only: its `DigestDomainGrant` imports its `CodeSourceKey` (`au.zeus.jdk.authorization.policy`)
+but does not use it; it keeps the supplied `DigestCodeSource[]` and tests `dcs.equals(supplied)` after `dcs.unverified()`; that
+`CodeSourceKey` is used by `SecureClassLoader` (domain cache), `ProtectionDomainGrant` and `SecurityPolicyWriter`.
+
+D5 done in JGDMS. The maintainer's update of the same day: `DigestCodeSource` is public, so the JGDMS copy can recognise it by
+the NAME of its class (`java.security.DigestCodeSource`, final, so `cs.getClass().getName()` equal to that and a null class
+loader) and call its public accessors by reflection; no stubs are needed for this. `DigestDomainGrant` is now
+`(WeakReference<ClassLoader>, List<CodeSource>, Principal[], Permission[])`, as in DirtyChai:
+
+* lasts as long as its ClassLoader (no `ProtectionDomain` reference any more: it is void when the loader is collected);
+* `implies(pd)`: same loader by reference; principals; `pd`'s CodeSource is a `DigestCodeSource` and is one of the supplied ones
+  by `DigestCodeSource.equals`; no `CodeSourceKey`, no signer set, no location or digest comparison of its own;
+* the constructor refuses (NPE / IAE) a null loader, no code sources, a code source that is not a `DigestCodeSource`, a digest
+  algorithm other than SHA-256, or no digest; `build()` refuses a missing class or loader as before;
+* kept on purpose, as DirtyChai does (`dcs.unverified()`): a domain whose digest was asserted by a caller, not computed, is not
+  implied. It is a guard, not identity, and is one line (`isComputed`) to drop if the maintainer rules that it must go.
+
+`CodeSourceKey` is NOT deleted: `ProtectionDomainGrant` and `DigestGrant` still need it for reasons other than D5 (rows above).
+What changed in it: `hasDigest()` and `digestAlgorithm()` (used only by the builder) are removed and `uri` is private.
+What remains and why: `ProtectionDomainGrant` needs a DNS-free CodeSource comparison (DirtyChai has its own public key class in
+`au.zeus.jdk.authorization.policy`, which the JGDMS copy cannot use: it is not visible to a `--release 21` compile and does not
+exist on a stock JDK); `DigestGrant` needs `isVerifiedDigest`. Both go when the planned
+stubs (section G) make DirtyChai's own classes the only ones that run.
+
+Verification: `DigestDomainGrantTest` passes on plain, emulated trunk and stock JDK 21, but on none of those does the JGDMS
+`DigestDomainGrant` meet a real `DigestCodeSource` (stock has none; the others load DirtyChai's `DigestDomainGrant`). To run it
+once, as an experiment kept out of the build, the classes of the JGDMS copy that the trunk bundles (plus `CodeSourceKey`,
+`PermissionComparator`, `org.apache.river.api.net.*`) were compiled and patched over `java.base` together with the trunk's
+`java.security.DigestCodeSource`, and the same test run: 23 tests, 4 skipped (the tests of this module's copy only, which skip themselves on a boot-loaded copy), 0 failed.
+Mutations of the patched `DigestDomainGrant` were caught: dropping the `unverified` guard fails
+`aDigestAssertedByACallerIsNotIdentity`, dropping the loader check fails `anotherLoaderOverIdenticalJarsIsNotImplied` and
+`aProxyClassUsesTheLoaderOfTheClass`. Dropping the DigestCodeSource name check alone is not caught, because the `unverified`
+guard and `equals` also fail closed for a plain CodeSource (redundant guards).
 
 ## E. Recommended path (from the analysis; "vendor and patch", DirtyChai as upstream)
 
@@ -108,8 +192,9 @@ checked, all CONFIRMED by reading or running:
 not moved: it was removed instead on 2026-10-23, at the maintainer's direction, together with its only implementation and users
 (see D6), so it no longer appears in the package layout. `PrincipalGrant` therefore has no JGDMS-only branch left in `getPrincipals`.
 
-`CodeSourceKey` stays in `org.apache.river.api.security` for now. It is package-private and used by four classes that stay and
-are shared with DirtyChai (`DigestDomainGrant`, `DigestGrant`, `PermissionGrantBuilderImp`, `ProtectionDomainGrant`). Moving it
+`CodeSourceKey` stays in `org.apache.river.api.security` for now. It is package-private and was used by four classes that stay and
+are shared with DirtyChai (`DigestDomainGrant`, `DigestGrant`, `PermissionGrantBuilderImp`, `ProtectionDomainGrant`); since D5 only
+`DigestGrant` and `ProtectionDomainGrant` use it. Moving it
 would make it and four of its members public, and would make those four shared classes depend on a JGDMS-only package. A later change deals with it.
 
 Still open from this section: whether the River-origin JGDMS-only classes (for example `ConcurrentPolicyFile`,
@@ -129,8 +214,8 @@ runtime image otherwise, which does not show a patch).
 
 `tests.support.SecurityCopy` tells the tests which copy is loaded, by public API: `PermissionGrantBuilder.class.getClassLoader() != null`
 means this module's copy, and the presence of `PermissionGrantBuilder.DIGEST_DOMAIN` with `codeSources(CodeSource...)` means a copy not
-older than the pinned DirtyChai trunk. Tests of behaviour that only this module's copy has (the null-class CLASSLOADER grant that applies
-to every domain, the `toString` text of `DigestDomainGrant`, its package-private constructor, and every serialization round trip: J7)
+older than the pinned DirtyChai trunk. Tests of behaviour that only this module's copy has (the `toString` text of `DigestDomainGrant`, its package-private
+constructor, and every serialization round trip: J7; the null-class CLASSLOADER grant is void in both copies since D2 and is tested on either)
 skip themselves when the JDK's copy is loaded; tests of fixes that an older bundled copy lacks (signer checks of `CertificateGrant` and
 `URIGrant` for code without signers, a `PrincipalGrant` that matches a domain without a `CodeSource`, `DIGEST_DOMAIN`) skip themselves
 on such a copy. This module's copies are exercised by running the tests on a JDK that bundles nothing, for example
@@ -154,7 +239,8 @@ worktree `/tmp/claude-0/stubs-wt` in the 2026-10-23 session, which is not durabl
 * `jgdms-platform` and the dependents that build offline compiled on a stock JDK 21.0.12 with the stubs and the copies deleted.
 * With DirtyChai's classes supplying the real behaviour (an emulation), the platform tests were test-for-test the same as with
   the copies except three tests of copy-only behaviour (the null-class CLASSLOADER "all domains" grant, a serialization round
-  trip, the `toString` text), which are the behaviours expected to go (D2, J7).
+  trip, the `toString` text), which are the behaviours expected to go (D2, J7). (D2 has since been settled and the first of the
+  three removed from the JGDMS copy.)
 * The platform bundle's `Export-Package` and `Import-Package` for the shared package were unchanged. An OSGi framework on
   DirtyChai probably needs `org.osgi.framework.bootdelegation=org.apache.river.api.security` (not `system.packages.extra`, which
   would make the system bundle a second exporter). Not tested: no framework was available offline. Felix 7.0.5 is downloadable
@@ -163,5 +249,5 @@ worktree `/tmp/claude-0/stubs-wt` in the 2026-10-23 session, which is not durabl
   older than the pin; wire `DirtyChaiCheck` (a fail-fast check that the 13 classes come from the boot loader) into the policy
   entry points and add an API fingerprint check; a compat-gate ledger entry (the five public shared classes would show as
   removed); update `GETTING_STARTED.md` (stock OpenJDK is compile-only), the `jwt-integration-tests.yml` Temurin 21 leg, and
-  `findbugs-exclude.xml`; settle `CodeSourceKey` (delete once its four users in the shared package are gone, unless the
-  verified-code decorator still needs it).
+  `findbugs-exclude.xml`; settle `CodeSourceKey` (after D5 two users remain in the shared package, `ProtectionDomainGrant` and `DigestGrant`;
+  delete once those are gone).

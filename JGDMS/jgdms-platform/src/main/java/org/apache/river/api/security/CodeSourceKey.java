@@ -38,6 +38,12 @@ import org.apache.river.api.net.Uri;
  * <p>
  * {@code java.security.DigestCodeSource} is accessed by reflection, it is
  * absent on a stock JDK, where a CodeSource never carries a digest.
+ * <p>
+ * Used by {@link ProtectionDomainGrant} to compare the CodeSource of a domain
+ * rebuilt by a DomainCombiner with that of the granted domain, and by
+ * {@link DigestGrant} for {@link #isVerifiedDigest}.  It is not used by 
+ * {@link DigestDomainGrant}, whose code identity is that of the 
+ * ClassLoader's own {@code DigestCodeSource}s.
  * 
  * @since 4.0.0
  */
@@ -136,7 +142,7 @@ final class CodeSourceKey {
         }
     }
 
-    final Uri uri;
+    private final Uri uri;
     private final Set<Certificate> signers;
     private final String digestAlgorithm;
     private final byte[] digest;
@@ -153,14 +159,6 @@ final class CodeSourceKey {
         h = 31 * h + (digestAlgorithm != null ? digestAlgorithm.hashCode() : 0);
         h = 31 * h + Arrays.hashCode(digest);
         this.hash = h;
-    }
-
-    boolean hasDigest() {
-        return digest != null;
-    }
-
-    String digestAlgorithm() {
-        return digestAlgorithm;
     }
 
     @Override

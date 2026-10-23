@@ -129,7 +129,9 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *        </li>
  *        <li> Call implies on DynamicPolicyProvider passing
  *             dynamic granted permissions. Verify that implies()
- *             returns true for null and non-null
+ *             returns false if ProtectionDomain is equal to null (the grant
+ *             made with a null class is void, a grant is tied to the class
+ *             loader of a class), and returns true for non-null
  *             ProtectionDomains.
  *        </li>
  *        <li> Call implies on DynamicPolicyProvider passing
@@ -236,10 +238,14 @@ public class GrantNoPrincipalCase01 extends DynamicPolicyProviderTestBase {
             /*
              * Call implies on DynamicPolicyProvider passing
              * dynamic granted permissions. Verify that implies()
-             * returns true for null and non-null
-             * ProtectionDomains.
+             * returns false for the null ProtectionDomain: the grant that
+             * checkGrant() made with a null class is void, a grant is tied
+             * to the class loader of a class, and it never applies to all
+             * ProtectionDomains.  Verify that implies() returns true for
+             * non-null ProtectionDomains, the permissions were granted to
+             * the class loader of each of them.
              */
-            checkImplies(pd, pmDynamicGranted, true, false);
+            checkImplies(pd, pmDynamicGranted, true, true);
 
             /*
              * Call implies on DynamicPolicyProvider passing

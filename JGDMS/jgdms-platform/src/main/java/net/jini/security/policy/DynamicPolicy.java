@@ -85,9 +85,13 @@ public interface DynamicPolicy {
      * If this security policy provider supports dynamic permission grants,
      * grants the specified permissions to all protection domains (including
      * ones not yet created) that are associated with the class loader of the
-     * given class and possess at least the given set of principals.  If the
-     * given class is <code>null</code>, then the grant applies across all
-     * protection domains that possess at least the specified principals.  If
+     * given class and possess at least the given set of principals.  The
+     * grant is tied to that class loader and is discarded with it.  If the
+     * given class is <code>null</code>, then there is no class loader to
+     * tie the grant to: the grant applies to no protection domain, it is
+     * void, and it never applies across all protection domains.  (Before
+     * 4.0.0 a <code>null</code> class meant all protection domains that possess
+     * at least the specified principals.)  If
      * the list of principals is <code>null</code> or empty, then principals
      * are effectively ignored in determining the protection domains to which
      * the grant applies.  If this policy provider does not support dynamic
@@ -109,8 +113,9 @@ public interface DynamicPolicy {
      * retained; subsequent changes to the arrays have no effect on the grant
      * operation.
      *
-     * @param   cl class to grant permissions to the class loader of, or
-     * 		<code>null</code> if granting across all class loaders
+     * @param   cl class to grant permissions to the class loader of; if
+     * 		<code>null</code> nothing is granted (not a grant across all
+     * 		class loaders)
      * @param	principals if non-<code>null</code>, minimum set of principals
      * 		to which grants apply
      * @param	permissions if non-<code>null</code>, permissions to grant
@@ -135,10 +140,10 @@ public interface DynamicPolicy {
      * {@link DynamicPolicyProvider} this is evaluated against the protection
      * domain of the given class, so grants that depend on the code source, 
      * such as those for signers or a digest, are included.  If the given class is
-     * <code>null</code>, then this method returns the cumulative set of
-     * permissions dynamically granted across all protection domains that
-     * possess at least the specified principals (i.e., through calls to the
-     * grant method where the specified class was <code>null</code>).  If the
+     * <code>null</code>, then this method returns an empty array: a grant
+     * made with a <code>null</code> class is void, it applies to no
+     * protection domain (see {@link #grant(Class,Principal[],Permission[])}).
+     * If the
      * list of principals is <code>null</code> or empty, then the permissions
      * returned reflect only grants not qualified by principals (i.e., those
      * performed through calls to the grant method where the specified
@@ -153,8 +158,7 @@ public interface DynamicPolicy {
      * thrown.
      *
      * @param   cl class to query the permissions dynamically granted to the
-     *          class loader of, or <code>null</code> if querying permissions
-     *          granted across all class loaders
+     *          class loader of; if <code>null</code> the result is empty
      * @param   principals if non-<code>null</code>, principals to query
      * 		dynamic grants for
      * @return  new array containing the permissions dynamically granted to the

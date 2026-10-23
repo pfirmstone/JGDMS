@@ -31,9 +31,7 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all
@@ -197,8 +195,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     public PermissionGrant build() {
         switch (context) {
             case CLASSLOADER: //Dynamic grant
-                // Don't return principal grant if domain null, dynamic grant's
-                // are treated special.
+                // Without a class (or with a class that has no ClassLoader) the
+                // grant is void, it implies nothing: it never becomes a grant
+                // to all domains, and build() does not throw.
                 return new ClassLoaderGrant(domain, classLoaderRef(), principals, permissions );
             case DIGEST_DOMAIN: //Dynamic grant
                 return buildDigestDomainGrant();
@@ -223,35 +222,23 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
     /**
-     * A grant to the verified code identities supplied, belonging to the
+     * A grant to the DigestCodeSources supplied, belonging to the
      * ClassLoader of the class.  Never wider than what was supplied: a missing
-     * class, loader, identity, digest, or an algorithm other than SHA-256 is
-     * refused, not widened.
+     * class, loader or code source, a code source that is not a 
+     * DigestCodeSource, or one with a digest algorithm other than SHA-256, is
+     * refused (IllegalArgumentException), not widened.
      */
     private PermissionGrant buildDigestDomainGrant() {
-        if (domain == null) throw new IllegalArgumentException(
-                "DIGEST_DOMAIN requires a class (clazz(Class))");
         WeakReference<ClassLoader> loaderRef = loader;
         if (loaderRef == null || loaderRef.get() == null) {
             throw new IllegalArgumentException(
-                "DIGEST_DOMAIN requires a class with a ClassLoader");
+                "DIGEST_DOMAIN requires a class with a ClassLoader (clazz(Class))");
         }
         if (codeSources == null || codeSources.isEmpty()) {
             throw new IllegalArgumentException(
                 "DIGEST_DOMAIN requires at least one code source");
         }
-        Set<CodeSourceKey> keys = new HashSet<CodeSourceKey>();
-        for (CodeSource cs : codeSources) {
-            CodeSourceKey key = CodeSourceKey.of(cs);
-            if (key == null) throw new IllegalArgumentException(
-                    "code source has no usable location: " + cs);
-            if (!key.hasDigest()) throw new IllegalArgumentException(
-                    "code source has no digest: " + cs);
-            if (!"SHA-256".equals(key.digestAlgorithm())) throw new IllegalArgumentException(
-                    "digest algorithm must be SHA-256: " + cs);
-            keys.add(key);
-        }
-        return new DigestDomainGrant(domain, loaderRef, keys, 
+        return new DigestDomainGrant(loaderRef, 
                 new ArrayList<CodeSource>(codeSources), principals, permissions);
     }
 
@@ -291,7 +278,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 || context == DIGEST_DOMAIN){
             if (hasDomain) return nullGrant;
         }
-        // It's ok to return domainless dynamic grants.
+        // A domainless CLASSLOADER or PROTECTIONDOMAIN grant is built, it is
+        // void (a CLASSLOADER grant) or applies to all domains (a
+        // PROTECTIONDOMAIN grant).
         return build();
     }
 

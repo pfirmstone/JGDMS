@@ -35,8 +35,13 @@ import java.security.ProtectionDomain;
  * <p>
  * The ClassLoader is that of the granted class, not that of the class's 
  * ProtectionDomain: a {@code java.lang.reflect.Proxy} class has the shared
- * all permission domain, whose loader is null.  Without a granted class, the
- * grant applies to all domains.
+ * all permission domain, whose loader is null.
+ * <p>
+ * The grant is tied to the ClassLoader of a class and is garbage collected
+ * with it: it is void, and implies nothing, once the ClassLoader is gone.
+ * A grant that was given no class, or a class without a ClassLoader (a
+ * bootstrap class), is in that same state from the start: it is void.  It
+ * never applies to all domains.
  * 
  * @author Peter Firmstone
  * @since 3.0.0
@@ -44,7 +49,7 @@ import java.security.ProtectionDomain;
 @SuppressWarnings("serial")
 class ClassLoaderGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
-    // Null for a grant to all domains.
+    // Null if no class was granted, the grant is void.
     private final transient WeakReference<ProtectionDomain> domain;
     private final transient WeakReference<ClassLoader> loader;
     private final int hashCode;
@@ -70,8 +75,10 @@ class ClassLoaderGrant extends PrincipalGrant {
 	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof ClassLoaderGrant && super.equals(o)){
             ClassLoaderGrant c = (ClassLoaderGrant) o;
-            // The references are compared, not their referents.
-            if (domain == null || !domain.equals(c.domain)) return false;
+            // The references are compared, not their referents.  Two void
+            // grants without a class are equal if their principals and
+            // permissions are.
+            if (domain == null ? c.domain != null : !domain.equals(c.domain)) return false;
             ClassLoader l = loader != null ? loader.get() : null;
             ClassLoader ol = c.loader != null ? c.loader.get() : null;
             return l == ol;
@@ -104,7 +111,7 @@ class ClassLoaderGrant extends PrincipalGrant {
                 sb.append("Grant is void - ProtectionDomain is null");
             }
         } else {
-            sb.append("Grant applies to all ProtectionDomain's");
+            sb.append("Grant is void - no class was granted");
         }
         return sb.append("ClassLoader grant.").toString();
     }
@@ -122,7 +129,7 @@ class ClassLoaderGrant extends PrincipalGrant {
 
     @Override
     public boolean implies(ClassLoader cl, Principal[] pal) {
-        if (domain == null) return implies(pal); // all domains.
+        if (domain == null) return false; // void, no class was granted.
         if (cl == null) return false;
         ClassLoader l = loader != null ? loader.get() : null;
         if (l == null || l != cl) return false;
@@ -138,8 +145,9 @@ class ClassLoaderGrant extends PrincipalGrant {
     @Override
     public boolean isVoid() {
         if (super.isVoid()) return true;
-        return domain != null && (domain.get() == null 
-                || loader == null || loader.get() == null);
+        // No class, no ProtectionDomain or no ClassLoader: void.
+        return domain == null || domain.get() == null 
+                || loader == null || loader.get() == null;
     }
 
     @Override

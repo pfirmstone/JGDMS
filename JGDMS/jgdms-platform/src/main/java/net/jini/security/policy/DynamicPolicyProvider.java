@@ -35,6 +35,7 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.UnresolvedPermission;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -649,21 +650,29 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         // Not delgated to base policy.
         Guard g = new GrantPermission(permissions);
         g.checkGuard(null);
+        if (cl == null) {
+            // A grant is tied to the ClassLoader of a class and is discarded
+            // with it, a grant without a class is void and implies nothing;
+            // it never applies to all domains, so there is nothing to add.
+            if (loggable){
+                logger.log(Level.FINEST, "Not granting {0}: no class, the grant "
+                        + "would be void", Arrays.asList(permissions));
+            }
+            return;
+        }
         final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(principals)
             .permissions(permissions)
             .context(PermissionGrantBuilder.CLASSLOADER);
-        if (cl != null){
-            AccessController.doPrivileged(
-                new PrivilegedAction(){
+        AccessController.doPrivileged(
+            new PrivilegedAction(){
 
-                    public Object run() {
-                        pgb.clazz(cl);
-                        return null;
-                    }
+                public Object run() {
+                    pgb.clazz(cl);
+                    return null;
+                }
 
-                });
-        }
+            });
         PermissionGrant pe = pgb.build();
 	dynamicPolicyGrants.add(pe);
 	if (loggable){

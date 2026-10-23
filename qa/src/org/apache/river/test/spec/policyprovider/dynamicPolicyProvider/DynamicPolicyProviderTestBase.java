@@ -492,6 +492,49 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
     }
 
     /**
+     * Call getPermissions() on DynamicPolicyProvider and if passing
+     * Permission[] p is not null then verify that returned
+     * PermissionCollection does not contain any permission from p.
+     *
+     * @param pd the ProtectionDomain or null.
+     * @param p  permissions that must not be present, or null.
+     * @param msg  string to format log message.
+     *
+     * @throws TestException if failed
+     *
+     */
+    protected void callGetPermissionsNoGranted(ProtectionDomain pd, Permission[] p,
+            String msg) throws TestException {
+        PermissionCollection pReturned = null;
+
+        try {
+            pReturned = policy.getPermissions(pd);
+        } catch (Exception e) {
+            throw new TestException(Util.fail(msg, e, NOException));
+        }
+
+        if (p == null) {
+            logger.log(Level.FINE, Util.pass(msg, "passed"));
+            return;
+        }
+
+        if (pReturned == null) {
+            throw new TestException(Util.fail(msg, SNULL,
+                    "PermissionCollection"));
+        }
+
+        for (int i = 0; i < p.length; i++) {
+            if (pReturned.implies(p[i])) {
+                String prm = p[i].toString();
+                String ret = "PermissionCollection contains " + prm;
+                String exp = "PermissionCollection does not contain " + prm;
+                throw new TestException(Util.fail(msg, ret, exp));
+            }
+        }
+        logger.log(Level.FINE, Util.pass(msg, "permission(s) not present"));
+    }
+
+    /**
      * Call getPermissions() on DynamicPolicyProvider and verify that
      * NullPointerException is thrown.
      *
@@ -661,7 +704,10 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
      * Iterates over array of classes and call getGrants() on
      * DynamicPolicyProvider passing Principal[] pra array.
      * Check that returned array contains the same permissions as
-     * Permission[] pma parameter.
+     * Permission[] pma parameter.  A null class is the exception: a grant
+     * tied to a class loader needs a class, a grant made with a null class is
+     * void (it does not apply to all protection domains), so the returned
+     * array must be empty for it.
      *
      * @param classes array of classes.
      * @param pra principals to query dynamic grants or null.
@@ -687,18 +733,20 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
             if (p == null) {
                 throw new TestException(Util.fail(msg, SNULL, "non" + SNULL));
             }
+            // A null class: grants to it are void, nothing is returned.
+            Permission[] expected = (cl != null) ? pma : new Permission[0];
             String ret = java.util.Arrays.asList(p).toString();
-            String exp = java.util.Arrays.asList(pma).toString();
+            String exp = java.util.Arrays.asList(expected).toString();
 
-            if (p.length != pma.length) {
+            if (p.length != expected.length) {
                 throw new TestException(Util.fail(msg, ret, exp));
             }
 
-            for (int j = 0; j < pma.length; j++) {
+            for (int j = 0; j < expected.length; j++) {
                 boolean pass = false;
 
                 for (int k = 0; k < p.length; k++) {
-                    if (pma[j].equals(p[k])) {
+                    if (expected[j].equals(p[k])) {
                         pass = true;
                         break;
                     }

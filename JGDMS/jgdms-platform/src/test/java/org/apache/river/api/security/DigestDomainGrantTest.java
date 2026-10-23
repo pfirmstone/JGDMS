@@ -44,9 +44,7 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import net.jini.security.Security;
@@ -66,8 +64,9 @@ import tests.support.SecurityCopy;
 
 /**
  * {@link PermissionGrantBuilder#DIGEST_DOMAIN} grants apply to the domains of
- * verified code, identified by location, signers and content digest, belonging
- * to one ClassLoader, whether or not the domain exists yet, and to no other.
+ * the code that one ClassLoader loaded, identified by its
+ * {@code DigestCodeSource}s, whether or not the domain exists yet, and to no
+ * other; the grant lasts as long as the ClassLoader.
  * <p>
  * Needs {@code java.security.DigestCodeSource} (DirtyChai), which is reached 
  * by reflection; on a JDK that does not have the constructors needed the 
@@ -79,10 +78,10 @@ import tests.support.SecurityCopy;
  * {@code DigestDomainGrant} is identified by its class name. What the loaded
  * copy does not have is skipped (an older bundled copy has no
  * {@code DIGEST_DOMAIN}); so are the tests of behaviour that only this
- * module's copy has, and that is going away: a CLASSLOADER grant without a
- * class that applies to every domain, the text of {@code toString}, the
- * non-public constructor of {@code DigestDomainGrant} and serialization. 
- * Those run only when the JDK loads this module's copy.
+ * module's copy has, and that is going away: the text of {@code toString},
+ * the non-public constructor of {@code DigestDomainGrant} and serialization. 
+ * Those run only when the JDK loads this module's copy.  A CLASSLOADER grant
+ * without a class is void in both copies, and is tested on either.
  */
 public class DigestDomainGrantTest {
 
@@ -482,32 +481,79 @@ public class DigestDomainGrantTest {
         assertFalse(g.implies(domain(new CodeSource(jarB, (Certificate[]) null), loader)));
     }
 
-    /** A ClassLoaderGrant that was not given a class applies to all domains. */
+    /**
+     * A CLASSLOADER grant is tied to the ClassLoader of a class and goes with
+     * it. One that was not given a class is in the state of a grant whose
+     * loader is gone: it is void and implies nothing. It never applies to all
+     * domains, and building it does not throw. DirtyChai does the same.
+     */
     @Test
-    public void classLoaderGrantWithoutAClassCoversEveryDomain() throws Exception {
-        SecurityCopy.assumeJgdmsCopy("a CLASSLOADER grant without a class that applies to every domain");
+    public void classLoaderGrantWithoutAClassIsVoid() throws Exception {
+        SecurityCopy.assumeCurrentCopy("a CLASSLOADER grant without a class that is void");
         Principal p = new MyPrincipal("p");
+        Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
+        // Control: the grant of a class is not void and implies the class's domain.
+        PermissionGrant ofA = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).clazz(a).build();
+        assertFalse(ofA.isVoid());
+        assertTrue(ofA.implies(a.getProtectionDomain()));
+        assertTrue(ofA.implies(loader, NONE));
+
         PermissionGrant open = PermissionGrantBuilder.newBuilder().principals(NONE)
                 .permissions(new Permission[]{PERM})
                 .context(PermissionGrantBuilder.CLASSLOADER).build();
         assertTrue(open.isDyanamic());
-        assertFalse(open.isVoid());
+        assertTrue("no class: void", open.isVoid());
         CodeSource cs = new CodeSource(jarA, (Certificate[]) null);
-        assertTrue(open.implies(domain(cs, loader)));
-        assertTrue(open.implies(domain(cs, null)));
+        assertFalse(open.implies(domain(cs, loader)));
+        assertFalse(open.implies(a.getProtectionDomain()));
+        assertFalse("a domain without a ClassLoader", open.implies(domain(cs, null)));
+        assertFalse("no domain", open.implies((ProtectionDomain) null));
         try (Loader other = new Loader(new URL[]{jarB})) {
-            assertTrue(open.implies(domain(cs, other)));
-            assertTrue(open.implies(other, NONE));
+            assertFalse(open.implies(domain(cs, other)));
+            assertFalse(open.implies(other, NONE));
         }
-        assertTrue(open.implies((ClassLoader) null, NONE));
-        assertFalse("a CodeSource has no ClassLoader", open.implies(cs, NONE));
+        assertFalse(open.implies(loader, NONE));
+        assertFalse(open.implies((ClassLoader) null, NONE));
+        // The same with principals: the grant never applies to all domains.
         PermissionGrant forP = PermissionGrantBuilder.newBuilder().principals(new Principal[]{p})
                 .permissions(new Permission[]{PERM})
                 .context(PermissionGrantBuilder.CLASSLOADER).build();
-        assertTrue(forP.implies(domain(cs, loader, p)));
-        assertTrue(forP.implies(loader, new Principal[]{p}));
+        assertTrue(forP.isVoid());
+        assertFalse(forP.implies(domain(cs, loader, p)));
+        assertFalse(forP.implies(loader, new Principal[]{p}));
         assertFalse(forP.implies(domain(cs, loader)));
         assertFalse(forP.implies(loader, NONE));
+        // A class without a ClassLoader (a bootstrap class) is also void.
+        PermissionGrant boot = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).clazz(String.class).build();
+        assertTrue(boot.isVoid());
+        assertFalse(boot.implies(domain(cs, null)));
+        assertFalse(boot.implies((ClassLoader) null, NONE));
+    }
+
+    /**
+     * DynamicPolicyProvider.grant(null, ...) used to grant to all domains. A
+     * grant without a class is void, so nothing is granted, and no exception
+     * is thrown (the same checks as for any grant still apply).
+     */
+    @Test
+    public void dynamicPolicyGrantWithoutAClassGrantsNothing() throws Exception {
+        Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
+        DynamicPolicyProvider policy = new DynamicPolicyProvider(new EmptyPolicy());
+        policy.grant(a, NONE, new Permission[]{PERM}); // control
+        assertTrue(policy.implies(a.getProtectionDomain(), PERM));
+        Permission other = new RuntimePermission("digest.domain.grant.other");
+        policy.grant(null, NONE, new Permission[]{other});
+        policy.grant(null, null, new Permission[]{other});
+        assertFalse(policy.implies(a.getProtectionDomain(), other));
+        assertFalse(policy.implies(domain(new CodeSource(jarOutside, (Certificate[]) null), null), other));
+        assertFalse(policy.implies(null, other));
+        assertEquals(0, policy.getGrants(null, NONE).length);
+        assertFalse(Arrays.asList(policy.getGrants(a, NONE)).contains(other));
+        assertTrue(Arrays.asList(policy.getGrants(a, NONE)).contains(PERM));
     }
 
     /** The grant of a class is dynamic and is not void while its loader is reachable. */
@@ -530,7 +576,11 @@ public class DigestDomainGrantTest {
                 .context(PermissionGrantBuilder.PROTECTIONDOMAIN).clazz(a).build()));
     }
 
-    /** What a grant to all domains and a grant to a class become when serialized. */
+    /**
+     * What a grant without a class and a grant to a class become when
+     * serialized: both are void, and a deserialized grant never applies to all
+     * domains. (Serialization is going away, see the non-conformance list J7.)
+     */
     @Test
     public void classLoaderGrantSerializesThroughItsBuilder() throws Exception {
         SecurityCopy.assumeJgdmsCopy("serialization of a CLASSLOADER grant");
@@ -538,11 +588,13 @@ public class DigestDomainGrantTest {
         PermissionGrant open = PermissionGrantBuilder.newBuilder().principals(NONE)
                 .permissions(new Permission[]{new SerialPermission()})
                 .context(PermissionGrantBuilder.CLASSLOADER).build();
+        assertTrue("control: void before", open.isVoid());
         PermissionGrant back = roundTrip(open);
-        assertFalse(back.isVoid());
+        assertTrue("void after", back.isVoid());
         assertTrue(back.isDyanamic());
-        assertTrue("still applies to all domains", back.implies(domain(
+        assertFalse("does not become a grant to all domains", back.implies(domain(
                 new CodeSource(jarOutside, (Certificate[]) null), loader)));
+        assertFalse(back.implies(a.getProtectionDomain()));
         PermissionGrant ofA = PermissionGrantBuilder.newBuilder().principals(NONE)
                 .permissions(new Permission[]{new SerialPermission()})
                 .context(PermissionGrantBuilder.CLASSLOADER).clazz(a).build();
@@ -607,30 +659,33 @@ public class DigestDomainGrantTest {
         for (java.lang.reflect.Constructor<?> c : Class.forName(
                 "org.apache.river.api.security.DigestDomainGrant").getDeclaredConstructors()) {
             Class<?>[] p = c.getParameterTypes();
-            if (p.length == 6 && p[0] == WeakReference.class && p[1] == WeakReference.class
-                    && p[2] == Set.class && p[3] == List.class) {
+            if (p.length == 4 && p[0] == WeakReference.class && p[1] == List.class) {
                 k = c;
             }
         }
         Assume.assumeNotNull(k);
         k.setAccessible(true);
-        ProtectionDomain pd = new ProtectionDomain(new CodeSource(jarA, (Certificate[]) null), null);
-        WeakReference<ProtectionDomain> domain = new WeakReference<ProtectionDomain>(pd);
         WeakReference<ClassLoader> ref = new WeakReference<ClassLoader>(loader);
-        Set<Object> one = new HashSet<Object>(Arrays.asList(new Object()));
         Permission[] perms = {PERM};
-        assertRefused(NullPointerException.class, "domain", k, null, ref, one, perms);
-        assertRefused(NullPointerException.class, "loader", k, domain, null, one, perms);
-        assertRefused(IllegalArgumentException.class, "no verified identities", k, domain, ref,
-                new HashSet<Object>(), perms);
-        assertRefused(IllegalArgumentException.class, "no verified identities", k, domain, ref, null, perms);
+        List<CodeSource> plain = new ArrayList<CodeSource>(
+                Arrays.asList(new CodeSource(jarA, (Certificate[]) null)));
+        assertRefused(NullPointerException.class, "loader", k, null, plain, perms);
+        assertRefused(IllegalArgumentException.class, "no digest code sources", k, ref,
+                new ArrayList<CodeSource>(), perms);
+        assertRefused(IllegalArgumentException.class, "no digest code sources", k, ref, null, perms);
+        try {
+            k.newInstance(ref, plain, NONE, perms);
+            fail("a CodeSource that is not a DigestCodeSource");
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+        }
     }
 
     private static void assertRefused(Class<? extends Exception> expected, String message,
-            java.lang.reflect.Constructor<?> k, WeakReference<ProtectionDomain> domain,
-            WeakReference<ClassLoader> loader, Set<Object> verified, Permission[] perms) throws Exception {
+            java.lang.reflect.Constructor<?> k, WeakReference<ClassLoader> loader,
+            List<CodeSource> sources, Permission[] perms) throws Exception {
         try {
-            k.newInstance(domain, loader, verified, new ArrayList<CodeSource>(), NONE, perms);
+            k.newInstance(loader, sources, NONE, perms);
             fail("expected " + expected.getName());
         } catch (java.lang.reflect.InvocationTargetException e) {
             assertEquals(expected, e.getCause().getClass());

@@ -50,9 +50,16 @@ public abstract class PermissionGrantBuilder {
    
     /**
      * The PermissionGrant generated will apply to all classes loaded by
-     * the ClassLoader
+     * the ClassLoader of the class passed to {@link #clazz(Class)}.
      * <p>This is the grant for a proxy whose codebase identity is not known
      * to be verified.  Use {@link #DIGEST_DOMAIN} where it is.
+     * <p>The grant is tied to the ClassLoader of that class and is garbage
+     * collected with it: it is void, and implies nothing, once the ClassLoader
+     * is gone.  A grant built without a class, or with a class that has no
+     * ClassLoader (a bootstrap class), is in that same state: it is void, 
+     * {@link PermissionGrant#isVoid()} returns true and it implies no 
+     * ProtectionDomain and no ClassLoader.  It never applies to all domains,
+     * and {@link #build()} does not throw for it.
      */ 
     public static final int CLASSLOADER = 0;
   
@@ -194,21 +201,25 @@ public abstract class PermissionGrantBuilder {
     public static final int DIGEST = 6;
     
     /**
-     * Dynamic grant to the ProtectionDomains of verified code: the class
-     * passed to {@link #clazz(Class)} supplies the ClassLoader, and
-     * {@link #codeSources(CodeSource...)} the identities (location, signers 
-     * and content digest) the code must have.  A ProtectionDomain is implied 
-     * only if it belongs to that ClassLoader, its CodeSource is a digest 
-     * CodeSource whose digest was computed from the code (not asserted by a 
-     * caller), and its identity is one of those supplied.
+     * Dynamic grant to the ProtectionDomains of the code that one ClassLoader
+     * loaded: the class passed to {@link #clazz(Class)} supplies the
+     * ClassLoader, and {@link #codeSources(CodeSource...)} the 
+     * {@code java.security.DigestCodeSource}s it loaded.  The grant lasts only 
+     * as long as the ClassLoader, it is void once it is collected.  A 
+     * ProtectionDomain is implied only if it belongs to that ClassLoader and 
+     * its CodeSource is one of those {@code DigestCodeSource}s, whose digest 
+     * was computed from the code, not asserted by a caller; a ProtectionDomain 
+     * whose CodeSource is not, is not implied.  The grant defines no code 
+     * identity of its own (no signer set or order is compared by it).
      * <p>
      * Building throws {@link IllegalArgumentException} if no class with a
      * ClassLoader was supplied, if there are no code sources, or if any code
-     * source has no SHA-256 digest, so a grant can never be wider than the
-     * identities given.  On a JVM without {@code java.security.DigestCodeSource}
-     * no code source has a digest, so this context cannot be built.
+     * source is not a {@code DigestCodeSource} with a SHA-256 digest, so a 
+     * grant can never be wider than the identities given.  On a JVM without 
+     * {@code java.security.DigestCodeSource} no code source is one, so this 
+     * context cannot be built.
      */
-    public static final int DIGEST_DOMAIN = 7;
+        public static final int DIGEST_DOMAIN = 7;
     
     public static PermissionGrantBuilder newBuilder(){
         return new PermissionGrantBuilderImp();
@@ -246,6 +257,9 @@ public abstract class PermissionGrantBuilder {
      * from the Class for use in the PermissionGrantBuilder.  The ClassLoader
      * and ProtectionDomain are weakly referenced, when collected any 
      * created PermissionGrant affected will be voided.
+     * <p>
+     * A {@link #CLASSLOADER} grant built without a class is void, it does not
+     * apply to all domains.
      * @param cl Class used to determine the ProtectionDomain to be
      * used for PermissionGrant.
      * @return PermissionGrantBuilder.

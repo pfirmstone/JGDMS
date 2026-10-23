@@ -111,7 +111,9 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *    <li> Iterate over loaded classes and call getGrants() on
  *         DynamicPolicyProvider passing null as principals.
  *         Verify that returned array is not null and contains
- *         only dynamic granted permissions.
+ *         only dynamic granted permissions.  For the null class (at the
+ *         top index) the array is empty: the grant made with a null class is
+ *         void, a grant is tied to the class loader of a class.
  *    </li>
  *    <li> Set Policy to created DynamicPolicyProvider.
  *    </li>

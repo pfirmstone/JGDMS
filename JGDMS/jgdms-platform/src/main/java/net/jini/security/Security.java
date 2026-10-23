@@ -976,9 +976,10 @@ public final class Security {
      * provider to grant the specified permissions to all protection domains
      * (including ones not yet created) that are associated with the class
      * loader of the given class and possess at least the principals of the
-     * current subject (if any).  If the given class is <code>null</code>, then
-     * the grant applies across all protection domains that possess at least
-     * the current subject's principals.
+     * current subject (if any).  The grant is tied to that class loader and is
+     * discarded with it.  If the given class is <code>null</code>, then there
+     * is no class loader to tie the grant to: the grant is void and applies to
+     * no protection domain, it never applies across all protection domains.
      * <p>
      * <p>The "current principals" are determined by {@code
      * getCurrentPrincipals()}, which returns the <em>union</em> of principals
@@ -1021,8 +1022,9 @@ public final class Security {
      * The permissions array passed in is neither modified nor retained;
      * subsequent changes to the array have no effect on the grant operation.
      *
-     * @param cl class to grant permissions to the class loader of, or
-     * <code>null</code> if granting across all class loaders
+     * @param cl class to grant permissions to the class loader of; if
+     * <code>null</code> nothing is granted (not a grant across all class
+     * loaders)
      * @param permissions if non-<code>null</code>, permissions to grant
      * @throws UnsupportedOperationException if the installed security policy
      * provider does not support dynamic permission grants, or if
@@ -1047,9 +1049,11 @@ public final class Security {
      * provider to grant the specified permissions to all protection domains
      * (including ones not yet created) that are associated with the class
      * loader of the given class and possess at least the given set of
-     * principals.  If the given class is <code>null</code>, then the grant
-     * applies across all protection domains that possess at least the
-     * specified principals.  If the list of principals is <code>null</code> or
+     * principals.  The grant is tied to that class loader and is discarded with
+     * it.  If the given class is <code>null</code>, then there is no class
+     * loader to tie the grant to: the grant is void and applies to no
+     * protection domain, it never applies across all protection domains.  If
+     * the list of principals is <code>null</code> or
      * empty, then principals are effectively ignored in determining the
      * protection domains to which the grant applies.  
      * <p>
@@ -1067,8 +1071,9 @@ public final class Security {
      * retained; subsequent changes to the arrays have no effect on the grant
      * operation.
      *
-     * @param cl class to grant permissions to the class loader of, or
-     * <code>null</code> if granting across all class loaders
+     * @param cl class to grant permissions to the class loader of; if
+     * <code>null</code> nothing is granted (not a grant across all class
+     * loaders)
      * @param principals if non-<code>null</code>, minimum set of principals to
      * which grants apply
      * @param permissions if non-<code>null</code>, permissions to grant
