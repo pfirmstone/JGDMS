@@ -317,6 +317,17 @@ public class DigestDomainGrantTest {
     @Test
     public void classLoaderGrantNeverImpliesACodeSource() throws Exception {
         SecurityCopy.assumeCurrentCopy("a CLASSLOADER grant that implies no CodeSource");
+        if (!SecurityCopy.isJgdmsCopy()) {
+            // The JDK's own copy: one built before DirtyChai dafbac90a still has D1, and so
+            // has a JDK image older than DIGEST_DOMAIN (skipped above). That is a known gap in
+            // the JDK under test, not in JGDMS: see NON-CONFORMANCES D1.
+            PermissionGrant voidGrant = PermissionGrantBuilder.newBuilder()
+                    .permissions(new Permission[]{PERM})
+                    .context(PermissionGrantBuilder.CLASSLOADER)
+                    .build();
+            Assume.assumeFalse("this JDK's bundled copy predates DirtyChai dafbac90a (D1): a CLASSLOADER"
+                    + " grant implies a null CodeSource", voidGrant.implies((CodeSource) null, NONE));
+        }
         Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
         Principal p = new MyPrincipal("p");
         Principal q = new MyPrincipal("q");

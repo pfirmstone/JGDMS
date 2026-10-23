@@ -114,6 +114,11 @@ now `DigestDomainGrantTest.classLoaderGrantNeverImpliesACodeSource` (public API 
 on the `ed4691471` classes ("without class, grantee []: implies(null, [])") and on this repository's copy with its override replaced by
 `super.implies(codeSource, pal)`; it passes on the `95ef6f96b` classes and on the unmodified copy.
 
+**A JDK built before `dafbac90a` skips the D1 test.** `classLoaderGrantNeverImpliesACodeSource` first probes the JDK's bundled copy; if a void
+CLASSLOADER grant still implies a null CodeSource (D1 present) it is skipped with that reason (found when the maintainer's JDK, newer than the
+image's but older than the fix, failed it: 473 run, 1 failure). It runs and passes on `dafbac90a` and later and on the JGDMS copy. The cost: a
+regression of D1 on a later DirtyChai would skip it, not fail it; the skip message names the commit.
+
 **Commit `95ef6f96b` did not compile as committed.** `ClassLoaderGrant.java` (changed by `dafbac90a`) used `CodeSource` in the new
 override without `import java.security.CodeSource;`. The maintainer fixed that in trunk `29d03fd1c` (2026-10-23). The same 33 classes compiled
 from unmodified `29d03fd1c` are identical to the emulation built earlier from `95ef6f96b` plus the one import, so the results below stand for
