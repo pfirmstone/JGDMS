@@ -170,7 +170,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
         PermissionGrant pe2 = pgb.reset().context(PermissionGrantBuilder.URI)
                 .uri(cs2.getLocation().toString())
                 .principals(new Principal[] { new UnresolvedPrincipal(
-                UnresolvedPrincipal.WILDCARD, UnresolvedPrincipal.WILDCARD) })
+                "*", "*") })
                 .permissions(new Permission[] { sp2 })
                 .build();
         PermissionGrant pe3 = pgb.reset().context(PermissionGrantBuilder.URI)
