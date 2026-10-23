@@ -36,7 +36,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.DynamicPolicyProvider;
-import org.apache.river.api.security.LeasedPermissionGrant;
+import au.net.zeus.jgdms.api.policy.LeasedPermissionGrant;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.junit.After;

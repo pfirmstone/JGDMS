@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.rmi.RemoteException;
 import java.security.Permission;
@@ -27,6 +27,9 @@ import java.util.logging.Logger;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
+import org.apache.river.api.security.RevocablePolicy;
 
 /**
  * A bounded, time-limited, attenuating user&rarr;agent authority delegation:

@@ -43,6 +43,7 @@ import java.util.concurrent.Callable;
 import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import javax.security.auth.x500.X500Principal;
+import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.junit.Assume;
 import org.junit.Test;

@@ -23,9 +23,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.security.policy.DynamicPolicyProvider;
-import org.apache.river.api.security.LeasedPermissionGrant;
-import org.apache.river.api.security.OneShot;
-import org.apache.river.api.security.OneShotLeasedPermissionGrant;
+import au.net.zeus.jgdms.api.policy.LeasedPermissionGrant;
+import au.net.zeus.jgdms.api.policy.OneShot;
+import au.net.zeus.jgdms.api.policy.OneShotLeasedPermissionGrant;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 

@@ -33,7 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.security.auth.Subject;
-import org.apache.river.api.security.UserSubjectSupport;
+import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
 
 /**
  * An {@link ExecutorService} decorator that captures the submitting thread's

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.security.CodeSource;
 import java.security.Permission;
@@ -24,6 +24,8 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.time.Clock;
 import net.jini.core.lease.Lease;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 
 /**
  * Decorator that adds a {@link Lease}-driven dead-man switch to a wrapped

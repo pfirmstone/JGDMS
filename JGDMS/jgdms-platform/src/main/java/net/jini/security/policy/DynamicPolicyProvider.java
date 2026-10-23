@@ -22,7 +22,7 @@ import org.apache.river.api.security.AbstractPolicy;
 import org.apache.river.api.security.ScalableNestedPolicy;
 import org.apache.river.api.security.ConcurrentPolicyFile;
 import org.apache.river.api.security.CachingSecurityManager;
-import org.apache.river.api.security.OneShot;
+import au.net.zeus.jgdms.api.policy.OneShot;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;

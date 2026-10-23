@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
+
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  * Marker for a <em>one-shot</em> {@link PermissionGrant}: authority that must be reported

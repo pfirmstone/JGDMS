@@ -40,7 +40,7 @@ import javax.security.auth.x500.X500Principal;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.export.ServerContext;
 import net.jini.io.context.ClientUserSubject;
-import org.apache.river.api.security.UserSubjectSupport;
+import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
 import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;

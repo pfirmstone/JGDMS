@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.junit.Test;
 import static org.junit.Assert.*;
 

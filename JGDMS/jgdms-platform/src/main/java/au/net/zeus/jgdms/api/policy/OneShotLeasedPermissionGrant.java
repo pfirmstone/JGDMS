@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.time.Clock;
 import net.jini.core.lease.Lease;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  * A {@link LeasedPermissionGrant} that is also {@link OneShot}: a human-gated escalation grant
