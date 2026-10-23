@@ -27,6 +27,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URL;
@@ -41,7 +42,11 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import net.jini.security.Security;
@@ -457,6 +462,150 @@ public class DigestDomainGrantTest {
                 .context(PermissionGrantBuilder.PROTECTIONDOMAIN).clazz(a).build();
         assertTrue(g.implies(a.getProtectionDomain()));
         assertFalse(g.implies(domain(new CodeSource(jarB, (Certificate[]) null), loader)));
+    }
+
+    /** A ClassLoaderGrant that was not given a class applies to all domains. */
+    @Test
+    public void classLoaderGrantWithoutAClassCoversEveryDomain() throws Exception {
+        Principal p = new MyPrincipal("p");
+        PermissionGrant open = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).build();
+        assertTrue(open.isDyanamic());
+        assertFalse(open.isVoid());
+        CodeSource cs = new CodeSource(jarA, (Certificate[]) null);
+        assertTrue(open.implies(domain(cs, loader)));
+        assertTrue(open.implies(domain(cs, null)));
+        try (Loader other = new Loader(new URL[]{jarB})) {
+            assertTrue(open.implies(domain(cs, other)));
+            assertTrue(open.implies(other, NONE));
+        }
+        assertTrue(open.implies((ClassLoader) null, NONE));
+        assertFalse("a CodeSource has no ClassLoader", open.implies(cs, NONE));
+        PermissionGrant forP = PermissionGrantBuilder.newBuilder().principals(new Principal[]{p})
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).build();
+        assertTrue(forP.implies(domain(cs, loader, p)));
+        assertTrue(forP.implies(loader, new Principal[]{p}));
+        assertFalse(forP.implies(domain(cs, loader)));
+        assertFalse(forP.implies(loader, NONE));
+    }
+
+    /** The grant of a class is dynamic and is not void while its loader is reachable. */
+    @Test
+    public void classLoaderGrantToAClassIsDynamicAndNotVoid() throws Exception {
+        Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
+        PermissionGrantBuilder b = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).clazz(a);
+        PermissionGrant g = b.build();
+        assertTrue(g.isDyanamic());
+        assertFalse(g.isVoid());
+        assertEquals("equal to a grant of the same builder state", g, b.build());
+        assertEquals(g.hashCode(), b.build().hashCode());
+        assertTrue(g.impliesEquivalent(b.build()));
+        assertTrue(g.toString().contains("ClassLoader grant."));
+        assertFalse("the loader is not the domain's", g.equals(
+                PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.PROTECTIONDOMAIN).clazz(a).build()));
+    }
+
+    /** What a grant to all domains and a grant to a class become when serialized. */
+    @Test
+    public void classLoaderGrantSerializesThroughItsBuilder() throws Exception {
+        Class<?> a = loader.define(ProxyA.class, new CodeSource(jarA, (Certificate[]) null));
+        PermissionGrant open = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{new SerialPermission()})
+                .context(PermissionGrantBuilder.CLASSLOADER).build();
+        PermissionGrant back = roundTrip(open);
+        assertFalse(back.isVoid());
+        assertTrue(back.isDyanamic());
+        assertTrue("still applies to all domains", back.implies(domain(
+                new CodeSource(jarOutside, (Certificate[]) null), loader)));
+        PermissionGrant ofA = PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{new SerialPermission()})
+                .context(PermissionGrantBuilder.CLASSLOADER).clazz(a).build();
+        assertTrue("control: implied before", ofA.implies(a.getProtectionDomain()));
+        PermissionGrant gone = roundTrip(ofA);
+        assertTrue("a ClassLoader is not serialized", gone.isVoid());
+        assertFalse(gone.implies(a.getProtectionDomain()));
+    }
+
+    private static PermissionGrant roundTrip(PermissionGrant g) throws Exception {
+        ByteArrayOutputStream bo = new ByteArrayOutputStream();
+        try (ObjectOutputStream oo = new ObjectOutputStream(bo)) {
+            oo.writeObject(g);
+        }
+        return (PermissionGrant) new ObjectInputStream(
+                new ByteArrayInputStream(bo.toByteArray())).readObject();
+    }
+
+    @Test
+    public void digestDomainGrantIsDynamicAndEqualToAnotherOfTheSameState() throws Exception {
+        assumeDigest();
+        Class<?> a = loader.define(ProxyA.class, computed(jarA));
+        PermissionGrantBuilder b = PermissionGrantBuilder.newBuilder()
+                .principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .codeSources(expected(jarA))
+                .context(PermissionGrantBuilder.DIGEST_DOMAIN)
+                .clazz(a);
+        PermissionGrant g = b.build();
+        assertTrue(g.isDyanamic());
+        assertFalse(g.isVoid());
+        assertEquals(g, b.build());
+        assertEquals(g.hashCode(), b.build().hashCode());
+        assertTrue(g.impliesEquivalent(b.build()));
+        assertTrue(g.toString().contains("Digest domain grant:"));
+        PermissionGrant other = grantTo(a, new CodeSource[]{expected(jarB)});
+        assertFalse("other identities", g.equals(other));
+        assertFalse("other identities", g.impliesEquivalent(other));
+        assertFalse(g.equals(PermissionGrantBuilder.newBuilder().principals(NONE)
+                .permissions(new Permission[]{PERM})
+                .context(PermissionGrantBuilder.CLASSLOADER).clazz(a).build()));
+    }
+
+    /**
+     * The builder never passes what the constructor refuses, so it is
+     * called directly, by reflection: the class is package-private, and in
+     * java.base when it is patched in.
+     */
+    @Test
+    public void digestDomainGrantRefusesWhatCannotBeVerified() throws Exception {
+        java.lang.reflect.Constructor<?> k = null;
+        for (java.lang.reflect.Constructor<?> c : Class.forName(
+                "org.apache.river.api.security.DigestDomainGrant").getDeclaredConstructors()) {
+            Class<?>[] p = c.getParameterTypes();
+            if (p.length == 6 && p[0] == WeakReference.class && p[1] == WeakReference.class
+                    && p[2] == Set.class && p[3] == List.class) {
+                k = c;
+            }
+        }
+        Assume.assumeNotNull(k);
+        k.setAccessible(true);
+        ProtectionDomain pd = new ProtectionDomain(new CodeSource(jarA, (Certificate[]) null), null);
+        WeakReference<ProtectionDomain> domain = new WeakReference<ProtectionDomain>(pd);
+        WeakReference<ClassLoader> ref = new WeakReference<ClassLoader>(loader);
+        Set<Object> one = new HashSet<Object>(Arrays.asList(new Object()));
+        Permission[] perms = {PERM};
+        assertRefused(NullPointerException.class, "domain", k, null, ref, one, perms);
+        assertRefused(NullPointerException.class, "loader", k, domain, null, one, perms);
+        assertRefused(IllegalArgumentException.class, "no verified identities", k, domain, ref,
+                new HashSet<Object>(), perms);
+        assertRefused(IllegalArgumentException.class, "no verified identities", k, domain, ref, null, perms);
+    }
+
+    private static void assertRefused(Class<? extends Exception> expected, String message,
+            java.lang.reflect.Constructor<?> k, WeakReference<ProtectionDomain> domain,
+            WeakReference<ClassLoader> loader, Set<Object> verified, Permission[] perms) throws Exception {
+        try {
+            k.newInstance(domain, loader, verified, new ArrayList<CodeSource>(), NONE, perms);
+            fail("expected " + expected.getName());
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertEquals(expected, e.getCause().getClass());
+            assertEquals(message, e.getCause().getMessage());
+        }
     }
 
     // ---- helpers -----------------------------------------------------------

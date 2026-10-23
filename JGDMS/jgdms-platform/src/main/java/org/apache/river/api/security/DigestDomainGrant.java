@@ -62,11 +62,12 @@ import java.util.Set;
  * 
  * @since 4.0.0
  */
-class DigestDomainGrant extends ProtectionDomainGrant {
+final class DigestDomainGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
     // The ClassLoader of the granted class, not that of its domain: a
     // java.lang.reflect.Proxy class has the shared all permission domain, 
     // whose loader is null.
+    private final transient WeakReference<ProtectionDomain> domain;
     private final transient WeakReference<ClassLoader> loader;
     private final transient Set<CodeSourceKey> verified;
     private final transient List<CodeSource> sources;
@@ -76,12 +77,13 @@ class DigestDomainGrant extends ProtectionDomainGrant {
     DigestDomainGrant(WeakReference<ProtectionDomain> domain,
             WeakReference<ClassLoader> loader, Set<CodeSourceKey> verified,
             List<CodeSource> sources, Principal[] groups, Permission[] perm) {
-        super(domain, groups, perm);
+        super(groups, perm);
         if (domain == null) throw new NullPointerException("domain");
         if (loader == null) throw new NullPointerException("loader");
         if (verified == null || verified.isEmpty()) {
             throw new IllegalArgumentException("no verified identities");
         }
+        this.domain = domain;
         this.loader = loader;
         this.verified = Collections.unmodifiableSet(verified);
         this.sources = Collections.unmodifiableList(new ArrayList<CodeSource>(sources));
@@ -89,8 +91,16 @@ class DigestDomainGrant extends ProtectionDomainGrant {
         hash = 29 * hash + this.verified.hashCode();
         ClassLoader l = loader.get();
         hash = 29 * hash + (l != null ? System.identityHashCode(l) : 0);
-        hash = 29 * hash + super.hashCode();
+        hash = 29 * hash + domainHash();
         hashCode = hash;
+    }
+
+    // What a ProtectionDomainGrant would contribute to the hash code.
+    private int domainHash() {
+        int hash = 7;
+        hash = 13 * hash + domain.hashCode();
+        hash = 13 * hash + super.hashCode();
+        return hash;
     }
 
     @Override
@@ -101,8 +111,9 @@ class DigestDomainGrant extends ProtectionDomainGrant {
         if (o.getClass() != this.getClass()) return false;
         DigestDomainGrant c = (DigestDomainGrant) o;
         ClassLoader l = loader.get();
+        // The domain references are compared, not their referents.
         return l != null && l == c.loader.get() && super.equals(o) 
-                && verified.equals(c.verified);
+                && domain.equals(c.domain) && verified.equals(c.verified);
     }
 
     @Override
@@ -113,7 +124,14 @@ class DigestDomainGrant extends ProtectionDomainGrant {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder(500);
-        sb.append(super.toString()).append("\nDigest domain grant:");
+        sb.append(super.toString()).append("ProtectionDomain: \n");
+        ProtectionDomain pd = domain.get();
+        if (pd != null) {
+            sb.append(pd.toString());
+        } else {
+            sb.append("Grant is void - ProtectionDomain is null");
+        }
+        sb.append("\nDigest domain grant:");
         for (CodeSourceKey key : verified) {
             sb.append("\n  ").append(key);
         }
@@ -148,7 +166,12 @@ class DigestDomainGrant extends ProtectionDomainGrant {
 
     @Override
     public boolean isVoid() {
-        return super.isVoid() || loader.get() == null;
+        return super.isVoid() || domain.get() == null || loader.get() == null;
+    }
+
+    @Override
+    public boolean isDyanamic() {
+        return true;
     }
 
     @Override
@@ -158,6 +181,8 @@ class DigestDomainGrant extends ProtectionDomainGrant {
         ClassLoader l = loader.get();
         if (l == null || l != other.loader.get()) return false;
         if (!super.impliesEquivalent(grant)) return false;
+        ProtectionDomain dom = domain.get();
+        if (dom == null || !dom.equals(other.domain.get())) return false;
         return verified.equals(other.verified);
     }
 
@@ -165,7 +190,9 @@ class DigestDomainGrant extends ProtectionDomainGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         if (pgb instanceof PermissionGrantBuilderImp) {
-            ((PermissionGrantBuilderImp) pgb).setLoader(loader).setCodeSources(sources);
+            PermissionGrantBuilderImp pgbi = (PermissionGrantBuilderImp) pgb;
+            pgbi.setDomain(domain);
+            pgbi.setLoader(loader).setCodeSources(sources);
         }
         return pgb.context(PermissionGrantBuilder.DIGEST_DOMAIN);
     }

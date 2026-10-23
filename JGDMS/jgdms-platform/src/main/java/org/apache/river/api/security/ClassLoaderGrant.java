@@ -41,8 +41,10 @@ import java.security.ProtectionDomain;
  * @author Peter Firmstone
  * @since 3.0.0
  */
-class ClassLoaderGrant extends ProtectionDomainGrant {
+class ClassLoaderGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
+    // Null for a grant to all domains.
+    private final transient WeakReference<ProtectionDomain> domain;
     private final transient WeakReference<ClassLoader> loader;
     private final int hashCode;
 
@@ -50,10 +52,11 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     ClassLoaderGrant(WeakReference<ProtectionDomain> domain, 
             WeakReference<ClassLoader> loader, Principal[] groups, 
             Permission[] perm){
-        super(domain, groups, perm);
+        super(groups, perm);
+        this.domain = domain;
         this.loader = loader;
         int hash = 7;
-        hash = 19 * hash + super.hashCode();
+        hash = 19 * hash + domainHash();
         ClassLoader l = loader != null ? loader.get() : null;
         hash = 19 * hash + (l != null ? System.identityHashCode(l) : 0);
         hashCode = hash;
@@ -65,12 +68,22 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
         if (o == this) return true;
 	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof ClassLoaderGrant && super.equals(o)){
+            ClassLoaderGrant c = (ClassLoaderGrant) o;
+            // The references are compared, not their referents.
+            if (domain == null || !domain.equals(c.domain)) return false;
             ClassLoader l = loader != null ? loader.get() : null;
-            ClassLoader ol = ((ClassLoaderGrant) o).loader != null 
-                    ? ((ClassLoaderGrant) o).loader.get() : null;
+            ClassLoader ol = c.loader != null ? c.loader.get() : null;
             return l == ol;
         }
         return false;
+    }
+
+    // What a ProtectionDomainGrant would contribute to the hash code.
+    private int domainHash() {
+        int hash = 7;
+        hash = 13 * hash + (domain != null ? domain.hashCode() : 0);
+        hash = 13 * hash + super.hashCode();
+        return hash;
     }
    
     @Override
@@ -80,9 +93,19 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     
     public String toString(){
         StringBuilder sb = new StringBuilder(500);
-        return sb.append(super.toString())
-                 .append("ClassLoader grant.")
-                 .toString();
+        sb.append(super.toString())
+          .append("ProtectionDomain: \n");
+        if (domain != null){
+            ProtectionDomain pd = domain.get();
+            if (pd != null){
+                sb.append(pd.toString());
+            } else {
+                sb.append("Grant is void - ProtectionDomain is null");
+            }
+        } else {
+            sb.append("Grant applies to all ProtectionDomain's");
+        }
+        return sb.append("ClassLoader grant.").toString();
     }
 
     @Override
@@ -114,7 +137,13 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     @Override
     public boolean isVoid() {
         if (super.isVoid()) return true;
-        return domain != null && (loader == null || loader.get() == null);
+        return domain != null && (domain.get() == null 
+                || loader == null || loader.get() == null);
+    }
+
+    @Override
+    public boolean isDyanamic() {
+        return true;
     }
     
     @Override
@@ -131,7 +160,9 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         if (pgb instanceof PermissionGrantBuilderImp) {
-            ((PermissionGrantBuilderImp) pgb).setLoader(loader);
+            PermissionGrantBuilderImp pgbi = (PermissionGrantBuilderImp) pgb;
+            pgbi.setDomain(domain);
+            pgbi.setLoader(loader);
         }
         return pgb.context(PermissionGrantBuilder.CLASSLOADER);
     }
