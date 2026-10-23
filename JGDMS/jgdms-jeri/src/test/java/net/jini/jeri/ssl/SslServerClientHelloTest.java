@@ -1268,4 +1268,258 @@ public class SslServerClientHelloTest {
             }
         }
     }
+
+    /**
+     * A client that answers a HelloRetryRequest with an alert, as one does that
+     * cannot take what the server asks for, has failed a handshake with the
+     * server; it is not a peer that sends bytes that are not TLS.  The reader
+     * of the second ClientHello says so, with an SSLException that the
+     * counters class as a TLS failure, with the ChangeCipherSpec before it or
+     * without.  An alert in place of the first ClientHello, or in the middle of
+     * the message, stays bytes that are not a ClientHello.
+     */
+    @Test
+    public void testAnAlertInPlaceOfTheSecondClientHelloIsATlsFailure() throws Exception {
+        byte[] alert = { 21, 3, 3, 0, 2, 2, 40 };
+        byte[] ccs = { 20, 3, 3, 0, 1, 1 };
+        for (byte[] bytes : new byte[][] { alert, concat(ccs, alert) }) {
+            for (int piece : new int[] { 1, 5, 6, 100 }) {
+                for (boolean viaSource : new boolean[] { false, true }) {
+                    Script script = inPieces(bytes, piece);
+                    script.eof = false;
+                    try {
+                        if (viaSource) {
+                            ClientHelloReader.readAfterRetry(
+                                (b, off, len) -> script.read(ByteBuffer.wrap(b, off, len)));
+                        } else {
+                            ClientHelloReader.readAfterRetry(asStream(script));
+                        }
+                        Assert.fail("an alert was taken for a ClientHello");
+                    } catch (javax.net.ssl.SSLException expected) {
+                        Assert.assertTrue(expected.getMessage(),
+                            expected.getMessage().contains("alert instead of a second ClientHello"));
+                        Assert.assertEquals(HandshakeCounters.Kind.TLS,
+                                            HandshakeCounters.classify(expected));
+                    }
+                }
+            }
+        }
+        /* In place of the first ClientHello it is not TLS that the server takes. */
+        Script first = inPieces(alert, 1000);
+        first.eof = false;
+        try {
+            ClientHelloReader.read(first);
+            Assert.fail();
+        } catch (ClientHelloReader.NotTlsException expected) {
+            Assert.assertEquals(HandshakeCounters.Kind.JUNK,
+                                HandshakeCounters.classify(expected));
+        }
+        /* In the middle of the second ClientHello it is not a part of it. */
+        byte[] hello = message(300, 100);
+        Script middle = inPieces(concat(java.util.Arrays.copyOf(hello, 105), alert), 1000);
+        middle.eof = false;
+        try {
+            ClientHelloReader.readAfterRetry(asStream(middle));
+            Assert.fail();
+        } catch (ClientHelloReader.NotTlsException expected) {
+            Assert.assertEquals(HandshakeCounters.Kind.JUNK,
+                                HandshakeCounters.classify(expected));
+        }
+    }
+
+    /**
+     * A source whose read gives the bytes it was given and then no byte, over
+     * and over, which a read that ought to block does not.  It fails the test
+     * if it is asked a thousand times, so that a reader that spins ends.
+     */
+    private static final class Stuck implements ClientHelloReader.Source {
+        private final byte[] bytes;
+        private int at;
+        int zeros;
+
+        Stuck(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        public int read(byte[] b, int off, int len) {
+            int n = Math.min(len, bytes.length - at);
+            if (n > 0) {
+                System.arraycopy(bytes, at, b, off, n);
+                at += n;
+                return n;
+            }
+            if (++zeros >= 1000) {
+                throw new AssertionError("read again after " + zeros + " reads of no byte");
+            }
+            return 0;
+        }
+    }
+
+    /**
+     * A read that returns no byte, for a request of some, is an error of the
+     * source, whichever of the readers it is, and wherever it comes: it was
+     * read in a loop until the watchdog closed the socket.
+     */
+    @Test(timeout = 60000)
+    public void testAReadOfNoBytesIsAnErrorAtOnce() throws Exception {
+        byte[] hello = message(300, 100);
+        byte[] ccs = { 20, 3, 3, 0, 1, 1 };
+        for (byte[] bytes : new byte[][] { new byte[0], new byte[] { 22, 3, 1 },
+                                           java.util.Arrays.copyOf(hello, 105),
+                                           java.util.Arrays.copyOf(hello, 200) })
+        {
+            for (int reader = 0; reader < 5; reader++) {
+                Stuck stuck = new Stuck(bytes);
+                String what = "reader " + reader + " after " + bytes.length + " bytes";
+                try {
+                    switch (reader) {
+                        case 0:
+                            ClientHelloReader.read((ReadableByteChannel) new ReadableByteChannel() {
+                                public int read(ByteBuffer dst) {
+                                    byte[] b = new byte[dst.remaining()];
+                                    int n = stuck.read(b, 0, b.length);
+                                    dst.put(b, 0, Math.max(n, 0));
+                                    return n;
+                                }
+                                public boolean isOpen() { return true; }
+                                public void close() { }
+                            });
+                            break;
+                        case 1:
+                            ClientHelloReader.read(new InputStream() {
+                                public int read() { throw new AssertionError(); }
+                                public int read(byte[] b, int off, int len) {
+                                    return stuck.read(b, off, len);
+                                }
+                            });
+                            break;
+                        case 2:
+                            ClientHelloReader.readAfterRetry(stuck);
+                            break;
+                        case 3:
+                            ClientHelloReader.readAfterRetry(new InputStream() {
+                                public int read() { throw new AssertionError(); }
+                                public int read(byte[] b, int off, int len) {
+                                    return stuck.read(b, off, len);
+                                }
+                            });
+                            break;
+                        default:
+                            ClientHelloReader.readAfterRetry(new Stuck(concat(ccs, bytes)));
+                            break;
+                    }
+                    Assert.fail("no error for " + what);
+                } catch (ClientHelloReader.NotTlsException e) {
+                    Assert.fail("a read of no byte is not junk: " + what + ": " + e);
+                } catch (EOFException e) {
+                    Assert.fail("a read of no byte is not the end: " + what + ": " + e);
+                } catch (IOException expected) {
+                    Assert.assertTrue(what + ": " + expected.getMessage(),
+                        expected.getMessage().contains("returned no bytes"));
+                    Assert.assertEquals(HandshakeCounters.Kind.IO,
+                                        HandshakeCounters.classify(expected));
+                }
+                if (reader < 4) {
+                    Assert.assertEquals("the read was not repeated: " + what, 1, stuck.zeros);
+                }
+            }
+        }
+    }
+
+    /** What the reader takes as the longest message for what the property says. */
+    @Test
+    public void testTheLongestMessageIsTheJdksOrTheDefault() {
+        Assert.assertEquals(32768, ClientHelloReader.DEFAULT_MAX_MESSAGE);
+        Assert.assertEquals(32768, ClientHelloReader.messageLimit(32768));
+        Assert.assertEquals(1, ClientHelloReader.messageLimit(1));
+        Assert.assertEquals(16384, ClientHelloReader.messageLimit(16384));
+        Assert.assertEquals(65536, ClientHelloReader.messageLimit(65536));
+        int most = ClientHelloReader.MAX_RECORDS * ClientHelloReader.MAX_LENGTH - 4;
+        Assert.assertEquals(most, ClientHelloReader.messageLimit(most));
+        for (int bad : new int[] { 0, -1, -32768, Integer.MIN_VALUE, most + 1,
+                                   (1 << 24) - 1, 1 << 24, Integer.MAX_VALUE })
+        {
+            Assert.assertEquals("default for " + bad, 32768, ClientHelloReader.messageLimit(bad));
+        }
+    }
+
+    /** The class, loaded afresh with the property set to the value, and the longest message it takes. */
+    private static int maxMessageWith(String value) throws Exception {
+        String name = ClientHelloReader.MAX_MESSAGE_PROPERTY;
+        String old = System.getProperty(name);
+        try {
+            if (value == null) {
+                System.clearProperty(name);
+            } else {
+                System.setProperty(name, value);
+            }
+            IsolatedLoader loader = new IsolatedLoader(
+                SslServerClientHelloTest.class.getClassLoader(),
+                java.util.Collections.singleton(ClientHelloReader.class.getName()),
+                ClientHelloReader.class.getProtectionDomain());
+            Class<?> c = Class.forName(ClientHelloReader.class.getName(), true, loader);
+            Assert.assertNotSame(ClientHelloReader.class, c);
+            java.lang.reflect.Field f = c.getDeclaredField("MAX_MESSAGE");
+            f.setAccessible(true);
+            return f.getInt(null);
+        } finally {
+            if (old == null) {
+                System.clearProperty(name);
+            } else {
+                System.setProperty(name, old);
+            }
+        }
+    }
+
+    /**
+     * The longest message follows {@code jdk.tls.maxHandshakeMessageSize}, which
+     * the JDK reads once, and has the default when the property is not set or
+     * is not one that the reader can use.
+     */
+    @Test
+    public void testTheLongestMessageFollowsTheJdkProperty() throws Exception {
+        Assert.assertEquals(32768, maxMessageWith(null));
+        Assert.assertEquals(1000, maxMessageWith("1000"));
+        Assert.assertEquals(65536, maxMessageWith("65536"));
+        Assert.assertEquals(32768, maxMessageWith("0"));
+        Assert.assertEquals(32768, maxMessageWith("-7"));
+        Assert.assertEquals(32768, maxMessageWith("lots"));
+        Assert.assertEquals(32768, maxMessageWith("2147483647"));
+        Assert.assertEquals(32768, maxMessageWith("99999999999"));
+        Assert.assertEquals(32768, maxMessageWith(""));
+    }
+
+    /** The messages at the limit are taken and one byte more is not, for a limit that is set. */
+    @Test
+    public void testAMessageIsRefusedPastTheLimitThatIsSet() throws Exception {
+        String name = ClientHelloReader.MAX_MESSAGE_PROPERTY;
+        String old = System.getProperty(name);
+        try {
+            System.setProperty(name, "1000");
+            IsolatedLoader loader = new IsolatedLoader(
+                SslServerClientHelloTest.class.getClassLoader(),
+                java.util.Collections.singleton(ClientHelloReader.class.getName()),
+                ClientHelloReader.class.getProtectionDomain());
+            Class<?> c = Class.forName(ClientHelloReader.class.getName(), true, loader);
+            java.lang.reflect.Method read = c.getDeclaredMethod("read", ReadableByteChannel.class);
+            read.setAccessible(true);
+            byte[] fits = message(1000, 400);
+            Assert.assertArrayEquals(fits, (byte[]) read.invoke(null, inPieces(fits, 100)));
+            try {
+                read.invoke(null, inPieces(message(1001, 400), 100));
+                Assert.fail("a message of 1001 bytes");
+            } catch (java.lang.reflect.InvocationTargetException refused) {
+                Assert.assertEquals("net.jini.jeri.ssl.ClientHelloReader$NotTlsException",
+                                    refused.getCause().getClass().getName());
+                Assert.assertTrue(refused.getCause().getMessage(),
+                    refused.getCause().getMessage().contains("message of 1001 bytes"));
+            }
+        } finally {
+            if (old == null) {
+                System.clearProperty(name);
+            } else {
+                System.setProperty(name, old);
+            }
+        }
+    }
 }

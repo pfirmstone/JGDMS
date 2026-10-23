@@ -491,6 +491,46 @@ public class SslServerSecondFlightTest {
     }
 
     /**
+     * A client that answers the HelloRetryRequest with an alert, as one does
+     * that cannot take what the server asks for, has failed a handshake with
+     * the server: it is counted as a TLS failure, not as bytes that are not
+     * TLS, on both paths, and holds nothing.
+     */
+    @Test(timeout = 120000)
+    public void testAnAlertInPlaceOfTheSecondClientHelloIsCountedAsATlsFailure()
+        throws Exception
+    {
+        byte[] alert = { 21, 3, 3, 0, 2, 2, 40 };
+        for (boolean socketPath : new boolean[] { false, true }) {
+            try (S0Fixture.Listener l = listen(socketPath)) {
+                S0Fixture.connectLegit(l); // warm up
+                for (byte[] bytes : new byte[][] { alert, concat(CCS, alert) }) {
+                    long junk = l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK);
+                    long tls = l.handle.counters().getFailed(HandshakeCounters.Kind.TLS);
+                    long failed = l.handle.counters().getFailed();
+                    int before = l.recorder.count();
+                    try (S0EngineClient c = new S0EngineClient(l.port, RETRY)) {
+                        c.sendFlight();
+                        c.receiveFlight();
+                        c.send(bytes);
+                        long ms = S0Fixture.awaitClosed(c.socket, 5000);
+                        Assert.assertTrue("closed, socketPath=" + socketPath, ms >= 0);
+                    }
+                    Assert.assertTrue("counted as a TLS failure, socketPath=" + socketPath,
+                        S0Fixture.await(() -> l.handle.counters().getFailed(
+                            HandshakeCounters.Kind.TLS) == tls + 1, 5000));
+                    Assert.assertEquals("not as junk, socketPath=" + socketPath, junk,
+                        l.handle.counters().getFailed(HandshakeCounters.Kind.JUNK));
+                    Assert.assertEquals("one failure, socketPath=" + socketPath, failed + 1,
+                                        l.handle.counters().getFailed());
+                    Assert.assertEquals(before, l.recorder.count());
+                    assertNothingHeld(l, socketPath);
+                }
+            }
+        }
+    }
+
+    /**
      * The engine path reads the second ClientHello from the channel alone and
      * puts it after what its buffer holds, which is nothing when the
      * HelloRetryRequest has been written.  If bytes were there, they would

@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import javax.net.ssl.SSLException;
+import net.jini.security.Security;
+import org.apache.river.action.GetIntegerAction;
 
 /**
  * Reads the whole ClientHello of a connection, before the connection is given
@@ -38,7 +41,8 @@ import java.nio.channels.ReadableByteChannel;
  * one record of it has sent nothing that costs the server anything yet: the
  * work of the key exchange and the signature follows the last byte of it.
  * What a waiting connection holds is its socket, its thread and the bytes of
- * the ClientHello that have arrived, which are at most 32 812 and are
+ * the ClientHello that have arrived, which are at most 32 812 (with the
+ * default {@linkplain #MAX_MESSAGE longest message}) and are
  * allocated as they arrive, not when a record or the message announces its
  * length: nothing of the engine.  The bytes are given to the engine's
  * channel, or to the SSLSocket of a socket that has no channel, when the
@@ -62,7 +66,19 @@ import java.nio.channels.ReadableByteChannel;
  * records are counted by {@link RecordCounter}.
  *
  * <p>The read blocks.  It is ended, as every wait of a handshake is, by the
- * owner closing the raw socket.
+ * owner closing the raw socket.  A read that returns no byte, though it was
+ * asked for some, is an error and not a reason to read again: a source that
+ * does so would be read in a loop until the watchdog closes the socket.
+ *
+ * <p>The longest message is the one that the JDK takes, which the system
+ * property {@code jdk.tls.maxHandshakeMessageSize} sets (default 32768 bytes,
+ * the length of the body of the message, as the JDK measures it, without the
+ * header of 4 bytes).  The property is read once, when this class is
+ * initialized, as the JDK reads it, so that the two agree in a JVM that sets
+ * it; a value that is not a number, that is not positive, or that is more
+ * than the records of {@link #MAX_RECORDS} could carry is not used, and the
+ * default is.  A server that raises it holds that many more bytes for each
+ * connection that waits.
  */
 final class ClientHelloReader {
 
@@ -72,11 +88,22 @@ final class ClientHelloReader {
     /** The largest length of a TLS plaintext record. */
     static final int MAX_LENGTH = 16384;
 
+    /** The system property by which the JDK sets the longest handshake message it takes. */
+    static final String MAX_MESSAGE_PROPERTY = "jdk.tls.maxHandshakeMessageSize";
+
+    /** The default of {@link #MAX_MESSAGE_PROPERTY} in the JDK. */
+    static final int DEFAULT_MAX_MESSAGE = 32768;
+
     /**
-     * The longest handshake message that the JDK takes, which is the default
-     * of {@code jdk.tls.maxHandshakeMessageSize}, without its 4-byte header.
+     * The longest handshake message that the JDK takes, which is the value of
+     * {@code jdk.tls.maxHandshakeMessageSize} (default 32768) as the JDK
+     * measures it, the length that the header of the message gives, without
+     * the 4 bytes of the header.  Read once, when the class is initialized;
+     * see {@link #messageLimit(int)}.
      */
-    static final int MAX_MESSAGE = 32768;
+    static final int MAX_MESSAGE = messageLimit(
+        ((Integer) Security.doPrivileged(
+            new GetIntegerAction(MAX_MESSAGE_PROPERTY, DEFAULT_MAX_MESSAGE))).intValue());
 
     /**
      * The most records that a ClientHello may be split into.  A message of
@@ -87,11 +114,29 @@ final class ClientHelloReader {
      */
     static final int MAX_RECORDS = 8;
 
+    /**
+     * Returns the longest message to use for a configured value of {@code
+     * jdk.tls.maxHandshakeMessageSize}: the value, if it is positive and
+     * the records of {@link #MAX_RECORDS} can carry it, else the default of
+     * the JDK.  (The JDK uses any value, so that one that is not positive
+     * makes it refuse every handshake message, which a server that is asked
+     * to take ClientHellos is not to follow; one that the records cannot
+     * carry is as good as the most they can.)
+     */
+    static int messageLimit(int configured) {
+        return configured >= 1
+            && configured <= MAX_RECORDS * MAX_LENGTH - MESSAGE_HEADER
+            ? configured : DEFAULT_MAX_MESSAGE;
+    }
+
     /** The bytes of the header of a handshake message: type, 3 bytes of length. */
     private static final int MESSAGE_HEADER = 4;
 
     /** The record type of a handshake record. */
     private static final int HANDSHAKE = 22;
+
+    /** The record type of an alert record. */
+    private static final int ALERT = 21;
 
     /** The handshake message type of a ClientHello. */
     private static final int CLIENT_HELLO = 1;
@@ -237,9 +282,11 @@ final class ClientHelloReader {
 
     /**
      * Reads the second ClientHello from a source of bytes, as {@link
-     * #readAfterRetry(InputStream)} does from a stream, for the engine path,
-     * which reads what the connection has sent ahead of it from its own
-     * buffer before the channel.
+     * #readAfterRetry(InputStream)} does from a stream, for the engine path.
+     * The source is the channel alone: this reads only what the source gives
+     * it, and the caller puts the bytes returned after whatever it holds
+     * itself, so that it must hold nothing, and the engine path checks that
+     * it does not before it calls this.
      */
     static byte[] readAfterRetry(Source source) throws IOException {
         return read(source, true);
@@ -247,7 +294,11 @@ final class ClientHelloReader {
 
     /** Where the bytes come from. */
     interface Source {
-        /** Reads at least one and at most {@code len} bytes; -1 at the end. */
+        /**
+         * Reads at least one and at most {@code len} bytes; -1 at the end.  A
+         * result of 0, for a {@code len} of more than 0, is an error of the
+         * source, which the reader does not read again after.
+         */
         int read(byte[] bytes, int off, int len) throws IOException;
     }
 
@@ -275,11 +326,17 @@ final class ClientHelloReader {
                 bytes = java.util.Arrays.copyOf(bytes,
                     Math.min(wanted, bytes.length * 2));
             }
-            int n = source.read(bytes, have, Math.min(wanted, bytes.length) - have);
+            int len = Math.min(wanted, bytes.length) - have;
+            int n = source.read(bytes, have, len);
             if (n < 0) {
                 throw new EOFException(have == 0
                     ? "the peer closed the connection without sending anything"
                     : "the peer closed the connection in its ClientHello");
+            }
+            if (n == 0 && len > 0) {
+                /* Asked for bytes, a blocking read gives one or ends: not a reason to spin. */
+                throw new IOException("the read of the ClientHello returned no bytes"
+                                      + " (" + len + " asked for)");
             }
             have += n;
             if (ccsAllowed && have > start && bytes[start] == CHANGE_CIPHER_SPEC) {
@@ -292,6 +349,18 @@ final class ClientHelloReader {
                 continue;
             }
             ccsAllowed = false;
+            if (changeCipherSpec && records == 0 && have > start
+                && bytes[start] == ALERT)
+            {
+                /*
+                 * The client answers the HelloRetryRequest with an alert, as
+                 * a client that cannot take what it asks for does: a TLS
+                 * failure of the handshake, as the JDK counts it, and not
+                 * bytes that are not TLS.
+                 */
+                throw new SSLException(
+                    "the client sent an alert instead of a second ClientHello");
+            }
             total = check(bytes, start, have, records == 0);
             if (total > 0 && message >= 0 && total - HEADER > message - payload) {
                 throw new NotTlsException("not a ClientHello: a record of "
