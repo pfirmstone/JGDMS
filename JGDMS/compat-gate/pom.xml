@@ -72,6 +72,19 @@
           it always runs.
         -->
         <jgdms.apicompat.skip>false</jgdms.apicompat.skip>
+        <!--
+          The bash executable both gate scripts are run through (see the
+          CreateProcess error=193 note on the serial-schema-gate execution).
+          Defaults to "bash" on PATH, which is right on Linux/macOS and when
+          Git Bash is on the Windows PATH. Otherwise point it at a bash binary,
+          e.g. -Djgdms.bash="C:\Program Files\Git\bin\bash.exe". If it cannot
+          be found the build fails with exec-maven-plugin's "Cannot run program
+          ..." error naming this value; set this property (or fix PATH) to
+          resolve it. No enforcer/antrun pre-check is used: neither is in this
+          build's plugin set, and the exec plugin's error already names the
+          missing executable.
+        -->
+        <jgdms.bash>bash</jgdms.bash>
     </properties>
 
     <!--
@@ -167,7 +180,7 @@
                               Linux: CreateProcess cannot exec a shell script
                               directly (error=193).
                             -->
-                            <executable>bash</executable>
+                            <executable>${jgdms.bash}</executable>
                             <arguments>
                                 <argument>${maven.multiModuleProjectDirectory}/check-serial-schema.sh</argument>
                             </arguments>
@@ -212,8 +225,8 @@
                                 </goals>
                                 <configuration>
                                     <skip>${jgdms.apicompat.skip}</skip>
-                                    <!-- bash-wrapped for Windows; see serial-schema-gate above -->
-                                    <executable>bash</executable>
+                                    <!-- bash-wrapped for Windows; bash path from jgdms.bash, see serial-schema-gate above -->
+                                    <executable>${jgdms.bash}</executable>
                                     <arguments>
                                         <argument>${maven.multiModuleProjectDirectory}/check-api-compat.sh</argument>
                                     </arguments>
