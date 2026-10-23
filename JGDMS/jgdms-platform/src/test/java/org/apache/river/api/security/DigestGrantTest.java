@@ -35,10 +35,12 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import tests.support.MyPrincipal;
+import tests.support.SecurityCopy;
 
 /**
  * Tests for {@link DigestGrant} — equality, hashing, implication, and
- * round-trip serialisation through the builder proxy.
+ * round-trip serialisation through the builder proxy (this module's copy
+ * only: serialization is being removed from the grant classes).
  *
  * <p>Because {@code java.security.DigestCodeSource} is only present in the
  * DirtyChai JDK (not on standard JDK 17/21), the {@link #implies} tests use
@@ -290,6 +292,7 @@ public class DigestGrantTest {
 
     @Test
     public void testSerializationRoundTrip() throws Exception {
+        SecurityCopy.assumeJgdmsCopy("serialization of a DigestGrant");
         System.out.println("testSerializationRoundTrip");
         PermissionGrant serGrant = buildSerializableGrant(DIGEST_A);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -307,6 +310,7 @@ public class DigestGrantTest {
 
     @Test
     public void testSerializationRoundTripDifferentDigest() throws Exception {
+        SecurityCopy.assumeJgdmsCopy("serialization of a DigestGrant");
         System.out.println("testSerializationRoundTripDifferentDigest");
         PermissionGrant serGrant       = buildSerializableGrant(DIGEST_A);
         PermissionGrant serGrantDiffDig = buildSerializableGrant(DIGEST_B);

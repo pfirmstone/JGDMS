@@ -386,7 +386,7 @@ public class BundledCopyConformanceTest {
 
     /**
      * This module's copy, keyed by internal name, from where it was built,
-     * found by a class of the package that is not patched into java.base.
+     * found by a class of the package that is this module's own.
      */
     private static Map<String, byte[]> ownClasses() throws Exception {
         URL location = DefaultPolicyScanner.class.getProtectionDomain().getCodeSource().getLocation();

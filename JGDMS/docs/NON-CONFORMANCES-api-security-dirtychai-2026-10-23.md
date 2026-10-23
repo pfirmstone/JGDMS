@@ -123,6 +123,15 @@ given; it adds `--patch-module=java.base=DIR` and `--add-exports java.base/org.a
 `-Djgdms.conformance.jdkClasses=DIR2` so that `BundledCopyConformanceTest` compares against the classes in `DIR2` (it reads the
 runtime image otherwise, which does not show a patch).
 
+`tests.support.SecurityCopy` tells the tests which copy is loaded, by public API: `PermissionGrantBuilder.class.getClassLoader() != null`
+means this module's copy, and the presence of `PermissionGrantBuilder.DIGEST_DOMAIN` with `codeSources(CodeSource...)` means a copy not
+older than the pinned DirtyChai trunk. Tests of behaviour that only this module's copy has (the null-class CLASSLOADER grant that applies
+to every domain, the `toString` text of `DigestDomainGrant`, its package-private constructor, and every serialization round trip: J7)
+skip themselves when the JDK's copy is loaded; tests of fixes that an older bundled copy lacks (signer checks of `CertificateGrant` and
+`URIGrant` for code without signers, a `PrincipalGrant` that matches a domain without a `CodeSource`, `DIGEST_DOMAIN`) skip themselves
+on such a copy. This module's copies are exercised by running the tests on a JDK that bundles nothing, for example
+`mvn -pl jgdms-platform test -Djvm=/path/to/jdk-21/bin/java`.
+
 ## G. Planned for the future: compile-time stubs instead of copies (maintainer, 2026-10-23)
 
 Not done yet. For now `jgdms-platform` keeps its full copies of the 13 classes it shares with DirtyChai, and its tests run against

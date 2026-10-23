@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import tests.support.DigestCodeSources;
+import tests.support.SecurityCopy;
 
 /**
  * Signer handling of {@link CertificateGrant}, {@link URIGrant} and 
@@ -43,6 +44,11 @@ import tests.support.DigestCodeSources;
  * be the same on DirtyChai and on a stock JDK, except that a stock JDK has no
  * {@code java.security.DigestCodeSource}, so a DigestGrant implies nothing
  * there, it must never throw.
+ * <p>
+ * The tests run against the copy of the grant classes that the JDK loads. An
+ * older bundled copy throws a {@code NullPointerException} for a code source
+ * without signers or implies it for a grant that requires signers, which these
+ * tests of the fixed behaviour skip: see {@link SecurityCopy#assumeCurrentCopy}.
  */
 public class GrantSignerTest {
 
@@ -109,6 +115,7 @@ public class GrantSignerTest {
 
     @Test
     public void signedByUnsignedAndNullCodeSourceNotImplied() {
+        SecurityCopy.assumeCurrentCopy("a signedBy grant that does not imply a code source without signers");
         PermissionGrant g = signedBy(alice);
         // Used to throw NullPointerException from Arrays.asList(null).
         assertFalse(g.implies(new CodeSource(location, (Certificate[]) null), NONE));
@@ -131,6 +138,7 @@ public class GrantSignerTest {
 
     @Test
     public void signedByProtectionDomain() {
+        SecurityCopy.assumeCurrentCopy("a signedBy grant that does not imply a domain without signers");
         PermissionGrant g = signedBy(alice);
         assertTrue(g.implies(domain(new CodeSource(location, new Certificate[]{alice}))));
         assertFalse(g.implies(domain(new CodeSource(location, new Certificate[]{bob}))));
@@ -141,6 +149,7 @@ public class GrantSignerTest {
 
     @Test
     public void codeBaseWithSignedByEnforcesSigner() {
+        SecurityCopy.assumeCurrentCopy("a codeBase and signedBy grant that does not imply unsigned code");
         PermissionGrant g = codeBaseSignedBy("http://localhost/a.jar", alice);
         assertTrue(g.implies(new CodeSource(location, new Certificate[]{alice}), NONE));
         assertFalse("right location, unsigned", 
