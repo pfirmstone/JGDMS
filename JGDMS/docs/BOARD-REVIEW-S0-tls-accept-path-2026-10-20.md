@@ -886,3 +886,77 @@ off; groups as above; failures at FINE, summary every 30-60 s; client expiry jit
 
 ---
 
+## Addendum, 2026-10-23: the cold review of the accept path (Opus seat), and what was fixed
+
+Scope: the diff `5a68c62bb^..16db2238e` (`ClientHelloReader`, `RecordCounter`, `SslEngineChannel`, `HandshakeSocket`,
+`SslServerEndpointImpl`), reviewed cold, with probes, against the code of `16db2238e`. The maintainer approved the fixes
+below. Tests: `SslServerSecondFlightTest`, `SslServerClientHelloTest`, `RecordCounterTest` (new).
+
+### The numbers: kept
+
+* **16 free records and one more for every 256 bytes: kept.** The reviewer measured that a record of 256 wire bytes or more
+  pays for itself and is never refused, however many there are, and that the smallest record a client can negotiate (a
+  maximum fragment length of 512, plus what the cipher adds) is about 534 bytes on the wire, more than twice the bytes a record
+  must carry. The bound only bites a peer whose records are smaller than 256 bytes and which has sent more than 16 of them.
+  Pinned in `RecordCounterTest`, with the real class: records of 256 bytes (and 257, 534, 16406) are accepted 10 000 times
+  over; records of 255 bytes are refused at record 3847 (16 + 3830, the whole 256s in the 980 735 bytes up to the end of that
+  record's header; the reviewer's figure, confirmed by running it and by hand); records of 25 or 23 bytes at record 18; two
+  records of 16406 bytes followed by records of 23 bytes are refused at the 157th tiny record (record 159 in all).
+* **8 records for a ClientHello: kept.** A message of 32 KiB needs three records of the longest size, and the bound is far below
+  what costs the JDK anything (the 190 ms of 32 KiB in records of one byte).
+* **The longest handshake message, 32768: now driven by the property.** `ClientHelloReader.MAX_MESSAGE` was a copy of the
+  default of `jdk.tls.maxHandshakeMessageSize`, which a JVM that raises or lowers it for the JDK left behind. The reader now
+  reads the property once, when the class is initialised, as the JDK does (`Integer.getInteger` semantics, the length of the
+  body of the message without its header of 4 bytes, the comparison `body > max` of `SSLEngineInputRecord` and
+  `SSLSocketInputRecord`). A value that is not a number, is not positive (the JDK would refuse every handshake message), or is
+  more than 8 records of 16384 bytes can carry (131 068) is not used, and 32768 is. A server that raises it holds that many
+  more bytes for each connection that waits for its turn (the 32 812 of the design is for the default).
+
+### Findings fixed
+
+1. **HIGH (the main item). A client that pipelines application data behind its Finished was refused on the engine path.** The
+   engine path counted every byte a read of the channel brought in (`fillNetIn`), so a client that sent Certificate,
+   CertificateVerify and Finished and N records of application data in one write had those N records counted against the
+   handshake: with 20 records of one byte (39 wire bytes each) it was refused as junk ("21 in 1267 bytes"), where the SSLSocket
+   path, which counts what the JDK takes for the handshake, served it (N = 10 and 14 were served on the engine path, 20 and 40
+   refused, all served on the socket path). The records are now counted where the engine consumes them: in
+   `handshakeUnwrap`, one `RecordCounter.count` for each `unwrap` (each unwrap consumes exactly one record), skipping the
+   records of a ClientHello, which have their own reader and bound. The count ends with the handshake, at the unwrap after
+   which the engine reports FINISHED, so that at most the one record that completes the handshake is counted; what the client
+   sent behind it stays in the buffer and is read as application data. The bound itself is not loosened, and a flight in tiny
+   records is still refused before the Finished (`testAClientFlightInTinyRecordsIsRefused`, whose engine-path case fails if the
+   count is removed). Test: `testApplicationRecordsPipelinedBehindTheFinishedAreServed`, 1, 14, 20, 40 and 200 records, both
+   paths, served, no junk counted; it fails on the old code at 20.
+2. **LOW. The Javadoc of `readAfterRetry(Source)` said that the engine path reads what the connection sent ahead from its own
+   buffer first.** It does not: it reads the channel alone and appends the second ClientHello after whatever `netIn` holds
+   (`netIn.put(second)`). That is safe because `netIn` is empty at that point (the first ClientHello was consumed whole, the
+   reader took nothing after it), but nothing said so, and bytes there would have been put in front of the second ClientHello,
+   outside the checks of its reader. The Javadoc is corrected and the engine path fails closed (an `SSLException`, "N bytes of
+   the peer are already buffered ahead of its second ClientHello") if `netIn` is not empty. The test uses the existing seams,
+   `prime` and the gate's `flightWritten`: `testBytesAheadOfTheSecondClientHelloFailTheHandshake`.
+3. **LOW. An alert (record type 21) sent in place of the second ClientHello was counted as "not a TLS handshake record: 21",
+   that is as junk.** A client that cannot take what the server's HelloRetryRequest asks for sends an alert; that is a TLS
+   failure of a handshake, and is now an `SSLException` ("the client sent an alert instead of a second ClientHello"), counted
+   under the existing category "TLS failure", on both paths, with or without the ChangeCipherSpec before it. An alert in place
+   of the first ClientHello, or in the middle of the second, stays junk. No new counter. Tests:
+   `testAnAlertInPlaceOfTheSecondClientHelloIsATlsFailure` (reader) and
+   `testAnAlertInPlaceOfTheSecondClientHelloIsCountedAsATlsFailure` (both paths, counters).
+4. **LOW. A read that returned 0 bytes made `ClientHelloReader.read` spin until the watchdog closed the socket.** A blocking
+   read gives a byte or ends; a source that gives 0 for a request of more than 0 bytes is broken. It is now an `IOException`
+   ("the read of the ClientHello returned no bytes"), counted as an I/O error, for the first and the second ClientHello and for
+   channel, stream and source. Test: `testAReadOfNoBytesIsAnErrorAtOnce`, with a source that returns 0 (and fails the test if
+   it is asked 1000 times).
+5. **INFO. 32768 hardcoded:** see above. Tests: `testTheLongestMessageIsTheJdksOrTheDefault`,
+   `testTheLongestMessageFollowsTheJdkProperty` (the class loaded afresh with the property set) and
+   `testAMessageIsRefusedPastTheLimitThatIsSet`.
+6. **The bound is pinned** in `RecordCounterTest` (above), so that a change to 16, to 256, or to the way the bytes are counted
+   (up to the end of the header of the record being counted) has to change the numbers knowingly.
+
+### Not changed, and not verified
+
+* The SSLSocket path was not changed: it counts the bytes the JDK reads through `HandshakeSocket`'s stream, which are the
+  records of the handshake, since the JDK reads a record at a time and takes nothing behind the Finished.
+* Whether a client can in practice send more than 16 records smaller than 256 bytes in a legitimate handshake is not known
+  beyond the framings tried (the usual sizes, `setMaximumPacketSize` from 44 to 534, the 80-certificate chain); the bound is
+  the reviewer's, the engine now counts the same records the socket path does.
+

@@ -300,7 +300,7 @@ listener do. Facts that the first version of this section had wrong, found by th
   turn it reads, on its own virtual thread, its whole ClientHello: a handshake message that the peer may split over records.
   Every record header is checked as it arrives (handshake record, version 3.x, length 1 to 16384, no other record type in
   between), the first byte of the message must be the type of a ClientHello, the 4-byte message header (which may itself be split
-  over records) gives its length, which must not exceed the 32768 that the JDK takes (`jdk.tls.maxHandshakeMessageSize`), a record
+  over records) gives its length, which must not exceed the 32768 that the JDK takes (`jdk.tls.maxHandshakeMessageSize`; the reader reads the property once, as the JDK does, and falls back to 32768 for a value that is not positive or that 8 records cannot carry), a record
   may not carry more than the message has left, and the message may be in at most 8 records. Records are read whole and nothing
   after the last record of the message is read (the compatibility ChangeCipherSpec of a client that offers early data stays in the
   socket). The buffer is allocated as the bytes arrive (512 bytes to start with, doubling), so a queued connection holds at
@@ -470,8 +470,9 @@ listener do. Facts that the first version of this section had wrong, found by th
 * **Record count (`RecordCounter`).** The ClientHello is read whole, but what the peer sends after the server's first flight is
   encrypted, and a peer that has done its own key exchange can frame it as it likes; the JDK does work for every record that does
   not complete a handshake message and copies what it has of the message. The bytes that follow the ClientHellos are therefore
-  counted by record, on both paths (the engine path where it reads the channel, the SSLSocket path in `HandshakeSocket`'s input
-  stream), by the five-byte headers alone, whatever the records carry: a peer is closed, counted as junk, when it has sent more
+  counted by record, on both paths (the engine path where the engine consumes a record, in `handshakeUnwrap`, one for each
+  `unwrap`, so that application data pipelined behind the client's Finished is never counted; the SSLSocket path in
+  `HandshakeSocket`'s input stream), by the five-byte headers alone, whatever the records carry: a peer is closed, counted as junk, when it has sent more
   than 16 records and one for every 256 bytes. Probe (an SSLEngine client with a certificate chain of 81 certificates, a
   Certificate message of 30 KB, made to send its second flight with `setMaximumPacketSize`, which gives 5100 records of six bytes:
   the JDK does not frame the first record of a message in fewer than five, so records of one byte could not be made without a
