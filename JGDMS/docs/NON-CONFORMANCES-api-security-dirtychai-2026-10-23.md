@@ -42,7 +42,7 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 | J2 | `PrincipalGrant.toString` puts the comma after the last principal and none between (DirtyChai fixed this in `f8520cdaa`). Both forms parse back through JGDMS's lenient parser; only DirtyChai's is standard syntax. | CONFIRMED. | Port the fix, but see P2 (the comment text) first. |
 | J3 | The superclass change in commits `b9cc0212d` (`ClassLoaderGrant` and `DigestDomainGrant` now extend `PrincipalGrant`) re-implemented `ProtectionDomainGrant`'s logic inside the two classes. It removed two API divergences but grew the source diff (`ClassLoaderGrant` from +55/-35 to +86/-36) and hid the semantic gap from the API-level test. | CONFIRMED. | Treat as interim; revisit when the DirtyChai items D1 to D5 are settled. |
 | J4 | `jgdms-platform` compiles with `--release 21`, so DirtyChai-only APIs (`DigestCodeSource`, `CodeSource.getUriLocation()`, `SocketPermission.init()` and the `au.zeus.*` helpers) are invisible, which is why the JGDMS copies reach some of them by reflection. "Identical modulo imports" is therefore not reachable. | CONFIRMED. | A fixed, mechanical adaptation patch is the realistic residue. |
-| J5 | `jgdms-platform`'s surefire run patches a hand-listed set of classes into `java.base` (`-Xbootclasspath/a` for four more). A new dependency of a patched class has to be added by hand, and a project path containing a space would break the argLine. | CONFIRMED (previous test work). | Keep the list in step with the shared classes. |
+| J5 | `jgdms-platform`'s surefire run patched a hand-listed set of classes into `java.base` (`-Xbootclasspath/a` for four more). | CONFIRMED (previous test work). | **DONE (maintainer's decision, 2026-10-23):** that machinery is removed. The tests run against whichever copy the JDK loads and use public (and, for JGDMS-only subclasses, protected) API only; see the note under G. |
 | J6 | Semantic differences between the two copies are not covered by any test. `BundledCopyConformanceTest` compares only public/protected API (empty allow list, 0 API divergences against the emulated trunk). | CONFIRMED. | Add an unpatched execution of the public-API semantic tests with a semantic allow list; add package-private checks and a pinned-commit sync script (no serial-form or cross-copy serialization checks: serialization is being removed, J7) (recommended stages 1 to 3 below). |
 | J7 | Serialization of the grant classes is being removed (maintainer, 2026-10-23, see D3 and D7). The JGDMS copies still support it (`writeReplace`/`readResolve`, `PermissionGrantBuilderImp.writeObject`/`readObject`), and some JGDMS tests assert it: `voidAfterSerialization` and `classLoaderGrantSerializesThroughItsBuilder` in `DigestDomainGrantTest`, plus any round-trip tests of the other grants. | Read from the code and tests. | Make the JGDMS copies throw as DirtyChai's do, delete or invert those tests (a test that serialization is refused), and keep serial-form checks OUT of the semantic conformance work in J6. Check who in the repository (policy service, remote policy admin, `SubProcessLocalPolicyAdmin`, qa) sends a `PermissionGrant` over serialization before removing it. |
 
@@ -106,19 +106,27 @@ checked, all CONFIRMED by reading or running:
 
 `CodeSourceKey` stays in `org.apache.river.api.security` for now. It is package-private and used by four classes that stay and
 are shared with DirtyChai (`DigestDomainGrant`, `DigestGrant`, `PermissionGrantBuilderImp`, `ProtectionDomainGrant`). Moving it
-would make it and four of its members public, and would make those four shared classes depend on a JGDMS-only package. It is also
-in the `security-patch` list of the jgdms-platform surefire configuration (the classes loaded by the boot loader through
-`--patch-module java.base`), and a class of another package cannot simply be added there: that would make the whole package part of
-`java.base`. A later change deals with it.
+would make it and four of its members public, and would make those four shared classes depend on a JGDMS-only package. A later change deals with it.
 
 Still open from this section: whether the River-origin JGDMS-only classes (for example `ConcurrentPolicyFile`,
 `DefaultPolicyParser`, `PolicyUtils`) stay. While any JGDMS class stays in the package it remains split across the boot and app
 loaders.
 
+### Running the jgdms-platform tests (J5 resolved)
+
+The surefire run no longer patches anything into `java.base`. On a JDK that bundles the 13 classes (DirtyChai) the tests run
+against the JDK's copy, on any other JDK against the copies on the class path; they use public API only (protected for the
+JGDMS-only subclasses), and tests of behaviour that only one kind of copy has skip themselves with an `Assume`. To run the tests
+against the classes of a NEWER JDK than the one that runs Maven, optionally, give a directory of class files:
+`mvn -pl jgdms-platform test -Djgdms.dirtychai.patch=DIR` (the `dirtychai-patch` profile in the pom, active only when the property is
+given; it adds `--patch-module=java.base=DIR` and `--add-exports java.base/org.apache.river.api.security=ALL-UNNAMED`). Add
+`-Djgdms.conformance.jdkClasses=DIR2` so that `BundledCopyConformanceTest` compares against the classes in `DIR2` (it reads the
+runtime image otherwise, which does not show a patch).
+
 ## G. Planned for the future: compile-time stubs instead of copies (maintainer, 2026-10-23)
 
-Not done yet. For now `jgdms-platform` keeps its full copies of the 13 classes it shares with DirtyChai, and its tests patch them
-into `java.base` (see J5). The intent of having the classes in JGDMS is that JGDMS compiles on OpenJDK. Stock JDK 21 to 23 is
+Not done yet. For now `jgdms-platform` keeps its full copies of the 13 classes it shares with DirtyChai, and its tests run against
+whichever copy the JDK loads (see J5 and the note below). The intent of having the classes in JGDMS is that JGDMS compiles on OpenJDK. Stock JDK 21 to 23 is
 compile-only: it cannot run this security code safely (no digest support, code identity by name, which can be DNS-spoofed, no
 class-loading gates). OSGi runs on DirtyChai and must use DirtyChai's classes. So the copies are to be replaced by generated,
 signature-only stubs used at compile time only, with DirtyChai's classes the only ones that run.
