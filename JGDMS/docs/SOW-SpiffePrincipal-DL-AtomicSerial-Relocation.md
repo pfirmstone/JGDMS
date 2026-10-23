@@ -171,8 +171,9 @@ Implemented and validated on the DirtyChai JDK:
   compile (vanilla javac).
 
 **Build note:** `qa/src` must be compiled with **vanilla javac** (not DirtyChai's) —
-`SpiffeCredentialManager` uses the non-embedded `org.apache.river.api.security.LocalPrincipalProvider`,
-which DirtyChai's `java.base` shadows (the [[dirtychai-jdk]] embedded-class trap). Same
+`SpiffeCredentialManager` uses the non-embedded `au.net.zeus.jgdms.api.policy.LocalPrincipalProvider`
+(until 2026-10-23 `org.apache.river.api.security.LocalPrincipalProvider`, in a package that
+DirtyChai's `java.base` shadows: the [[dirtychai-jdk]] embedded-class trap). Same
 compile-vanilla / run-DirtyChai split the jgdms build already uses.
 
 **Remaining:** full ant qa-jars build + jtreg run + `run-matching-spiffe.sh` harness run

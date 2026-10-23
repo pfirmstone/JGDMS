@@ -82,3 +82,35 @@ DirtyChai (maintainer). Open points: whether the River-origin JGDMS-only classes
 `DefaultPolicyParser`, `PolicyUtils`) stay, since while any JGDMS class stays in the package it remains split across the boot and
 app loaders; the effect on references (policy files, DER/serializer registries, bnd `-exportcontents` and `packageinfo`, the
 compat-gate ledger, `qa`); and whether the 2026 classes are in the compat-gate baseline at all.
+
+### F. Status (2026-10-23): seven of the eight classes moved
+
+`ExternallyVoidablePermissionGrant`, `LocalPrincipalProvider`, `LeasedDelegation`, `LeasedPermissionGrant`, `OneShot`,
+`OneShotLeasedPermissionGrant` and `UserSubjectSupport` now live in `au.net.zeus.jgdms.api.policy` (module jgdms-platform, beside
+`RemotePolicyProvider`, `RemotePolicyService` and `VerdictPermissionMapper`), moved with `git mv` so their history follows. What was
+checked, all CONFIRMED by reading or running:
+
+- The answer to "whether the 2026 classes are in the compat-gate baseline at all": none of the seven exists in the release 3.1.0
+  jar or at the tag `baseline/pre-ai-agents`, so the gate sees neither a removal nor an addition, and no deprecated forwarding class
+  was left in the old package (a forwarder would keep a JGDMS-only class in the shared package, which is what the move avoids).
+- DirtyChai names none of the seven (its `java.base` copies of the package do not reference them), so the move cannot break it.
+  `JGDMS_COMPATIBILITY.md` in DirtyChai still lists two of them (`ExternallyVoidablePermissionGrant`, `LeasedPermissionGrant`) as
+  JGDMS-only classes of `org.apache.river.api.security`; that prose is the maintainer's to update.
+- None is `Serializable`, none is named in a policy file, serializer registry, `META-INF` list, golden file or module descriptor.
+- They use only public and protected members of the classes that stay (`PermissionGrant`, `PermissionGrantBuilder`,
+  `RevocablePolicy`), and no class that stays uses them. The package-private test seams of the moved classes (the `Clock`
+  constructors and overloads, `UserSubjectSupport.lookupCallAsMulti` and `lookupConstructor`) stay package-private, so the tests
+  that use them moved into the new package.
+- The OSGi export list of jgdms-platform (`bnd.bnd`, `-exportcontents`) now names `au.net.zeus.jgdms.api.policy`; jgdms-jeri and
+  jgdms-pref-class-loader import it.
+
+`CodeSourceKey` stays in `org.apache.river.api.security` for now. It is package-private and used by four classes that stay and
+are shared with DirtyChai (`DigestDomainGrant`, `DigestGrant`, `PermissionGrantBuilderImp`, `ProtectionDomainGrant`). Moving it
+would make it and four of its members public, and would make those four shared classes depend on a JGDMS-only package. It is also
+in the `security-patch` list of the jgdms-platform surefire configuration (the classes loaded by the boot loader through
+`--patch-module java.base`), and a class of another package cannot simply be added there: that would make the whole package part of
+`java.base`. A later change deals with it.
+
+Still open from this section: whether the River-origin JGDMS-only classes (for example `ConcurrentPolicyFile`,
+`DefaultPolicyParser`, `PolicyUtils`) stay. While any JGDMS class stays in the package it remains split across the boot and app
+loaders.

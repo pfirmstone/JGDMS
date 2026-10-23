@@ -84,6 +84,15 @@ instead of being added to or left in the legacy package.
   they break reads of streams written by earlier versions. An intentional break is
   accepted by regenerating the golden from a full build:
   `./check-serial-schema.sh --regenerate`.)
+- **Seen:** 2026-10 — seven JGDMS-only classes moved with no ledger match needed:
+  `ExternallyVoidablePermissionGrant`, `LocalPrincipalProvider`, `LeasedDelegation`,
+  `LeasedPermissionGrant`, `OneShot`, `OneShotLeasedPermissionGrant` and `UserSubjectSupport`
+  (now `au.net.zeus.jgdms.api.policy.*`). They were added after both baselines (release 3.1.0
+  and tag `baseline/pre-ai-agents`; first added 2026-05-14 to 2026-08-18), so the gate sees no
+  removal and no addition, and no forwarding class was left behind. None is `@AtomicSerial` or
+  `Serializable`, so the serial axis is unchanged. `CodeSourceKey` (package-private) stays in
+  `org.apache.river.api.security` for now; see
+  `NON-CONFORMANCES-api-security-dirtychai-2026-10-23.md` section F.
 
 ### Benign (flagged by japicmp, not a real break)
 - `DelegationAbsoluteTime` "field removed" = `private static SoftReference formatterRef`

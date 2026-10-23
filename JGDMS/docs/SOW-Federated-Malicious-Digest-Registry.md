@@ -133,7 +133,7 @@ Pipeline-Standard-v1.3.md`.
   content digest, already shipped.** The registry proposed here is the same key
   shape (SHA-256 digest → identity), inverted in polarity (denylist) and moved
   from code identity to payload-value identity.
-- **`LeasedPermissionGrant`** (`jgdms-platform/.../org/apache/river/api/security/
+- **`LeasedPermissionGrant`** (`jgdms-platform/.../au/net/zeus/jgdms/api/policy/
   LeasedPermissionGrant.java`) — a decorator adding a `net.jini.core.lease.Lease`-
   driven dead-man switch to any `PermissionGrant`: void on `cancel()`, void when
   `clock.millis() >= lease.getExpiration()` (local-clock, fail-secure `>=`), void
