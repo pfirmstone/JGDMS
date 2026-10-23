@@ -105,7 +105,7 @@ the javadoc: principal check only, location ignored, signers enforced.
 **Required:** also escape `\n`, `\r` and `\t` (as the two-character sequences), after the backslash
 and quote escapes, as JGDMS does, so a name containing control characters survives a round trip
 through the policy tokenizer. Do **not** port JGDMS's `SubjectDomain` branch in `getPrincipals`:
-it is JGDMS-only and must stay in JGDMS.
+it was JGDMS-only. (Update 2026-10-23: removed from JGDMS at the maintainer's direction, superseded by the multi-subject work; nothing to port or to keep in sync, and `getPrincipals` is now `pd.getPrincipals()` in both trees.)
 
 ## 5. New `CodeSourceKey` (package-private, final)
 

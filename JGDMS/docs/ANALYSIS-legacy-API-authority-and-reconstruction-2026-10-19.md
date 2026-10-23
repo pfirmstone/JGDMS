@@ -34,7 +34,7 @@ implemented except where marked "done". Branch `claude/focused-bohr-t6bwal`, HEA
 
 **Weaknesses found when the sketch was tested against the code (two independent reviews):**
 - An empty marker domain is bypassed by ordinary code: a constructor needing even a property read calls plain `doPrivileged`, which cuts the stack and drops the marker, so benign code and a gadget look the same. A non-truncatable ceiling barrier with a non-empty ceiling needs a change in the DirtyChai `AccessController` itself (a fork change; possible given compatibility with OpenJDK may be broken).
-- Three incompatible combiners coexist (JDK `SubjectDomainCombiner`, `DistributedSubjectCombiner`, and the domains `RemoteContextCodec` rebuilds from peer-claimed codebases); only one is an intersection. "Run as client" in `BasicInvocationDispatcher` is elevation by combination.
+- Three incompatible combiners coexist (JDK `SubjectDomainCombiner`, `DistributedSubjectCombiner` [removed 2026-10-23, see the note under section 4], and the domains `RemoteContextCodec` rebuilds from peer-claimed codebases); only one is an intersection. "Run as client" in `BasicInvocationDispatcher` is elevation by combination.
 - The combiner the real stack carries can widen domains after the check (time-of-check/time-of-use); build and run construction under the same combiner-free context.
 - A denylist of dangerous permissions fails open (misses file write/execute, sockets, property write, `loadLibrary`, `exitVM`, `modifyThread`, JMX, `GrantPermission`, `DelegationPermission`); use a ceiling allowlist enforced at use, keep the list only as early rejection.
 - A policy granting by class digest can be forged over the wire: `DigestGrant.implies` never looks at the class loader and `RemoteContextCodec.readDigest` builds a digest code source from any bytes the peer sends.
@@ -89,7 +89,7 @@ Each step removes constructs the next would otherwise have to model. Dependents 
 
 1. M1: check the class is a `Permission` before construction, load without initialising (3 callers).
 2. M3/M4: require every remote domain and the principal-only domain to imply the permission; run under exporter ∩ remote, not instead of it; policy lint for codebase-only grants (jeri about 8 files; qa 205 policy files, 138 codebase-only by heuristic; behaviour change for shipped policies).
-3. Remove `Security.doAs`, `doAsPrivileged`, `DistributedSubjectCombiner`; scope the two policy-state mutators.
+3. Remove `Security.doAs`, `doAsPrivileged`, `DistributedSubjectCombiner`; scope the two policy-state mutators. **Done (first half), 2026-10-23:** `Security.doAs` (2 overloads), `Security.doAsPrivileged` (2 overloads), `DistributedSubjectCombiner`, the private `SubjectProtectionDomain` and the public marker interface `org.apache.river.api.security.SubjectDomain` (plus its `instanceof` branch in `PrincipalGrant.getPrincipals`) were removed at the maintainer's direction ("We are implementing better solutions to the problem it attempts to solve"); superseded by the multi-subject work (`JGDMS-STD-003`). A repo-wide search found no callers. Scoping the two policy-state mutators is still open.
 4. M2/B2: build loaders only after `checkLoader`; advisory permissions as unresolved only; `BasicProxyPreparer` must not grant when not verifying (42 main, 125 qa).
 5. Policy-service/verdict-registry: authenticate by default, authorize before parsing, ban `keystore` in remote text.
 6. Remove the two policy providers, `jgdms-iiop`, the jini-2.1-compat copies.

@@ -28,16 +28,13 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.DomainCombiner;
-import java.security.Guard;
 import java.security.Permission;
-import java.security.Permissions;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -56,7 +53,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import javax.security.auth.AuthPermission;
 import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import net.jini.security.policy.DynamicPolicy;
@@ -67,7 +63,6 @@ import au.net.zeus.jgdms.api.policy.LocalPrincipalProvider;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevocablePolicy;
-import org.apache.river.api.security.SubjectDomain;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.logging.Levels;
@@ -762,187 +757,6 @@ public final class Security {
 	});
     }
     
-    private static final Guard authPerm = new AuthPermission("doAsPrivileged");
-    
-    /**
-     * Performs work as a particular Subject in the presence of less privileged code,
-     * for distributed systems.
-     * <p>
-     * In River / Jini, ProtectionDomain's of smart proxy's are used to represent
-     * remote services in the current thread call stack, it is important that
-     * these services are not granted additional privileges over and above that
-     * necessary, when run in a thread of a more privileged user (Subject).
-     * <p>
-     * This method retrieves the current Threads AccessControlContext and
-     * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
-     * implementing {@link org.apache.river.api.security.SubjectDomain}, 
-     * containing the Principals of the Subject, a 
-     * CodeSource with a null URL and null Certificate array, with no
-     * Permission and a null ClassLoader.
-     * <p>
-     * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
-     * they implement {@link org.apache.river.api.security.SubjectDomain}.
-     * <p>
-     * Policy grants to Principals only are implied when run as the Subject, 
-     * combinations of Principal, CodeSource URL and Certificates never imply 
-     * this Subjects Principals as it is treated independently of CodeSource 
-     * policy grants, nor do any such grants imply any of the ProtectionDomains
-     * that represent code on the call stack, since these ProtectionDomains are
-     * never replaced with ProtectionDomains containing the Subject Principals.
-     * <p>
-     * The SubjectDomainCombiner used treats CodeSource and Principal grants
-     * as separate concerns.
-     * <p>
-     * If a policy provider is installed that recognises 
-     * {@link org.apache.river.api.security.SubjectDomain}, then
-     * Subjects who's principals are mutated are effective immediately.
-     * <p>
-     * No AuthPermission is required to call this method, it cannot elevate
-     * privileges, only reduce them to those determined by a policy for a 
-     * particular Subject.
-     * <p>
-     * @param <T> type of object result from PrivilegedAction
-     * @param subject  The Subject the work will be performed as, may be null.
-     * @param action  The code to be run as the Subject.
-     * @return   The value returned by the PrivilegedAction's run() method.
-     * @throws  NullPointerException if action is null;
-     * @since 3.0.0
-     */
-    public static <T> T doAs(final Subject subject,
-			final PrivilegedAction<T> action) {
-        if (action == null) throw new NullPointerException("action was null");
-        AccessControlContext acc = AccessController.getContext();
-        return AccessController.doPrivileged(action, combine(acc, subject));
-    }
-    
-    /**
-     * Performs work as a particular Subject in the presence of less privileged code,
-     * for distributed systems.
-     * <p>
-     * In River / Jini, ProtectionDomain's of smart proxy's are used to represent
-     * remote services in the current thread call stack, it is important that
-     * these services are not granted additional privileges over and above that
-     * necessary, when run in a thread of a more privileged user (Subject).
-     * <p>
-     * This method retrieves the current Thread AccessControlContext and
-     * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
-     * implementing {@link org.apache.river.api.security.SubjectDomain},
-     * containing the Principals of the Subject, a 
-     * CodeSource with a null URL and null Certificate array, with no
-     * Permission and a null ClassLoader.
-     * <p>
-     * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
-     * they implement {@link org.apache.river.api.security.SubjectDomain}.
-     * <p>
-     * Policy grants to Principals only are implied when run as the Subject, 
-     * combinations of Principal, CodeSource URL and Certificate grants never imply 
-     * this Subjects Principals as it is treated independently of CodeSource 
-     * policy grants, nor do any such grants imply any of the ProtectionDomains
-     * that represent code on the call stack, since these ProtectionDomains are
-     * never replaced with ProtectionDomains containing the Subject Principals.
-     * <p>
-     * The SubjectDomainCombiner subclass used treats CodeSource and Principal grants
-     * as separate concerns.
-     * <p>
-     * The SubjectDomainCombiner subclass implementation
-     * is package private and can only be accessed through SubjectDomainCombiner
-     * public methods.
-     * <p>
-     * If a policy provider is installed that recognizes 
-     * {@link org.apache.river.api.security.SubjectDomain}, then
-     * Subjects who's principals are mutated are effective immediately.
-     * <p>
-     * No AuthPermission is required to call this method, it cannot elevate
-     * privileges, only reduce them to those determined by a policy for a 
-     * particular Subject.
-     * <p>
-     * @param <T> type of object result from PrivilegedExceptionAction
-     * @param subject  The Subject the work will be performed as, may be null.
-     * @param action  The code to be run as the Subject.
-     * @return   The value returned by the PrivilegedAction's run() method.
-     * @throws  NullPointerException if action is null;
-     * @throws PrivilegedActionException if the specified action's run method
-     * throws a check exception.
-     * @since 3.0.0
-     */
-    public static <T> T doAs(final Subject subject,
-			final PrivilegedExceptionAction<T> action)
-			throws PrivilegedActionException {
-        if (action == null) throw new NullPointerException("action was null");
-        AccessControlContext acc = AccessController.getContext();
-        return AccessController.doPrivileged(action, combine(acc, subject));
-    }
-    
-    /**
-     * Perform work as a particular Subject in the presence of untrusted code
-     * for distributed systems.
-     * 
-     * This method behaves exactly as Security.doAs, except that instead of
-     * retrieving the current Threads <code>AccessControlContext</code>, 
-     * it uses the provided <code>SecurityContext</code>. If the provided 
-     * <code>SecurityContext</code> is null this method instantiates a new
-     * <code>AccessControlContext</code> with an empty array of ProtectionDomains.
-     * 
-     * Unlike Security.doAs which doesn't require any privileges, this method 
-     * requires the same Permission as Subject.doAsPrivileged to execute.
-     * 
-     * @param <T> type of object result from PrivilegedAction
-     * @param subject  The Subject the work will be performed as, may be null.
-     * @param action  The code to be run as the Subject.
-     * @param context  The SecurityContext to be tied to the specific action
-     * and subject.
-     * @return   The value returned by the PrivilegedAction's run() method.
-     * @throws NullPointerException  if the specified PrivilegedExceptionAction 
-     * is null.
-     * @throws SecurityException  if the caller doesn't have permission to call
-     * this method.
-     */
-    public static <T> T doAsPrivileged(final Subject subject,
-			final java.security.PrivilegedAction<T> action,
-			final SecurityContext context) {
-        if (action == null) throw new NullPointerException("action was null");
-        authPerm.checkGuard(null);
-        AccessControlContext acc = context != null ? context.getAccessControlContext() : null;
-        PrivilegedAction<T> act = context != null ? context.wrap(action) : action;
-        return AccessController.doPrivileged(act, combine(acc, subject));
-    }
-    
-     /**
-     * Perform work as a particular Subject in the presence of untrusted code
-     * for distributed systems.
-     * 
-     * This method behaves exactly as Security.doAs, except that instead of
-     * retrieving the current Threads <code>AccessControlContext</code>, 
-     * it uses the provided <code>SecurityContext</code>.  If the provided 
-     * <code>SecurityContext</code> is null this method instantiates a new
-     * <code>AccessControlContext</code> with an empty array of ProtectionDomains.
-     * 
-     * Unlike Security.doAs which doesn't require any privileges, this method 
-     * requires the same Permission as Subject.doAsPrivileged to execute.
-     * 
-     * @param <T> type of object result from PrivilegedExceptionAction
-     * @param subject  The Subject the work will be performed as, may be null.
-     * @param action  The code to be run as the Subject.
-     * @param context  The SecurityContext to be tied to the specific action
-     * and subject.
-     * @return   The value returned by the PrivilegedAction's run() method.
-     * @throws NullPointerException  if the specified PrivilegedExceptionAction 
-     * is null.
-     * @throws SecurityException  if the caller doesn't have permission to call
-     * this method.
-     * @throws PrivilegedActionException  if the PrivilegedActionException.run
-     * method throws a checked exception.
-     */
-    public static <T> T doAsPrivileged(final Subject subject,
-			final java.security.PrivilegedExceptionAction<T> action,
-			final SecurityContext context) throws PrivilegedActionException {
-        if (action == null) throw new NullPointerException("action was null");
-        authPerm.checkGuard(null);
-        AccessControlContext acc = context != null ? context.getAccessControlContext() : null;
-        PrivilegedExceptionAction<T> act = context != null ? context.wrap(action) : action;
-        return AccessController.doPrivileged(act, combine(acc, subject));
-    }
-    
     public static Runnable withContext(Runnable runnable,
 				       AccessControlContext context)
     {
@@ -1073,19 +887,6 @@ public final class Security {
 	
     }
     
-    
-    private static AccessControlContext combine(final AccessControlContext acc, final Subject subject){
-        return AccessController.doPrivileged(new PrivilegedAction<AccessControlContext>(){
-
-            @Override
-            public AccessControlContext run() {
-                AccessControlContext context = acc != null ? acc : create(new ProtectionDomain[0]);
-                if (subject == null) return context;
-                return create(context, new DistributedSubjectCombiner(subject));
-            }
-            
-        });
-    }
     
     /**
      * Creates privileged context that contains the protection domain of the
@@ -1866,117 +1667,4 @@ public final class Security {
             return getAccessControlContext().equals(that.getAccessControlContext());
         }
     }
-    
-    /**
-     * Extends and overrides SubjectDomainCombiner, to allow less privileged code
-     * to run as a Subject, without injecting Principals into the ProtectionDomain
-     * of less privileged code, this allows proxy ProtectionDomain's to 
-     * represent their services domain, without attaining the privileges
-     * of local Principals.
-     * 
-     * @since 3.0.0
-     */
-    private static class DistributedSubjectCombiner extends SubjectDomainCombiner {
-        
-        private final Subject subject;
-    
-        private DistributedSubjectCombiner(Subject subject){
-            super(subject);
-            // Don't throw exception in constructor, check subject before calling constructor.
-//            if (subject == null) throw new NullPointerException("subject cannot be null");
-            this.subject = subject;
-        }
-        
-        /**
-         * Prepends one new SubjectDomain containing the Subject and Subject's 
-         * Principals with a CodeSource that has a null URL and no signer
-         * Certificates.  Combines the current and assigned domains, 
-         * removing any duplicates and any existing SubjectDomain.
-         * A new array is returned.
-         * 
-         * @param currentDomains  the ProtectionDomains associated with the 
-         * current execution Thread, up to the most recent privileged 
-         * ProtectionDomain. The ProtectionDomains are are listed in 
-         * order of execution, with the most recently executing 
-         * ProtectionDomain residing at the beginning of the array. 
-         * This parameter may be null if the current execution Thread has no 
-         * associated ProtectionDomains.
-         * @param assignedDomains  an array of inherited ProtectionDomains. 
-         * ProtectionDomains may be inherited from a parent Thread, 
-         * or from a privileged AccessControlContext.
-         * This parameter may be null if there are no inherited ProtectionDomains.
-         * @return  a new array containing current and assigned domains with
-         * a new SubjectDomain prepended.
-         */
-        @Override
-        public ProtectionDomain[] combine(ProtectionDomain[] currentDomains,
-				ProtectionDomain[] assignedDomains) {
-            Set<ProtectionDomain> result = 
-                    new LinkedHashSet<ProtectionDomain>(currentDomains.length + assignedDomains.length + 1);
-            result.add(new SubjectProtectionDomain(subject));
-            int l = currentDomains.length;
-            for ( int i = 0; i < l; i++ ){
-                if (currentDomains[i] == null || currentDomains[i] instanceof SubjectDomain) continue;
-                result.add(currentDomains[i]);
-            }
-            l = assignedDomains.length;
-            for ( int i = 0; i < l; i++ ){
-                if (assignedDomains[i] == null || assignedDomains[i] instanceof SubjectDomain) continue;
-                result.add(assignedDomains[i]);
-            }
-            return result.toArray(new ProtectionDomain[result.size()]);
-        }
-    }
-    
-    /**
-     * A ProtectionDomain containing a Subject and CodeSource with a null URL,
-     * with a supporting policy provider installed, a Subject's Principals will 
-     * always be up to date.
-     */
-    private static class SubjectProtectionDomain extends ProtectionDomain
-            implements SubjectDomain {
-        private final static CodeSource nullCS = new CodeSource(null, (Certificate[]) null);
-        private final Subject subject;
-        
-        /** 
-         * Visibility of Subject and it's principal set is guaranteed by final 
-         * reference and safe construction of this object. 
-         */
-        private SubjectProtectionDomain(Subject subject){
-            super(nullCS, new Permissions(), null, toArray(subject.getPrincipals()));
-            this.subject = subject;
-        }
-	
-	private static Principal [] toArray(Set<Principal> pals){
-	    if (pals == null) return null;
-	    return pals.toArray(new Principal[pals.size()]);
-	}
-
-        @Override
-        public int hashCode() {
-            int hash = 5;
-            hash = 67 * hash + (this.subject != null ? this.subject.hashCode() : 0);
-            return hash;
-        }
-        
-        /**
-         * Implement equals to allow efficient caching of AccessControlContext.
-         * 
-         */
-        @Override
-        public boolean equals(Object o){
-            if (!(o instanceof SubjectProtectionDomain)) return false;
-            if (this == o) return true;
-            SubjectProtectionDomain other = (SubjectProtectionDomain) o;
-            if (nullCS != getCodeSource()) return false;
-            return (subject == other.subject);
-        }
-        
-        @Override
-        public Subject getSubject(){
-            return subject;
-        }
-        
-    }
-    
 }

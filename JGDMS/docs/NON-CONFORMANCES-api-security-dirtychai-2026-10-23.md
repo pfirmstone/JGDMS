@@ -30,7 +30,7 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 | D3 | Deserializing a DIGEST_DOMAIN grant throws in DirtyChai (`readResolve` no longer returns the null grant; `build()` throws `IllegalArgumentException("ClassLoader must not be null")`). JGDMS returns the void grant. | Read from the code; NOT run on DirtyChai. | **INTENDED (maintainer, 2026-10-23): serialization support is being removed from these classes because it is not good security practice, and making it throw was easier than implementing it. No DirtyChai change. See J7 for the JGDMS side.** |
 | D4 | `ClassLoaderGrant.impliesEquivalent`: JGDMS compares loaders only; DirtyChai also requires equal principals and non-null loaders (stricter). `equals`/`hashCode` differ (JGDMS includes the domain reference by identity; DirtyChai compares loader, principals, permissions and, for digest grants, the sources). | Read from the code. | Decide which is intended. |
 | D5 | DIGEST_DOMAIN rules: DirtyChai requires `DigestCodeSource` instances and compares signers IN ORDER; JGDMS requires `clazz()`, compares signers as a SET, and matches via `CodeSourceKey` including `isVerifiedDigest`. | Read from the code. | Decide whether signer order is part of identity. |
-| D6 | `SubjectDomain` (live principals) is not visible to DirtyChai's bundled `PrincipalGrant`, which cannot see that app-loaded class, so JGDMS's live-principal support is lost on DirtyChai. | CONFIRMED by class-loading probe (`BuiltinClassLoader.loadClassOrNull` special-cases this package: java.base first, then the class path). | Move the `SubjectDomain` interface into java.base, or accept snapshot principals. |
+| D6 | `SubjectDomain` (live principals) is not visible to DirtyChai's bundled `PrincipalGrant`, which cannot see that app-loaded class, so JGDMS's live-principal support is lost on DirtyChai. | CONFIRMED by class-loading probe (`BuiltinClassLoader.loadClassOrNull` special-cases this package: java.base first, then the class path). | **RESOLVED by removal (maintainer, 2026-10-23): `SubjectDomain` was removed ("We are implementing better solutions to the problem it attempts to solve"); superseded by the multi-subject work (`JGDMS-STD-003`). No `java.base` interface is needed and nothing is lost on DirtyChai: JGDMS's `PrincipalGrant.getPrincipals` now reads `pd.getPrincipals()` only, as DirtyChai's does. Removed with it: `Security.doAs` and `Security.doAsPrivileged` (two overloads each; no callers anywhere in the repository) and the private `DistributedSubjectCombiner` and `SubjectProtectionDomain`. Accepted break, ledger category G.** |
 | D7 | `java.security.Permission` in DirtyChai is not `Serializable`, so `PermissionGrantBuilderImp.writeObject` cannot serialise any ordinary JDK permission: `NotSerializableException`. | CONFIRMED by the maintainer's test run. | **INTENDED (maintainer, 2026-10-23): same decision as D3, serialization is being removed.** The JGDMS test that needed a test-local serialisable permission documents a behaviour that is going away (J7). |
 | D8 | `clazz()` state: DirtyChai resets domain, loader and `hasDomain` on every call; JGDMS keeps the previous state on `clazz(null)`. | CONFIRMED. DirtyChai behaviour is the better one (see J1). | JGDMS adopts DirtyChai's. |
 
@@ -51,7 +51,7 @@ These matter because on DirtyChai the JDK's copy is what runs (the JGDMS copy of
 1. Is the void null-class CLASSLOADER grant in DirtyChai trunk intended (D2)?
 2. Will `ClassLoaderGrant.implies(CodeSource, Principal[])` be fixed in DirtyChai (D1)?
 3. Does signer order matter for digest identity (D5)?
-4. `SubjectDomain` into java.base, or drop live principals (D6)?
+4. ~~`SubjectDomain` into java.base, or drop live principals (D6)?~~ Decided 2026-10-23: removed, no `java.base` interface (see D6).
 5. Are stock-JDK and OSGi support kept for these classes?
 6. What is the conclusion on P2 and P3, and how will P1 be rewritten?
 7. When is serialization removed on the JGDMS side (J7), and does anything still send a `PermissionGrant` over the wire?
@@ -103,6 +103,10 @@ checked, all CONFIRMED by reading or running:
   that use them moved into the new package.
 - The OSGi export list of jgdms-platform (`bnd.bnd`, `-exportcontents`) now names `au.net.zeus.jgdms.api.policy`; jgdms-jeri and
   jgdms-pref-class-loader import it.
+
+`SubjectDomain` (public marker interface, `org.apache.river.api.security`) was the one JGDMS-only public type in the package that was
+not moved: it was removed instead on 2026-10-23, at the maintainer's direction, together with its only implementation and users
+(see D6), so it no longer appears in the package layout. `PrincipalGrant` therefore has no JGDMS-only branch left in `getPrincipals`.
 
 `CodeSourceKey` stays in `org.apache.river.api.security` for now. It is package-private and used by four classes that stay and
 are shared with DirtyChai (`DigestDomainGrant`, `DigestGrant`, `PermissionGrantBuilderImp`, `ProtectionDomainGrant`). Moving it

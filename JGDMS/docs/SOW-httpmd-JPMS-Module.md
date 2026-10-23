@@ -64,7 +64,7 @@ split). The problem is its dependencies. Audit result:
     verifier, not its caller).
   - `org.apache.river.logging.{LogManager, Levels}` — trivial.
 - **`net.jini.security.Security` imports the split package `org.apache.river.api.security`**
-  (`PermissionGrant`, `PermissionGrantBuilder`, `RevocablePolicy`, `SubjectDomain`, …),
+  (`PermissionGrant`, `PermissionGrantBuilder`, `RevocablePolicy`, `SubjectDomain` [removed 2026-10-23], …),
   so it is **not** cleanly extractable, and `jgdms-platform` (which owns both
   `net.jini.security` and the split `org.apache.river.api.security`) is **not
   modularisable** — a module cannot `requires jgdms-platform` on the module path without

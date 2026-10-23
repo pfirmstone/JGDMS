@@ -150,6 +150,11 @@ action performed a permission check. Every JGDMS `doAsPrivileged(…, null)` cal
 DestroySharedGroup, ServiceStarter, AbstractActivationGroup, Activation) was affected. Surefire did
 not catch it (no SM installed there); it only surfaced under jtreg with a real SM.
 
+> Note (2026-10-23): the call sites named above use `javax.security.auth.Subject.doAsPrivileged`, not the
+> JGDMS `net.jini.security.Security.doAsPrivileged`/`doAs` overloads, which were removed on 2026-10-23
+> at the maintainer's direction (they had no callers; superseded by the multi-subject work). This bug
+> and its fix are unaffected.
+
 ### Fix applied in DirtyChai
 Guard the shortcut with a length check (stricter than upstream's own `assigned != null` test,
 which would still miss a non-null but empty array):

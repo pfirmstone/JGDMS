@@ -94,6 +94,27 @@ instead of being added to or left in the legacy package.
   `org.apache.river.api.security` for now; see
   `NON-CONFORMANCES-api-security-dirtychai-2026-10-23.md` section F.
 
+### G — `SubjectDomain` feature removal *(deliberate, maintainer's decision)*
+Removed 2026-10-23 at the maintainer's direction ("We are implementing better solutions to the
+problem it attempts to solve. Yes remove it."); superseded by the multi-subject work
+(`JGDMS-STD-003-MultiSubjectIdentityArchitecture-v3.md`). The feature was a marker interface
+pushed onto the `AccessControlContext` by `Security.doAs`/`doAsPrivileged` through a private
+combiner; it had no callers anywhere in the repository (main, tests, qa, benchmarks).
+- **Match:** `REMOVED INTERFACE: org.apache.river.api.security.SubjectDomain`; `net.jini.security.Security`
+  `REMOVED METHOD` `doAs(Subject, PrivilegedAction)`, `doAs(Subject, PrivilegedExceptionAction)`,
+  `doAsPrivileged(Subject, PrivilegedAction, SecurityContext)`,
+  `doAsPrivileged(Subject, PrivilegedExceptionAction, SecurityContext)`. `classify_breaks.py` accepts the
+  `Security` block only if **every** breaking member line is one of those removed methods (the
+  class-file-version line is ignored), so any other break in `Security` still falls through to the other
+  categories or to UNCLASSIFIED. The branch sits before category A because A's generic `(not serializable)`
+  header match would otherwise absorb these under the wrong label.
+- **Seen:** `org.apache.river.api.security.SubjectDomain`, `net.jini.security.Security` (against both
+  3.1.0 and `baseline/pre-ai-agents`, which carry them). The private `Security$DistributedSubjectCombiner`
+  and `Security$SubjectProtectionDomain` are not public API and do not appear. `PrincipalGrant` is
+  package-private; its `instanceof SubjectDomain` branch is gone, so principals come from
+  `ProtectionDomain.getPrincipals()` only. Serial axis: none of these types is `Serializable` or
+  `@AtomicSerial`, so nothing changes there. Not touched: the JDK class `javax.security.auth.SubjectDomainCombiner`.
+
 ### Benign (flagged by japicmp, not a real break)
 - `DelegationAbsoluteTime` "field removed" = `private static SoftReference formatterRef`
   (impl detail; public serial form intact).
@@ -102,7 +123,7 @@ instead of being added to or left in the legacy package.
 
 ```
 japicmp -a public -b  (binary-incompatible, public API)
-  → classify each change against A–E
+  → classify each change against A–G
   → FAIL the build only on changes matching NONE
      (UNCLASSIFIED = candidate accidental break → adjudicate or fix)
 ```
