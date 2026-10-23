@@ -114,11 +114,10 @@ now `DigestDomainGrantTest.classLoaderGrantNeverImpliesACodeSource` (public API 
 on the `ed4691471` classes ("without class, grantee []: implies(null, [])") and on this repository's copy with its override replaced by
 `super.implies(codeSource, pal)`; it passes on the `95ef6f96b` classes and on the unmodified copy.
 
-**Commit `95ef6f96b` does not compile as committed.** `ClassLoaderGrant.java` (changed by `dafbac90a`) uses `CodeSource` in the new
-override without `import java.security.CodeSource;` (javac: "cannot find symbol class CodeSource", then an "ambiguous" and a "name
-clash" error that follow from it). The other 12 files of the package and the support classes compile. The emulation was built
-from a copy of `ClassLoaderGrant.java` held outside both repositories with that one import added (DirtyChai was not touched); the
-fix belongs in DirtyChai, and probably is in the maintainer's working tree and was left out of the commit.
+**Commit `95ef6f96b` did not compile as committed.** `ClassLoaderGrant.java` (changed by `dafbac90a`) used `CodeSource` in the new
+override without `import java.security.CodeSource;`. The maintainer fixed that in trunk `29d03fd1c` (2026-10-23). The same 33 classes compiled
+from unmodified `29d03fd1c` are identical to the emulation built earlier from `95ef6f96b` plus the one import, so the results below stand for
+`29d03fd1c` without a re-run.
 
 ### D5 inventory and what was done (2026-10-23)
 
@@ -168,7 +167,7 @@ guard and `equals` also fail closed for a plain CodeSource (redundant guards).
 
 ## E. Recommended path (from the analysis; "vendor and patch", DirtyChai as upstream)
 
-1. Pin the DirtyChai commit (`95ef6f96b` at the last refresh, 2026-10-23; `ed4691471` at the time of the analysis) and add the sync script in report-only mode.
+1. Pin the DirtyChai commit (`29d03fd1c` at the last refresh, 2026-10-23; `ed4691471` at the time of the analysis) and add the sync script in report-only mode.
 2. Port DirtyChai's human-written fixes into JGDMS (`toString`, the `clazz()` reset, naming, Javadoc), guarded by new
    round-trip and builder-reuse tests.
 3. Add the unpatched semantic test execution with a semantic allow list.
@@ -248,8 +247,8 @@ on such a copy. Emulating the trunk (refreshed 2026-10-23 at DirtyChai `95ef6f96
 `--patch-module java.base=<dirtychai>/src/java.base/share/classes -implicit:none -d OUT` over the 13 sources of
 `org/apache/river/api/security`, `au/zeus/jdk/authorization/policy/{CodeSourceKey,PolicyUtils}`, `java/security/{DigestCodeSource,CodeSource}`,
 `sun/security/provider/InternalDigests` and `au/zeus/jdk/net/{Uri,UriParser,URIEncoderDecoder}` (33 class files; the image is older
-than the trunk and lacks some of them). At `95ef6f96b` `ClassLoaderGrant.java` needs its missing `CodeSource` import (see "D1 observed
-and fixed"), supplied from an outside copy placed first in the patch path (`--patch-module java.base=OVERLAY:<dirtychai>/...`).
+than the trunk and lacks some of them). At `95ef6f96b` `ClassLoaderGrant.java` lacked its `CodeSource` import (fixed in `29d03fd1c`, see "D1 observed
+and fixed"); from `29d03fd1c` on no overlay is needed.
 Then `JAVA_HOME=/opt/dirtychai/jdk-27 mvn -o -pl jgdms-platform test -Djgdms.dirtychai.patch=OUT -Djgdms.conformance.jdkClasses=OUT`.
 Result on `95ef6f96b`: 473 tests, 2 failures, 10 skipped, `BundledCopyConformanceTest` 15 classes compared, 0 divergences. The two
 failures are the same as on `ed4691471` (`CombinerDebugRecursionTest.combinerDebugDoesNotRecurseOrLeakPrivateCredentials` and
