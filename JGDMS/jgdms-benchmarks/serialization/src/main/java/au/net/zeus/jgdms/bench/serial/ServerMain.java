@@ -37,7 +37,8 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
  * service and writes each proxy or stub, JDK-serialized, to {@code <directory>/JOSS.proxy},
  * {@code DER.proxy} and {@code rmi.proxy} (each written whole before it appears, so a reader that
  * sees the file may read it). It then prints {@code ready} and runs until its standard input
- * closes, so killing or losing the parent stops it. A benchmark JVM started with
+ * closes, so killing or losing the parent stops it ({@code -Dbench.server.keepalive=true} runs it until
+ * the process is stopped instead, for a server started by hand in its own window). A benchmark JVM started with
  * {@code -Dbench.proxy.JOSS=<file>} (or {@code DER}, {@code rmi}) calls that server instead of
  * exporting its own.
  */
@@ -93,8 +94,25 @@ public final class ServerMain {
         }
         System.out.println("ready");
         System.out.flush();
+        if (Boolean.getBoolean("bench.server.keepalive")) {
+            // For a server started by hand in its own window (Windows 'start' can give the new
+            // process a standard input that is already closed): run until the process is killed.
+            System.out.println("keepalive: running until the process is stopped");
+            System.out.flush();
+            while (true) {
+                Thread.sleep(60_000L);
+                java.lang.ref.Reference.reachabilityFence(keep);
+            }
+        }
+        long begin = System.nanoTime();
         while (System.in.read() != -1) {
             // wait for the parent to go away
+        }
+        if (System.nanoTime() - begin < 2_000_000_000L) {
+            // not a parent that went away: the standard input was closed from the start
+            System.out.println("standard input is closed, so this server stops at once; start it with"
+                    + " -Dbench.server.keepalive=true to keep it running without a parent");
+            System.out.flush();
         }
         java.lang.ref.Reference.reachabilityFence(keep);
         System.exit(0);
