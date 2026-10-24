@@ -32,6 +32,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
+import java.security.AccessController;
 import java.security.Principal;
 import java.security.Permission;
 import java.security.cert.Certificate;
@@ -63,7 +64,6 @@ import net.jini.io.context.ContextPermission;
 import net.jini.io.context.ServerSubject;
 import net.jini.jeri.connection.Connection;
 import net.jini.jeri.connection.OutboundRequestHandle;
-import net.jini.security.Security;
 
 /**
  * Implementation of Connection used by SslEndpoint.
@@ -88,12 +88,12 @@ class SslConnection extends Utilities implements Connection {
     static final long DEFAULT_MIN_CLIENT_SESSION_DURATION = 15L * 60L * 1000L;
 
     private final long maxClientSessionDuration =
-	((Long) Security.doPrivileged(
+	((Long) AccessController.doPrivileged(
 	    new GetLongAction("org.apache.river.jeri.ssl.maxClientSessionDuration",
 			      DEFAULT_MAX_CLIENT_SESSION_DURATION))).longValue();
 
     private final long minClientSessionDuration =
-	((Long) Security.doPrivileged(
+	((Long) AccessController.doPrivileged(
 	    new GetLongAction("org.apache.river.jeri.ssl.minClientSessionDuration",
 			      DEFAULT_MIN_CLIENT_SESSION_DURATION))).longValue();
 

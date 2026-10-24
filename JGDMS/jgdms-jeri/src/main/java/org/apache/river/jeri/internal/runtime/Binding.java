@@ -19,13 +19,13 @@
 package org.apache.river.jeri.internal.runtime;
 
 import java.io.IOException;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.ConcurrentMap;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint.ListenEndpoint;
 import net.jini.jeri.ServerEndpoint.ListenHandle;
-import net.jini.security.Security;
 
 /**
  * A bound ListenEndpoint and the associated ListenHandle and
@@ -81,7 +81,7 @@ class Binding {
         requestDispatcher = 
                 new DgcRequestDispatcher(() -> {checkReferenced();}, table);
         try {
-            listenHandle = Security.doPrivileged(
+            listenHandle = AccessController.doPrivileged(
                     (PrivilegedExceptionAction<ListenHandle>) () 
                             -> listenEndpoint.listen(requestDispatcher)
             );

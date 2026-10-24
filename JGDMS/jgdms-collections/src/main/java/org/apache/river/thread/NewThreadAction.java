@@ -22,7 +22,7 @@ import java.security.PrivilegedAction;
 
 /**
  * A PrivilegedAction for creating a new platform thread conveniently with an
- * AccessController.doPrivileged or Security.doPrivileged.
+ * AccessController.doPrivileged.
  *
  * All constructors allow the choice of the Runnable for the new
  * thread to execute, the name of the new thread (which will be

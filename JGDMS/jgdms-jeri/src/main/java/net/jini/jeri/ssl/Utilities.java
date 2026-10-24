@@ -65,7 +65,6 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
-import net.jini.security.Security;
 
 /**
  * Provides miscellaneous utilities for the classes in this package.
@@ -472,7 +471,7 @@ abstract class Utilities
      */
     private static String[] requestedCipherSuites;
     static {
-	String value = (String) Security.doPrivileged(
+	String value = (String) AccessController.doPrivileged(
 	    new GetPropertyAction("org.apache.river.jeri.ssl.cipherSuites"));
 	if (value == null) {
 	    requestedCipherSuites = null;
@@ -509,20 +508,20 @@ abstract class Utilities
 	new InvocationConstraints(null, Integrity.YES);
 
     /** The secure socket protocol used with JSSE. */
-    private static final String SSL_PROTOCOL = (String) Security.doPrivileged(
+    private static final String SSL_PROTOCOL = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.3"));
     
     /** The providers and algorithms to use */
-    private static final String JCE_PROVIDER = (String) Security.doPrivileged(
+    private static final String JCE_PROVIDER = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.jceProvider", null));
     
-    protected static final String JSSE_PROVIDER = (String) Security.doPrivileged(
+    protected static final String JSSE_PROVIDER = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.jsseProvider", null));
     
-    protected static final String CERT_TYPE = (String) Security.doPrivileged(
+    protected static final String CERT_TYPE = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.certificateType", "X.509"));
     
-    private static final String RAN_ALG = (String) Security.doPrivileged(
+    private static final String RAN_ALG = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.secureRandomAlgorithm", null));
 
     /** Permission needed to access the current subject. */

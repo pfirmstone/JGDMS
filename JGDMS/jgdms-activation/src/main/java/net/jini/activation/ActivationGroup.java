@@ -44,7 +44,6 @@ import net.jini.activation.arg.UnknownObjectException;
 import net.jini.export.Exporter;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.ClassLoading;
-import net.jini.security.Security;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.action.GetIntegerAction;
 import org.apache.river.action.GetPropertyAction;
@@ -241,7 +240,7 @@ public abstract class ActivationGroup implements ActivationInstantiator, Seriali
 	throws ActivationException
     {
 	try {
-	    Class cl = (Class) Security.doPrivileged(
+	    Class cl = (Class) AccessController.doPrivileged(
 		new PrivilegedExceptionAction() {
                     @Override
 		    public Object run() throws Exception {

@@ -2084,12 +2084,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     for (int pgi = 0; pgi < toGrant.length; pgi++) {
                         final Permission perm = toGrant[pgi];
                         try {
-                            // Security.doPrivileged (not AccessController.doPrivileged):
-                            // retains the current Subject's principals through the
-                            // privileged block, so a grant to the authenticated principal
-                            // applies to the grant facility's frames.  Plain doPrivileged
-                            // would drop the Subject (the combiner runs only in getContext).
-                            Security.doPrivileged(new PrivilegedAction<Void>() {
+                            // Formerly Security.doPrivileged, which retained the current
+                            // Subject's principals through the privileged block so a grant
+                            // to the authenticated principal applied to the grant
+                            // facility's frames.  This one-argument doPrivileged drops the
+                            // Subject (the combiner runs only in getContext); review if the
+                            // grant must still be coupled to the Subject.
+                            AccessController.doPrivileged(new PrivilegedAction<Void>() {
                                 public Void run() {
                                     Security.grant(PermissionGrantBuilder.newBuilder()
                                         .context(PermissionGrantBuilder.URI)

@@ -25,6 +25,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
+import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -35,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ExportPermission;
-import net.jini.security.Security;
 
 /**
  * An abstract implementation of {@link InvocationLayerFactory} that
@@ -298,7 +298,7 @@ public abstract class AbstractILFactory implements InvocationLayerFactory {
 		 * this action.
 		 */
 		if (nonpublic) {
-		    Security.doPrivileged(new PrivilegedAction() {
+		    AccessController.doPrivileged(new PrivilegedAction() {
 			public Object run() {
 			    m.setAccessible(true);
 			    return null;

@@ -590,7 +590,7 @@ class SslServerEndpointImpl extends Utilities {
         static final long DEFAULT_MAX_SERVER_SESSION_DURATION = 32L * 60L * 1000L;
 
         private final long maxServerSessionDuration =
-            ((Long) Security.doPrivileged(
+            ((Long) AccessController.doPrivileged(
                 new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
                                   DEFAULT_MAX_SERVER_SESSION_DURATION))).longValue();
         
@@ -1354,20 +1354,20 @@ class SslServerEndpointImpl extends Utilities {
 			this.acceptThread = null;
 			this.description = toString();
 			this.counters = new HandshakeCounters(logger, description);
-			long millis = ((Long) Security.doPrivileged(
+			long millis = ((Long) AccessController.doPrivileged(
 				new GetLongAction(SERVER_HANDSHAKE_TIMEOUT_PROPERTY,
 								  DEFAULT_SERVER_HANDSHAKE_TIMEOUT))).longValue();
 			this.handshakeTimeoutNanos = millis > 0
 				? Math.min(millis, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
 				: 0L;
-			long minBudget = ((Long) Security.doPrivileged(
+			long minBudget = ((Long) AccessController.doPrivileged(
 				new GetLongAction(SERVER_MIN_BUDGET_PROPERTY,
 								  DEFAULT_SERVER_MIN_BUDGET))).longValue();
 			this.minBudgetNanos = minBudget > 0 && handshakeTimeoutNanos > 0L
 				? Math.min(Math.min(minBudget, Long.MAX_VALUE / 1_000_000L) * 1_000_000L,
 						   handshakeTimeoutNanos / 2)
 				: 0L;
-			long flight = ((Long) Security.doPrivileged(
+			long flight = ((Long) AccessController.doPrivileged(
 				new GetLongAction(SERVER_CLIENT_FLIGHT_TIMEOUT_PROPERTY,
 								  DEFAULT_SERVER_CLIENT_FLIGHT_TIMEOUT))).longValue();
 			this.clientFlightNanos = flight > 0
@@ -1390,7 +1390,7 @@ class SslServerEndpointImpl extends Utilities {
 				/* Cannot tell: use the names as they are given. */
 			}
 			this.namedGroups = supportedNamedGroups(parseNamedGroups(
-				(String) Security.doPrivileged(
+				(String) AccessController.doPrivileged(
 					new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
 										  DEFAULT_SERVER_NAMED_GROUPS))),
 				supported, description);

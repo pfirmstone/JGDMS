@@ -30,8 +30,7 @@ import net.jini.security.Security;
  *
  * <p>An instance of this class can be used as the argument of {@link
  * AccessController#doPrivileged(PrivilegedAction)
- * AccessController.doPrivileged} or {@link
- * Security#doPrivileged(PrivilegedAction) Security.doPrivileged}.
+ * AccessController.doPrivileged}.
  *
  * <p>The following code retrieves the <code>long</code> value of the
  * system property named <code>"prop"</code> as a privileged action.
@@ -41,7 +40,7 @@ import net.jini.security.Security;
  *
  * <pre>
  * Long tmp = (Long)
- *     Security.doPrivileged(new GetLongAction("prop"));
+ *     AccessController.doPrivileged(new GetLongAction("prop"));
  * long l;
  * if (tmp != null) {
  *     l = tmp.longValue();
@@ -54,7 +53,7 @@ import net.jini.security.Security;
  * <code>"prop"</code> is not defined:
  *
  * <pre>
- * long l = ((Long) Security.doPrivileged(
+ * long l = ((Long) AccessController.doPrivileged(
  *                 new GetLongAction("prop"))).longValue();
  * </pre>
  *

@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.security.AccessController;
 import javax.net.ssl.SSLException;
-import net.jini.security.Security;
 import org.apache.river.action.GetIntegerAction;
 
 /**
@@ -102,7 +102,7 @@ final class ClientHelloReader {
      * see {@link #messageLimit(int)}.
      */
     static final int MAX_MESSAGE = messageLimit(
-        ((Integer) Security.doPrivileged(
+        ((Integer) AccessController.doPrivileged(
             new GetIntegerAction(MAX_MESSAGE_PROPERTY, DEFAULT_MAX_MESSAGE))).intValue());
 
     /**

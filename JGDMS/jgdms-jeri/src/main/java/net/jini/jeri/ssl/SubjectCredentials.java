@@ -19,6 +19,7 @@
 package net.jini.jeri.ssl;
 
 import java.math.BigInteger;
+import java.security.AccessController;
 import java.security.Key;
 import java.security.Principal;
 import java.security.PrivateKey;
@@ -34,7 +35,6 @@ import java.util.Set;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
-import net.jini.security.Security;
 
 /**
  * Provides methods for retrieving credentials from a Subject.
@@ -417,7 +417,7 @@ class SubjectCredentials extends Utilities {
 		buf.append("    Private key: ");
 		try {
 		    X500PrivateCredential cred =
-			(X500PrivateCredential) Security.doPrivileged(
+			(X500PrivateCredential) AccessController.doPrivileged(
 			    new GetPrivateCredentialAction(subject, cert));
 		    PrivateKey privateKey =
 			cred != null ? cred.getPrivateKey() : null;

@@ -946,7 +946,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	 * Restore the privileged context and run
 	 */
 	public void run() {
-	    Security.doPrivileged(new PrivilegedAction() {
+	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
 		    doRun();
 		    return null;
@@ -1171,7 +1171,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	 * Restore the privileged context and run
 	 */
 	public void run() {
-	    Security.doPrivileged(new PrivilegedAction() {
+	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
 		    doRun();
 		    return null;
@@ -1713,19 +1713,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         Notifier notifierThread = null;
         Exception thrown = null;
 	try {
-            announcementTimerThread  = Security.doPrivileged(new PrivilegedExceptionAction<AnnouncementTimerThread>() {
+            announcementTimerThread  = AccessController.doPrivileged(new PrivilegedExceptionAction<AnnouncementTimerThread>() {
 		public AnnouncementTimerThread run() throws Exception {
                     return new AnnouncementTimerThread();
 		}//end run
 	    });//end doPrivileged
 	
-            announceeThread = Security.doPrivileged(new PrivilegedExceptionAction<AnnouncementListener>() {
+            announceeThread = AccessController.doPrivileged(new PrivilegedExceptionAction<AnnouncementListener>() {
 		public AnnouncementListener run() throws Exception {
                     return new AnnouncementListener();
 		}//end run
 	    });//end doPrivileged
 	
-            notifierThread = Security.doPrivileged(new PrivilegedExceptionAction<Notifier>() {
+            notifierThread = AccessController.doPrivileged(new PrivilegedExceptionAction<Notifier>() {
 		public Notifier run() throws Exception {
                     return new Notifier();
 		}//end run
@@ -2194,7 +2194,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     /** Returns the local host name. */
     private static String getLocalHost() throws UnknownHostException {
 	try {
-	    return ((InetAddress) Security.doPrivileged(
+	    return ((InetAddress) AccessController.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws UnknownHostException {
 			return LocalHostLookup.getLocalHost();
@@ -2315,7 +2315,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      */
     private void requestGroups(final Collection req) throws IOException {
 	try {
-            Security.doPrivileged(new PrivilegedExceptionAction() {
+            AccessController.doPrivileged(new PrivilegedExceptionAction() {
 		public Object run() throws Exception {
 		    Thread t;
 		    synchronized (requestors) {
@@ -2590,7 +2590,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
     /** Terminates (interrupts) all currently-running threads. */
     private void nukeThreads() {
-        Security.doPrivileged(new PrivilegedAction() {
+        AccessController.doPrivileged(new PrivilegedAction() {
 	    public Object run() {
                 if(announcementTimerThread != null) {
                     announcementTimerThread.interrupt();

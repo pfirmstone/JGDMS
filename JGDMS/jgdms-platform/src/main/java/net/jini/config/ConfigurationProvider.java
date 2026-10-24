@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -34,7 +35,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jini.loader.LoadClass;
-import net.jini.security.Security;
 import org.apache.river.logging.Levels;
 import org.apache.river.resource.Service;
 
@@ -201,7 +201,7 @@ public class ConfigurationProvider {
 		if (resourceLoader == null) {
 			LOGGER.fine("Null class loader provided, fetching context class loader...");
 			resourceLoader =
-                            (ClassLoader) Security.doPrivileged(
+                            (ClassLoader) AccessController.doPrivileged(
                                 new PrivilegedAction() {
                                     public Object run() {
                                         return Thread.currentThread().getContextClassLoader();
@@ -226,7 +226,7 @@ public class ConfigurationProvider {
 	String cname = null;
 	ConfigurationException configEx = null;
 	try {
-	    cname = (String) Security.doPrivileged(new PrivilegedExceptionAction() {
+	    cname = (String) AccessController.doPrivileged(new PrivilegedExceptionAction() {
 		    public Object run()
 			throws ConfigurationException, IOException
 		    {

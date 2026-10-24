@@ -167,11 +167,12 @@ In order to dynamically grant a permission, the client itself must have the
 corresponding {@link net.jini.security.GrantPermission}.
 Because the dynamic grant is coupled with the current subject, proxy code must
 assume that actions executed using
-{@link java.security.AccessController#doPrivileged
-AccessController.doPrivileged} will not have the granted permissions (because
+{@link java.security.AccessController#doPrivileged(java.security.PrivilegedAction)
+AccessController.doPrivileged(action)} will not have the granted permissions (because
 that method executes the action with no subject);
-{@link net.jini.security.Security#doPrivileged
-Security.doPrivileged} should be used instead to maintain the current subject
+{@link java.security.AccessController#doPrivileged(java.security.PrivilegedAction,
+java.security.AccessControlContext)
+AccessController.doPrivileged(action, AccessController.getContext())} should be used instead to maintain the current subject
 and thereby enable privileges in a way that retains the granted permissions.
 
 <a name="code_integrity"></a><h2>Code Integrity</h2>

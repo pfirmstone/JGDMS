@@ -23,6 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.river.action.GetPropertyAction;
+import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -39,7 +40,6 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
-import net.jini.security.Security;
 
 /**
  * Implements an X509TrustManager that only trusts certificate chains whose
@@ -73,7 +73,7 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager
 
     /** The trust manager factory algorithm. */
     private static final String trustManagerFactoryAlgorithm =
-	Security.doPrivileged(
+	AccessController.doPrivileged(
 	    new GetPropertyAction(
 		"org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm",
 		TrustManagerFactory.getDefaultAlgorithm()
@@ -217,7 +217,7 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager
 	    final TrustManagerFactory factory = Utilities.JSSE_PROVIDER != null ?
 		    TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm, Utilities.JSSE_PROVIDER)
 		    : TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm);
-	    Security.doPrivileged(
+	    AccessController.doPrivileged(
 		new PrivilegedAction() {
                     @Override
 		    public Object run() {

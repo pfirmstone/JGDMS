@@ -87,7 +87,6 @@ import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.jeri.kerberos.KerberosUtil.Config;
 import net.jini.jeri.kerberos.KerberosUtil.ConfigIter;
 import net.jini.security.AuthenticationPermission;
-import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
@@ -734,7 +733,7 @@ public final class KerberosEndpoint
 	if (userSubject != null && hasKerberosIdentity(userSubject)) {
 	    clientSubject = userSubject;
 	} else {
-	    Subject accSubject = (Subject) Security.doPrivileged(
+	    Subject accSubject = (Subject) AccessController.doPrivileged(
 		new PrivilegedAction() {
 			public Object run() {
 			    return Subject.getSubject(
@@ -932,7 +931,7 @@ public final class KerberosEndpoint
 	    final KerberosEndpointInternals backDoor =
 		new KerberosEndpointInternals();
 	    try {
-		Security.doPrivileged(new PrivilegedAction() {
+		AccessController.doPrivileged(new PrivilegedAction() {
 		    public Object run() {
 			KerberosEndpointInternalsAccess.set(backDoor);
 			return null;
@@ -2032,7 +2031,7 @@ public final class KerberosEndpoint
 
 	    boolean done = false;
 	    try {
-		Security.doPrivileged(new PrivilegedExceptionAction() {
+		AccessController.doPrivileged(new PrivilegedExceptionAction() {
 			public Object run() throws IOException, GSSException {
 			    establishContext();
 			    return null;

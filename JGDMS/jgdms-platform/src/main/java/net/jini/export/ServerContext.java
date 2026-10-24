@@ -19,6 +19,7 @@ package net.jini.export;
 
 import org.apache.river.resource.Service;
 import java.rmi.server.ServerNotActiveException;
+import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
-import net.jini.security.Security;
 
 /**
  * The <code>ServerContext</code> class contains static methods to
@@ -54,7 +54,7 @@ public final class ServerContext {
         synchronized (LOCK){
             if (providers != null) return providers;
             
-            providers = Security.doPrivileged(new PrivilegedAction<Spi[]>() {
+            providers = AccessController.doPrivileged(new PrivilegedAction<Spi[]>() {
 
                 public Spi[] run() {
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();

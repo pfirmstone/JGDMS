@@ -65,7 +65,6 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.loader.ClassLoading;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -670,8 +669,9 @@ abstract class AbstractActivationGroup extends ActivationGroup
      *
      * <p>If the <code>inheritGroupSubject</code> configuration entry is
      * <code>true</code> then the constructor is invoked in an action
-     * passed to the {@link Security#doPrivileged Security.doPrivileged}
-     * method; otherwise the constructor is invoked in an action passed to
+     * passed to the {@link AccessController#doPrivileged(PrivilegedAction,
+     * java.security.AccessControlContext) AccessController.doPrivileged(action,
+     * context)} method; otherwise the constructor is invoked in an action passed to
      * the {@link AccessController#doPrivileged
      * AccessController.doPrivileged} method.
      *
@@ -769,8 +769,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		 *
 		 * When inheritGroupSubject is set, the activation must run under
 		 * the group's login Subject so the activated service exports with
-		 * the group's credentials. net.jini.security.Security.doPrivileged
-		 * only preserves the *current* Subject, which on virtual threads is
+		 * the group's credentials. The former net.jini.security.Security.doPrivileged
+		 * only preserved the *current* Subject, which on virtual threads is
 		 * not the group's login Subject; establish it explicitly via
 		 * Subject.callAs (Java 18+, reflectively as this module targets
 		 * Java 8), as the unexport path does.

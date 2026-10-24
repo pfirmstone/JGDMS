@@ -37,7 +37,6 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
-import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 
 /**
@@ -511,7 +510,8 @@ public final class BasicJeriExporter implements Exporter {
      * the listen endpoint, invokes {@link
      * ServerEndpoint.ListenEndpoint#listen listen} on the listen endpoint
      * (passing the request dispatcher) within an action passed to the
-     * {@link Security#doPrivileged Security.doPrivileged} method, and
+     * {@link java.security.AccessController#doPrivileged(PrivilegedAction)
+     * AccessController.doPrivileged} method, and
      * returns the <code>ServerEndpoint.ListenCookie</code> obtained by
      * invoking {@link ServerEndpoint.ListenHandle#getCookie getCookie} on
      * the {@link ServerEndpoint.ListenHandle} returned from the

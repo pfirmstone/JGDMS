@@ -19,10 +19,10 @@
 package net.jini.jeri.ssl;
 
 import java.lang.management.ManagementFactory;
+import java.security.AccessController;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
-import net.jini.security.Security;
 import org.apache.river.action.GetIntegerAction;
 import org.apache.river.action.GetLongAction;
 
@@ -245,13 +245,13 @@ final class HandshakeLimits {
      */
     static HandshakeLimits get() {
         HandshakeLimits limits = forDescriptors(maxDescriptors());
-        int handshakes = ((Integer) Security.doPrivileged(
+        int handshakes = ((Integer) AccessController.doPrivileged(
             new GetIntegerAction(MAX_HANDSHAKES_PROPERTY,
                                  limits.maxHandshakes))).intValue();
-        int queued = ((Integer) Security.doPrivileged(
+        int queued = ((Integer) AccessController.doPrivileged(
             new GetIntegerAction(MAX_QUEUED_PROPERTY,
                                  limits.maxQueued))).intValue();
-        int permits = ((Integer) Security.doPrivileged(
+        int permits = ((Integer) AccessController.doPrivileged(
             new GetIntegerAction(CPU_PERMITS_PROPERTY, -1))).intValue();
         /*
          * The sockets that are admitted are the working and the waiting ones
@@ -271,7 +271,7 @@ final class HandshakeLimits {
      * assumed {@link #FALLBACK_MAX_DESCRIPTORS}.
      */
     static long maxDescriptors() {
-        long property = ((Long) Security.doPrivileged(
+        long property = ((Long) AccessController.doPrivileged(
             new GetLongAction(MAX_DESCRIPTORS_PROPERTY, 0L))).longValue();
         if (property > 0L) {
             return property;

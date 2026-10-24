@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.security.AccessController;
 import java.security.PrivilegedAction;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -206,7 +207,7 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 		"Proxy must be an instance of a dynamic proxy class");
 	}
 	Boolean b = (Boolean)
-	    Security.doPrivileged(new PrivilegedAction() {
+	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
 		    ClassLoader cl = ctx.getClassLoader();
 		    if (cl == null) {

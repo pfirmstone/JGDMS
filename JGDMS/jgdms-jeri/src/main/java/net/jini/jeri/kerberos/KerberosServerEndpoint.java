@@ -282,7 +282,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
      * used for the accept threads
      */
     private static final Executor systemThreadPool =
-	(Executor) Security.doPrivileged(new GetThreadPoolAction(false));
+	(Executor) AccessController.doPrivileged(new GetThreadPoolAction(false));
     
     /** The server subject */
     private Subject serverSubject;
@@ -294,7 +294,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
     private static GSSManager gssManager;
 
     /** Maximum size of the soft cache */
-    private static final int maxCacheSize = ((Integer) Security.doPrivileged(
+    private static final int maxCacheSize = ((Integer) AccessController.doPrivileged(
 	new GetIntegerAction("org.apache.river.jeri.kerberos." +
 			     "KerberosServerEndpoint.maxCacheSize",
 			     256))).intValue();
@@ -1379,7 +1379,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		}
 
 		try {
-		    serverCred = (GSSCredential) Security.doPrivileged(
+		    serverCred = (GSSCredential) AccessController.doPrivileged(
 			new PrivilegedExceptionAction() {
 				public Object run() throws GSSException {
 				    return KerberosUtil.getGSSCredential(

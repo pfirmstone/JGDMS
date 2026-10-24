@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import javax.security.auth.Subject;
-import net.jini.security.Security;
 import org.apache.river.action.GetIntegerAction;
 
 /**
@@ -113,7 +112,7 @@ final class HandshakeCompute {
      * it is unset or negative), or null if it asks for none.
      */
     static HandshakeCompute get() {
-        int threads = ((Integer) Security.doPrivileged(
+        int threads = ((Integer) AccessController.doPrivileged(
             new GetIntegerAction(THREADS_PROPERTY, -1))).intValue();
         if (threads < 0) {
             threads = defaultThreads();
