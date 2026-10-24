@@ -26,8 +26,6 @@ import java.io.IOException;
 import java.lang.ref.SoftReference;
 import java.lang.ref.ReferenceQueue;
 import java.net.Socket;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,6 +39,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.Set;
 import javax.security.auth.AuthPermission;
 import javax.security.auth.kerberos.KerberosPrincipal;
+import java.util.concurrent.Callable;
 import javax.security.auth.Subject;
 import net.jini.core.constraint.ClientAuthentication;
 import net.jini.core.constraint.ClientMaxPrincipal;
@@ -59,6 +58,7 @@ import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.security.AuthenticationPermission;
+import net.jini.security.SubjectScope;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
@@ -490,9 +490,9 @@ class KerberosUtil {
 	throws GSSException
     {
 	try {
-	    return (GSSCredential) Subject.doAs(
-                subj, new PrivilegedExceptionAction() {
-		    public Object run() throws GSSException {
+	    return SubjectScope.callAs(
+                subj, new Callable<GSSCredential>() {
+		    public GSSCredential call() throws GSSException {
 		        GSSName name = manager.createName(principal.getName(),
 							  krb5NameType);
 			return manager.createCredential(
@@ -500,8 +500,10 @@ class KerberosUtil {
 			    krb5MechOid, usage);
 		    }
 	        });
-	} catch (PrivilegedActionException pe) {
-	    throw (GSSException) pe.getException();
+	} catch (RuntimeException e) {
+	    throw e;
+	} catch (Exception e) {
+	    throw (GSSException) e;
 	}
     }
 

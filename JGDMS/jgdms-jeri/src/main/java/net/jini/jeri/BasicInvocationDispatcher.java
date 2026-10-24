@@ -388,8 +388,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * {@code getClientSubject()} on DirtyChai) is established by the SPIRE
      * infrastructure as a process-ambient identity ({@code Subject.processWorker})
      * and {@code Subject.doAs} rejects it.  Its principals are carried into the
-     * reconstructed reducing context instead (§7.3), so the dispatcher must
-     * <em>not</em> {@code doAs} it.
+     * reconstructed reducing context instead (§7.3), so the dispatcher does
+     * <em>not</em> bind it with {@code Subject.callAs}.
      */
     private static final Class<?> WORKER_SUBJECT_CLASS;
     static {
@@ -1135,20 +1135,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	
 	    /*
-	     * Invoke method on remote object under both the server's worker
-	     * Subject and (where present) all of the client's user Subjects.
+	     * Invoke method on remote object under the client's authenticated
+	     * worker Subject and (where present) all of the client's user
+	     * Subjects, each bound with Subject.callAs (a ScopedValue):
 	     *
-	     * Subject.doAs(workerSubject, ...)           ← sets ACC; virtual threads inherit
-	     *   Subject.callAs(userSubjects[0], ...)     ← outermost user Subject; dispatch thread only
-	     *     Subject.callAs(userSubjects[1], ...)   ← next user Subject, if present
-	     *       ...
-	     *         invoke(...)
+	     * Subject.callAs(workerSubject, ...)            <- plain Subject only; see invokeWithClientSubject
+	     *   UserSubjectSupport.callAsAll(userSubjects, ...)  <- all user Subjects in one binding
+	     *     invoke(...)
 	     *
-	     * Virtual threads spawned during the invocation therefore inherit the
-	     * SERVER's worker identity (from the ACC), not the client's user
-	     * identity.  Server code that needs to propagate user Subjects
-	     * across a thread boundary must capture Subject.currentAll() and
-	     * re-establish them with nested Subject.callAs calls in the new thread.
+	     * The inner binding replaces the outer one, so while user Subjects are
+	     * present Subject.current()/currentAll() return them, not the worker
+	     * Subject.  No binding is inherited by a thread spawned during the
+	     * invocation: server code that hands work to another thread and needs
+	     * it to run as the caller must capture SubjectScope.captureAll()
+	     * before the hand-off and re-establish it in the new thread with
+	     * SubjectScope.callAsAll, or submit the work to a SubjectAwareExecutor.
 	     */
 	    try {
 		returnValue = invokeWithClientSubject(impl, method, args, context, remoteIdentityContext);
@@ -2088,13 +2089,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Invokes the specified method under the server's worker Subject and, where
-     * present, the client's user Subject(s).
+     * Invokes the specified method under the client's authenticated worker
+     * Subject and, where present, the client's user Subject(s).  Every
+     * binding is made with {@code Subject.callAs}; no {@code Subject.doAs}
+     * form is used.
      *
      * <p>On <b>DirtyChai</b> JDK (where {@code Subject.callAs(Callable, UserSubject...)}
      * exists), all user Subjects are passed in a single call:
      * <pre>
-     *   Subject.doAs(workerSubject, () -&gt; {              // ACC; inherited by virtual threads
+     *   Subject.callAs(workerSubject, () -&gt; {          // plain worker Subject only
      *       Subject.callAs(action, userSubjects[0..n]);  // all user Subjects at once
      *   });
      * </pre>
@@ -2104,17 +2107,25 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * calls is incorrect because each inner call shadows the outer one,
      * leaving only the innermost Subject visible via {@code Subject.current()}:
      * <pre>
-     *   Subject.doAs(workerSubject, () -&gt; {         // ACC; inherited by virtual threads
+     *   Subject.callAs(workerSubject, () -&gt; {      // plain worker Subject only
      *       Subject.callAs(userSubjects[0], () -&gt; { // first (only) user Subject
      *           invoke(...)
      *       });
      *   });
      * </pre>
      *
-     * <p>The outer {@code Subject.doAs} places the server's TLS-verified
-     * worker identity into the {@code AccessControlContext}.  Any virtual
-     * threads spawned during {@link #invoke} inherit that ACC and therefore
-     * observe the <em>server's</em> worker identity, not the client's.
+     * <p>The outer binding is made only for a plain worker {@code Subject}
+     * (a Kerberos client Subject, or the X.500 fallback Subject on a standard
+     * JDK).  A DirtyChai {@code WorkerSubject} is process-ambient and is
+     * not bound; its principals reach the permission check through the
+     * reconstructed remote context instead.  Because the user Subjects are
+     * bound inside the worker Subject, they replace it as
+     * {@code Subject.current()} for the duration of {@link #invoke}.
+     * Neither binding is inherited by threads spawned during {@link #invoke}:
+     * code that needs either identity on another thread captures it with
+     * {@code SubjectScope.captureAll()} and re-establishes it there with
+     * {@code SubjectScope.callAsAll}, as {@link net.jini.security.SubjectAwareExecutor}
+     * does.
      *
      * <p>When no subjects are present, {@link #invoke} is called directly.
      *
@@ -2192,13 +2203,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
 	if (workerSubject != null && !isAmbientWorkerSubject(workerSubject)) {
 	    /*
-	     * Standard-JDK worker subject (a plain Subject, not a DirtyChai
-	     * WorkerSubject): Subject.doAs places its identity into the
-	     * AccessControlContext so that any virtual threads spawned during
-	     * invoke() inherit it.  Subject.callAs (ScopedValue-based) does not
-	     * propagate to new threads, which is why doAs is used here.
+	     * Plain worker subject (a Kerberos client Subject, or the X.500
+	     * fallback Subject on a standard JDK; not a DirtyChai
+	     * WorkerSubject): bind it with Subject.callAs.  The callable catches
+	     * every Exception into thrown[], so callAs never wraps one in a
+	     * CompletionException; Errors propagate unchanged, as they did from
+	     * the former Subject.doAs.
 	     */
-	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
+	    Subject.callAs(workerSubject, () -> {
 		try {
 		    dispatchWithUsers.call();
 		} catch (Exception e) {
@@ -2211,10 +2223,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * Either no worker subject, or (the §7.3 DirtyChai case) a
 	     * WorkerSubject established by the SPIRE infrastructure: it is
 	     * process-ambient via Subject.processWorker -- already visible to the
-	     * dispatch thread and any virtual threads it spawns -- and
-	     * Subject.doAs rejects it.  Its principals are carried into the
+	     * dispatch thread and any virtual threads it spawns -- so it is not
+	     * bound again here (and Subject.doAs rejects it).  Its principals are carried into the
 	     * reconstructed reducing AccessControlContext (remoteIdentityContext)
-	     * instead, so we run the dispatch chain directly without doAs.
+	     * instead, so we run the dispatch chain directly without binding it.
 	     */
 	    try {
 		dispatchWithUsers.call();

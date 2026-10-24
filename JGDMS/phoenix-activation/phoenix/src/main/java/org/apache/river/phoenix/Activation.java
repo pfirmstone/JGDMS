@@ -48,6 +48,7 @@ import java.rmi.server.RMISocketFactory;
 import java.rmi.server.UID;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.CodeSource;
+import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -97,6 +98,7 @@ import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.SubjectScope;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
@@ -1901,25 +1903,22 @@ class Activation implements Serializable {
 		final LoginContext login = activation.login;
 		MarshalledObject marshalledProxy;
 		try {
-		PrivilegedExceptionAction<MarshalledObject> action =
-			new PrivilegedExceptionAction<MarshalledObject>() {
+		Callable<MarshalledObject> action =
+			new Callable<MarshalledObject>() {
 			@Override
-			public MarshalledObject run() throws Exception {
+			public MarshalledObject call() throws Exception {
 				return finalInst.newInstance(finalId, finalDesc);
 			}
 			};
 		if (login != null) {
-			marshalledProxy = Subject.doAsPrivileged(
-			login.getSubject(), action, null);
+			// Subject.callAs replaces the client's Subject binding with
+			// Phoenix's for the duration of the call; SubjectScope
+			// rethrows newInstance's own exception unwrapped.
+			marshalledProxy = SubjectScope.callAs(
+			login.getSubject(), action);
 		} else {
-			marshalledProxy = action.run();
+			marshalledProxy = action.call();
 		}
-		} catch (java.security.PrivilegedActionException e) {
-		Exception cause = e.getException();
-		if (cause instanceof RemoteException) throw (RemoteException) cause;
-		if (cause instanceof ActivationException) throw (ActivationException) cause;
-		if (cause instanceof IOException) throw (IOException) cause;
-		throw new RemoteException("newInstance failed", cause);
 		} catch (Exception e) {
 		if (e instanceof RemoteException) throw (RemoteException) e;
 		if (e instanceof ActivationException) throw (ActivationException) e;
@@ -2424,9 +2423,23 @@ class Activation implements Serializable {
 	    // construction time.  Without this, Subject.current() == null on all
 	    // dispatch threads, causing outbound SSL calls (e.g. codebase lookup via
 	    // getClassAnnotation()) to fail with UnsupportedConstraintException.
-	    // Subject.doAsPrivileged() is kept for ACC-based consumers.
-	    return Subject.callAs(phoenixSubject, () ->
-		Subject.doAsPrivileged(phoenixSubject, action, null));
+	    //
+	    // The former nested Subject.doAsPrivileged(phoenixSubject, action,
+	    // null) is gone: the Subject is carried by the ScopedValue alone.  A
+	    // checked exception from the action is still wrapped in a
+	    // PrivilegedActionException, as doAsPrivileged did, so callers of
+	    // this method keep seeing CompletionException(PrivilegedActionException)
+	    // for a checked failure and CompletionException(RuntimeException) for
+	    // an unchecked one.
+	    return Subject.callAs(phoenixSubject, () -> {
+		try {
+		    return action.run();
+		} catch (RuntimeException e) {
+		    throw e;
+		} catch (Exception e) {
+		    throw new PrivilegedActionException(e);
+		}
+	    });
 	} else {
 	    return action.run();
 	}

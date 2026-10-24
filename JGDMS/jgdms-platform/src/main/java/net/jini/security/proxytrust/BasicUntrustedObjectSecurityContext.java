@@ -27,7 +27,10 @@ import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.security.Principal;
 import java.security.cert.Certificate;
+import java.util.Set;
+import javax.security.auth.Subject;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 
@@ -95,26 +98,43 @@ public final class BasicUntrustedObjectSecurityContext
      * contains an empty {@link CodeSource} (<code>null</code> location and
      * certificates), a permission collection containing the permissions
      * used to construct this instance, <code>null</code> class loader, and
-     * <code>null</code> principals.
+     * the principals of the current {@link Subject} (as returned by
+     * {@link Subject#current Subject.current}), or <code>null</code>
+     * principals if no subject is bound.
      *
      * @return a security context to use to restrict privileges when
      * invoking methods on untrusted objects
      */
     public SecurityContext getContext() {
 	final AccessControlContext acc0 = AccessController.getContext();
+	/*
+	 * The current Subject used to be read from acc0's DomainCombiner (a
+	 * SubjectDomainCombiner installed by Subject.doAs), which then stamped
+	 * the subject's principals on restrictedPD.  Subjects are now bound with
+	 * Subject.callAs, so read the subject directly and stamp the same
+	 * principals; the combiner path is retired.  doPrivilegedWithCombiner
+	 * keeps any combiner in effect on a JDK that still implements
+	 * Subject.callAs through one, so Subject.current() sees the binding.
+	 */
+	final Subject subject = AccessController.doPrivilegedWithCombiner(
+	    new PrivilegedAction<Subject>() {
+		public Subject run() {
+		    return Subject.current();
+		}
+	    });
+	final ProtectionDomain pd = restrictedDomain(subject);
 	final AccessControlContext racc = (AccessControlContext)
 	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
-			DomainCombiner comb0 = acc0.getDomainCombiner();
 			AccessControlContext acc1 =
-			Security.create(acc0, new Combiner(comb0));
+			Security.create(acc0, new Combiner(pd));
 			AccessControlContext acc2 = (AccessControlContext)
 			AccessController.doPrivileged(new PrivilegedAction() {
 					public Object run() {
 						return AccessController.getContext();
 					}
 					}, acc1);
-			return Security.create(acc2, comb0);
+			return Security.create(acc2, null);
 		}
 	    });
 	return (SecurityContext) AccessController.doPrivileged(
@@ -126,27 +146,41 @@ public final class BasicUntrustedObjectSecurityContext
     }
 
     /**
-     * DomainCombiner that uses specified combiner (if any) to combine in
-     * restrictedPD.
+     * Returns restrictedPD, carrying the principals of {@code subject} if a
+     * subject is bound, as a SubjectDomainCombiner would have stamped them.
      */
-    private class Combiner implements DomainCombiner {
-	private final DomainCombiner combiner;
+    private ProtectionDomain restrictedDomain(Subject subject) {
+	if (subject == null) {
+	    return restrictedPD;
+	}
+	Set<Principal> ps = subject.getPrincipals();
+	Principal[] principals;
+	synchronized (ps) {
+	    principals = ps.toArray(new Principal[ps.size()]);
+	}
+	return new ProtectionDomain(restrictedPD.getCodeSource(),
+				    restrictedPD.getPermissions(),
+				    null, principals);
+    }
 
-	Combiner(DomainCombiner combiner) {
-	    this.combiner = combiner;
+    /**
+     * DomainCombiner that combines in the restricted protection domain.
+     */
+    private static final class Combiner implements DomainCombiner {
+	private final ProtectionDomain restricted;
+
+	Combiner(ProtectionDomain restricted) {
+	    this.restricted = restricted;
 	}
 
 	public ProtectionDomain[] combine(ProtectionDomain[] current,
 					  ProtectionDomain[] assigned)
 	{
-	    if (combiner != null) {
-		return combiner.combine(new ProtectionDomain[]{restrictedPD},
-					assigned);
-	    } else if (assigned == null) {
-		return new ProtectionDomain[]{restrictedPD};
+	    if (assigned == null) {
+		return new ProtectionDomain[]{restricted};
 	    }
 	    ProtectionDomain[] pds = new ProtectionDomain[assigned.length + 1];
-	    pds[0] = restrictedPD;
+	    pds[0] = restricted;
 	    System.arraycopy(assigned, 0, pds, 1, assigned.length);
 	    return pds;
 	}

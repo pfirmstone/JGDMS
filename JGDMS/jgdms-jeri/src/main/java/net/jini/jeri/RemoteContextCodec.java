@@ -420,10 +420,15 @@ final class RemoteContextCodec {
      * could fail it even when this library is granted it.  The doPrivileged blocks
      * truncate the walk to this trusted frame, and force the combine() callback
      * with an innocuous (expected-denied, swallowed) permission check.
+     *
+     * <p>No {@link Subject} is read here.  The captured domains are the
+     * <em>assigned</em> domains of {@code acc} as they stand; the combiner of
+     * {@code acc} (a {@code SubjectDomainCombiner} under the retired
+     * {@code Subject.doAs}) was formerly chained in only to shape the result of
+     * the swallowed check, which nothing reads, so it is no longer consulted.
      */
     private static ProtectionDomain[] extractDomains(final AccessControlContext acc) {
-        final ExtractingDomainCombiner extractor =
-                new ExtractingDomainCombiner(acc.getDomainCombiner());
+        final ExtractingDomainCombiner extractor = new ExtractingDomainCombiner();
         final AccessControlContext wrapped = AccessController.doPrivileged(
                 (PrivilegedAction<AccessControlContext>) () -> Security.create(acc, extractor));
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
@@ -439,11 +444,9 @@ final class RemoteContextCodec {
     }
 
     private static final class ExtractingDomainCombiner implements DomainCombiner {
-        private final DomainCombiner delegate;
         private volatile ProtectionDomain[] captured = new ProtectionDomain[0];
 
-        private ExtractingDomainCombiner(DomainCombiner delegate) {
-            this.delegate = delegate;
+        private ExtractingDomainCombiner() {
         }
 
         public ProtectionDomain[] combine(ProtectionDomain[] current,
@@ -454,9 +457,6 @@ final class RemoteContextCodec {
             List<ProtectionDomain> collected = new ArrayList<ProtectionDomain>(8);
             if (assigned != null) Collections.addAll(collected, assigned);
             captured = collected.toArray(new ProtectionDomain[collected.size()]);
-            if (delegate != null) {
-                return delegate.combine(current, assigned);
-            }
             return current != null ? current : assigned;
         }
 

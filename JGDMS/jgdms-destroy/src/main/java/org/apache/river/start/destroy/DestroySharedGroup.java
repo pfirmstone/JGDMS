@@ -29,16 +29,15 @@ import net.jini.config.ConfigurationException;
 
 import java.io.File;
 import net.jini.activation.arg.ActivationSystem;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.MissingResourceException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.security.auth.login.LoginContext;
+import java.util.concurrent.Callable;
+import net.jini.security.SubjectScope;
 import javax.security.auth.login.LoginException;
-import javax.security.auth.Subject;
 
 import org.apache.river.system.FileSystem;
 
@@ -319,18 +318,15 @@ public class DestroySharedGroup {
             "destroyWithLogin", new Object[] {descs, config, loginContext});
 	loginContext.login();
 	try {
-	    Subject.doAsPrivileged(
+	    SubjectScope.callAs(
 	        loginContext.getSubject(),
-                new PrivilegedExceptionAction<Void>() {
-                    public Void run() throws Exception
+                new Callable<Void>() {
+                    public Void call() throws Exception
                     {
                         destroy(descs, config);
 			return null;
                     }
-                 },
-                 null);
-        } catch (PrivilegedActionException e) {
-	    throw e.getException();
+                 });
 	} finally {
             try {
                 loginContext.logout();

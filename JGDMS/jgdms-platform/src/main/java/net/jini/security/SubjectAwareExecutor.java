@@ -18,7 +18,6 @@
 
 package net.jini.security;
 
-import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -119,24 +118,6 @@ import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
  */
 public final class SubjectAwareExecutor implements ExecutorService {
 
-    /**
-     * DirtyChai JDK extension: {@code Subject.currentAll()} returns all
-     * user Subjects bound to the current thread via {@code Subject.callAs},
-     * outermost-first.  {@code null} on a standard JDK that only provides
-     * {@code Subject.current()}.  Cached once at class-load time.
-     */
-    private static final Method CURRENT_ALL_METHOD;
-
-    static {
-        Method currentAll = null;
-        try {
-            currentAll = Subject.class.getMethod("currentAll");
-        } catch (NoSuchMethodException | SecurityException ignored) {
-            // Standard JDK — Subject.currentAll() not available
-        }
-        CURRENT_ALL_METHOD = currentAll;
-    }
-
     private final ExecutorService delegate;
 
     /**
@@ -156,25 +137,11 @@ public final class SubjectAwareExecutor implements ExecutorService {
     // -----------------------------------------------------------------------
 
     /**
-     * Returns all user Subjects bound to the current thread, outermost-first.
-     *
-     * <p>On a DirtyChai JDK, {@link #CURRENT_ALL_METHOD} ({@code Subject.currentAll()})
-     * is invoked to obtain the full {@code Subject[]} array.  On a standard
-     * JDK that only exposes {@code Subject.current()}, a single-element array
-     * is returned.  An empty array is returned when no user Subject is present.
+     * Returns all user Subjects bound to the current thread, outermost-first,
+     * or an empty array when none is bound; see {@link SubjectScope#captureAll()}.
      */
-    @SuppressWarnings("unchecked")
     private static Subject[] captureUserSubjects() {
-        if (CURRENT_ALL_METHOD != null) {
-            try {
-                Subject[] arr = (Subject[]) CURRENT_ALL_METHOD.invoke(null);
-                if (arr != null && arr.length > 0) return arr;
-            } catch (Exception ignored) {
-                // Reflective invocation failure — fall through to Subject.current()
-            }
-        }
-        Subject single = Subject.current();
-        return single != null ? new Subject[]{single} : new Subject[0];
+        return SubjectScope.captureAll();
     }
 
     /**

@@ -31,16 +31,15 @@ import net.jini.activation.arg.ActivationSystem;
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.MissingResourceException;
 
 import javax.security.auth.login.LoginContext;
+import java.util.concurrent.Callable;
+import net.jini.security.SubjectScope;
 import javax.security.auth.login.LoginException;
-import javax.security.auth.Subject;
 
 import org.apache.river.action.GetIntegerAction;
 
@@ -233,19 +232,16 @@ public class ServiceStarter {
 	loginContext.login();
 	Result[] results = null;
 	    try {
-	        results = Subject.doAsPrivileged(
+	        results = SubjectScope.callAs(
 	            loginContext.getSubject(),
-                    new PrivilegedExceptionAction<Result[]>() {
+                    new Callable<Result[]>() {
                         @Override
-                        public Result[] run()
+                        public Result[] call()
                             throws Exception
                         {
                             return create(descs, config);
                         }
-                     },
-                     null);
-            } catch (PrivilegedActionException pae) { 
-		throw pae.getException();
+                     });
 	    } finally {
                 try {
                     loginContext.logout();

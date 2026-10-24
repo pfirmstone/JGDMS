@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.security.auth.AuthPermission;
+import java.util.concurrent.Callable;
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosKey;
 import javax.security.auth.kerberos.KerberosPrincipal;
@@ -60,6 +61,7 @@ import net.jini.jeri.kerberos.KerberosUtil.Config;
 import net.jini.jeri.kerberos.KerberosUtil.ConfigIter;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import net.jini.security.SubjectScope;
 import org.apache.river.action.GetIntegerAction;
 import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.connection.BasicServerConnManager;
@@ -1808,21 +1810,21 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 			    // JDK1.4.2 jgss requires current subject
 			    // to be set right during the whole
 			    // process of context establishment.
-			    try {
-				Subject.doAs(
-				    serverSubject,
-				    new PrivilegedExceptionAction() {
-					public Object run()
-					    throws IOException, 
-					    GSSException
-					{
-					    connection.establishContext();
-					    return null;
-					}
-				    });
-			    } catch (PrivilegedActionException pe) {
-				throw pe.getException();
-			    }
+			    // This runs on a pool thread, which does not
+			    // inherit a Subject bound with Subject.callAs, so
+			    // the server Subject captured by the endpoint is
+			    // re-established here.
+			    SubjectScope.callAs(
+				serverSubject,
+				new Callable<Void>() {
+				    public Void call()
+					throws IOException, 
+					GSSException
+				    {
+					connection.establishContext();
+					return null;
+				    }
+				});
 			    logger.log(Level.FINE, "established " +
 				       "GSSContext for {0}", connection);
 			    return null;
