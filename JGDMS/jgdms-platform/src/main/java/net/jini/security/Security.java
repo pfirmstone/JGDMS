@@ -201,14 +201,6 @@ public final class Security {
 //	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
 //   Not suitable for OSGi environment.
     /**
-     * SecurityManager instance used to obtain caller's Class.
-     */
-    private static final ClassContextAccess ctxAccess = (ClassContextAccess)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() { return new ClassContextAccess(); }
-	});
-
-    /**
      * @return the trustLogger
      */
     private static Logger getTrustLogger() {
@@ -685,78 +677,6 @@ public final class Security {
 	return new SecurityContextImpl(acc);
     }
 
-    /**
-     * Executes the specified action's <code>run</code> method with privileges
-     * enabled, preserving the domain combiner (if any) of the calling context.
-     * If the action's <code>run</code> method throws an unchecked exception,
-     * that exception is thrown by this method.  This method is equivalent to
-     * the {@link AccessController#doPrivileged(PrivilegedAction)
-     * AccessController.doPrivileged} method of the same signature, except that
-     * it maintains, instead of clears, the domain combiner (if any) in place
-     * at the time of the call.  This typically results in preservation of the
-     * current {@link Subject} (if the combiner is a {@link
-     * SubjectDomainCombiner}), thus retaining permissions granted to
-     * principals of the <code>Subject</code>, as well as the ability to use
-     * credentials of the <code>Subject</code> for authentication.
-     * 
-     * @param <T> type of object result from PrivilegedAction
-     * @param action the action to be executed
-     * @return the object returned by the action's <code>run</code> method
-     * @throws NullPointerException if the action is <code>null</code>
-     */
-    public static <T> T doPrivileged(final PrivilegedAction<T> action) {
-	final Class caller = ctxAccess.getCaller();
-	final AccessControlContext acc = AccessController.getContext();
-	return AccessController.doPrivileged(new PrivilegedAction<T>() {
-            
-	    @Override
-	    public T run() {
-		return AccessController.doPrivileged(
-		    action, createPrivilegedContext(caller, acc));
-	    }
-	});
-    }
-    
-    /**
-     * Executes the specified action's <code>run</code> method with privileges
-     * enabled, preserving the domain combiner (if any) of the calling context.
-     * If the action's <code>run</code> method throws an unchecked exception,
-     * that exception is thrown by this method.  This method is equivalent to
-     * the {@link AccessController#doPrivileged(PrivilegedExceptionAction)
-     * AccessController.doPrivileged} method of the same signature, except that
-     * it maintains, instead of clears, the domain combiner (if any) in place
-     * at the time of the call.  This typically results in preservation of the
-     * current <code>Subject</code> (if the combiner is a
-     * <code>SubjectDomainCombiner</code>), thus retaining permissions granted
-     * to principals of the <code>Subject</code>, as well as the ability to use
-     * credentials of the <code>Subject</code> for authentication.
-     * 
-     * @param <T> type of object result from PrivilegedExceptionAction
-     * @param action the action to be executed
-     * @return the object returned by the action's <code>run</code> method
-     * @throws PrivilegedActionException if the action's <code>run</code>
-     * method throws a checked exception
-     * @throws NullPointerException if the action is <code>null</code>
-     */
-    public static <T> T doPrivileged(final PrivilegedExceptionAction<T> action)
-	throws PrivilegedActionException
-    {
-	final Class caller = ctxAccess.getCaller();
-	final AccessControlContext acc = AccessController.getContext();
-	return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
-            
-	    @Override
-	    public T run() throws Exception {
-		try {
-		    return AccessController.doPrivileged(
-			action, createPrivilegedContext(caller, acc));
-		} catch (PrivilegedActionException e) {
-		    throw e.getException();
-		}
-	    }
-	});
-    }
-    
     public static Runnable withContext(Runnable runnable,
 				       AccessControlContext context)
     {
@@ -888,29 +808,6 @@ public final class Security {
     }
     
     
-    /**
-     * Creates privileged context that contains the protection domain of the
-     * given caller class (if non-null) and uses the domain combiner of the
-     * specified context.  This method assumes it is called from within a
-     * privileged block.
-     */
-    private static AccessControlContext createPrivilegedContext(
-						    Class caller,
-						    AccessControlContext acc)
-    {
-	DomainCombiner comb = acc.getDomainCombiner();
-	ProtectionDomain pd = caller.getProtectionDomain();
-	ProtectionDomain[] pds = (pd != null) ?
-	    new ProtectionDomain[]{pd} : null;
-	if (comb != null) {
-	    pds = comb.combine(pds, null);
-	}
-	if (pds == null) {
-	    pds = new ProtectionDomain[0];
-	}
-	return create(create(pds), comb);
-    }
-
     /**
      * Returns <code>true</code> if the installed security policy provider
      * supports dynamic permission grants--i.e., if it implements the {@link
@@ -1620,15 +1517,6 @@ public final class Security {
     /**
      * Dummy security manager providing access to getClassContext method.
      */
-    private static class ClassContextAccess extends SecurityManager {
-	/**
-	 * Returns caller's caller class.
-	 */
-	Class getCaller() {
-	    return getClassContext()[2];
-	}
-    }
-
     private static class SecurityContextImpl implements SecurityContext {
 
         private final AccessControlContext acc;
