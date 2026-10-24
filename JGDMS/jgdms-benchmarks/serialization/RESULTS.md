@@ -1631,3 +1631,63 @@ One thread keeps 0.92 to 1.04 of S0's rate and 1.5 to 2.8 times the rate of befo
 7. **The two small items of stage 3.** (a) The line about tasks that the timeout scheduler lost: the first losses of a burst were written, the last never unless a later loss came. `TimeoutSchedulerLossLogTest` (5 tests): five losses with an interval of 500 ms write the first line at once and a second ("4 since the last line") when the interval has passed with no more losses, then nothing; the timer's task is not counted by `pending()`; mutants (the flush never scheduled, `pending()` counting it, the flush ignoring the interval, a flush that finds no line due not asking for another) are each killed. (b) `testASlowClientThatAnswersInTimeCompletes`, the review's likeliest flaky test (a bound of 1 500 ms against a client 600 ms late, 900 ms of margin, and a warm-up connection against a bound of 500 ms): now a bound of 5 000 ms (4.4 s of margin), the other half 500 ms against a client 2 500 ms late, and no warm-up against the short bound. Run 10 times in separate JVMs pinned to one CPU (`taskset -c 0`) with 8 busy-loop threads pinned to the same CPU, the test taking 52 to 57 s against 14 s unloaded: the new version passed 10 of 10 (51.7 to 57.5 s), and **so did the old version, 10 of 10 (52.2 to 56.0 s): this load did not reproduce the flakiness**, so the new margins are reasoning (the margin is now 4.4 s of the bound, against 0.9 s) and not a measured improvement. The maintainer's Windows machine with 24 or more busy threads was not run.
 
 **Not established, and caveats.** (i) Records of one byte in the client's encrypted flight were not sent: that needs a TLS record layer of the test's own, and the JDK's engine cannot be made to make them. The six-byte figures are real; the one-byte ones are an estimate. (ii) One machine, shared host, 4 virtual cores, the JIT unwarmed in the first runs of each series; the medians are of 8 runs and the spread is wide (an order of magnitude). (iii) The flood's attacker is in the listener's JVM. (iv) A client with records of fewer than 256 bytes in a long flight, which the bound would refuse, is not one the review knew of; the smallest size a client may ask for (RFC 6066) is 512. (v) Windows, macOS, a real network, a real OSGi framework, polpAudit-generated policies.
+
+## Running TlsAcceptRate on Windows without running out of ports (2026-10-24)
+
+**The problem.** The client JVM of `TlsAcceptRate` opens and closes connections as fast as the listener accepts them. Each closed connection leaves its local port in TIME_WAIT (Windows: 240 s by default, so "2 to 4 minutes"), and a run of 20 s that makes 45 000 to 49 000 connections uses up the dynamic port range. The rest of the attempts then fail on the client with `BindException: Address already in use: getsockopt`, which says nothing about the listener. Such a run is not a result. `TlsAcceptRate` now counts those failures and, if they are more than 1% of the attempts of the measured window or more than 50, ends with `RUN INVALID: client ran out of ephemeral ports (N of M attempts); ...` and exit code 3. It also prints `dynamic port range (tcp): ...`, `TIME_WAIT before: ...` and `TIME_WAIT after: ...` (counts for the whole machine, from `netstat -an`; `n/a` if that did not answer in 10 s).
+
+**1. Look at the range, widen it (administrator prompt).**
+
+```
+netsh int ipv4 show dynamicport tcp
+netsh int ipv4 set dynamicport tcp start=1025 num=64510
+```
+
+The second line gives the client ports 1025 to 65534 (64 510 ports; the default is 49152 to 65535, 16 384 ports). Pick a `start` above any port a service of the machine listens on. The same for IPv6 is `netsh int ipv6 ...`; the loopback test uses IPv4.
+
+**2. Shorten TIME_WAIT (optional, administrator, restart needed).** Registry value `HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\TcpTimedWaitDelay` (DWORD, seconds; Microsoft documents 30 to 300), for example:
+
+```
+reg add HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters /v TcpTimedWaitDelay /t REG_DWORD /d 30 /f
+```
+
+Put it back (`reg delete ... /v TcpTimedWaitDelay /f`) after the measurements.
+
+**3. Start each run with the old connections gone.** Between runs, in PowerShell:
+
+```
+while ((netstat -an | Select-String TIME_WAIT | Measure-Object).Count -gt 500) { Start-Sleep 5 }
+```
+
+The `TIME_WAIT before:` line of the run shows what it started with; with the widened range, a run that makes 50 000 connections should start with far fewer than the free ports left.
+
+**4. Spread the connections over address pairs.** A connection is told apart by its four numbers (source address and port, destination address and port), so a second destination address can use the same local ports again (the listener is bound to the wildcard address, port only, and so accepts on every local address: on Linux this was checked here, below). With a second IP address on the machine, say 192.168.1.50 next to the primary 192.168.1.20:
+
+```
+java -Dbench.tls.dir=C:\bench\tls ^
+     -Dbench.connect.hosts=192.168.1.20,192.168.1.50 ^
+     -Dbench.bind.hosts=192.168.1.20,192.168.1.50 ^
+     -cp serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.TlsAcceptRate C:\bench\srv 72 20 full 5
+```
+
+- `-Dbench.connect.hosts=a,b,c` (default `127.0.0.1`): destination addresses, used in turn for each attempt of each thread (each thread starts at its own place in the list, so each address gets an equal share).
+- Without `bench.bind.hosts` the destinations can be `127.0.0.1` and the machine's own addresses; with it, use the machine's own (non-loopback) addresses on both lists, since whether Windows connects from a LAN source address to 127.0.0.1 was not tried.
+- `-Dbench.bind.hosts=x,y` (default none): source addresses; the socket is bound to one of them (port 0) before it connects. The pairs (source, destination) are used equally often. Every source address has its own port space on Windows, and the destination list matters too, so give both. An address that is not the machine's stops the run at the start.
+- `TlsStorm` takes the same two options (without the guard and without the TIME_WAIT lines).
+
+Nothing about how Windows allocates ports to these pairs was run here. Whether the destination list alone multiplies the ports, and whether binding gives each source address a full range, must be seen on the workstation: the `TIME_WAIT after:` figure and the absence of the `RUN INVALID` line are the check. (On Linux, in this container, the two options behaved differently: see below.)
+
+**5. Server in its own window, output kept.**
+
+```
+java -Dbench.tls.dir=C:\bench\tls -Dbench.server.keepalive=true -cp serialization-benchmarks.jar au.net.zeus.jgdms.bench.serial.ServerMain C:\bench\srv > C:\bench\server.log 2>&1
+```
+
+It prints `ready` and then runs until the process is stopped (Ctrl+C); the client takes the port from `C:\bench\srv\DER.TLS.proxy`. Start a new server for each run if the server's state (not only the port budget) matters.
+
+**6. Which runs count.** Only runs with `failures 0` and no `RUN INVALID` line. A run with failures of any kind is not a rate; do not average it in. If the exit code is 3, widen the range, wait for TIME_WAIT to drain, or add addresses, and run again.
+
+**What was run, on Linux (container, 4 cores, JDK 27, server and client on the same host, loopback only; Windows not run).**
+- The listener accepts on every local address: with `-Dbench.connect.hosts=127.0.0.1,127.0.0.2,127.0.0.3` the connections were seen (`/proc/net/tcp`, sockets on the server's listening ports) to destination 127.0.0.1, .2 and .3 (up to 555, 185 and 175 sockets at once, the first with earlier runs' TIME_WAIT sockets in it), and with `-Dbench.bind.hosts=127.0.0.2` from source 127.0.0.2 to all three. 8 threads, no failures, summary lines of the usual form.
+- Guard: `net.ipv4.ip_local_port_range` set to `40000 40500` and `tcp_tw_reuse` to 0 (both put back afterwards), 8 threads, `full`, 10 s: `failures 3369`, `3369 x BindException: Cannot assign requested address`, and `RUN INVALID: client ran out of ephemeral ports (3369 of 3596 attempts); ...`, exit code 3. (Linux says "Cannot assign requested address" where Windows says "Address already in use"; both are a `BindException`.)
+- Same range: three destinations (no binding) made 1 952 connections and 122 failures in 10 s (still invalid, only just) against 227 and 3 369 failures with one; two source addresses and three destinations made 1 358 connections before 1 299 failures, so on Linux binding each source address to its own port 0 gives that address its own range of ports and the destination list does not add to it. That is Linux; it says nothing of Windows.
