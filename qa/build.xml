@@ -738,8 +738,6 @@
         qa1-javaspace-dl.jar,
         qa1-lookupservice-dl.jar,
         qa1-renewalservice-dl.jar,
-        qa1-securityDoPrivileged.jar,
-        qa1-securityUtil.jar,
         qa1-servicediscovery-dl.jar,
         qa1-httpmd.jar,
         qa1-httpmd-same.jar,
@@ -794,8 +792,6 @@
         qa1-javaspace-dl.jar,
         qa1-lookupservice-dl.jar,
         qa1-renewalservice-dl.jar,
-        qa1-securityDoPrivileged.jar,
-        qa1-securityUtil.jar,
         qa1-servicediscovery-dl.jar,
         qa1-httpmd.jar,
         qa1-httpmd-same.jar,
@@ -2242,23 +2238,6 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false" update="true">
             <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-renewalservice-dl.deps}"/>-->
-        </jar>
-    </target>
-
-    <target name="qa1-securityDoPrivileged.jar" depends="compile">
-        <jar destfile="${lib.dir}/qa1-securityDoPrivileged.jar" index="false">
-            <fileset dir="${build.classes.dir}">
-                <include name="org/apache/river/test/spec/security/security/DoPrivilegedTest.class" />
-                <include name="org/apache/river/test/spec/security/security/DoPrivilegedExceptionTest.class" />
-            </fileset>
-        </jar>
-    </target>
-
-    <target name="qa1-securityUtil.jar" depends="compile">
-        <jar destfile="${lib.dir}/qa1-securityUtil.jar" index="false">
-            <fileset dir="${build.classes.dir}">
-                <include name="org/apache/river/test/spec/security/util/FakeCaller.class" />
-            </fileset>
         </jar>
     </target>
 
