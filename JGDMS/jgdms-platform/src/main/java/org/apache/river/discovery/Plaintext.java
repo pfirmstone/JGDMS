@@ -478,6 +478,10 @@ public class Plaintext {
 		groups[i] = din.readUTF();
 	    }
 
+	    System.err.println("BUG1-DIAG Plaintext.readV2UnicastResponse host=" + host
+		    + " port=" + port + " groups=" + java.util.Arrays.toString(groups)
+		    + " defaultLoader=" + defaultLoader); // TEMP diagnostic, remove
+
 	    // read LUS proxy, defensively checking type.
 	    ServiceRegistrar reg = ((AtomicMarshalInputStream)
 		    AtomicMarshalInputStream.create(in,
@@ -487,11 +491,18 @@ public class Plaintext {
 			    context,
 			    false
 		    )).readObject(ServiceRegistrar.class);
-	    
+
+	    System.err.println("BUG1-DIAG Plaintext.readV2UnicastResponse DECODED reg="
+		    + (reg == null ? "null" : reg.getClass().getName())); // TEMP diagnostic, remove
+
 	    return new UnicastResponse(host, port, groups, reg);
 
 	} catch (RuntimeException e) {
+	    System.err.println("BUG1-DIAG Plaintext.readV2UnicastResponse FAILED " + e); // TEMP diagnostic, remove
 	    throw new DiscoveryProtocolException(null, e);
+	} catch (IOException | ClassNotFoundException e) { // TEMP diagnostic, remove
+	    System.err.println("BUG1-DIAG Plaintext.readV2UnicastResponse FAILED " + e); // TEMP diagnostic, remove
+	    throw e;
 	}
     }
 

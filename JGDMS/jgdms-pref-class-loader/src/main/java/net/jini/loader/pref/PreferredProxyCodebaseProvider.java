@@ -1873,6 +1873,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	}   
 	ClassLoader loader;
 	final String path = bootstrapProxy.getClassAnnotation();
+	System.err.println("BUG1-DIAG PPCP.resolve annotation=[" + path
+		+ "] parent=" + parent); // TEMP diagnostic, remove
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
         // Extract the authenticated server principals from the TLS-layer
@@ -2306,6 +2308,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             }
         }
 	
+	System.err.println("BUG1-DIAG PPCP.resolve terminal decode loader=" + loader
+		+ " codebaseUrls=" + codebase.length); // TEMP diagnostic, remove
 	Object sp = serviceProxy.get(loader, true, verifier, context);
 	/**
 	 * The following exists because a trusted proxy might be using a third

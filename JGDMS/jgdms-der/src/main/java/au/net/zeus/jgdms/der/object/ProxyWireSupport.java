@@ -137,6 +137,14 @@ public final class ProxyWireSupport {
                     resolvedNames.add(name);
                 } catch (ClassNotFoundException perNameFailure) {
                     dropped.add(name);
+                    // TEMP diagnostic, remove -- which DER decode is this, and what
+                    // ResolutionContext did it inherit? The Atomic path resolves the same
+                    // interface set fine under the endpoint loader, so print the loader this
+                    // decode actually got plus the caller chain that produced it.
+                    System.err.println("BUG1-DIAG resolveTolerant DROP name=" + name
+                            + " resolutionLoader=" + resolution.defaultLoader()
+                            + " resolution=" + resolution);
+                    new Throwable("BUG1-DIAG resolveTolerant DROP call site").printStackTrace();
                     LOGGER.log(Level.WARNING,
                             "DER [8] proxy: interface \"{0}\" is not locally resolvable; dropping"
                             + " it from the reconstructed proxy (the narrowed proxy is still"

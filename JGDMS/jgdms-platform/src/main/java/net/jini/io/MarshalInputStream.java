@@ -425,11 +425,28 @@ public class MarshalInputStream
 	String annotation = readAnnotation();
 	String codebase = usingCodebaseAnnotations ? annotation : null;
 
-	return ClassLoading.loadProxyClass(codebase,
+	// TEMP diagnostic, remove -- Atomic-path counterpart of the DER
+	// decodeProxy diagnostics. This is the single funnel through which
+	// AtomicMarshalInputStream.readNewProxyClassDesc resolves every
+	// dynamic proxy, including reggie's nested backend Registrar stub.
+	System.err.println("BUG1-DIAG MarshalInputStream.resolveProxyClass names="
+		+ java.util.Arrays.toString(interfaceNames)
+		+ " codebase=[" + codebase + "]"
+		+ " defaultLoader=" + defaultLoader);
+	try {
+	    Class result = ClassLoading.loadProxyClass(codebase,
 					   interfaceNames,
 					   defaultLoader,
 					   verifyCodebaseIntegrity,
 					   verifierLoader);
+	    System.err.println("BUG1-DIAG MarshalInputStream.resolveProxyClass OK loader="
+		    + result.getClassLoader()); // TEMP diagnostic, remove
+	    return result;
+	} catch (ClassNotFoundException | RuntimeException | IOException e) { // TEMP diagnostic, remove
+	    System.err.println("BUG1-DIAG MarshalInputStream.resolveProxyClass FAILED "
+		    + e); // TEMP diagnostic, remove
+	    throw e;
+	}
     }
 
     /**
