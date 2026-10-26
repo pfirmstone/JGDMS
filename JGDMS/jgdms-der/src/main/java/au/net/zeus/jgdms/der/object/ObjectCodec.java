@@ -2294,6 +2294,8 @@ public final class ObjectCodec {
         // dropped (and logged); the proxy still builds over the resolvable subset. Resolved FIRST
         // (before decoding the handler) so we know whether narrowing occurred, hence whether to
         // hand the handler its original [8] bytes for verbatim re-forward.
+        System.err.println("BUG1-DIAG ObjectCodec.decodeProxy names=" + java.util.Arrays.toString(names)
+                + " resolutionLoader=" + resolution.defaultLoader()); // TEMP diagnostic, remove
         ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
         // DeSerializationPermission("PROXY") gate runs on the RESOLVED (narrowed) interfaces
         // actually being instantiated, not the full original names.

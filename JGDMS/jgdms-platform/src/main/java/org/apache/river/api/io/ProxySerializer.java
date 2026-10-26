@@ -387,7 +387,11 @@ class ProxySerializer {
     }
     
     Object readResolve() throws IOException, ClassNotFoundException {
-	return getProvider(defaultLoader).resolve(bootstrapProxy, serviceProxy, defaultLoader,
+	ProxyCodebaseSpi provider = getProvider(defaultLoader);
+	System.err.println("BUG1-DIAG ProxySerializer.readResolve provider="
+		+ provider.getClass().getName() + " defaultLoader=" + defaultLoader
+		+ " verifierLoader=" + verifierLoader); // TEMP diagnostic, remove
+	return provider.resolve(bootstrapProxy, serviceProxy, defaultLoader,
 		verifierLoader, context);
     }
 
