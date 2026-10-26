@@ -1376,10 +1376,20 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		ProtectionDomain pd =
 		    new ProtectionDomain(codeSource, null, this, null);
 
-		if (!pd.implies(DOWNLOAD_PERMISSION)) {
+		/*
+		 * Route the check through the security manager rather than
+		 * calling pd.implies directly, so that audit security managers
+		 * (polpAudit) observe it and can record the required grant.
+		 * On a stock JVM this is equivalent: the security manager
+		 * delegates to AccessControlContext.checkPermission, which
+		 * calls pd.implies.
+		 */
+		try {
+		    Security.checkPermission(DOWNLOAD_PERMISSION, pd);
+		} catch (SecurityException e) {
 		    throw new SecurityException(
 			"CodeSource not permitted to define class: " +
-			codeSource);
+			codeSource, e);
 		}
 	    }
 	}

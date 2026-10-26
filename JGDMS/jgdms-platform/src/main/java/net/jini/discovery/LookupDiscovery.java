@@ -39,6 +39,7 @@ import net.jini.core.constraint.MethodConstraints;
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#ldConfigEntries">Configuring LookupDiscovery</a>
+ *     <li> <a href="#ldDiscoverySigningIdentity">Discovery Signing Identity</a>
  *     <li> <a href="#ldLogging">Logging</a>
  * </ul>
  *
@@ -501,6 +502,47 @@ import net.jini.core.constraint.MethodConstraints;
  *       configuration entry of this utility. This entry is processed only
  *       if <code>unicastDelayRange</code> has a positive value.
  * </table>
+ *
+ * <a name="ldDiscoverySigningIdentity"><b>Discovery Signing Identity</b></a>
+ *
+ * This implementation captures the discovery signing identity from the
+ * {@link javax.security.auth.Subject} in scope on the thread that
+ * constructs it -- as returned by {@link javax.security.auth.Subject#current
+ * Subject.current()} -- rather than from a configuration entry. There is
+ * no <code>discoverySubject</code> (or similarly named) configuration
+ * entry; the identity is established once, implicitly, by where and how
+ * the constructor is called.
+ *
+ * <p>Consequently, an entity that wants outbound discovery traffic signed
+ * under a particular login identity must construct this utility from
+ * within a {@link javax.security.auth.Subject#callAs(javax.security.auth.Subject,
+ * java.util.concurrent.Callable) Subject.callAs(loginSubject, ...)} block
+ * (or the equivalent), so that the login <code>Subject</code> is current
+ * on the constructing thread. If no qualifying <code>Subject</code> is in
+ * scope at construction -- the ordinary case for plaintext-only
+ * deployments, and always the case under an ambient process identity such
+ * as DirtyChai's SPIFFE-derived <code>WorkerSubject</code>, which is never
+ * captured -- discovery proceeds unsigned. This is the correct behavior
+ * in both cases; it is only a problem when a signing discovery format was
+ * intended but no qualifying <code>Subject</code> was current at
+ * construction, in which case discovery silently carries no signing
+ * identity.
+ *
+ * <p>The captured reference, once established, is pinned for the
+ * lifetime of this instance; it is not re-resolved from the thread on
+ * each discovery operation. Credential <i>contents</i> reachable through
+ * that pinned <code>Subject</code> do stay current: {@link
+ * javax.security.auth.login.LoginContext#login() LoginContext.login()}
+ * and {@link javax.security.auth.login.LoginContext#logout()
+ * LoginContext.logout()} mutate the principal and credential sets of the
+ * same <code>Subject</code> instance in place, and the signing discovery
+ * format provider re-reads those sets from the pinned instance on every
+ * operation. What is <i>not</i> picked up is a wholesale replacement of
+ * the <code>Subject</code> -- for example, discarding a
+ * <code>LoginContext</code> and creating a new one, which produces a new
+ * <code>Subject</code> instance distinct from the one captured at
+ * construction. Such a replacement requires constructing a new
+ * <code>LookupDiscovery</code> instance to take effect.
  *
  * <a name="ldLogging"><b>Logging</b></a>
  *
