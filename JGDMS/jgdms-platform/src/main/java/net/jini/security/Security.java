@@ -36,6 +36,7 @@ import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.SecurityPermission;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -1606,6 +1607,11 @@ public final class Security {
      * @param provider the provider to register, or {@code null} to clear
      */
     public static void registerLocalPrincipalProvider(LocalPrincipalProvider provider) {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(
+		    new SecurityPermission("registerLocalPrincipalProvider"));
+	}
         localPrincipalProvider.set(provider);
     }
 
