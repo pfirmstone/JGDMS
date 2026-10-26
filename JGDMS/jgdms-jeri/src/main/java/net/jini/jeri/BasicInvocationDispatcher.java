@@ -51,6 +51,7 @@ import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.SecurityPermission;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -376,6 +377,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	new ProtectionDomain(emptyCS, null, null, null);
 
     /** Cached getClassLoader permission */
+    /**
+     * Permission required to install the JVM-wide {@link JwtVerifier}; the
+     * verifier decides which wire tokens are accepted, so installing one is a
+     * security-relevant operation.
+     */
+    private static final Permission setJwtVerifierPermission =
+	    new SecurityPermission("setJwtVerifier");
+
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
 
@@ -420,9 +429,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * <p>The verifier is a global JVM-wide setting; register it once at
      * application startup, before any remote objects are exported.
      *
+     * <p>If a security manager is installed, its {@code checkPermission}
+     * method is invoked with {@code SecurityPermission("setJwtVerifier")}.
+     * Without that check any code able to reach this method could install a
+     * verifier of its choosing and thereby decide which wire tokens are
+     * accepted.
+     *
      * @param verifier the verifier to use, or {@code null} to disable
+     * @throws SecurityException if a security manager is installed and the
+     *         caller does not have {@code SecurityPermission("setJwtVerifier")}
      */
     public static void setJwtVerifier(JwtVerifier verifier) {
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkPermission(setJwtVerifierPermission);
+	}
         jwtVerifier = verifier;
     }
 
