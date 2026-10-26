@@ -54,6 +54,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -285,7 +286,32 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private final Exception thrown;
     private final MethodConstraints methodConstraints;
     private final long startTime;
-    private final DiscoveryCredentialProvider discoveryCredentialProvider;
+
+    /**
+     * The identity to sign outbound discovery packets with, captured from the
+     * constructing caller's scope, or {@code null} if the caller had no
+     * capturable identity.
+     *
+     * <p>Why a captured field rather than a value read on the worker thread:
+     * all five of this class's worker threads are PLATFORM threads, and
+     * DirtyChai deliberately does not propagate the scoped {@code Subject} to a
+     * platform thread ({@code java/lang/Thread.java} sets
+     * {@code scopedSubject = new Subject[0]} for them), so that a long-lived
+     * platform thread cannot silently retain a caller's identity.  Reading
+     * {@code Subject.current()} on the worker therefore always yields
+     * {@code null}, and the only place the caller's identity is still in scope
+     * is this constructor.
+     *
+     * <p>The retention this creates is deliberate and bounded: it is scoped to
+     * an instance whose lifetime the caller creates and ends
+     * ({@link #terminate}), and it is used for exactly one purpose -- supplying
+     * signing credentials to the discovery format providers -- never for
+     * general authorization.
+     *
+     * @see #captureDiscoverySubject()
+     * @see #runWithDiscoverySubject
+     */
+    private final Subject discoverySubject;
 
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
@@ -309,16 +335,28 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  <p>
      *  Only 1 instance of this thread is run.
      */
-    private class Notifier extends Thread {
-	
+    private class Notifier implements Runnable {
+	/** The thread this task runs in. */
+	private final Thread thread;
+
 	public Notifier() {
-	    super("event listener notification");
-	    setDaemon(false);
+	    thread = new Thread(this, "event listener notification");
+	    thread.setDaemon(false);
 	}//end constructor
+
+	/** Starts the underlying thread. */
+	public void start() {
+	    thread.start();
+	}//end start
+
+	/** Interrupts the underlying thread. */
+	public void interrupt() {
+	    thread.interrupt();
+	}//end interrupt
 
 	public void run() {
             logger.finest("LookupDiscovery - Notifier thread started");
-	    while (!interrupted()) {
+	    while (!Thread.interrupted()) {
 		final NotifyTask task;
                 try {
                     task = pendingNotifies.takeFirst();
@@ -344,6 +382,46 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                  * restored, and the listner code should be restricted to
                  * doing nothing more than the client itself is allowed to do.
                  */
+                /* DirtyChai: this Notifier runs on a PLATFORM thread, which
+                 * since cc09a47009c carries no scoped Subject (Thread.java:847
+                 * assigns new Subject[0]; only virtual threads capture, :895).
+                 * The doPrivileged below restores an AccessControlContext, and
+                 * an ACC carries PRINCIPALS but not CREDENTIALS -- so it cannot
+                 * put the client's Subject back, despite what the comment above
+                 * asserts.  Listener callbacks routinely make remote calls on
+                 * the registrar proxies (the qa LookupListener calls
+                 * getLocator()/getGroups()), which need credentials to sign.
+                 *
+                 * WHY THIS IS A RESTORATION, NOT AN ELEVATION -- the baseline
+                 * is the stock-JDK/SecurityManager era, NOT "what this thread
+                 * inherited before cc09a47009c".  Back then the restored ACC
+                 * reached the WHOLE Subject, private credentials included, via
+                 * Subject.getSubject(acc) and the SubjectDomainCombiner it
+                 * carried, so listener callbacks always could sign as the
+                 * client.  This restores that under the ScopedValue regime.
+                 *
+                 *  /!\ Do NOT restate this as thread inheritance.  DirtyChai
+                 * propagates the Subject by wrapping Thread.run(); at HEAD this
+                 * Notifier "extends Thread" and overrides run(), so the wrapper
+                 * never fired -- measured, DESIGN-discovery-credential-
+                 * resolution.md 11.7 (2026-08-09).  (It is "implements
+                 * Runnable" in the working tree, which WOULD let the wrapper
+                 * fire -- but that refactor is uncommitted and is not the
+                 * historical baseline.)
+                 *
+                 * discoverySubject is captured at construction, the same moment
+                 * as securityContext (:192), so the identity bound is the
+                 * instance owner's own -- the same principal whose work the
+                 * callbacks do, which is what distinguishes this from a
+                 * confused-deputy.
+                 *
+                 * This single seam also covers LookupDiscoveryManager, whose
+                 * notifyListener() re-delivers synchronously on this thread.
+                 */
+                try {
+                runWithDiscoverySubject(discoverySubject,
+                        new PrivilegedExceptionAction<Void>() {
+                    public Void run() {
 		AccessController.doPrivileged
                 (securityContext.wrap(new PrivilegedAction() {
 		    public Object run() {
@@ -414,6 +492,13 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 		    }//end run
 		}),//end PrivilegedAction and wrap
                 securityContext.getAccessControlContext());//end doPrivileged
+                        return null;
+                    }//end run
+                });//end runWithDiscoverySubject
+                } catch (Exception e) {
+                    logger.log(Levels.HANDLED,
+                        "discovery event delivery failed under the client subject", e);
+                }
 	    }//end loop
 	}//end run
     }//end class Notifier
@@ -434,7 +519,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  <p>
      *  Only 1 instance of this thread is run.
      */
-    private class AnnouncementListener extends Thread {
+    private class AnnouncementListener implements Runnable {
+	/** The thread this task runs in. */
+	private final Thread thread;
 	/** Multicast socket for receiving packets */
 	private final MulticastSocket sock;
         /* Set of interfaces whose elements also belong to the nics[] array,
@@ -444,8 +531,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         private ArrayList<NetworkInterface> retryNics = null;
 
 	public AnnouncementListener() throws IOException {
-	    super("multicast discovery announcement listener");
-	    setDaemon(false);
+	    thread = new Thread(this,
+				"multicast discovery announcement listener");
+	    thread.setDaemon(false);
 	    sock = new MulticastSocket(Constants.discoveryPort);
             switch(nicsToUse) {
                 case NICS_USE_ALL:
@@ -531,6 +619,11 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
 	/** True if thread has been interrupted */
 	private volatile boolean interrupted = false;
+
+	/** Starts the underlying thread. */
+	public void start() {
+	    thread.start();
+	}//end start
 
 	/* This is a workaround for Thread.interrupt not working on
 	 * MulticastSocket.receive on all platforms.
@@ -641,18 +734,25 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  <p>
      *  Only 1 instance of this thread is run.
      */
-    private class ResponseListener extends Thread {
+    private class ResponseListener implements Runnable {
+	/** The thread this task runs in. */
+	private final Thread thread;
 	/** Server socket for accepting connections */
 	public final ServerSocket serv;
-	
+
 	public ResponseListener() throws IOException {
-	    super("multicast discovery response listener");
-	    setDaemon(false);
+	    thread = new Thread(this, "multicast discovery response listener");
+	    thread.setDaemon(false);
 	    serv = new ServerSocket(0);
 	}//end constructor
 
 	/** True if thread has been interrupted */
 	private volatile boolean interrupted = false;
+
+	/** Starts the underlying thread. */
+	public void start() {
+	    thread.start();
+	}//end start
 
 	/* This is a workaround for Thread.interrupt not working on
 	 * ServerSocket.accept on all platforms.  ServerSocket.close
@@ -716,7 +816,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  An instance of this thread is run at startup, and each time the
      *  set of groups to discover is changed.
      */
-    private class Requestor extends Thread {
+    private class Requestor implements Runnable {
+	/** The thread this task runs in. */
+	private final Thread thread;
 	/** Multicast socket for sending packets */
 	private final MulticastSocket sock;
 	/** Unicast response port */
@@ -728,8 +830,8 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	public Requestor(String[] groups, int port, boolean delayFlag)
 	    throws IOException
 	{
-	    super("multicast discovery request");
-	    setDaemon(false);
+	    thread = new Thread(this, "multicast discovery request");
+	    thread.setDaemon(false);
 	    sock = new MulticastSocket(Constants.discoveryPort);
 	    sock.setTimeToLive(
 		multicastRequestConstraints.getMulticastTimeToLive(
@@ -738,6 +840,13 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    this.groups = groups == null ? new String[0] : groups;
 	    this.delayFlag = delayFlag;
 	}//end constructor
+
+	/** Returns the thread this task runs in; used by the caller to track
+	 *  and interrupt active requestors.
+	 */
+	public Thread thread() {
+	    return thread;
+	}//end thread
 
 	/** This method sends out N (for small N) multicast requests. Until
          *  the last request is sent out, this method sleeps for 5 seconds
@@ -779,14 +888,14 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         Thread.sleep((long) (Math.random() * adjustedDelayRange));
 		}
 		for (count = multicastRequestMax;
-                                          --count >= 0 && !isInterrupted(); )
+                                          --count >= 0
+                                          && !Thread.currentThread().isInterrupted(); )
                 {
                     final MulticastRequest request = new MulticastRequest(
                             multicastRequestHost,
                             responsePort,
                             groups,
                             getServiceIDs());
-                    Subject discoverySubject = getDiscoverySubject();
                     DatagramPacket[] reqs = runWithDiscoverySubject(
                             discoverySubject,
                             new PrivilegedExceptionAction<DatagramPacket[]>() {
@@ -833,19 +942,29 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      * If that lookup service is unreachable, or if it is reachable but its
      * member groups have been replaced, the lookup service is discarded.
      */
-    private class AnnouncementTimerThread extends Thread {
+    private class AnnouncementTimerThread implements Runnable {
         /* Number of interval to exceed for declaring announcements stopped */
         private static final long N_INTERVALS = 3;
-        
+        /** The thread this task runs in. */
+        private final Thread thread;
+
         public AnnouncementTimerThread() {
-            super("multicast announcement timer");
-            setDaemon(false);
+            thread = new Thread(this, "multicast announcement timer");
+            thread.setDaemon(false);
+        }
+        /** Starts the underlying thread. */
+        public void start() {
+            thread.start();
+        }
+        /** Interrupts the underlying thread. */
+        public void interrupt() {
+            thread.interrupt();
         }
         public void run() {
             long timeThreshold = N_INTERVALS*multicastAnnouncementInterval;
             try {
-                while(!isInterrupted()) {
-                    sleep(multicastAnnouncementInterval);
+                while(!Thread.currentThread().isInterrupted()) {
+                    Thread.sleep(multicastAnnouncementInterval);
                     long curTime = System.currentTimeMillis();
                     /* Previously regInfo was cloned to avoid synchronizing
                      * this was changed to a simple synchronized block during code
@@ -1031,10 +1150,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                 // newly discovered
                 pending = new LookupLocator(ann.getHost(), ann.getPort());
             }
+	    // TEMP diagnostic, remove -- both "already known" and "groups don't
+	    // overlap" fall through with pending==null and log NOTHING today,
+	    // which is indistinguishable from "no announcement arrived".
+	    System.err.println("BUG1-DIAG ALD.announcement from=" + ann.getHost() + ":" + ann.getPort()
+		    + " annGroups=" + java.util.Arrays.toString(ann.getGroups())
+		    + " alreadyKnown=" + (resp != null)
+		    + " groupsOverlap=" + groupsOverlap(ann.getGroups())
+		    + " pending=" + (pending == null ? "NONE (dropped)" : pending.getClass().getSimpleName()));
 	    if (pending != null) {
 		try {
 		    checkAnnouncementConstraints(ann);
 		} catch (Exception e) {
+		    System.err.println("BUG1-DIAG ALD.announcement CONSTRAINT-REJECT " + e); // TEMP diagnostic, remove
 		    if (!(e instanceof InterruptedIOException)) {
 			logger.log(Levels.HANDLED,
 			       "exception decoding multicast announcement", e);
@@ -1257,6 +1385,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			   "exception occurred during unicast discovery",
 			   e);
 	    } catch (Throwable e) {
+		System.err.println("BUG1-DIAG ALD.UnicastDiscoveryTask FAILED req="
+			+ req + " -- " + e); // TEMP diagnostic, remove
+		e.printStackTrace(); // TEMP diagnostic, remove
 		if (((req instanceof Socket) ||
 		    (req instanceof LookupLocator)) &&
 		    logger.isLoggable(Level.INFO)) {
@@ -1415,7 +1546,6 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         boolean isDefaultWakeupMgr;
         long initialMulticastRequestDelayRange;
 	private MethodConstraints methodConstraints;
-        private DiscoveryCredentialProvider discoveryCredentialProvider;
         long startTime;
         
         private Initializer(Configuration config) throws ConfigurationException,
@@ -1425,11 +1555,6 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
             if(config == null)  throw new NullPointerException("config is null");
             startTime = System.currentTimeMillis();
-            discoveryCredentialProvider = (DiscoveryCredentialProvider) config.getEntry(
-                    COMPONENT_NAME,
-                    "discoveryCredentialProvider",
-                    DiscoveryCredentialProvider.class,
-                    NoOpDiscoveryCredentialProvider.INSTANCE);
             /* Lookup service proxy preparer */
             registrarPreparer = (ProxyPreparer)config.getEntry
                                                         (COMPONENT_NAME,
@@ -1696,7 +1821,10 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         isDefaultWakeupMgr = init.isDefaultWakeupMgr;
         initialMulticastRequestDelayRange = init.initialMulticastRequestDelayRange;
         startTime = init.startTime;
-        discoveryCredentialProvider = init.discoveryCredentialProvider;
+        /* Capture the constructing caller's identity while it is still in
+         * scope -- see the discoverySubject field comment for why this cannot
+         * be deferred to the worker threads. */
+        discoverySubject = captureDiscoverySubject();
         /* end Init */
         
         if(nicsToUse ==  NICS_USE_NONE) { //disable discovery
@@ -2331,7 +2459,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			}
 			t = new Requestor(collectionToStrings(req),
 					  respondeeThread.getPort(),
-					  delayFlag);
+					  delayFlag).thread();
 			requestors.add(t);
 		    }//end sync
 		    t.start();
@@ -2454,6 +2582,15 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
          * don't match any of the groups of interest, then don't waste time 
          * performing an unnecessary proxy preparation; simply return.
          */
+        // TEMP diagnostic, remove -- last mile before the discovery event fires.
+        System.err.println("BUG1-DIAG ALD.maybeAddNewRegistrar host=" + resp.getHost()
+                + ":" + resp.getPort()
+                + " respGroups=" + java.util.Arrays.toString(resp.getGroups())
+                + " groupsOverlap=" + groupsOverlap(resp.getGroups())
+                + " reg=" + (resp.getRegistrar() == null
+                        ? "null"
+                        : resp.getRegistrar().getClass().getName()
+                          + " loadedBy=" + resp.getRegistrar().getClass().getClassLoader()));
         if( !groupsOverlap(resp.getGroups()) )  return;
 
         /* Proxy preparation - 
@@ -2507,8 +2644,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 					   prepReg);
 	    }
 	} catch (Exception e) {
-            Exception e1 = ( (e instanceof PrivilegedActionException) ? 
+            Exception e1 = ( (e instanceof PrivilegedActionException) ?
                             ((PrivilegedActionException)e).getException() : e);
+            System.err.println("BUG1-DIAG ALD.maybeAddNewRegistrar PREPARE-FAILED " + e1); // TEMP diagnostic, remove
             logger.log(Level.INFO,
                        "exception while preparing lookup service proxy",
                        e1);
@@ -3069,7 +3207,6 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	// configured unicast-discovery trust requirements.
 	context.add(new BasicMethodConstraints(
 	    unicastDiscoveryConstraints.getUnfulfilledConstraints()));
-	final Subject discoverySubject = getDiscoverySubject();
 	try {
 	    return AccessController.doPrivileged(
 		securityContext.wrap(new PrivilegedExceptionAction<UnicastResponse>() {
@@ -3111,24 +3248,160 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	return doUnicastDiscovery(socket, unicastDiscoveryConstraints, disco);
     }
 
-    private Subject getDiscoverySubject() {
+    /**
+     * Class names of the {@code Subject} types that may legitimately be
+     * captured and re-established later.  This is an ALLOW-list, not a
+     * deny-list, and that direction is the point.
+     *
+     * <p>The identity we must never capture is DirtyChai's
+     * {@code WorkerSubject}: it is ambient and process-wide rather than
+     * thread-scoped, its SVID rotates (typically hourly) so a retained
+     * reference goes stale, and its javadoc states it "must never be captured
+     * for later use".  {@code Subject.callAs}/{@code doAs} reject it outright.
+     *
+     * <p>{@code WorkerSubject} cannot be named at compile time -- it does not
+     * exist on a stock OpenJDK, and JGDMS must build and run there.  A
+     * deny-list matched by name would be a fresh instance of the bug class this
+     * whole area has been paying for: it fails OPEN against anything DirtyChai
+     * adds later ({@code WorkerSubject} already {@code permits SpiffeSubject,
+     * RemoteSubject}, and the hierarchy is sealed precisely so it can grow).
+     * So we name the two types that carry a *user* identity -- the base
+     * {@code Subject} that {@code LoginContext.login()} creates, and
+     * {@code UserSubject} -- and capture nothing else.  A type we do not
+     * recognise is treated as not capturable, which degrades to the
+     * null-passthrough branch of {@link #runWithDiscoverySubject}: the ambient
+     * identity is left untouched and resolved per use, which is exactly what an
+     * ambient identity requires.
+     *
+     * <p>Deliberately NOT done: handing the Subject to {@code callAs} and
+     * catching the {@code IllegalArgumentException}.  That decides the question
+     * by provoking a failure and then swallowing it, once per discovery
+     * operation, at the point where recovery is least possible.
+     *
+     * <p>Matched by exact class name rather than {@code Class.forName} +
+     * {@code isInstance}: this code runs before any signing occurs, on a JDK
+     * that may not have the class at all, and an exact-name allow-list needs no
+     * class loading, no reflective permission, and no assumption about which
+     * loader sees {@code javax.security.auth.UserSubject}.  Subclasses are not
+     * matched, by design -- an unrecognised subclass is refused, not inherited
+     * into the allow-list.
+     */
+    private static final Set<String> CAPTURABLE_SUBJECT_TYPES =
+            Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+                    "javax.security.auth.Subject",
+                    "javax.security.auth.UserSubject")));
+
+    /**
+     * Returns the caller's current {@code Subject} if it is one this instance
+     * may retain, otherwise {@code null}.
+     *
+     * <p>Called once, from the constructor, on the constructing caller's
+     * thread.  {@code null} is a normal, supported outcome -- it means "this
+     * caller established no capturable identity" -- and produces the
+     * null-passthrough branch of {@link #runWithDiscoverySubject}, i.e. exactly
+     * the behaviour that existed before any of this.
+     *
+     * @see #CAPTURABLE_SUBJECT_TYPES
+     */
+    private Subject captureDiscoverySubject() {
+        Subject current;
         try {
-            return discoveryCredentialProvider.getSubject();
-        } catch (RuntimeException e) {
-            String providerName = (discoveryCredentialProvider == null)
-                    ? "null"
-                    : discoveryCredentialProvider.getClass().getName();
+            current = Subject.current();
+        } catch (SecurityException e) {
+            // Denied AuthPermission("getSubject").  A deployment defect, not an
+            // environment fact: this instance will sign nothing, which presents
+            // downstream as silent discovery failure, so it must be visible by
+            // default rather than at a debug level.  Same reasoning, and the
+            // same level, as X500Provider's own signing-credential failure log.
             logger.log(Level.WARNING,
-                    "DiscoveryCredentialProvider (" + providerName + ") threw while resolving discovery Subject; continuing without provider Subject",
-                    e);
+                    "denied access to Subject.current() while capturing the "
+                    + "discovery identity; discovery packets will be signed "
+                    + "with no identity -- check for a missing "
+                    + "AuthPermission(\"getSubject\") grant", e);
             return null;
         }
+        if (current == null) {
+            // Expected whenever the caller is not itself running under a login
+            // Subject.  CONFIG, not WARNING: it is a legitimate configuration
+            // -- plaintext-only deployments have no Subject to capture, and
+            // routinely constructing this way must not train operators to
+            // ignore a warning.  This method has no visibility into whether a
+            // signing discovery format is configured (that is resolved later,
+            // per-provider, from the discovery constraints), so it cannot
+            // distinguish "no Subject, harmlessly" from "no Subject, and
+            // discovery will silently sign nothing" -- it can only log at
+            // CONFIG for diagnosis on demand, not surface by default.
+            if (logger.isLoggable(Level.CONFIG)) {
+                logger.log(Level.CONFIG,
+                        "no current Subject at LookupDiscovery construction; "
+                        + "outbound discovery will carry no signing identity. "
+                        + "If a signing discovery format is configured, "
+                        + "construct this instance inside "
+                        + "Subject.callAs(loginSubject, ...).");
+            }
+            return null;
+        }
+        if (!CAPTURABLE_SUBJECT_TYPES.contains(current.getClass().getName())) {
+            // Ambient/process identity (DirtyChai WorkerSubject and its
+            // subtypes), or a Subject type this release does not know about.
+            // Not captured -- see CAPTURABLE_SUBJECT_TYPES.
+            if (logger.isLoggable(Level.CONFIG)) {
+                logger.log(Level.CONFIG,
+                        "current Subject at LookupDiscovery construction is a "
+                        + "{0}, which is not capturable for later use; leaving "
+                        + "the ambient identity untouched so it is resolved "
+                        + "afresh at each use.",
+                        current.getClass().getName());
+            }
+            return null;
+        }
+        if (logger.isLoggable(Level.CONFIG)) {
+            logger.log(Level.CONFIG,
+                    "captured discovery identity {0} at LookupDiscovery "
+                    + "construction",
+                    current.getPrincipals());
+        }
+        return current;
     }
 
+    /**
+     * Runs {@code action} with {@code discoverySubject} established as the
+     * current Subject, so that the discovery providers can find signing
+     * credentials.
+     *
+     * <p>This must establish the Subject <em>here</em>, around the work, rather
+     * than relying on the thread having inherited it.  Discovery requestor and
+     * announcement threads are PLATFORM threads, and a platform thread does not
+     * carry the scoped Subject: DirtyChai propagates it to virtual threads only,
+     * deliberately, so that a long-lived platform thread cannot silently retain
+     * a caller's identity.  Establishing it at thread-construction time
+     * therefore has no effect.
+     *
+     * <p>A null Subject leaves the ambient identity untouched.  That is the
+     * behaviour when nothing was capturable at construction -- either the
+     * constructing caller had no current Subject, or it had an ambient one
+     * (DirtyChai's {@code WorkerSubject}) which by contract must be resolved
+     * afresh at each use rather than bound here.  See
+     * {@link #captureDiscoverySubject()}.
+     */
     private <T> T runWithDiscoverySubject(
             Subject discoverySubject,
             PrivilegedExceptionAction<T> action) throws Exception {
-        return action.run();
+        if (discoverySubject == null) {
+            return action.run();
+        }
+        try {
+            return Subject.callAs(discoverySubject, action::run);
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw (Exception) cause;
+            }
+            if (cause instanceof Error) {
+                throw (Error) cause;
+            }
+            throw e;
+        }
     }
 
     /**

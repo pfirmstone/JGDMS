@@ -2022,7 +2022,40 @@ abstract class NormServerBaseImpl
             started = true;
         }
         try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction(){
+            /*
+             * The Subject.callAs below establishes this service's login identity
+             * around the whole start-up *operation* -- exporting the server,
+             * recovering the store, creating the JoinState (which registers this
+             * service with lookup services) and taking the baseline snapshot.
+             * Those are the parts that need an identity, and wrapping the
+             * operation is what makes it effective.
+             *
+             * It does NOT give an identity to the threads started inside it
+             * (snapshotter, renewLogger, lrmEventListener, and the expiration
+             * manager's threads).  In DirtyChai (JDK 27+) a Subject rides a
+             * ScopedValue and a *platform* Thread captures none of it:
+             * java/lang/Thread.java:847 assigns "scopedSubject = new Subject[0]"
+             * ("Scoped subject should only propagate to virtual threads, not
+             * platform threads, for fail closed behaviour").  Only the
+             * virtual-thread constructor (Thread.java:895) captures it.  An
+             * earlier revision of this comment claimed the opposite; do not
+             * reintroduce that claim.
+             *
+             * Those threads do not need an identity: they write the local
+             * persistence log and move work between local queues.  The
+             * operations that do need one are the outbound remote event sends,
+             * which run on the EventTypeGenerator's ExecutorService -- see
+             * EventType.SendTask.  Work handed to an existing Executor does not
+             * inherit a callAs binding, and an AccessControlContext conveys
+             * permissions but no identity (DirtyChai's
+             * Subject.getSubject(AccessControlContext) ignores its argument and
+             * returns Subject.current()), so the identity is established there,
+             * from the Subject handed to the generator below.
+             */
+            final Subject loginSubject =
+                loginContext != null ? loginContext.getSubject() : null;
+            final PrivilegedExceptionAction initAction
+                = new PrivilegedExceptionAction(){
 
                 @Override
                 public Object run() throws Exception {
@@ -2037,7 +2070,21 @@ abstract class NormServerBaseImpl
                         try {
                             store = new PersistentStore(
                                 persistenceDirectory, new OurLogHandler(), NormServerBaseImpl.this);
-                            // Creating the store completes the first two stages of 
+                            /*
+                             * Hand this service's login Subject to the event
+                             * generator, now that recovery has finished.  It has
+                             * to be after the store is built: OurLogHandler
+                             * .recover() replaces the generator field with the
+                             * deserialised instance, so setting it any earlier
+                             * would set it on an instance that is then discarded.
+                             *
+                             * EventType.SendTask establishes this Subject around
+                             * each outbound listener.notify(); it cannot inherit
+                             * one, because it runs on the generator's
+                             * ExecutorService.
+                             */
+                            generator.setLoginSubject(loginSubject);
+                            // Creating the store completes the first two stages of
                             // log recovery (reading the snapshot and the updates)
                             // Perform the last stage here of restoring transient state
                             restoreTransientState();
@@ -2144,7 +2191,29 @@ abstract class NormServerBaseImpl
                     return null;
                 }
 
-            }, context);
+            };
+            if (loginSubject != null) {
+                try {
+                    Subject.callAs(loginSubject, () -> {
+                        AccessController.doPrivileged(initAction, context);
+                        return null;
+                    });
+                } catch (CompletionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof PrivilegedActionException) {
+                        throw (PrivilegedActionException) cause;
+                    }
+                    if (cause instanceof RuntimeException) {
+                        throw (RuntimeException) cause;
+                    }
+                    if (cause instanceof Error) {
+                        throw (Error) cause;
+                    }
+                    throw e;
+                }
+            } else {
+                AccessController.doPrivileged(initAction, context);
+            }
 	    ready.ready();
 	    logger.log(Level.INFO, "Norm service started: {0}", this);
         } catch (PrivilegedActionException e){
