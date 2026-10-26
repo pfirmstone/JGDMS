@@ -24,11 +24,9 @@ import java.io.File;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.rmi.Naming;
-import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import net.jini.activation.Activatable;
 import net.jini.activation.arg.ActivationDesc;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationID;
@@ -42,11 +40,9 @@ import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.jrmp.JrmpExporter;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
 
@@ -70,38 +66,36 @@ public class ActivationLibrary {
     }
 
     /**
-     * Deactivates an activated object.  If exporter is null, then
-     * deactivate using pre 1.4-APIs; otherwise use the new 1.4
-     * API.
+     * Deactivates an activated object using the modern JERI activation
+     * API.  The pre-1.4 JDK-RMI Activatable static API has been removed,
+     * so a null exporter can no longer make the object inactive; in that
+     * case we skip straight to forcibly unexporting.
      */
     public static void deactivate(Remote remote,
 				  ActivationID id,
 				  Exporter exporter)
     {
-	int i = 0;
-	do {
-	    i++;
-	    try {
-		boolean success =
-		    ((exporter == null) ?
-		     Activatable.inactive(id) :
-		     ActivationGroup.inactive(id, exporter));
-		    
-		if (success) {
-		    mesg("inactive successful");
-		    return;
-		} else {
-		    Thread.sleep(1000);
+	if (exporter != null) {
+	    int i = 0;
+	    do {
+		i++;
+		try {
+		    if (ActivationGroup.inactive(id, exporter)) {
+			mesg("inactive successful");
+			return;
+		    } else {
+			Thread.sleep(1000);
+		    }
+		} catch (InterruptedException e) {
+		    continue;
+		} catch (Exception e) {
+		    e.printStackTrace();
+		    break;
 		}
-	    } catch (InterruptedException e) {
-		continue;
-	    } catch (Exception e) {
-		e.printStackTrace();
-		break;
-	    }
-	} while (i < 5);
-	
-	mesg("giving up on deactivation after " + i + " attempts");
+	    } while (i < 5);
+
+	    mesg("giving up on deactivation after " + i + " attempts");
+	}
 	mesg("unexporting object forcibly instead");
 
 	forcedUnexport(remote, exporter);
@@ -111,15 +105,12 @@ public class ActivationLibrary {
      * Forcibly unexports the object.
      */
     public static void forcedUnexport(Remote remote, Exporter exporter) {
-	
-	try {
-	    // forcibly unexport the object
-	    if (exporter == null) {
-		Activatable.unexportObject(remote, true);
-	    } else {
-		exporter.unexport(true);
-	    }
-	} catch (NoSuchObjectException ex) {
+	// forcibly unexport the object.  A null exporter formerly used the
+	// removed JDK-RMI Activatable.unexportObject API; without an exporter
+	// there is nothing to forcibly unexport, so this is a best-effort
+	// no-op.  Exporter.unexport does not throw NoSuchObjectException.
+	if (exporter != null) {
+	    exporter.unexport(true);
 	}
     }
 
@@ -366,18 +357,20 @@ public class ActivationLibrary {
     public static Remote register(String exportType, ActivationDesc desc)
 	throws ActivationException, RemoteException
     {
-	if (exportType.equals("default")) {
-	    return Activatable.register(desc);
-	} else {
+	// The "default" (removed JDK-RMI Activatable static API) and "jrmp"
+	// (removed JRMP transport) export types are obsolete.  They are
+	// aliased to the modern secure JERI ("basic") path so that existing
+	// tests which request them still register and obtain a working proxy
+	// rather than failing with "unknown exportType".
+	if (exportType.equals("default")
+	    || exportType.equals("basic")
+	    || exportType.equals("jrmp"))
+	{
 	    ActivationID id =
 		ActivationGroup.getSystem().registerObject(desc);
-	    if (exportType.equals("basic")) {
-		return createSecureProxy(id, desc);
-	    } else if (exportType.equals("jrmp")) {
-		return createProxy(id, desc);
-	    } else {
-		throw new ActivationException("unknown exportType");
-	    }
+	    return createSecureProxy(id, desc);
+	} else {
+	    throw new ActivationException("unknown exportType");
 	}
     }
     
@@ -416,23 +409,21 @@ public class ActivationLibrary {
 	}
 	
 	public Remote export() throws RemoteException {
-	    if (exportType.equals("default")) {
-		stub = Activatable.exportObject(impl, id, 0);
-	    } else {
-		Exporter uexporter;
-		if (exportType.equals("basic")) {
-		    uexporter = new
-			BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-					  new AtomicILFactory(null, null, ActivationLibrary.class),
-					  true, true);
-		} else if (exportType.equals("jrmp")) {
-		    uexporter = new JrmpExporter();
-		} else {
-		    throw new ExportException("unknown exportType");
-		}
-		exporter = new ActivationExporter(id, uexporter);
-		stub = exporter.export(impl);
+	    if (!exportType.equals("default")
+		&& !exportType.equals("basic")
+		&& !exportType.equals("jrmp"))
+	    {
+		throw new ExportException("unknown exportType");
 	    }
+	    // "default" (removed JDK-RMI Activatable static API) and "jrmp"
+	    // (removed JRMP transport) are aliased to the modern secure JERI
+	    // ("basic") exporter so tests requesting them still export.
+	    Exporter uexporter =
+		new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+				      new AtomicILFactory(null, null, ActivationLibrary.class),
+				      true, true);
+	    exporter = new ActivationExporter(id, uexporter);
+	    stub = exporter.export(impl);
 	    System.err.println("stub = " + stub.toString());
 	    return stub;
 	}
