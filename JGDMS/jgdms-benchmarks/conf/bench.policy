@@ -16,6 +16,14 @@ grant codeBase "${jgdms.bench.workload.url}" {
     permission java.util.PropertyPermission "jgdms.bench.*", "read";
 };
 
+// With limited-privilege doPrivileged (DirtyChai bounds each doPrivileged call by a
+// per-class limiting domain), the privileged benchmarks guardedReadPrivileged and
+// guardedReadPrivilegedContext are also bounded by a grant for the calling class.
+// A JDK without per-class limiting domains never matches this grant.
+grant codeBase "${jgdms.bench.workload.url}/au.net.zeus.jgdms.bench.workload.RequestHandler" {
+    permission java.util.PropertyPermission "jgdms.bench.*", "read";
+};
+
 // JMH's forked JVM reports results back to the host JVM over a loopback
 // socket, on a port the host picks at random each run (the scripts pin the
 // address to 127.0.0.1 with -Djmh.link.address). An audited grant would name

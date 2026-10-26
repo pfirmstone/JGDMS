@@ -44,6 +44,10 @@ public final class RequestHandler {
 
     private final String[] guardedProperties;
 
+    @SuppressWarnings("removal")
+    private final java.security.AccessControlContext captured =
+            java.security.AccessController.getContext();
+
     /**
      * @param guardedProperties names of the properties to read; each must
      *        start with {@link #PROPERTY_PREFIX} so the policy permits it
@@ -70,6 +74,22 @@ public final class RequestHandler {
     public String readGuarded(int index) {
         return System.getProperty(
                 guardedProperties[Math.floorMod(index, guardedProperties.length)]);
+    }
+
+    /** The same guarded read, made inside doPrivileged(action). */
+    @SuppressWarnings("removal")
+    public String readGuardedPrivileged(int index) {
+        final String name = guardedProperties[Math.floorMod(index, guardedProperties.length)];
+        return java.security.AccessController.doPrivileged(
+                (java.security.PrivilegedAction<String>) () -> System.getProperty(name));
+    }
+
+    /** The same guarded read, made inside doPrivileged(action, context). */
+    @SuppressWarnings("removal")
+    public String readGuardedPrivilegedContext(int index) {
+        final String name = guardedProperties[Math.floorMod(index, guardedProperties.length)];
+        return java.security.AccessController.doPrivileged(
+                (java.security.PrivilegedAction<String>) () -> System.getProperty(name), captured);
     }
 
     /**
