@@ -35,8 +35,19 @@ class Constants {
     /* defined in Appendix A of the Java Cryptography Architecture spec */
     static final String KEY_ALGORITHM = "RSA";
 
-    /* OID for RSA keys, as specified in RFC 3447 */
-    static final String KEY_ALGORITHM_OID = "2.16.840.1.101.3.4.2.3";
+    /*
+     * OID for RSA public keys (rsaEncryption), as specified in RFC 3279.
+     *
+     * This must be the SubjectPublicKeyInfo *key* OID:
+     * X500Provider.getCertificate0() passes it to
+     * X509CertSelector.setSubjectPublicKeyAlgID(), which matches against the
+     * certificate's SubjectPublicKeyInfo algorithm.  This previously held
+     * 2.16.840.1.101.3.4.2.3 (id-sha512, a NIST *hash* OID), which no certificate
+     * carries in that field, so the selector never matched and the cert lookup
+     * silently returned null.  Matches sha1withrsa, which has always carried the
+     * correct value.
+     */
+    static final String KEY_ALGORITHM_OID = "1.2.840.113549.1.1.1";
 
     private Constants() {
     }

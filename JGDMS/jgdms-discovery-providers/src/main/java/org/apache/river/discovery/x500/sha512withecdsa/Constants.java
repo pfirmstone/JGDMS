@@ -32,11 +32,31 @@ class Constants {
     /* max length of ASN.1 signature encoding  */
     static final int MAX_SIGNATURE_LEN = 128;
 
-    /* defined in Appendix A of the Java Cryptography Architecture spec */
-    static final String KEY_ALGORITHM = "ECDSA";
+    /*
+     * Key algorithm name as reported by PrivateKey.getAlgorithm().
+     *
+     * This must be "EC", the JCA standard name (JCA spec, Appendix A), not
+     * "ECDSA".  "ECDSA" is a BouncyCastle-ism; SunEC -- and every other JCA
+     * provider following the standard names -- reports "EC".
+     * X500Provider.getPrivateCredentials() selects a signing credential with
+     * keyAlgorithm.equals(cred.getPrivateKey().getAlgorithm()), so with
+     * "ECDSA" here no EC key from the standard providers ever matched, and
+     * this format silently had no usable credentials.
+     */
+    static final String KEY_ALGORITHM = "EC";
 
-    /* OID for DSA keys, as specified in RFC 5758 */
-    static final String KEY_ALGORITHM_OID = "1.2.840.10045.4.3.4";
+    /*
+     * OID for EC public keys (id-ecPublicKey), as specified in RFC 5480.
+     *
+     * This must be the SubjectPublicKeyInfo *key* OID, not a signature OID:
+     * X500Provider.getCertificate0() passes it to
+     * X509CertSelector.setSubjectPublicKeyAlgID(), which matches against the
+     * certificate's SubjectPublicKeyInfo algorithm.  This previously held
+     * 1.2.840.10045.4.3.4 (ecdsa-with-SHA512, a signature OID from RFC 5758),
+     * which no certificate carries in that field, so the selector never matched
+     * and the cert lookup silently returned null.
+     */
+    static final String KEY_ALGORITHM_OID = "1.2.840.10045.2.1";
 
     private Constants() {
     }
