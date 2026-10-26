@@ -584,27 +584,105 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
         config = i.config;
         context = i.context;
         loginContext = i.loginContext;
-        leaseExpireThread = AccessController.doPrivileged(
+        /*
+         * NOTE: identity is deliberately NOT established around the thread
+         * creation below.
+         *
+         * In DirtyChai (JDK 27+) a Subject rides a ScopedValue and a *platform*
+         * Thread captures none of it: java/lang/Thread.java:847 assigns
+         * "scopedSubject = new Subject[0]" with the comment "Scoped subject
+         * should only propagate to virtual threads, not platform threads, for
+         * fail closed behaviour".  Only the virtual-thread constructor
+         * (Thread.java:895) captures the ambient subject.  Wrapping thread
+         * *construction* in Subject.callAs therefore buys nothing for the
+         * platform threads created here; an earlier version of this constructor
+         * did exactly that and was silently inert.
+         *
+         * Neither thread needs an identity in any case.  LeaseExpireThread only
+         * mutates local state and hands outbound work to executorService (see
+         * removeRegistration -> updateDiscoveryMgrGroups/Locators, and
+         * joinMgr.addAttributes, all of which queue rather than call remotely),
+         * and SnapshotThread only writes the local persistence log.  Least
+         * privilege applies to identity as well as to permissions, so no
+         * Subject is bound here.
+         *
+         * Identity is established around the operation that genuinely needs it:
+         * the remote event delivery in SendEventTask.  It has to be established
+         * there, in the thread that makes the call, because an
+         * AccessControlContext conveys permissions but no identity -- DirtyChai's
+         * Subject.getSubject(AccessControlContext) ignores its argument and
+         * simply returns Subject.current(), so AccessController.doPrivileged
+         * (action, context) cannot re-establish a Subject.
+         */
+        final PrivilegedAction<LeaseExpireThread> leaseExpireAction =
             new PrivilegedAction<LeaseExpireThread>(){
                 @Override
                 public LeaseExpireThread run() {
                     return new LeaseExpireThread(FiddlerImpl.this);
                 }
-                    
-            }, context);
+
+            };
+        leaseExpireThread = AccessController.doPrivileged(leaseExpireAction, context);
         if (log != null){
-            snapshotThread = AccessController.doPrivileged(
+            final PrivilegedAction<SnapshotThread> snapshotAction =
                 new PrivilegedAction<SnapshotThread>(){
                     @Override
                     public SnapshotThread run() {
                         return new SnapshotThread(FiddlerImpl.this);
                     }
 
-                }, context);
+                };
+            snapshotThread = AccessController.doPrivileged(snapshotAction, context);
         } else {
             snapshotThread = null;
         }
     }
+
+    /**
+     * Runs <code>op</code> with this service's login <code>Subject</code>
+     * established as the current subject for the duration of the call on the
+     * calling thread.
+     * <p>
+     * The subject must be established <em>around the operation</em>, in the
+     * thread that performs it.  It cannot be inherited: DirtyChai platform
+     * threads capture no scoped subject (<code>java/lang/Thread.java:847</code>),
+     * work handed to an existing <code>Executor</code> does not inherit the
+     * binding (<code>javax/security/auth/Subject.java</code>, "Tasks submitted
+     * to an Executor do not inherit the current subject"), and an
+     * <code>AccessControlContext</code> carries permissions but no identity.
+     * <p>
+     * <code>Subject.callAs</code> wraps anything the operation throws in a
+     * <code>CompletionException</code>.  <code>op</code> declares no checked
+     * exceptions, so the cause can only be an unchecked throwable; it is
+     * unwrapped here so that callers and exception-classification code (for
+     * example <code>ThrowableConstants.retryable</code>) still see the original.
+     * <p>
+     * A <code>null</code> subject means "no login configured"; the operation
+     * then runs with whatever ambient identity exists, exactly as before.
+     * <p>
+     * Note for deployment: under a SecurityManager, DirtyChai's
+     * <code>Subject.callAs</code> requires
+     * <code>AuthPermission "callAs"</code> to be granted to this code source.
+     */
+    private static void runAsLogin(Subject loginSubject, Runnable op) {
+        if (loginSubject == null) {
+            op.run();
+            return;
+        }
+        try {
+            Subject.callAs(loginSubject, () -> { op.run(); return null; });
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            if (cause instanceof Error) {
+                throw (Error) cause;
+            }
+            throw e;
+        }
+    }
+
     /* ************************** END Constructors ************************* */
 
     /* ******************* BEGIN Inner Class Definitions ******************* */
@@ -2166,10 +2244,38 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
         }//end constructor
         /** This method sends a <code>RemoteDiscoveryEvent</code> to the
          *  listener of the registration that corresponds to the
-         *  <code>regInfo</code> field of this class. This method handles
-         *  all exceptions and error conditions in the appropriate manner.
+         *  <code>regInfo</code> field of this class.
+         *  <p>
+         *  This task runs on <code>executorService</code>, wrapped by
+         *  <code>Security.withContext(..., context)</code> at the submission
+         *  site.  That restores this service's <em>permissions</em> but not its
+         *  <em>identity</em>: on DirtyChai the Subject rides a ScopedValue,
+         *  <code>Subject.getSubject(AccessControlContext)</code> ignores its
+         *  argument and returns <code>Subject.current()</code>, and work handed
+         *  to an existing executor does not inherit the caller's binding.  So
+         *  the login Subject is established here, immediately around the remote
+         *  call, which is the only place it can take effect.
+         *  <p>
+         *  Without it, <code>SslEndpointImpl.getCallContext</code> finds no
+         *  client Subject (unless an ambient SPIFFE workload identity happens to
+         *  be available) and the delivery fails with
+         *  <code>UnsupportedConstraintException: Client must be logged on and
+         *  caller must do as</code>.
+         *  <p>
+         *  The Subject is re-read from the <code>LoginContext</code> on every
+         *  delivery rather than captured once, so that a re-login (credential
+         *  rotation) is picked up.
          */
         public void run() {
+            runAsLogin((loginContext != null) ? loginContext.getSubject() : null,
+                       this::deliverEvent);
+        }//end run
+
+        /** Performs the delivery itself, and handles all exceptions and error
+         *  conditions in the appropriate manner.  Declares no checked
+         *  exceptions so that <code>runAsLogin</code> can unwrap cleanly.
+         */
+        private void deliverEvent() {
             try {
                 regInfo.listener.notify(event);
             } catch (Throwable e) {

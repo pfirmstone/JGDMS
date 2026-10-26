@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.security.AccessControlContext;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.security.auth.Subject;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -58,10 +59,32 @@ public class EventTypeGenerator implements Serializable {
     private transient ExecutorService taskManager;
 
     /**
-     * Wakeup manager used by the event sending tasks to schedule 
+     * Wakeup manager used by the event sending tasks to schedule
      * retries.
      */
     private transient WakeupManager wakeupManager;
+
+    /**
+     * The owning service's login <code>Subject</code>, or <code>null</code> if
+     * the service has no login configured.
+     * <p>
+     * Event sending tasks run on {@link #taskManager}, so they cannot inherit an
+     * identity from whoever called {@code sendEvent}: work handed to an existing
+     * {@code Executor} does not inherit a {@code Subject.callAs} binding, and an
+     * {@code AccessControlContext} conveys permissions but no identity (on
+     * DirtyChai {@code Subject.getSubject(AccessControlContext)} ignores its
+     * argument and returns {@code Subject.current()}).  The subject is therefore
+     * held here and established by {@code EventType.SendTask} around each
+     * outbound {@code listener.notify()}.
+     * <p>
+     * Transient, like {@link #taskManager} and {@link #wakeupManager}: it is
+     * runtime state, not persisted state, and must be re-supplied after
+     * recovery by {@link #setLoginSubject}.
+     * <p>
+     * <code>volatile</code> because it is written once by the starting thread
+     * and read by event sending threads.
+     */
+    private transient volatile Subject loginSubject;
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
@@ -118,6 +141,30 @@ public class EventTypeGenerator implements Serializable {
      */
     WakeupManager getWakeupManager() {
 	return wakeupManager;
+    }
+
+    /**
+     * Supply the owning service's login <code>Subject</code>, to be established
+     * around outbound event sends.  Called once during service start-up, after
+     * log recovery (recovery replaces the generator instance).  May be
+     * <code>null</code>, meaning the service has no login configured, in which
+     * case sends proceed with whatever ambient identity exists.
+     *
+     * @param loginSubject the owning service's login subject, or
+     *        <code>null</code>
+     */
+    public void setLoginSubject(Subject loginSubject) {
+	this.loginSubject = loginSubject;
+    }
+
+    /**
+     * Return the owning service's login <code>Subject</code>, or
+     * <code>null</code> if none was supplied.
+     *
+     * @return the owning service's login subject, or <code>null</code>
+     */
+    Subject getLoginSubject() {
+	return loginSubject;
     }
 
     /**
