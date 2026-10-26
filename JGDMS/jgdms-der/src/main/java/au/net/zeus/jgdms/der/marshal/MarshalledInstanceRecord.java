@@ -19,12 +19,12 @@ package au.net.zeus.jgdms.der.marshal;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
-import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.Tag;
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.schema.AtomicSerialSchemaRecord;
 import au.net.zeus.jgdms.der.schema.SchemaChain;
+import au.net.zeus.jgdms.der.schema.SchemaGenerator;
 
-import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -114,6 +114,38 @@ public final class MarshalledInstanceRecord {
         this.payloadFormat = payloadFormat;
     }
 
+    /** Takes the arrays as they are: only for a caller that owns them and will not touch them again (see {@link #adopt}). */
+    private MarshalledInstanceRecord(byte[] payloadBytes, byte[] schemaBytes, byte[] schemaDigest,
+                                     String payloadFormat, boolean adopted) {
+        this.payloadBytes = payloadBytes;
+        this.schemaBytes = schemaBytes;
+        this.schemaDigest = schemaDigest;
+        this.payloadFormat = payloadFormat;
+    }
+
+    /**
+     * Builds a record that <b>keeps the arrays it is given</b> instead of copying them, for the decoder that has just built them
+     * itself (a large payload is then copied once on its way in, not three times). The caller must own the arrays, and neither
+     * it nor anyone else may modify them afterwards; the record never exposes them (every accessor still returns a copy).
+     * Same checks as the public constructor.
+     *
+     * @throws NullPointerException     if any argument is null
+     * @throws IllegalArgumentException if {@code schemaDigest.length != 32}
+     */
+    public static MarshalledInstanceRecord adopt(byte[] payloadBytes, byte[] schemaBytes, byte[] schemaDigest,
+                                                 String payloadFormat) {
+        Objects.requireNonNull(payloadBytes,  "payloadBytes");
+        Objects.requireNonNull(schemaBytes,   "schemaBytes");
+        Objects.requireNonNull(schemaDigest,  "schemaDigest");
+        Objects.requireNonNull(payloadFormat, "payloadFormat");
+        if (schemaDigest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException(
+                    "schemaDigest must be exactly " + DIGEST_LENGTH
+                    + " bytes, got " + schemaDigest.length);
+        }
+        return new MarshalledInstanceRecord(payloadBytes, schemaBytes, schemaDigest, payloadFormat, true);
+    }
+
     // =========================================================================
     // Factory helpers
     // =========================================================================
@@ -150,15 +182,36 @@ public final class MarshalledInstanceRecord {
     }
 
     /**
+     * As {@link #fromChain(SchemaChain.Result, byte[])}, with the chain's encoded bytes
+     * supplied by the caller instead of re-encoded from the records. {@code schemaBytes}
+     * MUST be the leaf-first concatenation of {@code chain}'s records' {@code encode()},
+     * as returned by
+     * {@link au.net.zeus.jgdms.der.schema.SchemaGenerator#generateChainBytes(Class)} for
+     * the class {@code chain} was generated for; the result is byte-identical to
+     * {@code fromChain(chain, payloadBytes)}.
+     */
+    public static MarshalledInstanceRecord fromChain(SchemaChain.Result chain,
+                                                     byte[] schemaBytes,
+                                                     byte[] payloadBytes) {
+        Objects.requireNonNull(chain,        "chain");
+        Objects.requireNonNull(schemaBytes,  "schemaBytes");
+        Objects.requireNonNull(payloadBytes, "payloadBytes");
+        return new MarshalledInstanceRecord(
+                payloadBytes,
+                schemaBytes,
+                chain.leafDigest(),
+                PAYLOAD_FORMAT);
+    }
+
+    /**
      * Concatenates the DER-encoded bytes of each record in the chain (leaf-first).
      */
     private static byte[] encodeChainBytes(List<AtomicSerialSchemaRecord> chain) {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        DerEncoder enc = DerEncoder.create();
         for (AtomicSerialSchemaRecord record : chain) {
-            byte[] encoded = record.encode();
-            buf.write(encoded, 0, encoded.length);
+            record.encodeTo(enc);
         }
-        return buf.toByteArray();
+        return enc.toByteArray();
     }
 
     // =========================================================================
@@ -168,6 +221,14 @@ public final class MarshalledInstanceRecord {
     /** Returns a defensive copy of the DER-encoded object payload. */
     public byte[] payloadBytes() {
         return Arrays.copyOf(payloadBytes, payloadBytes.length);
+    }
+
+    /**
+     * The payload itself, uncopied, for the decoder in this package that only reads it (a defensive copy of a large payload per
+     * decode was most of what the record cost). Never handed out, never modified.
+     */
+    byte[] payloadView() {
+        return payloadBytes;
     }
 
     /**
@@ -212,12 +273,49 @@ public final class MarshalledInstanceRecord {
      * @return the complete DER TLV bytes of the outer SEQUENCE
      */
     public byte[] encode() {
-        List<byte[]> children = new ArrayList<>(4);
-        children.add(DerWriter.writeOctetString(payloadBytes));
-        children.add(DerWriter.writeOctetString(schemaBytes));
-        children.add(DerWriter.writeOctetString(schemaDigest));
-        children.add(DerWriter.writeUtf8String(payloadFormat));
-        return DerWriter.writeSequence(children);
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(enc);
+        return enc.toByteArray();
+    }
+
+    /** Appends this record's {@code SEQUENCE} TLV to {@code enc}; same bytes as {@link #encode()}. */
+    public void encodeTo(DerEncoder enc) {
+        enc.begin(Tag.SEQUENCE)
+           .octets(payloadBytes)
+           .octets(schemaBytes)
+           .octets(schemaDigest)
+           .utf8(payloadFormat)
+           .end();
+    }
+
+    /** Writes a record's payload into an encoder (see {@link #encodeCanonicalTo}). */
+    @FunctionalInterface
+    public interface PayloadWriter {
+        void writeTo(DerEncoder enc) throws DerException;
+    }
+
+    /**
+     * Appends the canonical record {@code SEQUENCE { payload, schemaBytes, schemaDigest, payloadFormat }} to
+     * {@code enc} with the payload written in place, byte-identical to
+     * {@code fromChain(chain, schemaBytes, payload).encode()} but with no intermediate payload or record array.
+     *
+     * @param schemaBytes the chain's records concatenated leaf-first (as {@link #fromChain(SchemaChain.Result, byte[], byte[])} takes it)
+     * @param payload     writes the payload bytes (the hierarchy encoding) into the OCTET STRING it is handed
+     */
+    public static void encodeCanonicalTo(DerEncoder enc, SchemaChain.Result chain, byte[] schemaBytes,
+                                         PayloadWriter payload) throws DerException {
+        Objects.requireNonNull(enc, "enc");
+        Objects.requireNonNull(chain, "chain");
+        Objects.requireNonNull(schemaBytes, "schemaBytes");
+        Objects.requireNonNull(payload, "payload");
+        byte[] digest = chain.leafDigest();
+        if (digest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException("schemaDigest must be exactly " + DIGEST_LENGTH
+                    + " bytes, got " + digest.length);
+        }
+        enc.begin(Tag.SEQUENCE).beginOctetString();
+        payload.writeTo(enc);
+        enc.end().octets(schemaBytes).octets(digest).utf8(PAYLOAD_FORMAT).end();
     }
 
     // =========================================================================
@@ -284,8 +382,9 @@ public final class MarshalledInstanceRecord {
                     + " (STD-006 S7.8: the record is exactly four fields)");
         }
 
+        // the arrays were read just above and nothing else holds them: no second copy
         return new MarshalledInstanceRecord(
-                payloadBytes, schemaBytes, schemaDigest, payloadFormat);
+                payloadBytes, schemaBytes, schemaDigest, payloadFormat, true);
     }
 
     // =========================================================================
@@ -316,6 +415,35 @@ public final class MarshalledInstanceRecord {
      */
     public List<AtomicSerialSchemaRecord> decodeSchemaChain() throws DerException {
         return SchemaChain.decodeChain(schemaBytes, "MarshalledInstanceRecord");
+    }
+
+    /**
+     * Whether this record's embedded {@code schemaBytes} are byte-for-byte the canonical
+     * chain this node generates for {@code leafClass}.
+     */
+    public boolean schemaBytesMatchLocal(Class<?> leafClass) {
+        return SchemaGenerator.chainBytesEqual(leafClass, schemaBytes);
+    }
+
+    /**
+     * Decode fast path (see {@link MarshalledInstanceCodec#decodeMarshalledInstance}). If this
+     * record's embedded {@code schemaBytes} are byte-for-byte the canonical chain this node
+     * generates for the already-resolved {@code leafClass}, returns that chain <em>verified
+     * through {@link SchemaChain#decodeChain}</em> (chain ceilings, adjacent-pair Merkle
+     * cross-check, completeness, strict canonical form) -- once per class, cached with the
+     * class -- so the fast path applies exactly the checks the full path applies and
+     * cannot accept a chain the full path would reject. Returns {@code null} if the bytes
+     * are not the local chain (the caller takes the full path). The wire bytes are only
+     * compared against the locally generated value, never cached.
+     *
+     * @throws DerException if the bytes ARE the local chain but that chain fails verification
+     *                      (the full path would reject the same bytes with the same checks)
+     */
+    public SchemaChain.Result verifiedLocalChain(Class<?> leafClass, String context)
+            throws DerException {
+        SchemaGenerator.VerifiedChain v =
+                SchemaGenerator.verifiedLocalChain(leafClass, schemaBytes, context);
+        return v == null ? null : new SchemaChain.Result(v.records(), v.leafDigest());
     }
 
     /**

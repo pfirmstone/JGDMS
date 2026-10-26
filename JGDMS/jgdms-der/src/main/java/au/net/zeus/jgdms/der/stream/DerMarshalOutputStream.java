@@ -182,7 +182,11 @@ public final class DerMarshalOutputStream implements ObjectOutput {
     @Override
     public void writeUTF(String str) throws IOException {
         Objects.requireNonNull(str, "str");
-        codec.writeUTF(str);
+        try {
+            codec.writeUTF(str);
+        } catch (au.net.zeus.jgdms.der.DerUtf8.UnencodableStringException e) {
+            throw new IOException("DER encode failed: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -283,7 +287,17 @@ public final class DerMarshalOutputStream implements ObjectOutput {
      */
     @Override
     public void close() throws IOException {
-        flush();
+        try {
+            flush();
+        } catch (IOException | RuntimeException e) {
+            // a failed or refused flush must not leave the underlying stream open
+            try {
+                out.close();
+            } catch (IOException c) {
+                e.addSuppressed(c);
+            }
+            throw e;
+        }
         out.close();
     }
 }

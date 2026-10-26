@@ -671,11 +671,52 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 	}
     }
     
+    public void grant(final Class cl, java.security.CodeSource[] codebase, 
+            Principal[] principals, Permission[] permissions) 
+    {
+        // Never a universal grant: a missing class or identity is refused.
+        if (cl == null) throw new IllegalArgumentException("class cannot be null");
+        if (codebase == null || codebase.length == 0) {
+            throw new IllegalArgumentException("codebase cannot be null or empty");
+        }
+        if (principals == null){ principals = new Principal[0];}
+        checkNullElements(principals);
+        checkNullElements(codebase);
+        if (permissions == null || permissions.length == 0) {return;}
+        checkNullElements(permissions);
+        Guard g = new GrantPermission(permissions);
+        g.checkGuard(null);
+        final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+        pgb.principals(principals)
+            .permissions(permissions)
+            .codeSources(codebase.clone())
+            .context(PermissionGrantBuilder.DIGEST_DOMAIN);
+        AccessController.doPrivileged(
+            new PrivilegedAction(){
+                public Object run() {
+                    pgb.clazz(cl);
+                    return null;
+                }
+            });
+        PermissionGrant pe = pgb.build(); // IllegalArgumentException if unverifiable
+	dynamicPolicyGrants.add(pe);
+	if (loggable){
+	    logger.log(Level.FINEST, "Granting: {0}", pe.toString());
+	}
+    }
+
     // documentation inherited from DynamicPolicy.getGrants
     public Permission[] getGrants(Class cl, Principal[] principals) {
+        // Grants are evaluated against the ProtectionDomain of the class, a
+        // ClassLoader carries no signers or content, so CertificateGrant and
+        // DigestGrant could never be implied.  The domain is evaluated with
+        // the ClassLoader of the class, which differs from that of its 
+        // domain for a java.lang.reflect.Proxy class.
+        ProtectionDomain domain = null;
         ClassLoader loader = null;
         if( cl != null ) {
-            loader = cl.getClassLoader();
+            domain = getProtectionDomain(cl);
+            loader = getClassLoader(cl);
         }
         // defensive copy array
         if (principals != null && principals.length > 0) {
@@ -686,13 +727,43 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
 	while ( grants.hasNext()){
             PermissionGrant g = grants.next();
-	    if ( g.implies(loader, principals) ){
+	    if ( impliesDomain(g, domain, loader, principals) ){
 		// Only use the trusted grantCache.
 		dPerms.addAll(g.getPermissions());
 	    }
 	}	
         Permission[] perms = dPerms.toArray(new Permission[dPerms.size()]);        
         return perms;
+    }
+
+    private static ProtectionDomain getProtectionDomain(final Class cl) {
+        return AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>() {
+            public ProtectionDomain run() {
+                return cl.getProtectionDomain();
+            }
+        });
+    }
+
+    private static ClassLoader getClassLoader(final Class cl) {
+        return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+            public ClassLoader run() {
+                return cl.getClassLoader();
+            }
+        });
+    }
+
+    /**
+     * Evaluates a grant against domain, but with the supplied principals
+     * instead of those of the domain, and the ClassLoader of the class.
+     */
+    private static boolean impliesDomain(PermissionGrant g, ProtectionDomain domain,
+            ClassLoader loader, Principal[] principals)
+    {
+        if (domain == null) return g.implies((ClassLoader) null, principals);
+        Principal[] pals = principals != null ? principals : new Principal[0];
+        ProtectionDomain pd = new ProtectionDomain(domain.getCodeSource(),
+                domain.getPermissions(), loader, pals);
+        return g.implies(pd);
     }
 
     public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {

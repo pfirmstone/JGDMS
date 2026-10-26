@@ -54,6 +54,17 @@ class ReadWatcher extends SingletonQueryWatcher {
 	if (isResolved())
 	    return; // Already done.
 
+	/* B3 (site G, the Blocker-2 fix): isInterested already established the
+	 * entitlement gate (transition.getTxn() == null). If a CEL filter is in
+	 * force, evaluate it HERE, before resolve -- predicate-false / fail-closed
+	 * => do NOT resolve, keep waiting for the next candidate transition.
+	 * Nothing is captured either way, so INV-2 is trivial. EMPTY is a no-op. */
+	final FilterSet filters = filters();
+	if (!filters.isEmpty()
+		&& !FilterEval.matches(filters, transition.getHandle().rep())) {
+	    return; // keep waiting
+	}
+
 	// As long as it existed at one time we can return it
 	resolve(transition.getHandle(), null);
     }
@@ -63,6 +74,13 @@ class ReadWatcher extends SingletonQueryWatcher {
 	    return true;
 
 	if (transition.isVisible() && (transition.getTxn() == null)) {
+	    /* B3 (site G): entitlement gate passed (getTxn() == null); evaluate the
+	     * CEL filter before resolving -- fail => keep waiting (return false). */
+	    final FilterSet filters = filters();
+	    if (!filters.isEmpty()
+		    && !FilterEval.matches(filters, transition.getHandle().rep())) {
+		return false;
+	    }
 	    /* As long as it existed at one time and we could have seen it
 	     * we can return it
 	     */

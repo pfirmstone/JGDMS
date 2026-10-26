@@ -35,8 +35,9 @@ Every row links to the source you can read and the short walk-through beside it.
 | 4 | [`HostileInputDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/HostileInputDemo.java) | truncated, scrambled, over-nested, and expansion-bomb inputs are each refused cleanly, with bounded memory and no crash | [demo 4](README-demo4-feed-it-garbage.md) | `HostileInputStopsPolitelyTest` |
 | 5 | [`demo5` reader](demo5-filter-by-a-rule/src/au/net/zeus/jgdms/showcase/rule/Reader.java) | a reader selects records matching a rule, evaluated over their fields, with the record's class **absent** from its classpath | [demo 5](demo5-filter-by-a-rule/README.md) | reader exits non-zero on any failed claim; the launcher checks that |
 | 6 | [`CollectionEqualityDemo`](src/main/java/au/net/zeus/jgdms/showcase/demo/CollectionEqualityDemo.java) | two different collection classes holding the same value → identical bytes and checksum, while standard Java serialization gives them different bytes; plus the matching Rust/Haskell types | [demo 6](README-demo6-collection-equality.md) | self-checks — exits non-zero on any failed claim |
+| 7 | [`demo7` orchestrator](demo7-filter-pushdown/src/au/net/zeus/jgdms/showcase/pushdown/Server.java) | a **live Outrigger space** filters its stored records by a CEL value rule pushed down to the server, class-free (the record class **absent** from the space's class loader); rule authored on a child loader that has it | [demo 7](demo7-filter-pushdown/README.md) | orchestrator exits non-zero on any failed claim; the launcher checks that |
 
-The six claims in one line each:
+The seven claims in one line each:
 
 1. **Same object, same bytes — everywhere.** (the file above)
 2. **Match a record without ever loading its class** — so a hostile record has nothing to attack, because the object is never rebuilt.
@@ -44,6 +45,7 @@ The six claims in one line each:
 4. **Feed it garbage, it stops politely** — cut-off, scrambled, over-nested, or bomb inputs are refused cleanly, bounded memory, no attacker code runs.
 5. **Select records by a rule, without loading their class** — pick records by comparing field *values*, not just exact matches, over the bytes.
 6. **Two collection classes, one value, one set of bytes** — a `HashSet` and a `TreeSet` of the same elements produce identical bytes; standard Java serialization does not.
+7. **Push the rule down into a live space, filter server-side without the class** — a running Outrigger space evaluates a value rule over each stored record's own schema and never loads the record class.
 
 ---
 

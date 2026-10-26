@@ -40,6 +40,17 @@ abstract class QueryWatcher extends TransitionWatcher {
     private final long expiration;
 
     /**
+     * The server-side CEL filter set gating this query's results (SOW Part&nbsp;B,
+     * unit&nbsp;B3). {@link FilterSet#EMPTY} for an unfiltered query (the default),
+     * so the unfiltered path is byte-for-byte unchanged. Set once, at registration,
+     * by {@code getMatch} (capture archetype) so the confirm window
+     * ({@code EntryHolder.attemptCapture} &rarr; {@code confirmAvailability}) and the
+     * direct-resolve blocking-read watchers can consult it. {@code volatile} for
+     * safe publication to the {@code OperationJournal} delivery thread.
+     */
+    private volatile FilterSet filters = FilterSet.EMPTY;
+
+    /**
      * Create a new <code>QueryWatcher</code>.
      * @param expiration the initial expiration time
      *        for this <code>QueryWatcher</code> in 
@@ -54,6 +65,24 @@ abstract class QueryWatcher extends TransitionWatcher {
     {
 	super(timestamp, startOrdinal);
 	this.expiration = expiration;
+    }
+
+    /**
+     * The CEL {@link FilterSet} gating this query, or {@link FilterSet#EMPTY} if
+     * unfiltered. Consulted at the confirm window (via
+     * {@code OutriggerServerImpl.attemptCapture}) and by the direct-resolve
+     * blocking-read watchers.
+     */
+    FilterSet filters() {
+	return filters;
+    }
+
+    /**
+     * Install the query's CEL {@link FilterSet}. Called once at registration,
+     * before the watcher is made visible to the journal.
+     */
+    void setFilters(FilterSet filters) {
+	this.filters = (filters == null) ? FilterSet.EMPTY : filters;
     }
 
     public long getExpiration() {

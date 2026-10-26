@@ -84,7 +84,7 @@ public final class HostileInputDemo {
         System.out.println("  a complete message of " + whole.length + " bytes reads back fine: "
                 + (ok != null));
 
-        byte[] cutOff = new byte[whole.length - 12];   // drop the tail, mid-structure
+        byte[] cutOff = java.util.Arrays.copyOf(whole, whole.length - 12);   // drop the tail, mid-structure
         System.out.println("  now the last 12 bytes are dropped, cutting it off partway through.");
         Outcome o = feedToReader(cutOff);
         System.out.println("  the length markers now promise more data than the message actually holds.");
@@ -102,6 +102,10 @@ public final class HostileInputDemo {
         int markerIndex = 3;   // the marker that says what kind of thing comes next
         System.out.println("  the marker that says what kind of thing comes next is overwritten with");
         System.out.println("  a value that means nothing to the reader.");
+        if (scrambled[markerIndex] == 0x30) {
+            throw new IllegalStateException(
+                    "scramble would be a no-op -- pick a different marker value");
+        }
         scrambled[markerIndex] = 0x30;
         Outcome o = feedToReader(scrambled);
         System.out.println("  " + describe(o));

@@ -38,6 +38,7 @@ import net.jini.core.constraint.DelegationRelativeTime;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.RelativeTimeConstraint;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
@@ -116,6 +117,17 @@ class Constraints {
 	supportedClasses.put(ServerMinPrincipal.class,		Boolean.FALSE);
 	supportedClasses.put(DelegationAbsoluteTime.class,	Boolean.FALSE);
 	supportedClasses.put(DelegationRelativeTime.class,	Boolean.FALSE);
+	/*
+	 * MarshallingFormat is an invocation-layer constraint (JGDMS-STD-008 sec.18.3): the
+	 * transport does not implement it, it DEFERS it to the invocation layer, satisfied in
+	 * BasicInvocationHandler.requireMarshallingFormat() / BasicInvocationDispatcher.
+	 * PARTIAL_SUPPORT (Boolean.TRUE) puts it in the unfulfilled-requirements set for the
+	 * higher layer rather than throwing UnsupportedConstraintException at distill time.
+	 * Without this, any DER-only proxy (which pins MarshallingFormat.ATOMIC_DER) is unusable
+	 * over a tcp endpoint. Test-only-plaintext-DER dependency; see
+	 * docs/FINDING-JERI-MarshallingFormat-Plaintext-Transport-Gap.md (all 4 transports need this).
+	 */
+	supportedClasses.put(MarshallingFormat.class,		Boolean.TRUE);
     }
 
     /**

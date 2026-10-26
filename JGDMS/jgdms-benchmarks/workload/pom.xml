@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~ Copyright (C) 2026 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<!--
+  The code under measurement. It is a separate jar on purpose: the policy
+  grants it only the permissions a request handler needs, while the JMH
+  harness jar is granted AllPermission. Every permission check made by the
+  workload therefore evaluates a real, restricted ProtectionDomain, as it
+  would for application code, instead of short-circuiting on AllPermission.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>au.net.zeus.jgdms.bench</groupId>
+        <artifactId>jgdms-benchmarks</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>jgdms-bench-workload</artifactId>
+    <packaging>jar</packaging>
+
+    <build>
+        <!-- Fixed name so the run scripts and the policy file can find it. -->
+        <finalName>jgdms-bench-workload</finalName>
+    </build>
+</project>

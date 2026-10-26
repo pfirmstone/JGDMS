@@ -6,7 +6,7 @@
 **Date:** 2026-07-24
 **Applies to:** JGDMS 4.0.0, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Profiles (binds, does not restate):**
-- **JERI** — the JGDMS Extensible Remote Invocation transport & invocation stack
+- **JERI** — the Jini Extensible Remote Invocation transport & invocation stack
   *(cited here as [JERI] = **JGDMS-STD-012** (JERI Transport & Invocation Standard),
   in preparation — v0.1-DRAFT skeleton)*
 - **ATOMIC DER** — `JGDMS-STD-006` (ATOMIC DER Wire Format, v0.13-DRAFT) **including its
@@ -72,7 +72,7 @@ without re-specifying any of them). This document is that, for the JGDMS wire st
 
 ## Abstract
 
-JGDMS ("Juxtaposition of Grouped Distributed Method Semantics") is a security-first
+JGDMS (Jini Global Distributed Micro Services) is a security-first
 rewrite of the wire stack that Jini / Apache River used to distribute Java objects and
 remote calls. Its 4.0 wire protocol is not one format but a suite of three composed
 layers, each with its own ratified standard:
@@ -191,42 +191,42 @@ in reverse on the way out.
 
 ```
    ┌──────────────────────────────────────────────────────────────────────────┐
-   │  Service / application logic  (JavaSpaces, lookup, transactions, events)   │
+   │  Service / application logic  (JavaSpaces, lookup, transactions, events) │
    └───────────────▲───────────────────────────────────────────▲──────────────┘
-                   │ @AtomicSerial objects                      │ match / project
-                   │ (validated, typed)                         │ verdict / value
-   ┌───────────────┴───────────────┐        ┌───────────────────┴──────────────┐
-   │  Entry model & byte-matching   │        │  DETERMINISTIC CEL  [STD-011]     │
-   │  @SerialEntry / EntryRep        │◀──────▶│  predicate (filter) /            │
-   │  byte-equality template match   │        │  transform over the projection    │
-   │  [STD-005, ATOMIC DER §7.7.2]   │        │  (bounded-by-construction)        │
-   └───────────────▲───────────────┘        └───────────────────────────────────┘
+                   │ @AtomicSerial objects                     │ match / project
+                   │ (validated, typed)                        │ verdict / value
+   ┌───────────────┴───────────────┐        ┌──────────────────┴───────────────┐
+   │  Entry model & byte-matching  │        │  DETERMINISTIC CEL  [STD-011]    │
+   │  @SerialEntry / EntryRep      │◀─────▶│  predicate (filter) /            │
+   │  byte-equality template match │        │  transform over the projection   │
+   │  [STD-005, ATOMIC DER §7.7.2] │        │  (bounded-by-construction)       │
+   └───────────────▲───────────────┘        └──────────────────────────────────┘
                    │ decoded field values (GetArg)
    ┌───────────────┴────────────────────────────────────────────────────────────┐
-   │  ATOMIC DER object layer  [STD-006 + Appendix C, NORMATIVE+MANDATORY]        │
-   │  • @AtomicSerial object model: validate-before-construct via check(GetArg)   │
-   │  • canonical DER value tree (one encoding per value); acyclic; no handles     │
-   │  • schema-carrying records (schema is the key, not the class)                │
-   │  • MANDATORY per-stream schema dedup + stream-format version octet            │
-   │  • ceilings checked before allocation (§4.5 + Appendix C §C.8)                │
+   │  ATOMIC DER object layer  [STD-006 + Appendix C, NORMATIVE+MANDATORY]      │
+   │  • @AtomicSerial object model: validate-before-construct via check(GetArg) │
+   │  • canonical DER value tree (one encoding per value); acyclic; no handles  │
+   │  • schema-carrying records (schema is the key, not the class)              │
+   │  • MANDATORY per-stream schema dedup + stream-format version octet         │
+   │  • ceilings checked before allocation (§4.5 + Appendix C §C.8)             │
    └───────────────▲────────────────────────────────────────────────────────────┘
                    │ marshalled arg / return streams
-   ┌───────────────┴────────────────────────────────────────────────────────────┐
-   │  JERI invocation layer   [JERI → STD-012 (draft)]                            │
+   ┌───────────────┴───────────────────────────────────────────────────────────────┐
+   │  JERI invocation layer   [JERI → STD-012 (draft)]                             │
    │  Basic  →  Atomic (@AtomicSerial over JOSS)  →  AtomicDer (@AtomicSerial/DER) │
    │  InvocationLayerFactory selects the pair per-proxy at export                  │
-   │  constraints: Integrity, Confidentiality, AtomicInputValidation,             │
-   │               MarshallingFormat  (fail-fast, before bytes leave)             │
-   │  fault carrier (data-only Throwable) · client-side DGC (SRC-RR-116)          │
-   └───────────────▲────────────────────────────────────────────────────────────┘
+   │  constraints: Integrity, Confidentiality, AtomicInputValidation,              │
+   │               MarshallingFormat  (fail-fast, before bytes leave)              │
+   │  fault carrier (data-only Throwable) · client-side DGC (SRC-RR-116)           │
+   └───────────────▲───────────────────────────────────────────────────────────────┘
                    │ multiplexed request/reply streams
-   ┌───────────────┴────────────────────────────────────────────────────────────┐
-   │  JERI mux + endpoints    [JERI → STD-012 (draft); STD-010 for QUIC]          │
-   │  connection multiplexing  ·  Endpoint / ServerEndpoint SPI                   │
-   │  tcp · ssl (TLS 1.3, SPIFFE/X.509) · uds (Unix-domain) · quic (RFC 9000/9001)│
-   └───────────────▲────────────────────────────────────────────────────────────┘
+   ┌───────────────┴───────────────────────────────────────────────────────────────┐
+   │  JERI mux + endpoints    [JERI → STD-012 (draft); STD-010 for QUIC]           │
+   │  connection multiplexing  ·  Endpoint / ServerEndpoint SPI                    │
+   │  tcp · ssl (TLS 1.3, SPIFFE/X.509) · uds (Unix-domain) · quic (RFC 9000/9001) │
+   └───────────────▲───────────────────────────────────────────────────────────────┘
                    │ authenticated byte stream
-   ┌───────────────┴────────────────────────────────────────────────────────────┐
+   ┌───────────────┴──────────────────────────────────────────────────────────────┐
    │  Discovery  ·  SPIFFE/TLS identity  ·  transport sockets                     │
    └──────────────────────────────────────────────────────────────────────────────┘
 ```

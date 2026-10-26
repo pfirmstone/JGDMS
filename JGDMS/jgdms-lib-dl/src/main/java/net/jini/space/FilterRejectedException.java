@@ -17,6 +17,11 @@
  */
 package net.jini.space;
 
+import java.io.NotSerializableException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
+
 /**
  * Thrown, LOUDLY, when a CEL filter attached to a filtered space operation is
  * refused. A refused filter is <em>never</em> downgraded to an unfiltered
@@ -27,12 +32,12 @@ package net.jini.space;
  * JavaSpaces CEL filter-pushdown feature (JGDMS-STD-011 / SOW Part B, unit B1).
  * It is a <em>checked</em> exception declared on every filtered operation
  * signature (both the {@code OutriggerServer} backend's remote methods and the
- * client-facing {@link FilteredJavaSpace} interface) precisely so that a loud
+ * client-facing {@link FilteredTupleSpace} interface) precisely so that a loud
  * break is structural: a caller cannot ignore the possibility that a filter was
  * refused.
  *
  * <p>It lives in {@code jgdms-lib-dl} — the {@code net.jini.space} public API
- * module (release&nbsp;8 target), alongside {@link FilteredJavaSpace},
+ * module (release&nbsp;8 target), alongside {@link FilteredTupleSpace},
  * {@link JavaSpace05} and {@link InternalSpaceException} — because it is a
  * client-compile-time API, not a codebase-download proxy type. It names
  * <b>no</b> {@code jgdms-cel} or {@code jgdms-der} type: the server-side
@@ -158,5 +163,25 @@ public class FilterRejectedException extends Exception {
      */
     public Reason reason() {
         return reason;
+    }
+
+    /**
+     * Refuses legacy Java (JOSS) serialization. This exception crosses a remote
+     * boundary only through the atomic/DER invocation layer
+     * ({@code AtomicDerILFactory}), which reconstructs it without invoking these
+     * methods; it is never written to or read from a
+     * {@link java.io.ObjectOutputStream}. Failing every JOSS path keeps the type
+     * off any legacy-serialization gadget surface.
+     */
+    private void writeObject(ObjectOutputStream out) throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
+    }
+
+    private void readObject(ObjectInputStream in) throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+        throw new NotSerializableException(getClass().getName());
     }
 }

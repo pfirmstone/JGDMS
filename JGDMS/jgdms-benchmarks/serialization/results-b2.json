@@ -1,0 +1,909 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.roundTrip",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "point"
+        },
+        "primaryMetric" : {
+            "score" : 9.584059036647105,
+            "scoreError" : 1.1279731427361197,
+            "scoreConfidence" : [
+                8.456085893910984,
+                10.712032179383225
+            ],
+            "scorePercentiles" : {
+                "0.0" : 8.25858386144541,
+                "50.0" : 9.440715531084102,
+                "90.0" : 10.932975645134558,
+                "95.0" : 10.992164536512995,
+                "99.0" : 10.992164536512995,
+                "99.9" : 10.992164536512995,
+                "99.99" : 10.992164536512995,
+                "99.999" : 10.992164536512995,
+                "99.9999" : 10.992164536512995,
+                "100.0" : 10.992164536512995
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    9.894997165471185,
+                    10.992164536512995,
+                    9.010267669010373,
+                    10.40027562272862,
+                    9.276663191481468
+                ],
+                [
+                    8.25858386144541,
+                    9.451163488472057,
+                    9.419368286240294,
+                    9.430267573696145,
+                    9.706838971412488
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.roundTrip",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "record"
+        },
+        "primaryMetric" : {
+            "score" : 13.957375039281743,
+            "scoreError" : 1.0724348970314044,
+            "scoreConfidence" : [
+                12.884940142250338,
+                15.029809936313148
+            ],
+            "scorePercentiles" : {
+                "0.0" : 12.89388228089627,
+                "50.0" : 13.894133310484058,
+                "90.0" : 14.770002726578193,
+                "95.0" : 14.780340306050821,
+                "99.0" : 14.780340306050821,
+                "99.9" : 14.780340306050821,
+                "99.99" : 14.780340306050821,
+                "99.999" : 14.780340306050821,
+                "99.9999" : 14.780340306050821,
+                "100.0" : 14.780340306050821
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    14.780340306050821,
+                    14.660571977192442,
+                    14.676964511324535,
+                    13.079797868375454,
+                    14.656992811922976
+                ],
+                [
+                    13.952600048828126,
+                    12.89388228089627,
+                    13.673839212228101,
+                    13.835666572139992,
+                    13.363094803858692
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.roundTrip",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "batch100"
+        },
+        "primaryMetric" : {
+            "score" : 947.9154040232488,
+            "scoreError" : 78.45508875663143,
+            "scoreConfidence" : [
+                869.4603152666174,
+                1026.3704927798804
+            ],
+            "scorePercentiles" : {
+                "0.0" : 860.7785860585197,
+                "50.0" : 958.0695392721411,
+                "90.0" : 1016.7110873017975,
+                "95.0" : 1018.4946354378819,
+                "99.0" : 1018.4946354378819,
+                "99.9" : 1018.4946354378819,
+                "99.99" : 1018.4946354378819,
+                "99.999" : 1018.4946354378819,
+                "99.9999" : 1018.4946354378819,
+                "100.0" : 1018.4946354378819
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    1018.4946354378819,
+                    917.897302293578,
+                    955.7043392259914,
+                    880.4780092429578,
+                    1000.6591540770385
+                ],
+                [
+                    919.8457972413793,
+                    977.7854719101124,
+                    960.4347393182909,
+                    987.076005426739,
+                    860.7785860585197
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.roundTrip",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "blob64k"
+        },
+        "primaryMetric" : {
+            "score" : 299.9600617432253,
+            "scoreError" : 14.332430199029425,
+            "scoreConfidence" : [
+                285.6276315441959,
+                314.29249194225474
+            ],
+            "scorePercentiles" : {
+                "0.0" : 283.67895760068063,
+                "50.0" : 299.92995518474356,
+                "90.0" : 316.0551304756789,
+                "95.0" : 317.08374829608493,
+                "99.0" : 317.08374829608493,
+                "99.9" : 317.08374829608493,
+                "99.99" : 317.08374829608493,
+                "99.999" : 317.08374829608493,
+                "99.9999" : 317.08374829608493,
+                "100.0" : 317.08374829608493
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    291.1800906841339,
+                    306.79757009202456,
+                    317.08374829608493,
+                    298.4897156072814,
+                    298.6648075544939
+                ],
+                [
+                    306.7007221881704,
+                    292.09748222092685,
+                    301.1951028149932,
+                    303.71242037346286,
+                    283.67895760068063
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.unmarshal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "point"
+        },
+        "primaryMetric" : {
+            "score" : 7.822682754588523,
+            "scoreError" : 0.8634553321422979,
+            "scoreConfidence" : [
+                6.959227422446225,
+                8.686138086730821
+            ],
+            "scorePercentiles" : {
+                "0.0" : 7.0648930641043295,
+                "50.0" : 7.651025782871194,
+                "90.0" : 8.824996762469793,
+                "95.0" : 8.86624980856479,
+                "99.0" : 8.86624980856479,
+                "99.9" : 8.86624980856479,
+                "99.99" : 8.86624980856479,
+                "99.999" : 8.86624980856479,
+                "99.9999" : 8.86624980856479,
+                "100.0" : 8.86624980856479
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    7.649603120100944,
+                    8.438360753781136,
+                    7.0648930641043295,
+                    7.498918672304947,
+                    7.764843452810707
+                ],
+                [
+                    8.453719347614822,
+                    8.86624980856479,
+                    7.652448445641445,
+                    7.449622418659379,
+                    7.3881684623027235
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.unmarshal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "record"
+        },
+        "primaryMetric" : {
+            "score" : 12.307480622612855,
+            "scoreError" : 1.8792519773426664,
+            "scoreConfidence" : [
+                10.428228645270188,
+                14.186732599955523
+            ],
+            "scorePercentiles" : {
+                "0.0" : 10.242496497659987,
+                "50.0" : 12.181817595971118,
+                "90.0" : 14.759716472105165,
+                "95.0" : 14.937224338007976,
+                "99.0" : 14.937224338007976,
+                "99.9" : 14.937224338007976,
+                "99.99" : 14.937224338007976,
+                "99.999" : 14.937224338007976,
+                "99.9999" : 14.937224338007976,
+                "100.0" : 14.937224338007976
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    13.162145678979853,
+                    11.838918070820238,
+                    11.567851011167079,
+                    14.937224338007976,
+                    12.578254121967477
+                ],
+                [
+                    12.524717121121999,
+                    11.732208569166252,
+                    10.242496497659987,
+                    12.865874169459255,
+                    11.625116647778455
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.unmarshal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "batch100"
+        },
+        "primaryMetric" : {
+            "score" : 842.7014136215646,
+            "scoreError" : 165.94691131761311,
+            "scoreConfidence" : [
+                676.7545023039515,
+                1008.6483249391777
+            ],
+            "scorePercentiles" : {
+                "0.0" : 731.2765252192983,
+                "50.0" : 820.4616718867273,
+                "90.0" : 1032.0159057691435,
+                "95.0" : 1038.657318795431,
+                "99.0" : 1038.657318795431,
+                "99.9" : 1038.657318795431,
+                "99.99" : 1038.657318795431,
+                "99.999" : 1038.657318795431,
+                "99.9999" : 1038.657318795431,
+                "100.0" : 1038.657318795431
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    914.0519945180448,
+                    754.8028582202112,
+                    831.5081637572735,
+                    972.2431885325559,
+                    1038.657318795431
+                ],
+                [
+                    904.0930587437867,
+                    809.4151800161812,
+                    731.857716532553,
+                    731.2765252192983,
+                    739.1081318803103
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.CodecBenchmark.unmarshal",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "2 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER",
+            "payload" : "blob64k"
+        },
+        "primaryMetric" : {
+            "score" : 183.4333152717754,
+            "scoreError" : 10.510154404204854,
+            "scoreConfidence" : [
+                172.92316086757054,
+                193.94346967598025
+            ],
+            "scorePercentiles" : {
+                "0.0" : 176.98361620808635,
+                "50.0" : 181.0596848848906,
+                "90.0" : 198.71636950250468,
+                "95.0" : 199.6264741516966,
+                "99.0" : 199.6264741516966,
+                "99.9" : 199.6264741516966,
+                "99.99" : 199.6264741516966,
+                "99.999" : 199.6264741516966,
+                "99.9999" : 199.6264741516966,
+                "100.0" : 199.6264741516966
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    176.98361620808635,
+                    190.5254276597771,
+                    181.04357661326816,
+                    179.87623900728352,
+                    178.48305005799946
+                ],
+                [
+                    181.07579315651307,
+                    177.9841413826853,
+                    185.0636290814911,
+                    183.67120539895328,
+                    199.6264741516966
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.JeriBenchmark.batch100",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "2 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "3 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER"
+        },
+        "primaryMetric" : {
+            "score" : 4913.4387050347295,
+            "scoreError" : 337.84385847661156,
+            "scoreConfidence" : [
+                4575.594846558118,
+                5251.282563511341
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4606.1460644171775,
+                "50.0" : 4907.248812683727,
+                "90.0" : 5326.676472690112,
+                "95.0" : 5353.1821604278075,
+                "99.0" : 5353.1821604278075,
+                "99.9" : 5353.1821604278075,
+                "99.99" : 5353.1821604278075,
+                "99.999" : 5353.1821604278075,
+                "99.9999" : 5353.1821604278075,
+                "100.0" : 5353.1821604278075
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    5023.623586956522,
+                    5353.1821604278075,
+                    4720.572955974842,
+                    4928.8084334975365,
+                    4885.689191869918
+                ],
+                [
+                    5088.125283050847,
+                    5017.212453177258,
+                    4655.243364341085,
+                    4606.1460644171775,
+                    4855.783556634305
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.JeriBenchmark.blob64k",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "2 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "3 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER"
+        },
+        "primaryMetric" : {
+            "score" : 10323.904424395847,
+            "scoreError" : 824.7263128326302,
+            "scoreConfidence" : [
+                9499.178111563217,
+                11148.630737228477
+            ],
+            "scorePercentiles" : {
+                "0.0" : 9680.221487096775,
+                "50.0" : 10156.574224706661,
+                "90.0" : 11490.339872005496,
+                "95.0" : 11571.573992307693,
+                "99.0" : 11571.573992307693,
+                "99.9" : 11571.573992307693,
+                "99.99" : 11571.573992307693,
+                "99.999" : 11571.573992307693,
+                "99.9999" : 11571.573992307693,
+                "100.0" : 11571.573992307693
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    9876.474473684211,
+                    9680.221487096775,
+                    9995.36864784053,
+                    10092.531718120805,
+                    10079.61422818792
+                ],
+                [
+                    10220.616731292517,
+                    10759.232789285714,
+                    11571.573992307693,
+                    10615.60158303887,
+                    10347.808593103447
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.JeriBenchmark.ping",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "2 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "3 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER"
+        },
+        "primaryMetric" : {
+            "score" : 145.30110886554266,
+            "scoreError" : 14.257667141586165,
+            "scoreConfidence" : [
+                131.0434417239565,
+                159.5587760071288
+            ],
+            "scorePercentiles" : {
+                "0.0" : 132.13785941422594,
+                "50.0" : 145.9146010695879,
+                "90.0" : 161.04985133075402,
+                "95.0" : 161.7567379771404,
+                "99.0" : 161.7567379771404,
+                "99.9" : 161.7567379771404,
+                "99.99" : 161.7567379771404,
+                "99.999" : 161.7567379771404,
+                "99.9999" : 161.7567379771404,
+                "100.0" : 161.7567379771404
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    146.8027866125165,
+                    161.7567379771404,
+                    154.6878715132766,
+                    149.40276695548252,
+                    143.66736852942586
+                ],
+                [
+                    145.02641552665926,
+                    133.25305716189206,
+                    136.35896032359224,
+                    132.13785941422594,
+                    149.91726464121527
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.JeriBenchmark.point",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "2 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "3 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER"
+        },
+        "primaryMetric" : {
+            "score" : 181.69262861745446,
+            "scoreError" : 14.11394427835061,
+            "scoreConfidence" : [
+                167.57868433910386,
+                195.80657289580506
+            ],
+            "scorePercentiles" : {
+                "0.0" : 168.39279233316495,
+                "50.0" : 182.25133326521268,
+                "90.0" : 197.70489729904807,
+                "95.0" : 198.53286792827367,
+                "99.0" : 198.53286792827367,
+                "99.9" : 198.53286792827367,
+                "99.99" : 198.53286792827367,
+                "99.999" : 198.53286792827367,
+                "99.9999" : 198.53286792827367,
+                "100.0" : 198.53286792827367
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    198.53286792827367,
+                    190.25316163601775,
+                    168.70367234592894,
+                    177.97672498072018,
+                    168.39279233316495
+                ],
+                [
+                    187.41396102192516,
+                    180.9767069610327,
+                    183.52595956939263,
+                    184.38157190265485,
+                    176.76886749543394
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.serial.JeriBenchmark.record",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/opt/dirtychai/jdk-27/bin/java",
+        "jvmArgs" : [
+            "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+            "-Djavax.net.ssl.trustStoreType=JKS",
+            "-Dhttps.proxyHost=127.0.0.1",
+            "-Dhttps.proxyPort=41127",
+            "-Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local",
+            "-Djdk.http.auth.tunneling.disabledSchemes=",
+            "-Djdk.http.auth.proxying.disabledSchemes=",
+            "-Djmh.link.address=127.0.0.1"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-e3495c75",
+        "warmupIterations" : 5,
+        "warmupTime" : "2 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "3 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "format" : "DER"
+        },
+        "primaryMetric" : {
+            "score" : 214.50054533723105,
+            "scoreError" : 23.414891605295026,
+            "scoreConfidence" : [
+                191.08565373193602,
+                237.91543694252607
+            ],
+            "scorePercentiles" : {
+                "0.0" : 202.95548406953932,
+                "50.0" : 206.8002087811571,
+                "90.0" : 247.11598935408523,
+                "95.0" : 248.3892888484146,
+                "99.0" : 248.3892888484146,
+                "99.9" : 248.3892888484146,
+                "99.99" : 248.3892888484146,
+                "99.999" : 248.3892888484146,
+                "99.9999" : 248.3892888484146,
+                "100.0" : 248.3892888484146
+            },
+            "scoreUnit" : "us/op",
+            "rawData" : [
+                [
+                    207.07586651942853,
+                    205.69789304812835,
+                    205.87719790022643,
+                    235.65629390512095,
+                    206.52455104288566
+                ],
+                [
+                    209.79012747360323,
+                    203.8086948104877,
+                    202.95548406953932,
+                    248.3892888484146,
+                    219.2300557544757
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

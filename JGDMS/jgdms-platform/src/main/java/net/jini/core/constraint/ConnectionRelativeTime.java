@@ -84,7 +84,7 @@ public final class ConnectionRelativeTime
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public ConnectionRelativeTime(GetArg arg) throws IOException, ClassNotFoundException{
-	this(validate(arg.get("time", -1)), true);
+	this(validate(arg.get("time", -1L)), true);
     }
     
     private ConnectionRelativeTime(long time, boolean check){

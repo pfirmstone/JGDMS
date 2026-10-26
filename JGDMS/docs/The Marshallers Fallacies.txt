@@ -1,0 +1,10 @@
+The Marshaler's guide, the whole thing in eight lines, fallacy and rule together:
+
+1. Invoking a method on data mid-decode is harmless. Rule; the stream reads structure only and never invokes behavior belonging to the object it's reconstructing.
+2. Encoding is a cosmetic choice. Rule; the same logical value must always produce the same bytes.
+3. The decoder can reconcile old and new schema. Rule; evolution is the constructor's responsibility, the decoder has none.
+4. A stream can specify which class to construct. Rule; the schema and endpoint class resolver (ClassLoader) decides which class, the stream's claim is verified, never believed.
+5. An object can be fixed up after construction. Rule; construction is atomic, an object is fully valid or it does not exist.
+6. Mutability after validation is harmless. Rule; a validated object cannot be mutated back into an invalid one.
+7. What's being asked matters more than who's asking. Rule; admission depends on who is asking, not only what is being asked for.
+8. A check that runs is a check that validates. Rule; a check that exists is not the same as a check that checks anything.

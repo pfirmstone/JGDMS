@@ -64,7 +64,9 @@ class URIGrant extends CertificateGrant {
                 // Uri resolves this issue - fixed 31st Mar 2013
                 uris.add(uri[i] != null ? Uri.parseAndCreate(uri[i]) : null);
             } catch (URISyntaxException ex) {
-                ex.printStackTrace(System.err);
+                // Fail closed: skipping a bad URI would broaden the grant,
+                // when it was the only one it would apply to every CodeSource.
+                throw new SecurityException("Failed to parse URI: " + uri[i], ex);
             }
         }
         location = Collections.unmodifiableSet(uris);
@@ -113,12 +115,10 @@ class URIGrant extends CertificateGrant {
     @Override
     public boolean implies(ClassLoader cl, Principal[] p){
 	if ( !implies(p)) return false;
+        // A ClassLoader carries no signers.
+        if ( requiresSigners() ) return false;
 	if ( location.isEmpty() ) return true;
-        Iterator<Uri> it = location.iterator();
-        while (it.hasNext()){
-            if (it.next() == null) return true;
-        }
-	if ( cl == null ) return false;
+        if ( location.contains(null) ) return true;
 	return false;  //Indeterminate.
     }
     
@@ -126,7 +126,8 @@ class URIGrant extends CertificateGrant {
     /**
      * Checks if passed CodeSource matches this PermissionGrant. Null URI of
      * PermissionGrant implies any CodeSource, only if that CodeSource is not 
-     * null.
+     * null.  Any signers required by this grant must also be present, so a
+     * codeBase with signedBy enforces the signer.
      */
     @Override
     public boolean implies(CodeSource codeSource, Principal[] p) {
@@ -134,23 +135,22 @@ class URIGrant extends CertificateGrant {
         // sun.security.provider.PolicyFile compatibility for null CodeSource is false.
         // see org.apache.river.test.spec.policyprovider.dynamicPolicyProvider.GrantPrincipal test.
         if (codeSource == null)  return false; // Null CodeSource is not implied.
+        if (!impliesSigners(codeSource)) return false;
         if (location.isEmpty()) return true; // But CodeSource with null URL is implied, if this location is empty.
-        int l = location.size();
-        Uri[] uris = location.toArray(new Uri[l]);
-        for (int i = 0; i<l ; i++ ){
-            if (uris[i] == null) return true;
-        }
+        if (location.contains(null)) return true; // Null URI implies any CodeSource with non-null URL.
         URL url = codeSource.getLocation();
         if (url == null ) return false;
-        Uri implied = null;
+        Uri implied;
         try {
+            // Not URL.equals, it can cause DNS lookups.
             implied = Uri.urlToUri(url);
         } catch (URISyntaxException ex) {
             Logger.getLogger(URIGrant.class.getName()).log(Level.SEVERE, null, ex);
+            return false;
         }
         if (implied == null) return false;
-        for (int i = 0; i<l ; i++){
-            if (uris[i].implies(implied)) return true;
+        for (Uri uri : location){
+            if (uri.implies(implied)) return true;
         }
         return false;
     }

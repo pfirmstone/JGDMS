@@ -49,7 +49,7 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
 import net.jini.space.FilterRejectedException;
-import net.jini.space.FilteredJavaSpace;
+import net.jini.space.FilteredTupleSpace;
 import net.jini.space.MatchSet;
 import net.jini.space.TupleSpace;
 import org.apache.river.api.io.AtomicSerial;
@@ -76,7 +76,7 @@ import org.apache.river.landlord.LandlordLease;
 // @see OutriggerSpace
 @AtomicSerial
 public abstract class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
-			     ProxyAccessor, FilteredJavaSpace
+			     ProxyAccessor, FilteredTupleSpace
 {
     /**
      * The remote server this proxy works with.
@@ -853,7 +853,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
     }
 
     /* ======================================================================
-     * FilteredJavaSpace — CEL predicate pushdown (SOW Part B, unit B1).
+     * FilteredTupleSpace — CEL predicate pushdown (SOW Part B, unit B1).
      *
      * These mirror the unfiltered operations above but thread an explicit
      * {@code byte[] filter} (a canonical FilterEnvelope) through to the

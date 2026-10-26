@@ -123,6 +123,21 @@ final class WireTypes {
             return null;
         }
 
+        // A Class field: its name was written UTF8; resolve through the
+        // endpoint-assigned ResolutionContext loader (primitive-aware).
+        if ("java.lang.Class".equals(wireType)) {
+            return resolveClass(reader.readUtf8String(), res);
+        }
+        return decodeScalar(reader, wireType);
+    }
+
+    /**
+     * The one decoder of every scalar, {@code String} and {@code byte[]} wire type, for a TLV already known not to be NULL. It
+     * resolves no class and takes no {@link ResolutionContext}, so {@link #decode}, {@link #decodeScalarNoClassLoad} and
+     * {@link #validateClassFree} (which whole-stream admission calls before any class is loaded) all apply the SAME range,
+     * canonical-form and UTF-8 rules, and cannot drift apart.
+     */
+    private static Object decodeScalar(DerReader reader, String wireType) throws DerException {
         return switch (wireType) {
             case "boolean", "java.lang.Boolean" -> reader.readBoolean();
 
@@ -171,10 +186,6 @@ final class WireTypes {
             }
 
             case "java.lang.String" -> reader.readUtf8String();
-
-            // A Class field: its name was written UTF8; resolve through the
-            // endpoint-assigned ResolutionContext loader (primitive-aware).
-            case "java.lang.Class" -> resolveClass(reader.readUtf8String(), res);
 
             case "byte[]", "[B" -> reader.readOctetString();
 
@@ -231,47 +242,7 @@ final class WireTypes {
             readNull(reader);
             return null;
         }
-        return switch (wireType) {
-            case "boolean", "java.lang.Boolean" -> reader.readBoolean();
-            case "byte", "java.lang.Byte" -> {
-                long lv = toLong(reader.readInteger(), wireType);
-                if (lv < Byte.MIN_VALUE || lv > Byte.MAX_VALUE) {
-                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
-                            + wireType + "'");
-                }
-                yield (byte) lv;
-            }
-            case "short", "java.lang.Short" -> {
-                long lv = toLong(reader.readInteger(), wireType);
-                if (lv < Short.MIN_VALUE || lv > Short.MAX_VALUE) {
-                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
-                            + wireType + "'");
-                }
-                yield (short) lv;
-            }
-            case "int", "java.lang.Integer" -> {
-                long lv = toLong(reader.readInteger(), wireType);
-                if (lv < Integer.MIN_VALUE || lv > Integer.MAX_VALUE) {
-                    throw new DerException("INTEGER value " + lv + " overflows wire type '"
-                            + wireType + "'");
-                }
-                yield (int) lv;
-            }
-            case "long", "java.lang.Long" -> {
-                try {
-                    yield reader.readInteger().longValueExact();
-                } catch (ArithmeticException e) {
-                    throw new DerException("INTEGER value overflows wire type '" + wireType + "'", e);
-                }
-            }
-            case "java.lang.String" -> reader.readUtf8String();
-            case "byte[]", "[B" -> reader.readOctetString();
-            case "float", "java.lang.Float" -> decodeFloat(reader);
-            case "double", "java.lang.Double" -> decodeDouble(reader);
-            // isClassFreeScalar admits nothing else; unreachable, but fail-closed for defence.
-            default -> throw new DerException("WireTypes.decodeScalarNoClassLoad: '"
-                    + wireType + "' is not a class-free scalar");
-        };
+        return decodeScalar(reader, wireType);      // isClassFreeScalar admitted only the kinds it decodes
     }
 
     /**
@@ -291,6 +262,88 @@ final class WireTypes {
                  "double", "java.lang.Double",
                  "java.lang.String",
                  "byte[]", "[B" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Checks the next TLV against {@code wireType} exactly as {@link #decode} will, <b>resolving and loading no class</b>
+     * (B3: whole-stream admission calls this on every field, collection element and value array it walks, before anything is
+     * constructed). The reader advances past the TLV. The rules are not repeated here: a scalar, {@code String}, {@code byte[]}
+     * or element of a value array goes through the very code {@link #decode} uses ({@link #decodeScalar}); what is skipped is
+     * only what needs a class, namely the enum constant's existence and a {@code Class} field's resolution, whose name is still
+     * required to be a NULL or valid UTF-8 as the decoder requires.
+     *
+     * @throws DerException if the TLV is not a valid encoding of {@code wireType}, or {@code wireType} is not one {@link #decode}
+     *                      accepts
+     */
+    static void validateClassFree(DerReader reader, String wireType) throws DerException {
+        if (wireType.startsWith("enum:") || "java.lang.Class".equals(wireType)) {
+            skipNameOrNull(reader);
+            return;
+        }
+        if (wireType.startsWith("array:")) {
+            validateArray(reader, wireType);
+            return;
+        }
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return;
+        }
+        if ("byte[]".equals(wireType) || "[B".equals(wireType)) {
+            reader.skip(reader.readOctetStringHeader());       // the same check as readOctetString, without copying the content
+            return;
+        }
+        decodeScalar(reader, wireType);
+    }
+
+    private static void skipNameOrNull(DerReader reader) throws DerException {
+        if (peekIsNull(reader)) {
+            readNull(reader);
+        } else {
+            reader.readUtf8String();
+        }
+    }
+
+    /** {@link #decodeArray} without a class: the same framing, the same element rules, the same refusals. */
+    private static void validateArray(DerReader reader, String wireType) throws DerException {
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return;
+        }
+        String componentWT = wireType.substring(6);          // strip "array:"
+        if (componentWT.startsWith("array:")) {
+            throw new DerException(
+                    "WireTypes.decodeArray: multi-dimensional arrays are not supported"
+                    + " (wireType: '" + wireType + "'); inc-3 supports one level only");
+        }
+        if (componentWT.startsWith("@AtomicSerial")) {
+            throw new DerException(
+                    "WireTypes.decodeArray: array:@AtomicSerial must not be decoded "
+                    + "in WireTypes (would require der.object -- cycle); "
+                    + "DerFieldStore must store it as NestedArrayRaw");
+        }
+        boolean nullable = componentWT.equals("java.lang.String") || componentWT.equals("java.lang.Class")
+                || componentWT.startsWith("enum:");
+        if (!nullable && !isPrimitiveArrayComponent(componentWT)) {
+            throw new DerException("WireTypes.buildArray: unsupported component wireType '" + componentWT + "'");
+        }
+        DerReader seq = reader.readSequence();
+        while (seq.hasMore()) {
+            if (nullable) {
+                skipNameOrNull(seq);
+            } else {
+                // No NULL here: a primitive element's decoder refuses the NULL tag, as decode's would
+                decodeScalar(seq, componentWT);
+            }
+        }
+    }
+
+    /** The component types {@link #buildArray} builds from a scalar (the others it builds are String, Class and enum). */
+    private static boolean isPrimitiveArrayComponent(String componentWT) {
+        return switch (componentWT) {
+            case "boolean", "java.lang.Boolean", "byte", "java.lang.Byte", "short", "java.lang.Short",
+                 "int", "java.lang.Integer", "long", "java.lang.Long" -> true;
             default -> false;
         };
     }

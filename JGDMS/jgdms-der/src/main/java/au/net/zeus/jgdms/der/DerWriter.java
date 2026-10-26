@@ -124,7 +124,13 @@ public final class DerWriter {
      */
     public static byte[] writeUtf8String(String value) {
         if (value == null) throw new NullPointerException("value");
-        byte[] content = value.getBytes(StandardCharsets.UTF_8);
+        byte[] content;
+        try {
+            content = DerUtf8.encode(value);
+        } catch (DerException e) {
+            // an unpaired surrogate has no UTF-8 encoding; getBytes would silently write '?'
+            throw new DerUtf8.UnencodableStringException(e.getMessage(), e);
+        }
         return writeTlv(Tag.UTF8STRING, content);
     }
 
@@ -163,20 +169,7 @@ public final class DerWriter {
      *                              {@code null}
      */
     public static byte[] writeSequence(List<byte[]> children) {
-        if (children == null) throw new NullPointerException("children");
-        // Compute total size first
-        int total = 0;
-        for (byte[] child : children) {
-            if (child == null) throw new NullPointerException("child element");
-            total += child.length;
-        }
-        byte[] content = new byte[total];
-        int pos = 0;
-        for (byte[] child : children) {
-            System.arraycopy(child, 0, content, pos, child.length);
-            pos += child.length;
-        }
-        return writeTlv(Tag.SEQUENCE, content);
+        return frame(Tag.SEQUENCE, children);
     }
 
     /**
@@ -194,19 +187,7 @@ public final class DerWriter {
      * @throws NullPointerException if {@code children} or any element is {@code null}
      */
     public static byte[] writeSet(List<byte[]> children) {
-        if (children == null) throw new NullPointerException("children");
-        int total = 0;
-        for (byte[] child : children) {
-            if (child == null) throw new NullPointerException("child element");
-            total += child.length;
-        }
-        byte[] content = new byte[total];
-        int pos = 0;
-        for (byte[] child : children) {
-            System.arraycopy(child, 0, content, pos, child.length);
-            pos += child.length;
-        }
-        return writeTlv(Tag.SET, content);
+        return frame(Tag.SET, children);
     }
 
     /* ================================================================== */
@@ -228,14 +209,68 @@ public final class DerWriter {
     public static byte[] writeTlv(Tag tag, byte[] content) {
         if (tag == null) throw new NullPointerException("tag");
         if (content == null) throw new NullPointerException("content");
-        byte[] tagBytes    = tag.encode();
-        byte[] lengthBytes = encodeLength(content.length);
-        byte[] out = new byte[tagBytes.length + lengthBytes.length + content.length];
-        int pos = 0;
-        System.arraycopy(tagBytes,    0, out, pos, tagBytes.length);    pos += tagBytes.length;
-        System.arraycopy(lengthBytes, 0, out, pos, lengthBytes.length); pos += lengthBytes.length;
-        System.arraycopy(content,     0, out, pos, content.length);
+        byte[] out = new byte[headerSize(tag, content.length) + content.length];
+        int pos = writeHeader(out, 0, tag, content.length);
+        System.arraycopy(content, 0, out, pos, content.length);
         return out;
+    }
+
+    /**
+     * Frames a list of pre-encoded child TLVs under {@code tag}: one allocation,
+     * one copy of each child (the children are never concatenated into an
+     * intermediate content array first).
+     */
+    private static byte[] frame(Tag tag, List<byte[]> children) {
+        if (children == null) throw new NullPointerException("children");
+        long total = 0;
+        for (byte[] child : children) {
+            if (child == null) throw new NullPointerException("child element");
+            total += child.length;
+        }
+        if (total > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("content too large: " + total);
+        }
+        int contentLength = (int) total;
+        byte[] out = new byte[headerSize(tag, contentLength) + contentLength];
+        int pos = writeHeader(out, 0, tag, contentLength);
+        for (byte[] child : children) {
+            System.arraycopy(child, 0, out, pos, child.length);
+            pos += child.length;
+        }
+        return out;
+    }
+
+    /** Size in octets of the tag + definite-length header (same bytes as {@link #encodeLength}). */
+    static int headerSize(Tag tag, int contentLength) {
+        return tag.encodedSize() + lengthSize(contentLength);
+    }
+
+    static int lengthSize(int length) {
+        if (length < 0) {
+            throw new IllegalArgumentException("length must be >= 0, got " + length);
+        }
+        if (length <= 127) return 1;
+        int count = 0;
+        for (int tmp = length; tmp != 0; tmp >>>= 8) count++;
+        return 1 + count;
+    }
+
+    /** Writes tag octets then definite-length octets at {@code pos}; returns the position after. */
+    static int writeHeader(byte[] out, int pos, Tag tag, int contentLength) {
+        pos = tag.encodeInto(out, pos);
+        if (contentLength <= 127) {
+            out[pos] = (byte) contentLength;
+            return pos + 1;
+        }
+        int count = 0;
+        for (int tmp = contentLength; tmp != 0; tmp >>>= 8) count++;
+        out[pos] = (byte) (0x80 | count);
+        int len = contentLength;
+        for (int i = count; i >= 1; i--) {
+            out[pos + i] = (byte) (len & 0xFF);
+            len >>>= 8;
+        }
+        return pos + 1 + count;
     }
 
     /* ================================================================== */

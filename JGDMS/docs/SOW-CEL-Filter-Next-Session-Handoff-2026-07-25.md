@@ -37,7 +37,7 @@ match chokepoints (filter what byte-equality template matching cannot express), 
 ### 1.1 Finish B1 — fold in the JavaSpace05 query methods, then merge
 Per the recommendation Peter leaned toward: add filtered equivalents of the JavaSpace05
 *query* methods B1 didn't cover — **`contents(...)`** (the marquee class-free filtered
-iterator) and **bulk `take(Collection templates, ...)`** — to `FilteredJavaSpace`
+iterator) and **bulk `take(Collection templates, ...)`** — to `FilteredTupleSpace`
 (`net.jini.space` in `jgdms-lib-dl`), with their `OutriggerServer` overloads + admission,
 throwing `EVALUATION_NOT_WIRED` until B3 (loud-break). `registerForAvailabilityEvent` is
 already done; `write`/`snapshot` aren't matches (no filter). Multi-template ops need the F3
@@ -151,7 +151,7 @@ never ran against it; matches after commit).
    `SequencedSet`/`SequencedMap` ordered; dedup-excluded interior = required for the pure-function
    property). Dual board review. **MERGED+PUSHED.**
 6. **B1** CEL filter API + envelope wire + fail-closed admission seam. Dual board review →
-   MERGE-WITH-FIXES → fixed (F1 schema-less contract option-b; `FilteredJavaSpace`/
+   MERGE-WITH-FIXES → fixed (F1 schema-less contract option-b; `FilteredTupleSpace`/
    `FilterRejectedException` relocated to `net.jini.space`/`jgdms-lib-dl`; defensive verify catch;
    others). Board-clean, GREEN, **UNMERGED** (pending §1.1).
 7. **COLL-2 design** scoped (interface-only + SequencedSet ratified).
@@ -170,7 +170,7 @@ never ran against it; matches after commit).
 - `showcase-audience-java-serialization-framing` — "Java Serialization" = stock `ObjectOutput
   Stream` for the wider audience, never Atomic JOSS; no-acronym viewer text.
 - `jgdms-service-api-only-compat-boundary` — the standing architectural rule (see §3 item 3 above).
-- Client-compile-time API placement: a public client interface (`FilteredJavaSpace`) can't live in
+- Client-compile-time API placement: a public client interface (`FilteredTupleSpace`) can't live in
   a downloaded `-dl` proxy package; it belongs in the API namespace the client depends on directly
   (`net.jini.space` in `jgdms-lib-dl`).
 

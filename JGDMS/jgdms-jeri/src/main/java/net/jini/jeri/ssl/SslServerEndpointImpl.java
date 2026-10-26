@@ -19,6 +19,8 @@
 package net.jini.jeri.ssl;
 
 import org.apache.river.action.GetLongAction;
+import org.apache.river.action.GetPropertyAction;
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.connection.BasicServerConnManager;
 import org.apache.river.jeri.internal.connection.ServerConnManager;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -52,6 +54,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -68,6 +76,7 @@ import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.InboundRequest;
@@ -97,24 +106,6 @@ class SslServerEndpointImpl extends Utilities {
 
     /** Server logger */
     static final Logger logger = SERVER_LOGGER;
-
-	/**
-	 * Builder for subject-neutral virtual infrastructure threads.
-	 *
-	 * <p>In DirtyChai, {@code Thread} captures {@code Subject.current()} at
-	 * construction time ({@code scopedSubject}) and {@code Thread.runWith}
-	 * re-establishes it as a ScopedValue scope around the entire thread body.
-	 * Infrastructure threads (accept loops, SSL context rebuild) must be
-	 * subject-neutral: they are long-lived, block on I/O, and must not run
-	 * under a caller's subject (confused-deputy risk).
-	 *
-	 * <p>Each call to {@code .start()} or {@code .unstarted()} on this builder
-	 * is wrapped in {@code Subject.callAs(null, ...)} at the call site,
-	 * ensuring each constructed thread captures {@code null} as its
-	 * {@code scopedSubject}.  {@code Thread.runWith} then takes the no-scope
-	 * branch and no ScopedValue subject scope wraps the thread body.
-	 */
-	static final Thread.Builder.OfVirtual acceptThreadBuilder = Thread.ofVirtual();
 
     /** The default server connection manager. */
     private static final ServerConnManager defaultServerConnectionManager =
@@ -443,10 +434,21 @@ class SslServerEndpointImpl extends Utilities {
     {
 		List<InvocationConstraint> requiredConstraints = new ArrayList<InvocationConstraint>(2);
 		List<InvocationConstraint> preferredConstraints = new ArrayList<InvocationConstraint>(2);
+		// MarshallingFormat constraints deferred by the transport, collected
+		// INDEPENDENTLY of the integrity/atomicity else-if chain so a required
+		// format is NEVER dropped when integrity/atomicity is also present --
+		// dropping it would skip the JOSS-prevention check (JGDMS-STD-008
+		// sec.18.3). NOTE: on the dispatch path the dispatcher already strips
+		// and verifies MarshallingFormat (BasicInvocationDispatcher.
+		// verifyAndStripMarshallingFormat) before this transport check, so this
+		// normally collects nothing; it is a correct defensive mirror of the
+		// client-side deferral and NEVER returns "OK" for a MarshallingFormat.
+		Set<MarshallingFormat> marshallingRequired = new java.util.LinkedHashSet<MarshallingFormat>();
+		Set<MarshallingFormat> marshallingPreferred = new java.util.LinkedHashSet<MarshallingFormat>();
 		boolean supported = false;
 		for (int i = 2; --i >= 0; ) {
 			boolean upperLayerConstraints = i == 1;
-			ConnectionContext context = 
+			ConnectionContext context =
 				ConnectionContext.getInstance(cipherSuite,
 					client,
 					server,
@@ -454,6 +456,8 @@ class SslServerEndpointImpl extends Utilities {
 					false /* clientSide */,
 					constraints);
 			if (context != null) {
+				marshallingRequired.addAll(context.getMarshallingRequired());
+				marshallingPreferred.addAll(context.getMarshallingPreferred());
 				if (context.getIntegrityRequired()) {
 					requiredConstraints.add(Integrity.YES);
 				} else if (context.getIntegrityPreferred()) {
@@ -465,6 +469,14 @@ class SslServerEndpointImpl extends Utilities {
 				} else {
 					supported = true;
 				}
+			}
+		}
+		for (MarshallingFormat mf : marshallingRequired) {
+			requiredConstraints.add(mf);
+		}
+		for (MarshallingFormat mf : marshallingPreferred) {
+			if (!marshallingRequired.contains(mf)) {
+				preferredConstraints.add(mf);
 			}
 		}
 		if (!requiredConstraints.isEmpty() || !preferredConstraints.isEmpty()){
@@ -567,13 +579,19 @@ class SslServerEndpointImpl extends Utilities {
         
         /**
          * The maximum time a session should be used before expiring -- non-final
-         * to facilitate testing.  Use 24 hours to allow the client, which uses
-         * 23.5 hours, to renegotiate a new session before the server timeout.
+         * to facilitate testing.  Use 32 minutes to allow the client, which uses
+         * at most 30 minutes, to renegotiate a new session before the server timeout.
+         * The limit counts from the last full handshake, because a resumed
+         * session keeps the original creation time; it is also the longest a
+         * client whose certificate or trust anchor has since been revoked can
+         * go on resuming, since resumption does not call the trust manager.
          */
+        static final long DEFAULT_MAX_SERVER_SESSION_DURATION = 32L * 60L * 1000L;
+
         private final long maxServerSessionDuration =
             ((Long) Security.doPrivileged(
                 new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
-                                  24L * 60L * 60L * 1000L))).longValue();
+                                  DEFAULT_MAX_SERVER_SESSION_DURATION))).longValue();
         
 		/**
 		 * Whether to resolve the server subject lazily from the ambient
@@ -826,8 +844,8 @@ class SslServerEndpointImpl extends Utilities {
 			if (refreshScheduled) return; // a rebuild is already in flight			
 			refreshScheduled = true;
 			final SslListenEndpoint self = this;
-			Subject.callAs(null, () ->
-				acceptThreadBuilder.name("SSL context rebuild after SPIFFE rotation").start(
+			/* The one way to make a thread: neutral, and the builder is shared. */
+			SslListenHandle.newThread("SSL context rebuild after SPIFFE rotation",
 					new Runnable() {
 						@Override
 						public void run() {
@@ -852,8 +870,7 @@ class SslServerEndpointImpl extends Utilities {
 							}
 						}
 					}
-				)
-			);
+			).start();
 		}
 
 		/**
@@ -932,7 +949,12 @@ class SslServerEndpointImpl extends Utilities {
 			// producing an anonymous SSL context.
 			initIfNeeded();
 			ServerSocket serverSocket = createServerSocket();
-			return createListenHandle(requestDispatcher, serverSocket);
+			SslListenHandle listenHandle =
+				createListenHandle(requestDispatcher, serverSocket);
+			// Start accepting here, not in createListenHandle, so that an
+			// override of createListenHandle cannot omit it.
+			listenHandle.startAccepting();
+			return listenHandle;
 		}
 
 		/**
@@ -945,14 +967,15 @@ class SslServerEndpointImpl extends Utilities {
 		 * use a plain {@code ServerSocket} (it drives TLS over an SSLSocket).
 		 */
 		ServerSocket createServerSocket() throws IOException {
+			int backlog = ListenBacklog.get();
 			if (serverSocketFactory != null) {
-				return serverSocketFactory.createServerSocket(port);
+				return serverSocketFactory.createServerSocket(port, backlog);
 			}
 			java.nio.channels.ServerSocketChannel ssc =
 				java.nio.channels.ServerSocketChannel.open();
 			boolean ok = false;
 			try {
-				ssc.socket().bind(new java.net.InetSocketAddress(port));
+				ssc.socket().bind(new java.net.InetSocketAddress(port), backlog);
 				ServerSocket serverSocket = ssc.socket();
 				ok = true;
 				return serverSocket;
@@ -1037,16 +1060,12 @@ class SslServerEndpointImpl extends Utilities {
 		 * Creates a listen handle for the specified dispatcher and server
 		 * socket.
 		 */
-		ListenHandle createListenHandle(RequestDispatcher requestDispatcher,
+		SslListenHandle createListenHandle(RequestDispatcher requestDispatcher,
 										ServerSocket serverSocket)
 															throws IOException
 		{
 			SslListenHandle listenHandle = new SslListenHandle(requestDispatcher, serverSocket, this);
 			logger.log(Level.FINE, "created {0}", listenHandle);
-			// Create and start the accept thread after full construction to
-			// prevent 'this' escaping before SslListenHandle is initialised.
-			listenHandle.acceptThread = listenHandle.createAcceptThread();
-			listenHandle.acceptThread.start();
 			return listenHandle;
 		}
 
@@ -1149,6 +1168,51 @@ class SslServerEndpointImpl extends Utilities {
 
     /** Implements ListenHandle */
     static class SslListenHandle extends Utilities implements ListenHandle {
+
+		/**
+		 * The system property that sets how long a server handshake may take,
+		 * in milliseconds, from the accept to the end of the handshake.
+		 */
+		static final String SERVER_HANDSHAKE_TIMEOUT_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeTimeout";
+
+		/** The default total time for a server handshake: 10 seconds. */
+		static final long DEFAULT_SERVER_HANDSHAKE_TIMEOUT = 10_000L;
+
+		/**
+		 * The system property that sets how much of the time for a handshake
+		 * must be left for a connection to be given a turn to work on it, in
+		 * milliseconds.
+		 */
+		static final String SERVER_MIN_BUDGET_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeMinBudget";
+
+		/** The default time that a handshake must have left to work: 2 seconds. */
+		static final long DEFAULT_SERVER_MIN_BUDGET = 2_000L;
+
+		/**
+		 * The system property that sets the number of server handshakes that
+		 * may compute their first flight at once.
+		 */
+		static final String SERVER_CPU_PERMITS_PROPERTY =
+			HandshakeLimits.CPU_PERMITS_PROPERTY;
+
+		/**
+		 * The system property that sets the named groups, in order of
+		 * preference, that a server negotiates, separated by commas.  An empty
+		 * value negotiates whatever the JVM enables.
+		 */
+		static final String SERVER_NAMED_GROUPS_PROPERTY =
+			"org.apache.river.jeri.ssl.serverNamedGroups";
+
+		/**
+		 * The default named groups of a server.  The JVM enables others that
+		 * cost the server much more per handshake, which a peer that chooses
+		 * the group makes the server pay for: secp521r1 about four times and
+		 * ffdhe8192 ten times what x25519 costs.
+		 */
+		static final String DEFAULT_SERVER_NAMED_GROUPS =
+			"X25519MLKEM768,x25519,secp256r1";
         
         private final SslListenEndpoint listenEndpoint;
 
@@ -1167,12 +1231,95 @@ class SslServerEndpointImpl extends Utilities {
 		/** Set of connections created by this listen handle */
 		private final Set connections = new HashSet();
 
+		/**
+		 * The accepted sockets whose handshake has not finished.  Guarded
+		 * by this, like {@code closed} and {@code connections}, so that
+		 * close sees every socket that is in one set or the other.
+		 */
+		private final Set<Handshake> inProgress = new HashSet<Handshake>();
+
+		/** Counts the handshakes by outcome and summarises failures. */
+		private final HandshakeCounters counters;
+
+		/**
+		 * The time in nanoseconds that a handshake has, counted from the
+		 * accept, or 0 for no limit.
+		 */
+		private final long handshakeTimeoutNanos;
+
+		/**
+		 * The time in nanoseconds that a handshake must have left to be given
+		 * a turn to work.  A connection that waits for its turn until less is
+		 * left is dropped, for it would only be cut off after doing the work.
+		 * At most half the time for a handshake, so that a short time is
+		 * still enough to work in.
+		 */
+		private final long minBudgetNanos;
+
+		/**
+		 * The permits that all the listeners of the JVM share: the sockets
+		 * that may be admitted, the handshakes that may work, and those that
+		 * may compute a first flight.  A listener gives back only the permits
+		 * that its own connections hold.
+		 */
+		private final HandshakeLimits limits;
+		private final Semaphore admission;
+		private final Semaphore running;
+		private final Semaphore cpu;
+		private final Semaphore socketCpu;
+		private final int maxHandshakes;
+		private final int maxQueued;
+		private final int cpuPermits;
+
+		/** The number of times a handshake has been given a permit of {@code cpu}. */
+		private final AtomicLong cpuEntries = new AtomicLong();
+
+		/** The number of times a handshake has been given a permit of {@code socketCpu}. */
+		private final AtomicLong socketCpuEntries = new AtomicLong();
+
+		/** The named groups to negotiate, or null for those the JVM enables. */
+		private final String[] namedGroups;
+
+		/**
+		 * The threads that do the cryptography of the handshakes, or null to
+		 * do it inline on each handshake's virtual thread.
+		 */
+		final HandshakeCompute compute;
+
+		/**
+		 * The accepted connections that have not finished their handshake.
+		 * Not the same as the permits taken: the accept loop holds one while
+		 * it waits in accept.
+		 */
+		private final AtomicInteger admitted = new AtomicInteger();
+
+		/** The string form of this handle, for threads and log lines. */
+		private final String description;
+
 		/** Used to throttle accept failures */
 		private final Object failureLock = new Object();
 		private long acceptFailureTime = 0;
 		private int acceptFailureCount = 0;
 
-		private Thread acceptThread;
+		private volatile Thread acceptThread;
+
+		/**
+		 * For tests: run by {@code startHandshake} before it makes the record
+		 * of the handshake.
+		 */
+		volatile Runnable beforeHandshake;
+
+		/**
+		 * For tests: run by a handshake task after its connection has been
+		 * built and before it completes the handshake.
+		 */
+		volatile java.util.function.Consumer<Handshake> beforeComplete;
+
+		/**
+		 * For tests: run by a handshake task after it has completed and
+		 * disarmed the watchdog, and before it registers the connection.
+		 */
+		volatile java.util.function.Consumer<Handshake> afterComplete;
 
 		/** Creates a listen handle */
 		SslListenHandle(RequestDispatcher requestDispatcher,
@@ -1187,6 +1334,42 @@ class SslServerEndpointImpl extends Utilities {
 			// acceptThread is initialised after construction via initAcceptThread()
 			// to prevent 'this' escaping before the constructor completes.
 			this.acceptThread = null;
+			this.description = toString();
+			this.counters = new HandshakeCounters(logger, description);
+			long millis = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_HANDSHAKE_TIMEOUT_PROPERTY,
+								  DEFAULT_SERVER_HANDSHAKE_TIMEOUT))).longValue();
+			this.handshakeTimeoutNanos = millis > 0
+				? Math.min(millis, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
+				: 0L;
+			long minBudget = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_MIN_BUDGET_PROPERTY,
+								  DEFAULT_SERVER_MIN_BUDGET))).longValue();
+			this.minBudgetNanos = minBudget > 0 && handshakeTimeoutNanos > 0L
+				? Math.min(Math.min(minBudget, Long.MAX_VALUE / 1_000_000L) * 1_000_000L,
+						   handshakeTimeoutNanos / 2)
+				: 0L;
+			this.limits = HandshakeLimits.shared();
+			this.maxHandshakes = limits.maxHandshakes;
+			this.maxQueued = limits.maxQueued;
+			this.cpuPermits = limits.cpuPermits;
+			this.admission = limits.admission;
+			this.running = limits.running;
+			this.cpu = limits.cpu;
+			this.socketCpu = limits.socketCpu;
+			this.compute = HandshakeCompute.get();
+			String[] supported = null;
+			try {
+				supported = listenEndpoint.getSSLContext()
+					.getSupportedSSLParameters().getNamedGroups();
+			} catch (RuntimeException e) {
+				/* Cannot tell: use the names as they are given. */
+			}
+			this.namedGroups = supportedNamedGroups(parseNamedGroups(
+				(String) Security.doPrivileged(
+					new GetPropertyAction(SERVER_NAMED_GROUPS_PROPERTY,
+										  DEFAULT_SERVER_NAMED_GROUPS))),
+				supported, description);
 		}
 
 		/**
@@ -1195,65 +1378,62 @@ class SslServerEndpointImpl extends Utilities {
 		 * reference {@code this::acceptLoop} is captured.
 		 */
 		Thread createAcceptThread() {
-			return AccessController.doPrivileged((PrivilegedAction<Thread>) () ->
-				Subject.callAs(null, () ->
-					acceptThreadBuilder.name(toString()).unstarted(this::acceptLoop)
-				)
-			);
+			return newThread(toString(), this::acceptLoop);
 		}
 
-		/** Handles new socket connections. */
+		/**
+		 * Creates and starts the accept thread.  Called once by listen,
+		 * after createListenHandle returns, so that {@code this} is fully
+		 * constructed and no subclass can leave the handle without an accept
+		 * thread.  If the thread cannot be started, closes this handle so the
+		 * server socket is not left bound.
+		 */
+		final void startAccepting() {
+			boolean ok = false;
+			try {
+				acceptThread = createAcceptThread();
+				acceptThread.start();
+				ok = true;
+			} finally {
+				if (!ok) {
+					close();
+				}
+			}
+		}
+
+		/**
+		 * Accepts connections.  The loop only accepts, sets the socket
+		 * options and starts a handshake task for the socket, so a peer that
+		 * is slow or silent cannot hold up the accepts that follow.  Only a
+		 * failure of {@code accept} counts towards the throttle.
+		 */
 		final void acceptLoop() {
 			while (true) {
 				Socket socket = null;
 				Throwable exception;
-				SslServerConnection connection = null;
+				boolean admitted = false;
 				try {
-					socket = serverSocket.accept();
-
-					/* Send data without delay */
-					try {
-						socket.setTcpNoDelay(true);
-					} catch (SocketException e) {
-						/* Ignore and continue; the connection will still work, just with worse latency. */
-					}
 					/*
-					 * Send periodic pings so we can tell if the connection
-					 * dies.
+					 * Wait here, not in accept, while the handshakes in
+					 * progress and the connections waiting for one fill the
+					 * limit; the operating system queues what arrives.
 					 */
-					try {
-						socket.setKeepAlive(true);
-					} catch (SocketException e) {
-						/* Ignore and continue; the connection will still work, just without keep-alive. */
+					if (!awaitAdmission()) {
+						break;
 					}
-
-					connection = serverConnection(socket);
-					synchronized (this) {
-						if (closed) {
-							try {
-								connection.closeInternal(false /* removeFromListener */);
-							} catch (IOException e) {
-								/* Ignore and continue; we're already closed. */
-							}
-							break;
-						}
-						connections.add(connection);
-					}
-					final SslServerConnection finalConnection = connection;
-					AccessController.doPrivileged(
-					securityContext.wrap(
-						new PrivilegedAction() {
-							public Object run() {
-								handleConnection(
-								finalConnection, requestDispatcher);
-								return null;
-							}
-						}), securityContext.getAccessControlContext());
+					admitted = true;
+					socket = serverSocket.accept();
+					admitted = false;
+					startHandshake(socket);
 					continue;
 				} catch (Exception e) {
 					exception = e;
 				} catch (Error e) {
 					exception = e;
+				} finally {
+					if (admitted) {
+						admission.release();
+					}
 				}
 				/* Problem occurred */
 				boolean closedSync;
@@ -1261,27 +1441,10 @@ class SslServerEndpointImpl extends Utilities {
 					closedSync = closed;
 				}
 				if (!closedSync && logger.isLoggable(Level.INFO)) {
-					String msg = "handling connection {0} throws";
-					Object arg = connection;
-					if (connection == null) {
-						msg = "accepting connection on {0} throws";
-						arg = this;
-					}
 					logThrow(logger, Level.INFO,
 						 SslListenHandle.class, "acceptLoop",
-						 msg, new Object[] { arg }, exception);
-				}
-				if (socket != null) {
-					try {
-						socket.close();
-					} catch (IOException e) {
-						/* Ignore and continue; we're already handling an exception. */
-						if (logger.isLoggable(Level.FINE)) {
-							logger.log(Level.FINE,
-								   "closing socket after accept failure throws",
-								   e);
-						}
-					}
+						 "accepting connection on {0} throws",
+						 new Object[] { this }, exception);
 				}
 				if (closedSync) {
 					break;
@@ -1308,6 +1471,358 @@ class SslServerEndpointImpl extends Utilities {
 					}
 				}
 			}
+			/* Closed, or interrupted: the thread was told to stop. */
+			close();
+		}
+
+		/**
+		 * Takes the permit that lets the accept loop accept one more
+		 * connection, waiting for one if the limit is reached.
+		 *
+		 * @return false if the listener was closed or the thread interrupted
+		 */
+		private boolean awaitAdmission() {
+			try {
+				admission.acquire();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+			synchronized (this) {
+				if (closed) {
+					admission.release();
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/**
+		 * Starts the task that does the handshake for a newly accepted
+		 * socket, which now owns the permit that the accept loop took.  The
+		 * task is a virtual thread that the accept thread creates, so it is
+		 * subject-neutral like the accept thread.  If the task cannot be
+		 * started the socket is closed; the accept loop is not told, because
+		 * the peer has done nothing wrong.
+		 */
+		void startHandshake(Socket socket) {
+			long deadline = 0L;
+			if (handshakeTimeoutNanos > 0L) {
+				deadline = System.nanoTime() + handshakeTimeoutNanos;
+				if (deadline == 0L) {
+					deadline = 1L;
+				}
+			}
+			Handshake handshake = null;
+			admitted.incrementAndGet();
+			boolean started = false;
+			try {
+				Runnable before = beforeHandshake;
+				if (before != null) {
+					before.run();
+				}
+				handshake = new Handshake(socket, deadline);
+				/* Send data without delay */
+				try {
+					socket.setTcpNoDelay(true);
+				} catch (SocketException e) {
+					/* Ignore and continue; the connection will still work, just with worse latency. */
+				}
+				/*
+				 * Send periodic pings so we can tell if the connection
+				 * dies.
+				 */
+				try {
+					socket.setKeepAlive(true);
+				} catch (SocketException e) {
+					/* Ignore and continue; the connection will still work, just without keep-alive. */
+				}
+				synchronized (this) {
+					if (closed) {
+						return;
+					}
+					inProgress.add(handshake);
+				}
+				counters.noteAccepted();
+				handshake.arm();
+				newThread(description + " handshake", handshake).start();
+				started = true;
+			} catch (Throwable t) {
+				counters.noteFailed(HandshakeCounters.Kind.INTERNAL);
+				if (logger.isLoggable(Level.FINE)) {
+					logger.log(Level.FINE, "starting handshake with "
+						   + socket + " throws", t);
+				}
+			} finally {
+				if (!started) {
+					/*
+					 * Whatever went wrong, even the construction of the
+					 * handshake, the socket is closed and the permit that the
+					 * accept loop took is given back.
+					 */
+					if (handshake != null) {
+						synchronized (this) {
+							inProgress.remove(handshake);
+						}
+						handshake.closeSocket();
+						handshake.release();
+					} else {
+						try {
+							socket.close();
+						} catch (IOException e) {
+							/* Ignore and continue; we're already closing. */
+						}
+						admitted.decrementAndGet();
+						admission.release();
+					}
+				}
+			}
+		}
+
+		/**
+		 * Runs the handshake for a socket, then registers the connection and
+		 * hands it on.  Whatever happens, the socket leaves {@code
+		 * inProgress} and is either part of a registered connection or
+		 * closed.  A failure here is that connection's alone; it never stops
+		 * the listener.
+		 */
+		private void handshakeTask(Handshake handshake) {
+			SslServerConnection connection = null;
+			Throwable failure = null;
+			boolean complete = false;
+			boolean registered = false;
+			try {
+				try {
+					/*
+					 * A connection that waits for its turn costs its socket,
+					 * this thread and the bytes of its first record, and
+					 * nothing is allocated for the handshake until it has a
+					 * permit.  It reads that record first, so that a peer
+					 * that goes away is noticed at once, and one that sends no
+					 * ClientHello, or something that is not TLS, never takes a
+					 * place to work in.  (An SSLSocket reads for itself, so
+					 * the connections of that path cannot be read ahead.)
+					 */
+					handshake.readFirstRecord();
+					handshake.awaitPermit();
+					connection = serverConnection(handshake.socket, handshake);
+					java.util.function.Consumer<Handshake> hook = beforeComplete;
+					if (hook != null) {
+						hook.accept(handshake);
+					}
+					/*
+					 * The watchdog and this task race to move the handshake
+					 * out of WORKING; whoever wins decides.  Once this task
+					 * has won, the watchdog can no longer close the socket,
+					 * so the connection can be handed on.
+					 */
+					complete = handshake.complete();
+					java.util.function.Consumer<Handshake> after = afterComplete;
+					if (after != null) {
+						after.accept(handshake);
+					}
+				} catch (Throwable t) {
+					failure = t;
+				}
+				try {
+					synchronized (this) {
+						inProgress.remove(handshake);
+						if (failure == null && complete && connection != null && !closed) {
+							connections.add(connection);
+							registered = true;
+						}
+					}
+				} finally {
+					if (!registered) {
+						fail(handshake, connection, failure);
+					}
+				}
+			} finally {
+				/* The socket is closed or registered: free the permits. */
+				handshake.release();
+			}
+			if (!registered) {
+				return;
+			}
+			counters.noteCompleted();
+			final SslServerConnection finalConnection = connection;
+			try {
+				AccessController.doPrivileged(
+				securityContext.wrap(
+					new PrivilegedAction() {
+						public Object run() {
+							handleConnection(
+							finalConnection, requestDispatcher);
+							return null;
+						}
+					}), securityContext.getAccessControlContext());
+			} catch (Throwable t) {
+				boolean closedSync;
+				synchronized (this) {
+					closedSync = closed;
+				}
+				if (!closedSync && logger.isLoggable(Level.INFO)) {
+					logThrow(logger, Level.INFO,
+						 SslListenHandle.class, "handshakeTask",
+						 "handling connection {0} throws",
+						 new Object[] { connection }, t);
+				}
+				try {
+					/* Removes the connection from the set as well. */
+					connection.close();
+				} catch (IOException e) {
+					/* Ignore and continue; we're already handling an exception. */
+					if (logger.isLoggable(Level.FINE)) {
+						logger.log(Level.FINE,
+							   "closing connection after failure throws", e);
+					}
+				}
+			}
+		}
+
+		/**
+		 * Disposes of a socket whose handshake did not lead to a registered
+		 * connection: counts the failure, and closes the connection if it
+		 * was built, or else the raw socket.
+		 */
+		private void fail(Handshake handshake,
+				  SslServerConnection connection,
+				  Throwable failure)
+		{
+			boolean closedSync;
+			synchronized (this) {
+				closedSync = closed;
+			}
+			handshake.disarm();
+			HandshakeCounters.Kind kind = handshake.isQueueTimedOut()
+				? HandshakeCounters.Kind.QUEUE_TIMEOUT
+				: handshake.isTimedOut()
+				? HandshakeCounters.Kind.TIMEOUT
+				: closedSync
+					? HandshakeCounters.Kind.LISTENER_CLOSED
+					: failure == null
+						? HandshakeCounters.Kind.INTERNAL
+						: HandshakeCounters.classify(failure);
+			counters.noteFailed(kind);
+			if (logger.isLoggable(Level.FINE)) {
+				logger.log(Level.FINE, "handshake with " + handshake
+					   + " " + kind.description, failure);
+			}
+			if (connection != null) {
+				try {
+					/* Already out of the set, or never in it. */
+					connection.closeInternal(false /* removeFromListener */);
+				} catch (IOException e) {
+					/* Ignore and continue; we're already closed. */
+				}
+			}
+			handshake.closeSocket();
+		}
+
+		/**
+		 * Splits a list of named groups separated by commas; returns null for
+		 * a list with no names.
+		 */
+		static String[] parseNamedGroups(String list) {
+			List<String> names = new ArrayList<String>();
+			if (list != null) {
+				for (String name : list.split(",")) {
+					name = name.trim();
+					if (!name.isEmpty()) {
+						names.add(name);
+					}
+				}
+			}
+			return names.isEmpty() ? null : names.toArray(new String[0]);
+		}
+
+		/**
+		 * Returns the requested named groups that the engine supports, in the
+		 * order requested, for the engine's own spelling of each name.  A name
+		 * that is dropped is logged at WARNING.  If none is left, every
+		 * handshake would fail, because no client could agree with the server
+		 * on a group, so the groups are not pinned (null is returned) and that
+		 * is logged at WARNING too.
+		 *
+		 * @param requested the groups asked for, or null for none
+		 * @param supported the groups that the engine supports, or null if
+		 *        that is not known, in which case the names are used as given
+		 */
+		static String[] supportedNamedGroups(String[] requested,
+											 String[] supported,
+											 String description)
+		{
+			if (requested == null || supported == null) {
+				return requested;
+			}
+			List<String> usable = new ArrayList<String>();
+			List<String> dropped = new ArrayList<String>();
+			for (String name : requested) {
+				String found = null;
+				for (String s : supported) {
+					if (s.equals(name)) {
+						found = s;
+						break;
+					} else if (found == null && s.equalsIgnoreCase(name)) {
+						found = s;
+					}
+				}
+				if (found == null) {
+					dropped.add(name);
+				} else if (!usable.contains(found)) {
+					usable.add(found);
+				}
+			}
+			if (usable.isEmpty()) {
+				logger.log(Level.WARNING,
+					"{0}: none of the named groups {1} (property "
+					+ SERVER_NAMED_GROUPS_PROPERTY + ") is supported, so the "
+					+ "server does not restrict its named groups",
+					new Object[] { description, Arrays.asList(requested) });
+				return null;
+			}
+			if (!dropped.isEmpty()) {
+				logger.log(Level.WARNING,
+					"{0}: the named groups {1} (property "
+					+ SERVER_NAMED_GROUPS_PROPERTY + ") are not supported and "
+					+ "are not offered",
+					new Object[] { description, dropped });
+			}
+			return usable.toArray(new String[0]);
+		}
+
+		/**
+		 * Builder for subject-neutral virtual infrastructure threads.
+		 *
+		 * <p>In DirtyChai, {@code Thread} captures {@code Subject.current()} at
+		 * construction time ({@code scopedSubject}) and {@code Thread.runWith}
+		 * re-establishes it as a ScopedValue scope around the entire thread body.
+		 * Infrastructure threads (accept loops, SSL context rebuild) must be
+		 * subject-neutral: they are long-lived, block on I/O, and must not run
+		 * under a caller's subject (confused-deputy risk).
+		 *
+		 * <p>Each call to {@code .start()} or {@code .unstarted()} on this builder
+		 * is wrapped in {@code Subject.callAs(null, ...)} at the call site, which
+		 * is {@link #newThread}, the only use of it and why it is private,
+		 * ensuring each constructed thread captures {@code null} as its
+		 * {@code scopedSubject}.  {@code Thread.runWith} then takes the no-scope
+		 * branch and no ScopedValue subject scope wraps the thread body.
+		 */
+		private static final Thread.Builder.OfVirtual acceptThreadBuilder = Thread.ofVirtual();
+
+
+		/**
+		 * Creates an unstarted virtual thread, subject-neutral like the
+		 * accept thread, for the given task.
+		 */
+		static Thread newThread(final String name, final Runnable task) {
+			return AccessController.doPrivileged((PrivilegedAction<Thread>) () ->
+				Subject.callAs(null, () -> {
+					synchronized (acceptThreadBuilder) {
+						return acceptThreadBuilder.name(name).unstarted(task);
+					}
+				})
+			);
 		}
 
 		/**
@@ -1315,7 +1830,7 @@ class SslServerEndpointImpl extends Utilities {
 		 * an exception, and decides whether to continue at all.  The
 		 * current code is borrowed from the JRMP implementation; it
 		 * always continues, but it delays the loop after bursts of
-		 * failed accepts.
+		 * failed accepts.  Closing the listener ends the delay.
 		 */
 		private boolean continueAfterAcceptFailure(Throwable t) {
 			/*
@@ -1344,17 +1859,366 @@ class SslServerEndpointImpl extends Utilities {
 				}
 			}
 			if (fail) {
-				try {
-					Thread.sleep(10000);
-				} catch (InterruptedException ignore) {
-					/* Why are we ignoring the interrupt and not 
-					 * restoring the interrupted status?
-					 */
-					Thread.currentThread().interrupt();
+				long end = System.nanoTime() + 10_000_000_000L;
+				synchronized (this) {
+					while (!closed) {
+						long remaining = end - System.nanoTime();
+						if (remaining <= 0L) {
+							break;
+						}
+						try {
+							TimeUnit.NANOSECONDS.timedWait(this, remaining);
+						} catch (InterruptedException e) {
+							/* Somebody wants this thread to stop. */
+							Thread.currentThread().interrupt();
+							return false;
+						}
+					}
 				}
 				// no need to reset counter/timer
 			}
-	    	return true;
+			return true;
+		}
+
+		/**
+		 * An accepted socket whose handshake is in progress.  It is QUEUED
+		 * until it has been given a turn to work, WORKING after that.  The
+		 * handshake task and the watchdog race to move it on: the task from
+		 * QUEUED to WORKING when it is given its turn and from WORKING to DONE
+		 * when the handshake has finished, the watchdog from QUEUED to
+		 * QUEUE_TIMED_OUT when the connection has waited so long that the time
+		 * that is left is less than a handshake needs, and from WORKING to
+		 * TIMED_OUT when it has run out of time.  Whoever wins decides: after
+		 * DONE the watchdog never closes the socket, after a time out the task
+		 * never hands the connection on or goes on to work.
+		 */
+		final class Handshake implements Runnable, SslEngineChannel.ServerGate {
+
+			private static final int QUEUED = 0;
+			private static final int WORKING = 3;
+			private static final int DONE = 1;
+			private static final int TIMED_OUT = 2;
+			private static final int QUEUE_TIMED_OUT = 4;
+
+			final Socket socket;
+
+			/** The System.nanoTime() at which the time runs out, or 0. */
+			final long deadline;
+
+			private final AtomicInteger state = new AtomicInteger(QUEUED);
+
+			/**
+			 * The first record of the connection, which has been read, or
+			 * null: before it is read, if its bytes were given to the
+			 * engine's channel, and where it cannot be read ahead.
+			 */
+			private volatile byte[] firstRecord;
+
+			private volatile ScheduledFuture<?> timer;
+
+			/** Whether this handshake holds a permit of {@code running}. */
+			private volatile boolean working;
+
+			/** Set once the permits have been given back. */
+			private final AtomicBoolean released = new AtomicBoolean();
+
+			/** The thread while it waits for a permit of {@code running}. */
+			private volatile Thread waiter;
+
+			Handshake(Socket socket, long deadline) {
+				this.socket = socket;
+				this.deadline = deadline;
+			}
+
+			/**
+			 * Reads the first record of the connection, while it waits for its
+			 * turn, if the socket has a channel to read it from (it has not on
+			 * the SSLSocket path, where the JDK reads for itself).  A peer that
+			 * does not send a ClientHello is dropped here, whatever it sends.
+			 */
+			void readFirstRecord() throws IOException {
+				java.nio.channels.SocketChannel channel = socket.getChannel();
+				if (channel == null) {
+					return;
+				}
+				waiter = Thread.currentThread();
+				try {
+					firstRecord = FirstRecord.read(channel);
+				} finally {
+					waiter = null;
+				}
+			}
+
+			/**
+			 * Returns the bytes of the first record that were read ahead, and
+			 * forgets them, or null if none were.
+			 */
+			byte[] takeFirstRecord() {
+				byte[] record = firstRecord;
+				firstRecord = null;
+				return record;
+			}
+
+			/**
+			 * Waits for a turn to work, for as long as the handshake has time
+			 * to spare: the time counts from the accept, so the wait comes out
+			 * of it, and a turn is only given if at least the minimum budget
+			 * is left, so that the connection is not cut off after the work.
+			 * One that cannot have a turn in time is dropped at no cost.
+			 */
+			void awaitPermit() throws IOException {
+				waiter = Thread.currentThread();
+				try {
+					if (deadline == 0L) {
+						running.acquire();
+					} else {
+						long left = deadline - System.nanoTime() - minBudgetNanos;
+						if (left <= 0L || !running.tryAcquire(left, TimeUnit.NANOSECONDS)) {
+							dropForWantOfTime();
+						}
+					}
+					working = true;
+					if (deadline != 0L && deadline - System.nanoTime() < minBudgetNanos) {
+						dropForWantOfTime();
+					}
+					if (!state.compareAndSet(QUEUED, WORKING)) {
+						/* The watchdog got there first. */
+						throw new java.net.SocketTimeoutException(
+							"timed out waiting for a handshake to be free");
+					}
+					/* Now the whole of the time is the handshake's own. */
+					disarm();
+					arm(deadline);
+				} catch (InterruptedException e) {
+					throw new java.io.InterruptedIOException(
+						"interrupted waiting for a handshake to be free");
+				} finally {
+					waiter = null;
+				}
+			}
+
+			/**
+			 * Ends the wait of a connection that has been given no turn in
+			 * time: it did nothing that could have been cut short, and is not
+			 * counted as a handshake that timed out.
+			 */
+			private void dropForWantOfTime() throws IOException {
+				state.compareAndSet(QUEUED, QUEUE_TIMED_OUT);
+				throw new java.net.SocketTimeoutException(
+					"timed out waiting for a handshake to be free");
+			}
+
+			/** The permits that this handshake holds one of to compute, or null. */
+			private volatile Semaphore computing;
+
+			/**
+			 * Waits for a permit to compute the first flight, for as long as
+			 * the handshake has time.
+			 */
+			public void begin() throws IOException {
+				acquireToCompute(cpu, "the processor");
+				cpuEntries.incrementAndGet();
+			}
+
+			/**
+			 * Waits for a permit to do the handshake with an SSLSocket, for as
+			 * long as the handshake has time.  The permit is given back by
+			 * {@link #end}.
+			 */
+			void beginSocket() throws IOException {
+				acquireToCompute(socketCpu, "the processor");
+				socketCpuEntries.incrementAndGet();
+			}
+
+			private void acquireToCompute(Semaphore permits, String what)
+				throws IOException
+			{
+				waiter = Thread.currentThread();
+				try {
+					if (deadline == 0L) {
+						permits.acquire();
+					} else {
+						long left = deadline - System.nanoTime();
+						if (left <= 0L || !permits.tryAcquire(left, TimeUnit.NANOSECONDS)) {
+							throw new java.net.SocketTimeoutException(
+								"timed out waiting for " + what);
+						}
+					}
+					computing = permits;
+				} catch (InterruptedException e) {
+					throw new java.io.InterruptedIOException(
+						"interrupted waiting for " + what);
+				} finally {
+					waiter = null;
+				}
+			}
+
+			/** Gives the permit to compute back, if this handshake has it. */
+			public void end() {
+				Semaphore permits = computing;
+				if (permits != null) {
+					computing = null;
+					permits.release();
+				}
+			}
+
+			/**
+			 * Gives back the permits and stops the watchdog.  The task calls
+			 * this when the socket is closed or registered; the permits are
+			 * given back once however often it is called.
+			 */
+			void release() {
+				if (released.compareAndSet(false, true)) {
+					disarm();
+					end();
+					if (working) {
+						running.release();
+					}
+					admitted.decrementAndGet();
+					admission.release();
+				}
+			}
+
+			/**
+			 * Ends the handshake from another thread: closes the raw socket
+			 * and wakes the task if it waits for a permit.  The peer owes
+			 * nothing more, so the socket is closed with a reset, which does
+			 * not wait for a linger time that a socket from a custom factory
+			 * may have.
+			 */
+			void cancel() {
+				try {
+					socket.setSoLinger(true, 0);
+				} catch (IOException | RuntimeException e) {
+					/* Ignore and continue; closing is what matters. */
+				}
+				closeSocket();
+				Thread t = waiter;
+				if (t != null) {
+					t.interrupt();
+				}
+			}
+
+			public void run() {
+				handshakeTask(this);
+			}
+
+			/**
+			 * Starts the watchdog for this handshake: it ends the wait for a
+			 * turn when so little time is left that a turn would be of no use,
+			 * and the handshake itself when the time has run out.
+			 */
+			void arm() {
+				if (deadline != 0L) {
+					arm(deadline - minBudgetNanos);
+				}
+			}
+
+			private void arm(long at) {
+				if (deadline != 0L) {
+					Runnable task = at == deadline
+						? this::expired : this::expiredQueued;
+					timer = HandshakeWatchdog.schedule(
+						task, Math.max(0L, at - System.nanoTime()));
+				}
+			}
+
+			/** Stops the watchdog if it has not yet started to run. */
+			void disarm() {
+				ScheduledFuture<?> t = timer;
+				if (t != null) {
+					t.cancel(false);
+				}
+			}
+
+			/**
+			 * Called on the watchdog's thread when the time for a connection to
+			 * wait for its turn has run out.  It only decides, like {@link
+			 * #expired}.
+			 */
+			private void expiredQueued() {
+				if (state.compareAndSet(QUEUED, QUEUE_TIMED_OUT)) {
+					HandshakeWatchdog.handOff(this::cancel);
+				}
+			}
+
+			/**
+			 * Called on the watchdog's thread when the time has run out.  It
+			 * only decides, and leaves the closing, which can block, to
+			 * another thread, so that one handshake cannot delay the deadline
+			 * of any other.
+			 */
+			private void expired() {
+				if (state.compareAndSet(WORKING, TIMED_OUT)
+					|| state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
+				{
+					HandshakeWatchdog.handOff(this::cancel);
+				}
+			}
+
+			/**
+			 * Cuts the handshake off now: closes the raw socket, unless the
+			 * task has already completed the handshake.  What the watchdog
+			 * does, on another thread, when the time has run out.
+			 *
+			 * @return whether the handshake was cut off
+			 */
+			boolean timedOut() {
+				if (!state.compareAndSet(WORKING, TIMED_OUT)
+					&& !state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
+				{
+					return false;
+				}
+				cancel();
+				return true;
+			}
+
+			/**
+			 * Called by the task when the handshake has finished: disarms the
+			 * watchdog.
+			 *
+			 * @return false if the watchdog got there first, in which case
+			 *         the raw socket is closed and the connection is dead
+			 */
+			boolean complete() {
+				boolean won = state.compareAndSet(WORKING, DONE);
+				disarm();
+				return won;
+			}
+
+			/** Whether the watchdog cut the handshake off, working or waiting. */
+			boolean isTimedOut() {
+				int s = state.get();
+				return s == TIMED_OUT || s == QUEUE_TIMED_OUT;
+			}
+
+			/** Whether the connection was dropped before it was given a turn. */
+			boolean isQueueTimedOut() {
+				return state.get() == QUEUE_TIMED_OUT;
+			}
+
+			/**
+			 * Closes the raw socket, which ends any read or write that the
+			 * handshake is blocked in.  It is safe to call more than once and
+			 * from any thread.
+			 */
+			void closeSocket() {
+				try {
+					socket.close();
+				} catch (IOException e) {
+					/* Ignore and continue; we're already closing. */
+					if (logger.isLoggable(Level.FINE)) {
+						logger.log(Level.FINE, "closing " + this + " throws", e);
+					}
+				}
+			}
+
+			/** Names the peer by address; a name would need a reverse lookup. */
+			public String toString() {
+				java.net.InetAddress address = socket.getInetAddress();
+				return (address == null ? "?" : address.getHostAddress())
+					+ ":" + socket.getPort();
+			}
 		}
 
 		/** Returns a string representation of this object. */
@@ -1363,11 +2227,15 @@ class SslServerEndpointImpl extends Utilities {
 			listenEndpoint.serverHost + ":" + getPort() + "]";
 		}
 
-		/** Returns a connection for the specified socket. */
-		SslServerConnection serverConnection(Socket socket)
+		/**
+		 * Returns a connection for the specified socket, doing the handshake
+		 * that the argument describes: when it has run out of time, and the
+		 * gate on its use of the processor.
+		 */
+		SslServerConnection serverConnection(Socket socket, Handshake handshake)
 			throws IOException
 		{
-			return new SslServerConnection(this, socket);
+			return new SslServerConnection(this, socket, handshake);
 		}
 
 		/** Handles a newly accepted server connection.
@@ -1420,6 +2288,7 @@ class SslServerEndpointImpl extends Utilities {
 		/* inherit javadoc */
 		public void close() {
 			List<SslServerConnection> toClose;
+			List<Handshake> toCancel;
 			synchronized (this) {
 			if (closed) {
 				return;
@@ -1428,6 +2297,14 @@ class SslServerEndpointImpl extends Utilities {
 			closed = true;
 			toClose = new ArrayList<SslServerConnection>(connections);
 			connections.clear();
+			toCancel = new ArrayList<Handshake>(inProgress);
+			/* Ends the delay of a throttled accept loop. */
+			notifyAll();
+			}
+			/* Wakes an accept loop that waits for a permit. */
+			Thread acceptor = acceptThread;
+			if (acceptor != null && acceptor != Thread.currentThread()) {
+				acceptor.interrupt();
 			}
 			try {
 				serverSocket.close();
@@ -1436,6 +2313,15 @@ class SslServerEndpointImpl extends Utilities {
 				if (logger.isLoggable(Level.FINE)) {
 					logger.log(Level.FINE, "closing server socket throws", e);
 				}
+			}
+			/*
+			 * Close the raw sockets of the handshakes in progress, not the
+			 * connections: a connection's close would write close_notify and
+			 * could block.  Each task removes its own entry and, finding the
+			 * handle closed, does not register a connection.
+			 */
+			for (Handshake handshake : toCancel) {
+				handshake.cancel();
 			}
 			for (SslServerConnection connection : toClose) {
 				try {
@@ -1452,6 +2338,76 @@ class SslServerEndpointImpl extends Utilities {
 					}
 				}
 			}
+		}
+
+		/** Returns the number of registered connections. */
+		synchronized int connectionCount() {
+			return connections.size();
+		}
+
+		/** Returns the number of accepted sockets whose handshake is running. */
+		synchronized int inProgressCount() {
+			return inProgress.size();
+		}
+
+		/** Returns the accept thread, or null if it has not been started. */
+		Thread acceptThread() {
+			return acceptThread;
+		}
+
+		/** Returns the permits that the listeners of the JVM share. */
+		HandshakeLimits limits() {
+			return limits;
+		}
+
+		/** Returns the number of handshakes working, in the whole JVM. */
+		int runningHandshakes() {
+			return maxHandshakes - running.availablePermits();
+		}
+
+		/** Returns the number of accepted connections not yet through the handshake. */
+		int admittedConnections() {
+			return admitted.get();
+		}
+
+		/** Returns the number of permits to compute a first flight that are free. */
+		int cpuPermitsAvailable() {
+			return cpu.availablePermits();
+		}
+
+		/** Returns how often a handshake has been given a permit to compute. */
+		long cpuEntries() {
+			return cpuEntries.get();
+		}
+
+		/** Returns the number of permits to do a handshake with an SSLSocket that are free. */
+		int socketCpuPermitsAvailable() {
+			return socketCpu.availablePermits();
+		}
+
+		/** Returns how often a handshake has been given a permit to do one with an SSLSocket. */
+		long socketCpuEntries() {
+			return socketCpuEntries.get();
+		}
+
+		/** Returns the number of permits to compute a first flight. */
+		int cpuPermits() {
+			return cpuPermits;
+		}
+
+		/** Returns the most handshakes that work at once. */
+		int maxHandshakes() {
+			return maxHandshakes;
+		}
+
+		/** Returns the most connections that wait for a handshake to be free. */
+		int maxQueued() {
+			return maxQueued;
+		}
+
+		/** Returns the counters of the handshakes of this listener. */
+		HandshakeCounters counters() {
+			return counters;
 		}
 
 		/**
@@ -1556,9 +2512,11 @@ class SslServerEndpointImpl extends Utilities {
 		volatile boolean closed;
 
 		/** Creates a server connection */
-		SslServerConnection(SslListenHandle listenHandle, Socket socket)
+		SslServerConnection(SslListenHandle listenHandle, Socket socket,
+							SslListenHandle.Handshake handshake)
 			throws IOException
 		{
+			long deadline = handshake.deadline;
 			this.listenHandle = listenHandle;
 			this.peerAddress = socket.getInetAddress();
 			this.peerPort = socket.getPort();
@@ -1589,18 +2547,38 @@ class SslServerEndpointImpl extends Utilities {
 					javax.net.ssl.SSLParameters params = engine.getSSLParameters();
 					params.setCipherSuites(getSupportedCipherSuites());
 					params.setProtocols(new String[]{ "TLSv1.3" });
+					/*
+					 * Pin the key exchange groups.  The peer picks from the
+					 * groups the server enables, and the dearest cost the
+					 * server several times as much as the cheapest.
+					 */
+					if (listenHandle.namedGroups != null) {
+						params.setNamedGroups(listenHandle.namedGroups);
+					}
 					engine.setSSLParameters(params);
 					engineChannel = new SslEngineChannel(
 						engine, ch,
 						socket.getInetAddress() + ":" + socket.getPort());
 					/*
-					 * Drive the handshake inline on this (virtual) accept-loop
-					 * thread; delegated tasks run inline too (see
-					 * SslEngineChannel).  The accept loop is subject-neutral, so
+					 * Drive the handshake inline on this (virtual) handshake
+					 * thread; delegated tasks run on the handshake compute
+					 * threads, or inline if there are none (see
+					 * HandshakeCompute).  The thread is subject-neutral, so
 					 * client-auth credential selection reads the ServerAuthManager
-					 * captured subject, not an ambient thread subject.
+					 * captured subject, not an ambient thread subject.  The
+					 * reads and writes block; the watchdog ends the handshake
+					 * by closing the socket if it takes too long.
 					 */
-					engineChannel.handshake();
+					if (listenHandle.compute != null) {
+						engineChannel.setTaskRunner(listenHandle.compute.runner(
+							() -> handshake.isTimedOut() || socket.isClosed()));
+					}
+					/* What was read ahead while the connection waited. */
+					byte[] first = handshake.takeFirstRecord();
+					if (first != null) {
+						engineChannel.prime(first);
+					}
+					engineChannel.handshakeServer(handshake);
 					sess = engine.getSession();
 					/*
 					 * Fail-closed: the negotiated protocol MUST be TLS 1.3
@@ -1622,11 +2600,43 @@ class SslServerEndpointImpl extends Utilities {
 					 */
 					engineChannel = null;
 					sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
-						socket, socket.getInetAddress().getHostName(), socket.getPort(), true /* autoClose */);
+						socket, socket.getInetAddress().getHostAddress(), socket.getPort(), true /* autoClose */);
 					sslSocket.setEnabledCipherSuites(getSupportedCipherSuites());
 					/* Need to put in server mode before requesting client auth. */
 					sslSocket.setUseClientMode(false);
 					sslSocket.setNeedClientAuth(true);
+					if (listenHandle.namedGroups != null) {
+						javax.net.ssl.SSLParameters sp = sslSocket.getSSLParameters();
+						sp.setNamedGroups(listenHandle.namedGroups);
+						sslSocket.setSSLParameters(sp);
+					}
+					/*
+					 * Handshake explicitly, rather than through getSession,
+					 * which has no time limit and hides the cause of a
+					 * failure.  The handshake cannot be split into its work
+					 * and its waits, so the permit that bounds the work is
+					 * held for all of it, which the time that is left bounds:
+					 * the read timeout cuts off a silent peer, and the
+					 * watchdog the whole handshake, and a write to a peer that
+					 * does not read.
+					 */
+					handshake.beginSocket();
+					try {
+						int soTimeout = sslSocket.getSoTimeout();
+						if (deadline != 0L) {
+							long left = TimeUnit.NANOSECONDS.toMillis(
+								deadline - System.nanoTime());
+							if (left <= 0L) {
+								throw new java.net.SocketTimeoutException(
+									"TLS handshake timed out");
+							}
+							sslSocket.setSoTimeout((int) Math.min(left, Integer.MAX_VALUE));
+						}
+						sslSocket.startHandshake();
+						sslSocket.setSoTimeout(soTimeout);
+					} finally {
+						handshake.end();
+					}
 					sess = sslSocket.getSession();
 					sslSocket.setEnableSessionCreation(false);
 				}
@@ -1660,7 +2670,7 @@ class SslServerEndpointImpl extends Utilities {
 			} catch (SecurityException e){
 				throw new IOException("Unable to create session", e);
 			}
-			logger.log(Level.FINE, "created {0}", toString());
+			logger.log(Level.FINE, "created {0}", this);
 		}
 
 		/* inherit javadoc */
@@ -1672,11 +2682,11 @@ class SslServerEndpointImpl extends Utilities {
 			sb.append(listenHandle.listenEndpoint.serverHost).append(":");
 			if (sslSocket != null) {
 				sb.append(sslSocket.getLocalPort())
-					.append("<=").append(sslSocket.getInetAddress().getHostName())
+					.append("<=").append(sslSocket.getInetAddress().getHostAddress())
 					.append(":").append(sslSocket.getPort());
 			} else {
 				sb.append("engine<=")
-					.append(peerAddress == null ? "?" : peerAddress.getHostName())
+					.append(peerAddress == null ? "?" : peerAddress.getHostAddress())
 					.append(":").append(peerPort);
 			}
 			sb.append("]");
@@ -1955,12 +2965,20 @@ class SslServerEndpointImpl extends Utilities {
 				logger.log(Level.FINE, "closing {0}", this);
 				closed = true;
 			}
-			if (engineChannel != null) {
-				engineChannel.close();
-			} else {
-				sslSocket.close();
+			try {
+				if (engineChannel != null) {
+					engineChannel.close();
+				} else {
+					sslSocket.close();
+				}
+			} finally {
+				/*
+				 * Closing writes close_notify, which fails if the peer has
+				 * gone; the connection must leave the listener's set all the
+				 * same, or it stays there, with its buffers, for ever.
+				 */
+				if (removeFromListener) listenHandle.noteConnectionClosed(this);
 			}
-			if (removeFromListener) listenHandle.noteConnectionClosed(this);
 		}
 	}
 }// end SslServerEndpointImpl

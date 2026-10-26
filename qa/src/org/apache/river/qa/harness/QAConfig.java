@@ -190,7 +190,7 @@ import org.apache.river.system.MultiCommandLine;
 public final class QAConfig implements Serializable {
 
     /** static ref for access by utils which don't accept a config arg */
-    private static QAConfig harnessConfig;
+    private volatile static QAConfig harnessConfig;
 
     /*
      * This field is static for historical reasons. testLocatorConstraints is

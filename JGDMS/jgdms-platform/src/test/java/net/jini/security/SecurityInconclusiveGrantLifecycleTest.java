@@ -65,6 +65,43 @@ public class SecurityInconclusiveGrantLifecycleTest {
         assertTrue(containsRuntimePermission(second, "inconclusive-grant-2"));
     }
 
+    @Test
+    public void retainedInconclusiveGrantIsLoaderWideAndVoidable() throws Exception {
+        originalPolicy = Policy.getPolicy();
+        DynamicPolicyProvider policy =
+                new DynamicPolicyProvider(new EmptyPolicy());
+        Policy.setPolicy(policy);
+
+        Class<?> proxyClass = SecurityInconclusiveGrantLifecycleTest.class;
+        Security.markInconclusiveProxyClassLoader(proxyClass.getClassLoader());
+
+        Permission p = new RuntimePermission("inconclusive-domain-scoped");
+        Security.grant(proxyClass, new Principal[0], new Permission[]{p});
+
+        // The retained grant is for the ClassLoader, an inconclusive verdict
+        // is not verified code.
+        ProtectionDomain pd = proxyClass.getProtectionDomain();
+        assertTrue(grantsContain(policy.getPermissionGrants(pd), p));
+        ProtectionDomain elsewhere = new ProtectionDomain(
+                new CodeSource(new java.net.URL("file:/not/in/the/codebase.jar"), 
+                        (java.security.cert.Certificate[]) null),
+                null, proxyClass.getClassLoader(), new Principal[0]);
+        assertTrue(grantsContain(policy.getPermissionGrants(elsewhere), p));
+
+        Security.invalidateInconclusiveProxyLoaderGrants();
+        assertFalse("voided", grantsContain(policy.getPermissionGrants(pd), p));
+    }
+
+    private static boolean grantsContain(
+            java.util.List<org.apache.river.api.security.PermissionGrant> grants, 
+            Permission p) 
+    {
+        for (org.apache.river.api.security.PermissionGrant g : grants) {
+            if (g.getPermissions().contains(p)) return true;
+        }
+        return false;
+    }
+
     private static boolean containsRuntimePermission(Permission[] perms, String name) {
         for (Permission p : perms) {
             if (p instanceof RuntimePermission && name.equals(p.getName())) {

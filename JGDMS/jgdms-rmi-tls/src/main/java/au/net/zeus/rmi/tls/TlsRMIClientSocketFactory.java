@@ -16,6 +16,7 @@
 package au.net.zeus.rmi.tls;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.Socket;
 import java.rmi.server.RMIClientSocketFactory;
 import java.security.AccessControlContext;
@@ -29,7 +30,15 @@ import javax.security.auth.Subject;
  *
  * @author peter
  */
-public final class TlsRMIClientSocketFactory implements RMIClientSocketFactory {
+public final class TlsRMIClientSocketFactory implements RMIClientSocketFactory, Serializable {
+
+    /*
+     * An RMI stub carries its client socket factory to the client, so the factory must be Serializable; without
+     * it a stub exported with this factory cannot be marshalled (registry bind, return value, any remote use). It
+     * holds no state: the credentials come from the Subject of the connecting thread. RMI shares a connection
+     * between stubs whose factories are equal, so all instances are equal.
+     */
+    private static final long serialVersionUID = 1L;
 
     
     
@@ -55,4 +64,14 @@ public final class TlsRMIClientSocketFactory implements RMIClientSocketFactory {
 	return socket;
 	}
     
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof TlsRMIClientSocketFactory;
+    }
+
+    @Override
+    public int hashCode() {
+        return TlsRMIClientSocketFactory.class.hashCode();
+    }
 }

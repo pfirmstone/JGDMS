@@ -19,12 +19,12 @@ package au.net.zeus.jgdms.der.schema;
 
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
-import au.net.zeus.jgdms.der.DerWriter;
+import au.net.zeus.jgdms.der.DerUtf8;
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.Tag;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -92,9 +92,14 @@ public final class AtomicSerialFieldDef {
      * @return the DER TLV bytes
      */
     public byte[] encode() {
-        byte[] nameBytes = DerWriter.writeUtf8String(wireName);
-        byte[] typeBytes = DerWriter.writeUtf8String(wireType);
-        return DerWriter.writeSequence(List.of(nameBytes, typeBytes));
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(enc);
+        return enc.toByteArray();
+    }
+
+    /** Appends this field definition's {@code SEQUENCE} TLV to {@code enc}; same bytes as {@link #encode()}. */
+    public void encodeTo(DerEncoder enc) {
+        enc.begin(Tag.SEQUENCE).utf8(wireName).utf8(wireType).end();
     }
 
     /**
@@ -118,7 +123,7 @@ public final class AtomicSerialFieldDef {
         }
         checkLengthBounds("wireName", nameHdr.contentLength(), 1, WIRE_NAME_MAX_BYTES);
         byte[] nameBytes = seq.readRawContent(nameHdr.contentLength());
-        String wireName = new String(nameBytes, StandardCharsets.UTF_8);
+        String wireName = DerUtf8.decode(nameBytes);
 
         // Read wireType
         DerReader.TlvHeader typeHdr = seq.readTlvHeader();
@@ -127,7 +132,7 @@ public final class AtomicSerialFieldDef {
         }
         checkLengthBounds("wireType", typeHdr.contentLength(), 1, WIRE_TYPE_MAX_BYTES);
         byte[] typeBytes = seq.readRawContent(typeHdr.contentLength());
-        String wireType = new String(typeBytes, StandardCharsets.UTF_8);
+        String wireType = DerUtf8.decode(typeBytes);
 
         if (seq.hasMore()) {
             throw new DerException("AtomicSerialFieldDef: unexpected trailing bytes in SEQUENCE");

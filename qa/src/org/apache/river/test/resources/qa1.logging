@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = CONFIG
+.level = FINE
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -185,6 +185,7 @@ net.jini.security.level = SEVERE
 #net.jini.security.trust.level = SEVERE
 #net.jini.security.integrity.level = SEVERE
 net.jini.security.policy.level = SEVERE
+au.zeus.jdk.authorization.tool.level = SEVERE
 org.apache.river.api.security.CombinerSecurityManager.level = SEVERE
 
 # For HTTPMD

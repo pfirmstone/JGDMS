@@ -21,34 +21,54 @@ package org.apache.river.api.security;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.lang.ref.WeakReference;
+import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 
 /**
- *
+ * A dynamic grant to every ProtectionDomain defined by a ClassLoader.
+ * <p>
+ * This is the grant for code whose identity has not been verified, it is no
+ * narrower than the ClassLoader.  Where the identities of the code are known,
+ * {@link DigestDomainGrant} is limited to those.
+ * <p>
+ * The ClassLoader is that of the granted class, not that of the class's 
+ * ProtectionDomain: a {@code java.lang.reflect.Proxy} class has the shared
+ * all permission domain, whose loader is null.  Without a granted class, the
+ * grant applies to all domains.
+ * 
  * @author Peter Firmstone
  * @since 3.0.0
  */
 class ClassLoaderGrant extends ProtectionDomainGrant {
     private static final long serialVersionUID = 1L;
+    private final transient WeakReference<ClassLoader> loader;
     private final int hashCode;
+
     @SuppressWarnings("unchecked")
-    ClassLoaderGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
+    ClassLoaderGrant(WeakReference<ProtectionDomain> domain, 
+            WeakReference<ClassLoader> loader, Principal[] groups, 
             Permission[] perm){
         super(domain, groups, perm);
+        this.loader = loader;
         int hash = 7;
         hash = 19 * hash + super.hashCode();
+        ClassLoader l = loader != null ? loader.get() : null;
+        hash = 19 * hash + (l != null ? System.identityHashCode(l) : 0);
         hashCode = hash;
     }
     
-        @Override
+    @Override
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
 	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof ClassLoaderGrant && super.equals(o)){
-            return true;
+            ClassLoader l = loader != null ? loader.get() : null;
+            ClassLoader ol = ((ClassLoaderGrant) o).loader != null 
+                    ? ((ClassLoaderGrant) o).loader.get() : null;
+            return l == ol;
         }
         return false;
     }
@@ -75,26 +95,44 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
         }
         return implies(cl, pals);
     }
+
+    @Override
+    public boolean implies(ClassLoader cl, Principal[] pal) {
+        if (domain == null) return implies(pal); // all domains.
+        if (cl == null) return false;
+        ClassLoader l = loader != null ? loader.get() : null;
+        if (l == null || l != cl) return false;
+        return implies(pal);
+    }
+
+    /** A dynamic grant applies to domains, a CodeSource has no ClassLoader. */
+    @Override
+    public boolean implies(CodeSource codeSource, Principal[] pal) {
+        return false;
+    }
+
+    @Override
+    public boolean isVoid() {
+        if (super.isVoid()) return true;
+        return domain != null && (loader == null || loader.get() == null);
+    }
     
     @Override
     public boolean impliesEquivalent(PermissionGrant grant) {
 	if (!(grant instanceof ClassLoaderGrant)) return false;
-	ProtectionDomain myPd = domain.get();
-	ProtectionDomain yourPd = ((ClassLoaderGrant)grant).domain.get();
-	if (myPd != null && yourPd != null){
-	    ClassLoader myCL = myPd.getClassLoader();
-	    ClassLoader yourCL = yourPd.getClassLoader();
-	    if (myCL != null && yourCL != null){
-		return myCL.equals(yourCL);
-	    }
-	}
-	return false;
+	ClassLoader myCL = loader != null ? loader.get() : null;
+        WeakReference<ClassLoader> other = ((ClassLoaderGrant)grant).loader;
+	ClassLoader yourCL = other != null ? other.get() : null;
+	return myCL != null && myCL == yourCL;
 	// The superclass has a narrower scope than ClassLoaderGrant.
     }
 
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        if (pgb instanceof PermissionGrantBuilderImp) {
+            ((PermissionGrantBuilderImp) pgb).setLoader(loader);
+        }
         return pgb.context(PermissionGrantBuilder.CLASSLOADER);
     }
     

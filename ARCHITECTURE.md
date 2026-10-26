@@ -42,7 +42,7 @@
 
 ## 1. Overview and Design Philosophy
 
-**JGDMS (Java/Jini Global Distributed Micro Services)** is a security-hardened fork of Apache River/Jini.
+**JGDMS (Jini Global Distributed Micro Services)** is a security-hardened fork of Apache River/Jini.
 Its project descriptor (`JGDMS/pom.xml`, line 11) defines it as:
 
 > *"Infrastructure for providing secured micro services, that are dynamically discoverable and

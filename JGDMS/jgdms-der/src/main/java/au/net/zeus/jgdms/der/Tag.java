@@ -170,6 +170,37 @@ public final class Tag {
         return out;
     }
 
+    /** Number of identifier octets {@link #encode()} would produce, without allocating. */
+    int encodedSize() {
+        if (tagNumber <= 30) return 1;
+        int n = tagNumber;
+        int count = 0;
+        do { count++; n >>>= 7; } while (n != 0);
+        return 1 + count;
+    }
+
+    /**
+     * Writes the same identifier octets as {@link #encode()} into {@code out}
+     * at {@code pos} and returns the position after them.
+     */
+    int encodeInto(byte[] out, int pos) {
+        int first = (tagClass << 6) | (constructed ? 0x20 : 0x00);
+        if (tagNumber <= 30) {
+            out[pos] = (byte)(first | tagNumber);
+            return pos + 1;
+        }
+        int n = tagNumber;
+        int count = 0;
+        do { count++; n >>>= 7; } while (n != 0);
+        out[pos] = (byte)(first | 0x1F);
+        n = tagNumber;
+        for (int i = count; i >= 1; i--) {
+            out[pos + i] = (byte)((n & 0x7F) | (i < count ? 0x80 : 0x00));
+            n >>>= 7;
+        }
+        return pos + 1 + count;
+    }
+
     /* ------------------------------------------------------------------ */
     /* Decoding                                                             */
     /* ------------------------------------------------------------------ */
@@ -194,9 +225,25 @@ public final class Tag {
      */
     public static DecodeResult decode(byte[] buf, int offset) throws DerException {
         if (buf == null) throw new NullPointerException("buf");
-        if (offset < 0 || offset >= buf.length) {
+        return decode(buf, offset, buf.length);
+    }
+
+    /**
+     * As {@link #decode(byte[], int)}, but the tag must lie entirely before {@code limit}: octets at or
+     * after {@code limit} are treated as absent (a high-tag-number form that would run past it is
+     * "truncated"). A reader over a window of a larger shared buffer passes its own end here, so
+     * decoding a tag can never consume bytes that belong to a following element.
+     *
+     * @param limit exclusive upper bound, {@code <= buf.length}
+     */
+    public static DecodeResult decode(byte[] buf, int offset, int limit) throws DerException {
+        if (buf == null) throw new NullPointerException("buf");
+        if (limit < 0 || limit > buf.length) {
+            throw new IllegalArgumentException("limit " + limit + " outside buffer of length " + buf.length);
+        }
+        if (offset < 0 || offset >= limit) {
             throw new DerException("Tag decode: offset " + offset
-                    + " out of bounds (length=" + buf.length + ")");
+                    + " out of bounds (length=" + limit + ")");
         }
         int first = buf[offset] & 0xFF;
         int cls   = (first >> 6) & 0x03;
@@ -213,7 +260,7 @@ public final class Tag {
         int octetsRead = 1;
         boolean firstContinuation = true;
         while (true) {
-            if (pos >= buf.length) {
+            if (pos >= limit) {
                 throw new DerException("Tag decode: truncated high-tag-number form");
             }
             int b = buf[pos] & 0xFF;

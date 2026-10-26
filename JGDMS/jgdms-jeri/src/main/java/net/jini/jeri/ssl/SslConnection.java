@@ -75,15 +75,50 @@ class SslConnection extends Utilities implements Connection {
     /* -- Fields -- */
 
     /**
-     * The maximum time a client session should be used before expiring --
-     * non-final to facilitate testing.  Use 23.5 hours as the default to allow
-     * the client to negotiate a new session before the server timeout, which
-     * defaults to 24 hours.
+     * The longest a client session is used before expiring -- non-final to
+     * facilitate testing.  The default of 30 minutes leaves the client time to
+     * negotiate a new session before the server timeout, which defaults to
+     * 32 minutes.  Each session is used for a time chosen between the minimum
+     * and this value (see {@link #sessionLimit}), so that a fleet of clients
+     * that started together does not renegotiate together.
      */
+    static final long DEFAULT_MAX_CLIENT_SESSION_DURATION = 30L * 60L * 1000L;
+
+    /** The least time a client session is used before expiring. */
+    static final long DEFAULT_MIN_CLIENT_SESSION_DURATION = 15L * 60L * 1000L;
+
     private final long maxClientSessionDuration =
 	((Long) Security.doPrivileged(
 	    new GetLongAction("org.apache.river.jeri.ssl.maxClientSessionDuration",
-			      (long) (23.5 * 60 * 60 * 1000)))).longValue();
+			      DEFAULT_MAX_CLIENT_SESSION_DURATION))).longValue();
+
+    private final long minClientSessionDuration =
+	((Long) Security.doPrivileged(
+	    new GetLongAction("org.apache.river.jeri.ssl.minClientSessionDuration",
+			      DEFAULT_MIN_CLIENT_SESSION_DURATION))).longValue();
+
+    /** Makes the limit differ between JVMs that create sessions in the same millisecond. */
+    private static final long LIMIT_SALT = new java.security.SecureRandom().nextLong();
+
+    /**
+     * Returns how long the session created at {@code creationTime} is used,
+     * between {@code min} and {@code max} milliseconds.  The value is derived
+     * from the creation time, which a resumed session keeps, so every
+     * connection that uses the session agrees on it: a limit drawn afresh
+     * for each connection would make the shortest one decide, and clients
+     * would expire close to the minimum together.
+     */
+    static long sessionLimit(long creationTime, long min, long max) {
+	long span = max - min + 1;
+	if (min <= 0 || min >= max || span <= 0) {
+	    return max;
+	}
+	long z = creationTime ^ LIMIT_SALT;
+	z = (z ^ (z >>> 30)) * 0xbf58476d1ce4e5b9L;
+	z = (z ^ (z >>> 27)) * 0x94d049bb133111ebL;
+	z ^= z >>> 31;
+	return min + Long.remainderUnsigned(z, span);
+    }
 
     /** Client logger */
     private static final Logger logger = CLIENT_LOGGER;
@@ -970,7 +1005,8 @@ class SslConnection extends Utilities implements Connection {
      */
     private boolean checkSessionExpired() {
 	long create = session.getCreationTime();
-	long expiration = create + maxClientSessionDuration;
+	long expiration = create + sessionLimit(create, minClientSessionDuration,
+						 maxClientSessionDuration);
 	/* Check for rollover */
 	if (expiration < create) {
 	    expiration = Long.MAX_VALUE;

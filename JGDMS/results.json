@@ -1,0 +1,1539 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.CheckBreakdown.accCheckFixedContext",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 12194.68051922313,
+            "scoreError" : 1675.6821370985563,
+            "scoreConfidence" : [
+                10518.998382124573,
+                13870.362656321686
+            ],
+            "scorePercentiles" : {
+                "0.0" : 10547.031655313494,
+                "50.0" : 12056.957227482611,
+                "90.0" : 13863.303920863003,
+                "95.0" : 13895.89927258593,
+                "99.0" : 13895.89927258593,
+                "99.9" : 13895.89927258593,
+                "99.99" : 13895.89927258593,
+                "99.999" : 13895.89927258593,
+                "99.9999" : 13895.89927258593,
+                "100.0" : 13895.89927258593
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    10547.031655313494,
+                    11548.09305653323,
+                    13895.89927258593,
+                    13569.945755356659,
+                    11535.27507717827
+                ],
+                [
+                    11034.311305995638,
+                    12533.475922451533,
+                    12886.784776227018,
+                    11580.43853251369,
+                    12815.549838075854
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.CheckBreakdown.getContext",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1506.3578427620948,
+            "scoreError" : 178.7610043470752,
+            "scoreConfidence" : [
+                1327.5968384150196,
+                1685.11884710917
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1277.9046218047436,
+                "50.0" : 1536.6734152699219,
+                "90.0" : 1622.1185776918978,
+                "95.0" : 1622.6682130807162,
+                "99.0" : 1622.6682130807162,
+                "99.9" : 1622.6682130807162,
+                "99.99" : 1622.6682130807162,
+                "99.999" : 1622.6682130807162,
+                "99.9999" : 1622.6682130807162,
+                "100.0" : 1622.6682130807162
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1617.1718591925323,
+                    1584.384874266031,
+                    1418.4740669946018,
+                    1530.2940605960634,
+                    1610.8526196394528
+                ],
+                [
+                    1622.6682130807162,
+                    1497.677253010677,
+                    1543.0527699437803,
+                    1277.9046218047436,
+                    1361.0980890923495
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.CheckBreakdown.smCheckFixedContext",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 38.05703971190194,
+            "scoreError" : 3.9860207826617895,
+            "scoreConfidence" : [
+                34.071018929240154,
+                42.04306049456373
+            ],
+            "scorePercentiles" : {
+                "0.0" : 34.67208283438739,
+                "50.0" : 37.62110549756764,
+                "90.0" : 41.97796874499463,
+                "95.0" : 42.04424008895233,
+                "99.0" : 42.04424008895233,
+                "99.9" : 42.04424008895233,
+                "99.99" : 42.04424008895233,
+                "99.999" : 42.04424008895233,
+                "99.9999" : 42.04424008895233,
+                "100.0" : 42.04424008895233
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    42.04424008895233,
+                    37.868147906010044,
+                    40.52852424158079,
+                    35.86261786364345,
+                    41.38152664937528
+                ],
+                [
+                    37.37406308912524,
+                    35.96887534960785,
+                    34.67208283438739,
+                    35.48672443630897,
+                    39.38359466002818
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOff.guardedRead",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 22.601019094981098,
+            "scoreError" : 1.547341950102463,
+            "scoreConfidence" : [
+                21.053677144878634,
+                24.14836104508356
+            ],
+            "scorePercentiles" : {
+                "0.0" : 20.639215538535552,
+                "50.0" : 22.89910427516632,
+                "90.0" : 24.939086001414466,
+                "95.0" : 25.064185664729585,
+                "99.0" : 25.064185664729585,
+                "99.9" : 25.064185664729585,
+                "99.99" : 25.064185664729585,
+                "99.999" : 25.064185664729585,
+                "99.9999" : 25.064185664729585,
+                "100.0" : 25.064185664729585
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    24.855686225871054,
+                    23.950505695188195,
+                    20.65866683414537,
+                    23.149074464693612,
+                    20.639215538535552
+                ],
+                [
+                    21.795994900646843,
+                    20.83093920132713,
+                    21.693196009355265,
+                    22.89910427516632,
+                    23.455913232117528
+                ],
+                [
+                    25.064185664729585,
+                    22.068824803125075,
+                    21.328364953636946,
+                    23.52967258491096,
+                    23.095942041267037
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOff.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "0"
+        },
+        "primaryMetric" : {
+            "score" : 1750.5522120134005,
+            "scoreError" : 192.30377363784044,
+            "scoreConfidence" : [
+                1558.24843837556,
+                1942.855985651241
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1539.3357291818972,
+                "50.0" : 1703.0472586063845,
+                "90.0" : 2072.7799372612612,
+                "95.0" : 2207.156676527751,
+                "99.0" : 2207.156676527751,
+                "99.9" : 2207.156676527751,
+                "99.99" : 2207.156676527751,
+                "99.999" : 2207.156676527751,
+                "99.9999" : 2207.156676527751,
+                "100.0" : 2207.156676527751
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1629.694797047369,
+                    1587.202954017797,
+                    1539.3357291818972,
+                    1628.1778123464344,
+                    1620.3497111089177
+                ],
+                [
+                    1787.2170365785573,
+                    1759.3229217939163,
+                    1782.2527243663912,
+                    1824.17279897389,
+                    2207.156676527751
+                ],
+                [
+                    1935.3714485846583,
+                    1667.5605393574585,
+                    1604.2253272926505,
+                    1703.0472586063845,
+                    1983.1954444169348
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOff.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "1"
+        },
+        "primaryMetric" : {
+            "score" : 1714.7337061342614,
+            "scoreError" : 150.1434119694673,
+            "scoreConfidence" : [
+                1564.5902941647942,
+                1864.8771181037287
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1479.3300215516922,
+                "50.0" : 1674.3597982952501,
+                "90.0" : 1926.7088877152803,
+                "95.0" : 2003.1041298283626,
+                "99.0" : 2003.1041298283626,
+                "99.9" : 2003.1041298283626,
+                "99.99" : 2003.1041298283626,
+                "99.999" : 2003.1041298283626,
+                "99.9999" : 2003.1041298283626,
+                "100.0" : 2003.1041298283626
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1816.1737982364825,
+                    2003.1041298283626,
+                    1602.8177588659755,
+                    1836.0245551895318,
+                    1806.3901448490592
+                ],
+                [
+                    1653.7742897379783,
+                    1674.3597982952501,
+                    1509.9171672558168,
+                    1643.8183058425175,
+                    1654.9783399642936
+                ],
+                [
+                    1479.3300215516922,
+                    1791.7406674840915,
+                    1875.7787263065588,
+                    1652.6554793299483,
+                    1720.1424092763582
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOff.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "4"
+        },
+        "primaryMetric" : {
+            "score" : 1786.7265770408128,
+            "scoreError" : 111.5994765892187,
+            "scoreConfidence" : [
+                1675.127100451594,
+                1898.3260536300315
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1620.2964678070934,
+                "50.0" : 1772.4304071366219,
+                "90.0" : 1939.884006835005,
+                "95.0" : 1973.7123205329076,
+                "99.0" : 1973.7123205329076,
+                "99.9" : 1973.7123205329076,
+                "99.99" : 1973.7123205329076,
+                "99.999" : 1973.7123205329076,
+                "99.9999" : 1973.7123205329076,
+                "100.0" : 1973.7123205329076
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1890.0877110251815,
+                    1627.9300781332506,
+                    1829.498183917622,
+                    1620.2964678070934,
+                    1724.1127869484276
+                ],
+                [
+                    1824.3413015334684,
+                    1681.2945532708084,
+                    1837.0363304152572,
+                    1973.7123205329076,
+                    1768.0933893358615
+                ],
+                [
+                    1772.4304071366219,
+                    1698.2570909646429,
+                    1871.9321500282304,
+                    1764.544086859747,
+                    1917.3317977030702
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOn.guardedRead",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1894.6480373282488,
+            "scoreError" : 80.44216724429906,
+            "scoreConfidence" : [
+                1814.2058700839498,
+                1975.090204572548
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1775.7997938762442,
+                "50.0" : 1898.505603040377,
+                "90.0" : 1992.7048578040663,
+                "95.0" : 2000.528566171765,
+                "99.0" : 2000.528566171765,
+                "99.9" : 2000.528566171765,
+                "99.99" : 2000.528566171765,
+                "99.999" : 2000.528566171765,
+                "99.9999" : 2000.528566171765,
+                "100.0" : 2000.528566171765
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1912.2875559767076,
+                    1938.9944731266921,
+                    1889.5906328917868,
+                    1973.617090903356,
+                    1816.1810460089366
+                ],
+                [
+                    1987.4890522256005,
+                    1894.328173515204,
+                    2000.528566171765,
+                    1775.7997938762442,
+                    1874.7609921166702
+                ],
+                [
+                    1898.8825936119483,
+                    1981.8725983440954,
+                    1898.505603040377,
+                    1785.3724595300075,
+                    1791.509928584338
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOn.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "0"
+        },
+        "primaryMetric" : {
+            "score" : 1688.047888952554,
+            "scoreError" : 95.90033034202254,
+            "scoreConfidence" : [
+                1592.1475586105316,
+                1783.9482192945766
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1505.574971552433,
+                "50.0" : 1681.9388279902787,
+                "90.0" : 1824.6355641626133,
+                "95.0" : 1852.6724448925602,
+                "99.0" : 1852.6724448925602,
+                "99.9" : 1852.6724448925602,
+                "99.99" : 1852.6724448925602,
+                "99.999" : 1852.6724448925602,
+                "99.9999" : 1852.6724448925602,
+                "100.0" : 1852.6724448925602
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    1629.2081342320753,
+                    1797.1648266755299,
+                    1639.6593889036212,
+                    1681.9388279902787,
+                    1626.9010560519903
+                ],
+                [
+                    1593.0275562521203,
+                    1744.953599118697,
+                    1659.0651311525141,
+                    1707.4558239404312,
+                    1505.574971552433
+                ],
+                [
+                    1645.3383637873071,
+                    1718.6217997669594,
+                    1805.9443103426486,
+                    1852.6724448925602,
+                    1713.192099629146
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOn.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "1"
+        },
+        "primaryMetric" : {
+            "score" : 4116.569709506622,
+            "scoreError" : 675.9022979091498,
+            "scoreConfidence" : [
+                3440.667411597472,
+                4792.472007415771
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3730.828227717902,
+                "50.0" : 3887.5553071584927,
+                "90.0" : 5140.143639523064,
+                "95.0" : 6300.188289525057,
+                "99.0" : 6300.188289525057,
+                "99.9" : 6300.188289525057,
+                "99.99" : 6300.188289525057,
+                "99.999" : 6300.188289525057,
+                "99.9999" : 6300.188289525057,
+                "100.0" : 6300.188289525057
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    3777.249353449901,
+                    3834.8758088801537,
+                    3923.9516170124366,
+                    4105.320951142577,
+                    3882.453342026522
+                ],
+                [
+                    4075.4764386819343,
+                    4262.170779571838,
+                    3730.828227717902,
+                    3887.5553071584927,
+                    3829.8441090662986
+                ],
+                [
+                    4116.239720783978,
+                    3774.2512259524706,
+                    6300.188289525057,
+                    4366.780539521734,
+                    3881.359932108023
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadSmOn.request",
+        "mode" : "avgt",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "4"
+        },
+        "primaryMetric" : {
+            "score" : 10262.879482727323,
+            "scoreError" : 524.4476197195941,
+            "scoreConfidence" : [
+                9738.431863007729,
+                10787.327102446918
+            ],
+            "scorePercentiles" : {
+                "0.0" : 9547.281644180677,
+                "50.0" : 10244.579979106495,
+                "90.0" : 11070.607243557895,
+                "95.0" : 11564.667997830127,
+                "99.0" : 11564.667997830127,
+                "99.9" : 11564.667997830127,
+                "99.99" : 11564.667997830127,
+                "99.999" : 11564.667997830127,
+                "99.9999" : 11564.667997830127,
+                "100.0" : 11564.667997830127
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    10249.277808465804,
+                    10413.065848968348,
+                    10244.579979106495,
+                    11564.667997830127,
+                    10401.686473897085
+                ],
+                [
+                    10741.233407376407,
+                    10109.199340954807,
+                    9547.281644180677,
+                    10172.382955804193,
+                    10394.085641898908
+                ],
+                [
+                    9890.695630708467,
+                    10612.031980658912,
+                    9815.648671690495,
+                    10127.365865992415,
+                    9659.988993376715
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOff.guardedRead",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 28.40699069990775,
+            "scoreError" : 1.4583230466919617,
+            "scoreConfidence" : [
+                26.94866765321579,
+                29.865313746599714
+            ],
+            "scorePercentiles" : {
+                "0.0" : 26.63537109098696,
+                "50.0" : 27.911048387021136,
+                "90.0" : 30.502186422682485,
+                "95.0" : 31.150927231175245,
+                "99.0" : 31.150927231175245,
+                "99.9" : 31.150927231175245,
+                "99.99" : 31.150927231175245,
+                "99.999" : 31.150927231175245,
+                "99.9999" : 31.150927231175245,
+                "100.0" : 31.150927231175245
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    26.63537109098696,
+                    27.422263726177988,
+                    28.868759540165232,
+                    27.43414500812261,
+                    26.73446730061444
+                ],
+                [
+                    28.572112860701935,
+                    29.984390860201156,
+                    31.150927231175245,
+                    30.069692550353974,
+                    29.77429959327745
+                ],
+                [
+                    27.44077514920599,
+                    27.37953067311037,
+                    29.094404650119618,
+                    27.911048387021136,
+                    27.63267187738215
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOff.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "0"
+        },
+        "primaryMetric" : {
+            "score" : 2883.1322980770715,
+            "scoreError" : 134.0038242623298,
+            "scoreConfidence" : [
+                2749.1284738147415,
+                3017.1361223394015
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2746.909676048948,
+                "50.0" : 2820.9124094249214,
+                "90.0" : 3101.088335896413,
+                "95.0" : 3109.075005925199,
+                "99.0" : 3109.075005925199,
+                "99.9" : 3109.075005925199,
+                "99.99" : 3109.075005925199,
+                "99.999" : 3109.075005925199,
+                "99.9999" : 3109.075005925199,
+                "100.0" : 3109.075005925199
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    2814.993615768508,
+                    2820.9124094249214,
+                    2806.7651668160047,
+                    2828.535542119063,
+                    2810.131930609749
+                ],
+                [
+                    2782.4228167964775,
+                    2781.2623485937534,
+                    2788.955061124845,
+                    2746.909676048948,
+                    2850.0005559518218
+                ],
+                [
+                    3109.075005925199,
+                    3095.763889210555,
+                    3078.2978840762357,
+                    2969.8114436241217,
+                    2963.147125065867
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOff.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "1"
+        },
+        "primaryMetric" : {
+            "score" : 2921.15699921197,
+            "scoreError" : 135.4597128738692,
+            "scoreConfidence" : [
+                2785.6972863381006,
+                3056.616712085839
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2778.186317322745,
+                "50.0" : 2918.371755765175,
+                "90.0" : 3140.7364618761885,
+                "95.0" : 3224.8432391906754,
+                "99.0" : 3224.8432391906754,
+                "99.9" : 3224.8432391906754,
+                "99.99" : 3224.8432391906754,
+                "99.999" : 3224.8432391906754,
+                "99.9999" : 3224.8432391906754,
+                "100.0" : 3224.8432391906754
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    2778.186317322745,
+                    2799.398704281377,
+                    2782.285968921093,
+                    2782.464676091933,
+                    2794.798329775998
+                ],
+                [
+                    2918.371755765175,
+                    2905.3105591069984,
+                    2886.3375782141156,
+                    2946.017511073927,
+                    3224.8432391906754
+                ],
+                [
+                    2994.247346206613,
+                    2965.459367480791,
+                    2990.129586892588,
+                    3084.665276999864,
+                    2964.8387708556625
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOff.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "4"
+        },
+        "primaryMetric" : {
+            "score" : 3163.9995179497505,
+            "scoreError" : 100.05356366560645,
+            "scoreConfidence" : [
+                3063.945954284144,
+                3264.053081615357
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3074.16872565861,
+                "50.0" : 3136.1616265853922,
+                "90.0" : 3363.488452630824,
+                "95.0" : 3383.0736118802183,
+                "99.0" : 3383.0736118802183,
+                "99.9" : 3383.0736118802183,
+                "99.99" : 3383.0736118802183,
+                "99.999" : 3383.0736118802183,
+                "99.9999" : 3383.0736118802183,
+                "100.0" : 3383.0736118802183
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    3098.6354864665886,
+                    3110.7060119980415,
+                    3076.3902004358756,
+                    3074.16872565861,
+                    3089.0450821966056
+                ],
+                [
+                    3238.425743495292,
+                    3164.64647762172,
+                    3165.1358163517475,
+                    3350.431679797895,
+                    3383.0736118802183
+                ],
+                [
+                    3136.1616265853922,
+                    3108.6905972140053,
+                    3120.4459650285767,
+                    3172.7158462298626,
+                    3171.319898285826
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOn.guardedRead",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4726.078929458797,
+            "scoreError" : 73.14295129795684,
+            "scoreConfidence" : [
+                4652.93597816084,
+                4799.221880756753
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4651.913240235664,
+                "50.0" : 4706.498149061557,
+                "90.0" : 4824.267156109927,
+                "95.0" : 4846.85848742695,
+                "99.0" : 4846.85848742695,
+                "99.9" : 4846.85848742695,
+                "99.99" : 4846.85848742695,
+                "99.999" : 4846.85848742695,
+                "99.9999" : 4846.85848742695,
+                "100.0" : 4846.85848742695
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    4651.913240235664,
+                    4655.544856789819,
+                    4666.161024700229,
+                    4747.847947920333,
+                    4776.884195985197
+                ],
+                [
+                    4664.438001170419,
+                    4669.7091556290725,
+                    4656.632739370397,
+                    4673.898529798268,
+                    4706.498149061557
+                ],
+                [
+                    4801.241712299808,
+                    4776.408839123239,
+                    4787.940793805751,
+                    4809.206268565245,
+                    4846.85848742695
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOn.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "0"
+        },
+        "primaryMetric" : {
+            "score" : 2869.0408234411175,
+            "scoreError" : 117.41064553467834,
+            "scoreConfidence" : [
+                2751.6301779064393,
+                2986.4514689757957
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2735.692658916794,
+                "50.0" : 2818.681281733601,
+                "90.0" : 3027.0562106676653,
+                "95.0" : 3047.524251520295,
+                "99.0" : 3047.524251520295,
+                "99.9" : 3047.524251520295,
+                "99.99" : 3047.524251520295,
+                "99.999" : 3047.524251520295,
+                "99.9999" : 3047.524251520295,
+                "100.0" : 3047.524251520295
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    2787.93746757237,
+                    2746.2280391188892,
+                    2768.356310401834,
+                    2735.692658916794,
+                    2770.2769814044404
+                ],
+                [
+                    2982.8859756463767,
+                    2998.0115415616024,
+                    2990.208395896579,
+                    3047.524251520295,
+                    3013.4108500992456
+                ],
+                [
+                    2863.6059455706672,
+                    2792.757062748113,
+                    2815.2523361505014,
+                    2818.681281733601,
+                    2904.7832532754514
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOn.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "1"
+        },
+        "primaryMetric" : {
+            "score" : 8054.027036480018,
+            "scoreError" : 144.08492084716,
+            "scoreConfidence" : [
+                7909.942115632858,
+                8198.111957327179
+            ],
+            "scorePercentiles" : {
+                "0.0" : 7907.841871464516,
+                "50.0" : 8011.7871818814465,
+                "90.0" : 8275.794227786815,
+                "95.0" : 8396.735660477958,
+                "99.0" : 8396.735660477958,
+                "99.9" : 8396.735660477958,
+                "99.99" : 8396.735660477958,
+                "99.999" : 8396.735660477958,
+                "99.9999" : 8396.735660477958,
+                "100.0" : 8396.735660477958
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    7987.124690313461,
+                    7914.203199253933,
+                    7907.841871464516,
+                    7920.87035324437,
+                    8031.706178883735
+                ],
+                [
+                    7925.066050150114,
+                    8155.619702141852,
+                    8102.428363117003,
+                    8178.571339672949,
+                    8396.735660477958
+                ],
+                [
+                    8011.7871818814465,
+                    8083.012201382085,
+                    8006.226946484552,
+                    7994.045202739584,
+                    8195.166605992721
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "au.net.zeus.jgdms.bench.PolicyOverheadVirtualSmOn.request",
+        "mode" : "avgt",
+        "threads" : 12,
+        "forks" : 3,
+        "jvm" : "C:\\Users\\peter\\Documents\\GitHub\\DirtyChai\\build\\windows-x86_64-server-release\\images\\jdk\\bin\\java.exe",
+        "jvmArgs" : [
+            "-Djgdms.bench.harness.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/benchmarks.jar",
+            "-Djgdms.bench.workload.url=file:/C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/jgdms-benchmarks/harness/target/lib/jgdms-bench-workload.jar",
+            "-Djava.security.policy==C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\generated.policy",
+            "-Djava.security.properties=C:\\Users\\peter\\Documents\\GitHub\\JGDMS\\JGDMS\\jgdms-benchmarks\\conf\\dirtychai.security",
+            "-Djgdms.bench.expectedPolicy=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile",
+            "-Djmh.link.address=127.0.0.1",
+            "-Djgdms.bench.p0=value0",
+            "-Djgdms.bench.p1=value1",
+            "-Djgdms.bench.p2=value2",
+            "-Djgdms.bench.p3=value3",
+            "-Djgdms.bench.p4=value4",
+            "-Djgdms.bench.p5=value5",
+            "-Djgdms.bench.p6=value6",
+            "-Djgdms.bench.p7=value7",
+            "-Djmh.executor=VIRTUAL",
+            "-Djava.security.manager=default"
+        ],
+        "jdkVersion" : "27-internal",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "27-internal-adhoc.peter.DirtyChai",
+        "warmupIterations" : 5,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "guardedReadsPerRequest" : "4"
+        },
+        "primaryMetric" : {
+            "score" : 22482.82926667535,
+            "scoreError" : 339.6747629458904,
+            "scoreConfidence" : [
+                22143.15450372946,
+                22822.504029621243
+            ],
+            "scorePercentiles" : {
+                "0.0" : 22011.03500406198,
+                "50.0" : 22312.585750990445,
+                "90.0" : 22949.961701352568,
+                "95.0" : 23035.102880488925,
+                "99.0" : 23035.102880488925,
+                "99.9" : 23035.102880488925,
+                "99.99" : 23035.102880488925,
+                "99.999" : 23035.102880488925,
+                "99.9999" : 23035.102880488925,
+                "100.0" : 23035.102880488925
+            },
+            "scoreUnit" : "ns/op",
+            "rawData" : [
+                [
+                    22735.097120928942,
+                    22220.562431766393,
+                    22270.149117183126,
+                    22282.34916661483,
+                    22746.88555043259
+                ],
+                [
+                    22155.351589952767,
+                    22175.744597230423,
+                    22011.03500406198,
+                    22277.441368656848,
+                    22312.585750990445
+                ],
+                [
+                    22734.423350583587,
+                    22893.200915261663,
+                    22732.762112491208,
+                    22659.74804348662,
+                    23035.102880488925
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

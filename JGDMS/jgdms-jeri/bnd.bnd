@@ -8,3 +8,8 @@
     org.apache.river.jeri.internal,\
     org.apache.river.jeri.internal.connection
 -sources: true
+# HandshakeLimits reads the descriptor limit from com.sun.management where the
+# JVM has it, and falls back to a fixed limit without it; the one import that is
+# not Java SE.  BundleImportsTest fails on any other import that is not optional
+# and not the project's, and on any sun.* import.
+Import-Package: com.sun.management;resolution:=optional,*

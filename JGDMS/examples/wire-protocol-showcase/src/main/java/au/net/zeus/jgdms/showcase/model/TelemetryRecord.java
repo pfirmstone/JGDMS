@@ -64,12 +64,12 @@ public class TelemetryRecord {
     public TelemetryRecord(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
         check(arg);
         this.sequenceNumber         = arg.get("sequenceNumber", 0L);
-        this.originatingStationName = (String) arg.get("originatingStationName", null);
+        this.originatingStationName = arg.get("originatingStationName", null, String.class);
     }
 
     public static AtomicSerial.GetArg check(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
-        if (arg.get("originatingStationName", null) == null) {
+        if (arg.get("originatingStationName", null, String.class) == null) {
             throw new InvalidObjectException("TelemetryRecord: originatingStationName must not be null");
         }
         return arg;

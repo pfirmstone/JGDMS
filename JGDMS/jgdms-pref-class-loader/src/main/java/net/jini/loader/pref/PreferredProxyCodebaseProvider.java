@@ -77,6 +77,7 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.ServerAuthentication;
+import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
@@ -295,6 +296,38 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     private static final long verdictCacheTtlMs = loadVerdictCacheTtlMs();
 
     /**
+     * System property bounding the age of a verdict's signed timestamp, in
+     * milliseconds.  <strong>Default 0: no limit.</strong>  The registry returns
+     * the verdict it <em>published</em> for a content hash
+     * ({@code getVerdictByHash}), so a perfectly good SAFE verdict can be days
+     * old; a fixed limit by default would refuse legitimate code.  Set a limit
+     * where the registry re-publishes verdicts periodically.  Replay of a
+     * superseded verdict is addressed by the pinned, authenticated registry
+     * channel (see {@link #setVerdictRegistry(VerdictRegistry, PublicKey, String, Principal)}),
+     * the content-hash binding, and the bounded cache TTL.
+     */
+    static final String VERDICT_MAX_AGE_MS_PROPERTY = "jgdms.proxy.verdictMaxAgeMs";
+
+    /** A verdict timestamp further in the future than this (clock skew) is refused. */
+    static final long VERDICT_MAX_FUTURE_SKEW_MS = 5L * 60_000L;
+
+    /** Volatile so that tests can change it. */
+    static volatile long verdictMaxAgeMs = loadVerdictMaxAgeMs();
+
+    private static long loadVerdictMaxAgeMs() {
+        try {
+            String value = System.getProperty(VERDICT_MAX_AGE_MS_PROPERTY);
+            if (value == null || value.trim().isEmpty()) return 0L;
+            long v = Long.parseLong(value.trim());
+            return v < 0 ? 0L : v;
+        } catch (RuntimeException ex) { // SecurityException or NumberFormatException
+            logger.log(Level.WARNING, "Invalid or unreadable {0}; no limit",
+                    VERDICT_MAX_AGE_MS_PROPERTY);
+            return 0L;
+        }
+    }
+
+    /**
      * System property that controls strict mode for
      * {@link VerdictType#INCONCLUSIVE} JAR loads.  Strict mode is
      * <strong>enabled by default</strong>: {@link #checkVerdictForJar} demands
@@ -407,6 +440,22 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *         not a {@link RemoteMethodControl} (cannot be constrained)
      */
     static VerdictRegistry constrainRegistryProxy(VerdictRegistry registry) {
+        return constrainRegistryProxy(registry, null);
+    }
+
+    /**
+     * As {@link #constrainRegistryProxy(VerdictRegistry)}, additionally
+     * requiring the registry server to authenticate as {@code serverPrincipal}
+     * ({@link ServerMinPrincipal}), so that any other authenticated server
+     * cannot answer in the registry's place, for example by replaying an older
+     * signed verdict.  Replaces whatever constraints the proxy carried.
+     *
+     * @param registry the registry proxy, or {@code null}
+     * @param serverPrincipal the single principal the registry must
+     *        authenticate as, or {@code null} for no principal pin (weaker)
+     */
+    static VerdictRegistry constrainRegistryProxy(VerdictRegistry registry,
+                                                  Principal serverPrincipal) {
         if (registry == null) {
             return null;
         }
@@ -417,8 +466,23 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     + "to trust an unconstrainable proxy of type "
                     + registry.getClass().getName());
         }
+        MethodConstraints constraints = REGISTRY_METHOD_CONSTRAINTS;
+        if (serverPrincipal != null) {
+            constraints = new BasicMethodConstraints(
+                    new InvocationConstraints(
+                            new InvocationConstraint[]{
+                                Integrity.YES, ServerAuthentication.YES,
+                                new ServerMinPrincipal(serverPrincipal)
+                            },
+                            (InvocationConstraint[]) null));
+        } else {
+            logger.log(Level.WARNING,
+                    "Verdict registry channel is not pinned to a server principal: any "
+                    + "authenticated server can answer, including with a replayed older "
+                    + "signed verdict.  Use setVerdictRegistry(registry, key, alg, principal).");
+        }
         return (VerdictRegistry) ((RemoteMethodControl) registry)
-                .setConstraints(REGISTRY_METHOD_CONSTRAINTS);
+                .setConstraints(constraints);
     }
 
     /**
@@ -473,6 +537,35 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             verdictRegistrySigAlgorithm = sigAlgorithm.trim();
         }
         VerdictRegistryHolder.set(constrainRegistryProxy(registry));
+    }
+
+    /**
+     * As {@link #setVerdictRegistry(VerdictRegistry, PublicKey, String)}, and
+     * pins the registry channel to {@code serverPrincipal}: the proxy is
+     * constrained to require {@link ServerMinPrincipal}{@code (serverPrincipal)}
+     * as well as integrity and server authentication.  This is the recommended
+     * entry point.
+     *
+     * @param serverPrincipal the single principal the registry authenticates as
+     *        (for example its SPIFFE principal); {@code null} for no pin
+     */
+    public static void setVerdictRegistry(VerdictRegistry registry,
+                                          PublicKey publicKey,
+                                          String sigAlgorithm,
+                                          Principal serverPrincipal) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        if (publicKey != null) {
+            if (sigAlgorithm == null || sigAlgorithm.trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "sigAlgorithm must be non-empty when publicKey is supplied");
+            }
+            verdictRegistryPublicKey    = publicKey;
+            verdictRegistrySigAlgorithm = sigAlgorithm.trim();
+        }
+        VerdictRegistryHolder.set(constrainRegistryProxy(registry, serverPrincipal));
     }
 
     /**
@@ -1570,6 +1663,21 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     "RegistryVerdict signature verification failed for JAR (SHA-256: "
                     + contentHash + "); codebase refused: " + path);
         }
+        // The signature is over the verdict's own URL set, so it only means
+        // something for THIS jar if that set is the content-address of THIS
+        // jar.  The registry issues hash-keyed verdicts with the single URN
+        // urn:sha256:<hash>.  Without this comparison a validly signed verdict
+        // for any other hash would be accepted for this one.
+        if (!bindsContentHash(verdict, contentHash)) {
+            logger.log(Level.SEVERE,
+                    "RegistryVerdict is not for this content hash (SHA-256: {0}); "
+                    + "verdict URLs {1}; codebase refused: {2}",
+                    new Object[]{contentHash, verdict.getCodebaseUrls(), path});
+            throw new IOException(
+                    "RegistryVerdict was not issued for JAR (SHA-256: " + contentHash
+                    + "); codebase refused: " + path);
+        }
+        checkVerdictFreshness(verdict, contentHash, path);
         VerdictType type = verdict.getVerdict();
         if (type == VerdictType.DANGEROUS) {
             logger.log(Level.SEVERE,
@@ -1611,6 +1719,43 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     "JAR verdict is SAFE (SHA-256: {0})", contentHash);
         }
         return false;
+    }
+
+    /**
+     * Whether the verdict's signed URL set is the content address
+     * {@code urn:sha256:<contentHash>} of the jar.  Compared case-insensitively
+     * on the hex digits, and the verdict must name no other URL: a verdict
+     * that also covers other content says nothing exact about this jar.
+     */
+    static boolean bindsContentHash(RegistryVerdict verdict, String contentHash) {
+        if (verdict == null || contentHash == null) return false;
+        Set<Uri> urls = verdict.getCodebaseUrls();
+        if (urls.size() != 1) return false;
+        return urls.iterator().next().toString()
+                .equalsIgnoreCase("urn:sha256:" + contentHash);
+    }
+
+    /**
+     * Rejects a verdict whose signed timestamp is implausibly in the future
+     * (more than {@link #VERDICT_MAX_FUTURE_SKEW_MS}), or older than
+     * {@link #VERDICT_MAX_AGE_MS_PROPERTY} when that limit is set.
+     */
+    private static void checkVerdictFreshness(RegistryVerdict verdict,
+                                              String contentHash,
+                                              String path) throws IOException {
+        long now = System.currentTimeMillis();
+        long ts = verdict.getTimestamp();
+        if (ts > now + VERDICT_MAX_FUTURE_SKEW_MS) {
+            throw new IOException(
+                    "RegistryVerdict timestamp is in the future (SHA-256: " + contentHash
+                    + "); codebase refused: " + path);
+        }
+        long maxAge = verdictMaxAgeMs;
+        if (maxAge > 0 && now - ts > maxAge) {
+            throw new IOException(
+                    "RegistryVerdict is older than " + maxAge + " ms (SHA-256: "
+                    + contentHash + "); codebase refused: " + path);
+        }
     }
 
     private static RegistryVerdict getVerdictByHashWithRetry(VerdictRegistry vr,

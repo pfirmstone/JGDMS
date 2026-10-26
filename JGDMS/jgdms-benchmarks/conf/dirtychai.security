@@ -1,0 +1,6 @@
+# Security properties appended to the JDK's java.security by the run scripts
+# (-Djava.security.properties=...). DirtyChai's shipped java.security still
+# names sun.security.provider.PolicyFile, so name ConcurrentPolicyFile here
+# explicitly: these benchmarks measure ConcurrentPolicyFile.
+policy.provider=au.zeus.jdk.authorization.policy.ConcurrentPolicyFile
+policy.expandProperties=true

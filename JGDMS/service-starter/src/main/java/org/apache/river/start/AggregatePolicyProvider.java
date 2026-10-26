@@ -343,6 +343,28 @@ public class AggregatePolicyProvider
     }
 
     /**
+     * Delegates to the currently active sub-policy, which must support
+     * dynamic grants to verified code; nothing is granted otherwise.
+     *
+     * @param   cl {@inheritDoc}
+     * @param   codebase {@inheritDoc}
+     * @param   principals {@inheritDoc}
+     * @param   permissions {@inheritDoc}
+     * @throws	UnsupportedOperationException {@inheritDoc}
+     */
+    @Override
+    public void grant(Class cl, java.security.CodeSource[] codebase,
+                      Principal[] principals, Permission[] permissions)
+    {
+	Policy p = getCurrentSubPolicy();
+	if (p instanceof DynamicPolicy) {
+	    ((DynamicPolicy) p).grant(cl, codebase, principals, permissions);
+	} else {
+	    throw new UnsupportedOperationException("grants not supported");
+	}
+    }
+
+    /**
      * If the currently active sub-policy supports dynamic permission grants,
      * delegates to the corresponding <code>getGrants</code> method of the
      * currently active sub-policy to return a new array containing the set of

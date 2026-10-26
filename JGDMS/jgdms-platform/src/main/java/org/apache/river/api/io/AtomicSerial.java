@@ -358,11 +358,11 @@ public @interface AtomicSerial {
 
 	/**
 	 * Resolves the {@code @AtomicSerial} class on whose behalf a {@code get} or
-	 * {@code defaulted} call is being made, by walking the call stack and
-	 * returning the first frame whose declaring class is one of
-	 * {@link #serialClasses()}. If exactly one class is registered and no frame
-	 * matches (e.g. synthetic bridge or lambda frames sit between the caller and
-	 * here), that single class is returned as a safe fallback.
+	 * {@code defaulted} call is being made. If exactly one class is registered
+	 * (see {@link #serialClasses()}) it is returned without looking at the
+	 * stack, whichever frame the call comes from. Otherwise the call stack is
+	 * walked and the first frame whose declaring class is one of the registered
+	 * classes is returned.
 	 *
 	 * @return the resolved caller class
 	 * @throws InvalidObjectException if no registered class is on the stack and
@@ -370,13 +370,20 @@ public @interface AtomicSerial {
 	 */
 	protected Class<?> callerClass() throws InvalidObjectException {
 	    final Set<Class<?>> serial = serialClassSet();
+	    /*
+	     * With exactly one registered class the answer does not depend on the
+	     * stack: a matching frame can only be that class, and so is the
+	     * fallback below. Skipping the walk is the common case (a class with no
+	     * @AtomicSerial superclass) and removes a stack walk from every field
+	     * read, about half the cost of decoding a small object.
+	     */
+	    if (serial.size() == 1) return serial.iterator().next();
 	    Class<?> found = WALKER.walk(frames ->
 		frames.map(StackWalker.StackFrame::getDeclaringClass)
 		      .filter(serial::contains)
 		      .findFirst()
 		      .orElse(null));
 	    if (found != null) return found;
-	    if (serial.size() == 1) return serial.iterator().next();
 	    throw new InvalidObjectException(
 		"GetArg: cannot determine caller @AtomicSerial class from stack; "
 		+ "registered classes: " + serial);

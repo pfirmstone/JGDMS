@@ -36,8 +36,13 @@ final class Blocks {
         out.write(block);
     }
 
+    private static final int MAX_BLOCK_BYTES = 16 * 1024 * 1024; // mirrors the DER default input budget
+
     static byte[] readBlock(DataInputStream in) throws IOException {
         int len = in.readInt();
+        if (len < 0 || len > MAX_BLOCK_BYTES) {
+            throw new IOException("block length out of bounds: " + len);
+        }
         byte[] block = new byte[len];
         in.readFully(block);
         return block;

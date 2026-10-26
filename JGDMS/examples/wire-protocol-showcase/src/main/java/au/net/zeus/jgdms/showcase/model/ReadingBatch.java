@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.showcase.model;
 
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Valid;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,10 +51,12 @@ public final class ReadingBatch {
         this.readings = new ArrayList<>(readings);
     }
 
-    @SuppressWarnings("unchecked")
     public ReadingBatch(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
-        Object v = arg.get("readings", null);
-        this.readings = (v == null) ? null : new ArrayList<>((List<CalibratedReading>) v);
+        this.readings = Valid.copyCol(
+                Valid.notNull(arg.get("readings", null, List.class),
+                        "ReadingBatch: readings must not be null"),
+                new ArrayList<CalibratedReading>(),
+                CalibratedReading.class);
     }
 
     public List<CalibratedReading> getReadings() { return readings; }

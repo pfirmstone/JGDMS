@@ -87,6 +87,22 @@ final class SslEngineSvidFactory {
     static Svid generate(Path dir, String alias, String dname, String spiffeUri)
         throws Exception
     {
+        return generate(dir, alias, dname, spiffeUri, 0);
+    }
+
+    /**
+     * Like {@link #generate(Path, String, String, String)}, with the given
+     * number of extra DNS names in the Subject Alternative Name extension,
+     * which makes the certificate, and so the server's first flight, large.
+     */
+    static Svid generate(Path dir, String alias, String dname, String spiffeUri,
+                         int extraDnsNames)
+        throws Exception
+    {
+        StringBuilder san = new StringBuilder("uri:" + spiffeUri);
+        for (int i = 0; i < extraDnsNames; i++) {
+            san.append(",dns:host-").append(i).append(".padding.example.org");
+        }
         Path ks = dir.resolve(alias + ".p12");
         char[] pw = "changeit".toCharArray();
         // EC keys (secp256r1) match the JGDMS SPIFFE SVID convention; keytool's
@@ -99,7 +115,7 @@ final class SslEngineSvidFactory {
             "-groupname", "secp256r1",
             "-sigalg", "SHA256withECDSA",
             "-dname", dname,
-            "-ext", "san=uri:" + spiffeUri,
+            "-ext", "san=" + san,
             "-ext", "KeyUsage=digitalSignature",
             "-validity", "1",
             "-storetype", "PKCS12",

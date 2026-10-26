@@ -87,7 +87,7 @@ public final class ConnectionAbsoluteTime
     }
     
     public ConnectionAbsoluteTime(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg.get("time", 0));
+	this(arg.get("time", 0L));
     }
 
     /**

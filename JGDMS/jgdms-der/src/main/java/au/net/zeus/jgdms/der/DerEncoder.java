@@ -1,0 +1,186 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package au.net.zeus.jgdms.der;
+
+import java.util.Comparator;
+
+/**
+ * A single-use, single-threaded DER encoder that builds nested TLVs into ONE growing buffer instead
+ * of returning a fresh {@code byte[]} per level (JGDMS-STD-006; SOW-DER-Streaming-Encoder task A1).
+ * Output is byte-identical to composing the same structure with {@link DerWriter}: definite,
+ * minimal-length encodings, children in the order written.
+ *
+ * <pre>{@code
+ * DerEncoder e = DerEncoder.create();
+ * e.begin(Tag.SEQUENCE);
+ *   e.leaf(Tag.INTEGER, new byte[] {7});
+ *   e.beginSortedSet(CollectionWireTypes.OCTET_SORT);   // SET OF, children octet-sorted (X.690 11.6)
+ *     e.leaf(Tag.OCTET_STRING, a);
+ *     e.leaf(Tag.OCTET_STRING, b);
+ *   e.end();
+ * e.end();
+ * byte[] der = e.toByteArray();
+ * }</pre>
+ *
+ * <h3>Contract</h3>
+ * <ul>
+ *   <li>{@link #leaf} and {@link #raw} COPY the bytes they are given; the caller may reuse or mutate
+ *       its array immediately. The encoder never exposes its internal storage;
+ *       {@link #toByteArray()} returns a fresh array.</li>
+ *   <li>Inside {@link #beginSortedSet} every direct child must be exactly ONE TLV: a {@code leaf},
+ *       a {@code raw} holding a single complete TLV, or one {@code begin}..{@code end} construct.
+ *       The children are sorted with the comparator supplied (the project's
+ *       {@code CollectionWireTypes.OCTET_SORT}, passed in so this package does not depend on
+ *       {@code getarg}); equal encodings are kept, in the order written.</li>
+ *   <li>Nested sorted sets are supported to any depth: each sorted set encodes its elements in its
+ *       own scratch encoder, so an inner set can never overwrite the element an outer set is still
+ *       building (board review finding F3).</li>
+ *   <li>Misuse (unbalanced {@code end}, {@code toByteArray} with an open construct) throws
+ *       {@link IllegalStateException}.</li>
+ * </ul>
+ *
+ * <p>Not thread-safe.
+ */
+public abstract class DerEncoder {
+
+    DerEncoder() {}
+
+    /**
+     * Creates an encoder. The implementation is "reserve a worst-case length field per construct,
+     * compact once at the end", chosen over a two-pass tree encoder by the A1 benchmark (64 KiB blob
+     * nested 7 deep: 13.7 us and 65 592 B allocated per operation reused, against 83.8 us and 524 624 B
+     * for today's {@link DerWriter} composition).
+     */
+    public static DerEncoder create() {
+        return new CompactDerEncoder();
+    }
+
+    /**
+     * Creates an encoder that follows the same protocol and argument checks as {@link #create()} but keeps no output, for a pass whose
+     * result is thrown away (whole-stream admission). {@link #toByteArray()}, {@link #size()} and the sorted constructs are
+     * unsupported on it and throw {@link UnsupportedOperationException}.
+     */
+    public static DerEncoder discarding() {
+        return new DiscardingDerEncoder();
+    }
+
+    /**
+     * Discards everything written and any open constructs, keeping the allocated buffers, so one
+     * encoder can be reused for the next item. This is what makes the allocation figure above hold.
+     */
+    public abstract DerEncoder reset();
+
+    /** Opens a constructed TLV with {@code tag}; its content is whatever is written until {@link #end()}. */
+    public abstract DerEncoder begin(Tag tag);
+
+    /** Opens a SET OF (tag {@code 0x31}) whose children are sorted by {@code order} when it is ended. */
+    public abstract DerEncoder beginSortedSet(Comparator<byte[]> order);
+
+    /**
+     * Opens an OCTET STRING whose content is whatever is written until {@link #end()} (used to carry an
+     * already-framed payload without an intermediate copy). Content octets are arbitrary, so the result
+     * is still a primitive OCTET STRING on the wire. {@link #begin} refuses primitive tags, so this is
+     * the only way to open one.
+     */
+    public abstract DerEncoder beginOctetString();
+
+    /**
+     * Opens a SET OF {@code SEQUENCE { key, value }} (tag {@code 0x31}). Each direct child must be one
+     * SEQUENCE; they are ordered by the unsigned octets of the first TLV (the key) alone, never by the
+     * whole entry, because the entry's length octet is not part of the key and a long value could
+     * otherwise reorder two entries (STD-006 map canonical order).
+     */
+    public abstract DerEncoder beginSortedMap();
+
+    /** Closes the innermost open construct. */
+    public abstract DerEncoder end();
+
+    /** Writes one primitive (or pre-built content) TLV: {@code tag}, minimal length, then {@code len} bytes. */
+    public abstract DerEncoder leaf(Tag tag, byte[] content, int off, int len);
+
+    /** Appends {@code len} bytes of an already-encoded TLV verbatim (not validated). */
+    public abstract DerEncoder raw(byte[] tlv, int off, int len);
+
+    /**
+     * Whether the encoder holds a complete, usable encoding: it has not failed and no construct is open. A caller that
+     * shares one encoder across items uses this (with {@link #size()}) to tell whether an item that threw left anything
+     * behind.
+     */
+    public abstract boolean isClean();
+
+    /** The encoding of everything written; requires every construct to be closed. */
+    public abstract byte[] toByteArray();
+
+    /** Bytes of encoding produced so far if it were finished now; requires every construct to be closed. */
+    public abstract int size();
+
+    public final DerEncoder leaf(Tag tag, byte[] content) {
+        return leaf(tag, content, 0, content.length);
+    }
+
+    public final DerEncoder raw(byte[] tlv) {
+        return raw(tlv, 0, tlv.length);
+    }
+
+    /**
+     * Writes a UTF8String leaf, with the same strict UTF-8 rule as {@link DerWriter#writeUtf8String}.
+     *
+     * @throws DerUtf8.UnencodableStringException if {@code value} has an unpaired surrogate
+     */
+    public final DerEncoder utf8(String value) {
+        if (value == null) throw new NullPointerException("value");
+        try {
+            return leaf(Tag.UTF8STRING, DerUtf8.encode(value));
+        } catch (DerException e) {
+            throw new DerUtf8.UnencodableStringException(e.getMessage(), e);
+        }
+    }
+
+    /** Writes an INTEGER leaf: minimal two's-complement octets, the same bytes as {@link DerWriter#writeInteger(long)}. */
+    public final DerEncoder integer(long value) {
+        return leaf(Tag.INTEGER, integerContent(value));
+    }
+
+    /** The content octets of {@link #integer}: minimal two's complement. */
+    public static byte[] integerContent(long value) {
+        int n = ((64 - Long.numberOfLeadingZeros(value ^ (value >> 63))) >> 3) + 1;
+        byte[] content = new byte[n];
+        for (int i = n - 1; i >= 0; i--, value >>= 8) content[i] = (byte) value;
+        return content;
+    }
+
+    private static final byte[] TRUE_TLV = {0x01, 0x01, (byte) 0xFF};
+    private static final byte[] FALSE_TLV = {0x01, 0x01, 0x00};
+    private static final byte[] NULL_TLV = {0x05, 0x00};
+
+    /** Writes a BOOLEAN (DER: {@code 0xFF} for true). */
+    public final DerEncoder bool(boolean value) {
+        return raw(value ? TRUE_TLV : FALSE_TLV);
+    }
+
+    /** Writes a DER NULL. */
+    public final DerEncoder nul() {
+        return raw(NULL_TLV);
+    }
+
+    /** Writes an OCTET STRING leaf. */
+    public final DerEncoder octets(byte[] value) {
+        if (value == null) throw new NullPointerException("value");
+        return leaf(Tag.OCTET_STRING, value);
+    }
+}

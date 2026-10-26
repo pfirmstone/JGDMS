@@ -428,10 +428,18 @@ public final class CollectionWireTypes {
      *         after {@code b}
      */
     public static int compareOctets(byte[] a, byte[] b) {
-        int min = Math.min(a.length, b.length);
+        return compareOctets(a, 0, a.length, b, 0, b.length);
+    }
+
+    /**
+     * {@link #compareOctets(byte[], byte[])} on ranges of larger arrays, so a verifier comparing two adjacent elements of a
+     * buffer it already holds need copy neither. This is the one implementation: the array form calls it.
+     */
+    public static int compareOctets(byte[] a, int aOff, int aLen, byte[] b, int bOff, int bLen) {
+        int min = Math.min(aLen, bLen);
         for (int i = 0; i < min; i++) {
-            int ai = a[i] & 0xFF;
-            int bi = b[i] & 0xFF;
+            int ai = a[aOff + i] & 0xFF;
+            int bi = b[bOff + i] & 0xFF;
             if (ai != bi) {
                 return ai - bi;
             }
@@ -441,21 +449,33 @@ public final class CollectionWireTypes {
         // 0x00 in the longer would tie the padded comparison, but DER canonical TLVs
         // never differ only by trailing zero padding, so length order is the correct
         // and deterministic tie-break (and equal-length-equal-bytes => 0).
-        if (a.length == b.length) {
+        if (aLen == bLen) {
             return 0;
         }
         // Padding the shorter with 0x00: any remaining octet of the longer that is
         // > 0x00 makes the longer greater; a remaining 0x00 keeps them tied so far.
-        byte[] longer = a.length > b.length ? a : b;
-        for (int i = min; i < longer.length; i++) {
-            if ((longer[i] & 0xFF) != 0x00) {
+        byte[] longer = aLen > bLen ? a : b;
+        int longerOff = aLen > bLen ? aOff : bOff;
+        int longerLen = aLen > bLen ? aLen : bLen;
+        for (int i = min; i < longerLen; i++) {
+            if ((longer[longerOff + i] & 0xFF) != 0x00) {
                 // longer > shorter+padding
-                return a.length > b.length ? 1 : -1;
+                return aLen > bLen ? 1 : -1;
             }
         }
         // Longer is shorter followed only by 0x00 octets: padded-equal. Order by
         // length so the sort is still a strict, deterministic total order.
-        return Integer.compare(a.length, b.length);
+        return Integer.compare(aLen, bLen);
+    }
+
+    /**
+     * Whether adjacent element encodings whose {@link #compareOctets} is {@code cmp} are out of the order a canonicalise
+     * collection requires: strictly ascending for a {@code set:} or the keys of a {@code map:} (so a duplicate is out of order),
+     * non-decreasing for a {@code bag:} ({@code multiset}). The decoder and the whole-stream admission both ask this, so the
+     * rule is stated once.
+     */
+    public static boolean orderViolated(int cmp, boolean multiset) {
+        return multiset ? cmp > 0 : cmp >= 0;
     }
 
     /**

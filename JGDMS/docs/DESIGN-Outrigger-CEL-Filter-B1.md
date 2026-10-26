@@ -58,10 +58,10 @@ in B1. All eight overloads admit their filter in B1; none evaluate it yet — ea
 
 ---
 
-## 2. Client-facing interface: `FilteredJavaSpace` (proposed permanent name — OPEN)
+## 2. Client-facing interface: `FilteredTupleSpace` (renamed from `FilteredJavaSpace`, 2026-07-26 — trademark-clean)
 
 **Decision (Peter).** `SpaceProxy2` additionally implements a new interface,
-**`net.jini.space.FilteredJavaSpace`** (module **`jgdms-lib-dl`**, alongside `JavaSpace`, `JavaSpace05`,
+**`net.jini.space.FilteredTupleSpace`** (module **`jgdms-lib-dl`**, alongside `JavaSpace`, `JavaSpace05`,
 `TupleSpace`, `MatchSet`), whose eight methods mirror the JavaSpace/`JavaSpace05`/`TupleSpace` operations with
 a trailing `byte[] filter`:
 
@@ -75,14 +75,14 @@ MatchSet contents(Collection tmpls, Transaction, long leaseDuration, long maxEnt
 Collection take(Collection tmpls, Transaction, long timeout, long maxEntries, byte[] filter)
 ```
 
-A client obtains filtered semantics by casting its space proxy to `FilteredJavaSpace`. A `null` filter is a
+A client obtains filtered semantics by casting its space proxy to `FilteredTupleSpace`. A `null` filter is a
 caller error (`NullPointerException`) — the ordinary unfiltered methods exist for unfiltered queries.
 
 `ConstrainableSpaceProxy2.methodMapArray` gains a client-method → backend-method pair for each of the eight,
 so per-method constraints (including the space's `ATOMIC_DER` `MarshallingFormat` requirement) map onto the
 filtered backend calls exactly as for the unfiltered siblings.
 
-**DECISION (Peter): `net.jini.space` in `jgdms-lib-dl`, NOT the `-dl` proxy package.** `FilteredJavaSpace` is
+**DECISION (Peter): `net.jini.space` in `jgdms-lib-dl`, NOT the `-dl` proxy package.** `FilteredTupleSpace` is
 a client-compile-time API — a client programs against it and casts its proxy to it — so it cannot live in
 `org.apache.river.outrigger.proxy`, which ships in the **downloaded** codebase proxy jar. It belongs in the
 public space-API namespace `net.jini.space` (module `jgdms-lib-dl`), the same place `SpaceProxy2` already gets
@@ -262,6 +262,19 @@ Constraints B1 pins for B2 (from SOW §3.2/§3.3):
   a fail-closed exclusion, it is simply out of scope. Field names were already type-checked against that one
   schema at admission (a wrong *type* on an existing field was rejected loudly; an unknown field *name*
   deferred — see below).
+
+  **`[AMENDED — RATIFIED Peter 2026-07-26]`** A candidate whose `entrySchemaDigest` matches no filter key is
+  **no longer** treated as an unconditional non-match/out-of-scope. B3 established that this case is dominated
+  by **subclass entries**: a subclass candidate byte-matches its superclass template on the template's own
+  fields but carries its own, longer schema chain, so its digest differs from the template's key even though it
+  is a legitimate byte-matched candidate — treating that as unconditional "out of scope" let such candidates
+  through **entirely unfiltered**, contradicting this memo's own §1 rationale. Per B3, a digest-mismatched
+  candidate is instead **resolved schema-less against its own schema chain**, exactly like the null-key case
+  immediately below: each referenced field name is looked up in the candidate's own v2 schema;
+  present-and-unambiguous ⇒ evaluated against the candidate's own value; absent-or-ambiguous ⇒ a fail-closed
+  exclusion (counted in `filter.failClosedExclusions`), never an unconditional pass-through. This means subclass
+  entries are now filtered by their inherited fields. See `DESIGN-Outrigger-CEL-Filter-B3.md` §5 (and §3, where
+  the amended non-null-key rule is stated in full) for the ratified mechanism.
 - **Null key** (filter admitted schema-lessly, against a null / match-any template): the filter applies to
   **ALL candidates**. There was no template schema to type-check against, so each referenced field name is
   resolved **per candidate**, against that candidate's own v2 schema, at evaluation time. A candidate whose
@@ -322,12 +335,12 @@ authoring — both loud).
 | Module | Adds | Release | New dep |
 |--------|------|---------|---------|
 | `jgdms-der` | `EntryRepV2Codec.decodeEntrySchemaChain` (read-only helper + `EntrySchemaChain` record) | 25 | — |
-| `jgdms-lib-dl` | `net.jini.space.FilteredJavaSpace` (client API), `net.jini.space.FilterRejectedException` (API exception) | 8 | none |
+| `jgdms-lib-dl` | `net.jini.space.FilteredTupleSpace` (client API), `net.jini.space.FilterRejectedException` (API exception) | 8 | none |
 | `outrigger-dl` | `FilterEnvelope` (opaque codec); `OutriggerServer` filtered overloads; `SpaceProxy2` + `ConstrainableSpaceProxy2` plumbing; `EntryRep.bodyBytes()` | 8 | none (already deps `jgdms-lib-dl`) |
 | `outrigger-service` | `CompiledFilter`, `FilterAdmission`; filtered `OutriggerServerImpl` + `OutriggerServerWrapper` methods | 21 | `jgdms-cel` (precedent: already deps release-25 `jgdms-der`) |
 | `outrigger-cel-authoring` (new) | `EntrySchemaView`, `EntryFilter` | 25 | `outrigger-dl`, `jgdms-cel-authoring` |
 
-The client-facing API (`FilteredJavaSpace` + `FilterRejectedException`) lives in the public `net.jini.space`
+The client-facing API (`FilteredTupleSpace` + `FilterRejectedException`) lives in the public `net.jini.space`
 namespace (`jgdms-lib-dl`), not the downloaded `-dl` proxy package; both are CEL-free (opaque `byte[]` + a
 transport-neutral reason enum). `outrigger-dl` keeps its release-8, CEL-free discipline: its only filter type
 is the opaque `FilterEnvelope` codec. All CEL type contact is server-side (`outrigger-service`) or
@@ -343,7 +356,7 @@ own (B4). B1 stops at "a verified filter exists".
 
 ## 10. Open questions carried to the board
 
-1. **[RESOLVED — Peter]** `FilteredJavaSpace` name/home (§2): name kept; placed in **`net.jini.space`**
+1. **[RESOLVED — Peter]** `FilteredTupleSpace` name/home (§2): RENAMED 2026-07-26 from `FilteredJavaSpace` to avoid the "JavaSpaces"/"Java" (Oracle) trademark — "tuple space" is the generic Linda-model term, already used by `net.jini.space.TupleSpace`; placed in **`net.jini.space`**
    (module `jgdms-lib-dl`), the public space-API namespace — NOT the downloaded `-dl` proxy package.
    `FilterRejectedException` moves with it to `net.jini.space` (next to `InternalSpaceException`).
 2. **[RESOLVED — Peter]** Observability audience (§5): operator-only; no client-visible exclusion count.

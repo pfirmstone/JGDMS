@@ -20,6 +20,7 @@ package net.jini.jeri.ssl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -28,6 +29,7 @@ import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.connection.OutboundRequestHandle;
 
@@ -82,6 +84,16 @@ class CallContext extends Utilities implements OutboundRequestHandle {
     final boolean atomicityPreferred;
 
     /**
+     * The required MarshallingFormat constraints deferred by the transport to
+     * the invocation layer (each enforced verbatim by
+     * BasicInvocationHandler.requireMarshallingFormat). Never null.
+     */
+    final Set<MarshallingFormat> marshallingRequired;
+
+    /** The preferred MarshallingFormat constraints (deferred). Never null. */
+    final Set<MarshallingFormat> marshallingPreferred;
+
+    /**
      * The absolute time by which a new connection must be completed, or
      * Long.MAX_VALUE for no restriction.
      */
@@ -121,6 +133,8 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 		boolean integrityPreferred,
 		boolean atomicityRequired,
 		boolean atomicityPreferred,
+		Set<MarshallingFormat> marshallingRequired,
+		Set<MarshallingFormat> marshallingPreferred,
 		long connectionTime)
     {
 	this.endpoint = endpoint;
@@ -135,6 +149,12 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	this.integrityPreferred = integrityPreferred;
 	this.atomicityRequired = atomicityRequired;
 	this.atomicityPreferred = atomicityPreferred;
+	this.marshallingRequired = marshallingRequired == null
+	    ? java.util.Collections.<MarshallingFormat>emptySet()
+	    : new LinkedHashSet<MarshallingFormat>(marshallingRequired);
+	this.marshallingPreferred = marshallingPreferred == null
+	    ? java.util.Collections.<MarshallingFormat>emptySet()
+	    : new LinkedHashSet<MarshallingFormat>(marshallingPreferred);
 	this.connectionTime = connectionTime;
     }
     
@@ -148,6 +168,8 @@ class CallContext extends Utilities implements OutboundRequestHandle {
         if (!integrityPreferred == that.integrityPreferred) return false;
         if (!atomicityRequired == that.atomicityRequired) return false;
         if (!atomicityPreferred == that.atomicityPreferred) return false;
+        if (!Objects.equals(marshallingRequired, that.marshallingRequired)) return false;
+        if (!Objects.equals(marshallingPreferred, that.marshallingPreferred)) return false;
         if (!(connectionTime == that.connectionTime)) return false;
         if (!Objects.equals(endpoint, that.endpoint)) return false;
         if (!Objects.equals(endpointImpl, that.endpointImpl)) return false;
@@ -171,6 +193,8 @@ class CallContext extends Utilities implements OutboundRequestHandle {
         hash = 71 * hash + (this.integrityPreferred ? 1 : 0);
         hash = 71 * hash + (this.atomicityRequired ? 1 : 0);
         hash = 71 * hash + (this.atomicityPreferred ? 1 : 0);
+        hash = 71 * hash + Objects.hashCode(this.marshallingRequired);
+        hash = 71 * hash + Objects.hashCode(this.marshallingPreferred);
         hash = 71 * hash + (int) (this.connectionTime ^ (this.connectionTime >>> 32));
         return hash;
     }
@@ -202,6 +226,12 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	} else if (atomicityPreferred) {
 	    buff.append("\n  deserialization input validation failure atomicity=preferred");
 	}
+	if (!marshallingRequired.isEmpty()) {
+	    buff.append("\n  marshallingFormat required=").append(marshallingRequired);
+	}
+	if (!marshallingPreferred.isEmpty()) {
+	    buff.append("\n  marshallingFormat preferred=").append(marshallingPreferred);
+	}
 	if (connectionTime != Long.MAX_VALUE) {
 	    buff.append("\n  connectionTime=").append(connectionTime);
 	}
@@ -224,7 +254,23 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	if (atomicityRequired){
 	    required.add(AtomicInputValidation.YES);
 	} else if (atomicityPreferred){
-	    preferred.add(AtomicInputValidation.YES);   
+	    preferred.add(AtomicInputValidation.YES);
+	}
+	/*
+	 * Carry every deferred MarshallingFormat up VERBATIM (preserving its
+	 * format) so BasicInvocationHandler.requireMarshallingFormat runs and
+	 * rejects a codec whose format does not match (JGDMS-STD-008 sec.18.3).
+	 * Requirements are added independently of integrity/atomicity so a required
+	 * format is never dropped; a preferred format is added only if not also
+	 * required.
+	 */
+	for (MarshallingFormat mf : marshallingRequired) {
+	    required.add(mf);
+	}
+	for (MarshallingFormat mf : marshallingPreferred) {
+	    if (!marshallingRequired.contains(mf)) {
+		preferred.add(mf);
+	    }
 	}
 	if (!required.isEmpty() || !preferred.isEmpty()){
 	    return new InvocationConstraints(required, preferred);

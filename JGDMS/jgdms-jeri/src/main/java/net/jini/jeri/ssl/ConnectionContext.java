@@ -19,7 +19,9 @@
 package net.jini.jeri.ssl;
 
 import java.security.Principal;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import javax.security.auth.x500.X500Principal;
 import net.jini.core.constraint.AtomicInputValidation;
@@ -38,6 +40,7 @@ import net.jini.core.constraint.DelegationRelativeTime;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 
@@ -65,6 +68,20 @@ final class ConnectionContext extends Utilities {
 
     /** Constraints not supported */
     private static final long NOT_SUPPORTED = -4;
+
+    /**
+     * Constraint deferred to the invocation layer: a MarshallingFormat. The
+     * transport does NOT implement it and must NEVER claim to satisfy it
+     * (return OK) -- doing so would skip the invocation-layer check
+     * (BasicInvocationHandler.requireMarshallingFormat /
+     * BasicInvocationDispatcher.verifyAndStripMarshallingFormat) and let an
+     * Atomic-JOSS codec bypass a required ATOMIC_DER format (JGDMS-STD-008
+     * sec.18.3). The actual constraint object is carried up (marshallingRequired
+     * / marshallingPreferred) rather than a boolean, because MarshallingFormat is
+     * not a singleton -- it carries a format string that the invocation layer
+     * must see verbatim.
+     */
+    private static final long MARSHALLING = -5;
 
     /** The ClientMinPrincipalType supported by the provider. */
     private static final ClientMinPrincipalType clientMinPrincipalType =
@@ -99,9 +116,21 @@ final class ConnectionContext extends Utilities {
     
     /** Whether the requirements specify AtomicInputValidation.YES */
     private boolean atomicityRequired;
-    
+
     /** Whether the preferences specify AtomicInputValidation.YES */
     private boolean atomicityPreferred;
+
+    /**
+     * The MarshallingFormat constraints required by the requirements, deferred
+     * to the invocation layer. Never empty implies "at least one MarshallingFormat
+     * requirement present" (parallel to integrityRequired).
+     */
+    private final Set<MarshallingFormat> marshallingRequired =
+	new LinkedHashSet<MarshallingFormat>(1);
+
+    /** The MarshallingFormat constraints from the preferences. */
+    private final Set<MarshallingFormat> marshallingPreferred =
+	new LinkedHashSet<MarshallingFormat>(1);
 
     /** The absolute connection time, or Long.MAX_VALUE if not specified */
     private long connectionTime = Long.MAX_VALUE;
@@ -172,6 +201,12 @@ final class ConnectionContext extends Utilities {
 	} else if (atomicityPreferred) {
 	    sb.append(", input validation failure atomicity: preferred");
 	}
+	if (!marshallingRequired.isEmpty()) {
+	    sb.append(", marshallingFormat required: ").append(marshallingRequired);
+	}
+	if (!marshallingPreferred.isEmpty()) {
+	    sb.append(", marshallingFormat preferred: ").append(marshallingPreferred);
+	}
 	if (connectionTime != Long.MAX_VALUE) {
 	    sb.append(", connectionTime = ").append(connectionTime);
 	}
@@ -199,6 +234,22 @@ final class ConnectionContext extends Utilities {
     }
 
     /**
+     * Returns the required MarshallingFormat constraints deferred to the
+     * invocation layer (verbatim, preserving each format), possibly empty.
+     */
+    Set<MarshallingFormat> getMarshallingRequired() {
+	return Collections.unmodifiableSet(marshallingRequired);
+    }
+
+    /**
+     * Returns the preferred MarshallingFormat constraints deferred to the
+     * invocation layer, possibly empty.
+     */
+    Set<MarshallingFormat> getMarshallingPreferred() {
+	return Collections.unmodifiableSet(marshallingPreferred);
+    }
+
+    /**
      * Returns the absolute time when the connection should be completed, or
      * Long.MAX_VALUE for no limit.
      */
@@ -222,7 +273,8 @@ final class ConnectionContext extends Utilities {
 	}
 	for (Iterator i = constraints.requirements().iterator(); i.hasNext(); )
 	{
-	    long r = supported((InvocationConstraint) i.next());
+	    InvocationConstraint c = (InvocationConstraint) i.next();
+	    long r = supported(c);
 	    if (r == NOT_SUPPORTED) {
 		return false;
 	    }
@@ -230,12 +282,19 @@ final class ConnectionContext extends Utilities {
 		integrityRequired = true;
 	    } else if (r == ATOMICITY){
 		atomicityRequired = true;
+	    } else if (r == MARSHALLING){
+		// A MARSHALLING verdict comes only from a direct MarshallingFormat
+		// constraint (never via ConstraintAlternatives -- see supported
+		// (ConstraintAlternatives)), so this cast is safe. Carry the actual
+		// constraint up; the invocation layer enforces the format.
+		marshallingRequired.add((MarshallingFormat) c);
 	    } else if (connectionTime > r) {
 		connectionTime = r;
 	    }
 	}
 	for (Iterator i = constraints.preferences().iterator(); i.hasNext(); ) {
-	    long r = supported((InvocationConstraint) i.next());
+	    InvocationConstraint c = (InvocationConstraint) i.next();
+	    long r = supported(c);
 	    if (r == NOT_SUPPORTED) {
 	      continue;
 	    }
@@ -248,13 +307,21 @@ final class ConnectionContext extends Utilities {
 		if (!atomicityRequired){
 		    atomicityPreferred = true;
 		}
+	    } else if (r == MARSHALLING){
+		// A preferred MarshallingFormat: carry it up as a preference. The
+		// invocation layer only ENFORCES requirements, so a preferred format
+		// that the codec cannot satisfy is simply not applied.
+		marshallingPreferred.add((MarshallingFormat) c);
 	    } else if (connectionTime > r) {
 		connectionTime = r;
 	    }
 	}
 	if (upperLayerConstraints){
+	    // A lone MarshallingFormat requirement/preference must keep the
+	    // upper-layer context usable, exactly like a lone Integrity/Atomicity.
 	    if (!integrityRequired && !integrityPreferred && !atomicityRequired
-		    && !atomicityPreferred) return false;
+		    && !atomicityPreferred && marshallingRequired.isEmpty()
+		    && marshallingPreferred.isEmpty()) return false;
 	}
 	return true;
     }
@@ -275,6 +342,16 @@ final class ConnectionContext extends Utilities {
 	} else if (constraint instanceof AtomicInputValidation){
 	    return upperLayerConstraints && constraint == AtomicInputValidation.YES
 		? ATOMICITY : NOT_SUPPORTED;
+	} else if (constraint instanceof MarshallingFormat) {
+	    /*
+	     * DEFER to the invocation layer (JGDMS-STD-008 sec.18.3). NEVER return
+	     * OK here: OK would tell the endpoint the transport satisfies the
+	     * format, so the invocation-layer check that rejects a mismatched codec
+	     * (e.g. Atomic JOSS vs required ATOMIC_DER) would be skipped -- the
+	     * exact hole to avoid. Gate on upperLayerConstraints exactly like
+	     * Integrity/AtomicInputValidation.
+	     */
+	    return upperLayerConstraints ? MARSHALLING : NOT_SUPPORTED;
 	} else if (constraint instanceof Confidentiality) {
 	    return ok(doesEncryption(cipherSuite) ==
 		      (constraint == Confidentiality.YES));
@@ -342,6 +419,16 @@ final class ConnectionContext extends Utilities {
 		return NOT_SUPPORTED;
 	    }
 	    long r = supported(alt);
+	    if (r == MARSHALLING) {
+		/*
+		 * A MarshallingFormat inside a ConstraintAlternatives cannot be
+		 * safely deferred through the single-format invocation-layer check
+		 * (which enforces one required format, not a choice). Refusing here
+		 * (NOT_SUPPORTED) is fail-closed; returning OK would be a JOSS-bypass
+		 * hole. No JGDMS DER proxy uses MarshallingFormat in alternatives.
+		 */
+		return NOT_SUPPORTED;
+	    }
 	    if (r != NOT_SUPPORTED) {
 		supported = true;
 		if (r == INTEGRITY) {
@@ -375,6 +462,8 @@ final class ConnectionContext extends Utilities {
 	hash = 17 * hash + (this.integrityPreferred ? 1 : 0);
 	hash = 17 * hash + (this.atomicityRequired ? 1 : 0);
 	hash = 17 * hash + (this.atomicityPreferred ? 1 : 0);
+	hash = 17 * hash + this.marshallingRequired.hashCode();
+	hash = 17 * hash + this.marshallingPreferred.hashCode();
 	hash = 17 * hash + (int) (this.connectionTime ^ (this.connectionTime >>> 32));
 	hash = 17 * hash + this.preferences;
 	return hash;
@@ -386,6 +475,8 @@ final class ConnectionContext extends Utilities {
 	ConnectionContext that = (ConnectionContext) o;
 	if (this.atomicityPreferred != that.atomicityPreferred) return false;
 	if (this.atomicityRequired != that.atomicityRequired) return false;
+	if (!this.marshallingRequired.equals(that.marshallingRequired)) return false;
+	if (!this.marshallingPreferred.equals(that.marshallingPreferred)) return false;
 	if (this.clientSide != that.clientSide) return false;
 	if (this.integrityPreferred != that.integrityPreferred) return false;
 	if (this.integrityRequired != that.integrityRequired) return false;

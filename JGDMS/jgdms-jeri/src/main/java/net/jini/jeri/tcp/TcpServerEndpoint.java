@@ -19,6 +19,7 @@
 package net.jini.jeri.tcp;
 
 import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.ListenBacklog;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;
@@ -633,15 +634,16 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 		throw new NullPointerException();
 	    }
 
+	    int backlog = ListenBacklog.get();
 	    ServerSocket serverSocket;
 	    if (ssf != null) {
-		serverSocket = ssf.createServerSocket(port);
+		serverSocket = ssf.createServerSocket(port, backlog);
 	    } else {
 		if (useNIO) {
 		    serverSocket = ServerSocketChannel.open().socket();
-		    serverSocket.bind(new InetSocketAddress(port));
+		    serverSocket.bind(new InetSocketAddress(port), backlog);
 		} else {
-		    serverSocket = new ServerSocket(port);
+		    serverSocket = new ServerSocket(port, backlog);
 		}
 	    }
 

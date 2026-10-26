@@ -1,6 +1,6 @@
 # JGDMS-STD-005 — SerialEntry Compliance Standard
 
-**Version:** 1.0  
+**Version:** 1.2  
 **Status:** Active  
 **Package:** `net.jini.core.entry`  
 **Scope:** All `Entry` classes that adopt the
@@ -383,8 +383,53 @@ because:
 | Record limitation | `@SerialEntry` workaround |
 |-------------------|--------------------------|
 | The canonical constructor signature is fixed (`(T1 c1, T2 c2, …)`) — it cannot accept `GetEntryArg`. | Provide a compact canonical constructor for normal construction, plus a separate `public RecordEntry(GetEntryArg arg)` constructor that delegates: `this(arg.get("c1", null, T1.class), …)`. |
-| A record cannot extend another class (`extends AbstractEntry`). | Implement `Entry` directly; provide `equals()`, `hashCode()`, and `toString()` either explicitly or via the default record implementations. |
+| A record cannot extend another class (`extends AbstractEntry`). | Implement `Entry` directly. No workaround is needed for `equals()`/`hashCode()`/`toString()` — a record supplies them, and this standard does not require them. See *Why a record's finality is an advantage* below: for entries, non-extensibility is a benefit, not a constraint. |
 | The legacy no-arg constructor required by plain `Entry` registrars cannot be added to a record. | If legacy interop is not required, omit the no-arg constructor; the `(GetEntryArg)` constructor is sufficient for `@SerialEntry`-aware registrars. |
+
+### Why a record's finality is an advantage, not a limitation
+
+A record is implicitly `final`, so an `@SerialEntry` record cannot be
+subclassed. For entries this removes hazards rather than imposing one.
+Entry inheritance never bought anything on the wire in any case: every
+subclass produces a distinct schema identity, and is therefore already a
+distinct wire type.
+
+- **No hierarchy to linearise.** Reflective entry field ordering is
+  superclass-first, then alphabetical. A single record has one flat
+  component list, and `@SerialEntry` states the wire schema explicitly in
+  `entryForm()`, so ordering is declared rather than derived — the same
+  property that lets a non-JVM Registrar compute an identical schema hash.
+- **No prefix matching.** A superclass template matching a subclass entry
+  otherwise compares the template's fields against a *prefix* of a longer
+  field vector. With no subtypes, entry types either correspond or they do
+  not.
+- **No field shadowing.** Java permits a subclass to redeclare a superclass
+  field name. This is unambiguous for the **serial form**, because `GetArg`
+  resolution is caller-sensitive — each class in the chain reads its own
+  declared fields. It is *not* unambiguous for an externally authored
+  **unqualified** field reference: a CEL filter naming a bare field must
+  either qualify it or fail closed. A final record makes unqualified
+  resolution total.
+- **No `equals` contract to break.** The `equals` contract cannot be
+  preserved across an instantiable superclass and its subclasses — which is
+  precisely why `AbstractEntry.equals` requires both operands to be of the
+  same class. A final record has no such tension.
+
+**`equals()` and `hashCode()` are not required of an entry.** Jini matching
+is byte-equality over the canonical serialized field values and never
+invokes `equals()`. A record supplies both for free over its components,
+which is a convenience for application code placing entries in hash-based
+collections — not an obligation imposed by this standard.
+
+**Immutability removes the need for defensive copying.** A record's
+components are assigned atomically by the canonical constructor and cannot
+subsequently be mutated, so an entry handed to more than one consumer cannot
+be altered underneath either of them. `CloneableEntry` and
+`AbstractEntry.clone()` exist to defend mutable public-field entries against
+exactly that hazard, and that defence is shallow — it copies field slots,
+not the objects they reference. A record entry needs neither.
+
+---
 
 ### Minimal record example
 

@@ -1009,6 +1009,20 @@ schema `SIZE`/value constraint expressing the same ceiling. **[PROPOSED]**
 Text fields (principal class names, principal names, URIs) are `UTF8String`.
 This replaces the ad-hoc `UTF-8 : className / name` pairs in the `0x02` block.
 
+**UTF8String content MUST be well-formed UTF-8 (RFC 3629) — NORMATIVE.** A conformant decoder
+**MUST reject** (fail-secure, design principle 6) any `UTF8String` — and any context-tagged string
+item or field whose content is UTF-8, such as `[3]` String and the schema's `className`, `wireName`
+and `wireType` — whose content octets are ill-formed: overlong forms (e.g. `C0 80`), encoded
+surrogate code points (`ED A0 80`..`ED BF BF`), code points above U+10FFFF (`F4 90 80 80`), truncated
+sequences, stray continuation octets and invalid lead octets (`FF`, `FE`). It MUST NOT substitute
+U+FFFD or otherwise repair the content: a decoder that did would map many different octet strings to
+one value and break one-encoding-per-value (design principle 2; the same hazard as a non-minimal
+length). A genuine U+FFFD (`EF BF BD`) is well-formed and is accepted. A conformant **encoder**
+MUST NOT emit a string that is not well-formed UTF-16 (an unpaired or reversed surrogate has no UTF-8
+encoding; silently substituting `?` makes two distinct strings encode identically) and MUST fail the
+encode instead. There is no compatibility mode: an option admitting a second encoding of a value
+is non-conformant. (STD-011 Appendix B §B.5 item 10 relies on this requirement.)
+
 ### 4.3 Digests and Algorithms
 
 Content digests are encoded as `AlgorithmIdentifier` (the X.509 structure, reused
@@ -3592,4 +3606,4 @@ is not needed and must not be assumed available.
 | JGDMS-STD-005 (SerialEntry Compliance) | `@SerialEntry` classes follow STD-005's validation contract. The DER encoding of `entryForm()` → `EntrySchemaRecord` (§7.7.1) is the canonical encoding for cross-runtime use. STD-005 Appendix B records this relationship and the hash migration note. `PutEntryArg`/`GetEntryArg` are encoding-neutral interfaces; the DER implementation plugs in without modifying any `@SerialEntry` class. |
 | Warres (2006) SMLI TR-2006-149 | Documents the class-loading failures that motivated removal of in-stream codebase annotations (§8). Referenced as the authoritative description of the problem space. |
 | `PreferredProxyCodebaseProvider` | Implements the `CodebaseAccessor.getClassAnnotation()` authenticated replacement for in-stream URL annotations. Its `VerdictRegistry` + `DigestGrant` pipeline is the mechanism that replaces codebase annotation security (§8.2). |
-| `JGDMS-AGENT-CONTEXT-SpiffeDiscoveryProvider.md` | Implementation guide for the `net.jini.discovery.x500.SHA256withECDSA` and `net.jini.discovery.spiffe.SHA256withECDSA` formats (§7.7.7) and the DER unicast response (§7.7.8). Contains phase-by-phase implementation plan, known traps, and acceptance criteria. Resolves the open questions in §10 items 14–19 during implementation. |
+| `JGDMS-AGENT-CONTEXT-SpiffeDiscoveryProvider-v1.4.md` | Implementation guide for the `net.jini.discovery.spiffe.SHA256withECDSA` and `net.jini.discovery.spiffe.SHA512withECDSA` formats (§7.7.7) and the DER unicast response (§7.7.8). Contains phase-by-phase implementation plan, known traps, and acceptance criteria. Resolves the open questions in §10 items 14–19 during implementation. |

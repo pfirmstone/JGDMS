@@ -33,7 +33,7 @@ import au.net.zeus.jgdms.cel.wire.CelFilterRecord;
  * Client-side compiler from a CEL text rule to an Outrigger filter envelope
  * (SOW Part&nbsp;B / JGDMS-STD-011). The produced {@code byte[]} is a canonical
  * {@link FilterEnvelope} ready to pass as the {@code filter} parameter of a
- * {@code FilteredJavaSpace} operation.
+ * {@code FilteredTupleSpace} operation.
  *
  * <h3>Pipeline</h3>
  * <ol>

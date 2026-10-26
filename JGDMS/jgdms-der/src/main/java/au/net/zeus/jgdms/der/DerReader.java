@@ -85,6 +85,29 @@ public final class DerReader {
     }
 
     /**
+     * Creates a reader over {@code buf[start, end)} without copying. The reader cannot see, and tag/length
+     * decoding cannot run into, any byte at or after {@code end}; {@link #position()} and
+     * {@link #endBound()} are indexes into {@code buf}, so ranges of one shared buffer can be walked and
+     * re-emitted without slicing.
+     *
+     * @param buf   the data (shared, not copied; the caller must not modify it while the reader is in use)
+     * @param start first readable position
+     * @param end   exclusive end of the readable window
+     * @throws NullPointerException     if {@code buf} is {@code null}
+     * @throws IllegalArgumentException unless {@code 0 <= start <= end <= buf.length}
+     */
+    public DerReader(byte[] buf, int start, int end) {
+        if (buf == null) throw new NullPointerException("buf");
+        if (start < 0 || end < start || end > buf.length) {
+            throw new IllegalArgumentException("window [" + start + ", " + end
+                    + ") is outside buffer of length " + buf.length);
+        }
+        this.buf = buf;
+        this.pos = start;
+        this.end = end;
+    }
+
+    /**
      * Creates a sub-reader for a slice of the buffer. Used internally to
      * implement SEQUENCE boundary enforcement.
      *
@@ -92,11 +115,6 @@ public final class DerReader {
      * @param start first readable position
      * @param end   exclusive end (one past the last readable byte)
      */
-    private DerReader(byte[] buf, int start, int end) {
-        this.buf = buf;
-        this.pos = start;
-        this.end = end;
-    }
 
     /* ================================================================== */
     /* Position queries                                                     */
@@ -162,7 +180,7 @@ public final class DerReader {
      */
     public Tag peekTag() throws DerException {
         requireBytes(1);
-        Tag.DecodeResult result = Tag.decode(buf, pos);
+        Tag.DecodeResult result = Tag.decode(buf, pos, end);
         return result.tag();
     }
 
@@ -189,7 +207,7 @@ public final class DerReader {
      */
     public TlvHeader readTlvHeader() throws DerException {
         requireBytes(1);
-        Tag.DecodeResult tagResult = Tag.decode(buf, pos);
+        Tag.DecodeResult tagResult = Tag.decode(buf, pos, end);
         pos += tagResult.bytesRead();
 
         int len = decodeLength();
@@ -300,6 +318,45 @@ public final class DerReader {
     }
 
     /**
+     * Consumes an OCTET STRING header and returns its content length, leaving the cursor at the first
+     * content octet (see {@link #position()}); the caller then {@link #skip skips} or reads the content.
+     * Validates exactly as {@link #readOctetString()} does, without copying the content.
+     *
+     * @throws DerException if the encoding is malformed or the tag is not OCTET STRING
+     */
+    public int readOctetStringHeader() throws DerException {
+        TlvHeader hdr = readTlvHeader();
+        if (!Tag.OCTET_STRING.equals(hdr.tag())) {
+            throw new DerException("Expected OCTET STRING (tag 0x04), got " + hdr.tag());
+        }
+        return hdr.contentLength();
+    }
+
+    /**
+     * Reads one complete TLV of any tag (header validated as by {@link #readTlvHeader()}) and moves the
+     * cursor past its content without copying it.
+     *
+     * @return the absolute end index of the TLV; its start is {@link #position()} before the call
+     * @throws DerException if the TLV is malformed or does not fit in this reader's window
+     */
+    public int skipTlv() throws DerException {
+        TlvHeader hdr = readTlvHeader();
+        skip(hdr.contentLength());
+        return pos;
+    }
+
+    /**
+     * Advances the cursor by {@code length} octets without copying them.
+     *
+     * @throws DerException if {@code length} is negative or fewer octets remain in the window
+     */
+    public void skip(int length) throws DerException {
+        if (length < 0) throw new DerException("skip: negative length " + length);
+        requireBytes(length);
+        pos += length;
+    }
+
+    /**
      * Reads a UTF8String TLV, decoding the content bytes as UTF-8.
      * <p>
      * The empty UTF8String ({@code 0C 00}) is valid and returns an empty
@@ -315,12 +372,9 @@ public final class DerReader {
             throw new DerException("Expected UTF8String (tag 0x0C), got " + hdr.tag());
         }
         int len = hdr.contentLength();
-        String value;
-        try {
-            value = new String(buf, pos, len, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new DerException("UTF8String: invalid UTF-8 content", e);
-        }
+        // Strict: new String(..., UTF_8) never throws, it substitutes U+FFFD, so many malformed byte
+        // strings would decode to one value (one-encoding-per-value, STD-006 sec.3).
+        String value = DerUtf8.decode(buf, pos, len);
         pos += len;
         return value;
     }
@@ -481,7 +535,7 @@ public final class DerReader {
      * @throws DerException if fewer than {@code needed} bytes remain
      */
     private void requireBytes(int needed) throws DerException {
-        if (pos + needed > end) {
+        if ((long) pos + needed > end) {
             throw new DerException("Unexpected end of DER input: need "
                     + needed + " byte(s) at pos=" + pos + ", end=" + end);
         }

@@ -40,6 +40,8 @@ import java.util.List;
  * answer for the identical {@code (className, fieldName)} query across the
  * lifetime of one evaluation (STD-011 §9.6's evaluation-context isolation) --
  * the evaluator may call these methods more than once for the same query.
+ * For {@link #fieldValue(String, String)} "identical answer" is normative in
+ * the strong, reference sense -- see that method's stability precondition.
  */
 public interface CandidateProjection {
 
@@ -78,6 +80,25 @@ public interface CandidateProjection {
      * #declaresField(String, String)} for the same pair is {@code true}. A
      * wire-null field yields {@link CelValue.NullV#INSTANCE}, never Java
      * {@code null}.
+     * <p>
+     * <b>Precondition (normative) -- reference stability.</b> Within one
+     * evaluation, repeated calls with the identical {@code (className,
+     * fieldName)} pair MUST return the <b>identical instance</b> ({@code ==},
+     * not merely {@code equals}), and for a {@link CelValue.StringV} /
+     * {@link CelValue.BytesV} the wrapped {@code String} / {@code byte[]} MUST
+     * likewise be the identical instance. This is stronger than the
+     * type-level "identical answer" wording above, and it is load-bearing, not
+     * stylistic: the evaluator memoizes {@code size(string)} /
+     * {@code size(bytes)} per candidate in an {@code IdentityHashMap} keyed on
+     * the returned value, so an implementation that returned an
+     * {@code equals}-but-not-{@code ==} instance per call would silently defeat
+     * that memo and re-scan the value on every AST occurrence -- reinstating
+     * the unbounded {@code O(len) x AST-node-count} walk term that the ratified
+     * per-evaluation cost bound (JGDMS Outrigger CEL design memo B3 §4.4)
+     * depends on being removed. An implementation that decodes eagerly at
+     * construction and merely selects here (the reference implementation,
+     * Outrigger's {@code EntryProjection}) satisfies this by construction; one
+     * that decodes lazily MUST cache and return the cached instance.
      * <p>
      * <b>Precondition (normative):</b> any {@link CelValue.StringV} returned
      * MUST be well-formed UTF-16 -- a valid Unicode scalar-value sequence,

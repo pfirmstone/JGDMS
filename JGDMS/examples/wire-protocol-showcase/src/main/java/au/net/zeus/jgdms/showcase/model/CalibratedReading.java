@@ -61,12 +61,13 @@ public final class CalibratedReading extends SensorReading {
     public CalibratedReading(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
         super(check(arg));
         this.calibratedValue                 = arg.get("calibratedValue", 0.0d);
-        this.calibrationCertificateReference = (String) arg.get("calibrationCertificateReference", null);
+        this.calibrationCertificateReference =
+                arg.get("calibrationCertificateReference", null, String.class);
     }
 
     public static AtomicSerial.GetArg check(AtomicSerial.GetArg arg)
             throws IOException, ClassNotFoundException {
-        if (arg.get("calibrationCertificateReference", null) == null) {
+        if (arg.get("calibrationCertificateReference", null, String.class) == null) {
             throw new InvalidObjectException(
                     "CalibratedReading: calibrationCertificateReference must not be null");
         }

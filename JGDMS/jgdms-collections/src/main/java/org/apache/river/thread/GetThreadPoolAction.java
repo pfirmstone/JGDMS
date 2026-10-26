@@ -56,7 +56,6 @@ import java.security.PrivilegedAction;
  *
  * @author Sun Microsystems, Inc.
  * @see ThreadPool
- * @see SubjectPropagatingThreadPool
  **/
 public final class GetThreadPoolAction implements PrivilegedAction<Executor> {
 

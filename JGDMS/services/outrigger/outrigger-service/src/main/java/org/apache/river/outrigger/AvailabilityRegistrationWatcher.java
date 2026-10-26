@@ -37,8 +37,8 @@ import org.apache.river.outrigger.proxy.OutriggerAvailabilityEvent;
  * Subclass of <code>TransitionWatcher</code> for availability event
  * registrations. Also represents the event registration itself.
  */
-abstract class AvailabilityRegistrationWatcher extends TransitionWatcher 
-    implements EventRegistrationRecord
+abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
+    implements EventRegistrationRecord, FilteredWatcher
 {
     /** 
      * The current expiration time of the registration
@@ -79,10 +79,32 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      */
     long eventID;
 
-    /** 
-     * The current sequence number. 
+    /**
+     * The current sequence number.
      */
     private long currentSeqNum = 0;
+
+    /**
+     * The server-side CEL filter set gating this registration's deliveries (SOW
+     * Part&nbsp;B, unit&nbsp;B3, site&nbsp;E). {@link FilterSet#EMPTY} for an
+     * unfiltered registration. Consulted in {@link #process} <em>after</em> the
+     * per-registration txn entitlement gate (the subclass {@code isInterested}
+     * already established it), so INV-1 holds. The compiled set is not itself
+     * persisted; the raw {@linkplain #filterEnvelope() filter envelope} it was
+     * admitted from is, and recovery rebuilds this set by re-admitting that
+     * envelope (fail-closed) — see the durability note on
+     * {@link EventRegistrationWatcher}. {@code volatile} for safe publication to
+     * the journal thread.
+     */
+    private volatile FilterSet filters = FilterSet.EMPTY;
+
+    /**
+     * The raw, opaque canonical {@code FilterEnvelope} bytes this registration was
+     * admitted from — the durable seed for {@link #filters}, persisted by
+     * {@code StorableAvailabilityWatcher} and re-admitted on recovery to rebuild
+     * the compiled {@link FilterSet} fail-closed. {@code null} if unfiltered.
+     */
+    private volatile byte[] filterEnvelope;
 
     /**
      * The <code>TemplateHandle</code>s associated with this
@@ -184,11 +206,21 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    if (now > expiration) {
 		doneFor = true;
 	    } else {
-		server.enqueueDelivery(
-		    new VisibilityEventSender(
-                        transition.getHandle().rep(),
-			transition.isVisible(), 
-			currentSeqNum++));
+		/* B3 (site E): process() runs only for an interested watcher, so the
+		 * subclass's txn entitlement gate already holds (INV-1). Evaluate any
+		 * CEL filter against the transitioning entry BEFORE consuming a
+		 * sequence number or enqueueing -- predicate-false / fail-closed => no
+		 * delivery, no seqnum consumed. FilterEval is wrapped catch-everything,
+		 * so a fault can never kill this (the single journal) thread. */
+		final FilterSet f = filters;
+		if (f.isEmpty()
+			|| FilterEval.matches(f, transition.getHandle().rep())) {
+		    server.enqueueDelivery(
+			new VisibilityEventSender(
+			    transition.getHandle().rep(),
+			    transition.isVisible(),
+			    currentSeqNum++));
+		}
 	    }
 	}
 
@@ -249,6 +281,35 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 
     public final synchronized long getExpiration() {
 	return expiration;
+    }
+
+    /**
+     * Install the CEL {@link FilterSet} gating this registration's deliveries
+     * (B3, site&nbsp;E). Called once at registration, before the watcher is made
+     * visible to the journal. {@code null}/EMPTY leaves it unfiltered.
+     */
+    public void setFilters(FilterSet filters) {
+	this.filters = (filters == null) ? FilterSet.EMPTY : filters;
+    }
+
+    /** @return the CEL {@link FilterSet} gating this registration ({@link FilterSet#EMPTY} if unfiltered). */
+    public FilterSet filters() {
+	return filters;
+    }
+
+    /**
+     * Record the durable filter envelope (the seed re-admitted on recovery to
+     * rebuild {@link #filters}). A defensive copy is retained. {@code null} leaves
+     * the registration unfiltered.
+     */
+    public void setFilterEnvelope(byte[] filterEnvelope) {
+	this.filterEnvelope = (filterEnvelope == null) ? null : filterEnvelope.clone();
+    }
+
+    /** @return a copy of the durable filter envelope, or {@code null} if unfiltered. */
+    public byte[] filterEnvelope() {
+	final byte[] env = filterEnvelope;
+	return (env == null) ? null : env.clone();
     }
 
     /**

@@ -1,0 +1,182 @@
+= Security Baked Into the JVM: no single party controls the outcome
+
+A URL is a name, and names get reused.
+Replace the bytes behind `https://repo.example.org/order-processor.jar` and every permission granted to that URL still applies, now to code nobody audited.
+
+So far in this series, link:/security-baked-into-jvm/1/[Part 1] declared constraints on a remote call, link:/security-baked-into-jvm/2/[Part 2] vetted code before a client loaded it, link:/security-baked-into-jvm/3/[Part 3] established who is calling, and link:/security-baked-into-jvm/4/[Part 4] carried that chain of identities across the wire.
+
+This part is about what the caller is then allowed to do:
+
+* how incoming arguments are validated _before_ they become objects,
+* why permissions are granted to what the code _is_, rather than where it came from,
+* how three policy layers combine so that no single party can widen its own authority.
+
+== Nothing exists before it is checked
+
+Standard Java deserialization creates an object first and validates it afterwards.
+By the time `readObject()` runs, the instance already exists, and a crafted stream has already had its chance:
+a back-reference elsewhere in the stream can capture the half-built object,
+classes you never intended to create have already been instantiated,
+and oversized arrays or collections can exhaust the heap before any check runs.
+
+https://openjdk.org/jeps/290[JEP 290] serialization filters help by limiting which classes may appear in the stream, but they treat the symptom.
+As the `AtomicSerial` javadoc puts it, filters "don't address the underlying cause; the creation of objects prior to their validation".
+
+JGDMS's `@AtomicSerial` reverses the order.
+An annotated class declares the named, typed values it expects on the wire, and receives them through a constructor.
+The constructor validates each value before assigning it.
+If validation fails, the constructor throws, and no object is ever created.
+
+`SpiffePrincipal`, which represents a workload identity (see Part 3), is the smallest complete example:
+
+[source,java]
+----
+@AtomicSerial
+public final class SpiffePrincipal implements Principal {
+
+    private final String spiffeId;
+
+    public static SerialForm[] serialForm() {                            // <1>
+        return new SerialForm[]{
+            new SerialForm("spiffeId", String.class)
+        };
+    }
+
+    public SpiffePrincipal(GetArg arg)                                   // <2>
+            throws IOException, ClassNotFoundException {
+        this.spiffeId = checkCanonical(arg.get("spiffeId", null,         // <3>
+                                               String.class));
+    }
+}
+----
+<1> The wire format is declared separately from the class's fields, so the fields can be renamed or refactored without breaking compatibility.
+<2> `GetArg` provides the values read from the stream, looked up by name and type.
+<3> `checkCanonical()` throws `InvalidObjectException` if the SPIFFE ID is malformed. The field is never assigned and the constructor never completes.
+
+In a class hierarchy, each subclass validates in its `super(...)` call, as in `super(check(arg))`, so every level checks its invariants before anything is assigned.
+"Atomic" here refers to failure: either every level of the object is valid, or no object exists, and there is no partially built reference for an attacker to grab.
+
+This only helps if the server actually reads arguments this way.
+In JGDMS that is a per-method constraint, `AtomicInputValidation.YES`, declared and negotiated like the other constraints from Part 1 rather than switched on globally.
+When it applies, method arguments are read with the atomic protocol instead of a plain `ObjectInputStream`.
+
+== The URL is not the identity
+
+A classic Java policy grants permissions to a `CodeSource`: essentially a URL, plus optional signer certificates.
+That ties authority to _where_ code came from, not _what_ it is.
+
+DirtyChai adds `DigestCodeSource`, a `CodeSource` that also records a cryptographic digest of the JAR the classes were loaded from.
+JGDMS adds a matching grant type, `DigestGrant`, with policy-file syntax to express it:
+
+[source]
+----
+grant digest "SHA-256:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      principal net.jini.security.jwt.JwtPrincipal "sub:alice@example.org"
+      principal au.net.zeus.jgdms.spiffe.SpiffePrincipal "spiffe://example.org/svc/order-processor" {
+    permission net.jini.security.AccessPermission "submitOrder";
+};
+----
+
+In plain terms: code whose JAR hashes to this value, running on behalf of _both_ Alice and the order-processor workload, may call `submitOrder`.
+
+`DigestGrant` doesn't look at the URL at all.
+The source comment is short:
+
+[quote,DigestGrant]
+____
+Ignore URL, it doesn't define identity.
+____
+
+Every edge case answers "no":
+
+* A plain `CodeSource` never matches, even one with exactly the same URL.
+* If the policy is asked about a class loader rather than a code source, the grant doesn't apply, because the digest of code that is already loaded can't be established.
+* On a stock JDK, which has no `DigestCodeSource`, JGDMS still runs, but digest grants never match.
+They don't fall back to matching on the URL; they simply stop applying.
+
+== Three policy layers
+
+A node's policy is assembled from three nested providers, each answering to a different authority:
+
+[cols="2,2,5",options="header"]
+|===
+|Provider |Controlled by |Supplies
+
+|`SpiffePolicyFile` (DirtyChai)
+|The infrastructure's policy server
+|Low-level bootstrap grants for the node itself, fetched over HTTPS at startup and authenticated with the node's own workload certificate (its SPIFFE X.509 identity document, or SVID).
+
+|`RemotePolicyProvider` (JGDMS)
+|The djinn administrator
+|Policy for the whole djinn, the group of nodes and services that make up a JGDMS deployment. Its key job is deciding which users may delegate which permissions, by granting them `GrantPermission`s.
+
+|`DynamicPolicyProvider` (JGDMS)
+|The client user and the service proxy
+|Grants to a downloaded proxy once it has been verified (see Part 2): the permissions the proxy declares it needs, limited to what the user is allowed to delegate.
+|===
+
+`SpiffePolicyFile` is the foundation.
+If a node can't fetch and parse its policy at startup, it refuses to start rather than running with an empty or default policy.
+It fetches the policy again each time the workload certificate is rotated, roughly hourly, so grants stay current.
+
+`RemotePolicyProvider` accepts policy only from callers holding `PolicyPermission("Remote")`.
+It receives grants as plain text in ordinary policy-file syntax, which each node parses locally.
+Earlier versions shipped serialized `Permission` objects; since JGDMS 4.0, no permission is ever deserialized off the wire, which removes a whole class of attack.
+When the policy changes, nodes are notified and fetch the current grants.
+
+`DynamicPolicyProvider` is where delegation happens.
+A service proxy declares the permissions it needs, typically to download its code and connect back to its service.
+When the client prepares the proxy, those permissions are granted on the user's authority, and never beyond what the user holds a `GrantPermission` for.
+Each grant is tied to the proxy's class loader.
+When that loader is garbage-collected, its grants become void and are cleaned up in the background.
+
+The layers nest: `DynamicPolicyProvider` wraps `RemotePolicyProvider`, which wraps `SpiffePolicyFile`.
+That arrangement is a deployment choice rather than something the types enforce: both JGDMS providers accept any underlying policy.
+
+== Every check has to pass
+
+The outcome is often summarised as an intersection.
+Mechanically, it comes from independent checks, each of which has to pass.
+The first two apply to every grant, static or dynamic, each time a permission is used:
+
+. *Code.* The JAR's digest must match the value in the grant.
+. *Identity.* Every principal named in the grant must be present on the call.
+The `submitOrder` example above needs both Alice and the order-processor workload.
+
+The third applies when a dynamic grant is made, as a proxy is prepared:
+
+[start=3]
+. *Ceiling.* The proxy never gets more than it declared, nor more than the user is allowed to delegate.
+The administrator decides who holds which `GrantPermission`, so a user can only hand out authority they have been trusted to hand out.
+
+Compromising any one of them gets an attacker nothing:
+
+* Swap the JAR at the same URL, and the digest no longer matches.
+* Steal Alice's token, and it only works from the order-processor workload named in the grant.
+* Take over the order processor, and it can only call `submitOrder` while Alice is on the call.
+* Serve a proxy that asks for more than it should, and it still gets no more than the user was allowed to delegate.
+
+The administrator sets what each user may delegate, but grants nothing to downloaded code directly.
+The user can delegate only within that ceiling.
+The proxy receives no more than it declared.
+And none of it applies unless the code's digest and the caller's identities match.
+Beneath all of this, the bootstrap policy is the node's own root of trust.
+
+== Conclusion
+
+Arguments are validated before objects exist.
+A grant applies only when both the code and the identity pass their checks, and authority delegated to downloaded code never exceeds what the delegating user was trusted with.
+What I keep coming back to is how the system behaves when something is missing.
+A missing class, an unreachable policy server, a plain `CodeSource` at exactly the right URL: each one answers no.
+
+Every part so far has been about correctness.
+link:/security-baked-into-jvm/6/[Part 6] asks what all this costs under load, and why, on this platform, security and performance turn out to pull in the same direction.
+
+.To go further:
+* https://openjdk.org/jeps/290[JEP 290: Filter Incoming Serialization Data^]
+* https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/jgdms-platform/src/main/java/org/apache/river/api/io/AtomicSerial.java[AtomicSerial source^]
+* https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/jgdms-platform/src/main/java/org/apache/river/api/security/DigestGrant.java[DigestGrant source^]
+* https://github.com/pfirmstone/JGDMS/blob/trunk/JGDMS/jgdms-platform/src/main/java/net/jini/security/policy/DynamicPolicyProvider.java[DynamicPolicyProvider source^]
+* https://github.com/pfirmstone/DirtyChai/blob/trunk/src/java.base/share/classes/au/zeus/jdk/authorization/policy/SpiffePolicyFile.java[SpiffePolicyFile source^]
+* https://github.com/pfirmstone/JGDMS[JGDMS source code^]
+* https://github.com/pfirmstone/DirtyChai[DirtyChai source code^]

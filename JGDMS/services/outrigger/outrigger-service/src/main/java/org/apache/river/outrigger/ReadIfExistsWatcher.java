@@ -105,10 +105,18 @@ class ReadIfExistsWatcher extends SingletonQueryWatcher
 	final EntryRep rep = transition.getHandle().rep();
 	final boolean isVisible = transition.isVisible();
 
-	/* If the entry was visible at one time to the null 
+	/* If the entry was visible at one time to the null
 	 * transaction we can just resolve.
 	 */
 	if (isVisible && (transition.getTxn() == null)) {
+	    /* B3 (site H): entitlement gate passed (getTxn() == null); evaluate the
+	     * CEL filter before resolving -- predicate-false / fail-closed => do NOT
+	     * resolve, keep waiting (this candidate is simply not a match, not
+	     * "locked"). EMPTY is a no-op. */
+	    final FilterSet filters = filters();
+	    if (!filters.isEmpty() && !FilterEval.matches(filters, rep)) {
+		return; // keep waiting
+	    }
 	    resolve(transition.getHandle(), null);
 	} else if (isVisible) { // && getTxn() != null
 	    /* If we are here transition.getTxn() must be != null 
@@ -146,13 +154,19 @@ class ReadIfExistsWatcher extends SingletonQueryWatcher
 	if (!isVisible && transition.isAvailable())
 	    return false;
 
-	/* If the entry was visible at one time to the null 
+	/* If the entry was visible at one time to the null
 	 * transaction we can just resolve.
 	 */
 	if (isVisible && (transition.getTxn() == null)) {
+	    /* B3 (site H): entitlement gate passed; evaluate the CEL filter before
+	     * resolving -- fail => keep waiting (return false). */
+	    final FilterSet filters = filters();
+	    if (!filters.isEmpty() && !FilterEval.matches(filters, rep)) {
+		return false;
+	    }
 	    resolve(handle, null);
 	    return true;
-	} 
+	}
 
 	if (isVisible) { // && getTxn() != null
 	    /* If we are here transition.getTxn() must be != null and

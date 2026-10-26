@@ -329,6 +329,8 @@ public class AtomicDerInvocationLayerTest {
                 + "AtomicInputValidation)",
                 in instanceof org.apache.river.api.io.AtomicObjectInput);
 
+        // B2: the dispatcher admits the whole stream between checkAccess and unmarshalArguments; do the same here
+        ((org.apache.river.api.io.AtomicObjectInput) in).admitStream();
         Object decoded = in.readObject();
         Assert.assertTrue("decoded object must be a Point", decoded instanceof Point);
 

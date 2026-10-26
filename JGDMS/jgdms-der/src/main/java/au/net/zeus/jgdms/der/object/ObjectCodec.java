@@ -17,6 +17,7 @@
 
 package au.net.zeus.jgdms.der.object;
 
+import au.net.zeus.jgdms.der.DerEncoder;
 import au.net.zeus.jgdms.der.DerException;
 import au.net.zeus.jgdms.der.DerReader;
 import au.net.zeus.jgdms.der.DerWriter;
@@ -408,6 +409,27 @@ public final class ObjectCodec {
                                    SchemaChain.Result chain,
                                    int depth)
             throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeHierarchyTo(instance, chain, depth, enc);
+        return enc.toByteArray();
+    }
+
+    /** {@link #encodeHierarchy(Object, SchemaChain.Result)} appended to {@code enc}; same bytes, no intermediate array. */
+    public static void encodeHierarchyTo(Object instance, SchemaChain.Result chain, DerEncoder enc)
+            throws DerException {
+        encodeHierarchyTo(instance, chain, 0, enc);
+    }
+
+    /**
+     * {@link #encodeHierarchy(Object, SchemaChain.Result, int)} appended to {@code enc} instead of returned: the
+     * same bytes, with no intermediate array per class level. On any exception {@code enc} holds a partial
+     * encoding and must be discarded (the encoder latches the failure when it is the one that threw).
+     */
+    static void encodeHierarchyTo(Object instance,
+                                  SchemaChain.Result chain,
+                                  int depth,
+                                  DerEncoder enc)
+            throws DerException {
         Objects.requireNonNull(instance, "instance");
         Objects.requireNonNull(chain, "chain");
         if (depth > MAX_NESTING) {
@@ -434,7 +456,7 @@ public final class ObjectCodec {
         for (Class<?> c = instance.getClass(); c != null; c = c.getSuperclass()) {
             hierarchy.put(c.getName(), c);
         }
-        List<byte[]> perClassSequences = new ArrayList<>(rootFirst.size());
+        enc.begin(Tag.SEQUENCE);
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
             Class<?> cls = hierarchy.get(schemaRecord.className());
             if (cls == null) {
@@ -443,12 +465,10 @@ public final class ObjectCodec {
                         + "' is not in the runtime hierarchy of "
                         + instance.getClass().getName());
             }
-            byte[] classSeq = encode(instance, cls, schemaRecord, depth);
-            perClassSequences.add(classSeq);
+            encodeTo(instance, cls, schemaRecord, depth, enc);
         }
-
-        // Wrap all per-class SEQUENCEs in an outer SEQUENCE
-        return DerWriter.writeSequence(perClassSequences);
+        // the outer SEQUENCE wraps all per-class SEQUENCEs
+        enc.end();
     }
 
     // =========================================================================
@@ -832,6 +852,17 @@ public final class ObjectCodec {
                                   AtomicSerialSchemaRecord schema,
                                   int depth)
             throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeTo(instance, declaringClass, schema, depth, enc);
+        return enc.toByteArray();
+    }
+
+    private static void encodeTo(Object instance,
+                                 Class<?> declaringClass,
+                                 AtomicSerialSchemaRecord schema,
+                                 int depth,
+                                 DerEncoder enc)
+            throws DerException {
         Objects.requireNonNull(instance, "instance");
         Objects.requireNonNull(declaringClass, "declaringClass");
         Objects.requireNonNull(schema, "schema");
@@ -840,7 +871,8 @@ public final class ObjectCodec {
         // contract) implements no serialize(PutArg); it contributes an empty private
         // SEQUENCE. Its schema record likewise has no fields (see SchemaGenerator).
         if (declaringClass.isAnnotationPresent(AtomicSerial.Stateless.class)) {
-            return DerWriter.writeSequence(Collections.emptyList());
+            enc.begin(Tag.SEQUENCE).end();
+            return;
         }
 
         // @AtomicSerial WRITE contract: the class declares its serial form via its own
@@ -849,7 +881,7 @@ public final class ObjectCodec {
         // without serialize(PutArg) is not serialized -- the encoder fails fast.
         Map<String, Object> values = invokeSerialize(instance, declaringClass);
 
-        List<byte[]> fieldTlvs = new ArrayList<>();
+        enc.begin(Tag.SEQUENCE);
         for (AtomicSerialFieldDef fieldDef : schema.fields()) {
             String wireName = fieldDef.wireName();
             String wireType = fieldDef.wireType();
@@ -860,10 +892,9 @@ public final class ObjectCodec {
                         + "' declared by serialForm(); serialize must put every serial field");
             }
             Object value = values.get(wireName);
-            byte[] tlv = encodeValue(value, wireType, wireName, depth);
-            fieldTlvs.add(tlv);
+            encodeValueTo(value, wireType, wireName, depth, enc);
         }
-        return DerWriter.writeSequence(fieldTlvs);
+        enc.end();
     }
 
     /**
@@ -1175,27 +1206,44 @@ public final class ObjectCodec {
 
     private static byte[] encodeValue(Object value, String wireType,
                                        String fieldName, int depth) throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeValueTo(value, wireType, fieldName, depth, enc);
+        return enc.toByteArray();
+    }
+
+    private static DerException expected(String what, Object value, String fieldName, String wireType) {
+        return new DerException("Expected " + what + " for field '" + fieldName
+                + "' (wireType " + wireType + ") but got "
+                + (value == null ? "null" : value.getClass().getName()));
+    }
+
+    private static void encodeValueTo(Object value, String wireType,
+                                      String fieldName, int depth, DerEncoder enc) throws DerException {
         // Enum fields (STD-008 sec.17.1): "enum:<className>"
         if (wireType.startsWith("enum:")) {
-            return encodeEnum(value, wireType, fieldName);
+            encodeEnumTo(value, wireType, fieldName, enc);
+            return;
         }
         // Array fields (STD-008 sec.17.2): "array:<componentWireType>"
         // (includes "array:@AtomicSerial:<class>")
         if (wireType.startsWith("array:")) {
-            return encodeArray(value, wireType, fieldName, depth);
+            encodeArrayTo(value, wireType, fieldName, depth, enc);
+            return;
         }
         // Collection fields (STD-006 sec.3.8): set:/orderedset:/list:/map:/orderedmap:
         // The declared type's discipline (preserve vs canonicalise) is baked into the
         // token; the encoder honours it here so signed / Entry-matched fields are
         // byte-deterministic.
         if (CollectionWireTypes.isCollection(wireType)) {
-            return encodeCollection(value, wireType, fieldName, depth);
+            encodeCollectionTo(value, wireType, fieldName, depth, enc);
+            return;
         }
         // The self-describing Any element (STD-006 memo §4): the rule selected "any" as the
         // element/key/value wire-type because the declared type was unresolvable. The runtime
         // value's category (scalar / @AtomicSerial object / collection) selects the context tag.
         if (AnyCodec.ANY.equals(wireType)) {
-            return AnyCodec.encode(value, fieldName, depth);
+            AnyCodec.encodeTo(value, fieldName, depth, enc);
+            return;
         }
 
         // A nullable scalar reference field (boxed primitive, String, byte[], or a nested
@@ -1204,88 +1252,57 @@ public final class ObjectCodec {
         // nullable reference field. (Enum/array null is handled by encodeEnum/encodeArray above;
         // a null @AtomicSerial nested value yields the same DER NULL as encodeNested.)
         if (value == null) {
-            return new byte[]{0x05, 0x00};
+            enc.nul();
+            return;
         }
 
-        return switch (wireType) {
+        switch (wireType) {
             case "boolean", "java.lang.Boolean" -> {
-                if (!(value instanceof Boolean b)) {
-                    throw new DerException("Expected Boolean for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeBoolean(b);
+                if (!(value instanceof Boolean b)) throw expected("Boolean", value, fieldName, wireType);
+                enc.bool(b);
             }
             case "byte", "java.lang.Byte" -> {
-                if (!(value instanceof Byte b)) {
-                    throw new DerException("Expected Byte for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeInteger(BigInteger.valueOf(b));
+                if (!(value instanceof Byte b)) throw expected("Byte", value, fieldName, wireType);
+                enc.integer(b);
             }
             case "short", "java.lang.Short" -> {
-                if (!(value instanceof Short s)) {
-                    throw new DerException("Expected Short for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeInteger(BigInteger.valueOf(s));
+                if (!(value instanceof Short s)) throw expected("Short", value, fieldName, wireType);
+                enc.integer(s);
             }
             case "int", "java.lang.Integer" -> {
-                if (!(value instanceof Integer iv)) {
-                    throw new DerException("Expected Integer for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeInteger(BigInteger.valueOf(iv));
+                if (!(value instanceof Integer iv)) throw expected("Integer", value, fieldName, wireType);
+                enc.integer(iv);
             }
             case "long", "java.lang.Long" -> {
-                if (!(value instanceof Long l)) {
-                    throw new DerException("Expected Long for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeInteger(BigInteger.valueOf(l));
+                if (!(value instanceof Long l)) throw expected("Long", value, fieldName, wireType);
+                enc.integer(l);
             }
             case "java.lang.String" -> {
-                if (!(value instanceof String s)) {
-                    throw new DerException("Expected String for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeUtf8String(s);
+                if (!(value instanceof String s)) throw expected("String", value, fieldName, wireType);
+                enc.utf8(s);
             }
             case "java.lang.Class" -> {
                 // A Class travels as its name (UTF8String); the decode side resolves it
                 // through the endpoint-assigned ResolutionContext loader (never ambient).
-                if (!(value instanceof Class<?> c)) {
-                    throw new DerException("Expected Class for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeUtf8String(c.getName());
+                if (!(value instanceof Class<?> c)) throw expected("Class", value, fieldName, wireType);
+                enc.utf8(c.getName());
             }
             case "byte[]", "[B" -> {
-                if (!(value instanceof byte[] b)) {
-                    throw new DerException("Expected byte[] for field '" + fieldName
-                            + "' (wireType " + wireType + ") but got "
-                            + (value == null ? "null" : value.getClass().getName()));
-                }
-                yield DerWriter.writeOctetString(b);
+                if (!(value instanceof byte[] b)) throw expected("byte[]", value, fieldName, wireType);
+                enc.octets(b);
             }
 
             // STD-008 sec.17.3 -- float/double/char with STRICT canonicalization
-            case "float" -> encodeFloat(value, fieldName);
-            case "double" -> encodeDouble(value, fieldName);
-            case "char" -> encodeChar(value, fieldName);
+            case "float" -> enc.octets(floatContent(value, fieldName));
+            case "double" -> enc.octets(doubleContent(value, fieldName));
+            case "char" -> enc.integer(charValue(value, fieldName));
 
             // Nested @AtomicSerial object field (STD-008 sec.16)
-            case "@AtomicSerial" -> encodeNested(value, fieldName, depth);
+            case "@AtomicSerial" -> encodeNestedTo(value, fieldName, depth, enc);
             default -> throw new DerException(
                     "ObjectCodec: unsupported wire type '" + wireType
                     + "' for field '" + fieldName + "'");
-        };
+        }
     }
 
     /**
@@ -1304,7 +1321,8 @@ public final class ObjectCodec {
     static final int  NEGATIVE_ZERO_FLOAT_BITS  = 0x80000000;
     static final long NEGATIVE_ZERO_DOUBLE_BITS = 0x8000000000000000L;
 
-    static byte[] encodeFloat(Object value, String fieldName) throws DerException {
+    /** The four content octets of a float field's OCTET STRING (STD-008 sec.17.3.1), canonicalised. */
+    static byte[] floatContent(Object value, String fieldName) throws DerException {
         if (!(value instanceof Float f)) {
             throw new DerException("Expected Float for field '" + fieldName
                     + "' (wireType float) but got "
@@ -1318,14 +1336,14 @@ public final class ObjectCodec {
         } else {
             bits = Float.floatToRawIntBits(f);          // raw bits preserve all finite values
         }
-        byte[] content = new byte[] {
+        return new byte[] {
                 (byte)(bits >>> 24), (byte)(bits >>> 16),
                 (byte)(bits >>>  8), (byte) bits
         };
-        return DerWriter.writeOctetString(content);
     }
 
-    static byte[] encodeDouble(Object value, String fieldName) throws DerException {
+    /** The eight content octets of a double field's OCTET STRING (STD-008 sec.17.3.1), canonicalised. */
+    static byte[] doubleContent(Object value, String fieldName) throws DerException {
         if (!(value instanceof Double d)) {
             throw new DerException("Expected Double for field '" + fieldName
                     + "' (wireType double) but got "
@@ -1344,10 +1362,11 @@ public final class ObjectCodec {
             content[i] = (byte)(bits & 0xFF);
             bits >>>= 8;
         }
-        return DerWriter.writeOctetString(content);
+        return content;
     }
 
-    static byte[] encodeChar(Object value, String fieldName) throws DerException {
+    /** The code point of a char field (STD-008 sec.17.3.2); an unpaired surrogate is rejected. */
+    static int charValue(Object value, String fieldName) throws DerException {
         if (!(value instanceof Character c)) {
             throw new DerException("Expected Character for field '" + fieldName
                     + "' (wireType char) but got "
@@ -1362,7 +1381,7 @@ public final class ObjectCodec {
                     + Integer.toHexString(cp).toUpperCase()
                     + " is not a valid Unicode codepoint");
         }
-        return DerWriter.writeInteger(BigInteger.valueOf(cp));
+        return cp;
     }
 
     /**
@@ -1378,10 +1397,11 @@ public final class ObjectCodec {
      * @throws DerException if the value is non-null but is not an instance of the
      *                      declared enum class
      */
-    private static byte[] encodeEnum(Object value, String wireType,
-                                      String fieldName) throws DerException {
+    private static void encodeEnumTo(Object value, String wireType,
+                                     String fieldName, DerEncoder enc) throws DerException {
         if (value == null) {
-            return new byte[]{0x05, 0x00}; // DER NULL
+            enc.nul();
+            return;
         }
         if (!(value instanceof Enum<?> ev)) {
             throw new DerException(
@@ -1398,7 +1418,7 @@ public final class ObjectCodec {
                     + "' has declared class '" + className
                     + "' but got runtime class '" + value.getClass().getName() + "'");
         }
-        return DerWriter.writeUtf8String(ev.name());
+        enc.utf8(ev.name());
     }
 
     /**
@@ -1418,10 +1438,11 @@ public final class ObjectCodec {
      * @return the DER TLV bytes
      * @throws DerException if the value is not an array, or if encoding any element fails
      */
-    private static byte[] encodeArray(Object value, String wireType,
-                                       String fieldName, int depth) throws DerException {
+    private static void encodeArrayTo(Object value, String wireType,
+                                       String fieldName, int depth, DerEncoder enc) throws DerException {
         if (value == null) {
-            return new byte[]{0x05, 0x00}; // DER NULL
+            enc.nul();
+            return;
         }
         if (!value.getClass().isArray()) {
             throw new DerException(
@@ -1435,36 +1456,29 @@ public final class ObjectCodec {
         // which we match with startsWith("@AtomicSerial").
         String componentWT = wireType.substring(6); // strip "array:"
         int n = Array.getLength(value);
-        List<byte[]> elementTlvs = new ArrayList<>(n);
 
+        enc.begin(Tag.SEQUENCE);
         for (int i = 0; i < n; i++) {
             Object elem = Array.get(value, i);
             String elemFieldName = fieldName + "[" + i + "]";
-            byte[] elemTlv;
             if (componentWT.startsWith("@AtomicSerial")) {
                 // @AtomicSerial element: use encodeNested (handles null and depth-bound)
-                elemTlv = encodeNested(elem, elemFieldName, depth);
+                encodeNestedTo(elem, elemFieldName, depth, enc);
             } else if (componentWT.equals("java.lang.String")) {
                 // String element: DER NULL if null, else UTF8String
-                elemTlv = (elem == null)
-                        ? new byte[]{0x05, 0x00}
-                        : DerWriter.writeUtf8String((String) elem);
+                if (elem == null) enc.nul(); else enc.utf8((String) elem);
             } else if (componentWT.equals("java.lang.Class")) {
                 // Class element: DER NULL if null, else UTF8String of the class name
-                elemTlv = (elem == null)
-                        ? new byte[]{0x05, 0x00}
-                        : DerWriter.writeUtf8String(((Class<?>) elem).getName());
+                if (elem == null) enc.nul(); else enc.utf8(((Class<?>) elem).getName());
             } else {
                 // Primitive or enum element: delegate to encodeValue.
                 // For enum elements the componentWT is "enum:<class>", which encodeEnum handles.
                 // For primitive elements, elem is always non-null (Java arrays of primitives
                 // contain their boxed form when retrieved via Array.get).
-                elemTlv = encodeValue(elem, componentWT, elemFieldName, depth);
+                encodeValueTo(elem, componentWT, elemFieldName, depth, enc);
             }
-            elementTlvs.add(elemTlv);
         }
-
-        return DerWriter.writeSequence(elementTlvs);
+        enc.end();
     }
 
     // =========================================================================
@@ -1498,6 +1512,13 @@ public final class ObjectCodec {
      */
     static byte[] encodeCollection(Object value, String wireType,
                                            String fieldName, int depth) throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeCollectionTo(value, wireType, fieldName, depth, enc);
+        return enc.toByteArray();
+    }
+
+    static void encodeCollectionTo(Object value, String wireType,
+                                   String fieldName, int depth, DerEncoder enc) throws DerException {
         // Depth-bound DoS guard, symmetric with the decode side (decodeCollection) and with
         // encodeNested: a nested-collection element recurses at depth + 1, so an over-deep
         // nested-collection value is rejected fail-secure before StackOverflowError.
@@ -1507,7 +1528,8 @@ public final class ObjectCodec {
                     + " exceeds MAX_NESTING (" + MAX_NESTING + ")");
         }
         if (value == null) {
-            return new byte[]{0x05, 0x00}; // DER NULL
+            enc.nul();
+            return;
         }
         boolean canonicalise = CollectionWireTypes.isCanonicalise(wireType);
 
@@ -1519,43 +1541,32 @@ public final class ObjectCodec {
             String[] kv = CollectionWireTypes.mapKeyValueWireTypes(wireType);
             String keyWT = kv[0];
             String valWT = kv[1];
-            // Collect (keyEncoding, entryEncoding) pairs so a canonicalise map can octet-sort by
-            // the KEY encoding, not the whole entry. Sorting the whole entry is NOT equivalent to
-            // sorting by key: the entry SEQUENCE's length octet encodes key-size + value-size, so a
-            // larger value can flip two entries whose keys would sort the other way key-only. §2 /
-            // §11.6 fix the canonical order on the KEY (keys unique -> total order), so a non-JVM
-            // peer implementing "sort by encoded key" agrees byte-for-byte. Determinism held either
-            // way, but cross-implementation canonical-form agreement requires key-only ordering.
-            List<byte[]> keyTlvs   = new ArrayList<>(map.size());
-            List<byte[]> entryTlvs = new ArrayList<>(map.size());
-            int i = 0;
-            for (Map.Entry<?, ?> e : map.entrySet()) {
-                byte[] keyTlv = encodeElementValue(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth);
-                byte[] valTlv = encodeElementValue(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth);
-                // entry := SEQUENCE { key, value }
-                List<byte[]> pair = new ArrayList<>(2);
-                pair.add(keyTlv);
-                pair.add(valTlv);
-                keyTlvs.add(keyTlv);
-                entryTlvs.add(DerWriter.writeSequence(pair));
-                i++;
-            }
-            if (canonicalise) {
-                // Stable sort the entry list by the parallel key-encoding list (X.690 §11.6 over
-                // the key encodings). Keys are unique -> the key comparison is total, so no two
-                // entries compare equal and stability is immaterial; value bytes never participate.
-                Integer[] order = new Integer[entryTlvs.size()];
-                for (int j = 0; j < order.length; j++) order[j] = j;
-                java.util.Arrays.sort(order,
-                        (p, q) -> CollectionWireTypes.compareOctets(keyTlvs.get(p), keyTlvs.get(q)));
-                List<byte[]> sorted = new ArrayList<>(entryTlvs.size());
-                for (int idx : order) sorted.add(entryTlvs.get(idx));
-                entryTlvs = sorted;
-            }
+            requireWithinMaxCollection(map.size(), fieldName);
             // Option A tag: a CANONICALISE map is an ASN.1 SET OF SEQUENCE{key,value} -> outer
             // SET (0x31); a PRESERVE (orderedmap) is a SEQUENCE OF -> outer SEQUENCE (0x30). The
             // inner per-entry {key,value} stays a SEQUENCE (0x30) either way (§3.8, Option A).
-            return canonicalise ? DerWriter.writeSet(entryTlvs) : DerWriter.writeSequence(entryTlvs);
+            // A canonicalise map is ordered by the KEY encoding alone (beginSortedMap), not the whole
+            // entry: the entry SEQUENCE's length octet encodes key-size + value-size, so a larger value
+            // can flip two entries whose keys sort the other way. §2 / §11.6 fix the canonical order on
+            // the KEY (keys unique -> total order), so a non-JVM peer implementing "sort by encoded
+            // key" agrees byte-for-byte.
+            if (canonicalise) {
+                enc.beginSortedMap();
+            } else {
+                enc.begin(Tag.SEQUENCE);
+            }
+            int i = 0;
+            for (Map.Entry<?, ?> e : map.entrySet()) {
+                requireWithinMaxCollection(i + 1, fieldName);   // a concurrently growing map
+                // entry := SEQUENCE { key, value }
+                enc.begin(Tag.SEQUENCE);
+                encodeElementValueTo(e.getKey(),   keyWT, fieldName + ".key[" + i + "]",   depth, enc);
+                encodeElementValueTo(e.getValue(), valWT, fieldName + ".value[" + i + "]", depth, enc);
+                enc.end();
+                i++;
+            }
+            enc.end();
+            return;
         }
 
         // set: / orderedset: / list:
@@ -1564,18 +1575,47 @@ public final class ObjectCodec {
                     + "' (wireType " + wireType + ") but got " + value.getClass().getName());
         }
         String elemWT = CollectionWireTypes.elementWireType(wireType);
-        List<byte[]> elementTlvs = new ArrayList<>(coll.size());
+        requireWithinMaxCollection(coll.size(), fieldName);
+        // Option A tag: a CANONICALISE set/multiset is an ASN.1 SET OF -> SET (0x31); a PRESERVE
+        // (orderedset/list) is a SEQUENCE OF -> SEQUENCE (0x30) (§3.8, Option A). The canonicalise
+        // elements are octet-sorted per X.690 §11.6 as the set is closed.
+        if (canonicalise) {
+            enc.beginSortedSet(CollectionWireTypes.OCTET_SORT);
+        } else {
+            enc.begin(Tag.SEQUENCE);
+        }
         int i = 0;
         for (Object elem : coll) {
-            elementTlvs.add(encodeElementValue(elem, elemWT, fieldName + "[" + i + "]", depth));
+            requireWithinMaxCollection(i + 1, fieldName);   // a concurrently growing collection
+            encodeElementValueTo(elem, elemWT, fieldName + "[" + i + "]", depth, enc);
             i++;
         }
-        if (canonicalise) {
-            CollectionWireTypes.octetSort(elementTlvs);
+        enc.end();
+    }
+
+    /**
+     * Encode-side counterpart of the decoder's {@code maxCollection} ceiling (STD-006 sec.4.5): an
+     * element (or map entry) count above {@link #MAX_COLLECTION} is rejected BEFORE any element is
+     * encoded. The decoder rejects such a collection, so an encoder that emitted it would produce a
+     * stream no conforming peer accepts; failing here makes the error local and immediate.
+     */
+    /**
+     * Checks the content octets of a scalar {@code Any} arm ({@code [0]..[9]}) exactly as {@code AnyCodec.decode} will, with no
+     * class loaded: the bridge whole-stream admission uses so an {@code Any} scalar is validated by one code path.
+     *
+     * @throws DerException if the content is not a valid encoding of the arm's scalar kind, or the arm is not a scalar arm
+     */
+    public static void validateAnyScalarArm(int contextTag, byte[] content) throws DerException {
+        AnyCodec.decodeScalar(contextTag, content);
+    }
+
+    private static void requireWithinMaxCollection(int count, String fieldName) throws DerException {
+        if (count > MAX_COLLECTION) {
+            throw new DerException(
+                    "ObjectCodec.encodeCollection: element count " + count + " exceeds maxCollection ("
+                    + MAX_COLLECTION + ", §4.5) for field '" + fieldName
+                    + "' -- a conforming decoder would reject it");
         }
-        // Option A tag: a CANONICALISE set/multiset is an ASN.1 SET OF -> SET (0x31); a PRESERVE
-        // (orderedset/list) is a SEQUENCE OF -> SEQUENCE (0x30) (§3.8, Option A).
-        return canonicalise ? DerWriter.writeSet(elementTlvs) : DerWriter.writeSequence(elementTlvs);
     }
 
     /**
@@ -1586,12 +1626,13 @@ public final class ObjectCodec {
      * {@link #encodeValue} at the unchanged {@code depth} (an {@code @AtomicSerial} element's
      * own {@code depth + 1} step happens inside {@link #encodeNested}, symmetric with decode).
      */
-    private static byte[] encodeElementValue(Object elem, String elemWT,
-                                             String fieldName, int depth) throws DerException {
+    private static void encodeElementValueTo(Object elem, String elemWT,
+                                             String fieldName, int depth, DerEncoder enc) throws DerException {
         if (CollectionWireTypes.isCollection(elemWT)) {
-            return encodeCollection(elem, elemWT, fieldName, depth + 1);
+            encodeCollectionTo(elem, elemWT, fieldName, depth + 1, enc);
+            return;
         }
-        return encodeValue(elem, elemWT, fieldName, depth);
+        encodeValueTo(elem, elemWT, fieldName, depth, enc);
     }
 
     /**
@@ -1611,6 +1652,13 @@ public final class ObjectCodec {
      *                      unsupported component type
      */
     public static byte[] encodeTopLevelArray(Object array) throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeTopLevelArrayTo(array, enc);
+        return enc.toByteArray();
+    }
+
+    /** {@link #encodeTopLevelArray} appended to {@code enc}: two consecutive TLVs, no wrapper. */
+    public static void encodeTopLevelArrayTo(Object array, DerEncoder enc) throws DerException {
         if (array == null || !array.getClass().isArray()) {
             throw new DerException("ObjectCodec.encodeTopLevelArray: not an array: "
                     + (array == null ? "null" : array.getClass().getName()));
@@ -1621,12 +1669,8 @@ public final class ObjectCodec {
             throw new DerException("ObjectCodec.encodeTopLevelArray: unsupported top-level array '"
                     + array.getClass().getName() + "' (wireType " + arrayWireType + ")");
         }
-        byte[] wtTlv   = DerWriter.writeUtf8String(arrayWireType);
-        byte[] elemSeq = encodeArray(array, arrayWireType, "<top-level array>", 0);
-        byte[] content = new byte[wtTlv.length + elemSeq.length];
-        System.arraycopy(wtTlv,   0, content, 0,            wtTlv.length);
-        System.arraycopy(elemSeq, 0, content, wtTlv.length, elemSeq.length);
-        return content;
+        enc.utf8(arrayWireType);
+        encodeArrayTo(array, arrayWireType, "<top-level array>", 0, enc);
     }
 
     /**
@@ -1660,6 +1704,13 @@ public final class ObjectCodec {
      *                      or the value does not match the token, or an element type is unsupported
      */
     public static byte[] encodeTopLevelCollection(Object value, String token) throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeTopLevelCollectionTo(value, token, enc);
+        return enc.toByteArray();
+    }
+
+    /** {@link #encodeTopLevelCollection} appended to {@code enc}: two consecutive TLVs, no wrapper. */
+    public static void encodeTopLevelCollectionTo(Object value, String token, DerEncoder enc) throws DerException {
         Objects.requireNonNull(value, "value");
         Objects.requireNonNull(token, "token");
         if (!CollectionWireTypes.isCollection(token)) {
@@ -1668,12 +1719,8 @@ public final class ObjectCodec {
                     + "map:/orderedmap:)");
         }
         validateCollectionTokenGrammar(token);
-        byte[] wtTlv    = DerWriter.writeUtf8String(token);
-        byte[] collTlv  = encodeCollection(value, token, "<top-level collection>", 0);
-        byte[] content  = new byte[wtTlv.length + collTlv.length];
-        System.arraycopy(wtTlv,   0, content, 0,            wtTlv.length);
-        System.arraycopy(collTlv, 0, content, wtTlv.length, collTlv.length);
-        return content;
+        enc.utf8(token);
+        encodeCollectionTo(value, token, "<top-level collection>", 0, enc);
     }
 
     /**
@@ -1714,6 +1761,24 @@ public final class ObjectCodec {
             throws DerException, IOException, ClassNotFoundException {
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(resolution, "resolution");
+        TopLevelCollectionContent parsed = parseTopLevelCollection(content);
+        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
+        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
+        return decodeCollection(parsed.collectionTlv(), parsed.token(), 0, decodeUnit, resolution, null);
+    }
+
+    /** A {@code [16]} item's content split into its collection wire-type token and its collection TLV. */
+    public record TopLevelCollectionContent(String token, byte[] collectionTlv) {}
+
+    /**
+     * The wire-level front half of {@link #decodeTopLevelCollection}: parses and grammar-validates the token and
+     * cross-checks the Option-A outer tag against it (the AnyCodec fence), constructing nothing. Shared with the stream
+     * layer's admission pass so the two cannot drift.
+     *
+     * @throws DerException if the token is malformed or not a collection token, the collection TLV is missing, or the
+     *                      outer tag lies about the token's discipline
+     */
+    public static TopLevelCollectionContent parseTopLevelCollection(byte[] content) throws DerException {
         DerReader r = new DerReader(content);
         String token;
         try {
@@ -1746,9 +1811,7 @@ public final class ObjectCodec {
                     + Integer.toHexString(expectedTag) + " but the collection TLV opens with 0x"
                     + Integer.toHexString(outerTag) + " -- lying Option-A encoding, rejected");
         }
-        // declaredType == null: a top-level value has no receiving field; the preserve-ordered
-        // disciplines still return a SequencedSet/SequencedMap (via decodeSetOrList/decodeMap).
-        return decodeCollection(collTlv, token, 0, decodeUnit, resolution, null);
+        return new TopLevelCollectionContent(token, collTlv);
     }
 
     /**
@@ -1838,9 +1901,18 @@ public final class ObjectCodec {
      */
     static byte[] encodeNested(Object value, String fieldName, int depth)
             throws DerException {
+        DerEncoder enc = DerEncoder.create();
+        encodeNestedTo(value, fieldName, depth, enc);
+        return enc.toByteArray();
+    }
+
+    /** {@link #encodeNested} appended to {@code enc}; the payload is written in place, not built and copied. */
+    static void encodeNestedTo(Object value, String fieldName, int depth, DerEncoder enc)
+            throws DerException {
         // null -> DER NULL
         if (value == null) {
-            return new byte[]{0x05, 0x00};
+            enc.nul();
+            return;
         }
 
         // DER replacement: a registered non-@AtomicSerial value (e.g. an
@@ -1872,7 +1944,8 @@ public final class ObjectCodec {
         // DGC decode-unit threading. (Resolved BEFORE nearestAtomicSerial below, since a Proxy's
         // own hierarchy -- Proxy -> Object -- carries no @AtomicSerial class.)
         if (Proxy.isProxyClass(cls)) {
-            return encodeProxy(value, fieldName, depth);
+            encodeProxyTo(value, fieldName, depth, enc);
+            return;
         }
 
         // A polymorphic @AtomicSerial slot may legitimately hold an ENUM constant -- e.g.
@@ -1894,7 +1967,8 @@ public final class ObjectCodec {
         // the schema and only the constant name travels -- here the declared type is polymorphic,
         // so the concrete enum class MUST travel, mirroring the nested @AtomicSerial class chain.
         if (value instanceof Enum<?> ev) {
-            return encodeEnumLeaf(ev);
+            encodeEnumLeafTo(ev, enc);
+            return;
         }
 
         // S3.10 wire-visibility: a value whose runtime class is not itself @AtomicSerial but
@@ -1915,16 +1989,15 @@ public final class ObjectCodec {
 
         // Generate chain and encode payload (generateChain walks to the @AtomicSerial leaf)
         SchemaChain.Result chain = SchemaGenerator.generateChain(cls);
-        byte[] payloadBytes = encodeHierarchy(value, chain, depth + 1);
 
-        // Encode the schema chain: leaf-first concatenated AtomicSerialSchemaRecord DERs
-        byte[] schemaChainBytes = encodeSchemaChainBytes(chain.chain());
+        // The schema chain: leaf-first concatenated AtomicSerialSchemaRecord DERs
+        byte[] schemaChainBytes = SchemaGenerator.generateChainBytes(cls);
 
-        // Wrap as SEQUENCE { OCTET STRING(schemaChainBytes), OCTET STRING(payloadBytes) }
-        List<byte[]> children = new ArrayList<>(2);
-        children.add(DerWriter.writeOctetString(schemaChainBytes));
-        children.add(DerWriter.writeOctetString(payloadBytes));
-        return DerWriter.writeSequence(children);
+        // SEQUENCE { OCTET STRING(schemaChainBytes), OCTET STRING(payloadBytes) }: the payload is the
+        // hierarchy encoding, written straight into the OCTET STRING with no intermediate array.
+        enc.begin(Tag.SEQUENCE).octets(schemaChainBytes).beginOctetString();
+        encodeHierarchyTo(value, chain, depth + 1, enc);
+        enc.end().end();
     }
 
     /**
@@ -1940,7 +2013,7 @@ public final class ObjectCodec {
      * @param fieldName the field name (diagnostics)
      * @param depth     the proxy's nesting depth; the handler is encoded at {@code depth + 1}
      */
-    private static byte[] encodeProxy(Object proxy, String fieldName, int depth)
+    private static void encodeProxyTo(Object proxy, String fieldName, int depth, DerEncoder enc)
             throws DerException {
         // If proxy's live handler RETAINS a raw [8] wire form (this node itself decoded proxy from
         // a [8] item that dropped >=1 interface it couldn't resolve locally -- see decodeProxy
@@ -1959,7 +2032,8 @@ public final class ObjectCodec {
         // change. See RawWireFormRetaining's javadoc and STD-009 sec.6.4.
         byte[] retained = ProxyWireSupport.wireContentForBoomerang(proxy);
         if (retained != null) {
-            return DerWriter.writeTlv(CTX_PROXY, retained);
+            enc.leaf(CTX_PROXY, retained);
+            return;
         }
         Class<?>[] ifaces = proxy.getClass().getInterfaces();
         if (ifaces.length == 0 || ifaces.length > ProxyWireSupport.MAX_PROXY_INTERFACES) {
@@ -1973,15 +2047,14 @@ public final class ObjectCodec {
                     + "' InvocationHandler " + h.getClass().getName()
                     + " is not @AtomicSerial");
         }
-        ByteArrayOutputStream content = new ByteArrayOutputStream();
-        content.writeBytes(DerWriter.writeInteger(BigInteger.valueOf(ifaces.length)));
+        enc.begin(CTX_PROXY).integer(ifaces.length);
         for (Class<?> iface : ifaces) {
-            content.writeBytes(DerWriter.writeUtf8String(iface.getName()));
+            enc.utf8(iface.getName());
         }
         // Handler as a nested @AtomicSerial value (depth + 1): reuses the depth bound,
         // ResolutionContext and DGC decode-unit threading of the nested-field path.
-        content.writeBytes(encodeNested(h, fieldName + ".proxyHandler", depth + 1));
-        return DerWriter.writeTlv(CTX_PROXY, content.toByteArray());
+        encodeNestedTo(h, fieldName + ".proxyHandler", depth + 1, enc);
+        enc.end();
     }
 
     /**
@@ -1997,13 +2070,8 @@ public final class ObjectCodec {
      * @param ev the enum constant value (non-null; caller has verified {@code value instanceof Enum})
      * @return the {@code [7]} CTX_ENUM TLV bytes
      */
-    private static byte[] encodeEnumLeaf(Enum<?> ev) throws DerException {
-        byte[] clsName = DerWriter.writeUtf8String(ev.getDeclaringClass().getName());
-        byte[] name    = DerWriter.writeUtf8String(ev.name());
-        byte[] content = new byte[clsName.length + name.length];
-        System.arraycopy(clsName, 0, content, 0, clsName.length);
-        System.arraycopy(name, 0, content, clsName.length, name.length);
-        return DerWriter.writeTlv(CTX_ENUM, content);
+    private static void encodeEnumLeafTo(Enum<?> ev, DerEncoder enc) throws DerException {
+        enc.begin(CTX_ENUM).utf8(ev.getDeclaringClass().getName()).utf8(ev.name()).end();
     }
 
     /**
@@ -2167,6 +2235,45 @@ public final class ObjectCodec {
      * DeserializationCompletion, ResolutionContext)} above (DC-3). For a {@code [8]}/enum leaf in
      * this slot {@code injected} is irrelevant and not threaded.
      */
+    /**
+     * A stream-scoped view of the schema chains already verified for the current decode (see
+     * {@link #callWithVerifiedChains}). Implemented by the stream's dedup table.
+     */
+    public interface VerifiedChains {
+        /**
+         * @param chainBytes candidate chain bytes (not retained, not modified)
+         * @return the verified chain iff {@code chainBytes} are byte-for-byte a chain already
+         *         verified through {@link SchemaChain#decodeChain}; otherwise {@code null}
+         */
+        SchemaChain.Result verifiedChain(byte[] chainBytes);
+    }
+
+    /** Bound only for the duration of one stream item's decode; see {@link #callWithVerifiedChains}. */
+    private static final ScopedValue<VerifiedChains> VERIFIED_CHAINS = ScopedValue.newInstance();
+
+    /** A decode step run under {@link #callWithVerifiedChains}. */
+    @FunctionalInterface
+    public interface DecodeOp<R> {
+        R run() throws DerException, IOException, ClassNotFoundException;
+    }
+
+    /**
+     * Runs {@code op} with {@code verified} consulted by nested-record decode: a nested
+     * schema chain that is byte-for-byte one {@code verified} holds is not re-parsed. Scoped
+     * (not thread-local) so it cannot leak past {@code op} or to another thread; a nested
+     * decode of a different stream rebinds it. Exceptions from {@code op} propagate unchanged.
+     */
+    public static <R> R callWithVerifiedChains(VerifiedChains verified, DecodeOp<R> op)
+            throws DerException, IOException, ClassNotFoundException {
+        try {
+            return ScopedValue.where(VERIFIED_CHAINS, verified).call(op::run);
+        } catch (IOException | ClassNotFoundException | RuntimeException | Error e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("unexpected checked exception from decode", e);
+        }
+    }
+
     static Object decodeNested(byte[] nestedRecordBytes, Class<?> expectedSupertype,
                                int depth, DeserializationCompletion decodeUnit,
                                ResolutionContext resolution, Map<String, Object> injected)
@@ -2221,10 +2328,23 @@ public final class ObjectCodec {
         // cross-check and the S7.8 terminal-record completeness check identically to the
         // top-level (P1) site. (Previously this site parsed the chain WITHOUT those
         // checks -- the asymmetry is closed by construction.)
-        List<AtomicSerialSchemaRecord> records =
-                SchemaChain.decodeChain(schemaChainBytes, "ObjectCodec.decodeNested");
-        byte[] leafDigest = records.get(0).schemaDigest();
-        SchemaChain.Result chain = new SchemaChain.Result(records, leafDigest);
+        //
+        // Fast path: inside a stream decode the per-stream dedup table has already verified
+        // (through that same SchemaChain.decodeChain) every chain it reconstituted into this
+        // payload. If these bytes are byte-for-byte such a chain, reuse that verified parse
+        // instead of re-parsing and re-hashing it per nested element. A miss -- any chain the
+        // table does not hold byte-for-byte, e.g. one inside a [8] proxy region -- takes the
+        // full path below unchanged.
+        SchemaChain.Result chain = null;
+        if (VERIFIED_CHAINS.isBound()) {
+            chain = VERIFIED_CHAINS.get().verifiedChain(schemaChainBytes);
+        }
+        if (chain == null) {
+            List<AtomicSerialSchemaRecord> records =
+                    SchemaChain.decodeChain(schemaChainBytes, "ObjectCodec.decodeNested");
+            byte[] leafDigest = records.get(0).schemaDigest();
+            chain = new SchemaChain.Result(records, leafDigest);
+        }
 
         // Thread the receiving slot's DECLARED type into decodeHierarchy, which enforces the
         // pre-construction admission gate (admissibleConstructClass) against the wire-named
@@ -2799,17 +2919,13 @@ public final class ObjectCodec {
                 byte[] enc = body.slice(start, end);
                 if (prevEnc != null) {
                     int cmp = CollectionWireTypes.compareOctets(prevEnc, enc);
-                    if (multiset) {
-                        if (cmp > 0) {
-                            throw new DerException("ObjectCodec.decodeCollection: canonicalise "
-                                    + "multiset field (wireType " + wireType + ") is not in "
-                                    + "non-decreasing X.690 §11.6 octet order (fail-secure)");
-                        }
-                    } else if (cmp >= 0) {
-                        throw new DerException("ObjectCodec.decodeCollection: canonicalise set "
-                                + "field (wireType " + wireType + ") is not in strictly ascending "
-                                + "X.690 §11.6 octet order -- unsorted or duplicate element "
-                                + "encoding (fail-secure, §2/§11.6)");
+                    if (CollectionWireTypes.orderViolated(cmp, multiset)) {
+                        throw new DerException(multiset
+                                ? "ObjectCodec.decodeCollection: canonicalise multiset field (wireType "
+                                    + wireType + ") is not in non-decreasing X.690 §11.6 octet order (fail-secure)"
+                                : "ObjectCodec.decodeCollection: canonicalise set field (wireType "
+                                    + wireType + ") is not in strictly ascending X.690 §11.6 octet order -- "
+                                    + "unsorted or duplicate element encoding (fail-secure, §2/§11.6)");
                     }
                 }
                 prevEnc = enc;
@@ -2894,7 +3010,7 @@ public final class ObjectCodec {
             if (canonicalise) {
                 byte[] keyEnc = entry.slice(keyStart, keyEnd);
                 if (prevKeyEnc != null
-                        && CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc) >= 0) {
+                        && CollectionWireTypes.orderViolated(CollectionWireTypes.compareOctets(prevKeyEnc, keyEnc), false)) {
                     throw new DerException("ObjectCodec.decodeCollection: canonicalise map field "
                             + "(wireType " + wireType + ") keys are not in strictly ascending "
                             + "X.690 §11.6 octet order -- unsorted or duplicate key encoding "
@@ -3002,19 +3118,5 @@ public final class ObjectCodec {
         System.arraycopy(lengthBytes, 0, tlv, pos, lengthBytes.length); pos += lengthBytes.length;
         System.arraycopy(content,     0, tlv, pos, content.length);
         return tlv;
-    }
-
-    /**
-     * Encodes a schema chain as a concatenation of each record's DER SEQUENCE bytes,
-     * in leaf-first order (same as {@code MarshalledInstanceRecord.encodeChainBytes},
-     * but kept in {@code der.object} to avoid a {@code der.marshal} cycle).
-     */
-    private static byte[] encodeSchemaChainBytes(List<AtomicSerialSchemaRecord> chain) {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        for (AtomicSerialSchemaRecord record : chain) {
-            byte[] encoded = record.encode();
-            buf.write(encoded, 0, encoded.length);
-        }
-        return buf.toByteArray();
     }
 }
