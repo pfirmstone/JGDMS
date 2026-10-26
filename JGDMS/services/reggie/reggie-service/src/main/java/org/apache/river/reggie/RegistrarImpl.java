@@ -419,6 +419,23 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private volatile Entry[] lookupAttrs;
     /** Interval to wait in between sending multicast announcements */
     private final long multicastAnnouncementInterval;
+    /**
+     * Maximum age, in milliseconds, of a cached (and, for a signing discovery
+     * format, already signed) multicast announcement packet before it is
+     * re-encoded.  Zero disables the age check, restoring the legacy behaviour
+     * of caching the packets until the locator or member groups change.
+     * <p>
+     * The cache exists so that the announcement is encoded once per content
+     * change rather than once per announcement interval.  That is correct for a
+     * long-lived X.509 credential, but wrong for one that rotates -- a SPIFFE
+     * SVID is typically reissued about hourly -- because the cached packet is
+     * signed, and reggie would go on multicasting a packet signed with a retired
+     * key indefinitely, silently.  It also runs against the rule in DirtyChai's
+     * {@code javax.security.auth.Subject} javadoc that credentials must never be
+     * captured for later use; here the capture is of the signature rather than
+     * of the Subject, but the staleness is the same.
+     */
+    private final long multicastAnnouncementPacketMaxAge;
     /** Multicast announcement sequence number */
     private final AtomicLong announcementSeqNo = new AtomicLong();
 
@@ -588,6 +605,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         minMaxServiceLease = init.minMaxServiceLease;
         minRenewalInterval = init.minRenewalInterval;
         multicastAnnouncementInterval = init.multicastAnnouncementInterval;
+        multicastAnnouncementPacketMaxAge = init.multicastAnnouncementPacketMaxAge;
         multicastInterfaceRetryInterval = init.multicastInterfaceRetryInterval;
         multicastInterfaces = init.multicastInterfaces;
         multicastInterfacesSpecified = init.multicastInterfacesSpecified;
@@ -616,9 +634,42 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         Announce announceRunnable = null;
         
         try {
-            // Create threads with correct login context.
+            /*
+             * NOTE: identity is deliberately NOT established around the thread
+             * creation below.
+             *
+             * In DirtyChai (JDK 27+) a Subject rides a ScopedValue and a
+             * *platform* Thread captures none of it: java/lang/Thread.java:847
+             * assigns "scopedSubject = new Subject[0]" ("Scoped subject should
+             * only propagate to virtual threads, not platform threads, for fail
+             * closed behaviour").  Only the virtual-thread constructor
+             * (Thread.java:895) captures the ambient subject.  Wrapping thread
+             * *construction* in Subject.callAs therefore buys nothing for the
+             * six platform threads created here; an earlier revision of this
+             * block did exactly that, on a comment asserting the opposite, and
+             * was silently inert.  Do not reintroduce that claim.
+             *
+             * None of these threads needs an identity of its own.  They accept
+             * sockets and datagrams, expire local state, and write the local
+             * persistence log; each hands the work that needs an identity to
+             * another scope.  Identity is established around those operations:
+             *
+             *   - Announce.announce() establishes the login Subject around the
+             *     encode, because that is where the announcement is signed.
+             *   - respond(Socket) and respondHttps(Socket) (reached from
+             *     AddressTask and SocketTask on discoveryResponseExec)
+             *     establish it around the discovery exchange, because that is
+             *     where the server authenticates -- see the note on respond().
+             *
+             * It has to be done around the operation because an
+             * AccessControlContext conveys permissions but no identity: on
+             * DirtyChai Subject.getSubject(AccessControlContext) ignores its
+             * argument and returns Subject.current(), and work handed to an
+             * existing Executor does not inherit a callAs binding either.
+             */
             final Announce[] announceHolder = new Announce[1];
-            List<Thread> threads = AccessController.doPrivileged(new PrivilegedExceptionAction<List<Thread>>(){
+            final PrivilegedExceptionAction<List<Thread>> threadAction =
+                    new PrivilegedExceptionAction<List<Thread>>(){
 
                         @Override
                         public List<Thread> run() throws Exception {
@@ -647,7 +698,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                             return t;
                         }
                 
-                    }, context);
+                    };
+            List<Thread> threads =
+                    AccessController.doPrivileged(threadAction, context);
             serviceExpirer = threads.get(0);
             eventExpirer = threads.get(1);
             unicaster =  threads.get(2);
@@ -698,9 +751,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     @Override
     public String getClassAnnotation() throws IOException {
-	return "".equals(codebase) ? 
-		CodebaseProvider.getClassAnnotation(RegistrarProxy.class) 
+	String annotation = "".equals(codebase) ?
+		CodebaseProvider.getClassAnnotation(RegistrarProxy.class)
 		: codebase;
+	System.err.println("BUG1-DIAG RegistrarImpl.getClassAnnotation codebase=["
+		+ codebase + "] returned=[" + annotation + "]"); // TEMP diagnostic, remove
+	return annotation;
     }
 
     @Override
@@ -3141,6 +3197,20 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	private LookupLocator lastLocator;
 	/** Groups associated with cached datagram packets */
 	private String[] lastGroups;
+	/**
+	 * Sequence number carried by the cached datagram packets.  Held so that
+	 * re-encoding purely to refresh a signature can reuse it: a new
+	 * sequence number means "the announcement's content changed", which is
+	 * not true of a re-sign.
+	 */
+	private long lastSeqNo = -1;
+	/**
+	 * <code>System.nanoTime()</code> at which the cached packets were
+	 * encoded, used to bound how long an already-signed packet may be
+	 * reused.  See
+	 * <code>RegistrarImpl.multicastAnnouncementPacketMaxAge</code>.
+	 */
+	private long packetsEncodedAt;
         /** Lock and condition used instead of synchronized(thread) to avoid virtual thread pinning */
         final ReentrantLock announceLock = new ReentrantLock();
         final Condition announceCondition = announceLock.newCondition();
@@ -3200,43 +3270,87 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * synchronized run method in thread.
 	 */
 	private boolean announce(String[] groups) {
-	    if (dataPackets == null || !lastLocator.equals(reggie.myLocator) ||
-	        !Arrays.equals(lastGroups, groups))
-	    {
-	        List packets = new ArrayList();
-	        Discovery disco;
-	        try {
-		    disco = reggie.getDiscovery(reggie.multicastAnnouncementConstraints
-					 .chooseProtocolVersion());
-	        } catch (DiscoveryProtocolException e) {
-		    throw new AssertionError(e);
-	        }
-                LookupLocator myLocator = reggie.myLocator;// Atomic
-	        EncodeIterator ei = disco.encodeMulticastAnnouncement(
-		    new MulticastAnnouncement(reggie.announcementSeqNo.getAndIncrement(),
-					  myLocator.getHost(),
-					  myLocator.getPort(),
-					  groups,
-					  reggie.myServiceID),
-		    reggie.multicastAnnouncementConstraints
-		    .getMulticastMaxPacketSize(DEFAULT_MAX_PACKET_SIZE),
-		    reggie.multicastAnnouncementConstraints
-		    .getUnfulfilledConstraints());
-	        while (ei.hasNext()) {
+	    LookupLocator myLocator = reggie.myLocator;// Atomic
+	    boolean contentChanged =
+		dataPackets == null || !lastLocator.equals(myLocator) ||
+		!Arrays.equals(lastGroups, groups);
+	    /*
+	     * The cached packets are, for a signing discovery format, already
+	     * signed.  Caching them until the content changes is correct for a
+	     * long-lived X.509 credential but wrong for one that rotates (a
+	     * SPIFFE SVID is typically reissued about hourly): reggie would go
+	     * on multicasting a packet signed with a retired key indefinitely,
+	     * and silently, because nothing on the send path re-checks the
+	     * signature.  Bound the reuse by age.
+	     */
+	    boolean stale = !contentChanged
+		&& reggie.multicastAnnouncementPacketMaxAge > 0
+		&& (System.nanoTime() - packetsEncodedAt)
+		       >= TimeUnit.MILLISECONDS.toNanos(
+			      reggie.multicastAnnouncementPacketMaxAge);
+	    if (contentChanged || stale) {
+		/*
+		 * Issue a new sequence number only when the announcement's
+		 * content changes.  A re-sign of unchanged content reuses the
+		 * previous number: the sequence number tells a client that
+		 * something about this registrar changed, and a fresh signature
+		 * over identical content is not such a change.  (JGDMS's own
+		 * client would tolerate a bump -- AbstractLookupDiscovery only
+		 * acts on a new sequence number when the group set also differs
+		 * -- but other Jini clients are not bound by that, and reusing
+		 * the number is the honest encoding of "nothing changed".)
+		 */
+		final long seqNo = contentChanged
+		    ? reggie.announcementSeqNo.getAndIncrement()
+		    : lastSeqNo;
+		final String[] encodeGroups = groups;
+		final LookupLocator encodeLocator = myLocator;
+		/*
+		 * Establish this service's login identity around the encode.
+		 * This is where the announcement is signed, so this is where the
+		 * identity has to exist.  It cannot be inherited from the thread
+		 * that constructed this Announce: DirtyChai platform threads
+		 * capture no scoped subject (java/lang/Thread.java:847), and an
+		 * AccessControlContext conveys permissions but no identity
+		 * (Subject.getSubject(AccessControlContext) ignores its argument
+		 * and returns Subject.current()).
+		 *
+		 * Without it, X500Provider.getPrivateCredentials() finds no
+		 * Subject, reports "0 principal(s) and no private credentials",
+		 * the encode iterator yields nothing, and reggie announces
+		 * silently -- which is exactly the failure this seam exists to
+		 * fix.
+		 *
+		 * Deployment note: under a SecurityManager, DirtyChai's
+		 * Subject.callAs requires AuthPermission "callAs" granted to
+		 * reggie's code source, and the X.500 provider's credential
+		 * lookup requires AuthPermission "getSubject".  Neither is
+		 * present in the emptied defaultsecurereggie.policy stub.
+		 */
+		final Subject loginSubject = announceSubject();
+		DatagramPacket[] encoded;
+		if (loginSubject == null) {
+		    encoded = encodePackets(encodeGroups, encodeLocator, seqNo);
+		} else {
 		    try {
-		        packets.addAll(Arrays.asList(ei.next()));
-		    } catch (Exception e) {
-			DISCOVERY_LOGGER.log( (e instanceof 
-				     UnsupportedConstraintException)
-				    ? Levels.HANDLED : Level.INFO,
-				    "exception encoding multicast"
-				    + " announcement", e);
+			encoded = Subject.callAs(loginSubject,
+			    () -> encodePackets(encodeGroups, encodeLocator, seqNo));
+		    } catch (CompletionException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof RuntimeException) {
+			    throw (RuntimeException) cause;
+			}
+			if (cause instanceof Error) {
+			    throw (Error) cause;
+			}
+			throw e;
 		    }
 		}
 		lastLocator = myLocator;
 		lastGroups = groups;
-		dataPackets = (DatagramPacket[]) packets.toArray(
-		    new DatagramPacket[packets.size()]);
+		lastSeqNo = seqNo;
+		dataPackets = encoded;
+		packetsEncodedAt = System.nanoTime();
 	    }
 	    try {
 	        send(dataPackets);
@@ -3247,6 +3361,86 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    Level.INFO, "exception sending multicast announcement", e);
 	    }
 	    return true;
+	}
+
+	/**
+	 * Returns the Subject whose credentials should sign this registrar's
+	 * announcements, or <code>null</code> if no login is configured.
+	 * <p>
+	 * Resolved per call rather than pinned at construction, for two
+	 * reasons.
+	 * <p>
+	 * Structurally, it has to be: an <code>Announce</code> is constructed
+	 * inside the <code>threadAction</code> in the <code>RegistrarImpl</code>
+	 * constructor, whereas <code>RegistrarImpl.loginContext</code> is not
+	 * assigned until after that block completes.  A constructor that read
+	 * <code>reggie.loginContext</code> would read <code>null</code>.
+	 * <p>
+	 * In rotation terms, per-call resolution is also the right semantics.
+	 * A pinned reference is a captured credential, and DirtyChai's
+	 * <code>javax.security.auth.Subject</code> is explicit that credentials
+	 * "must never be captured for later use".  Re-reading follows a
+	 * re-login even if it replaces the <code>Subject</code> instance, and it
+	 * costs one field read and one <code>getSubject()</code> per
+	 * announcement interval (two minutes by default), which is nothing.
+	 *
+	 * @return the login subject, or <code>null</code> if none is configured
+	 */
+	private Subject announceSubject() {
+	    LoginContext lc = reggie.loginContext;
+	    return (lc != null) ? lc.getSubject() : null;
+	}
+
+	/**
+	 * Encodes (and, for a signing format, signs) the multicast announcement
+	 * packets for the given groups, locator and sequence number.
+	 * <p>
+	 * Must be called with the signing identity established -- see
+	 * <code>announceSubject()</code>.  <code>encodeMulticastAnnouncement</code>
+	 * returns a lazy iterator, so the signing happens in
+	 * <code>ei.next()</code>; both the call and the iteration have to be
+	 * inside the identity scope, which is why they are together here rather
+	 * than split across the caller.
+	 * <p>
+	 * Declares no checked exceptions, so that the caller's
+	 * <code>CompletionException</code> unwrapping only has to deal with
+	 * unchecked throwables.
+	 */
+	private DatagramPacket[] encodePackets(String[] groups,
+					       LookupLocator myLocator,
+					       long seqNo)
+	{
+	    List packets = new ArrayList();
+	    Discovery disco;
+	    try {
+		disco = reggie.getDiscovery(reggie.multicastAnnouncementConstraints
+				     .chooseProtocolVersion());
+	    } catch (DiscoveryProtocolException e) {
+		throw new AssertionError(e);
+	    }
+	    EncodeIterator ei = disco.encodeMulticastAnnouncement(
+		new MulticastAnnouncement(seqNo,
+				      myLocator.getHost(),
+				      myLocator.getPort(),
+				      groups,
+				      reggie.myServiceID),
+		reggie.multicastAnnouncementConstraints
+		.getMulticastMaxPacketSize(DEFAULT_MAX_PACKET_SIZE),
+		reggie.multicastAnnouncementConstraints
+		.getUnfulfilledConstraints());
+	    while (ei.hasNext()) {
+		try {
+		    packets.addAll(Arrays.asList(ei.next()));
+		} catch (Exception e) {
+		    DISCOVERY_LOGGER.log( (e instanceof
+				 UnsupportedConstraintException)
+				? Levels.HANDLED : Level.INFO,
+				"exception encoding multicast"
+				+ " announcement", e);
+		}
+	    }
+	    return (DatagramPacket[]) packets.toArray(
+		new DatagramPacket[packets.size()]);
 	}
 
 	/**
@@ -5005,12 +5199,90 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				  minMaxServiceLease));
     }
 
+    /**
+     * Returns the <code>Subject</code> holding this registrar's own
+     * credentials -- the server identity -- or <code>null</code> if no login is
+     * configured.
+     * <p>
+     * Not to be confused with <code>unicastDiscoverySubjectChecker</code>,
+     * which inspects the <em>client's</em> subject.
+     * <p>
+     * Resolved per call rather than pinned in a field, for the same reason as
+     * <code>Announce.announceSubject()</code>: a pinned reference is a captured
+     * credential, and DirtyChai's <code>javax.security.auth.Subject</code>
+     * javadoc says credentials must never be captured for later use.
+     * Re-reading follows a re-login even if it replaces the
+     * <code>Subject</code> instance, and costs one field read per unicast
+     * discovery request.
+     *
+     * @return the login subject, or <code>null</code> if none is configured
+     */
+    private Subject loginSubject() {
+	LoginContext lc = loginContext;
+	return (lc != null) ? lc.getSubject() : null;
+    }
+
+    /**
+     * Runs <code>action</code> with this registrar's login identity established
+     * on the calling thread.
+     * <p>
+     * When no login is configured the action is run directly rather than under
+     * <code>Subject.callAs(null, ...)</code>, so that any ambient identity -- a
+     * SPIFFE workload subject, for instance -- is left in place, and so that a
+     * non-secure deployment needs no new grants.
+     * <p>
+     * <code>Subject.callAs</code> wraps whatever the action throws in a
+     * <code>CompletionException</code>; that is unwrapped here so callers see
+     * the exception the discovery exchange actually threw.
+     * <p>
+     * Deployment note: under a <code>SecurityManager</code> this call site
+     * requires <code>AuthPermission "callAs"</code> granted to reggie's code
+     * source, and the endpoint's credential lookup inside the action requires
+     * <code>AuthPermission "getSubject"</code> and the
+     * <code>PrivateCredentialPermission</code> for the server key.  None of
+     * these are present in the emptied
+     * <code>qa/harness/policy/defaultsecurereggie.policy</code> stub.
+     *
+     * @param action the work to run under the login identity
+     * @throws Exception whatever <code>action</code> throws
+     */
+    private void withLoginSubject(Callable<Void> action) throws Exception {
+	Subject login = loginSubject();
+	if (login == null) {
+	    action.call();
+	    return;
+	}
+	try {
+	    Subject.callAs(login, action);
+	} catch (CompletionException e) {
+	    Throwable cause = e.getCause();
+	    if (cause instanceof Exception) {
+		throw (Exception) cause;
+	    }
+	    if (cause instanceof Error) {
+		throw (Error) cause;
+	    }
+	    throw e;
+	}
+    }
+
+    /**
+     * Process an https unicast discovery request, and respond.
+     *
+     * <p><strong>Not reachable yet</strong> -- nothing calls this method.
+     * <code>enableHttpsUnicast</code> only creates <code>httpsDiscovery</code>
+     * and changes the advertised locator scheme; no listener is started, hence
+     * the TODO below.  The identity seam is present so that the method is
+     * correct when it is wired up: the <code>net.jini.discovery.https</code>
+     * server provider has exactly the same lazy server-subject resolution as
+     * the ssl one -- see the note on {@link #respond}.
+     */
     //TODO: finish https discovery
     private void respondHttps(Socket socket) throws Exception {
 	try {
 	    try {
 		socket.setTcpNoDelay(true);
-		socket.setKeepAlive(true);		
+		socket.setKeepAlive(true);
 	    } catch (SocketException e) {
 		if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
 		    DISCOVERY_LOGGER.log(Levels.HANDLED,
@@ -5019,16 +5291,22 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    socket.setSoTimeout(
 	       unicastDiscoveryConstraints.getUnicastSocketTimeout(
 	           DEFAULT_SOCKET_TIMEOUT));
-	    
-	    httpsDiscovery.handleUnicastDiscovery(
+
+	    final Discovery disco = httpsDiscovery;
+	    final UnicastResponse response =
 		new UnicastResponse(myLocator.getHost(),
 				    myLocator.getPort(),
 				    memberGroups,
-				    proxy),
-		socket,
-		unicastDiscoveryConstraints.getUnfulfilledConstraints(),
-		unicastDiscoverySubjectChecker,
-		Collections.EMPTY_LIST);	
+				    proxy);
+	    withLoginSubject(() -> {
+		disco.handleUnicastDiscovery(
+		    response,
+		    socket,
+		    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
+		    unicastDiscoverySubjectChecker,
+		    Collections.EMPTY_LIST);
+		return null;
+	    });
 	} finally {
 	    try {
 		socket.close();
@@ -5038,12 +5316,55 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
     }
     
-    /** Process a unicast discovery request, and respond. */
+    /**
+     * Process a unicast discovery request, and respond.
+     *
+     * <p>The exchange runs with this registrar's login identity established --
+     * see {@link #withLoginSubject}.  That is load bearing, not decorative.
+     * The ssl and https unicast discovery formats build their server endpoint
+     * with a <code>null</code> server subject
+     * (<code>org.apache.river.discovery.ssl.Server</code> calls
+     * <code>SslServerEndpoint.getInstance("ignored", 0, null, factory)</code>),
+     * which selects lazy resolution: <code>SslListenEndpoint</code> sets
+     * <code>useCurrentSubject</code> and later reads <code>Subject.current()</code>
+     * (<code>SslServerEndpointImpl.java:800</code>).  Both the format
+     * negotiation and the handshake happen below, on
+     * <code>discoveryResponseExec</code>.  Without a live <code>callAs</code>
+     * scope on this thread that read returns <code>null</code>,
+     * <code>SslServerEndpointImpl.checkConstraints</code> throws
+     * "Server credentials unsuitable for TLS",
+     * <code>DiscoveryV2.handleUnicastDiscovery</code> logs it at HANDLED and
+     * selects no provider, and the client sees "format negotiation failed".
+     * (A deployment with a process-wide SPIFFE workload subject is unaffected:
+     * <code>resolveSubjectIfNeeded</code> prefers it over
+     * <code>Subject.current()</code>.  A JAAS/X.500 keystore login is not.)
+     *
+     * <p>The seam has to be inside the task rather than around the submission
+     * to <code>discoveryResponseExec</code>: work handed to an existing
+     * <code>Executor</code> does not inherit a <code>callAs</code> binding, and
+     * the platform threads that submit it carry no scoped subject of their own
+     * (DirtyChai <code>java/lang/Thread.java:847</code>).  An
+     * <code>AccessControlContext</code> is not a substitute.  The
+     * <code>doPrivileged(action, context)</code> in <code>SocketTask.run()</code>
+     * restores this registrar's permissions and authorization principals but
+     * not its private credentials, which is what the TLS handshake needs, and
+     * <code>Subject.getSubject(AccessControlContext)</code> ignores its
+     * argument and returns <code>Subject.current()</code>.  Note also that the
+     * other caller, <code>AddressTask.attemptResponse()</code>, has no
+     * <code>doPrivileged</code> at all; placing the seam here covers both.
+     *
+     * <p>The scope covers the whole exchange, which includes the configured
+     * <code>unicastDiscoverySubjectChecker</code>: that checker can now reach
+     * this registrar's private credentials via <code>Subject.current()</code>.
+     * It is a configuration-supplied, already-trusted object, and there is no
+     * narrower placement -- it is invoked from inside
+     * <code>handleUnicastDiscovery</code>.
+     */
     private void respond(Socket socket) throws Exception {
 	try {
 	    try {
 		socket.setTcpNoDelay(true);
-		socket.setKeepAlive(true);		
+		socket.setKeepAlive(true);
 	    } catch (SocketException e) {
 		if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
 		    DISCOVERY_LOGGER.log(Levels.HANDLED,
@@ -5054,15 +5375,26 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	           DEFAULT_SOCKET_TIMEOUT));
 	    int pv = new DataInputStream(socket.getInputStream()).readInt();
 	    unicastDiscoveryConstraints.checkProtocolVersion(pv);
-	    getDiscovery(pv).handleUnicastDiscovery(
+	    /*
+	     * Resolved outside the identity scope: neither needs it, and
+	     * getDiscovery's checked DiscoveryProtocolException would otherwise
+	     * arrive wrapped in a CompletionException.
+	     */
+	    final Discovery disco = getDiscovery(pv);
+	    final UnicastResponse response =
 		new UnicastResponse(myLocator.getHost(),
 				    myLocator.getPort(),
 				    memberGroups,
-				    proxy),
-		socket,
-		unicastDiscoveryConstraints.getUnfulfilledConstraints(),
-		unicastDiscoverySubjectChecker,
-		Collections.EMPTY_LIST);	
+				    proxy);
+	    withLoginSubject(() -> {
+		disco.handleUnicastDiscovery(
+		    response,
+		    socket,
+		    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
+		    unicastDiscoverySubjectChecker,
+		    Collections.EMPTY_LIST);
+		return null;
+	    });
 	} finally {
 	    try {
 		socket.close();
@@ -5125,6 +5457,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
          long minMaxServiceLease;
          long minRenewalInterval;
          long multicastAnnouncementInterval;
+         long multicastAnnouncementPacketMaxAge;
          int multicastInterfaceRetryInterval;
          NetworkInterface[] multicastInterfaces;
          boolean multicastInterfacesSpecified;
@@ -5303,6 +5636,28 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             this.multicastAnnouncementInterval = Config.getLongEntry(
                 config, COMPONENT, "multicastAnnouncementInterval",
                 1000 * 60 * 2 , 1, Long.MAX_VALUE);
+
+            /*
+             * Maximum age of a cached (already signed) announcement packet.
+             *
+             * Default 5 minutes.  Rationale: a SPIFFE SVID is typically reissued
+             * about hourly, so 5 minutes refreshes the signature roughly a dozen
+             * times per credential lifetime, which keeps the window in which
+             * reggie could be multicasting a packet signed with a retired key
+             * short.  For a long-lived X.509 credential the cost is one extra
+             * signature per 5 minutes, which is negligible.  0 disables the age
+             * check and restores the pre-existing behaviour (cache until the
+             * locator or member groups change) for deployments that want it.
+             *
+             * This is a bound on staleness, not a rotation notification: nothing
+             * in the Discovery/EncodeIterator API exposes the signing
+             * credential's validity period, so an exact "re-sign when the
+             * credential changes" test is not available today.  If one becomes
+             * available it should replace this.
+             */
+            this.multicastAnnouncementPacketMaxAge = Config.getLongEntry(
+                config, COMPONENT, "multicastAnnouncementPacketMaxAge",
+                1000 * 60 * 5 , 0, Long.MAX_VALUE);
 
             this.multicastInterfaceRetryInterval = Config.getIntEntry(
                 config, COMPONENT, "multicastInterfaceRetryInterval",

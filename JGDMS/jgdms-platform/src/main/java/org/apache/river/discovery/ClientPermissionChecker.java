@@ -19,14 +19,17 @@
 package org.apache.river.discovery;
 
 import org.apache.river.collection.SoftCache;
-import java.security.AccessControlException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.PrivilegedAction;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Set;
 import javax.security.auth.Subject;
+import net.jini.security.Security;
 
 /**
  * Implementation of {@link ClientSubjectChecker} that approves or rejects
@@ -43,9 +46,38 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
     private static final ProtectionDomain emptyPD = 
 	new ProtectionDomain(emptyCS, null, null, null);
 
-    private final SoftCache<Subject,ProtectionDomain> domains 
-	    = new SoftCache<Subject,ProtectionDomain>();
+    /**
+     * Context for a <code>null</code> (unauthenticated) client subject, created
+     * lazily so that it is only built when a security manager is installed.
+     */
+    private static volatile AccessControlContext emptyContext;
+
+    /*
+     * Contexts, not domains, are cached: CombinerSecurityManager caches its
+     * permission results per execution context, so a fresh context per packet
+     * would force a full policy evaluation every time.
+     */
+    private final SoftCache<Subject,AccessControlContext> domains
+	    = new SoftCache<Subject,AccessControlContext>();
     private final Permission permission;
+
+    /**
+     * Returns an <code>AccessControlContext</code> containing exactly the given
+     * domain.  The context is created in a privileged block because
+     * <code>AccessControlContext.create</code> requires
+     * <code>SecurityPermission("createAccessControlContext")</code>, and when
+     * unauthorized it silently degrades rather than throwing; scoping that check
+     * to this library's domain avoids a degraded context being built when a less
+     * privileged frame is on the stack.
+     */
+    private static AccessControlContext contextFor(final ProtectionDomain pd) {
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<AccessControlContext>() {
+		public AccessControlContext run() {
+		    return Security.create(new ProtectionDomain[]{ pd });
+		}
+	    });
+    }
 
     /**
      * Creates instance that checks if client subjects have been granted the
@@ -70,12 +102,19 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
      * constructed with an empty {@link CodeSource} (<code>null</code> location
      * and certificates), <code>null</code> permissions, <code>null</code>
      * class loader, and the principals from the given client subject (if any),
-     * and the {@link ProtectionDomain#implies implies} method of that
-     * protection domain is invoked with the specified permission.  If
-     * <code>true</code> is returned, this method returns normally, otherwise a
+     * and the permission is checked against an
+     * {@link java.security.AccessControlContext} containing only that protection
+     * domain, by invoking {@link SecurityManager#checkPermission(Permission,
+     * Object)}.  If the check succeeds this method returns normally, otherwise a
      * <code>SecurityException</code> is thrown.  If no security manager is
      * installed, this method returns normally.  The given client subject must
      * be read-only if non-<code>null</code>.
+     *
+     * <p>The check is routed through the security manager rather than calling
+     * {@link ProtectionDomain#implies implies} directly so that audit security
+     * managers (polpAudit) observe it and can record the required grant.  On a
+     * stock JVM the two are equivalent, as the security manager delegates to
+     * {@link java.security.AccessControlContext#checkPermission}.
      *
      * @throws SecurityException {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
@@ -84,27 +123,31 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
 	if (subject != null && !subject.isReadOnly()) {
 	    throw new IllegalArgumentException("subject is not read-only");
 	}
-	if (System.getSecurityManager() == null) {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
 	    return;
 	}
-	ProtectionDomain pd;
+	AccessControlContext acc;
 	if (subject == null) {
-	    pd = emptyPD;
+	    acc = emptyContext;
+	    if (acc == null) {
+		acc = contextFor(emptyPD);
+		emptyContext = acc;
+	    }
 	} else {
 	    synchronized (domains) {
-		pd = domains.get(subject);
+		acc = domains.get(subject);
 	    }
-	    if (pd == null) {
+	    if (acc == null) {
 		Set<Principal> s = subject.getPrincipals();
 		Principal[] prins = s.toArray(new Principal[s.size()]);
-		pd = new ProtectionDomain(emptyCS, null, null, prins);
+		acc = contextFor(
+			new ProtectionDomain(emptyCS, null, null, prins));
 		synchronized (domains) {
-		    domains.put(subject, pd);
+		    domains.put(subject, acc);
 		}
 	    }
 	}
-	if (!pd.implies(permission)) {
-	    throw new AccessControlException("access denied " + permission);
-	}
+	sm.checkPermission(permission, acc);
     }
 }

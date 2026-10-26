@@ -31,6 +31,7 @@ import java.security.DomainCombiner;
 import java.security.Guard;
 import java.security.Permission;
 import java.security.Permissions;
+import java.security.SecurityPermission;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
@@ -38,6 +39,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +69,7 @@ import org.apache.river.api.security.LocalPrincipalProvider;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevocablePolicy;
+import org.apache.river.api.security.SpiffeTrustProvider;
 import org.apache.river.api.security.SubjectDomain;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
@@ -198,6 +201,15 @@ public final class Security {
      * principals even when no {@code Subject.doAs()} wraps the call.
      */
     private static final AtomicReference<LocalPrincipalProvider> localPrincipalProvider =
+            new AtomicReference<>(null);
+    /**
+     * Registered {@link SpiffeTrustProvider}, if any.  Set by whichever component
+     * owns the SPIRE trust bundle -- the credential manager inside the DirtyChai
+     * JDK, or the test harness -- so that consumers in modules that cannot see
+     * that component (notably {@code jgdms-discovery-providers}) can validate
+     * SVID certificate chains.  See {@link #spiffeTrustBundle()}.
+     */
+    private static final AtomicReference<SpiffeTrustProvider> spiffeTrustProvider =
             new AtomicReference<>(null);
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
@@ -1552,10 +1564,74 @@ public final class Security {
      * replaces the previous registration.  Passing {@code null} clears the
      * registration.
      *
+     * <p>A registered provider supplies the principals that
+     * {@link #currentPrincipals()} reports as this process's identity, and those
+     * principals select which principal-scoped policy grants apply.  Registration
+     * is therefore guarded by {@link java.security.SecurityPermission}
+     * {@code "registerLocalPrincipalProvider"} when a security manager is
+     * installed; without it, any code able to reach this method could assert an
+     * arbitrary local identity.
+     *
      * @param provider the provider to register, or {@code null} to clear
+     * @throws SecurityException if a security manager is installed and the caller
+     *         does not have the required permission
      */
     public static void registerLocalPrincipalProvider(LocalPrincipalProvider provider) {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(
+		new SecurityPermission("registerLocalPrincipalProvider"));
+	}
         localPrincipalProvider.set(provider);
+    }
+
+    /**
+     * Registers a {@link SpiffeTrustProvider} supplying the SPIRE trust bundle
+     * used to validate SVID certificate chains.
+     *
+     * <p>This is the integration point for the component that owns the trust
+     * material.  That component is not reachable from every module that needs to
+     * validate against it -- inside the DirtyChai JDK it lives in a package
+     * {@code java.base} does not export -- so the material is pushed in here
+     * rather than pulled across a module boundary.
+     *
+     * <p>Only one provider may be registered at a time; a new call replaces the
+     * previous registration.  Passing {@code null} clears it.
+     *
+     * <p>Registering a provider determines which certificate authorities this
+     * process will trust, so this method requires
+     * {@link java.security.SecurityPermission} {@code "registerSpiffeTrustProvider"}
+     * when a security manager is installed.
+     *
+     * @param provider the provider to register, or {@code null} to clear
+     * @throws SecurityException if a security manager is installed and the caller
+     *         does not have the required permission
+     * @since 3.1.1
+     */
+    public static void registerSpiffeTrustProvider(SpiffeTrustProvider provider) {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(
+		new SecurityPermission("registerSpiffeTrustProvider"));
+	}
+        spiffeTrustProvider.set(provider);
+    }
+
+    /**
+     * Returns the SPIRE trust bundle from the registered
+     * {@link SpiffeTrustProvider}, or {@code null} if no provider is registered
+     * or none is presently available.
+     *
+     * <p>The bundle is fetched from the provider on every call so that CA
+     * rotation is picked up without any listener lifecycle.  Callers must not
+     * cache the result beyond the single validation that requested it.
+     *
+     * @return the current trust bundle, or {@code null} if unavailable
+     * @since 3.1.1
+     */
+    public static X509Certificate[] spiffeTrustBundle() {
+	SpiffeTrustProvider stp = spiffeTrustProvider.get();
+	return (stp != null) ? stp.getTrustBundle() : null;
     }
 
     /**

@@ -27,8 +27,10 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
+import javax.security.auth.Subject;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MarshallingFormat;
@@ -458,6 +460,24 @@ public class EventType implements Serializable {
     }
 
     /**
+     * Returns the owning service's login <code>Subject</code>, or
+     * <code>null</code> if the service has no login configured (or the
+     * generator has not been supplied with one).
+     * <p>
+     * Read on every send attempt rather than captured, so that a re-login
+     * (credential rotation) is picked up.
+     *
+     * @return the owning service's login subject, or <code>null</code>
+     */
+    private Subject getLoginSubject() {
+	EventTypeGenerator g;
+	synchronized (this) {
+	    g = generator;
+	}
+	return (g == null) ? null : g.getLoginSubject();
+    }
+
+    /**
      * Subclass of <code>RetryTask</code> used by <code>EventType</code>
      * to send events.
      */
@@ -543,11 +563,34 @@ public class EventType implements Serializable {
 		    
 	    }
 
-	    // Try sending 
+	    // Try sending
 	    try {
+		/*
+		 * The owning service's login identity is established HERE,
+		 * around the outbound call, in the thread that makes it.
+		 *
+		 * It cannot be inherited.  This task runs on the generator's
+		 * ExecutorService, and work handed to an existing Executor does
+		 * not inherit a Subject.callAs binding.  The AccessControlContext
+		 * used below restores the service's permissions but carries no
+		 * identity: on DirtyChai (JDK 27+) the Subject rides a
+		 * ScopedValue and Subject.getSubject(AccessControlContext)
+		 * ignores its argument, simply returning Subject.current().
+		 *
+		 * Without this, SslEndpointImpl.getCallContext finds no client
+		 * Subject (unless an ambient SPIFFE workload identity happens to
+		 * be available) and the send fails with
+		 * UnsupportedConstraintException: "Client must be logged on and
+		 * caller must do as".
+		 *
+		 * Deployment note: under a SecurityManager, DirtyChai's
+		 * Subject.callAs requires AuthPermission "callAs" granted to
+		 * this code source.
+		 */
+		final Subject loginSubject = getLoginSubject();
 		try {
 		    final RemoteEvent ev = event;
-		    AccessController.doPrivileged(
+		    final PrivilegedExceptionAction sendAction =
 			new PrivilegedExceptionAction(){
 
 			    @Override
@@ -555,12 +598,37 @@ public class EventType implements Serializable {
 				listener.notify(ev);
 				return null;
 			    }
-			}, context
-		    );
+			};
+		    if (loginSubject == null) {
+			AccessController.doPrivileged(sendAction, context);
+		    } else {
+			Subject.callAs(loginSubject, () -> {
+			    AccessController.doPrivileged(sendAction, context);
+			    return null;
+			});
+		    }
+		} catch (CompletionException e){
+		    /*
+		     * Unwrap, so that the ThrowableConstants.retryable()
+		     * classification below sees the real failure rather than the
+		     * CompletionException wrapper -- misclassifying it would
+		     * change whether the event registration is dropped.
+		     */
+		    Throwable cause = e.getCause();
+		    if (cause instanceof PrivilegedActionException) {
+			throw ((PrivilegedActionException) cause).getException();
+		    }
+		    if (cause instanceof Error) {
+			throw (Error) cause;
+		    }
+		    if (cause instanceof Exception) {
+			throw (Exception) cause;
+		    }
+		    throw e;
 		} catch (PrivilegedActionException e){
 		    throw e.getException();
 		}
-		
+
 		return true;
 	    } catch (Throwable t) {
 		// Classify the exception using ThrowableConstants, if

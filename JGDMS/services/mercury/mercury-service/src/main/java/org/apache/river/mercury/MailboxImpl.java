@@ -657,8 +657,38 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
         Thread expireR = null;
         ReliableLog loG = null;
         try {
-            Object [] result
-                = AccessController.doPrivileged(new PrivilegedExceptionAction<Object[]>(){
+            /*
+             * NOTE: identity is deliberately NOT established around the thread
+             * creation below.
+             *
+             * In DirtyChai (JDK 27+) a Subject rides a ScopedValue and a
+             * *platform* Thread captures none of it:
+             * java/lang/Thread.java:847 assigns "scopedSubject = new Subject[0]"
+             * ("Scoped subject should only propagate to virtual threads, not
+             * platform threads, for fail closed behaviour").  Only the
+             * virtual-thread constructor (Thread.java:895) captures the ambient
+             * subject.  Wrapping thread *construction* in Subject.callAs
+             * therefore buys nothing for the platform threads created here; an
+             * earlier version of this constructor did exactly that and was
+             * silently inert.
+             *
+             * None of these threads needs an identity in any case.  Notifier
+             * only reads local registration state and submits NotifyTasks to an
+             * ExecutorService; ExpirationThread only removes expired
+             * registrations from local tables; SnapshotThread only writes the
+             * local persistence log.
+             *
+             * Identity is established around the operation that genuinely needs
+             * it -- the listener.notify() call in NotifyTask.tryOnce() -- and it
+             * has to be established there, in the thread that makes the call.
+             * It cannot be inherited: work handed to an existing Executor does
+             * not inherit a callAs binding, and an AccessControlContext conveys
+             * permissions but no identity (DirtyChai's
+             * Subject.getSubject(AccessControlContext) ignores its argument and
+             * returns Subject.current()).
+             */
+            final PrivilegedExceptionAction<Object[]> initAction
+                = new PrivilegedExceptionAction<Object[]>(){
                     public Object [] run() throws Exception {
                         Object [] res = new Object [4];
                         res [0] = persistent ? new SnapshotThread(): null;
@@ -678,7 +708,8 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         }
                         return res;
                     }
-                }, context);
+                };
+            Object [] result = AccessController.doPrivileged(initAction, context);
             snapShotter = (Thread) result[0];
             notifieR = (Thread) result [1];
             expireR = (Thread) result [2];
@@ -3079,12 +3110,70 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		            Long.valueOf(ev.getSequenceNumber())});
 	        }
 		try {
-		    // Notify target listener and note a successful delivery
+		    /*
+		     * Notify target listener and note a successful delivery.
+		     *
+		     * This service's login identity is established HERE, around
+		     * the outbound call, in the thread that makes it.  It cannot
+		     * be inherited: this task runs on an ExecutorService and work
+		     * handed to an existing Executor does not inherit a
+		     * Subject.callAs binding, while the AccessControlContext used
+		     * below restores this service's permissions but carries no
+		     * identity -- on DirtyChai
+		     * Subject.getSubject(AccessControlContext) ignores its
+		     * argument and simply returns Subject.current().
+		     *
+		     * Without this, SslEndpointImpl.getCallContext finds no client
+		     * Subject (unless an ambient SPIFFE workload identity happens
+		     * to be available) and delivery fails with
+		     * UnsupportedConstraintException: "Client must be logged on
+		     * and caller must do as".
+		     *
+		     * The Subject is re-read from the LoginContext on every
+		     * attempt rather than captured once, so that a re-login
+		     * (credential rotation) is picked up.
+		     *
+		     * Deployment note: under a SecurityManager, DirtyChai's
+		     * Subject.callAs requires AuthPermission "callAs" granted to
+		     * this code source.
+		     */
+		    final Subject loginSubject =
+			(loginContext != null) ? loginContext.getSubject() : null;
+		    final RemoteEventListener target = listener;
+		    final RemoteEvent evt = ev;
 		    try {
-			AccessController.doPrivileged(
-			    new NotifyListener(listener, ev), 
-			    context
-			);
+			if (loginSubject == null) {
+			    AccessController.doPrivileged(
+				new NotifyListener(target, evt),
+				context
+			    );
+			} else {
+			    Subject.callAs(loginSubject, () -> {
+				AccessController.doPrivileged(
+				    new NotifyListener(target, evt),
+				    context
+				);
+				return null;
+			    });
+			}
+		    } catch (CompletionException e){
+			/*
+			 * Unwrap, so that the ThrowableConstants.retryable()
+			 * classification below sees the real failure rather than
+			 * the CompletionException wrapper -- misclassifying it
+			 * would change whether the registration is disabled.
+			 */
+			Throwable cause = e.getCause();
+			if (cause instanceof PrivilegedActionException) {
+			    throw ((PrivilegedActionException) cause).getException();
+			}
+			if (cause instanceof Error) {
+			    throw (Error) cause;
+			}
+			if (cause instanceof Exception) {
+			    throw (Exception) cause;
+			}
+			throw e;
 		    } catch (PrivilegedActionException e){
 			throw e.getException();
 		    }

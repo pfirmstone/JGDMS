@@ -34,10 +34,13 @@ import java.net.Socket;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -57,6 +61,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
@@ -134,6 +139,42 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     private final Set<LocatorReg> undiscoveredLocators = Collections.newSetFromMap(new ConcurrentHashMap<LocatorReg,Boolean>());
     /** Stores LookupLocators that have been discovered */
     private final List<LocatorReg> discoveredLocators = new CopyOnWriteArrayList<LocatorReg>();
+    /** Identity captured at construction, on the constructing client's thread,
+     *  and re-established around BOTH the unicast discovery exchange and event
+     *  delivery.  Declared before notifierThread so this field initializer runs
+     *  first (field initializers run in declaration order).
+     *
+     *  Unicast discovery runs on a RetryTask in a PRE-EXISTING executor, and
+     *  event delivery on the Notifier platform thread; neither inherits an
+     *  identity, so it must be re-established around the work.
+     *
+     *  WHY THIS IS A RESTORATION, NOT A PRIVILEGE ELEVATION -- the correct
+     *  baseline is the stock-JDK/SecurityManager era, NOT "what this thread
+     *  inherited before DirtyChai cc09a47009c".  In that era a Thread captured
+     *  its parent's inheritedAccessControlContext, the Notifier restored the
+     *  construction-time ACC explicitly via doPrivileged(..., loginContext),
+     *  and Subject.getSubject(acc) reached the WHOLE Subject -- private
+     *  credentials included -- through the SubjectDomainCombiner carried by
+     *  that ACC.  Listener callbacks therefore always could, and did, sign as
+     *  the client; that was the design.  This seam restores exactly that
+     *  capability under the ScopedValue regime, where the ACC route can no
+     *  longer deliver it.
+     *
+     *   /!\ Do NOT restate this as "the thread inherited the Subject before
+     *  cc09a47009c".  That is FALSE here and was measured false:
+     *  DirtyChai propagates the Subject by wrapping Thread.run(), and this
+     *  Notifier extends Thread and OVERRIDES run(), so the wrapper is never
+     *  invoked -- see DESIGN-discovery-credential-resolution.md 11.7
+     *  (2026-08-09, live stack comparison).  This thread never inherited the
+     *  Subject on either side of that commit.
+     *
+     *  Capture happens at construction, on the constructing client's thread,
+     *  so the identity bound here is the instance owner's own -- the same
+     *  principal whose work the callbacks do.  That is the discriminator
+     *  against a confused-deputy: a seam is a deputy hazard when the bound
+     *  identity's owner DIFFERS from the principal whose work the code does.
+     */
+    private final Subject loginSubject = captureLoginSubject();
     /** Thread that handles pending notifications. */
     private final Notifier notifierThread = new Notifier();
     /** Notifications to be sent to listeners. */
@@ -288,15 +329,50 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 		    // (getUnfulfilledConstraints removes multicast TTL/packet-size,
 		    // protocol version and timeouts, preserving integrity /
 		    // authentication), mirroring AbstractLookupDiscovery.
-		    InvocationConstraints unfulfilled = dc.getUnfulfilledConstraints();
-		    Collection ctx = new ArrayList(1);
+		    final InvocationConstraints unfulfilled = dc.getUnfulfilledConstraints();
+		    final Collection ctx = new ArrayList(1);
 		    ctx.add(new BasicMethodConstraints(unfulfilled));
-		    return disco.doUnicastDiscovery(
+		    /* The SSL client endpoint needs the client's signing credentials to
+		     * satisfy ClientAuthentication / ClientMinPrincipal here.  This runs
+		     * on a RetryTask in a PRE-EXISTING executor, which inherits no
+		     * Subject, so the captured identity must be re-established around the
+		     * exchange -- mirroring AbstractLookupDiscovery's unicast seam.
+		     * Without it: "Client must be logged on and caller must do as",
+		     * nothing is discovered, and no event is ever queued for delivery.
+		     *
+		     * NOTE (review item F3, carried over from the AbstractLookupDiscovery
+		     * seam): this scope covers proxy DESERIALIZATION as well as the
+		     * handshake, because doUnicastDiscovery performs both.  Deliberate --
+		     * the codebase-annotation RPC needs the same identity -- but it is a
+		     * wider scope than the handshake alone and is still open for review.
+		     */
+		    try {
+		        return runWithLoginSubject(loginSubject,
+		    	    new PrivilegedExceptionAction<UnicastResponse>() {
+		    	public UnicastResponse run() throws Exception {
+		    	    return disco.doUnicastDiscovery(
 					    s,
 					    unfulfilled,
-					    null,
-					    null,
+					    // ClassLoader necessary for ServiceLoader to find
+					    // net.jini.loader.pref.PreferredProxyCodebaseProvider.
+					    // Passing null here yielded NoClassDefFoundError:
+					    // net/jini/export/ProxyAccessor while deserialising the
+					    // unicast response, so no registrar was ever returned.
+					    // Mirrors AbstractLookupDiscovery.doUnicastDiscovery.
+					    AbstractLookupLocatorDiscovery.class.getClassLoader(),
+					    AbstractLookupLocatorDiscovery.class.getClassLoader(),
 					    ctx);
+		    	}
+		        });
+		    } catch (IOException e) {
+		        throw e;
+		    } catch (ClassNotFoundException e) {
+		        throw e;
+		    } catch (RuntimeException e) {
+		        throw e;
+		    } catch (Exception e) {
+		        throw new AssertionError(e);
+		    }
 		    
 		}
 		
@@ -413,11 +489,36 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      *  <p>
      *  Only 1 instance of this thread is run.
      */
+    /** Subject types safe to capture and re-establish later.  Allow-list of
+     *  exact class names, NOT a deny-list: a deny-list fails open against any
+     *  Subject type a later release introduces.  Deliberately excludes
+     *  DirtyChai's WorkerSubject and its subtypes -- those are ambient,
+     *  process-local and rotate, so a captured one goes stale silently.
+     *  Kept identical to AbstractLookupDiscovery.CAPTURABLE_SUBJECT_TYPES.
+     */
+    private static final Set<String> CAPTURABLE_SUBJECT_TYPES =
+            Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+                    "javax.security.auth.Subject",
+                    "javax.security.auth.UserSubject")));
+
     private class Notifier extends Thread {
         // In case client code catches and resets interrupt.
         private volatile boolean interrupted = false;
         private final AccessControlContext loginContext;
-        
+        /* NOTE: under the ScopedValue regime loginContext is an ACC that
+         * carries PRINCIPALS but not CREDENTIALS, so it can no longer
+         * re-establish the client's Subject the way it did on a stock JDK.
+         * The outer loginSubject field restores that; see it for why this is a
+         * restoration and not an elevation.
+         *
+         * Nesting matters and is deliberate: runWithLoginSubject (callAs) is
+         * OUTSIDE and this doPrivileged(loginContext) is INSIDE.  That way an
+         * attempt by listener code to read Subject.current() is evaluated
+         * against the client's construction ACC intersected with the
+         * listener's own domain, so DirtyChai's AuthPermission("getSubject")
+         * gate (Subject.java:386-393) still bites when a SecurityManager is
+         * installed.  Do not reorder these.
+         */
 	public Notifier() {
 	    super("event notifier");
 	    setDaemon(false);
@@ -474,6 +575,9 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                         }//end loop
                     }//endif(firstListener && isLoggable(Level.FINEST)
                     try {
+                        runWithLoginSubject(loginSubject,
+                                new PrivilegedExceptionAction<Void>() {
+                            public Void run() {
                         AccessController.doPrivileged(new PrivilegedAction(){
                             @Override
                             public Object run() {
@@ -485,6 +589,9 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                                 return Boolean.TRUE;
                             }
                         }, loginContext);
+                                return null;
+                            }
+                        });
                     } catch (Throwable t) {
                 	logger.log(Levels.HANDLED, "a discovery listener failed to process a " +
                 		(task.discard ? "discard" : "discover") + " event", t);
@@ -493,6 +600,99 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 	    }//end loop
 	}//end run
     }//end class Notifier
+
+    /**
+     * Captures the constructing caller's Subject for later re-establishment
+     * around event delivery.  Mirrors
+     * {@code AbstractLookupDiscovery.captureDiscoverySubject()}; see that
+     * method for the full rationale.
+     *
+     * @return the current Subject if it is a capturable type, otherwise null
+     *         (which leaves the ambient identity untouched)
+     */
+    private Subject captureLoginSubject() {
+        Subject current;
+        try {
+            current = Subject.current();
+        } catch (SecurityException e) {
+            // Denied AuthPermission("getSubject").  A deployment defect, not an
+            // environment fact: listener callbacks that make remote calls will
+            // fail, and those failures are routinely swallowed by listener
+            // code, presenting as missing events rather than errors.  Must be
+            // visible by default.
+            logger.log(Level.WARNING,
+                    "denied access to Subject.current() while capturing the "
+                    + "identity for locator discovery event delivery; listener "
+                    + "callbacks will run with no identity -- check for a "
+                    + "missing AuthPermission(\"getSubject\") grant", e);
+            return null;
+        }
+        if (current == null) {
+            // Legitimate: the caller is simply not running under a login
+            // Subject.  CONFIG, not WARNING -- plaintext-only deployments have
+            // nothing to capture, and warning here would train operators to
+            // ignore the warning that matters.
+            if (logger.isLoggable(Level.CONFIG)) {
+                logger.log(Level.CONFIG,
+                        "no current Subject at LookupLocatorDiscovery "
+                        + "construction; discovery event delivery will carry "
+                        + "no identity. If listeners make remote calls, "
+                        + "construct this instance inside "
+                        + "Subject.callAs(loginSubject, ...).");
+            }
+            return null;
+        }
+        if (!CAPTURABLE_SUBJECT_TYPES.contains(current.getClass().getName())) {
+            // Ambient/process identity (DirtyChai WorkerSubject and subtypes),
+            // or a type this release does not know about.  See
+            // CAPTURABLE_SUBJECT_TYPES.
+            if (logger.isLoggable(Level.CONFIG)) {
+                logger.log(Level.CONFIG,
+                        "current Subject at LookupLocatorDiscovery "
+                        + "construction is a {0}, which is not capturable for "
+                        + "later use; leaving the ambient identity untouched.",
+                        current.getClass().getName());
+            }
+            return null;
+        }
+        if (logger.isLoggable(Level.CONFIG)) {
+            logger.log(Level.CONFIG,
+                    "captured identity {0} at LookupLocatorDiscovery "
+                    + "construction", current.getPrincipals());
+        }
+        return current;
+    }
+
+    /**
+     * Runs {@code action} with {@code loginSubject} established as the current
+     * Subject, so that listener callbacks which make remote calls can find
+     * signing credentials.
+     *
+     * <p>The Subject must be established <em>here</em>, around the work, rather
+     * than relying on the delivery thread having inherited it: the Notifier is
+     * a PLATFORM thread and DirtyChai propagates the scoped Subject to virtual
+     * threads only.
+     *
+     * <p>A null Subject leaves the ambient identity untouched -- the behaviour
+     * when nothing was capturable at construction.
+     *
+     * @see AbstractLookupDiscovery
+     */
+    private <T> T runWithLoginSubject(
+            Subject loginSubject,
+            PrivilegedExceptionAction<T> action) throws Exception {
+        if (loginSubject == null) {
+            return action.run();
+        }
+        try {
+            return Subject.callAs(loginSubject, action::run);
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) { throw (Exception) cause; }
+            if (cause instanceof Error) { throw (Error) cause; }
+            throw e;
+        }
+    }
 
     /** Task which retrieves elements from the set of undiscoveredLocators
      *  and attempts, through the unicast discovery protocol, to discover

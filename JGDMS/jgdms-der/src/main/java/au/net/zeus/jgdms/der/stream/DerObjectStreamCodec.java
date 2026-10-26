@@ -1298,6 +1298,8 @@ final class DerObjectStreamCodec {
             // loader -- Warres): resolves each interface name independently rather than failing
             // the whole item when a single name doesn't resolve locally. Names that don't resolve
             // are dropped (and logged); the proxy still builds over the resolvable subset.
+            System.err.println("BUG1-DIAG DerObjStreamCodec.decodeProxy names=" + java.util.Arrays.toString(names)
+                    + " resolutionLoader=" + resolution.defaultLoader()); // TEMP diagnostic, remove
             ProxyWireSupport.Resolved resolved = ProxyWireSupport.resolveTolerant(names, resolution);
             // DeSerializationPermission("PROXY") gate before reconstruction -- DER counterpart of
             // AtomicMarshalInputStream.instantiateProxy's deSerializationPermitted(PROXY). No-op w/o SM.
