@@ -4,7 +4,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 
 | file | bytes | modified | model id (first line) | status |
 |---|---|---|---|---|
-| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 128668 | 2026-11-01 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
+| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 129654 | 2026-11-01 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `TRAINING-code-free-proxy-investigation-2026-10-31.md` | 6132 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `INVESTIGATION-code-free-fiddler-2026-10-31.md` | 21798 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
 | `INVESTIGATION-code-free-mahalo-2026-10-31.md` | 17749 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
@@ -19,6 +19,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-proxy-policy-tooling-round4-2026-10-31.md` | 10276 | 2026-10-31 | claude-sonnet-5-5 | LIVE: matches commit ae004e42f; its Opus check is REVIEW-proxy-policy-tooling-round4-opus (done); round 5 is in progress |
 | `INVESTIGATION-sm-test-failures-rootcause-2026-10-31.md` | 15542 | 2026-10-31 | claude-opus-5-5 | LIVE: matches commit bb2e10720 |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
+| `INVESTIGATION-proxy-policy-tooling-round5-2026-11-01.md` | 9610 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `REVIEW-block-bound-fix-fable-2026-10-31.md` | 12112 | 2026-10-31 | claude-fable-5-1 | LIVE: matches commit bb2e10720 |
 | `REVIEW-code-free-service-reports-fable-2026-10-31.md` | 18134 | 2026-10-31 | claude-fable-5-1 | LIVE as findings; static reading only, nothing run |
 | `REVIEW-code-free-service-reports-opus-2026-10-31.md` | 24645 | 2026-10-31 | claude-opus-5-5 | LIVE as findings; static reading only, nothing run |
@@ -30,9 +31,11 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `SURVEY-lazy-statics-untrusted-input-2026-10-31.md` | 16819 | 2026-10-31 | claude-opus-5-5 | LIVE: candidates 1-2 await the operator |
 | `SURVEY-security-news-week-2026-10-31.md` | 11009 | 2026-10-31 | claude-sonnet-5-5 | PARTLY SUPERSEDED: CVE details corrected by VERIFY-jsse-ca-distrust (count is 8, not 16; CVE-2026-114820 is not single-source) |
 | `SURVEY-landscape-high-security-2026-11-01.md` | 12074 | 2026-11-01 | claude-sonnet-5-5 | LIVE: built from search summaries only; nothing fetched |
+| `SURVEY-timing-mitigations-edge-and-browsers-2026-11-01.md` | 13840 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `VERIFY-jsse-ca-distrust-2026-10-31.md` | 7369 | 2026-10-31 | claude-sonnet-5-5 | LIVE: read through page summaries except where it says otherwise; openjdk.org/emudhra was also read by the author |
 | `MERGE-ITEM-emudhra-cacerts-2026-10-31.md` | 9329 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE: cherry-pick done in DirtyChai (bc6a1dad8a2 + operator follow-up 91737c79880); remaining: the installed-JDK keytool step |
 | `REVIEW-handover-2026-11-01-fable.md` | 12364 | 2026-11-01 | claude-fable-5-1 | LIVE: review of the handover (Fable); applied in revision 3 |
+| `REVIEW-policy-lint-opus-2026-11-01.md` | 12374 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 
 ## Other recordings of this window (not in the table above)
 - `HANDOVER-2026-11-01-code-free-proxy-window.md` and this index (written by the main session, Sonnet 5.5; reviewed by Fable 5.1).

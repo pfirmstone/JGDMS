@@ -74,6 +74,9 @@ Known failures NOT caused by this work: 16 of 472 `jgdms-platform` tests (3 fail
 - ~~the counted self-errors "at least 6"~~ see the triggers section.
 - For the operator (DirtyChai, human-authored, advise only): `91737c79880` also removed five bug ids from `VerifyCACerts.java`'s `@bug` line, including `8395690`; the line lists what the test covers, so that is the operator's call.
 
+## Model budget policy (operator, 2026-11-01: weekly budget at 59%, do work with Sonnet first)
+Default every dispatch to Sonnet. Reviews are two-stage: a Sonnet agent runs the mechanical pre-pass (mutants on `git archive` copies, attack scripts, real-corpus runs, re-measuring checkable facts) and writes an evidence pack; then ONE Opus (or Fable) reviewer reads the pack and the delta since the last review, with a tool-use cap and a short report. Opus only for silent-and-consequential code (policy parsing, the lint, wire decoding, grants); documents and handovers get a Sonnet checklist plus mechanical re-measurement. Figures behind the request (the `subagent_tokens` lines in the hand-backs, not dollars): Opus about 2.45M tokens over 8 agents, Fable about 0.96M over 4, this window. Recorded in the project memory `model-budget-sonnet-first.md`.
+
 ## Deviations from the `handover-composition` skill, and why
 - Step 4 (message every agent for its experience) NOT DONE: the global rule is to treat every agent as single-shot, and each agent's report is on disk. The roster's model ids were instead checked against each report's first line (see the index): all match the model dispatched.
 - Different-model review of this handover: DONE (Fable 5.1, `docs/REVIEW-handover-2026-11-01-fable.md`).
