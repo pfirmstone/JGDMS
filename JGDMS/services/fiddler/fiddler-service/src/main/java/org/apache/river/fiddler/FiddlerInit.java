@@ -41,7 +41,7 @@ import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.ServerEndpoint;
@@ -244,7 +244,7 @@ class FiddlerInit {
             /* Handle items and duties related to exporting this service. */
             ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
             InvocationLayerFactory ilFactory = 
-		    new AtomicILFactory(
+		    new AtomicDerILFactory(
 			null,
 			null,
 			Fiddler.class.getClassLoader()

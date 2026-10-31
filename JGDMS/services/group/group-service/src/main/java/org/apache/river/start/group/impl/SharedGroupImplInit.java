@@ -28,7 +28,7 @@ import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -92,7 +92,7 @@ class SharedGroupImplInit {
 		    activationID,
 		    new BasicJeriExporter(
 			TcpServerEndpoint.getInstance(0), 
-			new AtomicILFactory(
+			new AtomicDerILFactory(
 			    null,
 			    null,
 			    SharedGroupImpl.class.getClassLoader()),
