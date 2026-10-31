@@ -555,6 +555,12 @@
            per-codebase META-INF/PERMISSIONS.LIST manifest (under
            <policy>.proxy-permissions/) using ProxyPolicyGenerator.  This step
            is best-effort; disable with -Dpolicy.update.generate.proxy=false.
+           A list is recorded with the SHA-256 of the policy it came from, so a
+           re-audit (new policy content) is refused over the earlier lists
+           and logged at WARNING; add -Dpolicy.update.proxy.clean=true to
+           replace them.  Dropped, held and stale entries are logged too, and
+           so is any <policy>.proxy-permissions directory no policy regenerates.
+           To move reviewed lists into the modules see policy-promote-plan.
 
       Usage:
         ant -Dpolicy.update=true policy-update
@@ -571,6 +577,10 @@
             <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
                   fork="yes"
                   failonerror="true">
+                <syspropertyset>
+                    <propertyref name="policy.update.proxy.clean"/>
+                    <propertyref name="policy.update.generate.proxy"/>
+                </syspropertyset>
                 <arg value="--qa-dir"/>
                 <arg file="${basedir}"/>
                 <classpath>
@@ -647,6 +657,139 @@
     <target name="policy-update-tests" depends="policy-update-run-tests"
             description="Run specific test(s) with polpAudit to update policy files. Usage: ant -Drun.tests=org/apache/river/test/impl/mahalo/LeaseTest.td policy-update-tests">
         <policy-post-process/>
+    </target>
+
+    <!--
+      policy-promote-plan / policy-promote-apply / policy-promote-check targets
+      =========================================================================
+      Move the META-INF/PERMISSIONS.LIST files that policy-update generated
+      (under <policy>.proxy-permissions/) into the -dl modules' source trees.
+      A jar's own PERMISSIONS.LIST is its REQUEST for permissions, so this is
+      two steps with a human review between them, never one command:
+
+        1. ant -Dpromote.out=<generated dir> policy-promote-plan
+           Writes ${promote.plan} and changes nothing under the module roots.
+           Prints the plan's SHA-256.  Read the plan: per artefact the target,
+           the entries ADDED and REMOVED against the checked-in list (or NEW
+           FILE), the held and dropped counts, the kind of policy it came from
+           and the DROPPED/HELD notes.
+        2. ant -Dpromote.out=<generated dir> -Dpromote.plan.sha=<sha> \
+               -Dpromote.approve=mahalo-dl-4.0.0-SNAPSHOT policy-promote-apply
+           Writes only the artefacts named in promote.approve (comma
+           separated).  The plan file is a record of what you read, not an
+           instruction: apply re-derives every approved artefact from the
+           generated lists and promote.module.roots and refuses one that
+           differs from the plan, whose target is not a
+           src/main/resources/META-INF/PERMISSIONS.LIST under a module root,
+           or when the plan file is not the one with SHA-256 promote.plan.sha.
+           An artefact with REMOVED entries also needs
+           -Dpromote.allow.removals=true, one with held entries
+           -Dpromote.allow.held=true.  A plan older than the generated list, a
+           target changed since the plan, and a list with no live entry are
+           refused; nothing is written if any approved artefact is refused.
+
+      CI gate (plan only; apply stays manual):
+        ant -Dpromote.out=<generated dir> policy-promote-check
+           Writes no file.  Prints the ADDED entries and fails if any artefact
+           has REMOVED entries (the checked-in jar requests more than the audit
+           observed) or a list that does not parse.
+
+      Properties:
+        promote.out           directory holding <artefact>/META-INF/PERMISSIONS.LIST
+                              (required), e.g. qa/harness/policy/x.policy.proxy-permissions
+        promote.module.roots  path of directories searched for *-dl modules
+                              (default: ${root}/JGDMS); give the same value to
+                              plan and apply
+        promote.plan          the plan file (default: ${promote.out}/promote.plan);
+                              must not lie under a module root
+        promote.plan.sha      SHA-256 printed by policy-promote-plan (required for apply)
+        promote.approve       artefacts to write (required for apply)
+        promote.allow.removals  true to accept REMOVED entries
+        promote.allow.held      true to accept held (host- or run-specific) entries
+        promote.artefact.map  optional file of 'sanitised-name = module-dir-name'
+                              lines, reviewed and checked in by a human, for
+                              generated names that cannot be guessed; give the
+                              same file to plan, check and apply
+    -->
+    <property name="promote.module.roots" location="${root}/JGDMS"/>
+
+    <path id="policy.promote.classpath">
+        <pathelement location="${policy.condenser.jar}"/>
+        <fileset dir="${lib-ext.dir}">
+            <include name="jgdms-platform-${jgdms.version}.jar"/>
+        </fileset>
+        <fileset dir="${river.lib.dir}">
+            <include name="jgdms-platform-${jgdms.version}.jar"/>
+            <include name="jgdms-collections-${jgdms.version}.jar"/>
+        </fileset>
+    </path>
+
+    <target name="policy-promote-check-out">
+        <fail message="use ant -Dpromote.out=/path/to/x.policy.proxy-permissions policy-promote-plan" unless="promote.out"/>
+        <property name="promote.plan" location="${promote.out}/promote.plan"/>
+        <condition property="promote.artefact.map.args" value="--artefact-map &quot;${promote.artefact.map}&quot;" else="">
+            <isset property="promote.artefact.map"/>
+        </condition>
+    </target>
+
+    <target name="policy-promote-plan" depends="policy-promote-check-out"
+            description="Plan the promotion of generated PERMISSIONS.LIST files into the -dl modules; changes nothing in the source tree. Usage: ant -Dpromote.out=DIR policy-promote-plan">
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg value="--plan-file"/>
+            <arg file="${promote.plan}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg value="--promote-plan"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
+    <target name="policy-promote-check" depends="policy-promote-check-out"
+            description="CI gate: writes no file, prints ADDED entries, fails on REMOVED entries or a list that does not parse. Usage: ant -Dpromote.out=DIR policy-promote-check">
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg value="--promote-plan-check"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
+    <target name="policy-promote-apply" depends="policy-promote-check-out"
+            description="Write the reviewed artefacts of a promotion plan into the -dl modules. Usage: ant -Dpromote.out=DIR -Dpromote.plan.sha=SHA -Dpromote.approve=a,b [-Dpromote.allow.removals=true] [-Dpromote.allow.held=true] policy-promote-apply">
+        <fail message="name the reviewed artefacts: ant -Dpromote.approve=mahalo-dl-4.0.0-SNAPSHOT policy-promote-apply" unless="promote.approve"/>
+        <fail message="give the SHA-256 policy-promote-plan printed for the plan you read: ant -Dpromote.plan.sha=SHA policy-promote-apply" unless="promote.plan.sha"/>
+        <condition property="promote.allow.removals.arg" value="--allow-removals" else="">
+            <istrue value="${promote.allow.removals}"/>
+        </condition>
+        <condition property="promote.allow.held.arg" value="--allow-held" else="">
+            <istrue value="${promote.allow.held}"/>
+        </condition>
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--promote-apply"/>
+            <arg file="${promote.plan}"/>
+            <arg value="--approve-plan-sha"/>
+            <arg value="${promote.plan.sha}"/>
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg value="--approve"/>
+            <arg value="${promote.approve}"/>
+            <arg line="${promote.allow.removals.arg}"/>
+            <arg line="${promote.allow.held.arg}"/>
+            <arg value="--module-roots"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
     </target>
 
     <target name="run-arm" depends="river-runtime,jars-arm">
