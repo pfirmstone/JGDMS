@@ -29,24 +29,21 @@ package net.jini.security.jwt;
  * the token before the Subject's principals are accepted.
  *
  * <h2>Caching</h2>
- * The dispatcher maintains a bounded, expiry-aware cache keyed on the raw JWT
- * string.  A verifier implementation is therefore called <em>at most once</em>
- * per unique token per its validity window, not once per JERI call.  Expensive
- * operations such as JWKS HTTP lookups are amortised over the full lifetime of
- * the token.
+ * The dispatcher maintains a bounded cache of tokens the installed verifier
+ * accepted, keyed on a digest of the token.  An entry lives until the earlier
+ * of the token's {@code exp} and a fixed cap (300 seconds) and is discarded
+ * when the verifier is replaced.  A token without a parseable future
+ * {@code exp} is not cached and is verified on every call.
  *
- * <h2>Opt-in</h2>
- * JWT verification is disabled by default (no verifier registered).  A
- * deployment that accepts JWT-bearing principals on trust of the SPIFFE SVID
- * alone can continue to do so without any change.  Register a verifier via
- * {@code BasicInvocationDispatcher.setJwtVerifier(JwtVerifier)} to enable
- * independent verification.
+ * <h2>Fail closed</h2>
+ * With no verifier registered, a Subject that carries a JWT is refused.
+ * Subjects that carry no JWT are unaffected.  Register a verifier via
+ * {@code BasicInvocationDispatcher.setJwtVerifier(JwtVerifier)}.
  *
- * <h2>Minimum viable implementation</h2>
- * {@code DefaultJwtVerifier} (in {@code jgdms-security-jwt}) checks the
- * {@code exp}, {@code iat}, {@code iss}, and {@code aud} claims without any
- * JWKS call, adding zero network dependency.  Full OIDC JWKS signature
- * verification is opt-in via a subclass or custom implementation.
+ * <h2>Implementation</h2>
+ * {@code DefaultJwtVerifier} checks claims and, when constructed with a
+ * pinned algorithm and trusted keys, the signature.  Its claims-only
+ * constructors authenticate nothing.
  *
  * <h2>Thread safety</h2>
  * Implementations must be safe for concurrent use by multiple threads.

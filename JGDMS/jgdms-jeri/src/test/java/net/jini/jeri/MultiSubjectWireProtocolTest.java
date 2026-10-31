@@ -362,8 +362,8 @@ public class MultiSubjectWireProtocolTest {
     }
 
     /**
-     * A round-trip (write + read) of a Subject carrying a {@link JwtRawToken}
-     * should successfully deserialise when no verifier is registered.
+     * A Subject carrying a {@link JwtRawToken} is refused when no verifier is
+     * registered: a token nothing verified must not be accepted on its claims.
      */
     @Test
     public void testJwtRoundTripNoVerifier() throws Exception {
@@ -378,11 +378,13 @@ public class MultiSubjectWireProtocolTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
 
-        // Read back — no verifier registered, so JWT bytes are silently discarded.
-        List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
-        Assert.assertEquals(1, decoded.size());
-        Assert.assertTrue(decoded.get(0).getPrincipals().stream()
-            .anyMatch(pr -> pr.getName().contains("alice")));
+        try {
+            invokeReadUserSubjects(baos.toByteArray());
+            Assert.fail("a JWT with no verifier installed must be refused");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Assert.assertTrue(String.valueOf(ite.getCause()),
+                ite.getCause() instanceof IOException);
+        }
     }
 
     /**

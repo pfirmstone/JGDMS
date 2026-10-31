@@ -18,19 +18,43 @@
 package net.jini.security.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A claims-only {@link JwtVerifier} implementation that validates JWT
- * structural claims without performing JWKS signature verification.
+ * A {@link JwtVerifier} that validates JWT claims and, when constructed with
+ * keys, the JWS signature.
+ *
+ * <h2>Signature mode</h2>
+ * {@link #DefaultJwtVerifier(String, String, String, Map)} pins one algorithm
+ * ({@code RS256} or {@code ES256}) and a set of trusted public keys indexed
+ * by {@code kid}.  The header {@code alg} must equal the pinned algorithm
+ * exactly (so {@code none}, {@code None} and {@code HS256} are refused, and a
+ * public key can never be used as an HMAC secret), the {@code kid} must name
+ * a configured key (a token with no {@code kid} is accepted only if exactly
+ * one key is configured), the signature must be present and valid, and a
+ * {@code crit} header is refused.  The signature is checked before the
+ * payload is parsed.
+ *
+ * <h2>Claims-only mode</h2>
+ * The constructors without keys check claims only.  A claims-only verifier
+ * authenticates nothing: anyone can write a token it accepts.  It is suitable
+ * only where another mechanism has already authenticated the sender.
  *
  * <h2>Checks performed</h2>
  * <ul>
- *   <li><b>{@code exp}</b> — token must not have expired (30-second clock-skew
- *       tolerance applied).</li>
+ *   <li><b>{@code exp}</b> — required; token must not have expired (30-second
+ *       clock-skew tolerance applied).  A token without {@code exp} never
+ *       expires, which is not acceptable for a user-authentication
+ *       credential.</li>
+ *   <li><b>{@code nbf}</b> — if present, token must already be valid (30-second
+ *       skew).</li>
  *   <li><b>{@code iat}</b> — if present, token must not have been issued in the
  *       future (30-second skew).</li>
  *   <li><b>{@code iss}</b> — if a non-null expected issuer was provided at
@@ -40,16 +64,7 @@ import java.util.Map;
  * </ul>
  *
  * <h2>No JWKS</h2>
- * This verifier does <em>not</em> perform cryptographic signature verification.
- * It is the &quot;free&quot; minimum viable implementation described in Work
- * Item 44 (Option D): no network dependency, no availability risk, cost is a
- * handful of Base64url decodes and string comparisons.
- *
- * <h2>Full OIDC verification</h2>
- * For cryptographic signature verification, configure a custom
- * {@link JwtVerifier} implementation (e.g. {@code JwtLoginModule} in
- * {@code jgdms-security-jwt}) that delegates to a JWKS-backed validator after
- * obtaining the public keys.
+ * Keys are supplied by the caller; this class performs no network fetch.
  *
  * <h2>Thread safety</h2>
  * Instances are immutable and safe for concurrent use by multiple threads.
@@ -69,6 +84,8 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
     private final String expectedIssuer;   // null → skip iss check
     private final String expectedAudience; // null → skip aud check
+    private final String algorithm;        // null → claims-only mode
+    private final Map<String, PublicKey> keys;
 
     /**
      * Constructs a {@code DefaultJwtVerifier} that performs only
@@ -88,8 +105,50 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      *                          {@code aud} claim, or {@code null} to skip
      */
     public DefaultJwtVerifier(String expectedIssuer, String expectedAudience) {
+        this(expectedIssuer, expectedAudience, null, null);
+    }
+
+    /**
+     * Constructs a signature-verifying {@code DefaultJwtVerifier}.
+     *
+     * @param expectedIssuer   required {@code iss}, or {@code null} to skip
+     * @param expectedAudience required {@code aud} element, or {@code null}
+     * @param algorithm        the only accepted JWS algorithm: {@code RS256}
+     *                         (RSA keys of at least 2048 bits) or
+     *                         {@code ES256} (P-256 keys)
+     * @param keysByKid        trusted public keys indexed by {@code kid};
+     *                         must be non-empty and each key must suit
+     *                         {@code algorithm}
+     * @throws IllegalArgumentException if an argument is unusable, including
+     *         an empty issuer or audience string
+     */
+    public DefaultJwtVerifier(String expectedIssuer, String expectedAudience,
+                              String algorithm, Map<String, PublicKey> keysByKid) {
+        if ("".equals(expectedIssuer) || "".equals(expectedAudience))
+            throw new IllegalArgumentException("issuer/audience must not be empty");
+        if ((algorithm == null) != (keysByKid == null))
+            throw new IllegalArgumentException("algorithm and keys go together");
+        if (algorithm != null) {
+            if (!"RS256".equals(algorithm) && !"ES256".equals(algorithm))
+                throw new IllegalArgumentException("unsupported algorithm");
+            if (keysByKid.isEmpty())
+                throw new IllegalArgumentException("no keys");
+            for (PublicKey k : keysByKid.values()) {
+                boolean ok = "RS256".equals(algorithm)
+                    ? (k instanceof RSAPublicKey
+                        && ((RSAPublicKey) k).getModulus().bitLength() >= 2048)
+                    : (k instanceof ECPublicKey
+                        && ((ECPublicKey) k).getParams().getCurve().getField()
+                            .getFieldSize() == 256);
+                if (!ok) throw new IllegalArgumentException("key unsuitable for " + algorithm);
+            }
+            this.keys = Map.copyOf(keysByKid);
+        } else {
+            this.keys = null;
+        }
         this.expectedIssuer   = expectedIssuer;
         this.expectedAudience = expectedAudience;
+        this.algorithm        = algorithm;
     }
 
     /**
@@ -117,6 +176,8 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     "JWT must have exactly 3 parts (header.payload.signature), got: "
                             + parts.length);
 
+        if (algorithm != null) verifySignature(parts);
+
         Map<String, String> payload;
         try {
             payload = parseClaimsJson(
@@ -127,7 +188,76 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     "Failed to decode JWT payload: " + e.getMessage(), e);
         }
 
-        validateClaims(payload);
+        try {
+            validateClaims(payload);
+        } catch (JwtVerificationException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            // e.g. an exp so large that Instant arithmetic overflows
+            throw new JwtVerificationException("JWT claims out of range", e);
+        }
+    }
+
+    private void verifySignature(String[] parts) throws JwtVerificationException {
+        Map<String, String> header;
+        byte[] sig;
+        try {
+            header = parseClaimsJson(new String(
+                    Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8));
+            sig = parts[2].isEmpty() ? null : Base64.getUrlDecoder().decode(parts[2]);
+        } catch (IllegalArgumentException e) {
+            throw new JwtVerificationException("JWT header or signature is not Base64url");
+        }
+        if (!algorithm.equals(header.get("alg")))
+            throw new JwtVerificationException("JWT alg is not the configured algorithm");
+        if (header.containsKey("crit"))
+            throw new JwtVerificationException("JWT crit header is not supported");
+        if (sig == null || sig.length == 0)
+            throw new JwtVerificationException("JWT signature is missing");
+        String kid = header.get("kid");
+        PublicKey key = kid != null ? keys.get(kid)
+                : (keys.size() == 1 ? keys.values().iterator().next() : null);
+        if (key == null)
+            throw new JwtVerificationException("JWT kid is unknown or missing");
+        try {
+            boolean es = "ES256".equals(algorithm);
+            if (es) {
+                sig = rawToDer(sig);
+                if (sig == null)
+                    throw new JwtVerificationException("JWT signature is malformed");
+            }
+            Signature v = Signature.getInstance(es ? "SHA256withECDSA" : "SHA256withRSA");
+            v.initVerify(key);
+            v.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.US_ASCII));
+            if (!v.verify(sig))
+                throw new JwtVerificationException("JWT signature is invalid");
+        } catch (java.security.GeneralSecurityException e) {
+            throw new JwtVerificationException("JWT signature is invalid");
+        }
+    }
+
+    /** JWS ES256 carries R||S as 64 bytes; the JCA wants DER.  Null if not 64 bytes. */
+    private static byte[] rawToDer(byte[] raw) {
+        if (raw.length != 64) return null;
+        byte[] r = derInt(raw, 0), s = derInt(raw, 32);
+        byte[] out = new byte[2 + r.length + s.length];
+        out[0] = 0x30;
+        out[1] = (byte) (r.length + s.length);
+        System.arraycopy(r, 0, out, 2, r.length);
+        System.arraycopy(s, 0, out, 2 + r.length, s.length);
+        return out;
+    }
+
+    private static byte[] derInt(byte[] raw, int off) {
+        int start = off;
+        while (start < off + 31 && raw[start] == 0) start++;
+        boolean pad = (raw[start] & 0x80) != 0;
+        int len = off + 32 - start;
+        byte[] out = new byte[2 + (pad ? 1 : 0) + len];
+        out[0] = 0x02;
+        out[1] = (byte) (len + (pad ? 1 : 0));
+        System.arraycopy(raw, start, out, 2 + (pad ? 1 : 0), len);
+        return out;
     }
 
     // -------------------------------------------------------------------------
@@ -137,7 +267,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
         // exp — token must not have expired
         String expStr = payload.get("exp");
-        if (expStr != null) {
+        if (expStr == null)
+            throw new JwtVerificationException("JWT has no 'exp' claim");
+        {
             try {
                 Instant exp = Instant.ofEpochSecond(Long.parseLong(expStr));
                 if (now.isAfter(exp.plusSeconds(CLOCK_SKEW_SECONDS))) {
@@ -148,6 +280,20 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             } catch (NumberFormatException e) {
                 throw new JwtVerificationException(
                         "JWT 'exp' claim is not a valid number: " + expStr, e);
+            }
+        }
+
+        // nbf — token must already be valid
+        String nbfStr = payload.get("nbf");
+        if (nbfStr != null) {
+            try {
+                Instant nbf = Instant.ofEpochSecond(Long.parseLong(nbfStr));
+                if (now.plusSeconds(CLOCK_SKEW_SECONDS).isBefore(nbf)) {
+                    throw new JwtVerificationException("JWT is not yet valid");
+                }
+            } catch (NumberFormatException e) {
+                throw new JwtVerificationException(
+                        "JWT 'nbf' claim is not a valid number: " + nbfStr, e);
             }
         }
 

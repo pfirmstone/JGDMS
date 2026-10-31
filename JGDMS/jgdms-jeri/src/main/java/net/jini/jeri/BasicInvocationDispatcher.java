@@ -99,7 +99,6 @@ import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.Security;
-import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import org.apache.river.api.io.AtomicObjectInput;
@@ -249,24 +248,26 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Pluggable JWT verifier (Option D, Work Item 44).  When {@code null} the
-     * {@link #DEFAULT_JWT_VERIFIER} is used, which performs structural claim
-     * checks ({@code exp}, {@code iat}) without JWKS signature verification.
-     * Operators who need full OIDC signature verification should install a
-     * custom verifier via {@link #setJwtVerifier(JwtVerifier)}.
-     *
-     * <p>Set via {@link #setJwtVerifier(JwtVerifier)} before exporting remote
-     * objects.
+     * The installed {@link JwtVerifier} together with the cache of tokens that
+     * verifier has accepted.  The two live in one immutable-reference holder
+     * so that replacing the verifier replaces the cache in the same volatile
+     * write: a token accepted by an old verifier can never be found by a
+     * reader that sees the new verifier, and a verification still running
+     * against the old verifier can only write into the old (discarded) cache.
+     * A single lock or a generation counter beside a shared map would leave a
+     * window between the two operations.
      */
-    private static volatile JwtVerifier jwtVerifier = null;
+    private static final class JwtState {
+        final JwtVerifier verifier;
+        final ConcurrentHashMap<String, Instant> cache = new ConcurrentHashMap<>();
+        JwtState(JwtVerifier verifier) { this.verifier = verifier; }
+    }
 
     /**
-     * Fallback verifier applied when no custom {@link JwtVerifier} has been
-     * installed.  Performs structural claim checks ({@code exp}, {@code iat})
-     * without JWKS network calls — zero operational cost, closes the default-
-     * path gap described in Work Item 43 / §2.3 of the security assessment.
+     * Current verifier state.  With no verifier installed ({@code null}) a
+     * Subject that carries a JWT is refused; see {@link #setJwtVerifier}.
      */
-    private static final JwtVerifier DEFAULT_JWT_VERIFIER = new DefaultJwtVerifier();
+    private static volatile JwtState jwtState = new JwtState(null);
 
     /**
      * Maximum number of raw JWT tokens accepted per Subject from the wire.
@@ -281,21 +282,18 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private static final int MAX_JWT_BYTES = 65_536;
 
     /**
-     * Connection-level JWT verification cache (Option D, Work Item 44).
-     *
-     * <p>Maps raw JWT compact-serialization strings to their expiry
-     * {@link Instant} (extracted from the {@code exp} claim).  An entry is
-     * considered valid while {@code Instant.now().isBefore(exp)}.  The
-     * {@link JwtVerifier} is called at most once per token per validity window,
-     * amortising any expensive JWKS HTTP lookup over the full token lifetime.
-     *
-     * <p>Size is bounded at {@value #JWT_CACHE_MAX_SIZE} entries.  When the
-     * limit is reached, all expired entries are purged; if the map is still
-     * full after pruning, it is cleared entirely (simple, safe, rare).
+     * Cache of tokens accepted by the installed verifier, keyed on the SHA-256
+     * of the token (so the cache neither retains bearer tokens nor holds up to
+     * {@value #MAX_JWT_BYTES} bytes per entry) and valued with the instant the
+     * entry stops being trusted: the smaller of the token's {@code exp} and
+     * {@value #JWT_CACHE_MAX_AGE_SECONDS} seconds from acceptance.  The cap
+     * bounds how long a revocation or key rotation at the verifier can be
+     * ignored, whatever {@code exp} the token claims.  At most
+     * {@value #JWT_CACHE_MAX_SIZE} entries; when full, expired entries are
+     * purged and, if still full, the cache is cleared.
      */
-    private static final ConcurrentHashMap<String, Instant> JWT_VERIFICATION_CACHE =
-            new ConcurrentHashMap<>();
     private static final int JWT_CACHE_MAX_SIZE = 1024;
+    private static final long JWT_CACHE_MAX_AGE_SECONDS = 300L;
 
     
     /** Marshal stream protocol version mismatch. */
@@ -420,11 +418,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * received as part of the user-Subject wire block (protocol version
      * {@code 0x02}, Work Item 44 Option D).
      *
-     * <p>Setting {@code null} (the default) disables JWT verification; tokens
-     * received on the wire are silently discarded and the principals in the
-     * Subject are accepted solely on the authority of the presenting SPIFFE
-     * SVID.  This preserves backward compatibility with deployments that rely
-     * on SVID-scoped trust.
+     * <p>With no verifier installed ({@code null}, the default) a Subject that
+     * carries a JWT is refused: the request is aborted.  A token is a claim
+     * of user identity, and one that nothing verified must not be accepted
+     * because its claims look well-formed.  Subjects that carry no JWT are
+     * unaffected.  Installing or replacing the verifier (including with
+     * {@code null}) discards every cached verification.
      *
      * <p>The verifier is a global JVM-wide setting; register it once at
      * application startup, before any remote objects are exported.
@@ -444,7 +443,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	if (security != null) {
 	    security.checkPermission(setJwtVerifierPermission);
 	}
-        jwtVerifier = verifier;
+        jwtState = new JwtState(verifier);
     }
 
     /**
@@ -2361,7 +2360,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		| ((b2 & 0xFF) << 16)
 		| ((b3 & 0xFF) << 8)
 		| (b4 & 0xFF);
-	if (len > MAX_JWT_BYTES) {
+	if (len < 0 || len > MAX_JWT_BYTES) {
 	    throw new IOException("JWT token length " + len
 		    + " exceeds maximum of " + MAX_JWT_BYTES + " bytes");
 	}
@@ -2379,32 +2378,36 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Verifies a raw JWT token using the registered {@link JwtVerifier}, with
-     * connection-level caching keyed on the raw token string.
+     * Verifies a raw JWT token using the installed {@link JwtVerifier}, with
+     * caching of accepted tokens.
      *
-     * <p>If no custom verifier is registered ({@link #jwtVerifier} is
-     * {@code null}) the {@link #DEFAULT_JWT_VERIFIER} is used, which performs
-     * structural claim checks ({@code exp}, {@code iat}) without JWKS network
-     * calls.  This closes the default-path gap (§2.3): a peer that presents a
-     * JWT whose {@code exp} claim has elapsed is rejected even without an
-     * explicit verifier registration.
+     * <p>Fails closed: with no verifier installed, an empty token, or a
+     * verifier that throws anything, the token is refused.  Only a token the
+     * installed verifier accepted is cached, and only if it has a parseable
+     * {@code exp} still in the future; a token without {@code exp} is
+     * re-verified on every call.
      *
-     * <p>Cache entries expire when the token's own {@code exp} claim is
-     * passed; an {@link Instant#MIN} sentinel is stored when the {@code exp}
-     * claim cannot be parsed, causing re-verification on each call.
-     *
-     * @throws IOException wrapping the {@link JwtVerificationException} if
-     *         the verifier rejects the token
+     * @throws IOException if the token is refused
      */
     private static void verifyJwtWithCache(String rawJwt, int subjectIdx, int jwtIdx)
 	    throws IOException
     {
-	JwtVerifier verifier = jwtVerifier;
-	if (verifier == null) verifier = DEFAULT_JWT_VERIFIER; // fallback: structural claims only
+	JwtState state = jwtState;
+	JwtVerifier verifier = state.verifier;
+	if (verifier == null) {
+	    throw new IOException(
+		"JWT presented in Subject[" + subjectIdx + "] JWT[" + jwtIdx
+		+ "] but no JwtVerifier is installed; refusing");
+	}
+	if (rawJwt.isEmpty()) {
+	    throw new IOException(
+		"Empty JWT in Subject[" + subjectIdx + "] JWT[" + jwtIdx + "]");
+	}
 
-	Instant cachedExp = JWT_VERIFICATION_CACHE.get(rawJwt);
-	if (cachedExp != null && Instant.now().isBefore(cachedExp)) {
-	    return; // Still within cached validity window — skip re-verification.
+	String key = cacheKey(rawJwt);
+	Instant cachedUntil = state.cache.get(key);
+	if (cachedUntil != null && Instant.now().isBefore(cachedUntil)) {
+	    return;
 	}
 
 	try {
@@ -2413,23 +2416,39 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    throw new IOException(
 		"JWT verification failed for Subject[" + subjectIdx
 		+ "] JWT[" + jwtIdx + "]: " + e.getMessage(), e);
+	} catch (RuntimeException e) {
+	    // A verifier that blows up has not accepted the token.
+	    throw new IOException(
+		"JWT verification failed for Subject[" + subjectIdx
+		+ "] JWT[" + jwtIdx + "]: " + e.getClass().getName(), e);
 	}
 
-	// Cache the result using the token's exp claim as the TTL.
+	Instant now = Instant.now();
 	Instant exp = extractJwtExp(rawJwt);
-	if (exp == null) {
-	    // No parseable exp → do not cache; re-verify on every call.
+	if (exp == null || !now.isBefore(exp)) {
 	    return;
 	}
-	if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
-	    // Prune expired entries; clear entirely if still full.
-	    Instant now = Instant.now();
-	    JWT_VERIFICATION_CACHE.entrySet().removeIf(e -> !now.isBefore(e.getValue()));
-	    if (JWT_VERIFICATION_CACHE.size() >= JWT_CACHE_MAX_SIZE) {
-		JWT_VERIFICATION_CACHE.clear();
+	Instant cap = now.plusSeconds(JWT_CACHE_MAX_AGE_SECONDS);
+	Instant until = exp.isBefore(cap) ? exp : cap;
+	synchronized (state.cache) {
+	    if (state.cache.size() >= JWT_CACHE_MAX_SIZE) {
+		state.cache.entrySet().removeIf(e -> !now.isBefore(e.getValue()));
+		if (state.cache.size() >= JWT_CACHE_MAX_SIZE) {
+		    state.cache.clear();
+		}
 	    }
+	    state.cache.put(key, until);
 	}
-	JWT_VERIFICATION_CACHE.put(rawJwt, exp);
+    }
+
+    private static String cacheKey(String rawJwt) throws IOException {
+	try {
+	    byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+		    .digest(rawJwt.getBytes(StandardCharsets.UTF_8));
+	    return Base64.getEncoder().encodeToString(d);
+	} catch (java.security.NoSuchAlgorithmException e) {
+	    throw new IOException("SHA-256 unavailable; refusing JWT", e);
+	}
     }
 
     /**
