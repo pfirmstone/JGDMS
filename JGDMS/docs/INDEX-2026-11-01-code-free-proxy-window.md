@@ -4,7 +4,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 
 | file | bytes | modified | model id (first line) | status |
 |---|---|---|---|---|
-| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 129654 | 2026-11-01 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
+| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 154124 | 2026-11-01 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `TRAINING-code-free-proxy-investigation-2026-10-31.md` | 6132 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `INVESTIGATION-code-free-fiddler-2026-10-31.md` | 21798 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
 | `INVESTIGATION-code-free-mahalo-2026-10-31.md` | 17749 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
@@ -20,6 +20,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-sm-test-failures-rootcause-2026-10-31.md` | 15542 | 2026-10-31 | claude-opus-5-5 | LIVE: matches commit bb2e10720 |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-proxy-policy-tooling-round5-2026-11-01.md` | 9610 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-proxy-policy-tooling-round6-2026-11-01.md` | 6191 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `REVIEW-block-bound-fix-fable-2026-10-31.md` | 12112 | 2026-10-31 | claude-fable-5-1 | LIVE: matches commit bb2e10720 |
 | `REVIEW-code-free-service-reports-fable-2026-10-31.md` | 18134 | 2026-10-31 | claude-fable-5-1 | LIVE as findings; static reading only, nothing run |
 | `REVIEW-code-free-service-reports-opus-2026-10-31.md` | 24645 | 2026-10-31 | claude-opus-5-5 | LIVE as findings; static reading only, nothing run |
@@ -31,18 +32,21 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `SURVEY-lazy-statics-untrusted-input-2026-10-31.md` | 16819 | 2026-10-31 | claude-opus-5-5 | LIVE: candidates 1-2 await the operator |
 | `SURVEY-security-news-week-2026-10-31.md` | 11009 | 2026-10-31 | claude-sonnet-5-5 | PARTLY SUPERSEDED: CVE details corrected by VERIFY-jsse-ca-distrust (count is 8, not 16; CVE-2026-114820 is not single-source) |
 | `SURVEY-landscape-high-security-2026-11-01.md` | 12074 | 2026-11-01 | claude-sonnet-5-5 | LIVE: built from search summaries only; nothing fetched |
-| `SURVEY-timing-mitigations-edge-and-browsers-2026-11-01.md` | 13840 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `SURVEY-timing-mitigations-edge-and-browsers-2026-11-01.md` | 15074 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `VERIFY-jsse-ca-distrust-2026-10-31.md` | 7369 | 2026-10-31 | claude-sonnet-5-5 | LIVE: read through page summaries except where it says otherwise; openjdk.org/emudhra was also read by the author |
 | `MERGE-ITEM-emudhra-cacerts-2026-10-31.md` | 9329 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE: cherry-pick done in DirtyChai (bc6a1dad8a2 + operator follow-up 91737c79880); remaining: the installed-JDK keytool step |
 | `REVIEW-handover-2026-11-01-fable.md` | 12364 | 2026-11-01 | claude-fable-5-1 | LIVE: review of the handover (Fable); applied in revision 3 |
+| `REVIEW-handover-currency-opus-delta-2026-11-01.md` | 8480 | 2026-11-01 | claude-opus-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
+| `REVIEW-handover-currency-sonnet-2026-11-01.md` | 12484 | 2026-11-01 | claude-sonnet-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-policy-lint-opus-2026-11-01.md` | 12374 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
+| `SURVEY-som-hardware-root-of-trust-2026-11-02.md` | 14279 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 
 ## Other recordings of this window (not in the table above)
 - `HANDOVER-2026-11-01-code-free-proxy-window.md` and this index (written by the main session, Sonnet 5.5; reviewed by Fable 5.1).
 - `docs/ProxyPolicyGenerator.md` (modified, commits ae004e42f and 61d597451); `.claude/skills/jgdms-board-review/SKILL.md` (68acb611e, absolute path fix) and `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (61d597451, the missing-policy-file correction); both skills are TRACKED although `.claude` matches an ignore pattern.
 
 ## Pending reports (sub-agents running at composition time; these files may not exist yet)
-- `REVIEW-policy-lint-opus-2026-11-01.md` (agent add49aa87baa67f65) and `INVESTIGATION-proxy-policy-tooling-round5-2026-11-01.md` (agent a87e915bd6993cf9b); they may not exist yet.
+- Lint rebuild (agent aceeb002f43e5c78c) and JWT fixes (agent a0f64aba593501b22): reports INVESTIGATION-policy-lint-rebuild-2026-11-01.md and INVESTIGATION-jwt-fix-2026-11-01.md may not exist yet (checked 02:19, no patch).
 
 ## Sub-agent roster (none is enumerable by any tool; single-shot; each report is that agent's advice)
 | id | model | role | status |
@@ -65,9 +69,14 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `ac4201998e377c016` | Sonnet 5.5 | tooling round 4 | done |
 | `a433e41b8fb526b91` | Opus 5.5 | check of round 4 | done |
 | `a49de6db668b8bcb7` | Sonnet 5.5 | policy lint | done (committed 61d597451) |
-| `a87e915bd6993cf9b` | Sonnet 5.5 | tooling round 5 (fixes from the round-4 check) | RUNNING |
-| `add49aa87baa67f65` | Opus 5.5 | review of the lint (archive copy only) | RUNNING |
+| `a87e915bd6993cf9b` | Sonnet 5.5 | tooling round 5 (fixes from the round-4 check) | done (committed 4055eec11) |
+| `add49aa87baa67f65` | Opus 5.5 | review of the lint (archive copy only) | done |
 | `a47ac0b063c110e81` | Fable 5.1 | review of this handover | done |
+| `aceeb002f43e5c78c` | Sonnet 5.5 | policy lint rebuild on the production parser (worktree scratchpad\\lint2) | RUNNING |
+| `a0f64aba593501b22` | Sonnet 5.5 | JWT cache clear, fail closed, negative tests (worktree scratchpad\\jwt) | RUNNING |
+| `a6311935e724074e0` | Sonnet 5.5 | SOM hardware root of trust survey | done |
+| `ad6cbaae05ddf03aa` | Sonnet 5.5 | handover currency check | done |
+| `aab061b27b33a1bc9` | Opus 5.5 | delta review of the currency check | done |
 | `a23d034b288bfe845` | Sonnet 5.5 | jeri tests under a SecurityManager | done |
 | `a5f358411ff212c41` | Opus 5.5 | root cause of the 11 failures | done |
 | `a2ba9b3811f72ec86` | Fable 5.1 | review of the block-bound fix | done |
