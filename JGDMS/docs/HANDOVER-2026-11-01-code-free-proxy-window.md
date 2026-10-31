@@ -1,59 +1,66 @@
-# Handover: the code-free proxy window (2026-10-31 to 2026-11-01)
+# Handover: the code-free proxy window (2026-10-31 to 2026-11-01), revision 2
 
-AS-OF 2026-11-01. Written because the operator said "your memory is your handovers" and the scratchpad
-HANDOVER_2026-10-31.md was not updated during this window. Everything below is on disk; nothing here is only in a context window.
-Source of truth for the design: `docs/DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` (the memo): operator rulings 1-19,
-candidates D15-D16, sections 11-13. Method for any per-service investigation: `docs/TRAINING-code-free-proxy-investigation-2026-10-31.md`.
+AS-OF 2026-11-01 (composition time, this section header and each section below). Author: the Sonnet 5.5 session; **not yet reviewed by a different model**
+(a Fable review is requested, see the end). Revision 2 of the same day: revision 1 (`db1506fd8`) was written without re-running the
+`handover-composition` checklist; this revision adds the truth-location block, provenance per claim, conditional do-not-redo items, triggers, and the deviations.
+**Read the disk before acting on the LIVE STATE section: it is the fastest-ageing one.**
 
-## State of the trees
-- JGDMS `trunk` at `8100b400d` (not pushed). Uncommitted, in progress by sub-agent `a49de6db668b8bcb7`: `PolicyLint.java`,
-  `PolicyLintTest.java`, a `policy-lint` target in `qa/build.xml`, an edit to `ProxyPolicyGenerator.java`, and a correction to
-  `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (that directory is git-ignored; do not expect it in a commit).
-- DirtyChai `trunk` at `91737c79880` (operator's commits; clean tree). The eMudhra fix is in: `bc6a1dad8a2` (cherry-pick of upstream
-  `8e492bf50b8`, JDK-8395690) and the operator's `VerifyCACerts.java` follow-up (COUNT 105, checksum
-  `57:BD:18:38:9D:AF:25:4B:B1:C0:56:A8:00:55:92:BE:17:03:3F:DB:F7:47:CC:C4:2E:D7:07:57:23:BF:A5:84`, which matches what the author computed
-  by regenerating `cacerts` with `make/jdk/src/classes/build/tools/generatecacerts/GenerateCacerts.java`; control: the old data set reproduced the old checksum).
-- Rules: DirtyChai code and commit messages are human-authored (OpenJDK policy); JGDMS code may be written by the agent, with the
-  `Co-Authored-By` trailer from the session reminder; never that trailer in DirtyChai. Project memory: `C:\Users\peter\.claude\projects\C--Users-peter-Documents-GitHub-DirtyChai\memory\`.
+## WHERE THE TRUTH LIVES
+- Design, rulings 1-19, candidates D15-D16, sections 11-13: `docs/DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` (the memo).
+- Method for investigating a service: `docs/TRAINING-code-free-proxy-investigation-2026-10-31.md`.
+- Index of this window's on-disk recordings (file, size, model id from its first line, status): `docs/INDEX-2026-11-01-code-free-proxy-window.md`.
+- Build and test state: re-run `mvn -o -pl <modules> test` from `C:\Users\peter\Documents\GitHub\JGDMS\JGDMS`; a three-module reactor `jgdms-platform,jgdms-der,jgdms-jeri` is required for the jeri tests (alone, `jgdms-jeri` resolves a stale `jgdms-der` from `~/.m2`).
+- Commits: `git log` in `C:\Users\peter\Documents\GitHub\JGDMS` and `C:\Users\peter\Documents\GitHub\DirtyChai`.
+- Rules: `C:\Users\peter\Documents\GitHub\DirtyChai\CLAUDE.md` (DirtyChai code and commit messages are human-authored; the `Co-Authored-By` trailer is for JGDMS only).
+- Agent memory (recovery pointers): `C:\Users\peter\.claude\projects\C--Users-peter-Documents-GitHub-DirtyChai\memory\`. Session transcript: `...\757702ae-f74f-45fd-95a6-a302242c73cd.jsonl` in the same project folder.
 
-## JGDMS commits this window (oldest first)
-`62670b2ad` required MarshallingFormat enforced on nested MarshalledInstance (Fix 1+2); `68acb611e` memo; `b17f72c3f` default exporter is
-AtomicDerILFactory in all services; `af64aea0c` lazy decodes refused at decode (GetArg.requiredPayloadFormat); `bb2e10720` top-level block bound
-(AtomicMarshalInputStream, ObjOutputStream.MAX_BLOCK_DATA_LEN; fixes 11 jeri tests that fail only under a SecurityManager);
-`5fd08a183` platform-domain comments, DER large-block test; `ae004e42f` policy generator output checks + two-step PERMISSIONS.LIST promotion
-(95 tests); `2a223d76b` docs; `8100b400d` operator decisions on round 4.
+## LIVE STATE (re-read the disk before acting; this section ages fastest)
+MEASURED incident, this window: my reply "the committed `VerifyCACerts.java` is wrong, set `COUNT = 105`" was true at DirtyChai `bc6a1dad8a2` and false by `91737c79880`, which the operator committed hours later
+(`git log` shows 2026-10-31 23:47 +1000). I only found out by looking. Treat everything below as true at composition time only.
+- JGDMS `trunk` at `db1506fd8` (not pushed; `git log -1`). Uncommitted in the JGDMS tree, owned by sub-agent `a49de6db668b8bcb7` (policy lint, still running): `PolicyLint.java`, `PolicyLintTest.java`, a `policy-lint` target in `qa/build.xml`, an edit to `ProxyPolicyGenerator.java`, and the polpAudit skill correction in `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (git-ignored directory).
+- DirtyChai `trunk` at `91737c79880` (`git log -1`; clean tree, `git status --short | wc -l` = 0 when read). It holds the eMudhra cherry-pick `bc6a1dad8a2` (upstream `8e492bf50b8`, JDK-8395690) and the operator's follow-up: `COUNT = 105`, checksum `57:BD:18:38:9D:AF:25:4B:B1:C0:56:A8:00:55:92:BE:17:03:3F:DB:F7:47:CC:C4:2E:D7:07:57:23:BF:A5:84`.
+- **The operator is building DirtyChai now (with that commit) and will then run the tests (told in chat, 2026-11-01). Outcome unknown to the author.** What to look for: `VerifyCACerts` (COUNT, checksum, FINGERPRINT_MAP size 105) and OpenJDK's `CheckCerts.java` on the built image.
+- **The operator will work on the other computer on 2026-11-02:** finish and commit the QA test fixes there, then run the full QA suite to regenerate policy files. I cannot see that computer; the branch and state of its fixes are unknown.
+- Sub-agent `a49de6db668b8bcb7` (Sonnet, policy lint) REPORTED (`INVESTIGATION-policy-lint-2026-11-01.md`, RELAYED: 114 tests, 0 failures = 95 existing + 19 new; 12 single-step mutants each killed; real ant target ran on scratch copies) but is being RESUMED: my warning about the reviewer incident (below) reached it after its last step. **Treat the lint as NOT FINAL until its second report.** Uncommitted lint files: `PolicyLint.java`, `PolicyLintTest.java`, `ProxyPolicyGenerator.java` (parser extended), `qa/build.xml` (+61 lines, LF), `ProxyPolicyGenerator.md`, and the polpAudit skill correction (tracked, CRLF). A different-model review of the lint is owed. Lint results on copies (RELAYED): `qa/harness/policy` 41 files U1=10 S1=165; `deploy/policy` clean; `jinitest.policy` U1=1; jeri `test.policy` U1=1. Files with an unscoped AllPermission (U1): `all.policy`, `policy.all`, `defaultfiddler/group/mahalo/mercury/norm/outrigger/reggie` (line 6), `defaultphoenix:76`, `jinitest.policy:78`, jeri `test.policy:12`. Its four open decisions: S1 skips `jrt:` codeBases (139 of 175 S1 findings) or not; whether `policy-update` runs the lint on the starting policy automatically (not wired); exit 2 when no policy file is found (built so); fixing the 12 U1 files is the operator's.
+- **Round 4 check is IN** (`REVIEW-proxy-policy-tooling-round4-opus-2026-10-31.md`, Opus, RELAYED: the author read its hand-back, not its scripts). R1-R9 fixed as claimed. Findings still to fix (round 5, to start only AFTER the lint agent finishes, because both edit `ProxyPolicyGenerator.java`): F1 MEDIUM, 13 SecurityManager-escaping entries (`setSecurityManager`, `createClassLoader`, `suppressAccessChecks`, `setPolicy`, `<<ALL FILES>>` execute and others) are PROMOTABLE with check rc 0, and `INCONCLUSIVEPermit` and `BootstrapPermission` are missing from the gate set (the reviewer recommends: refuse those two plus `PolicyPermission` in META; hold the escalation names by default, needing `--allow-held`; flag only `<<ALL FILES>>` read/write and `AuthPermission`); F2 `--clean` overwrites a hand-written list whose directory name differs only in case; F3 stack traces (Latin-1 byte, missing input) instead of REFUSED; F4 `--clean` deletes another policy's list with no note and a test locks that in; F5 weak CLI evidence for R3; F6 the META set is defined twice. Mutants MB, MG and MM survive: add tests (MG means the operator's decision 3 has no test yet).
+- **Incident (MEASURED, this window):** the Opus round-4 reviewer ran mutants on the LIVE tree while the lint agent was editing the same files; at 00:20:17 (+1000, 2026-11-01) the lint agent wrote `ProxyPolicyGenerator.java` back with a reviewer mutation (`line.contains(OLD_HEADER_PREFIX)` in `listSource`); the reviewer reverted that one line at about 00:23:20. Edits the lint agent made between 00:14:41 and 00:16:31 may have been overwritten; unrecoverable by the author.
+- The landscape survey (`SURVEY-landscape-high-security-2026-11-01.md`, Sonnet, 15 searches, SUMMARIES only, no page fetched) is in: no project found that combines capability-style permissions, a canonical wire format, workload identity and hardware isolation (a statement about what the searches returned); no other retained-SecurityManager Java fork found; JGDMS is the only living River/Jini fork named. Not verified by the author.
 
-## Open items, in the order to take them
-1. **Other computer (operator, 2026-11-02):** finish and commit the QA test fixes, then run the full QA suite to regenerate policy files. Before that:
-   the starting policies must pass the lint with `--audit-input` (the per-service `default*.policy`, `all.policy`, `policy.all` in `qa/harness/policy`
-   carry an unscoped `grant { AllPermission }`, which masks a polpAudit run). polpAudit needs `-Djava.security.manager=polpAudit` and
-   `-Djava.security.policy=<an EXISTING, even empty, file>`. Targets: `ant policy-update-run-all` (full), `-run-categories`, `-run-tests`; then
-   `policy-promote-plan`, `-check`, `-apply` (the plan is read by a human; apply re-derives everything). 93 tracked `qa/*.txt` result files will be rewritten by a run.
-2. Sub-agents still running (single-shot, resumable only by id): `a433e41b8fb526b91` Opus check of round 4 (report
-   `docs/REVIEW-proxy-policy-tooling-round4-opus-2026-10-31.md`); `a49de6db668b8bcb7` policy lint (report `docs/INVESTIGATION-policy-lint-2026-11-01.md`; then an Opus review).
-3. **Operator-only:** remove the four eMudhra roots from the installed JDK (`keytool -delete -cacerts -alias "<name> [jdk]"` for `emsignrootcag1`,
-   `emsignrootcag2`, `emsigneccrootcag3`, `comodoaaaca`; PowerShell needs `&` before the quoted path), until a rebuilt image replaces it. Source: `https://openjdk.org/emudhra`.
-4. **JWT fixes awaiting the operator's go-ahead:** survey candidates 1 and 2 in `docs/SURVEY-lazy-statics-untrusted-input-2026-10-31.md`:
-   the static JWT verification cache in `BasicInvocationDispatcher` survives `setJwtVerifier` (needs clear-on-set, plus a test; whether it is live depends on whether any
-   production JVM accepts wire calls before the verifier is installed), and `AtomicSerial.GetArg`'s `StackWalker` created at class init without `doPrivileged`. Then JWT negative tests.
-5. Per-service code-free work (reports in `docs/INVESTIGATION-code-free-<service>-2026-10-31.md`, reviews `REVIEW-code-free-service-reports-{opus,fable}-...`):
-   foundation items still to do: BasicJeriTrustVerifier accepts the DER handler; handler runs default methods locally (D16); preparers use the digest-scoped
-   `Security.grant(Class, CodeSource[], ...)` instead of the whole-loader grant; default permission class and refuse-to-start unless DER; a real-grants run of the jeri suite
-   (the `dirtychai` profile's `test.policy` is an unscoped AllPermission, so it tests no grants). Then per service: Mahalo, Mercury, Norm, Fiddler, Outrigger.
-6. Derek (the DER-only registrar, Reggie 2.0): design only; `RemoteRegistrar` is in no Java file. Open: O19 (where interface and records live), O21, O22 (package namespace).
-7. The "code to the data" memo section (CEL expressions vs real code on isolated boards) was offered and not written. The Wired Binance article could not be opened (built-in browser refuses wired.com).
-8. DirtyChai analysis the operator may want: `initPhase3` pre-initialises singletons (commit `344ba66bca1`); new upstream lazy singletons in a future merge need a check; the `java.base`
-   domain is privileged only while alone on the stack by design; an option to make the policy parser ignore AllPermission (discussed: warn loudly, stage it, check JGDMS's own policy providers).
+## OPEN ITEMS, in order
+1. Before the full QA run: the starting policies must pass the lint's `--audit-input` mode (not yet built: item 2). `qa/harness/policy` has 52 files (`ls | wc -l`); 16 `*.policy` files have no grant line (`grep -L '^grant' *.policy | wc -l` = 16). VERIFIED by reading: `defaultmahalo.policy` lines 6-8 and `all.policy` lines 1-3 contain an unscoped `grant { AllPermission }`. RELAYED (a rough awk scan, not read): the other per-service `default*.policy` files and `policy.all` have the same. An unscoped AllPermission masks a polpAudit run (deployment policy comment, `deploy/policy/host1-lookup.policy` lines 15-30).
+   polpAudit needs `-Djava.security.manager=polpAudit` and `-Djava.security.policy=<file>` where the file EXISTS even if empty (a missing file kills the JVM at startup; observed by sub-agent `a23d034b288bfe845`, RELAYED). Targets in `qa/build.xml`: `policy-update-run-all`, `-run-categories`, `-run-tests`, then `policy-promote-plan`, `-check`, `-apply`. 93 `qa/*.txt` result files are tracked (`git ls-files qa | grep -c '^qa/[^/]*\.txt$'`) and a run will rewrite them. Scale: 1,955 java files under `qa/src` and 318 under `qa/jtreg` (`find ... -name '*.java' | wc -l`).
+2. Finish the lint (agent `a49de6db668b8bcb7`), have Opus review it, commit it.
+3. Operator-only: remove the four eMudhra roots from the INSTALLED JDK with `keytool` until a rebuilt image replaces it. PowerShell needs `&` before the quoted path (my first commands were bash syntax and failed in the operator's PowerShell): `foreach ($a in 'emsignrootcag1','emsignrootcag2','emsigneccrootcag3','comodoaaaca') { & "C:\Program Files\DirtyChai\jdk\bin\keytool.exe" -delete -cacerts -alias "$a [jdk]" }`. Source read by the author: `https://openjdk.org/emudhra` (last update 2026-10-24 19:24 UTC).
+4. JWT: survey candidates 1 and 2 (`docs/SURVEY-lazy-statics-untrusted-input-2026-10-31.md`), RELAYED from a read-only Opus agent: the static JWT verification cache in `BasicInvocationDispatcher` survives `setJwtVerifier`; `AtomicSerial.GetArg` creates a `StackWalker` at class initialisation without `doPrivileged`. Awaiting the operator's go-ahead; live-ness of the first depends on whether any production JVM accepts wire calls before a verifier is installed.
+5. Per-service code-free foundation (reports `docs/INVESTIGATION-code-free-<service>-2026-10-31.md`; reviews `REVIEW-code-free-service-reports-{opus,fable}-...`, all RELAYED, static reading): `BasicJeriTrustVerifier` accepts the DER handler; the handler runs default methods locally (D16); preparers use the digest-scoped `Security.grant(Class, CodeSource[], ...)` instead of the whole-loader grant; a default permission class (`AccessPermission`) and refuse-to-start unless DER and a SecurityManager; a run of the jeri suite under generated grants (the `dirtychai` profile's `test.policy` is an unscoped AllPermission: VERIFIED by reading `jgdms-jeri/src/test/resources/test.policy`). Then Mahalo, Mercury, Norm, Fiddler, Outrigger.
+6. Derek (DER-only registrar, Reggie 2.0): design only. NEGATIVE: `RemoteRegistrar` is in no Java file (`grep -rl RemoteRegistrar --include=*.java .` from `JGDMS/JGDMS`, empty; only that tree was searched, no generated sources). Open: O19, O21, O22 in the memo.
+7. Offered and not done: a memo section "code to the data" (CEL expressions vs real code on isolated boards); an adversarial end-to-end test of the whole chain; the Wired Binance article (the built-in browser refuses wired.com, so it was not read; the news survey's Binance claim stays single-source).
 
-## Facts established this window that are easy to lose
-- `-Djava.security.manager=default` installs `CombinerSecurityManager` (DirtyChai `System.java:2505-2506`); `polpAudit` installs `SecurityPolicyWriter`; `legacy` the plain manager.
-- The sender names a MarshalledInstance's payload format; the receiver's required format must be enforced at decode (done for DER calls and DER dispatchers; clients that ask for no format are unprotected: the wrapper must set `ATOMIC_DER`).
-- The three-term meet: polpAudit floor, `GrantPermission` ceiling, `PERMISSIONS.LIST` cap; an unscoped AllPermission grant defeats the audit. `PreferredClassLoader` reads the jar's own list in its constructor, before authentication.
-- Reference for "a figure was verified": ask for the command and the output line; the sub-agent reports in `docs/` label claims VERIFIED / PLAUSIBLE / UNDETERMINED.
+## COMMITS THIS WINDOW (JGDMS, oldest first; figures re-measured by the author unless marked)
+`62670b2ad` format required on nested MarshalledInstance; `68acb611e` memo; `b17f72c3f` DER default exporter in all services; `af64aea0c` lazy decodes refused at decode (DER module 1,526 tests, 0 failures: `mvn ... -Dtest='au.net.zeus.jgdms.der.**.*Test,...'`); `bb2e10720` top-level block bound (fixes 11 jeri tests that fail only under a SecurityManager); `5fd08a183` platform-domain comments + DER large-block test; `ae004e42f` generator checks + two-step promotion (95 tests, 0 failures: `mvn -o -pl jgdms-platform,tools/policy-condenser test -Dtest='ProxyPolicyGeneratorTest,PolicyUpdatePostProcessorTest,ListPromotionTest,PolicyCondenserTest' -Dsurefire.failIfNoSpecifiedTests=false`, run by the author); `2a223d76b`, `8100b400d`, `db1506fd8` docs.
+Known failures NOT caused by this work: 16 of 472 `jgdms-platform` tests (3 failures + 13 errors; `DigestDomainGrantTest`, `GrantSignerTest`; the open digest-grant question O9) and 2 jeri tests that also fail without a SecurityManager (`ConnectionManagerCapacityTest`, `MuxServerStartTimeoutTest`).
 
-## Sub-agent roster (ids, so they are reachable; none is enumerable by any tool)
-Investigators (Sonnet 5.5): outrigger `a7bd9cb21592a4827`, mahalo `a33e5cc768f53f6d9`, mercury `ad3aa29786e0d9671`, norm `ab47d80c75a67b378`, fiddler `abfbd04ba735ad321`;
-reviews: Opus `a6d0a66821c6f4f7b`, Fable `a6da22ba2be494470`. Tooling producers: build-step `a6e3af9d64c4f0d95`, generator round 1 `a6df5545ede6024d1`, rounds 2-4
-`ae5956fd2a31fd1aa`, `a391a8bba6b407f53`, `ac4201998e377c016`; their reviewers: Opus `a65aa2ff2d076e676`, `aab3be0a693366fcb`, `aff2c7d837307cf50`; Fable `abee59006cb59436f`.
-SecurityManager test run `a23d034b288bfe845` (Sonnet), root cause `a5f358411ff212c41` (Opus), block-bound review `a2ba9b3811f72ec86` (Fable). Surveys: lazy statics
-`a36b0e642b4fea98f` (Opus), news `a71e100c2a3cca1ba` and CA verification `ad0c829704da3dfe7` (Sonnet).
+## DO NOT REDO (each carries what it rests on and what unblocks it)
+1. **Re-deriving the `VerifyCACerts` checksum.** EVIDENCE: the generator (`make/jdk/src/classes/build/tools/generatecacerts/GenerateCacerts.java`) run on the pre-fix data reproduced the old committed checksum exactly (n = 1 data set, a control); the same method on the new data gave `57:BD:...`; the operator committed the same value. Unblocks: the generator or the data directory changes.
+2. **The Maven-profile route for PERMISSIONS.LIST.** RULING: the operator chose forward tooling and accepted the promotion tool (2026-11-01). EVIDENCE (RELAYED, Opus review): the profile's only real effect was replacing a reviewed hand-written list with an unreviewed generated one (7 of 14 generated lists contain `LoadClassPermission`, 0 of 8 hand-written; 4 of 14 carry host paths). Unblocks: a review step for generated lists that makes auto-inclusion safe.
+3. **Hunting the 11 SecurityManager-only jeri failures.** EVIDENCE (RELAYED Opus, one root cause): the mutation M1 made all 11 pass; and the fix is committed and the suite re-run under `-Pdirtychai` by the author. Unblocks: new failures under that profile.
+4. **Reconsidering DER as the default exporter.** RULING 4 (operator). Unblocks: a service shown to need JOSS peers.
+5. **Hash-qualified artefact names for name collisions.** RULING (operator decisions on round 4, memo). Unblocks: a live policy that genuinely needs two codebases with one jar name.
+
+## TRIGGERS (the author's own failure patterns this window; fire at the moment of action)
+- BEFORE saying I don't remember or lack context, read this handover, the memo, the session transcript and `git log`.
+- BEFORE giving the operator a command, name their shell (they use PowerShell on Windows; a quoted exe path needs `&`).
+- BEFORE writing "no class does X" or "X is not in the code", search every module, not the one I am in (`PreferredClassLoader`, in `jgdms-pref-class-loader`, was missed when I searched only `jgdms-platform`).
+- BEFORE calling a test evidence of a property, open the policy and the SecurityManager mode it ran under (the jeri profile's `test.policy` is an unscoped AllPermission).
+- BEFORE relaying a sub-agent's claim as a finding, say what it read: the news and CA surveys read search summaries; the code surveys were read-only with no JVM run.
+- BEFORE stating an operator-facing fact about live state (a commit, a file, a count), re-read it: DirtyChai moved between two of my commands.
+- BEFORE writing a rationale into a comment, take it from the code or the operator (I wrote "always fully privileged"; the operator corrected it twice).
+- NEVER run two mutant scripts on the same files at once (a sub-agent did and corrupted `ListPromotion.java`; it restored and re-ran).
+- BEFORE briefing a reviewer who may mutate code, require `git archive` copies for every mutation and say which other agents are editing the tree; a brief that merely allows "copies or restored files" let a reviewer mutate live files under a concurrently editing agent (the incident above).
+- BEFORE starting two agents whose files overlap, check the overlap (the round-5 fix and the lint both edit `ProxyPolicyGenerator.java`): sequence them.
+- ⚠ Operator corrections this window: at least 6 (human author for JGDMS code; `AllPermission` in the test policy; `java.base` privilege; the keytool shell; "I have no memory"; the bash-tagged commands). **This is NOT a count:** it has not been cross-checked against the transcript, and an under-count is likely.
+
+## Deviations from the `handover-composition` skill, and why
+- Step 4 (message every agent for its experience) NOT DONE: the global rule is to treat every agent as single-shot, and each agent's report is on disk. The roster's model ids were instead checked against each report's first line (see the index): all match the model dispatched.
+- Different-model review of this handover: requested from a Fable agent after writing; result not yet known.
+- The sub-agent roster is in the index file, not here.
