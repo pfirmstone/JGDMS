@@ -811,3 +811,10 @@ The rulings were recorded over several turns, so they are not all labelled `Ruli
 - **15-17:** the numbered list under "Rulings 15-17 and answers" in section 13 (fix lazy decodes; destroy needs permission: checked, not true for default exporters; grants become digest-scoped class-loader grants).
 - **"Ruling 19" does not exist as such.** What earlier notes called ruling 19 is the block "Decisions on the round-4 policy-tooling report" near the end of section 13: (1) `defaultsecuretest.policy.old` stays refused and there are no hash-qualified names; (2) old-header lists a run does not replace are refused without `--clean` and deleted with it; (3) the collision refusal also fires when one of two colliding groups would write no list.
 - Candidates that are NOT rulings: D15 (wrapper at discovery), D16 (default method returning the wrapper; amended by rulings 6-8).
+
+**Decisions on the round-5 policy-tooling report (operator, in chat, 2026-11-01: "Accept them"; the recommendations were the author's, in the preceding reply):**
+1. HOLD versus FLAG stays as built (`SerializablePermission enableSubclassImplementation` is held; other `AuthPermission` names are flag-only).
+2. The CI gate (`--promote-plan-check`) gains an explicit, reviewed allow-list for held entries, so an approved held entry does not fail CI forever; the default stays failing.
+3. The shared permission sets move into `jgdms-platform`, which `policy-condenser` already depends on, so there is one definition; `VerdictPermissionMapper.META_PERMISSION_CLASSES` uses it and gains `PolicyPermission`.
+4. A missing input refuses the whole CLI invocation.
+Open and not yet decided: rebuilding `PolicyLint` on the production policy provider (the Opus lint review, `docs/REVIEW-policy-lint-opus-2026-11-01.md`, found the committed text-based lint can pass an AllPermission-to-all policy).
