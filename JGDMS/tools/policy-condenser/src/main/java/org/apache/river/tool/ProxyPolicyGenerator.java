@@ -1729,8 +1729,9 @@ public class ProxyPolicyGenerator {
                     } else if (problems != null) {
                         problems.add(new Problem(line, "grant header is not closed by '{'"));
                     }
-                } else if ("keystore".equalsIgnoreCase(st.sval)
-                        || "keystorePasswordURL".equalsIgnoreCase(st.sval)) {
+                } else if ("keystore".equalsIgnoreCase(st.sval)) {
+                    skipKeystore(st, problems);
+                } else if ("keystorePasswordURL".equalsIgnoreCase(st.sval)) {
                     skipToSemicolon(st);
                 } else if (problems != null && !stray) {
                     stray = true; // one report per run of stray words, not one per word
@@ -1754,10 +1755,29 @@ public class ProxyPolicyGenerator {
         st.wordChars(160, 255);
         st.whitespaceChars(0, ' ');
         st.quoteChar('"');
-        st.ordinaryChar('/');
+        // As the production scanner (a default StreamTokenizer): a '/' that opens neither "//" nor
+        // "/*" still comments out the rest of the line.
+        st.commentChar('/');
         st.slashSlashComments(true);
         st.slashStarComments(true);
         return st;
+    }
+
+    /**
+     * Reads a {@code keystore} clause the way the production scanner does: one quoted URL, then at
+     * most one quoted type with an optional comma; a ';' is not required, so the next token may
+     * already start the following clause and is left for the caller.
+     */
+    private static void skipKeystore(StreamTokenizer st, List<Problem> problems) throws IOException {
+        int line = st.lineno();
+        if (st.nextToken() == '"') {
+            int t = st.nextToken();
+            if (t == ',') t = st.nextToken();
+            if (t != '"') st.pushBack();
+        } else {
+            st.pushBack();
+            if (problems != null) problems.add(new Problem(line, "keystore has no quoted URL"));
+        }
     }
 
     private static void skipToSemicolon(StreamTokenizer st) throws IOException {
@@ -1796,6 +1816,9 @@ public class ProxyPolicyGenerator {
                         tok = st.nextToken();
                         if (tok == StreamTokenizer.TT_WORD) {
                             className = st.sval;
+                            tok = st.nextToken();
+                        } else if (tok == '*') {
+                            className = "*";
                             tok = st.nextToken();
                         }
                         if (tok == '"') {

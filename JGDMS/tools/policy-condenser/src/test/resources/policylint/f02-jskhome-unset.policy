@@ -1,0 +1,3 @@
+grant codeBase "file:${jsk.home}${/}lib${/}*" {
+    permission java.security.AllPermission;
+};

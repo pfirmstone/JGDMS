@@ -1,0 +1,3 @@
+grant codeBase "file:${no.such.prop}/lib/x.jar" {
+    permission java.security.AllPermission;
+};

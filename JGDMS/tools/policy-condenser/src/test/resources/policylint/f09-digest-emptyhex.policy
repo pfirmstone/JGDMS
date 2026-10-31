@@ -1,0 +1,3 @@
+grant digest "SHA-256:" {
+    permission java.security.AllPermission;
+};

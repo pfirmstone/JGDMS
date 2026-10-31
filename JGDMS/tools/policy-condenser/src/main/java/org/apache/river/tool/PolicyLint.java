@@ -32,10 +32,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Finds unscoped and weakly scoped {@code java.security.AllPermission} grants
@@ -45,38 +49,56 @@ import java.util.TreeMap;
  * unscoped {@code grant { permission java.security.AllPermission; };} in the
  * starting or the deployed policy masks every recorded permission and defeats
  * least privilege for good.  A grant scoped only by {@code codeBase} is also
- * weak, because a codebase can be asserted remotely.  This tool reads policy
- * text only: it never executes, expands or resolves anything in it, and it
- * never writes a file.
+ * weak, because a codeBase can be asserted remotely.
  *
- * <p>Findings:
+ * <p>The verdict "does code from a stranger's codebase get AllPermission under this file" is
+ * asked of a production policy provider ({@link PolicyVerdict}); text never decides it.  The
+ * text scan ({@link ProxyPolicyGenerator#parseGrants(String, List)}) supplies only line numbers
+ * and the finding kinds, and where the two disagree the provider wins (U3).  The tool writes no
+ * file.
+ *
+ * <p>Findings (U1 U2 U3 U4 P1 fail by default):
  * <ul>
  * <li>{@code U1 UNSCOPED_ALLPERMISSION} - a grant with no {@code codeBase},
  *     {@code signedBy}, {@code principal} or {@code digest} clause that holds
  *     {@code java.security.AllPermission};</li>
  * <li>{@code U2 UNSCOPED_META_GRANT} - an unscoped grant holding
  *     {@code net.jini.security.GrantPermission} whose target is or contains
- *     AllPermission or a wildcard implying it, or
- *     {@code UmbrellaGrantPermission} (which implies every GrantPermission);</li>
- * <li>{@code S1 ALLPERMISSION_CODEBASE_ONLY} - AllPermission scoped only by
- *     codeBase and/or signedBy;</li>
- * <li>{@code S2 ALLPERMISSION_SCOPED} - AllPermission scoped by a digest or
- *     principals (informational);</li>
- * <li>{@code P1 UNPARSEABLE} - a file or block the parser cannot read.</li>
+ *     AllPermission or a wildcard implying it, or {@code UmbrellaGrantPermission};</li>
+ * <li>{@code U3 REAL_VERDICT_UNSCOPED} - the production provider gives AllPermission to code from
+ *     a stranger's codebase although the text looks scoped;</li>
+ * <li>{@code U4 PROPERTY_DEPENDENT_SCOPE} - an AllPermission grant whose {@code codeBase} uses a
+ *     {@code ${property}} undefined here (see {@code --define}): the production parser drops the
+ *     location, so the grant applies to all code;</li>
+ * <li>{@code S1 ALLPERMISSION_CODEBASE_ONLY} - scoped only by codeBase and/or signedBy;</li>
+ * <li>{@code S2 ALLPERMISSION_SCOPED} - scoped by a digest or by named principals;</li>
+ * <li>{@code S3 WILDCARD_PRINCIPAL} - scoped only by {@code principal * *} or a class with a
+ *     {@code *} name;</li>
+ * <li>{@code S4 CODEBASE_SCOPED_META_GRANT} - a codeBase-scoped GrantPermission implying
+ *     AllPermission, or UmbrellaGrantPermission;</li>
+ * <li>{@code S5 PLATFORM_MODULE_GRANT} - AllPermission for exactly {@code jrt:/<module>}:
+ *     informational;</li>
+ * <li>{@code P1 UNPARSEABLE} - a file or block the text scan cannot read, or that the production
+ *     parser rejects.</li>
  * </ul>
  *
- * <p>Exit status: 0 clean; 1 if any U1, U2 or P1 (also S1 with
- * {@code --strict}; any AllPermission finding including S2 with
- * {@code --audit-input}); 2 usage error.
- *
- * <p>Grant parsing is {@link ProxyPolicyGenerator#parseGrants(String, List)}.
+ * <p>Exit status: 0 clean; 1 on U1, U2, U3, U4 or P1 (also S1, S3, S4 with {@code --strict}; any
+ * AllPermission finding including S2 and S5 with {@code --audit-input}); 2 usage error or no
+ * policy file found.
  */
 public final class PolicyLint {
 
     static final String ALL = PermissionSets.ALL_PERMISSION;
     private static final String GRANT_PERMISSION = PermissionSets.GRANT_PERMISSION;
     private static final String UMBRELLA_PERMISSION = PermissionSets.UMBRELLA_GRANT_PERMISSION;
-    private static final String[] KINDS = {"U1", "U2", "S1", "S2", "P1"};
+    private static final String[] KINDS =
+        {"U1", "U2", "U3", "U4", "S1", "S2", "S3", "S4", "S5", "P1"};
+    private static final String[] NAMES = {"UNSCOPED_ALLPERMISSION", "UNSCOPED_META_GRANT",
+        "REAL_VERDICT_UNSCOPED", "PROPERTY_DEPENDENT_SCOPE", "ALLPERMISSION_CODEBASE_ONLY",
+        "ALLPERMISSION_SCOPED", "WILDCARD_PRINCIPAL", "CODEBASE_SCOPED_META_GRANT",
+        "PLATFORM_MODULE_GRANT", "UNPARSEABLE"};
+    private static final Pattern PROPERTY = Pattern.compile("\\$\\{([^{}]*)\\}");
+    private static final Pattern PLATFORM_MODULE = Pattern.compile("jrt:/[A-Za-z0-9_.]+");
 
     private PolicyLint() {}
 
@@ -95,11 +117,18 @@ public final class PolicyLint {
         }
 
         String name() {
-            if ("U1".equals(kind)) return "UNSCOPED_ALLPERMISSION";
-            if ("U2".equals(kind)) return "UNSCOPED_META_GRANT";
-            if ("S1".equals(kind)) return "ALLPERMISSION_CODEBASE_ONLY";
-            if ("S2".equals(kind)) return "ALLPERMISSION_SCOPED";
-            return "UNPARSEABLE";
+            return NAMES[indexOf(kind)];
+        }
+    }
+
+    /** The findings for one file and the provider's answers (null if the file was unreadable). */
+    static final class Linted {
+        final List<Finding> findings;
+        final PolicyVerdict.Answer answer;
+
+        Linted(List<Finding> findings, PolicyVerdict.Answer answer) {
+            this.findings = findings;
+            this.answer = answer;
         }
     }
 
@@ -118,6 +147,8 @@ public final class PolicyLint {
     /** Runs the tool; returns the process exit status. */
     static int run(String[] args, PrintStream out, PrintStream err) {
         boolean strict = false, audit = false, tsv = false, hint = false;
+        String providerMode = "auto";
+        Map<String, String> defines = new LinkedHashMap<String, String>();
         List<String> paths = new ArrayList<String>();
         List<PathMatcher> extra = new ArrayList<PathMatcher>();
         boolean optionsDone = false;
@@ -141,6 +172,23 @@ public final class PolicyLint {
                 if (f.equals("tsv")) tsv = true;
                 else if (f.equals("text")) tsv = false;
                 else return usageError(err, "unknown format: " + esc(f));
+            } else if (a.startsWith("--provider=")) {
+                providerMode = a.substring("--provider=".length());
+                if (!providerMode.equals("auto") && !providerMode.equals("dirtychai")
+                        && !providerMode.equals("platform")) {
+                    return usageError(err, "unknown provider: " + esc(providerMode));
+                }
+            } else if (a.equals("--define") || a.startsWith("--define=")) {
+                String d;
+                if (a.equals("--define")) {
+                    if (++i >= args.length) return usageError(err, "--define needs NAME=VALUE");
+                    d = args[i];
+                } else {
+                    d = a.substring("--define=".length());
+                }
+                int eq = d.indexOf('=');
+                if (eq <= 0) return usageError(err, "--define needs NAME=VALUE, got: " + esc(d));
+                defines.put(d.substring(0, eq), d.substring(eq + 1));
             } else if (a.equals("--glob") || a.startsWith("--glob=")) {
                 String g;
                 if (a.equals("--glob")) {
@@ -177,10 +225,22 @@ public final class PolicyLint {
         }
         if (files.isEmpty()) return usageError(err, "no policy files found under the given paths");
 
+        PolicyVerdict provider;
+        try {
+            provider = PolicyVerdict.open(providerMode);
+        } catch (IllegalStateException e) {
+            return usageError(err, esc(e.getMessage()));
+        }
+
         Map<String, List<Finding>> byFile = new TreeMap<String, List<Finding>>();
+        Map<String, PolicyVerdict.Answer> answers = new TreeMap<String, PolicyVerdict.Answer>();
         for (File f : files) {
             String name = f.getPath();
-            if (!byFile.containsKey(name)) byFile.put(name, lint(f, name));
+            if (!byFile.containsKey(name)) {
+                Linted l = lint(f, name, provider, defines);
+                byFile.put(name, l.findings);
+                if (l.answer != null) answers.put(name, l.answer);
+            }
         }
 
         int[] total = new int[KINDS.length];
@@ -198,14 +258,29 @@ public final class PolicyLint {
             }
         }
         String lead = tsv ? "#" : "SUMMARY";
+        println(out, (tsv ? "# " : "") + "PROVIDER " + provider.providerClass + " ("
+                + esc(provider.note) + ")"
+                + (PolicyVerdict.DIRTYCHAI.equals(provider.providerClass) ? ""
+                : " [not the DirtyChai provider]"));
         for (Map.Entry<String, List<Finding>> e : byFile.entrySet()) {
             int[] n = new int[KINDS.length];
             for (Finding f : e.getValue()) n[indexOf(f.kind)]++;
             println(out, lead + " " + esc(e.getKey()) + ": " + counts(n));
         }
-        boolean fail = total[indexOf("U1")] + total[indexOf("U2")] + total[indexOf("P1")] > 0
-                || (strict && total[indexOf("S1")] > 0)
-                || (audit && total[indexOf("S1")] + total[indexOf("S2")] > 0);
+        for (Map.Entry<String, PolicyVerdict.Answer> e : answers.entrySet()) {
+            PolicyVerdict.Answer v = e.getValue();
+            println(out, (tsv ? "# " : "") + "VERDICT " + esc(e.getKey()) + ": "
+                    + (v.loadError != null ? "not loaded (" + esc(v.loadError) + ")"
+                    : "stranger=" + v.stranger + " principal=" + v.strangerPrincipal
+                    + " file=" + v.fileCode + " platform=" + v.platformModule
+                    + " nullCodeSource=" + v.nullCodeSource));
+        }
+        int weak = total[indexOf("S1")] + total[indexOf("S3")] + total[indexOf("S4")];
+        int anyScoped = weak + total[indexOf("S2")] + total[indexOf("S5")];
+        boolean fail = total[indexOf("U1")] + total[indexOf("U2")] + total[indexOf("U3")]
+                + total[indexOf("U4")] + total[indexOf("P1")] > 0
+                || (strict && weak > 0)
+                || (audit && anyScoped > 0);
         println(out, (tsv ? "#" : "TOTAL") + " files=" + byFile.size() + " " + counts(total)
                 + " exit=" + (fail ? 1 : 0));
 
@@ -225,9 +300,10 @@ public final class PolicyLint {
 
     private static void usage(PrintStream out) {
         println(out, "usage: PolicyLint [--strict] [--audit-input] [--format=text|tsv]"
-                + " [--glob PATTERN]... [--fix-hint] FILE-OR-DIR...");
-        println(out, "  exit 0 clean; 1 on U1, U2 or P1 (S1 with --strict; any AllPermission"
-                + " finding with --audit-input); 2 usage error");
+                + " [--glob PATTERN]... [--define NAME=VALUE]..."
+                + " [--provider=auto|dirtychai|platform] [--fix-hint] FILE-OR-DIR...");
+        println(out, "  exit 0 clean; 1 on U1, U2, U3, U4 or P1 (S1, S3, S4 with --strict; any"
+                + " AllPermission finding with --audit-input); 2 usage error or no file found");
     }
 
     private static int usageError(PrintStream err, String msg) {
@@ -295,7 +371,11 @@ public final class PolicyLint {
 
     // ------------------------------------------------------------- linting
 
-    static List<Finding> lint(File f, String display) {
+    /**
+     * Lints one file: the text scan for kinds and lines, then the provider for the verdict.
+     * {@code provider} null means text only (the verdict rules U3 and the real P1 are then off).
+     */
+    static Linted lint(File f, String display, PolicyVerdict provider, Map<String, String> defines) {
         List<Finding> res = new ArrayList<Finding>();
         List<ProxyPolicyGenerator.Problem> problems =
                 new ArrayList<ProxyPolicyGenerator.Problem>();
@@ -304,31 +384,93 @@ public final class PolicyLint {
             grants = ProxyPolicyGenerator.parseGrants(ProxyPolicyGenerator.readText(f), problems);
         } catch (IOException e) {
             res.add(new Finding(display, 0, "P1", "file cannot be read: " + e.getClass().getSimpleName()));
-            return res;
+            return new Linted(res, null);
         }
         for (ProxyPolicyGenerator.Problem p : problems) {
             res.add(new Finding(display, p.line, "P1", p.reason));
         }
-        for (ProxyPolicyGenerator.GrantBlock g : grants) classify(display, g, res);
+        Properties env = new Properties();
+        env.putAll(System.getProperties());
+        env.putAll(defines);
+        env.setProperty("/", File.separator);
+        int firstAllLine = 0;
+        for (ProxyPolicyGenerator.GrantBlock g : grants) {
+            classify(display, g, env, res);
+            for (ProxyPolicyGenerator.Perm p : g.permissions) {
+                if (ALL.equals(p.type) && firstAllLine == 0) firstAllLine = g.line;
+            }
+        }
+        PolicyVerdict.Answer answer = null;
+        if (provider != null) {
+            answer = provider.ask(f, defines);
+            if (answer.loadError != null) {
+                // the text scan's own P1 already fails the run; one P1 per cause is enough
+                if (!has(res, "P1")) {
+                    res.add(new Finding(display, 0, "P1", "the production policy parser rejects"
+                            + " this file: " + answer.loadError));
+                }
+            } else {
+                if (answer.stranger && !has(res, "U1")) {
+                    res.add(new Finding(display, firstAllLine > 0 ? firstAllLine : 1, "U3",
+                            "the real policy parser grants AllPermission to all code although the"
+                            + " text looks scoped (" + provider.providerClass + ")"));
+                } else if (answer.strangerPrincipal && !answer.stranger && !has(res, "S3")) {
+                    res.add(new Finding(display, firstAllLine > 0 ? firstAllLine : 1, "S3",
+                            "the real policy parser grants AllPermission to code run by any"
+                            + " authenticated principal"));
+                }
+            }
+        }
         Collections.sort(res, new Comparator<Finding>() {
             public int compare(Finding a, Finding b) {
                 if (a.line != b.line) return a.line < b.line ? -1 : 1;
                 return indexOf(a.kind) - indexOf(b.kind);
             }
         });
-        return res;
+        return new Linted(res, answer);
+    }
+
+    private static boolean has(List<Finding> res, String kind) {
+        for (Finding f : res) if (f.kind.equals(kind)) return true;
+        return false;
     }
 
     private static boolean present(String s) {
         return s != null && s.trim().length() > 0;
     }
 
-    private static void classify(String file, ProxyPolicyGenerator.GrantBlock g,
+    /** True if signedBy names at least one alias: the production parser splits it on commas. */
+    private static boolean hasSigner(String s) {
+        if (s == null) return false;
+        for (String t : s.split(",")) if (t.trim().length() > 0) return true;
+        return false;
+    }
+
+    private static boolean wildcard(String[] principal) {
+        return principal[1] == null || "*".equals(principal[1]) || "*".equals(principal[0]);
+    }
+
+    /** Names of {@code ${property}} references in {@code s} that {@code env} does not define. */
+    static List<String> undefinedProperties(String s, Properties env) {
+        List<String> res = new ArrayList<String>();
+        if (s == null) return res;
+        Matcher m = PROPERTY.matcher(s);
+        while (m.find()) {
+            String name = m.group(1);
+            if (env.getProperty(name) == null && !res.contains(name)) res.add(name);
+        }
+        return res;
+    }
+
+    private static void classify(String file, ProxyPolicyGenerator.GrantBlock g, Properties env,
             List<Finding> res) {
         boolean digest = present(g.digest);
         boolean principal = !g.principals.isEmpty();
-        boolean codeScoped = present(g.codebase) || present(g.signedBy);
+        boolean signer = hasSigner(g.signedBy);
+        boolean codeScoped = present(g.codebase) || signer;
         boolean unscoped = !digest && !principal && !codeScoped;
+        boolean wild = false;
+        for (String[] pr : g.principals) wild |= wildcard(pr);
 
         ProxyPolicyGenerator.Perm all = null;
         for (ProxyPolicyGenerator.Perm p : g.permissions) {
@@ -337,15 +479,34 @@ public final class PolicyLint {
                 break;
             }
         }
+        boolean meta = false;
+        for (ProxyPolicyGenerator.Perm p : g.permissions) {
+            if (UMBRELLA_PERMISSION.equals(p.type)
+                    || (GRANT_PERMISSION.equals(p.type) && grantTargetImpliesAll(p.name))) {
+                meta = true;
+            }
+        }
         if (all != null) {
             if (unscoped) {
                 res.add(new Finding(file, g.line, "U1", "grant with no codeBase, signedBy, principal"
                         + " or digest holds AllPermission (line " + all.line + "): masks every"
                         + " permission polpAudit would record"));
-            } else if (digest || principal) {
+            } else if (digest) {
                 res.add(new Finding(file, g.line, "S2", "AllPermission (line " + all.line
-                        + ") scoped by " + (digest ? "digest" : "principal")
-                        + (digest && principal ? " and principal" : "")));
+                        + ") scoped by digest" + (principal ? " and principal" : "")));
+            } else if (principal) {
+                if (wild) {
+                    res.add(new Finding(file, g.line, "S3", "AllPermission (line " + all.line
+                            + ") scoped by a wildcard principal, which matches any authenticated"
+                            + " subject"));
+                } else {
+                    res.add(new Finding(file, g.line, "S2", "AllPermission (line " + all.line
+                            + ") scoped by principal"));
+                }
+            } else if (!signer && PLATFORM_MODULE.matcher(g.codebase.trim()).matches()) {
+                res.add(new Finding(file, g.line, "S5", "AllPermission (line " + all.line
+                        + ") for platform module " + g.codebase.trim() + ": platform code is"
+                        + " privileged without a grant while it is alone on the stack"));
             } else {
                 res.add(new Finding(file, g.line, "S1", "AllPermission (line " + all.line
                         + ") scoped only by codeBase/signedBy ["
@@ -353,15 +514,27 @@ public final class PolicyLint {
                         + "], which can be asserted remotely"));
             }
         }
-        if (unscoped) {
+        if ((all != null || meta) && !digest && !principal && !signer) {
+            List<String> undefined = undefinedProperties(g.codebase, env);
+            if (!undefined.isEmpty()) {
+                res.add(new Finding(file, g.line, "U4", "codeBase " + g.codebase + " uses undefined"
+                        + " propert" + (undefined.size() == 1 ? "y " : "ies ") + undefined
+                        + ": the production parser then drops the location and the grant applies"
+                        + " to ALL code (a DirtyChai fail-open; define it with --define NAME=VALUE"
+                        + " as the runtime does)"));
+            }
+        }
+        if (unscoped || (codeScoped && !digest && !principal)) {
+            String kind = unscoped ? "U2" : "S4";
             for (ProxyPolicyGenerator.Perm p : g.permissions) {
                 if (UMBRELLA_PERMISSION.equals(p.type)) {
-                    res.add(new Finding(file, g.line, "U2", "unscoped grant holds"
-                            + " UmbrellaGrantPermission (line " + p.line
+                    res.add(new Finding(file, g.line, kind, (unscoped ? "unscoped" : "codeBase-scoped")
+                            + " grant holds UmbrellaGrantPermission (line " + p.line
                             + "), which implies every GrantPermission"));
                 } else if (GRANT_PERMISSION.equals(p.type) && grantTargetImpliesAll(p.name)) {
-                    res.add(new Finding(file, g.line, "U2", "unscoped grant holds GrantPermission"
-                            + " (line " + p.line + ") whose target is or implies AllPermission: "
+                    res.add(new Finding(file, g.line, kind, (unscoped ? "unscoped" : "codeBase-scoped")
+                            + " grant holds GrantPermission (line " + p.line
+                            + ") whose target is or implies AllPermission: "
                             + (p.name.length() > 80 ? p.name.substring(0, 80) : p.name)));
                 }
             }

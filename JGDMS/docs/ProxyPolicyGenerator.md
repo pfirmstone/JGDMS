@@ -351,35 +351,101 @@ the operator to review in `git diff` and commit.
 `java.security.AllPermission` grants. polpAudit only **adds** missing permissions,
 so an unscoped `grant { permission java.security.AllPermission; };` in the starting
 or the deployed policy masks everything polpAudit would record and defeats least
-privilege for good. It reads policy text only (nothing is executed, expanded or
-resolved) and never writes a file. It reuses `ProxyPolicyGenerator`'s grant parser.
+privilege for good. It never writes a file.
 
 ```
-java -cp policy-condenser.jar:jgdms-platform.jar org.apache.river.tool.PolicyLint \
-     [--strict] [--audit-input] [--format=text|tsv] [--glob PATTERN]... [--fix-hint] FILE-OR-DIR...
+java -cp policy-condenser.jar:jgdms-platform.jar:jgdms-collections.jar org.apache.river.tool.PolicyLint \
+     [--strict] [--audit-input] [--format=text|tsv] [--glob PATTERN]... \
+     [--define NAME=VALUE]... [--provider=auto|dirtychai|platform] [--fix-hint] FILE-OR-DIR...
 ant -Dpolicy.lint.paths=<files-or-dirs> [-Dpolicy.lint.strict=true] \
-    [-Dpolicy.lint.audit.input=true] policy-lint        # qa/build.xml
+    [-Dpolicy.lint.audit.input=true] [-Dpolicy.lint.define.NAME=VALUE] policy-lint   # qa/build.xml
 ```
+
+### Where the verdict comes from
+
+The question "does code from a **stranger's codebase** get AllPermission under this file?"
+is asked of a production policy provider, never decided by text: the file is loaded with
+the provider's own parser and `implies(ProtectionDomain, AllPermission)` is asked for
+code from `http://evil.example.com/evil.jar` without a principal, the same code run by an
+arbitrary `X500Principal`, a `file:` codebase, a `jrt:` module codebase and a null
+`CodeSource` (a null CodeSource is not implied by design; it is printed, not scored).
+The answers are printed per file as a `VERDICT` line, and the provider as a `PROVIDER`
+line. The stock `sun.security.provider.PolicyFile` is never used: it disagrees with the
+production providers on seven of the review fixtures.
+
+* **`auto` (default)**: `au.zeus.jdk.authorization.policy.ConcurrentPolicyFile`, the
+  provider `CombinerSecurityManager` and polpAudit install on the DirtyChai JDK, when the
+  tool's JVM may reach it. That package is not exported by `java.base`; start the tool
+  with `--add-exports java.base/au.zeus.jdk.authorization.policy=ALL-UNNAMED` (ant:
+  `-Dpolicy.lint.jvmargs=...`). Otherwise, and on a stock JDK, it falls back to
+  `org.apache.river.api.security.ConcurrentPolicyFile` of jgdms-platform (needs
+  jgdms-collections on the class path) and the `PROVIDER` line says
+  `[not the DirtyChai provider]` and why. The two were measured to give identical answers
+  on all 28 review fixtures (`PolicyLintTest.providersAgreeOnFixtures`).
+* `--provider=dirtychai` makes an unreachable DirtyChai provider a usage error (exit 2)
+  instead of a fall-back; `--provider=platform` forces jgdms-platform's.
+
+The text scan (`ProxyPolicyGenerator.parseGrants`) is kept only for line numbers and the
+kind vocabulary. **Where the provider says a stranger gets AllPermission and the text did
+not find an unscoped AllPermission grant, the provider wins: U3.** Where the provider
+cannot load the file (a BOM, `keystorePasswordURL`, a nested `{`, a single quote) the
+finding is P1, and the file's verdict line says `not loaded`.
+
+### Properties and the DirtyChai fail-open
+
+A `${property}` in a `codeBase` is expanded from the JVM's system properties. If the
+property is **undefined**, the production parser (DirtyChai's `DefaultPolicyParser` and
+jgdms-platform's copy) logs the failure and leaves the grant's location empty, and an
+empty location matches **all code**: `grant codeBase "file:${unset}/x.jar" { AllPermission }`
+is an unscoped AllPermission grant. This is a fail-open in DirtyChai (stock `PolicyFile`
+skips such an entry); it is to be reported to DirtyChai's owners and is not changed here.
+The lint therefore reports an AllPermission (or AllPermission-implying meta-) grant whose
+`codeBase` uses an undefined property as **U4** and fails by default, together with U3 when
+the provider confirms the grant applies to everyone. Define the properties the way the
+runtime does and the grant is judged on its real location:
+
+```
+--define jgdms.lib-dl=/opt/jgdms/lib-dl      # repeatable; also --define=NAME=VALUE
+ant -Dpolicy.lint.define.jgdms.lib-dl=/opt/jgdms/lib-dl ...
+```
+
+The tool's own system properties (`user.home`, `java.home`, `-D...`) and `${/}` count as
+defined. Definitions apply to the text check and to the provider for one file and are
+removed afterwards. Only grants that hold AllPermission or a meta-grant are checked; a
+narrow grant whose property is undefined is outside this lint.
+
+### Files, output, kinds
 
 A directory is walked for `*.policy`, `*.policy.old`, `*.policy.new`, `policy.all` and
 `*.policy.*`, never into `*.proxy-permissions` directories and never `*.grantperm`
 files; `--glob` adds file-name patterns. A file named on the command line is always
-linted. Each finding is `file:line KIND NAME reason` (the line of the `grant`
-keyword), sorted by file then line, followed by a per-file summary and totals;
-`--format=tsv` gives tab-separated rows with `#` summary lines. Control characters in
-policy text are printed as `\uXXXX`.
+linted; a named path that does not exist is a usage error. Each finding is
+`file:line KIND NAME reason` (the line of the `grant` keyword; 0 when no line applies),
+sorted by file then line, followed by `PROVIDER`, per-file `SUMMARY` and `VERDICT` lines
+and `TOTAL`; `--format=tsv` gives tab-separated rows with `#` lines. Control characters
+in policy text are printed as `\uXXXX`.
 
-| Kind | Meaning |
-|------|---------|
-| `U1 UNSCOPED_ALLPERMISSION` | grant with no `codeBase`, `signedBy`, `principal` or `digest` holding AllPermission |
-| `U2 UNSCOPED_META_GRANT` | unscoped grant holding `GrantPermission` whose target is or contains AllPermission or a wildcard covering it (`*`, `-`, `java.security.*`), or `UmbrellaGrantPermission` |
-| `S1 ALLPERMISSION_CODEBASE_ONLY` | AllPermission scoped only by `codeBase`/`signedBy`: remotely assertable |
-| `S2 ALLPERMISSION_SCOPED` | AllPermission scoped by a `digest` or `principal` (informational) |
-| `P1 UNPARSEABLE` | unreadable file, unterminated grant, `permission` without a class, stray word |
+| Kind | Meaning | Fails |
+|------|---------|-------|
+| `U1 UNSCOPED_ALLPERMISSION` | grant with no `codeBase`, `signedBy` (naming an alias), `principal` or `digest` holding AllPermission | always |
+| `U2 UNSCOPED_META_GRANT` | unscoped grant holding `GrantPermission` whose target is or contains AllPermission or a wildcard covering it (`*`, `-`, `java.security.*`), or `UmbrellaGrantPermission` | always |
+| `U3 REAL_VERDICT_UNSCOPED` | the real policy parser grants AllPermission to all code although the text looks scoped | always |
+| `U4 PROPERTY_DEPENDENT_SCOPE` | `codeBase` of an AllPermission/meta grant uses an undefined `${property}` | always |
+| `S1 ALLPERMISSION_CODEBASE_ONLY` | AllPermission scoped only by `codeBase`/`signedBy`: remotely assertable | `--strict` |
+| `S2 ALLPERMISSION_SCOPED` | AllPermission scoped by a `digest` or by named principals | `--audit-input` |
+| `S3 WILDCARD_PRINCIPAL` | scoped only by `principal * *`, `principal Class *` or `principal * "name"`: any authenticated subject | `--strict` |
+| `S4 CODEBASE_SCOPED_META_GRANT` | codeBase/signedBy-scoped `GrantPermission` implying AllPermission, or Umbrella | `--strict` |
+| `S5 PLATFORM_MODULE_GRANT` | AllPermission for exactly `jrt:/<module>`: informational | `--audit-input` |
+| `P1 UNPARSEABLE` | unreadable file, a grammar error, or a file the production parser rejects | always |
 
-Exit status: `0` clean; `1` on any U1, U2 or P1 (also S1 with `--strict`; any
-AllPermission finding including S2 with `--audit-input`); `2` usage error (no path, a
-missing path, an unknown option, or no policy file found).
+(`--audit-input` fails on every S kind; `--strict` fails on S1, S3 and S4.) S5 is counted,
+not lumped into S1: platform code is privileged while it is alone on the stack, so a
+platform module needs no AllPermission grant at all.
+
+Exit status: `0` clean; `1` on any U1, U2, U3, U4 or P1 (also S1, S3, S4 with `--strict`;
+any AllPermission finding, S2 and S5 included, with `--audit-input`); `2` usage error (no
+path, a missing path, an unknown option or provider, a forced provider that is not
+available, or no policy file found).
 
 **The starting policy of a polpAudit run must be linted with `--audit-input`** (ant:
 `-Dpolicy.lint.audit.input=true`). A starting policy may be empty but must not hold any
@@ -389,8 +455,11 @@ needs. The deployed policy should pass the default run and, preferably, `--stric
 `--fix-hint` prints, per U1, suggested replacement text only: start from an empty
 policy, or a digest-scoped skeleton with a `TODO` placeholder. It never edits a file.
 
-Not detected: a `codeBase` such as `file:/-` that is broad but not absent, a wildcard
-`principal * *`, and permissions that imply AllPermission without naming it.
+Not detected: a broad `codeBase` such as `file:/-` (reported S1; the `VERDICT` line shows
+the `file=` answer), permissions that imply AllPermission without naming it, grants that
+mask polpAudit without AllPermission (see `qa/harness/policy/check-spiffe-policy-no-broad-grants.sh`
+for `AuthPermission`/`RuntimePermission` rules), and the JDK `java.policy` that a single
+`=` on `-Djava.security.policy` also loads.
 
 ## Worked example
 

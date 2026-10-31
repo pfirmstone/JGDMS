@@ -1,0 +1,6 @@
+// grant { permission java.security.AllPermission; };
+/* grant { permission java.security.AllPermission; } */
+/* } " */
+grant codeBase "http://good.example.com/ok.jar" {
+    permission java.io.FilePermission "java.security.AllPermission", "read"; // "}" grant { permission java.security.AllPermission; }
+};

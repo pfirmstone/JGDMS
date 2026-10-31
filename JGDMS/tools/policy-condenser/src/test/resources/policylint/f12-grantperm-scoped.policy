@@ -1,0 +1,3 @@
+grant codeBase "http://good.example.com/ok.jar" {
+    permission net.jini.security.GrantPermission "java.security.AllPermission";
+};

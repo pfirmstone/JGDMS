@@ -812,9 +812,15 @@
 
         ant -Dpolicy.lint.paths=<files-or-dirs> policy-lint
 
+      The AllPermission verdict is the production policy provider's (DirtyChai's
+      ConcurrentPolicyFile if java.base exports it to the tool's JVM, else
+      jgdms-platform's); the printed PROVIDER line says which.
+
       Exit status: fails the build on UNSCOPED_ALLPERMISSION (U1),
-      UNSCOPED_META_GRANT (U2) and UNPARSEABLE (P1); also on
-      ALLPERMISSION_CODEBASE_ONLY (S1) with -Dpolicy.lint.strict=true.
+      UNSCOPED_META_GRANT (U2), REAL_VERDICT_UNSCOPED (U3),
+      PROPERTY_DEPENDENT_SCOPE (U4) and UNPARSEABLE (P1); also on S1, S3
+      (WILDCARD_PRINCIPAL) and S4 (CODEBASE_SCOPED_META_GRANT) with
+      -Dpolicy.lint.strict=true.
       The STARTING policy of a polpAudit run must be linted with
       -Dpolicy.lint.audit.input=true, which fails on ANY AllPermission grant.
 
@@ -828,6 +834,15 @@
         policy.lint.audit.input  true to fail on any AllPermission (S1, S2 too)
         policy.lint.format       text (default) or tsv
         policy.lint.glob         optional extra file-name glob to include
+        policy.lint.define.NAME  VALUE for ${NAME} in a codeBase, as the runtime
+                                 defines it (repeatable, one -D per property); an
+                                 undefined property in the codeBase of an
+                                 AllPermission grant is U4 and fails the build
+        policy.lint.provider     auto (default), dirtychai or platform
+        policy.lint.jvmargs      extra JVM arguments; on the DirtyChai JDK export
+                                 au.zeus.jdk.authorization.policy from java.base
+                                 to ALL-UNNAMED (the add-exports option) to use
+                                 DirtyChai's own policy provider
     -->
     <target name="policy-lint-args">
         <fail message="use ant -Dpolicy.lint.paths=/path/to/x.policy[:/dir] policy-lint" unless="policy.lint.paths"/>
@@ -845,10 +860,12 @@
         <condition property="policy.lint.glob.arg" value="--glob=${policy.lint.glob}" else="">
             <isset property="policy.lint.glob"/>
         </condition>
+        <property name="policy.lint.provider" value="auto"/>
+        <property name="policy.lint.jvmargs" value=""/>
     </target>
 
     <target name="policy-lint" depends="policy-lint-args"
-            description="Fail on unscoped AllPermission grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] policy-lint">
+            description="Fail on unscoped AllPermission grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] [-Dpolicy.lint.define.NAME=VALUE] policy-lint">
         <java classname="org.apache.river.tool.PolicyLint"
               fork="yes"
               failonerror="true">
@@ -856,8 +873,16 @@
             <arg line="${policy.lint.audit.arg}"/>
             <arg line="${policy.lint.glob.arg}"/>
             <arg value="--format=${policy.lint.format}"/>
+            <arg value="--provider=${policy.lint.provider}"/>
             <arg value="--"/>
             <arg line="&quot;${policy.lint.paths.args}&quot;"/>
+            <jvmarg line="${policy.lint.jvmargs}"/>
+            <syspropertyset>
+                <propertyset>
+                    <propertyref prefix="policy.lint.define."/>
+                    <mapper type="glob" from="policy.lint.define.*" to="*"/>
+                </propertyset>
+            </syspropertyset>
             <classpath refid="policy.promote.classpath"/>
         </java>
     </target>
