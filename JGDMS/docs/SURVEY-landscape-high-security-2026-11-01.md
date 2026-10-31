@@ -95,3 +95,7 @@ wasmCloud primary pages; Cloudflare Workers primary docs; V8 isolates internals;
 mitigation research outside seL4; RISC-V open cores other than CVA6 (e.g. Rocket/BOOM security work);
 SPIFFE with JWT-SVID adoption detail; DER/canonical-encoding comparators (ASN.1, CBOR deterministic
 encoding, Protobuf canonicalization); conferences (seL4 Summit, USENIX) proceedings.
+
+## Operator note (2026-11-01, in chat; not checked by any search)
+
+GraalVM can execute guest JavaScript and uses process isolation, but it cannot defend against cache and memory timing attacks. This agrees with the physics (processes on one machine share caches and memory controllers) and with the reason the design puts untrusted code on separate hardware. The survey's Graal row (an UNTRUSTED sandbox policy, no permission or authorisation layer) should be read as software isolation only, not as a defence against those channels. Not verified against GraalVM's own documentation.
