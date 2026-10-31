@@ -238,6 +238,14 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	String fmt = arg.get(PAYLOAD_FORMAT, FORMAT_JOSS, String.class);
 	payloadFormat = (fmt == null) ? FORMAT_JOSS : fmt;
 	hash = arg.get(HASH, 0);
+	// The sender names the format; a receiver that has fixed its own format refuses a
+	// mismatch here, so no later get(boolean), which carries no context, can decode it.
+	String required = arg.requiredPayloadFormat();
+	if (required != null && !required.equals(payloadFormat)) {
+	    throw new UnsupportedConstraintException(
+		"payloadFormat " + payloadFormat + " does not satisfy required MarshallingFormat "
+		+ required);
+	}
     }
     
     /*

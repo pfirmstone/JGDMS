@@ -249,6 +249,12 @@ public final class DerGetArg extends AtomicSerial.GetArg {
         return resolution.requiredPayloadFormat();
     }
 
+    /** The format every nested {@code MarshalledInstance} must carry; see {@link #streamRequiredPayloadFormat()}. */
+    @Override
+    public String requiredPayloadFormat() {
+        return resolution.requiredPayloadFormat();
+    }
+
     /** Package-private: the stream's verifier class loader (see {@link #streamDefaultLoader()}). */
     ClassLoader streamVerifierLoader() {
         return resolution.verifierLoader();
