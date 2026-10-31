@@ -804,13 +804,22 @@ public class AtomicMarshalInputStream extends MarshalInputStream implements Atom
      */
     private byte[] readBlockDataLong() throws IOException {
 	int length = input.readInt();
-	if (length < 0 || length > arrayLenAllowedRemain){
+	// Outside readObject the array-length budget is 0, yet our own writer emits
+	// primitive data there as blocks of up to MAX_BLOCK_DATA_LEN bytes (for example
+	// the reducing-context block a client sends under a SecurityManager). Bound such
+	// a top-level block by that writer limit instead of refusing every long block;
+	// inside readObject the budget applies, and is debited, as before.
+	boolean topLevel = (nestedLevels == 0);
+	long allowed = topLevel ? ObjOutputStream.MAX_BLOCK_DATA_LEN : arrayLenAllowedRemain;
+	if (length < 0 || length > allowed){
 	    try {
 		close();
 	    } catch (IOException e){} // Ignore
 	    throw new IOException("Attempt to excessively long array of raw bytes");
 	}
-	arrayLenAllowedRemain = arrayLenAllowedRemain - length;
+	if (!topLevel) {
+	    arrayLenAllowedRemain = arrayLenAllowedRemain - length;
+	}
 	// Read incrementally in bounded chunks rather than committing a
 	// wire-declared byte[length] up front: a truncated payload then fails
 	// fast at the truncation point (EOFException) instead of forcing a large

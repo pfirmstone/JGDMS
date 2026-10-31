@@ -436,6 +436,16 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
     }
 
     /**
+     * The most primitive data this writer puts in one block ({@code TC_BLOCKDATA} or
+     * {@code TC_BLOCKDATALONG}); the same value as {@code MAX_BLOCK_SIZE} in
+     * {@code java.io.ObjectOutputStream}. It is a writer constant, not a protocol bound
+     * (the stream grammar allows a long block up to 2^31-1). {@link AtomicMarshalInputStream}
+     * bounds a top-level block by it; that bound relies on the reader fetching one block per
+     * demand, so a future read-ahead would reopen it.
+     */
+    static final int MAX_BLOCK_DATA_LEN = 1024;
+
+    /**
      * Writes buffered data to the target stream. This is similar to {@code
      * flush} but the flush is not propagated to the target stream.
      * 
@@ -452,7 +462,7 @@ class ObjOutputStream extends OutputStream implements ObjectOutput,
         byte[] written = primitiveTypesBuffer.toByteArray();
         // Normalize the primitive data
         while (offset < written.length) {
-            int toWrite = written.length - offset > 1024 ? 1024
+            int toWrite = written.length - offset > MAX_BLOCK_DATA_LEN ? MAX_BLOCK_DATA_LEN
                     : written.length - offset;
             if (toWrite < 256) {
                 output.writeByte(TC_BLOCKDATA);
