@@ -72,10 +72,9 @@ import java.util.TreeMap;
  */
 public final class PolicyLint {
 
-    static final String ALL = "java.security.AllPermission";
-    private static final String GRANT_PERMISSION = "net.jini.security.GrantPermission";
-    private static final String UMBRELLA_PERMISSION =
-            "net.jini.security.policy.UmbrellaGrantPermission";
+    static final String ALL = PermissionSets.ALL_PERMISSION;
+    private static final String GRANT_PERMISSION = PermissionSets.GRANT_PERMISSION;
+    private static final String UMBRELLA_PERMISSION = PermissionSets.UMBRELLA_GRANT_PERMISSION;
     private static final String[] KINDS = {"U1", "U2", "S1", "S2", "P1"};
 
     private PolicyLint() {}

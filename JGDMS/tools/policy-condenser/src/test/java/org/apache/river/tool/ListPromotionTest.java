@@ -757,7 +757,10 @@ public class ListPromotionTest {
             "(au.zeus.jdk.authorization.guards.LoadClassPermission \"*\")",
             "(net.jini.loader.LoadClassPermission \"ALLOW\")",
             "(java.net.URLPermission \"http://x/a.jar\" \"GET:\")",
-            "(net.jini.loader.DownloadPermission)"};
+            "(net.jini.loader.DownloadPermission)",
+            "(net.jini.loader.pref.INCONCLUSIVEPermit \"*\")",
+            "(net.jini.loader.pref.BootstrapPermission \"loadCodebase\")",
+            "(org.apache.river.api.security.PolicyPermission \"REMOTE\")"};
         for (String entry : bad) {
             ProxyPolicyGenerator.deleteTree(gen);
             write(mahaloTarget, GET_CL);
@@ -926,6 +929,179 @@ public class ListPromotionTest {
         assertApplyRefused(M, true, "is not under a module root");
         assertFalse(sibling.exists());
         assertFalse(sibling.getParentFile().exists());
+    }
+
+    // ------------------------------------------------------- round 5 findings
+
+    /** The 13 entries of the round-4 review that every earlier gate passed, held or refused now. */
+    private static final String[] HOLD_ENTRIES = {
+        "(java.lang.RuntimePermission \"setSecurityManager\")",
+        "(java.lang.RuntimePermission \"createClassLoader\")",
+        "(java.lang.reflect.ReflectPermission \"suppressAccessChecks\")",
+        "(java.security.SecurityPermission \"createAccessControlContext\")",
+        "(java.security.SecurityPermission \"setPolicy\")",
+        "(java.io.SerializablePermission \"enableSubclassImplementation\")",
+        "(javax.security.auth.AuthPermission \"doAsPrivileged\")",
+        "(javax.security.auth.AuthPermission \"modifyPrincipals\")",
+        "(java.io.FilePermission \"<<ALL FILES>>\" \"execute\")",
+        "(au.zeus.jdk.authorization.guards.NativeInvocationPermission \"x\")"};
+    private static final String[] GATE_META_ENTRIES = {
+        "(net.jini.loader.pref.INCONCLUSIVEPermit \"*\")",
+        "(net.jini.loader.pref.BootstrapPermission \"loadCodebase\")",
+        "(org.apache.river.api.security.PolicyPermission \"REMOTE\")"};
+
+    /**
+     * F1: a live entry of the HOLD set in a list under --out (the generator writes it commented
+     * out, so it was put there by hand) counts as held: the plan says so, the gate fails and
+     * apply needs --allow-held, which then lets it through.  Not caught: a HOLD entry hidden
+     * in a target that already holds it (it is then not ADDED, and reviewed already).
+     */
+    @Test
+    public void testALiveHoldEntryInAnEditedListNeedsAllowHeldAndFailsTheGate() throws Exception {
+        for (String entry : HOLD_ENTRIES) {
+            ProxyPolicyGenerator.deleteTree(gen);
+            write(mahaloTarget, GET_CL);
+            generateMahalo();
+            File list = new File(gen, M + "/META-INF/PERMISSIONS.LIST");
+            ListPromotion.CheckResult clean = ListPromotion.check(gen, roots(), NOMAP);
+            assertFalse(entry + " baseline " + clean.report, clean.failed);
+            Files.write(list.toPath(), ("  " + entry + "\n").getBytes(UTF8),
+                java.nio.file.StandardOpenOption.APPEND);
+
+            ListPromotion.Plan p = makePlan();
+            assertNull(entry, p.items.get(0).refusal);
+            assertTrue(entry + p.summary(), p.summary().contains("held 1,"));
+            assertTrue(entry + p.summary(), p.summary().contains("plan HOLD " + M + ": live " + entry));
+            ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP);
+            assertTrue(entry + c.report, c.failed);
+            assertTrue(entry + c.report, c.report.contains("check FAIL " + M + ": the list holds 1"
+                + " live entry of the HOLD set"));
+            assertApplyRefused(M, false, "pass --allow-held");
+            assertFalse(entry, read(mahaloTarget).contains(entry));
+            String report = applyPlan(Arrays.asList(M), false, true);
+            assertTrue(entry + report, report.contains("WROTE"));
+        }
+    }
+
+    /**
+     * F1: held by class AND name: the same classes with an entry outside the HOLD set are not
+     * held, so a rule that held by class alone fails here.
+     */
+    @Test
+    public void testAnEntryOfAHoldClassWithAnotherNameIsNotHeld() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo();
+        File list = new File(gen, M + "/META-INF/PERMISSIONS.LIST");
+        Files.write(list.toPath(), ("(java.security.SecurityPermission \"getProperty.x\")\n"
+            + "(java.io.FilePermission \"data/x\" \"execute\")\n"
+            + "(javax.security.auth.AuthPermission \"createLoginContext.x\")\n").getBytes(UTF8),
+            java.nio.file.StandardOpenOption.APPEND);
+
+        ListPromotion.Plan p = makePlan();
+        assertNull(p.items.get(0).refusal);
+        assertEquals(p.summary(), 0, p.items.get(0).held);
+        assertFalse(ListPromotion.check(gen, roots(), NOMAP).failed);
+    }
+
+    /**
+     * F1: an entry of the FLAG set is marked in the plan and in the gate's report, and refused
+     * nowhere: not by the plan, not by the gate, not by apply without any flag.
+     */
+    @Test
+    public void testAFlaggedEntryIsReportedButNeverRefused() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo("permission java.io.FilePermission \"<<ALL FILES>>\", \"read\";",
+            "permission javax.security.auth.AuthPermission \"getSubject\";");
+
+        ListPromotion.Plan p = makePlan();
+        assertNull(p.summary(), p.items.get(0).refusal);
+        assertTrue(p.summary(), p.summary().contains("flagged 2"));
+        assertTrue(read(plan), read(plan).contains("    +! (java.io.FilePermission \"<<ALL FILES>>\""
+            + " \"read\")   [FLAG: reads or writes every file]"));
+        assertTrue(read(plan), read(plan).contains("    +! (javax.security.auth.AuthPermission"
+            + " \"getSubject\")"));
+        assertFalse("the unflagged entry carries no mark", read(plan).contains("+! " + GET_CL));
+        ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP);
+        assertFalse(c.report, c.failed);
+        assertTrue(c.report, c.report.contains("  +! (java.io.FilePermission \"<<ALL FILES>>\""));
+        assertTrue(applyPlan(Arrays.asList(M), false).contains("WROTE"));
+    }
+
+    /**
+     * F5: through the CLI, an edited list whose ONLY defect is an excluded class fails the gate
+     * (rc 1) on that class: the target equals the generated list, so there is no REMOVED entry
+     * to fail it for another reason, and the same fixture without the entry is rc 0.
+     */
+    @Test
+    public void testCliGateFailsOnTheExcludedClassAloneNotOnARemovedEntry() throws Exception {
+        String[] excluded = {
+            "(java.security.AllPermission)",
+            "(net.jini.security.GrantPermission \"java.security.AllPermission\")",
+            "(net.jini.security.policy.UmbrellaGrantPermission \"x\")",
+            "(au.zeus.jdk.authorization.guards.LoadClassPermission \"*\")",
+            "(java.net.URLPermission \"http://x/a.jar\" \"GET:\")",
+            "(net.jini.loader.DownloadPermission)",
+            GATE_META_ENTRIES[0], GATE_META_ENTRIES[1], GATE_META_ENTRIES[2]};
+        String[] check = {"--out", gen.getPath(), "--promote-plan-check", tree.getPath()};
+        for (String entry : excluded) {
+            ProxyPolicyGenerator.deleteTree(gen);
+            write(mahaloTarget, GET_CL);
+            generateMahalo();
+            ByteArrayOutputStream so = new ByteArrayOutputStream();
+            PrintStream out = new PrintStream(so, true, "UTF-8");
+            PrintStream err = new PrintStream(new ByteArrayOutputStream(), true, "UTF-8");
+            assertEquals(entry + so.toString("UTF-8"), 0, ProxyPolicyGenerator.run(check, out, err));
+
+            Files.write(new File(gen, M + "/META-INF/PERMISSIONS.LIST").toPath(),
+                ("  " + entry + "\n").getBytes(UTF8), java.nio.file.StandardOpenOption.APPEND);
+            so.reset();
+            assertEquals(entry + so.toString("UTF-8"), 1, ProxyPolicyGenerator.run(check, out, err));
+            String text = so.toString("UTF-8");
+            assertFalse(entry + text, text.contains("REMOVED"));
+            assertTrue(entry + text, text.contains("check FAIL " + M + ": the list was edited"));
+        }
+    }
+
+    /**
+     * F3: a byte that is not UTF-8 in a generated list, in a checked-in target, and a missing
+     * artefact map, are each refused with rc 1 and a message through the plan and the gate,
+     * never a stack trace.
+     */
+    @Test
+    public void testANonUtf8ByteOrAMissingMapIsRefusedNotAStackTrace() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo();
+        File list = new File(gen, M + "/META-INF/PERMISSIONS.LIST");
+        String[][] modes = {
+            {"--promote-plan-check", tree.getPath()},
+            {"--plan-file", plan.getPath(), "--promote-plan", tree.getPath()}};
+        Files.write(list.toPath(), "# café\n".getBytes("ISO-8859-1"),
+            java.nio.file.StandardOpenOption.APPEND);
+        for (String[] mode : modes) {
+            assertRefusedWithoutTrace("generated list", cat(new String[]{"--out", gen.getPath()}, mode),
+                "not valid UTF-8");
+        }
+        ProxyPolicyGenerator.deleteTree(gen);
+        generateMahalo();
+        Files.write(mahaloTarget.toPath(), "# café\n".getBytes("ISO-8859-1"));
+        assertRefusedWithoutTrace("checked-in target", new String[]{"--out", gen.getPath(),
+            "--promote-plan-check", tree.getPath()}, "not valid UTF-8");
+        write(mahaloTarget, GET_CL);
+        assertRefusedWithoutTrace("artefact map", new String[]{"--out", gen.getPath(),
+            "--artefact-map", new File(tempDir, "nomap.txt").getPath(), "--promote-plan-check",
+            tree.getPath()}, "nomap.txt");
+    }
+
+    private static void assertRefusedWithoutTrace(String what, String[] args, String fragment)
+            throws Exception {
+        ByteArrayOutputStream so = new ByteArrayOutputStream();
+        ByteArrayOutputStream se = new ByteArrayOutputStream();
+        int rc = ProxyPolicyGenerator.run(args, new PrintStream(so, true, "UTF-8"),
+            new PrintStream(se, true, "UTF-8"));
+        String err = se.toString("UTF-8");
+        assertEquals(what + ": " + err, 1, rc);
+        assertTrue(what + ": " + err, err.contains("REFUSED") && err.contains(fragment));
+        assertFalse(what + ": " + err, err.contains("\tat "));
     }
 
     // --------------------------------------------------------------- helpers

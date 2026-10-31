@@ -18,13 +18,10 @@
 
 package org.apache.river.tool;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StreamTokenizer;
@@ -193,41 +190,6 @@ public class ProxyPolicyGenerator {
     public static final String DEFAULT_PROXY_REGEX =
             "(?i)^httpmd:.*|.*/[^/]*-dl(?:-[^/]*)?\\.jar(?:[;?#].*)?$";
 
-    /** Permission classes that are policy-grant meta-capabilities, never a
-     *  proxy's declared needs, so excluded from {@code PERMISSIONS.LIST}. */
-    private static final java.util.Set<String> META_PERMISSION_CLASSES;
-    static {
-        java.util.Set<String> s = new java.util.HashSet<String>();
-        s.add("net.jini.security.GrantPermission");
-        s.add("net.jini.security.policy.UmbrellaGrantPermission");
-        s.add("java.security.AllPermission");
-        META_PERMISSION_CLASSES = Collections.unmodifiableSet(s);
-    }
-
-    /**
-     * Admission-gate permission classes, never emitted into a proxy jar's
-     * {@code PERMISSIONS.LIST}: they admit the jar's own code to be downloaded
-     * and defined, and {@code PreferredProxyCodebaseProvider} grants them itself
-     * once the codebase is verified, so a jar that requests them is requesting
-     * its own admission.  The two {@code LoadClassPermission} names are the
-     * DirtyChai class as recorded by {@code polpAudit} and the name the provider
-     * uses for its unresolved grant.
-     */
-    private static final Set<String> GATE_PERMISSION_CLASSES =
-        Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
-            "au.zeus.jdk.authorization.guards.LoadClassPermission",
-            "net.jini.loader.LoadClassPermission",
-            "java.net.URLPermission",
-            "net.jini.loader.DownloadPermission")));
-
-    /** Why a gate class is dropped; also the reason promotion refuses a list that holds one. */
-    private static final String GATE_REASON = "admission-gate permission: the proxy provider grants "
-        + "it after verifying the codebase, a jar must not request its own admission";
-
-    /** Why a meta class never reaches a list. */
-    private static final String META_REASON = "policy-grant meta-capability: never a proxy's"
-        + " declared need";
-
     private static final String FILE_PERMISSION = "java.io.FilePermission";
 
     /** Absolute Windows drive or UNC path, optionally as a {@code file:} URL. */
@@ -379,6 +341,13 @@ public class ProxyPolicyGenerator {
             err.println("ProxyPolicyGenerator: REFUSED: a path argument is malformed: "
                     + escaped(e.getMessage()));
             return 1;
+        } catch (java.nio.file.NoSuchFileException | java.io.FileNotFoundException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: a file does not exist or cannot be opened: "
+                    + escaped(e.getMessage()));
+            return 1;
+        } catch (java.nio.charset.CharacterCodingException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: a file is not valid UTF-8: " + escaped(e.toString()));
+            return 1;
         }
     }
 
@@ -483,12 +452,26 @@ public class ProxyPolicyGenerator {
                         .failOnHeld(failOnHeld).failOnEmpty(failOnEmpty);
         int rc = 0;
         int totalProxies = 0;
+        // Read every policy before the first run: a run on a policy with no proxy grant deletes
+        // its own .grantperm, and that file may be one of the later inputs.  An input that cannot
+        // be read refuses the whole invocation before anything is written.
+        List<byte[]> contents = new ArrayList<byte[]>();
         for (String pf : policyFiles) {
-            File policy = new File(pf);
+            try {
+                contents.add(Files.readAllBytes(new File(pf).toPath()));
+            } catch (IOException e) {
+                err.println("ProxyPolicyGenerator: REFUSED: cannot read the policy file "
+                        + escaped(pf) + " (" + (e instanceof java.nio.file.NoSuchFileException
+                            ? "it does not exist" : escaped(e.toString())) + "); nothing was written");
+                return 1;
+            }
+        }
+        for (int k = 0; k < policyFiles.size(); k++) {
+            File policy = new File(policyFiles.get(k));
             File dir = (outDir != null) ? outDir
                     : new File(policy.getAbsolutePath() + ".proxy-permissions");
             try {
-                Result r = gen.generate(policy, dir);
+                Result r = gen.generate(policy, dir, contents.get(k));
                 totalProxies += r.proxyCount();
                 out.println(r.describe());
                 for (String note : r.notes()) err.println(note);
@@ -614,7 +597,12 @@ public class ProxyPolicyGenerator {
      * @throws IOException if reading the policy or writing output fails
      */
     public Result generate(File policyFile, File outDir) throws IOException {
-        String text = readText(policyFile);
+        return generate(policyFile, outDir, Files.readAllBytes(policyFile.toPath()));
+    }
+
+    /** As {@link #generate(File, File)}, for a policy whose bytes the caller has already read. */
+    Result generate(File policyFile, File outDir, byte[] policyBytes) throws IOException {
+        String text = decode(policyBytes);
         List<GrantBlock> grants = parseGrants(text);
 
         // Group proxy grants by codebase identity, merging permission sets so a
@@ -640,7 +628,7 @@ public class ProxyPolicyGenerator {
 
         File ceilingFile = new File(policyFile.getAbsolutePath() + ".grantperm");
         List<String> manifests = new ArrayList<String>();
-        ListSource source = new ListSource(policyFile.getName(), sha256Hex(policyFile));
+        ListSource source = new ListSource(policyFile.getName(), sha256Hex(policyBytes));
         requireNoControl("policy file name", source.policy);
 
         if (proxies.isEmpty()) {
@@ -838,8 +826,11 @@ public class ProxyPolicyGenerator {
     }
 
     private static boolean planned(List<ListPlan> plans, String artefact) {
+        // As the collision check does, ignore case: on a case-insensitive file system a
+        // directory that differs from the artefact only in case is the artefact's directory.
         for (ListPlan plan : plans) {
-            if (plan.artefact.equals(artefact)) return true;
+            if (plan.artefact.toLowerCase(java.util.Locale.ROOT)
+                    .equals(artefact.toLowerCase(java.util.Locale.ROOT))) return true;
         }
         return false;
     }
@@ -1033,8 +1024,11 @@ public class ProxyPolicyGenerator {
             String actions = (p.actions == null || p.actions.length() == 0) ? null : p.actions;
             String entry = encodeEntry(p.type, name, actions);
             String hostSpecific = hostSpecificReason(p.type, name);
-            if (GATE_PERMISSION_CLASSES.contains(p.type)) {
-                plan.dropped.put(entry, GATE_REASON);
+            String hold = PermissionSets.holdReason(p.type, name, actions);
+            if (PermissionSets.GATE.contains(p.type)) {
+                plan.dropped.put(entry, PermissionSets.GATE_REASON);
+            } else if (hold != null) {
+                plan.held.put(entry, hold);
             } else if (hostSpecific != null) {
                 plan.held.put(entry, hostSpecific);
             } else {
@@ -1139,7 +1133,7 @@ public class ProxyPolicyGenerator {
     static void validateList(File listFile) throws IOException {
         ClassLoader loader = ProxyPolicyGenerator.class.getClassLoader();
         int n = 0;
-        for (String line : Files.readAllLines(listFile.toPath(), UTF8)) {
+        for (String line : readLines(listFile)) {
             n++;
             String t = line.trim();
             if (t.isEmpty() || t.startsWith("#") || t.startsWith("//")) continue;
@@ -1234,7 +1228,7 @@ public class ProxyPolicyGenerator {
                             ? "REPLACED" : "REMOVED") + " pre-provenance list " + e.getKey()
                             + ": it carries the old '" + OLD_HEADER_PREFIX
                             + "' line, so this tool wrote it");
-                } else if (replaced == null) {
+                } else if (replaced == null || !planned(replaced, e.getKey())) {
                     notes.add("REMOVED " + e.getKey() + ": a list from " + src.policy + " (--clean)");
                 }
             }
@@ -1246,7 +1240,7 @@ public class ProxyPolicyGenerator {
         String policy = null;
         String sha = null;
         boolean oldHeader = false;
-        for (String line : Files.readAllLines(list.toPath(), UTF8)) {
+        for (String line : readLines(list)) {
             if (line.startsWith(OLD_HEADER_PREFIX)) oldHeader = true;
             if (policy == null && line.startsWith(SOURCE_POLICY_PREFIX)) {
                 policy = line.substring(SOURCE_POLICY_PREFIX.length()).trim();
@@ -1262,9 +1256,7 @@ public class ProxyPolicyGenerator {
      *         that holds one has been edited; {@code null} if it may appear
      */
     static String excludedReason(String type) {
-        if (META_PERMISSION_CLASSES.contains(type)) return META_REASON;
-        if (GATE_PERMISSION_CLASSES.contains(type)) return GATE_REASON;
-        return null;
+        return PermissionSets.excludedReason(type);
     }
 
     /**
@@ -1306,7 +1298,7 @@ public class ProxyPolicyGenerator {
 
     /** Whether {@code f} is a ceiling fragment this tool wrote. */
     private static boolean isOurCeiling(File f) throws IOException {
-        for (String line : Files.readAllLines(f.toPath(), UTF8)) {
+        for (String line : readLines(f)) {
             if (line.startsWith(CEILING_MARKER)) return true;
         }
         return false;
@@ -1407,7 +1399,7 @@ public class ProxyPolicyGenerator {
     /** The entry lines of a list as the loader sees them: trimmed, not blank, not a comment. */
     static List<String> liveEntries(File list) throws IOException {
         List<String> live = new ArrayList<String>();
-        for (String line : Files.readAllLines(list.toPath(), UTF8)) {
+        for (String line : readLines(list)) {
             String t = line.trim();
             if (t.isEmpty() || t.startsWith("#") || t.startsWith("//")) continue;
             live.add(t);
@@ -1874,16 +1866,27 @@ public class ProxyPolicyGenerator {
     // -------------------------------------------------------------- I/O
 
     static String readText(File f) throws IOException {
-        StringBuilder sb = new StringBuilder((int) Math.min(Math.max(f.length(), 64), Integer.MAX_VALUE));
-        BufferedReader br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(f), Charset.forName("UTF-8")));
+        return decode(Files.readAllBytes(f.toPath()));
+    }
+
+    /**
+     * The lines of a UTF-8 list; a byte that is not UTF-8 refuses instead of throwing.  The loader
+     * decodes with replacement characters, so such a list loads, but no gate here reads it as the
+     * loader does.
+     */
+    static List<String> readLines(File f) throws IOException {
         try {
-            char[] buf = new char[4096];
-            int n;
-            while ((n = br.read(buf)) != -1) sb.append(buf, 0, n);
-        } finally {
-            br.close();
+            return Files.readAllLines(f.toPath(), UTF8);
+        } catch (java.nio.charset.CharacterCodingException e) {
+            throw new GenerationException(escaped(f.toString()) + " is not valid UTF-8 ("
+                    + e.getClass().getSimpleName() + "): it holds a byte that is not UTF-8, so no"
+                    + " reader here can judge it; rewrite it as UTF-8");
         }
+    }
+
+    /** Policy text from its bytes: UTF-8 with replacement characters, without a leading BOM. */
+    static String decode(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(new String(bytes, UTF8));
         // Strip a leading UTF-8 BOM: StreamTokenizer treats every char >= 256
         // (including U+FEFF) as a word char, which would otherwise fuse the BOM
         // onto the first 'grant'/'keystore' keyword and defeat parsing.
@@ -1981,7 +1984,7 @@ public class ProxyPolicyGenerator {
         void add(GrantBlock g) {
             members.add(g);
             for (Perm p : g.permissions) {
-                if (META_PERMISSION_CLASSES.contains(p.type)) continue;
+                if (PermissionSets.META.contains(p.type)) continue;
                 merged.put(p.key(), p);
             }
             declaredNeeds = null;

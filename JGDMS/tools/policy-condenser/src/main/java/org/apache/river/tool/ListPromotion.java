@@ -99,8 +99,16 @@ final class ListPromotion {
         /** Hex SHA-256 of the checked-in list, or {@link #NEW_FILE}. */
         String targetSha;
         int live;
+        /** {@code # HELD} lines, plus the live entries of the HOLD set an edited list carries. */
         int held;
         int dropped;
+        /**
+         * Live entries of the HOLD set, with the reason: the generator writes such an entry
+         * commented out, so a live one was put there by hand.
+         */
+        final Map<String, String> heldLive = new LinkedHashMap<String, String>();
+        /** Added entries of the FLAG set, with the reason; reported, never refused. */
+        final Map<String, String> flagged = new LinkedHashMap<String, String>();
         /** Which kind of policy produced the list, or {@code unknown ...}. */
         String sourceKind = "unknown";
         /** The list fails the loader's parse. */
@@ -146,8 +154,14 @@ final class ListPromotion {
                     sb.append(i.isNew() ? NEW_FILE : "existing list").append(" ").append(i.target)
                       .append(" +").append(i.added.size()).append(" -").append(i.removed.size());
                 }
-                sb.append(", held ").append(i.held).append(", dropped ").append(i.dropped)
-                  .append(", source kind: ").append(i.sourceKind).append('\n');
+                sb.append(", held ").append(i.held).append(", dropped ").append(i.dropped);
+                if (!i.flagged.isEmpty()) sb.append(", flagged ").append(i.flagged.size());
+                sb.append(", source kind: ").append(i.sourceKind).append('\n');
+                for (Map.Entry<String, String> h : i.heldLive.entrySet()) {
+                    sb.append("plan HOLD ").append(i.artefact).append(": live ")
+                      .append(ProxyPolicyGenerator.escaped(h.getKey())).append(" (")
+                      .append(ProxyPolicyGenerator.escaped(h.getValue())).append(")\n");
+                }
             }
             sb.append("plan: ").append(items.size()).append(" artefact(s), ").append(promotable)
               .append(" promotable, ").append(items.size() - promotable).append(" refused, +")
@@ -201,7 +215,18 @@ final class ListPromotion {
             if (!i.added.isEmpty()) {
                 sb.append("check ").append(i.artefact).append(": ADDED ").append(i.added.size())
                   .append('\n');
-                for (String e : i.added) sb.append("  + ").append(ProxyPolicyGenerator.escaped(e)).append('\n');
+                for (String e : i.added) sb.append(addedLine("  ", i, e)).append('\n');
+            }
+            if (!i.heldLive.isEmpty()) {
+                failed = true;
+                sb.append("check FAIL ").append(i.artefact).append(": the list holds ")
+                  .append(i.heldLive.size()).append(" live entr")
+                  .append(i.heldLive.size() == 1 ? "y" : "ies").append(" of the HOLD set, which the"
+                      + " generator writes commented out:\n");
+                for (Map.Entry<String, String> h : i.heldLive.entrySet()) {
+                    sb.append("  ! ").append(ProxyPolicyGenerator.escaped(h.getKey())).append(" (")
+                      .append(ProxyPolicyGenerator.escaped(h.getValue())).append(")\n");
+                }
             }
             if (!i.removed.isEmpty()) {
                 failed = true;
@@ -302,7 +327,14 @@ final class ListPromotion {
         List<String> live = ProxyPolicyGenerator.liveEntries(list);
         item.live = live.size();
         item.forbidden = forbidden(list, live);
-        for (String line : Files.readAllLines(list.toPath(), UTF8)) {
+        for (String entry : live) {
+            String why = PermissionSets.holdReason(entry);
+            if (why != null) {
+                item.heldLive.put(entry, why);
+                item.notes.add("HELD LIVE (" + why + "): " + entry);
+            }
+        }
+        for (String line : ProxyPolicyGenerator.readLines(list)) {
             if (line.startsWith("# DROPPED")) {
                 item.dropped++;
                 item.notes.add(line);
@@ -311,6 +343,7 @@ final class ListPromotion {
                 item.notes.add(line);
             }
         }
+        item.held += item.heldLive.size();
         String key = artefactMap.containsKey(artefact) ? artefactMap.get(artefact)
                 : ProxyPolicyGenerator.moduleKey(modules.keySet(), artefact);
         List<File> mods = modules.get(key);
@@ -355,6 +388,10 @@ final class ListPromotion {
             item.targetSha = NEW_FILE;
             item.added.addAll(live);
         }
+        for (String e : item.added) {
+            String why = PermissionSets.flagReason(e);
+            if (why != null) item.flagged.put(e, why);
+        }
         return item;
     }
 
@@ -367,7 +404,7 @@ final class ListPromotion {
      */
     private static String forbidden(File list, List<String> live) throws IOException {
         int n = 0;
-        for (String line : Files.readAllLines(list.toPath(), UTF8)) {
+        for (String line : ProxyPolicyGenerator.readLines(list)) {
             n++;
             try {
                 ProxyPolicyGenerator.requireNoControl("line " + n + " of the list", line);
@@ -387,7 +424,7 @@ final class ListPromotion {
     }
 
     private static boolean hasProvenance(File list) throws IOException {
-        for (String line : Files.readAllLines(list.toPath(), UTF8)) {
+        for (String line : ProxyPolicyGenerator.readLines(list)) {
             if (line.startsWith("# Source policy: ")) return true;
         }
         return false;
@@ -416,7 +453,7 @@ final class ListPromotion {
             return "unknown (source policy " + src.policy + " is not the file the list was made from)";
         }
         boolean audit = false;
-        for (String line : Files.readAllLines(policy.toPath(), UTF8)) {
+        for (String line : ProxyPolicyGenerator.readLines(policy)) {
             String t = line.trim();
             if (t.contains("${")) return "hand-written or template policy (holds ${...} placeholders)";
             if ((t.startsWith("//") || t.startsWith("/*") || t.startsWith("*"))
@@ -435,7 +472,7 @@ final class ListPromotion {
     private static List<String> handWrittenComments(File target) throws IOException {
         List<String> found = new ArrayList<String>();
         boolean leading = true;
-        for (String line : Files.readAllLines(target.toPath(), UTF8)) {
+        for (String line : ProxyPolicyGenerator.readLines(target)) {
             String t = line.trim();
             boolean comment = t.startsWith("#") || t.startsWith("//");
             if (t.isEmpty() || (leading && comment)) continue;
@@ -495,7 +532,7 @@ final class ListPromotion {
     static Map<String, String> loadArtefactMap(File file) throws IOException {
         Map<String, String> map = new LinkedHashMap<String, String>();
         int n = 0;
-        for (String line : Files.readAllLines(file.toPath(), UTF8)) {
+        for (String line : ProxyPolicyGenerator.readLines(file)) {
             n++;
             String t = line.trim();
             if (t.isEmpty() || t.startsWith("#")) continue;
@@ -535,13 +572,20 @@ final class ListPromotion {
             sb.append("  live-entries: ").append(i.live).append('\n');
             sb.append("  ADDED: ").append(i.added.size())
               .append(i.isNew() ? " (" + NEW_FILE + ")" : "").append('\n');
-            for (String e : i.added) sb.append("    + ").append(ProxyPolicyGenerator.escaped(e)).append('\n');
+            for (String e : i.added) sb.append(addedLine("    ", i, e)).append('\n');
             sb.append("  REMOVED: ").append(i.removed.size()).append('\n');
             for (String e : i.removed) sb.append("    - ").append(ProxyPolicyGenerator.escaped(e)).append('\n');
             for (String n : i.notes) sb.append("  note: ").append(ProxyPolicyGenerator.escaped(n)).append('\n');
         }
         sb.append("END\n");
         return sb.toString();
+    }
+
+    /** An ADDED line; one in the FLAG set is marked {@code +!} and carries its reason. */
+    private static String addedLine(String indent, Item i, String entry) {
+        String why = i.flagged.get(entry);
+        return indent + (why == null ? "+ " : "+! ") + ProxyPolicyGenerator.escaped(entry)
+                + (why == null ? "" : "   [FLAG: " + ProxyPolicyGenerator.escaped(why) + "]");
     }
 
     private static void write(Plan plan, File generatedDir, List<File> roots, File planFile)
@@ -704,8 +748,9 @@ final class ListPromotion {
         }
         if (d.held > 0 && !allowHeld) {
             problems.add(who + d.held + " held entr" + (d.held == 1 ? "y" : "ies")
-                    + " (host- or run-specific, written commented out); review them and"
-                    + " pass --allow-held");
+                    + " (host- or run-specific, or from the HOLD set, written commented out"
+                    + (d.heldLive.isEmpty() ? "" : "; " + d.heldLive.size() + " of them live, added by hand")
+                    + "); review them and pass --allow-held");
             return null;
         }
         if (!d.removed.isEmpty() && !allowRemovals) {
