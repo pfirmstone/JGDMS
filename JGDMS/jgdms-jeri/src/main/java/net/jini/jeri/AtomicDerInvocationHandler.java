@@ -150,6 +150,29 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
     }
 
     /**
+     * The {@code MarshallingFormat} the call required, as placed in {@code context} by
+     * {@link BasicInvocationHandler}, or {@code null} if none was required.
+     */
+    private static String requiredPayloadFormat(Collection context) {
+        if (context == null) return null;
+        String required = null;
+        for (Object o : context) {
+            if (!(o instanceof net.jini.core.constraint.InvocationConstraints)) continue;
+            for (Object c : ((net.jini.core.constraint.InvocationConstraints) o).requirements()) {
+                if (c instanceof net.jini.core.constraint.MarshallingFormat) {
+                    String f = ((net.jini.core.constraint.MarshallingFormat) c).getFormat();
+                    if (required != null && !required.equals(f)) {
+                        throw new IllegalStateException("conflicting required MarshallingFormat: "
+                                + required + " and " + f);
+                    }
+                    required = f;
+                }
+            }
+        }
+        return required;
+    }
+
+    /**
      * Returns a {@link DerMarshalInputStream} reading from the response input
      * stream of {@code request}.
      *
@@ -176,7 +199,8 @@ public class AtomicDerInvocationHandler extends BasicInvocationHandler {
         }
         ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
         return new DerMarshalInputStream(request.getResponseInputStream(),
-                new ResolutionContext(proxyLoader, integrity, proxyLoader), limits);
+                new ResolutionContext(proxyLoader, integrity, proxyLoader)
+                        .withRequiredPayloadFormat(requiredPayloadFormat(context)), limits);
     }
 
     /**

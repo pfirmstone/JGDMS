@@ -666,6 +666,39 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	return null;
     }
     /**
+     * Unmarshalling-side enforcement of a required {@link MarshallingFormat}: if the
+     * context carries {@link InvocationConstraints} requiring a format, this instance's
+     * {@code payloadFormat} (which comes from the wire) must equal it. Only requirements
+     * are enforced, not preferences. Fails closed, before any codec is selected.
+     *
+     * @throws UnsupportedConstraintException if the payload format does not satisfy a
+     *         required format, or two different formats are required at once.
+     */
+    private void requireFormatFromContext(Collection context) throws UnsupportedConstraintException {
+	String required = null;
+	for (Object o : context){
+	    if (!(o instanceof InvocationConstraints)) continue;
+	    for (InvocationConstraint c : ((InvocationConstraints) o).requirements()){
+		if (c instanceof MarshallingFormat){
+		    String f = ((MarshallingFormat) c).getFormat();
+		    if (required == null) required = f;
+		    else if (!required.equals(f))
+			throw new UnsupportedConstraintException(
+			    "Conflicting required MarshallingFormat constraints: "
+			    + required + " and " + f);
+		}
+	    }
+	}
+	if (required == null) return;
+	String actual = (payloadFormat == null) ? FORMAT_JOSS : payloadFormat;
+	if (!required.equals(actual)) {
+	    throw new UnsupportedConstraintException(
+		"payloadFormat " + actual + " does not satisfy required MarshallingFormat "
+		+ required);
+	}
+    }
+
+    /**
      * Returns a new copy of the contained object.
      * @return a new Object instance of the marshalled bytes contained within.
      * @throws java.io.IOException
@@ -866,6 +899,9 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
 	} else {
 	    ctext = context;
 	}
+	// The format is read from the wire; a required MarshallingFormat must be
+	// checked against it before a codec is chosen or a codebase annotation is read.
+	requireFormatFromContext(ctext);
 	final ByteArrayInputStream bin = new ByteArrayInputStream(payloadBytes);
 	// codebaseAnnotation is null if no annotations
 	final ByteArrayInputStream lin =

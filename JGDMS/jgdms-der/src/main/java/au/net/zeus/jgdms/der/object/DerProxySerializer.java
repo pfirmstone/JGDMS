@@ -32,6 +32,8 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MarshallingFormat;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.DynamicProxyCodebaseAccessor;
@@ -148,10 +150,25 @@ class DerProxySerializer implements Resolve {
         this(
             arg.get(HANDLER, null, InvocationHandler.class),
             arg.get(SERVICE_PROXY, null, MarshalledInstance.class),
-            arg.getObjectStreamContext(),
+            withRequiredFormat(arg.getObjectStreamContext(),
+                    arg instanceof DerGetArg ? ((DerGetArg) arg).streamRequiredPayloadFormat() : null),
             arg instanceof DerGetArg ? ((DerGetArg) arg).streamDefaultLoader() : null,
             arg instanceof DerGetArg ? ((DerGetArg) arg).streamVerifierLoader() : null
         );
+    }
+
+    /**
+     * The decode context, plus the call's required {@code MarshallingFormat} as an
+     * {@link InvocationConstraints} element when one applies, so that
+     * {@code MarshalledInstance.get} checks the wire's payload format against it before decoding
+     * the nested smart proxy. Without a required format the context is returned unchanged.
+     */
+    private static Collection<?> withRequiredFormat(Collection<?> context, String requiredFormat) {
+        if (requiredFormat == null) return context;
+        java.util.ArrayList<Object> ctx = new java.util.ArrayList<>();
+        if (context != null) ctx.addAll(context);
+        ctx.add(new InvocationConstraints(new MarshallingFormat(requiredFormat), null));
+        return ctx;
     }
 
     @Override

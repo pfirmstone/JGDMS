@@ -82,6 +82,34 @@ public class MarshalledInstanceConstraintTest {
 	assertEquals("hello", mi.get(false, String.class));
     }
 
+    /**
+     * Invariant: an unmarshal whose context requires ATOMIC_DER must refuse a JOSS-format
+     * payload before decoding it (the payload format comes from the wire, not the caller).
+     */
+    @Test(expected = UnsupportedConstraintException.class)
+    public void getRejectsJossPayloadWhenDerRequired() throws Exception {
+	MarshalledInstance mi = new MarshalledInstance("hello", Collections.EMPTY_SET);
+	mi.get(getClass().getClassLoader(), false, null,
+		Collections.singleton(new InvocationConstraints(MarshallingFormat.ATOMIC_DER, null)),
+		String.class);
+    }
+
+    @Test
+    public void getAcceptsJossPayloadWhenJossRequired() throws Exception {
+	MarshalledInstance mi = new MarshalledInstance("hello", Collections.EMPTY_SET);
+	assertEquals("hello", mi.get(getClass().getClassLoader(), false, null,
+		Collections.singleton(new InvocationConstraints(MarshallingFormat.JOSS, null)),
+		String.class));
+    }
+
+    @Test
+    public void getIgnoresPreferenceOnly() throws Exception {
+	MarshalledInstance mi = new MarshalledInstance("hello", Collections.EMPTY_SET);
+	assertEquals("hello", mi.get(getClass().getClassLoader(), false, null,
+		Collections.singleton(new InvocationConstraints(null, MarshallingFormat.ATOMIC_DER)),
+		String.class));
+    }
+
     @Test
     public void constraintAwareCtorAcceptsNullConstraints() throws Exception {
 	MarshalledInstance mi = new MarshalledInstance("x",

@@ -47,7 +47,27 @@ import java.net.MalformedURLException;
  */
 public record ResolutionContext(ClassLoader defaultLoader,
                                 boolean verifyCodebaseIntegrity,
-                                ClassLoader verifierLoader) {
+                                ClassLoader verifierLoader,
+                                String requiredPayloadFormat) {
+
+    /**
+     * A context with no required payload format: nested {@code MarshalledInstance} payloads are
+     * accepted in whatever format their wire form names.
+     */
+    public ResolutionContext(ClassLoader defaultLoader,
+                             boolean verifyCodebaseIntegrity,
+                             ClassLoader verifierLoader) {
+        this(defaultLoader, verifyCodebaseIntegrity, verifierLoader, null);
+    }
+
+    /**
+     * This context with the payload format that every nested {@code MarshalledInstance}
+     * unmarshalled from this decode must carry (the call's required {@code MarshallingFormat}),
+     * or {@code null} for none. The format named on the wire is never what decides.
+     */
+    public ResolutionContext withRequiredPayloadFormat(String format) {
+        return new ResolutionContext(defaultLoader, verifyCodebaseIntegrity, verifierLoader, format);
+    }
 
     /** No endpoint loader assigned (standalone / in-VM decode); resolution falls back to the platform default. */
     public static final ResolutionContext NONE = new ResolutionContext(null, false, null);

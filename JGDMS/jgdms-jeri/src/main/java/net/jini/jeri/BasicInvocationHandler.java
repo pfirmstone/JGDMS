@@ -952,6 +952,7 @@ public class BasicInvocationHandler
 	boolean ok = false;
 	boolean integrity = false;
 	boolean atomicValidation = false;
+	MarshallingFormat requiredFormat = null;
 	boolean wroteMethod = false;
 	Collection context;
 	try {
@@ -977,6 +978,7 @@ public class BasicInvocationHandler
 		    // (the transport defers it). It is satisfied iff this proxy's configured
 		    // codec produces that format; otherwise the requirement cannot be met.
 		    requireMarshallingFormat((MarshallingFormat) c);
+		    requiredFormat = (MarshallingFormat) c;
 		} else if (!(c instanceof Integrity) && !(c instanceof AtomicInputValidation)) {
 		    throw new UnsupportedConstraintException(
 			"cannot satisfy unfulfilled constraint: " + c);
@@ -1059,7 +1061,12 @@ public class BasicInvocationHandler
 	    
 	    context = new ArrayList(3);
 	    if (clientConstraints != null) context.add(clientConstraints);
-	    
+	    // The required format is made visible to the unmarshalling side, so nested
+	    // MarshalledInstances are checked against it, not against what their wire form names.
+	    if (requiredFormat != null) {
+		context.add(new InvocationConstraints(requiredFormat, null));
+	    }
+
 	    Util.populateContext(context, integrity, atomicValidation);
 
 
