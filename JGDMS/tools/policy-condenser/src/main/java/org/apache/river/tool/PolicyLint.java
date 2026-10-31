@@ -17,6 +17,7 @@
  */
 package org.apache.river.tool;
 
+import au.net.zeus.jgdms.api.policy.PermissionSets;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;

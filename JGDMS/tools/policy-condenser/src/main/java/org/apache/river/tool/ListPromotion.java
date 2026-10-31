@@ -18,6 +18,7 @@
 
 package org.apache.river.tool;
 
+import au.net.zeus.jgdms.api.policy.PermissionSets;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -28,12 +29,15 @@ import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import org.apache.river.tool.ProxyPolicyGenerator.EntryDiff;
 import org.apache.river.tool.ProxyPolicyGenerator.GenerationException;
@@ -204,27 +208,60 @@ final class ListPromotion {
     /**
      * The CI gate: derives the plan in memory, writes no file, prints the ADDED
      * entries and fails on any artefact with REMOVED entries or a list that
-     * does not parse.
+     * does not parse, or a live entry of the HOLD set.
      */
     static CheckResult check(File generatedDir, List<File> moduleRoots,
             Map<String, String> artefactMap) throws IOException {
+        return check(generatedDir, moduleRoots, artefactMap, Collections.<String>emptySet());
+    }
+
+    /**
+     * {@link #check(File, List, Map)} with a reviewed allow-list: the live HOLD entries of the
+     * artefacts named in {@code allowHeld} (exact artefact names) do not fail the gate and are
+     * listed as allowed.  Nothing else of those artefacts is excused, and a name that matches no
+     * artefact of the plan fails the gate, so a typo cannot pass silently.
+     */
+    static CheckResult check(File generatedDir, List<File> moduleRoots,
+            Map<String, String> artefactMap, Set<String> allowHeld) throws IOException {
         Plan plan = derive(generatedDir, moduleRoots, artefactMap);
         StringBuilder sb = new StringBuilder(plan.summary());
         boolean failed = false;
+        Set<String> known = new TreeSet<String>();
+        for (Item i : plan.items) known.add(i.artefact);
+        for (String name : new TreeSet<String>(allowHeld)) {
+            if (!known.contains(name)) {
+                failed = true;
+                sb.append("check FAIL --allow-held ").append(ProxyPolicyGenerator.escaped(name))
+                  .append(": no artefact of that name in the plan (artefacts: ")
+                  .append(ProxyPolicyGenerator.escaped(known.toString())).append(")\n");
+            }
+        }
         for (Item i : plan.items) {
             if (!i.added.isEmpty()) {
                 sb.append("check ").append(i.artefact).append(": ADDED ").append(i.added.size())
                   .append('\n');
                 for (String e : i.added) sb.append(addedLine("  ", i, e)).append('\n');
             }
+            boolean allowed = allowHeld.contains(i.artefact);
+            if (i.heldLive.isEmpty() && allowed) {
+                sb.append("check note: --allow-held ").append(ProxyPolicyGenerator.escaped(i.artefact))
+                  .append(": the list holds no live HOLD entry, so nothing was allowed\n");
+            }
             if (!i.heldLive.isEmpty()) {
-                failed = true;
-                sb.append("check FAIL ").append(i.artefact).append(": the list holds ")
-                  .append(i.heldLive.size()).append(" live entr")
-                  .append(i.heldLive.size() == 1 ? "y" : "ies").append(" of the HOLD set, which the"
-                      + " generator writes commented out:\n");
+                String count = i.heldLive.size() + " live entr" + (i.heldLive.size() == 1 ? "y" : "ies");
+                if (allowed) {
+                    sb.append("check ALLOWED ").append(i.artefact).append(": ").append(count)
+                      .append(" of the HOLD set, allowed by --allow-held ")
+                      .append(ProxyPolicyGenerator.escaped(i.artefact)).append(":\n");
+                } else {
+                    failed = true;
+                    sb.append("check FAIL ").append(i.artefact).append(": the list holds ")
+                      .append(count).append(" of the HOLD set, which the"
+                          + " generator writes commented out:\n");
+                }
                 for (Map.Entry<String, String> h : i.heldLive.entrySet()) {
-                    sb.append("  ! ").append(ProxyPolicyGenerator.escaped(h.getKey())).append(" (")
+                    sb.append(allowed ? "  ~ " : "  ! ")
+                      .append(ProxyPolicyGenerator.escaped(h.getKey())).append(" (")
                       .append(ProxyPolicyGenerator.escaped(h.getValue())).append(")\n");
                 }
             }

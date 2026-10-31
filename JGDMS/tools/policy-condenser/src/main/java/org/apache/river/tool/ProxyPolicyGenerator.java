@@ -18,6 +18,7 @@
 
 package org.apache.river.tool;
 
+import au.net.zeus.jgdms.api.policy.PermissionSets;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
@@ -145,7 +146,9 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
  * move reviewed generated lists into the {@code -dl} modules' source trees in
  * two steps, the first of which changes nothing.  Apply re-derives the plan
  * from the same roots and the generated lists and trusts nothing in the plan
- * file; {@code --promote-plan-check} is the CI gate and writes nothing.
+ * file; {@code --promote-plan-check} is the CI gate and writes nothing.  The gate fails on a
+ * live entry of the HOLD set; {@code --allow-held <artefact>[,...]} is the reviewed
+ * allow-list that excuses those entries (only) of the named artefacts.
  *
  * <h2>Usage</h2>
  * <pre>
@@ -156,7 +159,7 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
  *        [--properties &lt;file&gt;] &lt;policy-file&gt; [&lt;policy-file&gt; ...]
  *
  *   ProxyPolicyGenerator --out &lt;dir&gt; [--plan-file &lt;file&gt;] [--artefact-map &lt;file&gt;] --promote-plan &lt;module-root&gt;...
- *   ProxyPolicyGenerator --out &lt;dir&gt; [--artefact-map &lt;file&gt;] --promote-plan-check &lt;module-root&gt;...
+ *   ProxyPolicyGenerator --out &lt;dir&gt; [--artefact-map &lt;file&gt;] [--allow-held &lt;artefact&gt;[,...]] --promote-plan-check &lt;module-root&gt;...
  *   ProxyPolicyGenerator --promote-apply &lt;plan-file&gt; --approve-plan-sha &lt;sha&gt; --out &lt;dir&gt; \
  *        [--artefact-map &lt;file&gt;] --module-roots &lt;module-root&gt;... \
  *        --approve &lt;artefact&gt;[,...] [--allow-removals] [--allow-held]
@@ -365,6 +368,7 @@ public class ProxyPolicyGenerator {
         boolean failOnEmpty = false;
         boolean allowRemovals = false;
         boolean allowHeld = false;
+        Set<String> allowHeldNames = new TreeSet<String>();
         boolean promotePlan = false;
         boolean promoteCheck = false;
         List<String> approve = new ArrayList<String>();
@@ -410,6 +414,11 @@ public class ProxyPolicyGenerator {
                 artefactMap = new File(args[++i]);
             } else if ("--allow-held".equals(a)) {
                 allowHeld = true;
+                if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+                    for (String name : args[++i].split(",")) {
+                        if (!name.trim().isEmpty()) allowHeldNames.add(name.trim());
+                    }
+                }
             } else if ("--approve".equals(a) && i + 1 < args.length) {
                 for (String name : args[++i].split(",")) {
                     if (!name.trim().isEmpty()) approve.add(name.trim());
@@ -438,6 +447,7 @@ public class ProxyPolicyGenerator {
             p.approve = approve;
             p.allowRemovals = allowRemovals;
             p.allowHeld = allowHeld;
+            p.allowHeldNames = allowHeldNames;
             p.policyFiles = policyFiles;
             return runPromotion(p, out, err);
         }
@@ -502,6 +512,7 @@ public class ProxyPolicyGenerator {
         List<String> approve;
         boolean allowRemovals;
         boolean allowHeld;
+        Set<String> allowHeldNames;
         List<String> policyFiles;
     }
 
@@ -511,9 +522,11 @@ public class ProxyPolicyGenerator {
         int modes = (p.plan ? 1 : 0) + (p.check ? 1 : 0) + (apply ? 1 : 0);
         boolean usage = modes != 1 || !p.policyFiles.isEmpty() || p.outDir == null
                 || p.roots.isEmpty()
-                || (apply && (p.approve.isEmpty() || p.planFile != null))
+                || (apply && (p.approve.isEmpty() || p.planFile != null
+                    || !p.allowHeldNames.isEmpty()))
+                || (p.check && p.allowHeld && p.allowHeldNames.isEmpty())
                 || (!apply && (!p.approve.isEmpty() || p.approvePlanSha != null
-                    || p.allowRemovals || p.allowHeld))
+                    || p.allowRemovals || (p.allowHeld && !p.check)))
                 || (p.check && p.planFile != null);
         if (usage) {
             printUsage(err);
@@ -538,7 +551,7 @@ public class ProxyPolicyGenerator {
                 out.println("plan sha256: " + sha256Hex(target)
                         + "  (pass as --approve-plan-sha to --promote-apply)");
             } else if (p.check) {
-                ListPromotion.CheckResult r = ListPromotion.check(p.outDir, p.roots, map);
+                ListPromotion.CheckResult r = ListPromotion.check(p.outDir, p.roots, map, p.allowHeldNames);
                 out.print(escaped(r.report));
                 return r.failed ? 1 : 0;
             } else {
@@ -563,7 +576,7 @@ public class ProxyPolicyGenerator {
             + "[--artefact-map <file>] --promote-plan <module-root>...");
         err.println(
             "       ProxyPolicyGenerator --out <dir> [--artefact-map <file>] "
-            + "--promote-plan-check <module-root>...");
+            + "[--allow-held <artefact>[,<artefact>...]] --promote-plan-check <module-root>...");
         err.println(
             "       ProxyPolicyGenerator --promote-apply <plan-file> --approve-plan-sha <sha> "
             + "--out <dir> [--artefact-map <file>] --module-roots <module-root>... "

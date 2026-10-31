@@ -692,7 +692,10 @@
         ant -Dpromote.out=<generated dir> policy-promote-check
            Writes no file.  Prints the ADDED entries and fails if any artefact
            has REMOVED entries (the checked-in jar requests more than the audit
-           observed) or a list that does not parse.
+           observed), a live HOLD entry or a list that does not parse.  A HOLD
+           entry a reviewer has approved is excused by naming its artefact in
+           -Dpromote.check.allow.held=a,b (exact names; a name that matches no
+           artefact fails the gate; nothing else of that artefact is excused).
 
       Properties:
         promote.out           directory holding <artefact>/META-INF/PERMISSIONS.LIST
@@ -706,6 +709,8 @@
         promote.approve       artefacts to write (required for apply)
         promote.allow.removals  true to accept REMOVED entries
         promote.allow.held      true to accept held (host- or run-specific) entries
+        promote.check.allow.held  comma-separated artefacts whose live HOLD entries the
+                              gate (policy-promote-check) accepts; default none
         promote.artefact.map  optional file of 'sanitised-name = module-dir-name'
                               lines, reviewed and checked in by a human, for
                               generated names that cannot be guessed; give the
@@ -749,13 +754,17 @@
     </target>
 
     <target name="policy-promote-check" depends="policy-promote-check-out"
-            description="CI gate: writes no file, prints ADDED entries, fails on REMOVED entries or a list that does not parse. Usage: ant -Dpromote.out=DIR policy-promote-check">
+            description="CI gate: writes no file, prints ADDED entries, fails on REMOVED entries, held entries or a list that does not parse. Usage: ant -Dpromote.out=DIR [-Dpromote.check.allow.held=a,b] policy-promote-check">
+        <condition property="promote.check.allow.held.args" value="--allow-held &quot;${promote.check.allow.held}&quot;" else="">
+            <isset property="promote.check.allow.held"/>
+        </condition>
         <java classname="org.apache.river.tool.ProxyPolicyGenerator"
               fork="yes"
               failonerror="true">
             <arg value="--out"/>
             <arg file="${promote.out}"/>
             <arg line="${promote.artefact.map.args}"/>
+            <arg line="${promote.check.allow.held.args}"/>
             <arg value="--promote-plan-check"/>
             <arg path="${promote.module.roots}"/>
             <classpath refid="policy.promote.classpath"/>

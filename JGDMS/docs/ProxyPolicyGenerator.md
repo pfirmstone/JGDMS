@@ -285,8 +285,8 @@ instruction**: apply trusts nothing in it that the planner can re-derive.
 3. **CI gate** (plan only; apply stays manual):
 
    ```
-   ProxyPolicyGenerator --out <dir> [--artefact-map <file>] --promote-plan-check <module-root>...
-   ant -Dpromote.out=<dir> policy-promote-check
+   ProxyPolicyGenerator --out <dir> [--artefact-map <file>] [--allow-held <artefact>[,<artefact>...]] --promote-plan-check <module-root>...
+   ant -Dpromote.out=<dir> [-Dpromote.check.allow.held=<artefact>[,<artefact>...]] policy-promote-check
    ```
 
    Writes no file. It prints the plan summary and the `ADDED` entries per artefact
@@ -314,9 +314,26 @@ instruction**: apply trusts nothing in it that the planner can re-derive.
    malformed path argument, a byte that is not UTF-8 in a list or a checked-in target
    (the loader decodes with replacement characters; nothing here can judge such a file),
    and a missing input file or artefact map are each a `REFUSED` message and exit 1, not a
-   stack trace. The sets are defined once, in `PermissionSets`, for the generator, the
-   promotion and `PolicyLint`; the platform's `VerdictPermissionMapper` keeps a private copy
-   of the first three meta names, which a test keeps contained in that set.
+   stack trace. The sets are defined once, in `au.net.zeus.jgdms.api.policy.PermissionSets`
+   (jgdms-platform), for the generator, the
+   promotion, `PolicyLint` and the platform's `VerdictPermissionMapper`, whose exclusion set is
+   that META set itself (so the runtime ceiling also excludes `PolicyPermission`), not a copy.
+
+   **Allowing a reviewed held entry at the gate.** The gate fails on any live HOLD entry
+   with no override, so an entry a reviewer has approved and apply has written (with
+   `--allow-held`) would fail CI for as long as the generated list holds it. `--allow-held
+   <artefact>[,<artefact>...]` on `--promote-plan-check` (ant: `-Dpromote.check.allow.held=a,b`)
+   excuses the live HOLD entries of **those artefacts only**. Names are exact artefact names
+   as the plan prints them (not prefixes, not case-folded). The report says which entries
+   were allowed and by which name (`check ALLOWED <artefact>: ... allowed by --allow-held
+   <name>`, one `  ~ <entry>` line each). It excuses nothing else: `REMOVED` entries, an
+   unparseable list, a META or GATE class (an edited list) and every other artefact still
+   fail. A name that matches no artefact of the plan fails the gate (`check FAIL --allow-held
+   <name>: no artefact of that name in the plan`), so a typo cannot pass silently; a name
+   whose artefact holds no live HOLD entry only prints a note. `--allow-held` on the gate
+   needs a name (a bare flag, or an empty list, is a usage error, exit 2); the bare
+   `--allow-held` of `--promote-apply` is unchanged and takes no names. The default stays
+   failing.
 
    **Known limit: group atomicity.** The moves of one apply are not atomic as a
    group. A failed move is rolled back from the staged backups, but a process killed

@@ -127,17 +127,10 @@ public final class VerdictPermissionMapper {
     /**
      * Permission classes that are policy-grant meta-capabilities or blanket
      * all-authority, never a proxy's legitimate declared needs, so always
-     * excluded from a computed ceiling (matching {@code
-     * ProxyPolicyGenerator}'s exclusion set).
+     * excluded from a computed ceiling.  This is {@link PermissionSets#META},
+     * the set the offline {@code ProxyPolicyGenerator} also reads; not a copy.
      */
-    private static final Set<String> META_PERMISSION_CLASSES;
-    static {
-        Set<String> s = new java.util.HashSet<String>();
-        s.add("net.jini.security.GrantPermission");
-        s.add("net.jini.security.policy.UmbrellaGrantPermission");
-        s.add("java.security.AllPermission");
-        META_PERMISSION_CLASSES = Collections.unmodifiableSet(s);
-    }
+    static final Set<String> META_PERMISSION_CLASSES = PermissionSets.META;
 
     private static final Permission[] EMPTY = new Permission[0];
 

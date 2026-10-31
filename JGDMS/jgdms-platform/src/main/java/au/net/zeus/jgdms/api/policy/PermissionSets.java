@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.river.tool;
+package au.net.zeus.jgdms.api.policy;
 
 import java.security.Permission;
 import java.security.UnresolvedPermission;
@@ -27,8 +27,8 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
 
 /**
  * The permission classes and entries the promotion tooling treats specially,
- * defined once for {@link ProxyPolicyGenerator}, {@link ListPromotion} and
- * {@link PolicyLint}.
+ * defined once for {@code ProxyPolicyGenerator}, {@code ListPromotion},
+ * {@code PolicyLint} (tools/policy-condenser) and {@link VerdictPermissionMapper}.
  *
  * <p>A jar's {@code META-INF/PERMISSIONS.LIST} is a declared-needs cap and one
  * term of the effective grant, so promotion must not pass in one step an entry
@@ -53,20 +53,19 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
  * {@code NativeInvocationPermission}) are not in this tree: their names are those
  * the policy files and the DirtyChai guide record.
  */
-final class PermissionSets {
+public final class PermissionSets {
 
-    static final String ALL_PERMISSION = "java.security.AllPermission";
-    static final String GRANT_PERMISSION = "net.jini.security.GrantPermission";
-    static final String UMBRELLA_GRANT_PERMISSION = "net.jini.security.policy.UmbrellaGrantPermission";
-    static final String POLICY_PERMISSION = "org.apache.river.api.security.PolicyPermission";
+    public static final String ALL_PERMISSION = "java.security.AllPermission";
+    public static final String GRANT_PERMISSION = "net.jini.security.GrantPermission";
+    public static final String UMBRELLA_GRANT_PERMISSION = "net.jini.security.policy.UmbrellaGrantPermission";
+    public static final String POLICY_PERMISSION = "org.apache.river.api.security.PolicyPermission";
 
     /**
      * Policy-grant meta-capabilities and blanket authority, never a proxy's
-     * declared need.  The platform's {@code VerdictPermissionMapper} keeps its own
-     * private copy of the first three (it lives in a module this one may not
-     * change); {@code PermissionSetsTest} fails if that copy gains a name this set lacks.
+     * declared need.  {@link VerdictPermissionMapper} derives its exclusion set from this
+     * one, so the offline tooling and the runtime ceiling cannot disagree on it.
      */
-    static final Set<String> META = set(
+    public static final Set<String> META = set(
         GRANT_PERMISSION, UMBRELLA_GRANT_PERMISSION, ALL_PERMISSION, POLICY_PERMISSION);
 
     /**
@@ -78,7 +77,7 @@ final class PermissionSets {
      * {@code BootstrapPermission} (a server acting as trusted codebase source before
      * the verdict registry exists) are gates of the same kind.
      */
-    static final Set<String> GATE = set(
+    public static final Set<String> GATE = set(
         "au.zeus.jdk.authorization.guards.LoadClassPermission",
         "net.jini.loader.LoadClassPermission",
         "java.net.URLPermission",
@@ -87,10 +86,10 @@ final class PermissionSets {
         "net.jini.loader.pref.BootstrapPermission");
 
     /** Why a meta class never reaches a list. */
-    static final String META_REASON = "policy-grant meta-capability: never a proxy's declared need";
+    public static final String META_REASON = "policy-grant meta-capability: never a proxy's declared need";
 
     /** Why a gate class is dropped; also the reason promotion refuses a list that holds one. */
-    static final String GATE_REASON = "admission-gate permission: the proxy provider grants "
+    public static final String GATE_REASON = "admission-gate permission: the proxy provider grants "
         + "it after verifying the codebase, a jar must not request its own admission";
 
     private static final String RUNTIME = "java.lang.RuntimePermission";
@@ -111,7 +110,7 @@ final class PermissionSets {
      * @return why the generator never emits a permission of this class, so a list
      *         that holds one has been edited; {@code null} if it may appear
      */
-    static String excludedReason(String type) {
+    public static String excludedReason(String type) {
         if (META.contains(type)) return META_REASON;
         if (GATE.contains(type)) return GATE_REASON;
         return null;
@@ -121,7 +120,7 @@ final class PermissionSets {
      * @return why an entry lets code leave the SecurityManager in one step, whatever else is
      *         granted, so it is held back; {@code null} if it is not in the HOLD set
      */
-    static String holdReason(String type, String name, String actions) {
+    public static String holdReason(String type, String name, String actions) {
         if (type == null) return null;
         if (NATIVE.equals(type)) return "escalation: native code invocation";
         if (name == null) return null;
@@ -154,7 +153,7 @@ final class PermissionSets {
      * @return why an entry is worth a reviewer's second look although it is written live,
      *         or {@code null}; reported by the plan and the gate, never refused
      */
-    static String flagReason(String type, String name, String actions) {
+    public static String flagReason(String type, String name, String actions) {
         if (type == null || name == null) return null;
         if (FILE.equals(type) && ALL_FILES.equals(name)) return "reads or writes every file";
         if (AUTH.equals(type)) return "AuthPermission " + name + " acts on the current subject";
@@ -190,13 +189,13 @@ final class PermissionSets {
     }
 
     /** {@link #holdReason} of an entry line; {@code null} if it does not parse. */
-    static String holdReason(String entry) {
+    public static String holdReason(String entry) {
         String[] t = triple(entry);
         return t == null ? null : holdReason(t[0], t[1], t[2]);
     }
 
     /** {@link #flagReason} of an entry line; {@code null} if it does not parse. */
-    static String flagReason(String entry) {
+    public static String flagReason(String entry) {
         String[] t = triple(entry);
         return t == null ? null : flagReason(t[0], t[1], t[2]);
     }

@@ -1104,6 +1104,181 @@ public class ListPromotionTest {
         assertFalse(what + ": " + err, err.contains("\tat "));
     }
 
+    // ------------------------------------------- round 6: the gate's allow-list
+
+    private static final String R = "reggie-dl-4.0.0-SNAPSHOT";
+    private static final String HELD_ENTRY = "(java.lang.RuntimePermission \"setSecurityManager\")";
+
+    /** Two artefacts, each with a live HOLD entry added by hand to its generated list. */
+    private void generateTwoHeld() throws Exception {
+        write(mahaloTarget, GET_CL);
+        write(reggieTarget, GET_CL);
+        new ProxyPolicyGenerator().generate(policy("two.policy",
+            proxy(M, "permission java.lang.RuntimePermission \"getClassLoader\";"),
+            proxy(R, "permission java.lang.RuntimePermission \"getClassLoader\";")), gen);
+        for (String a : new String[]{M, R}) {
+            Files.write(new File(gen, a + "/META-INF/PERMISSIONS.LIST").toPath(),
+                ("  " + HELD_ENTRY + "\n").getBytes(UTF8), java.nio.file.StandardOpenOption.APPEND);
+        }
+    }
+
+    private static java.util.Set<String> names(String... n) {
+        return new java.util.TreeSet<String>(Arrays.asList(n));
+    }
+
+    /**
+     * An approved held entry must not fail CI forever: the named artefact's HOLD entries pass and
+     * the report says which were allowed and by which name; the default, an empty list, still fails.
+     */
+    @Test
+    public void testAllowHeldNamesAnArtefactWhoseHeldEntriesPassTheGate() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo();
+        Files.write(new File(gen, M + "/META-INF/PERMISSIONS.LIST").toPath(),
+            ("  " + HELD_ENTRY + "\n").getBytes(UTF8), java.nio.file.StandardOpenOption.APPEND);
+
+        ListPromotion.CheckResult dflt = ListPromotion.check(gen, roots(), NOMAP);
+        assertTrue("default stays failing: " + dflt.report, dflt.failed);
+        assertTrue(dflt.report, dflt.report.contains("check FAIL " + M + ": the list holds 1 live"));
+
+        ListPromotion.CheckResult allowed = ListPromotion.check(gen, roots(), NOMAP, names(M));
+        assertFalse(allowed.report, allowed.failed);
+        assertTrue(allowed.report, allowed.report.contains("check ALLOWED " + M
+            + ": 1 live entry of the HOLD set, allowed by --allow-held " + M));
+        assertTrue(allowed.report, allowed.report.contains("  ~ " + HELD_ENTRY));
+        assertTrue(allowed.report, allowed.report.contains("check: ok"));
+    }
+
+    /**
+     * The allow-list is per artefact: another artefact's held entry still fails the gate, and
+     * the report allows only the one named.  A gate that lets everything through once the list
+     * is non-empty fails here.
+     */
+    @Test
+    public void testAnotherArtefactsHeldEntryStillFails() throws Exception {
+        generateTwoHeld();
+
+        ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP, names(M));
+        assertTrue(c.report, c.failed);
+        assertTrue(c.report, c.report.contains("check ALLOWED " + M));
+        assertTrue(c.report, c.report.contains("check FAIL " + R + ": the list holds 1 live"));
+        assertFalse(c.report, c.report.contains("check ALLOWED " + R));
+        assertFalse(c.report, c.report.contains("check FAIL " + M));
+
+        ListPromotion.CheckResult both = ListPromotion.check(gen, roots(), NOMAP, names(M, R));
+        assertFalse(both.report, both.failed);
+    }
+
+    /**
+     * A name that matches no artefact fails the gate, whether or not it is the only one, and
+     * names are exact: a prefix, another case or a version-less form is a typo.
+     */
+    @Test
+    public void testAnAllowListNameMatchingNoArtefactFails() throws Exception {
+        generateTwoHeld();
+        String[] typos = {"mahalo-dl-4.0.0-SNAPSHOTX", "mahalo-dl", "MAHALO-DL-4.0.0-SNAPSHOT",
+            "mahalo-dl-4.0.0", "nosuch"};
+        for (String typo : typos) {
+            ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP, names(M, R, typo));
+            assertTrue(typo + c.report, c.failed);
+            assertTrue(typo + c.report, c.report.contains("check FAIL --allow-held " + typo
+                + ": no artefact of that name in the plan"));
+            assertTrue(typo + c.report, c.report.contains("check: FAILED"));
+            // the real names are still reported as allowed: the typo is the only failure
+            assertTrue(typo + c.report, c.report.contains("check ALLOWED " + M));
+            ListPromotion.CheckResult only = ListPromotion.check(gen, roots(), NOMAP, names(typo));
+            assertTrue(typo + only.report, only.failed);
+        }
+    }
+
+    /**
+     * Allowing an artefact's HOLD entries allows nothing else of it: a META or GATE class (the
+     * list was edited), a REMOVED entry and a list that does not parse each still fail it.
+     */
+    @Test
+    public void testAllowHeldDoesNotExcuseAnyOtherFailureOfThatArtefact() throws Exception {
+        for (String entry : GATE_META_ENTRIES) {
+            ProxyPolicyGenerator.deleteTree(gen);
+            write(mahaloTarget, GET_CL);
+            generateMahalo();
+            Files.write(new File(gen, M + "/META-INF/PERMISSIONS.LIST").toPath(),
+                ("  " + HELD_ENTRY + "\n  " + entry + "\n").getBytes(UTF8),
+                java.nio.file.StandardOpenOption.APPEND);
+            ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP, names(M));
+            assertTrue(entry + c.report, c.failed);
+            assertTrue(entry + c.report, c.report.contains("check FAIL " + M + ": the list was edited"));
+        }
+
+        ProxyPolicyGenerator.deleteTree(gen);
+        write(mahaloTarget, GET_CL, SET_IO);
+        generateMahalo();
+        Files.write(new File(gen, M + "/META-INF/PERMISSIONS.LIST").toPath(),
+            ("  " + HELD_ENTRY + "\n").getBytes(UTF8), java.nio.file.StandardOpenOption.APPEND);
+        ListPromotion.CheckResult removed = ListPromotion.check(gen, roots(), NOMAP, names(M));
+        assertTrue(removed.report, removed.failed);
+        assertTrue(removed.report, removed.report.contains("check FAIL " + M + ": REMOVED 1"));
+
+        write(mahaloTarget, GET_CL);
+        Files.write(new File(gen, M + "/META-INF/PERMISSIONS.LIST").toPath(),
+            "(java.util.PropertyPermission \"java.home\" \"read\"\n".getBytes(UTF8),
+            java.nio.file.StandardOpenOption.APPEND);
+        ListPromotion.CheckResult bad = ListPromotion.check(gen, roots(), NOMAP, names(M));
+        assertTrue(bad.report, bad.failed);
+        assertTrue(bad.report, bad.report.contains("a list does not parse"));
+    }
+
+    /**
+     * Naming an artefact that holds no live HOLD entry changes nothing about the verdict and
+     * says so, rather than reporting an allowance that was never used.
+     */
+    @Test
+    public void testAllowHeldOnAnArtefactWithNoHeldEntryChangesNothing() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo();
+        ListPromotion.CheckResult plain = ListPromotion.check(gen, roots(), NOMAP);
+        ListPromotion.CheckResult named = ListPromotion.check(gen, roots(), NOMAP, names(M));
+        assertEquals(plain.failed, named.failed);
+        assertTrue(named.report, named.report.contains("allow-held " + M
+            + ": the list holds no live HOLD entry"));
+        assertFalse(named.report, named.report.contains("check ALLOWED"));
+    }
+
+    /** The command line: names after --allow-held on the gate; exit codes 0, 1 and 2. */
+    @Test
+    public void testCliPlanCheckAllowHeld() throws Exception {
+        generateTwoHeld();
+        ByteArrayOutputStream so = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(so, true, "UTF-8");
+        PrintStream err = new PrintStream(new ByteArrayOutputStream(), true, "UTF-8");
+        String[] check = {"--out", gen.getPath(), "--promote-plan-check", tree.getPath()};
+
+        assertEquals("default fails", 1, ProxyPolicyGenerator.run(check, out, err));
+        assertEquals("one of two named", 1, ProxyPolicyGenerator.run(
+            cat(check, "--allow-held", M), out, err));
+        so.reset();
+        assertEquals(0, ProxyPolicyGenerator.run(cat(check, "--allow-held", M + ", " + R), out, err));
+        String printed = so.toString("UTF-8");
+        assertTrue(printed, printed.contains("check ALLOWED " + M));
+        assertTrue(printed, printed.contains("check ALLOWED " + R));
+        assertEquals(0, ProxyPolicyGenerator.run(
+            new String[]{"--allow-held", M + "," + R, "--out", gen.getPath(),
+                "--promote-plan-check", tree.getPath()}, out, err));
+        assertEquals("typo", 1, ProxyPolicyGenerator.run(
+            cat(check, "--allow-held", M + "," + R + ",oops"), out, err));
+        assertEquals("a bare --allow-held on the gate names nobody", 2,
+            ProxyPolicyGenerator.run(cat(check, "--allow-held"), out, err));
+        assertEquals("an empty list names nobody", 2,
+            ProxyPolicyGenerator.run(cat(check, "--allow-held", ", ,"), out, err));
+        assertEquals("the plan has no gate to allow", 2, ProxyPolicyGenerator.run(
+            new String[]{"--out", gen.getPath(), "--promote-plan", tree.getPath(),
+                "--allow-held", M}, out, err));
+        makePlan();
+        assertEquals("apply keeps the bare flag and takes no names", 2, ProxyPolicyGenerator.run(
+            new String[]{"--promote-apply", plan.getPath(), "--approve-plan-sha", sha256Of(plan),
+                "--out", gen.getPath(), "--approve", M, "--allow-held", M, "--module-roots",
+                tree.getPath()}, out, err));
+    }
+
     // --------------------------------------------------------------- helpers
 
     private static final Map<String, String> NOMAP = Collections.emptyMap();
