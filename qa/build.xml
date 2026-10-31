@@ -792,6 +792,67 @@
         </java>
     </target>
 
+    <!--
+      policy-lint target
+      ==================
+      Finds unscoped and weakly scoped java.security.AllPermission grants in
+      java.policy files (org.apache.river.tool.PolicyLint).  polpAudit only
+      ADDS missing permissions, so an unscoped AllPermission grant in the
+      starting or deployed policy masks everything and defeats least privilege.
+      Reads policy text only; writes nothing.
+
+        ant -Dpolicy.lint.paths=<files-or-dirs> policy-lint
+
+      Exit status: fails the build on UNSCOPED_ALLPERMISSION (U1),
+      UNSCOPED_META_GRANT (U2) and UNPARSEABLE (P1); also on
+      ALLPERMISSION_CODEBASE_ONLY (S1) with -Dpolicy.lint.strict=true.
+      The STARTING policy of a polpAudit run must be linted with
+      -Dpolicy.lint.audit.input=true, which fails on ANY AllPermission grant.
+
+      Properties:
+        policy.lint.paths        files and directories, separated by the path
+                                 separator (required); a directory is walked for
+                                 *.policy, *.policy.old, *.policy.new, policy.all
+                                 and *.policy.*, not *.proxy-permissions or
+                                 *.grantperm
+        policy.lint.strict       true to fail on S1 as well
+        policy.lint.audit.input  true to fail on any AllPermission (S1, S2 too)
+        policy.lint.format       text (default) or tsv
+        policy.lint.glob         optional extra file-name glob to include
+    -->
+    <target name="policy-lint-args">
+        <fail message="use ant -Dpolicy.lint.paths=/path/to/x.policy[:/dir] policy-lint" unless="policy.lint.paths"/>
+        <path id="policy.lint.pathset">
+            <pathelement path="${policy.lint.paths}"/>
+        </path>
+        <pathconvert property="policy.lint.paths.args" refid="policy.lint.pathset" pathsep="&quot; &quot;"/>
+        <property name="policy.lint.format" value="text"/>
+        <condition property="policy.lint.strict.arg" value="--strict" else="">
+            <istrue value="${policy.lint.strict}"/>
+        </condition>
+        <condition property="policy.lint.audit.arg" value="--audit-input" else="">
+            <istrue value="${policy.lint.audit.input}"/>
+        </condition>
+        <condition property="policy.lint.glob.arg" value="--glob=${policy.lint.glob}" else="">
+            <isset property="policy.lint.glob"/>
+        </condition>
+    </target>
+
+    <target name="policy-lint" depends="policy-lint-args"
+            description="Fail on unscoped AllPermission grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] policy-lint">
+        <java classname="org.apache.river.tool.PolicyLint"
+              fork="yes"
+              failonerror="true">
+            <arg line="${policy.lint.strict.arg}"/>
+            <arg line="${policy.lint.audit.arg}"/>
+            <arg line="${policy.lint.glob.arg}"/>
+            <arg value="--format=${policy.lint.format}"/>
+            <arg value="--"/>
+            <arg line="&quot;${policy.lint.paths.args}&quot;"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
     <target name="run-arm" depends="river-runtime,jars-arm">
         <property name="run.categories"
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>

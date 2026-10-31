@@ -1698,16 +1698,39 @@ public class ProxyPolicyGenerator {
      * {@code /* *}{@code /} comments are honoured, values are double-quoted).
      */
     static List<GrantBlock> parseGrants(String text) throws IOException {
+        return parseGrants(text, null);
+    }
+
+    /**
+     * As {@link #parseGrants(String)}, and when {@code problems} is not null
+     * also records each place the grammar was not met (an unterminated grant,
+     * a {@code permission} with no class, a stray top-level word) instead of
+     * skipping it silently.  The grants returned are the same either way.
+     * Each {@link GrantBlock} and {@link Perm} carries its 1-based line.
+     */
+    static List<GrantBlock> parseGrants(String text, List<Problem> problems) throws IOException {
         StreamTokenizer st = policyTokenizer(text);
         List<GrantBlock> grants = new ArrayList<GrantBlock>();
         int tok;
+        boolean stray = false;
         while ((tok = st.nextToken()) != StreamTokenizer.TT_EOF) {
             if (tok == StreamTokenizer.TT_WORD) {
                 if ("grant".equalsIgnoreCase(st.sval)) {
-                    GrantBlock g = parseGrantBody(st);
-                    if (g != null) grants.add(g);
-                } else if ("keystore".equalsIgnoreCase(st.sval)) {
+                    stray = false;
+                    int line = st.lineno();
+                    GrantBlock g = parseGrantBody(st, problems, line);
+                    if (g != null) {
+                        grants.add(g);
+                    } else if (problems != null) {
+                        problems.add(new Problem(line, "grant header is not closed by '{'"));
+                    }
+                } else if ("keystore".equalsIgnoreCase(st.sval)
+                        || "keystorePasswordURL".equalsIgnoreCase(st.sval)) {
                     skipToSemicolon(st);
+                } else if (problems != null && !stray) {
+                    stray = true; // one report per run of stray words, not one per word
+                    problems.add(new Problem(st.lineno(),
+                            "unexpected top-level word outside a grant block"));
                 }
             }
         }
@@ -1739,8 +1762,10 @@ public class ProxyPolicyGenerator {
         }
     }
 
-    private static GrantBlock parseGrantBody(StreamTokenizer st) throws IOException {
+    private static GrantBlock parseGrantBody(StreamTokenizer st, List<Problem> problems, int line)
+            throws IOException {
         GrantBlock g = new GrantBlock();
+        g.line = line;
         int tok;
         // header: clauses up to '{'
         header:
@@ -1783,17 +1808,27 @@ public class ProxyPolicyGenerator {
             }
         }
         // body: permission entries up to '}'
+        boolean strayInBody = false;
         body:
         while (true) {
             tok = st.nextToken();
             switch (tok) {
                 case StreamTokenizer.TT_EOF:
+                    if (problems != null) {
+                        problems.add(new Problem(g.line, "grant block is not closed by '}'"));
+                    }
+                    break body;
                 case '}':
                     break body;
                 case StreamTokenizer.TT_WORD:
                     if ("permission".equalsIgnoreCase(st.sval)) {
-                        Perm p = readPermission(st);
+                        Perm p = readPermission(st, problems);
                         if (p != null) g.permissions.add(p);
+                        strayInBody = false;
+                    } else if (problems != null && !strayInBody) {
+                        strayInBody = true; // one report per run of stray words
+                        problems.add(new Problem(st.lineno(),
+                                "unexpected word in a grant body (expected 'permission')"));
                     }
                     break;
                 default:
@@ -1806,8 +1841,10 @@ public class ProxyPolicyGenerator {
         return g;
     }
 
-    private static Perm readPermission(StreamTokenizer st) throws IOException {
+    private static Perm readPermission(StreamTokenizer st, List<Problem> problems) throws IOException {
+        int permLine = st.lineno();
         if (st.nextToken() != StreamTokenizer.TT_WORD) {
+            if (problems != null) problems.add(new Problem(permLine, "permission has no class name"));
             st.pushBack();
             return null;
         }
@@ -1829,12 +1866,14 @@ public class ProxyPolicyGenerator {
         } else {
             st.pushBack();
         }
-        return new Perm(type, name, actions, signedBy);
+        Perm p = new Perm(type, name, actions, signedBy);
+        p.line = permLine;
+        return p;
     }
 
     // -------------------------------------------------------------- I/O
 
-    private static String readText(File f) throws IOException {
+    static String readText(File f) throws IOException {
         StringBuilder sb = new StringBuilder((int) Math.min(Math.max(f.length(), 64), Integer.MAX_VALUE));
         BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(f), Charset.forName("UTF-8")));
@@ -1885,6 +1924,8 @@ public class ProxyPolicyGenerator {
 
     /** Parsed scope + permissions of one {@code grant} block. */
     static final class GrantBlock {
+        /** 1-based line of the {@code grant} keyword. */
+        int line;
         String signedBy;
         String codebase;
         String digest;
@@ -1898,6 +1939,8 @@ public class ProxyPolicyGenerator {
         final String name;
         final String actions;
         final String signedBy;
+        /** 1-based line of the {@code permission} keyword. */
+        int line;
 
         Perm(String type, String name, String actions, String signedBy) {
             this.type = type;
@@ -1910,6 +1953,17 @@ public class ProxyPolicyGenerator {
         String key() {
             return type + " " + (name == null ? "" : name)
                     + " " + (actions == null ? "" : actions);
+        }
+    }
+
+    /** A place where a policy file did not meet the grammar, with its 1-based line. */
+    static final class Problem {
+        final int line;
+        final String reason;
+
+        Problem(int line, String reason) {
+            this.line = line;
+            this.reason = reason;
         }
     }
 

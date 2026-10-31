@@ -292,6 +292,53 @@ instruction**: apply trusts nothing in it that the planner can re-derive.
 Promotion never commits; the written files are ordinary working-tree changes for
 the operator to review in `git diff` and commit.
 
+## Linting policies for AllPermission (`PolicyLint`)
+
+`org.apache.river.tool.PolicyLint` (same module) finds unscoped and weakly scoped
+`java.security.AllPermission` grants. polpAudit only **adds** missing permissions,
+so an unscoped `grant { permission java.security.AllPermission; };` in the starting
+or the deployed policy masks everything polpAudit would record and defeats least
+privilege for good. It reads policy text only (nothing is executed, expanded or
+resolved) and never writes a file. It reuses `ProxyPolicyGenerator`'s grant parser.
+
+```
+java -cp policy-condenser.jar:jgdms-platform.jar org.apache.river.tool.PolicyLint \
+     [--strict] [--audit-input] [--format=text|tsv] [--glob PATTERN]... [--fix-hint] FILE-OR-DIR...
+ant -Dpolicy.lint.paths=<files-or-dirs> [-Dpolicy.lint.strict=true] \
+    [-Dpolicy.lint.audit.input=true] policy-lint        # qa/build.xml
+```
+
+A directory is walked for `*.policy`, `*.policy.old`, `*.policy.new`, `policy.all` and
+`*.policy.*`, never into `*.proxy-permissions` directories and never `*.grantperm`
+files; `--glob` adds file-name patterns. A file named on the command line is always
+linted. Each finding is `file:line KIND NAME reason` (the line of the `grant`
+keyword), sorted by file then line, followed by a per-file summary and totals;
+`--format=tsv` gives tab-separated rows with `#` summary lines. Control characters in
+policy text are printed as `\uXXXX`.
+
+| Kind | Meaning |
+|------|---------|
+| `U1 UNSCOPED_ALLPERMISSION` | grant with no `codeBase`, `signedBy`, `principal` or `digest` holding AllPermission |
+| `U2 UNSCOPED_META_GRANT` | unscoped grant holding `GrantPermission` whose target is or contains AllPermission or a wildcard covering it (`*`, `-`, `java.security.*`), or `UmbrellaGrantPermission` |
+| `S1 ALLPERMISSION_CODEBASE_ONLY` | AllPermission scoped only by `codeBase`/`signedBy`: remotely assertable |
+| `S2 ALLPERMISSION_SCOPED` | AllPermission scoped by a `digest` or `principal` (informational) |
+| `P1 UNPARSEABLE` | unreadable file, unterminated grant, `permission` without a class, stray word |
+
+Exit status: `0` clean; `1` on any U1, U2 or P1 (also S1 with `--strict`; any
+AllPermission finding including S2 with `--audit-input`); `2` usage error (no path, a
+missing path, an unknown option, or no policy file found).
+
+**The starting policy of a polpAudit run must be linted with `--audit-input`** (ant:
+`-Dpolicy.lint.audit.input=true`). A starting policy may be empty but must not hold any
+AllPermission grant, scoped or not, or the audit result cannot show what the service
+needs. The deployed policy should pass the default run and, preferably, `--strict`.
+
+`--fix-hint` prints, per U1, suggested replacement text only: start from an empty
+policy, or a digest-scoped skeleton with a `TODO` placeholder. It never edits a file.
+
+Not detected: a `codeBase` such as `file:/-` that is broad but not absent, a wildcard
+`principal * *`, and permissions that imply AllPermission without naming it.
+
 ## Worked example
 
 Input `example.policy` (as produced/condensed by `polpAudit`):
