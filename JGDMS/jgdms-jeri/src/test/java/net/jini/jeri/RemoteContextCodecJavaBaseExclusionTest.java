@@ -29,11 +29,12 @@ import org.junit.Test;
 
 /**
  * Verifies that {@link RemoteContextCodec} refuses to reconstruct the platform
- * {@code jrt:/java.base} domain from the wire.  That domain is always fully
- * privileged ({@code AllPermission}), carries native code, and is unstamped, so
- * reconstructing it with the remote worker principals would inherit the receiver's
- * unconditional platform grant -- a privilege escalation, not a reduction.  A genuine
- * codebase-less reducer (null CodeSource) must still be preserved.
+ * {@code jrt:/java.base} domain from the wire.  That domain is privileged only while it
+ * is alone on the stack and makes no {@code doPrivileged} call (deliberately, so bootstrap
+ * runs without recording permissions), carries native code, and is unstamped, so it is
+ * never a reducer, and reconstructing it with the remote worker principals would be an
+ * escalation, not a reduction.  A genuine codebase-less reducer (null CodeSource) must
+ * still be preserved.
  *
  * <p>Exercises only the decoder (the security boundary against a malicious or pre-fix
  * peer), so it needs neither DirtyChai nor a SecurityManager and runs on a stock JDK.
