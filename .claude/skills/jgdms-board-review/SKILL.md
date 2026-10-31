@@ -8,8 +8,9 @@ description: JGDMS design/security/code review heuristics distilled from four re
 Distilled review heuristics from four retired JGDMS board seats. Load this before scoping or
 conducting any nontrivial design review, security review, or PR review in JGDMS.
 
-Full text: [`JGDMS/docs/JGDMS-Board-Reviewer-Guidance.md`](../../../JGDMS/docs/JGDMS-Board-Reviewer-Guidance.md)
-(1180 lines). Don't read it end-to-end by default — read Part I always, then jump to the domain
+Full text: [`JGDMS-Board-Reviewer-Guidance.md`](C:/Users/peter/Documents/GitHub/JGDMS/JGDMS/docs/JGDMS-Board-Reviewer-Guidance.md)
+(about 1200 lines; absolute path so it resolves from any session or agent working directory — pass the
+absolute path to sub-agents, never a relative one). Don't read it end-to-end by default — read Part I always, then jump to the domain
 section(s) that match the change under review (use `Read` with `offset`/`limit` on the line
 ranges below, not a full read).
 
