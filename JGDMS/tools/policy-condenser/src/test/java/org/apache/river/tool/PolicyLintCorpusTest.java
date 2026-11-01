@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.security.auth.x500.X500Principal;
@@ -158,11 +159,53 @@ public class PolicyLintCorpusTest {
 
     // The independence evidence.  For each corpus file the lint passes in the default run, the
     // production policy provider is asked about subjects and permissions chosen here, not by the
-    // lint: a wider and different set of attacker-controlled codebases and callers, and every
-    // high-severity permission of the catalogue plus AllPermission.  None may be granted.
-    @Test
-    public void cleanFilesGrantNoStrangerAHighPermission() throws Exception {
-        PolicyVerdict provider = PolicyVerdict.open("auto");
+    // lint: attacker-controlled codebases and callers, against EVERY Permission class that exists
+    // in the JDK image and in jgdms-platform (PermissionUniverse), plus every high-severity probe of
+    // the catalogue.  The check must see the files it covers (a provider that loads nothing or
+    // answers "no" to everything fails it), and it may find no high-severity grant and no grant
+    // of a class the catalogue does not know, except those pinned below.
+
+    /** What the cross-check measured. */
+    static final class Cross {
+        int cleanRows;
+        int covered;
+        final List<String> notLoaded = new ArrayList<String>();
+        long questions;
+        long grants;
+        boolean canaryGranted;
+        final StringBuilder bad = new StringBuilder();
+        final java.util.Set<String> uncatalogued = new java.util.TreeSet<String>();
+        PermissionUniverse universe;
+        int subjects;
+    }
+
+    /**
+     * Grants of a class the catalogue has no entry for, in files that pass the default run and
+     * {@code --strict}.  Pinned: a new catalogue miss in the corpus must be added here knowingly.
+     */
+    static final String[] EXPECTED_UNCATALOGUED = {
+        "n/n80-uncatalogued-loadable-unscoped.policy net.jini.export.ExportPermission"};
+
+    private static PermissionUniverse universe;
+
+    static synchronized PermissionUniverse universe() throws Exception {
+        if (universe == null) universe = PermissionUniverse.build();
+        return universe;
+    }
+
+    private Cross crossCheck(PolicyVerdict provider) throws Exception {
+        Cross c = new Cross();
+        c.universe = universe();
+        List<PolicyVerdict.Subject> wide = new ArrayList<PolicyVerdict.Subject>();
+        String cdn = "https://cdn.attacker-evil.example/payload/x.jar";
+        Principal[] none = new Principal[0];
+        wide.add(new PolicyVerdict.Subject(cdn, none));
+        wide.add(new PolicyVerdict.Subject(cdn, new Principal[]{new X500Principal("CN=mallory,O=Evil Corp")}));
+        wide.add(new PolicyVerdict.Subject(cdn, new Principal[]{new PolicyVerdict.StrangerPrincipal()}));
+        wide.add(new PolicyVerdict.Subject("http://198.51.100.7:9999/x.jar", none));
+        wide.add(new PolicyVerdict.Subject("file:/tmp/x.jar", none));
+        wide.add(new PolicyVerdict.Subject("jar:https://evil.net/x.jar!/", none));
+
         String home = new File(System.getProperty("user.home")).toURI().toString();
         String tmp = new File(System.getProperty("java.io.tmpdir")).toURI().toString();
         String cwd = new File(System.getProperty("user.dir")).toURI().toString();
@@ -173,48 +216,135 @@ public class PolicyLintCorpusTest {
             "http://198.51.100.7:9999/x.jar", "jar:https://evil.net/x.jar!/",
             "file:/tmp/x.jar", "file:/x.jar", "file:/C:/x.jar", home + "Downloads/x.jar",
             tmp + "x.jar", cwd + "x.jar", "file:x.jar"};
+        Principal[][] who = {none, {new X500Principal("CN=mallory,O=evil")},
+            {new PolicyVerdict.StrangerPrincipal()}};
+        List<PolicyVerdict.Subject> probeSubjects = new ArrayList<PolicyVerdict.Subject>();
+        for (String u : urls) for (Principal[] ws : who) probeSubjects.add(new PolicyVerdict.Subject(u, ws));
         List<Permission> high = new ArrayList<Permission>();
         for (PermissionSets.Probe p : PermissionSets.probes()) {
             if (p.severity >= PermissionSets.HIGH) high.add(p.permission);
         }
-        assertTrue(high.size() > 30);
-        Principal[][] who = {new Principal[0], {new X500Principal("CN=mallory,O=evil")},
-            {new PolicyVerdict.StrangerPrincipal()}};
-        int covered = 0;
-        StringBuilder bad = new StringBuilder();
-        // -Dlint.corpus.clean=trunk asks the same questions of the files the OLD lint passed: the
-        // check has teeth if it finds grants among them (a measurement, not an assertion)
-        boolean old = "trunk".equals(System.getProperty("lint.corpus.clean"));
+        c.subjects = wide.size();
+
+        // a control file the provider must grant from: if it does not, it cannot see anything
+        File control = new File(dir, "control.policy");
+        Files.write(control.toPath(), ("grant {\n  permission java.io.FilePermission \"<<ALL FILES>>\","
+                + " \"read\";\n};\n").getBytes("UTF-8"));
+        for (List<Permission> g : provider.grantedToEach(control, Collections.<String, String>emptyMap(),
+                wide, c.universe.permissions)) {
+            for (Permission p : g) {
+                if (p instanceof java.io.FilePermission && "<<ALL FILES>>".equals(p.getName())
+                        && "read".equals(p.getActions())) {
+                    c.canaryGranted = true;
+                }
+            }
+        }
+
         for (Row row : rows()) {
-            if (old ? !"0".equals(row.trunkDef) : row.def != 0) continue;
+            if (row.def != 0) continue;
+            c.cleanRows++;
             File f = materialise(row);
-            for (String u : urls) {
-                for (Principal[] ws : who) {
-                    List<Permission> granted = provider.grantedTo(f, Collections.<String, String>emptyMap(),
-                            u, ws, high);
-                    if (!granted.isEmpty()) {
-                        bad.append(row.file).append(" grants ").append(granted.get(0)).append(" to ")
-                                .append(u).append(" as ").append(ws.length == 0 ? "no principal"
-                                : ws[0].getClass().getSimpleName()).append('\n');
+            List<List<Permission>> got;
+            List<List<Permission>> gotHigh;
+            try {
+                got = provider.grantedToEach(f, Collections.<String, String>emptyMap(), wide,
+                        c.universe.permissions);
+                gotHigh = provider.grantedToEach(f, Collections.<String, String>emptyMap(), probeSubjects, high);
+            } catch (PolicyVerdict.LoadFailure e) {
+                c.notLoaded.add(row.file + ": " + e.getMessage());
+                continue;
+            }
+            c.covered++;
+            c.questions += (long) wide.size() * c.universe.permissions.size()
+                    + (long) probeSubjects.size() * high.size();
+            List<List<Permission>> both = new ArrayList<List<Permission>>(got);
+            both.addAll(gotHigh);
+            for (List<Permission> granted : both) {
+                for (Permission g : granted) {
+                    c.grants++;
+                    String cn = g.getClass().getName();
+                    PermissionSets.Danger d = PermissionSets.danger(cn, g.getName(), g.getActions());
+                    if (d != null && d.severity >= PermissionSets.HIGH) {
+                        c.bad.append(row.file).append(" grants ").append(g).append(" to a stranger: ")
+                                .append(d.reason).append('\n');
+                    }
+                    if (!PermissionSets.catalogued(cn) && row.strict == 0) {
+                        c.uncatalogued.add(row.file + " " + cn);
                     }
                 }
             }
-            covered++;
         }
-        assertTrue("too few clean files covered: " + covered, covered >= 40);
-        int failures = bad.length() == 0 ? 0 : bad.toString().split("\n").length;
-        System.out.println("provider cross-check" + (old ? " (files the trunk lint passed)" : "")
-                + ": files covered=" + covered + " failures=" + failures
-                + " files-with-a-failure=" + failingFiles(bad) + " provider=" + provider.providerClass);
-        if (!old) assertEquals(bad.toString(), 0, bad.length());
+        return c;
     }
 
-    private static int failingFiles(StringBuilder bad) {
-        java.util.Set<String> files = new java.util.HashSet<String>();
-        for (String l : bad.toString().split("\n")) {
-            int i = l.indexOf(" grants ");
-            if (i > 0) files.add(l.substring(0, i));
+    private static void assertCrossCheck(Cross c) {
+        PermissionUniverse u = c.universe;
+        assertTrue("permission classes found: " + u.classes.size(), u.classes.size() >= 40);
+        assertTrue("permission classes constructed: " + u.constructible.size(), u.constructible.size() >= 30);
+        assertTrue("questions per file: " + u.permissions.size(), u.permissions.size() >= 1000);
+        for (String need : new String[]{"java.sql.SQLPermission", "java.nio.file.LinkPermission",
+            "net.jini.export.ExportPermission", "java.io.FilePermission"}) {
+            assertTrue(need + " is in the universe", u.has(need));
         }
-        return files.size();
+        assertTrue("the provider granted nothing from a control file that grants all file reads: it"
+                + " cannot see what it is asked", c.canaryGranted);
+        assertTrue("clean files: " + c.cleanRows, c.cleanRows >= 40);
+        assertEquals("the provider covered fewer files than the expectations call clean: " + c.notLoaded,
+                c.cleanRows, c.covered);
+        assertTrue("no grant was found in any clean file: the cross-check saw nothing", c.grants > 0);
+        assertEquals(c.bad.toString(), 0, c.bad.length());
+        assertEquals("grants of classes the catalogue does not know, in files that pass --strict",
+                new java.util.TreeSet<String>(Arrays.asList(EXPECTED_UNCATALOGUED)), c.uncatalogued);
+    }
+
+    @Test
+    public void cleanFilesGrantNoStrangerAHighPermission() throws Exception {
+        PolicyVerdict provider = PolicyVerdict.open("auto");
+        Cross c = crossCheck(provider);
+        System.out.println("provider cross-check: files covered=" + c.covered + " of clean=" + c.cleanRows
+                + " permission-classes=" + c.universe.classes.size() + " constructed="
+                + c.universe.constructible.size() + " questions-per-file="
+                + (c.subjects * c.universe.permissions.size()) + " (" + c.subjects + " subjects x "
+                + c.universe.permissions.size() + " permissions) questions-total=" + c.questions
+                + " grants=" + c.grants + " provider=" + provider.providerClass);
+        assertCrossCheck(c);
+    }
+
+    // M7: a provider that loads every file and grants nothing is the failure the cross-check must
+    // notice.  The check is run against a stub of that kind and must fail.
+    @Test
+    public void crossCheckFailsAgainstAProviderThatGrantsNothing() throws Exception {
+        String saved = PolicyVerdict.dirtyChaiClass;
+        PolicyVerdict.dirtyChaiClass = "org.apache.river.tool.stub.NothingGrantedPolicy";
+        try {
+            PolicyVerdict stub = PolicyVerdict.open("auto");
+            assertEquals("org.apache.river.tool.stub.NothingGrantedPolicy", stub.providerClass);
+            try {
+                assertCrossCheck(crossCheck(stub));
+            } catch (AssertionError expected) {
+                return;
+            }
+            fail("the cross-check passed against a provider that grants nothing");
+        } finally {
+            PolicyVerdict.dirtyChaiClass = saved;
+        }
+    }
+
+    // A provider that cannot load the corpus files is not "nothing granted" either.
+    @Test
+    public void crossCheckFailsAgainstAProviderThatCannotLoad() throws Exception {
+        String saved = PolicyVerdict.dirtyChaiClass;
+        PolicyVerdict.dirtyChaiClass = "org.apache.river.tool.stub.RefusingPolicy";
+        try {
+            PolicyVerdict stub = PolicyVerdict.open("auto");
+            try {
+                assertCrossCheck(crossCheck(stub));
+            } catch (AssertionError | PolicyVerdict.LoadFailure expected) {
+                return;
+            }
+            fail("the cross-check passed against a provider that cannot load a file");
+        } finally {
+            PolicyVerdict.dirtyChaiClass = saved;
+        }
     }
 }

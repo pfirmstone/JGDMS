@@ -1,0 +1,3 @@
+grant {
+  permission jdk.jfr.FlightRecorderPermission "accessFlightRecorder";
+};

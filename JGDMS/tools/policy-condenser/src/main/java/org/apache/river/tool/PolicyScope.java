@@ -43,6 +43,11 @@ import java.util.regex.Pattern;
  *     Downloads directory, written with {@code ${user.home}}, {@code ${java.io.tmpdir}} or
  *     {@code ${user.dir}}, or that is a recursive pattern over a directory above one of those:
  *     {@link Reach#FILE}.  {@code jar:} forms are judged by what they wrap;</li>
+ * <li>a {@code file:} codeBase with a host other than {@code localhost} ({@code file://host/share/-},
+ *     {@code file:////host/share/-}, a UNC path): a network share, so {@link Reach#STRANGER};</li>
+ * <li>a codeBase scheme other than file, jrt, jar, http, https and ftp: not recognised, so treated as
+ *     attacker-controlled ({@link Reach#STRANGER}), never as pinned.  {@code jar:} is judged by the
+ *     URL it wraps, however deeply nested;</li>
  * <li>{@code jrt:/-} and {@code jrt:/*}: {@link Reach#PLATFORM};</li>
  * <li>a principal list that every entry of which is a wildcard class, or a wildcard (or prefix)
  *     name of a class whose names an outside party issues (a SPIFFE, JWT, Kerberos, X.500 or user
@@ -174,7 +179,8 @@ final class PolicyScope {
         }
         String s = exp.trim();
         String lower = s.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("jar:")) {
+        // jar: wraps another URL (jar:jar:... too): the nested one is what is judged
+        while (lower.startsWith("jar:")) {
             s = s.substring(4);
             int bang = s.indexOf("!/");
             if (bang >= 0) s = s.substring(0, bang);
@@ -192,7 +198,10 @@ final class PolicyScope {
         if (lower.indexOf(':') < 0 || lower.matches("^[a-z]:[\\\\/].*")) {
             return file(s, writableProperty); // no scheme: a path
         }
-        return new CodeBase(Kind.OTHER, "codeBase of a scheme the lint does not judge");
+        // a scheme the lint does not recognise cannot be shown to be pinned: fail closed
+        return new CodeBase(Kind.REMOTE_WILD, "codeBase scheme " + lower.substring(0, lower.indexOf(':'))
+                + " is not one the lint recognises (file, jrt, jar:, http, https, ftp): treated as"
+                + " attacker-controlled");
     }
 
     private static CodeBase remote(String s) {
@@ -246,9 +255,16 @@ final class PolicyScope {
     }
 
     private static CodeBase file(String path, boolean writableProperty) {
-        String p = path;
-        if (p.startsWith("//")) {
+        String p = path.replace('\\', '/');
+        // //host/share, ////host/share and \\host\share name a share on another machine (a UNC
+        // path on Windows); only an empty host or localhost is this machine
+        while (p.startsWith("//")) {
             int i = p.indexOf('/', 2);
+            String host = i < 0 ? p.substring(2) : p.substring(2, i);
+            if (host.length() > 0 && !host.equalsIgnoreCase("localhost")) {
+                return new CodeBase(Kind.REMOTE_WILD, "file: codeBase on the host " + host
+                        + ", a network share another party can serve code from");
+            }
             p = i < 0 ? "/" : p.substring(i);
         }
         if (p.matches("^/[A-Za-z]:([\\\\/].*)?$")) p = p.substring(1);

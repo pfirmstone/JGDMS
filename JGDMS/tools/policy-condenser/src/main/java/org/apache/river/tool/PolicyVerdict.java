@@ -148,6 +148,11 @@ final class PolicyVerdict {
     static final class Answer {
         /** Null if the real parser loaded the file, else why it did not. */
         String loadError;
+        /**
+         * True if {@link #loadError} is the provider's: the parser accepted the file and the
+         * provider could not build a policy from it.
+         */
+        boolean providerOnly;
         /** AllPermission to code from any stranger codebase (every scheme), no principal. */
         boolean stranger;
         /** AllPermission to the same code run by an authenticated principal of any class. */
@@ -264,6 +269,7 @@ final class PolicyVerdict {
                 p = (Policy) constructor.newInstance(new Object[]{new URL[]{url}});
             } catch (InvocationTargetException e) {
                 a.loadError = why(e);
+                a.providerOnly = true; // the parser above accepted this file
                 return a;
             }
             List<PermissionSets.Probe> probes = PermissionSets.probes();
@@ -305,16 +311,49 @@ final class PolicyVerdict {
         return a;
     }
 
+    /** The provider could not answer: it cannot load the file, or a subject cannot be built. */
+    static final class LoadFailure extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        LoadFailure(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /** A question's subject: code from {@code url} run by {@code who}. */
+    static final class Subject {
+        final String url;
+        final Principal[] who;
+
+        Subject(String url, Principal[] who) {
+            this.url = url;
+            this.who = who;
+        }
+    }
+
     /**
      * Asks the provider, for subjects and permissions chosen by the caller, what a policy file
      * grants: which of {@code perms} are implied for code from {@code url} run by {@code who}.
      * This lets a test check the lint's verdict against questions the lint does not itself ask.
      *
-     * @return the permissions granted; empty if the provider cannot load the file
+     * @return the permissions granted
+     * @throws LoadFailure if the provider cannot load the file: that is not "nothing granted"
      */
     synchronized List<Permission> grantedTo(File policy, Map<String, String> defines, String url,
             Principal[] who, List<Permission> perms) {
-        List<Permission> res = new ArrayList<Permission>();
+        return grantedToEach(policy, defines, Collections.singletonList(new Subject(url, who)),
+                perms).get(0);
+    }
+
+    /**
+     * As {@link #grantedTo}, for several subjects against one load of the file: element {@code i}
+     * of the result is what the provider grants {@code subjects.get(i)}.
+     *
+     * @throws LoadFailure if the provider cannot load the file or a subject's URL has no handler
+     */
+    synchronized List<List<Permission>> grantedToEach(File policy, Map<String, String> defines,
+            List<Subject> subjects, List<Permission> perms) {
+        List<List<Permission>> all = new ArrayList<List<Permission>>();
         Properties sys = System.getProperties();
         Map<String, String> saved = new HashMap<String, String>();
         Map<String, String> set = new HashMap<String, String>(defines);
@@ -325,26 +364,36 @@ final class PolicyVerdict {
         }
         try {
             URL u = policy.toURI().toURL();
-            Policy p = (Policy) constructor.newInstance(new Object[]{new URL[]{u}});
-            CodeSource cs = source(url);
-            if (cs == null) return res;
-            ProtectionDomain pd = new ProtectionDomain(cs, null, null, who);
-            for (Permission perm : perms) {
-                try {
-                    if (p.implies(pd, perm)) res.add(perm);
-                } catch (RuntimeException e) {
-                    res.add(perm); // cannot tell: counted as granted
+            Policy p;
+            try {
+                p = (Policy) constructor.newInstance(new Object[]{new URL[]{u}});
+            } catch (InvocationTargetException e) {
+                throw new LoadFailure(providerClass + " cannot load " + policy.getName() + ": " + why(e), e);
+            }
+            for (Subject s : subjects) {
+                CodeSource cs = source(s.url);
+                if (cs == null) throw new LoadFailure("no URL handler for " + s.url, null);
+                ProtectionDomain pd = new ProtectionDomain(cs, null, null, s.who);
+                List<Permission> res = new ArrayList<Permission>();
+                for (Permission perm : perms) {
+                    try {
+                        if (p.implies(pd, perm)) res.add(perm);
+                    } catch (RuntimeException e) {
+                        res.add(perm); // cannot tell: counted as granted
+                    }
                 }
+                all.add(res);
             }
         } catch (ReflectiveOperationException | MalformedURLException | RuntimeException e) {
-            // the file does not load: nothing is granted
+            if (e instanceof LoadFailure) throw (LoadFailure) e;
+            throw new LoadFailure(providerClass + " cannot load " + policy.getName() + ": " + why(e), e);
         } finally {
             for (Map.Entry<String, String> e : saved.entrySet()) {
                 if (e.getValue() == null) sys.remove(e.getKey());
                 else sys.setProperty(e.getKey(), e.getValue());
             }
         }
-        return res;
+        return all;
     }
 
     /** Asks every probe of one subject; records the first subject of a zone granted a probe. */

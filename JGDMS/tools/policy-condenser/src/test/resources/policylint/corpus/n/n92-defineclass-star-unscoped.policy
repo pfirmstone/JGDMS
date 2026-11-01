@@ -1,0 +1,3 @@
+grant {
+  permission au.zeus.jdk.authorization.guards.DefineClassPermission "*";
+};

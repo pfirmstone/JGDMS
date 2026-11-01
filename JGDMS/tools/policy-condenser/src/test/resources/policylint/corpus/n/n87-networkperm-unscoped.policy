@@ -1,0 +1,3 @@
+grant {
+  permission jdk.net.NetworkPermission "setOption.TCP_KEEPIDLE";
+};

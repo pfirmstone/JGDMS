@@ -42,6 +42,29 @@ n/n61-tmpdir-codebase-allperm.policy	1	1	S1 D3	0	1	S1
 n/n62-relative-codebase-ccl.policy	1	1	D3	0	0	
 n/n63-file-opt-app-ccl-clean.policy	0	0		0	0	
 n/n64-jar-https-wild-ccl.policy	1	1	D1	0	0	
+n/n70-file-host-share-ccl.policy	1	1	D1	0	0	
+n/n71-file-host-share-allperm.policy	1	1	U3 S1	0	1	S1
+n/n72-file-unc-fourslash-ccl.policy	1	1	D1	0	0	
+n/n73-file-localhost-ccl-clean.policy	0	0		0	0	
+n/n74-file-empty-host-ccl-clean.policy	0	0		0	0	
+n/n75-unknown-scheme-ccl.policy	1	1	D1	0	0	
+n/n76-jar-unknown-nested-ccl.policy	1	1	D1	0	0	
+n/n77-jar-file-host-share-ccl.policy	1	1	D1	0	0	
+n/n78-jar-nested-jar-https-ccl.policy	1	1	D1	0	0	
+n/n79-file-host-only-ccl.policy	1	1	D1	1	1	D3
+n/n80-uncatalogued-loadable-unscoped.policy	0	0		0	0	
+n/n81-defineclass-unscoped.policy	1	1	D1	0	0	
+n/n82-nativememory-unscoped.policy	1	1	D1	0	0	
+n/n83-subjectdelegation-unscoped.policy	1	1	D1	0	0	
+n/n84-flightrecorder-unscoped.policy	1	1	D1	0	0	
+n/n85-jdi-unscoped.policy	1	1	D1	0	0	
+n/n86-linkperm-unscoped.policy	0	1	D5	0	0	
+n/n87-networkperm-unscoped.policy	0	1	D5	0	0	
+n/n88-sql-setsyncfactory-unscoped.policy	0	1	D5	0	0	
+n/n89-sql-setnetworktimeout-unscoped.policy	0	1	D5	0	0	
+n/n90-defineclass-pinned-https.policy	0	0	I1	0	0	
+n/n91-defineclass-wild-https.policy	1	1	D1	0	0	
+n/n92-defineclass-star-unscoped.policy	1	1	D1	1	1	D1
 r6/a01-unscoped.policy	1	1	U1	1	1	U1
 r6/a02-undefprop.policy	1	1	U3 U4 S1	1	1	U3 U4 S1
 r6/a03-signedby-noalias.policy	0	1	S1	0	1	S1
@@ -156,7 +179,7 @@ r8/j13-delegation.policy	0	1	D5	0	0
 r8/j14-servicepermission.policy	0	1	D5	0	0	
 r8/j15-downloadperm.policy	0	1	D5	0	0	
 r8/j16-jaxpermission.policy	0	1	D5	0	0	
-r8/j17-sqlperm.policy	0	0		0	0	
+r8/j17-sqlperm.policy	0	1	D5	0	0	
 r8/j18-netperm.policy	1	1	D1 D5	0	0	
 r8/j19-sslperm.policy	1	1	D1 D5	0	0	
 r8/k01-signedby-absent.policy	0	0		0	0	

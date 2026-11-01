@@ -316,4 +316,38 @@ public class PermissionSetsTest {
         assertNull(PermissionSets.danger(g,
             "delim=| java.net.SocketPermission |localhost:1024-|, |accept,listen|", null));
     }
+
+    // Opus review round 10, finding 1: classes the catalogue missed.  A class that lets code define
+    // classes, use off-heap memory, act as another subject, record the JVM or debug it is HIGH
+    // whatever its name; links, socket options and the JDBC global settings are MEDIUM.
+    @Test
+    public void testClassesTheCatalogueMissed() {
+        String dc = "au.zeus.jdk.authorization.guards.";
+        for (String[] c : new String[][]{{dc + "DefineClassPermission", null}, {dc + "DefineClassPermission", "ALLOW"},
+            {dc + "DefineClassPermission", "*"}, {dc + "NativeMemoryPermission", "Arena"},
+            {"javax.management.remote.SubjectDelegationPermission", "*"},
+            {"jdk.jfr.FlightRecorderPermission", "accessFlightRecorder"},
+            {"com.sun.jdi.JDIPermission", "virtualMachineManager"}}) {
+            PermissionSets.Danger d = PermissionSets.danger(c[0], c[1], null);
+            assertNotNull(c[0] + " " + c[1], d);
+            assertEquals(c[0] + " " + c[1], PermissionSets.HIGH, d.severity);
+            assertTrue(c[0], PermissionSets.catalogued(c[0]));
+        }
+        for (String[] c : new String[][]{{"java.nio.file.LinkPermission", "symbolic"},
+            {"java.lang.LinkPermission", "hard"}, {"jdk.net.NetworkPermission", "setOption.TCP_KEEPIDLE"},
+            {"java.net.NetworkPermission", "setOption.x"}, {"java.sql.SQLPermission", "setLog"},
+            {"java.sql.SQLPermission", "setSyncFactory"}, {"java.sql.SQLPermission", "setNetworkTimeout"},
+            {"java.sql.SQLPermission", "*"}}) {
+            PermissionSets.Danger d = PermissionSets.danger(c[0], c[1], null);
+            assertNotNull(c[0] + " " + c[1], d);
+            assertEquals(c[0] + " " + c[1], PermissionSets.MEDIUM, d.severity);
+            assertTrue(c[0], PermissionSets.catalogued(c[0]));
+        }
+        // a SQLPermission name the catalogue has no reason to rate stays out
+        assertNull(PermissionSets.danger("java.sql.SQLPermission", "somethingElse", null));
+        // an application permission is not catalogued, and is not dangerous by name
+        assertFalse(PermissionSets.catalogued("net.jini.export.ExportPermission"));
+        assertNull(PermissionSets.danger("net.jini.export.ExportPermission", "*", null));
+        assertFalse(PermissionSets.catalogued(null));
+    }
 }

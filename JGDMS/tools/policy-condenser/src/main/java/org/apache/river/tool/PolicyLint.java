@@ -62,6 +62,11 @@ import java.util.regex.Pattern;
  * run fails on the high kinds (U1 U2 U3 U4 P1 S3 D1 D2 D3 D4 P2 P3); {@code --strict} adds the medium ones
  * (S1 S4 D5 D6 W1 W2).
  *
+ * <p>A permission class that can be loaded and built but that the catalogue has no entry for (a
+ * deployer's own permission, say) is only noted, as a {@code NOTE} line: it never changes the exit
+ * status, in default or {@code --strict} mode, in any scope.  A class that cannot be loaded or built
+ * stays D6 or high, as below.
+ *
  * <p>Two checks, either of which raises a finding.  The symbolic one ({@link PolicyScope}) reads each
  * grant's codeBase pattern, signedBy and principal list and decides whether it can match something
  * an attacker controls (a wildcard host or port, a user-writable {@code file:} path,
@@ -155,14 +160,23 @@ public final class PolicyLint {
         }
     }
 
-    /** The findings for one file and the provider's answers (null if the file was unreadable). */
+    /**
+     * The findings for one file and the provider's answers (null if the file was unreadable), and
+     * the notes: information that never changes the exit status.
+     */
     static final class Linted {
         final List<Finding> findings;
         final PolicyVerdict.Answer answer;
+        final List<String> notes;
 
         Linted(List<Finding> findings, PolicyVerdict.Answer answer) {
+            this(findings, answer, Collections.<String>emptyList());
+        }
+
+        Linted(List<Finding> findings, PolicyVerdict.Answer answer, List<String> notes) {
             this.findings = findings;
             this.answer = answer;
+            this.notes = notes;
         }
     }
 
@@ -304,12 +318,14 @@ public final class PolicyLint {
 
         Map<String, List<Finding>> byFile = new TreeMap<String, List<Finding>>();
         Map<String, PolicyVerdict.Answer> answers = new TreeMap<String, PolicyVerdict.Answer>();
+        Map<String, List<String>> notes = new TreeMap<String, List<String>>();
         for (File f : files) {
             String name = f.getPath();
             if (!byFile.containsKey(name)) {
                 Linted l = lint(f, name, provider, defines, requireDefined);
                 byFile.put(name, l.findings);
                 if (l.answer != null) answers.put(name, l.answer);
+                if (!l.notes.isEmpty()) notes.put(name, l.notes);
             }
         }
         for (Finding wf : walkFindings) {
@@ -356,6 +372,11 @@ public final class PolicyLint {
                     : "stranger=" + v.stranger + " principal=" + v.strangerPrincipal
                     + " file=" + v.fileCode + " platform=" + v.platformModule
                     + " nullCodeSource=" + v.nullCodeSource));
+        }
+        for (Map.Entry<String, List<String>> e : notes.entrySet()) {
+            for (String note : e.getValue()) {
+                println(out, (tsv ? "# " : "") + "NOTE " + esc(e.getKey()) + ": " + esc(note));
+            }
         }
         int high = 0, weak = 0;
         for (String k : HIGH_KINDS) high += total[indexOf(k)];
@@ -602,11 +623,17 @@ public final class PolicyLint {
         }
         // the symbolic verdict does not depend on what the provider was asked: either half counts
         List<String> unbuildable = answer == null ? Collections.<String>emptyList() : answer.unbuildable;
+        List<String> notes = new ArrayList<String>();
         for (ProxyPolicyGenerator.GrantBlock g : grants) {
-            symbolic(display, g, env, unbuildable, res);
+            symbolic(display, g, env, unbuildable, res, notes);
         }
         if (answer != null) {
-            if (answer.loadError != null) {
+            if (answer.providerOnly) {
+                // the parser reads this file and the provider cannot load it: a verdict from the
+                // provider is impossible, so the file cannot be called clean
+                res.add(new Finding(display, 0, "P1", "the policy provider cannot load a file the parser"
+                        + " accepts, so what it grants cannot be asked: " + answer.loadError));
+            } else if (answer.loadError != null) {
                 // the text scan's own P1 already fails the run; one P1 per cause is enough
                 if (!has(res, "P1")) {
                     res.add(new Finding(display, 0, "P1", "the production policy parser rejects"
@@ -626,17 +653,19 @@ public final class PolicyLint {
             }
         }
         sortFindings(res);
-        return new Linted(res, answer);
+        return new Linted(res, answer, notes);
     }
 
     /**
      * The symbolic check of one grant block: whom its scope can reach, then the catalogue applied
      * to each permission it holds.  A permission the catalogue does not know and the lint cannot
      * load or build is "cannot tell": medium (D6) where the scope reaches nobody an attacker
-     * controls, high where it does.
+     * controls, high where it does.  A class the lint can load and build but the catalogue has no
+     * entry for is only noted ({@code notes}): it may be a deployer's own permission, and the lint
+     * does not fail a run for a class it merely does not know.
      */
     private static void symbolic(String display, ProxyPolicyGenerator.GrantBlock g, Properties env,
-            Collection<String> unbuildable, List<Finding> res) {
+            Collection<String> unbuildable, List<Finding> res, List<String> notes) {
         PolicyScope.Verdict v = PolicyScope.scope(g, env, unbuildable);
         boolean reaches = v.reach != PolicyScope.Reach.NONE;
         Map<String, List<String>> found = new LinkedHashMap<String, List<String>>();
@@ -675,6 +704,13 @@ public final class PolicyLint {
                 unknown = true;
                 severity = reaches ? PermissionSets.HIGH : PermissionSets.MEDIUM;
             } else {
+                if (!PermissionSets.catalogued(p.type)) {
+                    String note = "line " + p.line + ": permission class " + p.type + " is loadable but"
+                            + " not in the catalogue of dangerous permissions: not judged";
+                    boolean seen = false;
+                    for (String n : notes) seen |= n.contains(" class " + p.type + " ");
+                    if (!seen) notes.add(note);
+                }
                 continue;
             }
             holdsOther = true;

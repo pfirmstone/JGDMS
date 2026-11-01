@@ -293,6 +293,34 @@ public final class PermissionSets {
     private static final String LOAD_CLASS = "net.jini.loader.LoadClassPermission";
     private static final String DC_LOAD_CLASS = "au.zeus.jdk.authorization.guards.LoadClassPermission";
     private static final String DC_SERIAL_OBJECT = "au.zeus.jdk.authorization.guards.SerialObjectPermission";
+    private static final String DC_DEFINE_CLASS = "au.zeus.jdk.authorization.guards.DefineClassPermission";
+    private static final String DC_NATIVE_MEMORY = "au.zeus.jdk.authorization.guards.NativeMemoryPermission";
+    private static final String SUBJECT_DELEGATION = "javax.management.remote.SubjectDelegationPermission";
+    private static final String JFR = "jdk.jfr.FlightRecorderPermission";
+    private static final String JDI = "com.sun.jdi.JDIPermission";
+    private static final String LINK = "java.nio.file.LinkPermission";
+    private static final String LINK_LANG = "java.lang.LinkPermission";
+    private static final String NETWORK = "jdk.net.NetworkPermission";
+    private static final String NETWORK_NET = "java.net.NetworkPermission";
+    private static final String SQL = "java.sql.SQLPermission";
+
+    /**
+     * The permission classes the catalogue has an opinion on (an entry of {@link #danger}, or a
+     * class it judges by name or scope).  A class outside this set is one the lint cannot rate:
+     * a deployer's own permission class looks like that, so the lint notes it and says nothing more.
+     */
+    private static final Set<String> CATALOGUED = set(
+        ALL_PERMISSION, GRANT_PERMISSION, UMBRELLA_GRANT_PERMISSION, POLICY_PERMISSION, RUNTIME,
+        REFLECT, SECURITY, FILE, AUTH, SERIAL, SOCKET, NATIVE, PROPERTY, AUTHENTICATION, URL,
+        DESERIALIZATION, ASSERT_PRINCIPAL, PRIVATE_CREDENTIAL, NET, SSL, MBEAN, MBEAN_SERVER,
+        MBEAN_TRUST, MANAGEMENT, ATTACH, LOGGING, KRB_DELEGATION, KRB_SERVICE, DOWNLOAD, LOAD_CLASS,
+        DC_LOAD_CLASS, DC_SERIAL_OBJECT, DC_DEFINE_CLASS, DC_NATIVE_MEMORY, SUBJECT_DELEGATION, JFR,
+        JDI, LINK, LINK_LANG, NETWORK, NETWORK_NET, SQL);
+
+    /** Whether the catalogue has an entry for the class, whatever the name: see {@link #danger}. */
+    public static boolean catalogued(String type) {
+        return type != null && CATALOGUED.contains(type);
+    }
 
     /** Permission classes whose wildcard entries are HIGH: a package stem of one of these is too. */
     private static final String[] HIGH_CLASSES = {ALL_PERMISSION, RUNTIME, SECURITY, REFLECT, FILE,
@@ -307,7 +335,43 @@ public final class PermissionSets {
      * ({@code INVESTIGATION-policy-lint-redesign}) gives the reason for each severity.
      */
     private static Danger extraDanger(String type, String name, String actions) {
+        // classes whose every name is dangerous: judged before the name is looked at
+        if (DC_DEFINE_CLASS.equals(type)) {
+            return new Danger(HIGH, "DefineClassPermission lets code define classes (Lookup.defineClass)"
+                + " and so run code the class loaders never vetted");
+        }
+        if (DC_NATIVE_MEMORY.equals(type)) {
+            return new Danger(HIGH, "NativeMemoryPermission " + name + " gives access to off-heap memory:"
+                + " raw reads and writes, or exhausting it, outside the heap limit");
+        }
+        if (SUBJECT_DELEGATION.equals(type)) {
+            return new Danger(HIGH, "SubjectDelegationPermission " + name
+                + " lets the holder act over JMX as another authenticated subject");
+        }
+        if (JFR.equals(type)) {
+            return new Danger(HIGH, "FlightRecorderPermission " + name
+                + " reads the JVM's event stream or registers events");
+        }
+        if (JDI.equals(type)) {
+            return new Danger(HIGH, "JDIPermission " + name + " lets code attach a debugger to JVMs");
+        }
+        if (LINK.equals(type) || LINK_LANG.equals(type)) {
+            return new Danger(MEDIUM, "LinkPermission " + name + " creates links that can point outside"
+                + " the granted file tree");
+        }
+        if (NETWORK.equals(type) || NETWORK_NET.equals(type)) {
+            return new Danger(MEDIUM, "NetworkPermission " + name + " changes or reads socket options"
+                + " (flow control, keep-alive) of connections it did not open");
+        }
         if (name == null) return null;
+        if (SQL.equals(type)) {
+            if (basic(name, new String[]{"setLog", "setSyncFactory", "setNetworkTimeout", "callAbort",
+                    "deregisterDriver"}, none())) {
+                return new Danger(MEDIUM, "SQLPermission " + name + " changes JDBC global state (log"
+                    + " stream, RowSet factory, driver registry) or aborts connections");
+            }
+            return null;
+        }
         if (ASSERT_PRINCIPAL.equals(type)) {
             if (name.indexOf('*') >= 0 || (actions != null && actions.indexOf('*') >= 0)) {
                 return new Danger(HIGH, "AssertPrincipalPermission " + name + " " + actions
@@ -768,6 +832,14 @@ public final class PermissionSets {
         add(res, MBEAN_TRUST, "register", null, null);
         add(res, MANAGEMENT, "control", null, null);
         add(res, DOWNLOAD, null, null, "x");
+        add(res, DC_DEFINE_CLASS, null, null, null);
+        add(res, DC_NATIVE_MEMORY, "Arena", null, null);
+        // SubjectDelegationPermission is catalogued but has no probe: the providers do not list it (measured)
+        add(res, JFR, "accessFlightRecorder", null, null);
+        add(res, JDI, "virtualMachineManager", null, null);
+        add(res, LINK, "symbolic", null, null);
+        add(res, NETWORK, "setOption.lint", null, null);
+        add(res, SQL, "setLog", null, null);
         for (String[] g : new String[][]{{RUNTIME, "setSecurityManager"}, {SECURITY, "setPolicy"},
             {REFLECT, "suppressAccessChecks"}}) {
             Permission inner = create(g[0], g[1], null);

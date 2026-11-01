@@ -383,4 +383,114 @@ public class PolicyLintGateTest {
         assertFalse(p.out, p.out.contains("symbolic scope check"));
         assertEquals(Arrays.asList(1), Arrays.asList(p.exit));
     }
+
+    // ---------------------------------------------------------------- Opus follow-ups (round 10)
+
+    // L1. Permission classes the catalogue missed.  The operator's position: the lint is a general
+    // dangerous-policy gate, so a catalogue miss must not read as clean.  High: the holder defines
+    // classes, uses off-heap memory, acts as another subject, drives the flight recorder or the
+    // debugger.  Medium (strict only): links, socket options, the JDBC global settings.
+    @Test
+    public void classesTheCatalogueMissedAreCatalogued() throws Exception {
+        String[] high = {"n/n81-defineclass-unscoped", "n/n82-nativememory-unscoped",
+            "n/n83-subjectdelegation-unscoped", "n/n84-flightrecorder-unscoped", "n/n85-jdi-unscoped",
+            "n/n92-defineclass-star-unscoped"};
+        for (String f : high) expect(f, "1/1 D1");
+        String[] medium = {"n/n86-linkperm-unscoped", "n/n87-networkperm-unscoped",
+            "n/n88-sql-setsyncfactory-unscoped", "n/n89-sql-setnetworktimeout-unscoped",
+            "r8/j17-sqlperm"};
+        for (String f : medium) expect(f, "0/1 D5");
+        // the scope still decides: pinned stays INFO, a wildcard host is a stranger
+        expect("n/n90-defineclass-pinned-https", "0/0 I1");
+        expect("n/n91-defineclass-wild-https", "1/1 D1");
+    }
+
+    // L2 (operator ruling 2026-11-01).  A loadable class the catalogue does not know may be an
+    // application permission, and deployers define their own: it is a NOTE, never a finding, and
+    // it never changes the exit status, in any scope.  A class the lint cannot load stays D6/D1.
+    @Test
+    public void uncataloguedLoadableClassIsInformationOnly() throws Exception {
+        String cls = "net.jini.export.ExportPermission";
+        File f = fx("n/n80-uncatalogued-loadable-unscoped");
+        for (String[] a : new String[][]{{f.getPath()}, {"--strict", f.getPath()}}) {
+            LintHarness.Result r = LintHarness.run(a);
+            assertEquals(r.out, 0, r.exit);
+            assertEquals(r.out, "", r.kinds());
+            assertTrue(r.out, r.out.contains("NOTE") && r.out.contains(cls));
+        }
+        File wild = write("wild.policy", "grant codeBase \"https://*.example.com/-\" {\n  permission "
+                + cls + " \"exportRemoteInterface.*\";\n};\n");
+        LintHarness.Result w = LintHarness.run("--strict", wild.getPath());
+        assertEquals(w.out, 0, w.exit);
+        assertTrue(w.out, w.out.contains("NOTE") && w.out.contains(cls));
+        // a class the catalogue knows, with a harmless name, is not noted
+        File known = write("known.policy", "grant {\n  permission java.util.PropertyPermission"
+                + " \"user.language\", \"read\";\n};\n");
+        LintHarness.Result k = LintHarness.run("--strict", known.getPath());
+        assertEquals(k.out, 0, k.exit);
+        assertFalse(k.out, k.out.contains("NOTE"));
+        // the class the lint cannot load is still judged: unchanged from the commit before
+        expect("n/n50-unknown-class-unscoped", "1/1 D1");
+        expect("n/n51-unknown-class-pinned", "0/1 D6");
+    }
+
+    // L3. A file the parser accepts and the provider cannot load is a finding (P1), not "nothing
+    // granted"; the cross-check helper refuses the same file instead of answering "no".
+    @Test
+    public void providerThatCannotLoadWhatTheParserAcceptsIsAFinding() throws Exception {
+        String saved = PolicyVerdict.dirtyChaiClass;
+        PolicyVerdict.dirtyChaiClass = "org.apache.river.tool.stub.RefusingPolicy";
+        try {
+            File f = write("clean.policy", "grant codeBase \"file:/opt/app/-\" {\n  permission"
+                    + " java.util.PropertyPermission \"user.language\", \"read\";\n};\n");
+            LintHarness.Result r = LintHarness.run(f.getPath());
+            assertEquals(r.out, 1, r.exit);
+            assertEquals(r.out, "P1", r.kinds());
+            assertTrue(r.out, r.out.contains("provider cannot load a file the parser accepts"));
+        } finally {
+            PolicyVerdict.dirtyChaiClass = saved;
+        }
+    }
+
+    @Test
+    public void grantedToRefusesAFileTheProviderCannotLoad() throws Exception {
+        String saved = PolicyVerdict.dirtyChaiClass;
+        PolicyVerdict.dirtyChaiClass = "org.apache.river.tool.stub.RefusingPolicy";
+        try {
+            PolicyVerdict provider = PolicyVerdict.open("auto");
+            File f = write("any.policy", "grant {\n  permission java.security.AllPermission;\n};\n");
+            try {
+                provider.grantedTo(f, java.util.Collections.<String, String>emptyMap(),
+                        "https://evil.example.com/x.jar", new java.security.Principal[0],
+                        java.util.Arrays.<java.security.Permission>asList(
+                                new java.security.AllPermission()));
+                fail("a provider that cannot load the file must not be read as granting nothing");
+            } catch (IllegalStateException expected) {
+                assertTrue(String.valueOf(expected), expected.getMessage().contains("cannot load"));
+            }
+        } finally {
+            PolicyVerdict.dirtyChaiClass = saved;
+        }
+    }
+
+    // L4. A file: codeBase with a host is a network share, not a local directory; a scheme the lint
+    // does not recognise is attacker-controlled (fail closed); jar: is judged by what it wraps.
+    @Test
+    public void remoteShareCodeBasesAreStrangers() throws Exception {
+        expect("n/n70-file-host-share-ccl", "1/1 D1");
+        expect("n/n71-file-host-share-allperm", "1/1 U3 S1");
+        expect("n/n72-file-unc-fourslash-ccl", "1/1 D1");
+        expect("n/n79-file-host-only-ccl", "1/1 D1");
+        expect("n/n77-jar-file-host-share-ccl", "1/1 D1");
+        // local forms stay clean
+        expect("n/n73-file-localhost-ccl-clean", "0/0 ");
+        expect("n/n74-file-empty-host-ccl-clean", "0/0 ");
+    }
+
+    @Test
+    public void unrecognisedCodeBaseSchemesFailClosed() throws Exception {
+        expect("n/n75-unknown-scheme-ccl", "1/1 D1");
+        expect("n/n76-jar-unknown-nested-ccl", "1/1 D1");
+        expect("n/n78-jar-nested-jar-https-ccl", "1/1 D1");
+    }
 }
