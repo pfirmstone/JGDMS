@@ -56,14 +56,55 @@ public class AssertPrincipalPermissionTest {
     }
 
     @Test
-    public void prefixAndSuffixPatterns() {
-        // a wildcard in the middle is not a pattern: it is an exact name
-        Assert.assertFalse(p(X500, "CN=*,O=Example").implies(p(X500, "CN=alice,O=Example")));
+    public void prefixPattern() {
         Assert.assertTrue(p(X500, "CN=a*").implies(p(X500, "CN=alice,O=Example")));
         Assert.assertFalse(p(X500, "CN=a*").implies(p(X500, "CN=bob,O=Example")));
-        Assert.assertTrue(p(X500, "*,O=Example").implies(p(X500, "CN=alice,O=Example")));
-        Assert.assertFalse(p(X500, "*,O=Example").implies(p(X500, "CN=alice,O=Other")));
     }
+
+    @Test
+    public void aStarAnywhereButTheEndIsRefusedAtConstruction() {
+        // Was: "CN=*,O=Example" and "*,O=Example" were accepted and compared
+        // literally or as a suffix.  Only '*', an exact name and 'prefix*' exist.
+        for (String bad : new String[] {"CN=*,O=Example", "*,O=Example", "*suffix", "a*b*",
+                                        "**", "*a*", "CN=al*ice"}) {
+            try {
+                p(X500, bad);
+                Assert.fail("accepted pattern " + bad);
+            } catch (IllegalArgumentException expected) {
+                // refused
+            }
+        }
+    }
+
+    @Test
+    public void exactGrantIsNotAPrefixGrant() {
+        // kills the mutant exact -> startsWith
+        AssertPrincipalPermission g = p(X500, "CN=alice");
+        Assert.assertTrue(g.implies(p(X500, "CN=alice")));
+        Assert.assertFalse(g.implies(p(X500, "CN=alice,O=Attacker")));
+        Assert.assertFalse(g.implies(p(X500, "CN=alice2")));
+        Assert.assertFalse(g.implies(p(X500, "CN=alic")));
+        Assert.assertFalse(g.implies(p(X500, "CN=ALICE")));
+        Assert.assertFalse(g.implies(p(X500, "CN=alice*")));
+        Assert.assertFalse(g.implies(p(X500, "*")));
+    }
+
+    @Test
+    public void prefixGrantBoundaries() {
+        AssertPrincipalPermission g = p(X500, "CN=staff-*");
+        Assert.assertTrue(g.implies(p(X500, "CN=staff-")));        // prefix itself
+        Assert.assertTrue(g.implies(p(X500, "CN=staff-7,O=Example")));
+        Assert.assertFalse(g.implies(p(X500, "CN=staff")));       // one char short
+        Assert.assertFalse(g.implies(p(X500, "CN=staf-7")));
+        Assert.assertFalse(g.implies(p(X500, "xCN=staff-7")));    // not anchored mid-string
+        Assert.assertFalse(g.implies(p(X500, "*")));              // a wire name '*' is not covered
+        // documented weakness: a prefix on a distinguished name also covers
+        // another organisation appended after the comma
+        Assert.assertTrue(p(X500, "CN=alice*").implies(p(X500, "CN=alice,O=Attacker")));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void emptyClassIsRefused() { p("", "x"); }
 
     @Test
     public void doesNotImplyOtherPermissionTypes() {

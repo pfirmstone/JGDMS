@@ -90,6 +90,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
     /** Default maximum time an accepted token may still have to live. */
     public static final Duration DEFAULT_MAX_LIFETIME = Duration.ofHours(24);
 
+    /** Default maximum number of principals one accepted token may name. */
+    public static final int DEFAULT_MAX_PRINCIPALS = 64;
+
     /** Clock-skew tolerance in seconds. */
     private static final long CLOCK_SKEW_SECONDS = 30L;
 
@@ -107,6 +110,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
     private final String algorithm;        // null → claims-only mode
     private final Map<String, PublicKey> keys;
     private final Duration maxLifetime;
+    private final int maxPrincipals;
 
     /**
      * Constructs a claims-only {@code DefaultJwtVerifier} that checks
@@ -165,6 +169,25 @@ public final class DefaultJwtVerifier implements JwtVerifier {
     public DefaultJwtVerifier(String expectedIssuer, String expectedAudience,
                               String algorithm, Map<String, PublicKey> keysByKid,
                               Duration maxLifetime) {
+        this(expectedIssuer, expectedAudience, algorithm, keysByKid, maxLifetime,
+             DEFAULT_MAX_PRINCIPALS);
+    }
+
+    /**
+     * Constructs a signature-verifying {@code DefaultJwtVerifier}.
+     *
+     * @param maxPrincipals the most principals (one for {@code sub}, one for
+     *                      a verified {@code email}, one per element of
+     *                      {@code groups}) a token may name; a token naming
+     *                      more is refused.  Positive.
+     * @see #DEFAULT_MAX_PRINCIPALS
+     */
+    public DefaultJwtVerifier(String expectedIssuer, String expectedAudience,
+                              String algorithm, Map<String, PublicKey> keysByKid,
+                              Duration maxLifetime, int maxPrincipals) {
+        if (maxPrincipals <= 0)
+            throw new IllegalArgumentException("maxPrincipals must be positive");
+        this.maxPrincipals = maxPrincipals;
         if ("".equals(expectedIssuer) || "".equals(expectedAudience))
             throw new IllegalArgumentException("issuer/audience must not be empty");
         if (maxLifetime == null || maxLifetime.isZero() || maxLifetime.isNegative())
@@ -356,12 +379,27 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                             + "', got " + aud);
 
         String sub = stringClaim(payload, "sub");
+        if (sub != null && sub.isEmpty())
+            throw new JwtVerificationException("JWT 'sub' claim is empty");
         if (algorithm == null) {
             return VerifiedJwt.unauthenticated(sub, iss, aud, exp);
         }
         String email = stringClaim(payload, "email");
+        if (email != null && email.isEmpty())
+            throw new JwtVerificationException("JWT 'email' claim is empty");
+        // Only a JSON true counts; the string "true", 1 and absence do not.
+        boolean emailVerified = Boolean.TRUE.equals(payload.get("email_verified"));
         List<String> groups = stringList(payload, "groups");
-        return new VerifiedJwt(sub, iss, aud, exp, email, groups);
+        for (String g : groups) {
+            if (g.isEmpty())
+                throw new JwtVerificationException("JWT 'groups' claim has an empty element");
+        }
+        long count = (long) groups.size() + (sub != null ? 1 : 0)
+                + (emailVerified && email != null ? 1 : 0);
+        if (count > maxPrincipals)
+            throw new JwtVerificationException(
+                "JWT names " + count + " principals, more than the limit of " + maxPrincipals);
+        return new VerifiedJwt(sub, iss, aud, exp, email, emailVerified, groups);
     }
 
     private static Instant timeClaim(Map<String, Object> payload, String name, boolean required)
@@ -445,7 +483,9 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             throw new IllegalArgumentException("not a single JSON object");
         @SuppressWarnings("unchecked")
         Map<String, Object> m = (Map<String, Object>) v;
-        m.values().removeIf(x -> x == NULL);
+        // A null member is absent, except 'crit': a null crit must still trip the
+        // crit refusal, not be read as no crit header.
+        m.entrySet().removeIf(e -> e.getValue() == NULL && !"crit".equals(e.getKey()));
         return m;
     }
 
@@ -515,20 +555,57 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         return value;
     }
 
+    /** RFC 8259 number: -? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)? */
     private static Object readNumber(String json, int[] pos) {
         int start = pos[0];
-        while (pos[0] < json.length()) {
-            char d = json.charAt(pos[0]);
-            if ((d >= '0' && d <= '9') || d == '-' || d == '+' || d == '.' || d == 'e' || d == 'E')
-                pos[0]++;
-            else break;
+        int i = start;
+        int n = json.length();
+        if (i < n && json.charAt(i) == '-') i++;
+        if (i >= n) throw new IllegalArgumentException("bad number");
+        if (json.charAt(i) == '0') {
+            i++;
+        } else if (json.charAt(i) >= '1' && json.charAt(i) <= '9') {
+            while (i < n && isDigit(json.charAt(i))) i++;
+        } else {
+            throw new IllegalArgumentException("unexpected character");
         }
-        if (pos[0] == start) throw new IllegalArgumentException("unexpected character");
+        if (i < n && json.charAt(i) == '.') {
+            i++;
+            int d = i;
+            while (i < n && isDigit(json.charAt(i))) i++;
+            if (i == d) throw new IllegalArgumentException("bad number");
+        }
+        if (i < n && (json.charAt(i) == 'e' || json.charAt(i) == 'E')) {
+            i++;
+            if (i < n && (json.charAt(i) == '+' || json.charAt(i) == '-')) i++;
+            int d = i;
+            while (i < n && isDigit(json.charAt(i))) i++;
+            if (i == d) throw new IllegalArgumentException("bad number");
+        }
+        pos[0] = i;
         try {
-            return new BigDecimal(json.substring(start, pos[0]));
+            return new BigDecimal(json.substring(start, i));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("bad number");
         }
+    }
+
+    private static boolean isDigit(char c) { return c >= '0' && c <= '9'; }
+
+    /** Exactly four ASCII hex digits at {@code at}; no sign, no other character. */
+    private static char readHex4(String json, int at) {
+        if (at + 4 > json.length()) throw new IllegalArgumentException("bad \\u escape");
+        int v = 0;
+        for (int k = at; k < at + 4; k++) {
+            char h = json.charAt(k);
+            int d;
+            if (h >= '0' && h <= '9') d = h - '0';
+            else if (h >= 'a' && h <= 'f') d = h - 'a' + 10;
+            else if (h >= 'A' && h <= 'F') d = h - 'A' + 10;
+            else throw new IllegalArgumentException("bad \\u escape");
+            v = v * 16 + d;
+        }
+        return (char) v;
     }
 
     private static String readString(String json, int[] pos) {
@@ -538,6 +615,13 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             char c = json.charAt(pos[0]++);
             if (c == '"') return sb.toString();
             if (c < 0x20) throw new IllegalArgumentException("control character in string");
+            if (Character.isLowSurrogate(c)) throw new IllegalArgumentException("lone surrogate");
+            if (Character.isHighSurrogate(c)) {
+                if (pos[0] >= json.length() || !Character.isLowSurrogate(json.charAt(pos[0])))
+                    throw new IllegalArgumentException("lone surrogate");
+                sb.append(c).append(json.charAt(pos[0]++));
+                continue;
+            }
             if (c == '\\') {
                 if (pos[0] >= json.length()) break;
                 char esc = json.charAt(pos[0]++);
@@ -550,16 +634,25 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     case 'n':  sb.append('\n'); break;
                     case 'r':  sb.append('\r'); break;
                     case 't':  sb.append('\t'); break;
-                    case 'u':
-                        if (pos[0] + 4 > json.length())
-                            throw new IllegalArgumentException("bad \\u escape");
-                        try {
-                            sb.append((char) Integer.parseInt(json, pos[0], pos[0] + 4, 16));
-                        } catch (NumberFormatException e) {
-                            throw new IllegalArgumentException("bad \\u escape");
-                        }
+                    case 'u': {
+                        char u = readHex4(json, pos[0]);
                         pos[0] += 4;
+                        if (Character.isLowSurrogate(u))
+                            throw new IllegalArgumentException("lone surrogate");
+                        if (Character.isHighSurrogate(u)) {
+                            // must be followed by an escaped low surrogate
+                            if (!json.startsWith("\\u", pos[0]))
+                                throw new IllegalArgumentException("lone surrogate");
+                            char lo = readHex4(json, pos[0] + 2);
+                            if (!Character.isLowSurrogate(lo))
+                                throw new IllegalArgumentException("lone surrogate");
+                            pos[0] += 6;
+                            sb.append(u).append(lo);
+                        } else {
+                            sb.append(u);
+                        }
                         break;
+                    }
                     default: throw new IllegalArgumentException("bad escape");
                 }
             } else {

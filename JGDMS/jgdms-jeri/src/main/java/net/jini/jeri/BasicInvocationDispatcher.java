@@ -279,9 +279,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
         CachedJwt(Instant until, VerifiedJwt jwt) { this.until = until; this.jwt = jwt; }
     }
 
-    /** Wire class name of the workload identity; never accepted in a user Subject. */
-    private static final String SPIFFE_PRINCIPAL_CLASS =
-        "au.net.zeus.jgdms.spiffe.SpiffePrincipal";
+    /**
+     * Wire class names of workload identities; never accepted in a user
+     * Subject.  Both the JGDMS class (the one the TLS layer attaches to the
+     * authenticated peer) and the DirtyChai class (the ambient process
+     * identity) are listed: DirtyChai merges the principals of all Subjects of
+     * a call into one flat set at policy-match time, so a user Subject
+     * carrying either would satisfy a workload grant.
+     */
+    private static final Set<String> SPIFFE_PRINCIPAL_CLASSES = Set.of(
+        "au.net.zeus.jgdms.spiffe.SpiffePrincipal",
+        "au.zeus.jdk.authorization.spire.SpiffePrincipal");
 
     /** Wire class name of a principal that may only come from a verified token. */
     private static final String JWT_PRINCIPAL_CLASS = JwtPrincipal.class.getName();
@@ -2316,12 +2324,36 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *     {@link JwtPrincipal}s are exactly the principals derived from the
      *     verified tokens.  A wire {@code JwtPrincipal} that is not among them
      *     (including any when there is no token) refuses the call.</li>
-     * <li>A wire {@code SpiffePrincipal} refuses the call, whatever the
-     *     policy says: a user Subject must never satisfy a workload grant.</li>
+     * <li>All tokens inside one Subject must agree on {@code sub} and
+     *     {@code iss}, and the whole call carries at most one verified user
+     *     identity: a second token-bearing Subject must have the same
+     *     {@code sub} and {@code iss}.  Otherwise the call is refused.  Why:
+     *     a Subject whose tokens name different users would yield the union
+     *     of their principals (alice's token plus bob's administrator token
+     *     would satisfy a grant needing both), and DirtyChai merges the
+     *     principals of every Subject of a call into one flat set when it
+     *     matches policy grants, so splitting the tokens over two Subjects
+     *     gives the same union.  When a Subject carries more than one token,
+     *     each must have a {@code sub}.</li>
+     * <li>A wire {@code SpiffePrincipal} (either class, see
+     *     {@link #SPIFFE_PRINCIPAL_CLASSES}) refuses the call, whatever the
+     *     policy says: a user Subject must never satisfy a workload
+     *     grant.</li>
      * <li>Any other wire principal is accepted only if the authenticated
      *     peer ({@code peer}, the connection's client Subject) holds
      *     {@link AssertPrincipalPermission} for that class and name; with no
-     *     grant, no peer, or a peer with no principals the call is refused.</li>
+     *     grant, no peer, or a peer with no principals the call is refused.
+     *     The permission cannot tell a user from a workload identity of the
+     *     same class: a grant of {@code "*","*"} or
+     *     {@code "...X500Principal","*"} lets the peer assert any X500
+     *     identity, including other workloads'.  An unscoped
+     *     {@code AllPermission} grant, or a policy entry
+     *     {@code principal * "..."}, hands the permission to every peer.
+     *     A class name that is not on the allowlist becomes a
+     *     {@link RemotePrincipal}, which still needs the peer's permission
+     *     and equals no grant except one naming {@code RemotePrincipal}; it
+     *     is kept (not refused) because it is the documented behaviour for
+     *     principal classes this node does not know.</li>
      * </ul>
      * A verification failure or a refusal throws {@link IOException},
      * aborting the request.
@@ -2353,6 +2385,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		+ " exceeds limit of " + MAX_USER_SUBJECTS);
 	}
 	List<Subject> subjects = new ArrayList<>(subjectCount);
+	VerifiedJwt callIdentity = null; // the one verified user identity of this call
 	for (int si = 0; si < subjectCount; si++) {
 	    int principalCount = readUnsignedShort(in);
 	    if (principalCount > MAX_USER_PRINCIPALS) {
@@ -2377,9 +2410,25 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    + " in Subject " + si + " exceeds limit of " + MAX_JWT_PER_SUBJECT);
 	    }
 	    Set<Principal> derived = new LinkedHashSet<>();
+	    VerifiedJwt first = null;
 	    for (int ji = 0; ji < jwtCount; ji++) {
 		String rawJwt = readJwtBytes(in);
-		derived.addAll(verifyJwtWithCache(rawJwt, si, ji).getPrincipals());
+		VerifiedJwt vj = verifyJwtWithCache(rawJwt, si, ji);
+		if (first == null) {
+		    first = vj;
+		} else if (!sameIdentity(first, vj)) {
+		    throw new IOException("Subject[" + si + "] JWT[" + ji
+			+ "] names a different user (sub/iss) than the other tokens of the Subject; refusing");
+		}
+		derived.addAll(vj.getPrincipals());
+	    }
+	    if (first != null) {
+		if (callIdentity == null) {
+		    callIdentity = first;
+		} else if (!sameIdentity(callIdentity, first)) {
+		    throw new IOException("Subject[" + si
+			+ "] carries a token for a different user (sub/iss) than an earlier Subject of the call; refusing");
+		}
 	    }
 	    Set<Principal> principals = bindPrincipals(wire, wireClasses, derived, peer, si);
 	    // A reconstructed remote client identity is a USER identity, so on a
@@ -2391,6 +2440,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     Collections.emptySet(), Collections.emptySet()));
 	}
 	return subjects;
+    }
+
+    /**
+     * Whether two verified tokens name the same user: equal {@code sub} and
+     * equal {@code iss}.  A token without a {@code sub} is the same as
+     * nobody, so it never matches another token.
+     */
+    private static boolean sameIdentity(VerifiedJwt a, VerifiedJwt b) {
+	return a.getSubject() != null
+	    && a.getSubject().equals(b.getSubject())
+	    && java.util.Objects.equals(a.getIssuer(), b.getIssuer());
     }
 
     /**
@@ -2541,7 +2601,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	for (int i = 0; i < wire.size(); i++) {
 	    Principal p = wire.get(i);
 	    String cn = wireClasses.get(i);
-	    if (SPIFFE_PRINCIPAL_CLASS.equals(cn)) {
+	    if (SPIFFE_PRINCIPAL_CLASSES.contains(cn)) {
 		throw new IOException("Subject[" + subjectIdx
 		    + "] carries a SpiffePrincipal; a workload identity cannot be asserted in a user Subject");
 	    }

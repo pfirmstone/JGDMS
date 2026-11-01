@@ -359,11 +359,177 @@ public class JwtPrincipalBindingTest {
         Set<Principal> got = new LinkedHashSet<>(principalsOf(read(
                 wire(subject(set(), token("ivy"), token("ivy", "ops"))), null)));
         Assert.assertEquals(set(new JwtPrincipal("sub:ivy"), new JwtPrincipal("group:ops")), got);
-        // tokens of other Subjects do not leak across Subjects
-        List<Subject> two = read(wire(subject(set(), token("ivy")), subject(set(), token("jon"))), null);
+        // tokens of other Subjects do not leak across Subjects (same user in both: allowed)
+        List<Subject> two = read(wire(subject(set(), token("ivy")), subject(set(), token("ivy", "ops"))), null);
         Assert.assertEquals(set(new JwtPrincipal("sub:ivy")), two.get(0).getPrincipals());
-        Assert.assertEquals(set(new JwtPrincipal("sub:jon")), two.get(1).getPrincipals());
-        refused(wire(subject(set(), token("ivy")), subject(set(new JwtPrincipal("sub:ivy")), token("jon"))), null,
-                "second Subject borrowing the first Subject's identity");
+        Assert.assertEquals(set(new JwtPrincipal("sub:ivy"), new JwtPrincipal("group:ops")),
+                two.get(1).getPrincipals());
+        // changed from sub:ivy/jon: two different users in one call are now refused as such
+        // (see the one-identity tests below); this case keeps the borrowing check on its own.
+        refused(wire(subject(set(), token("ivy", "ops")), subject(set(new JwtPrincipal("group:ops")), token("ivy"))),
+                null, "second Subject borrowing a group only the first Subject's token carries");
+    }
+
+    // ---- one verified user identity per Subject and per call ----------------
+
+    /** A verifier that maps fixed raw strings to fixed results, to control sub and iss exactly. */
+    private static JwtVerifier fake(Map<String, VerifiedJwt> table) {
+        return raw -> {
+            VerifiedJwt r = table.get(raw);
+            if (r == null) throw new JwtVerificationException("unknown token");
+            return r;
+        };
+    }
+
+    private static VerifiedJwt vj(String sub, String iss, String... groups) {
+        return new VerifiedJwt(sub, iss, null, null, null, List.of(groups));
+    }
+
+    @Test
+    public void tokensOfOneSubjectMustAgreeOnTheSub() throws Throwable {
+        BasicInvocationDispatcher.setJwtVerifier(real);
+        // the pooling attack: alice's token and bob's administrator token in one Subject
+        refused(wire(subject(set(), token("alice"), token("bob", "administrators"))), null,
+                "alice token + bob admin token in one Subject");
+        // control: two tokens of one user are fine
+        Assert.assertEquals(set(new JwtPrincipal("sub:alice"), new JwtPrincipal("group:administrators")),
+                principalsOf(read(
+                    wire(subject(set(), token("alice"), token("alice", "administrators"))), null)));
+    }
+
+    @Test
+    public void tokensOfOneSubjectMustAgreeOnTheIssuer() throws Throwable {
+        BasicInvocationDispatcher.setJwtVerifier(fake(Map.of(
+                "t1", vj("alice", "https://a"), "t2", vj("alice", "https://b"),
+                "t3", vj("alice", "https://a", "ops"))));
+        refused(wire(subject(set(), "t1", "t2")), null, "same sub, different issuer");
+        Assert.assertEquals(set(new JwtPrincipal("sub:alice"), new JwtPrincipal("group:ops")),
+                principalsOf(read(wire(subject(set(), "t1", "t3")), null)));
+    }
+
+    @Test
+    public void severalTokensNeedASubEach() throws Throwable {
+        BasicInvocationDispatcher.setJwtVerifier(fake(Map.of(
+                "n1", vj(null, "https://a", "ops"), "n2", vj(null, "https://a", "dev"),
+                "s1", vj("alice", "https://a"))));
+        // a single token without sub is allowed (it names no user)
+        Assert.assertEquals(set(new JwtPrincipal("group:ops")), principalsOf(read(wire(subject(set(), "n1")), null)));
+        // two such tokens could belong to different users and are not pooled
+        refused(wire(subject(set(), "n1", "n2")), null, "two tokens without sub");
+        refused(wire(subject(set(), "s1", "n1")), null, "one token with sub, one without");
+    }
+
+    @Test
+    public void aCallCarriesAtMostOneVerifiedUserIdentity() throws Throwable {
+        BasicInvocationDispatcher.setJwtVerifier(real);
+        // the DirtyChai merge makes two Subjects one principal set, so they are refused here
+        refused(wire(subject(set(), token("alice")), subject(set(), token("bob", "administrators"))), null,
+                "two Subjects, two users");
+        refused(wire(subject(set(), token("bob", "administrators")), subject(set(), token("alice"))), null,
+                "two Subjects, two users, other order");
+        // control: the same user twice is accepted
+        Assert.assertEquals(2, read(wire(subject(set(), token("alice")),
+                subject(set(), token("alice", "ops"))), null).size());
+        // a Subject with no token does not count as an identity
+        Assert.assertEquals(2, read(wire(subject(set(), token("alice")), subject(set())), null).size());
+        BasicInvocationDispatcher.setJwtVerifier(fake(Map.of(
+                "a1", vj("alice", "https://a"), "a2", vj("alice", "https://b"))));
+        refused(wire(subject(set(), "a1"), subject(set(), "a2")), null, "same sub, different issuer, two Subjects");
+    }
+
+    // ---- workload identities and unknown classes ------------------------------
+
+    @Test
+    public void dirtyChaiSpiffePrincipalClassIsRefusedToo() throws Throwable {
+        String dc = "au.zeus.jdk.authorization.spire.SpiffePrincipal";
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow("*", "*"), allow(dc, "*"))) {
+            IOException e = refused(rawPrincipalWire(dc, "spiffe://example.org/ns/prod/sa/payments"),
+                    PeerPolicyFixture.peer(), "DirtyChai SpiffePrincipal with wildcard grants");
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("SpiffePrincipal"));
+        }
+    }
+
+    @Test
+    public void unknownClassStaysARemotePrincipalThatNeedsThePermission() throws Throwable {
+        String custom = "com.example.CustomPrincipal";
+        byte[] w = rawPrincipalWire(custom, "carol");
+        try (PeerPolicyFixture f = new PeerPolicyFixture()) {
+            refused(w, PeerPolicyFixture.peer(), "unknown class, no grant");
+        }
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow(custom, "carol"))) {
+            Set<Principal> got = principalsOf(read(w, PeerPolicyFixture.peer()));
+            Assert.assertEquals(1, got.size());
+            Assert.assertEquals("RemotePrincipal", got.iterator().next().getClass().getSimpleName());
+            refused(rawPrincipalWire(custom, "dave"), PeerPolicyFixture.peer(), "unknown class, other name");
+        }
+    }
+
+    // ---- the permission's name matching, end to end -------------------------
+
+    @Test
+    public void anExactGrantDoesNotAdmitALongerOrDifferentDistinguishedName() throws Throwable {
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow(X500, "CN=alice"))) {
+            Subject peer = PeerPolicyFixture.peer();
+            Assert.assertEquals(set(ALICE_X500), principalsOf(read(wire(subject(set(ALICE_X500))), peer)));
+            refused(wire(subject(set(new X500Principal("CN=alice,O=Attacker")))), peer, "CN=alice,O=Attacker");
+            refused(wire(subject(set(new X500Principal("CN=alice2")))), peer, "CN=alice2");
+            refused(wire(subject(set(new X500Principal("CN=alic")))), peer, "CN=alic");
+        }
+    }
+
+    @Test
+    public void aPrefixGrantHasItsBoundaryAndAnEmptyNameIsNeverAdmitted() throws Throwable {
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow(X500, "CN=staff-*"))) {
+            Subject peer = PeerPolicyFixture.peer();
+            X500Principal in = new X500Principal("CN=staff-");
+            Assert.assertEquals(set(in), principalsOf(read(wire(subject(set(in))), peer)));
+            refused(wire(subject(set(new X500Principal("CN=staff")))), peer, "one char short of the prefix");
+        }
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow("*", "*"))) {
+            Subject peer = PeerPolicyFixture.peer();
+            refused(rawPrincipalWire(X500, ""), peer, "empty X500 name under a wildcard grant");
+            refused(rawPrincipalWire("com.example.CustomPrincipal", ""), peer, "empty custom name under a wildcard grant");
+        }
+    }
+
+    // ---- fail-closed when the policy itself fails ---------------------------
+
+    private static void withThrowingPolicy(Throwable t, Runnable body) {
+        java.security.Policy previous = java.security.Policy.getPolicy();
+        java.security.Policy.setPolicy(new java.security.Policy() {
+            @Override
+            public boolean implies(java.security.ProtectionDomain pd, java.security.Permission p) {
+                if (p instanceof AssertPrincipalPermission) {
+                    if (t instanceof Error) throw (Error) t;
+                    throw (RuntimeException) t;
+                }
+                return true; // the test infrastructure itself
+            }
+        });
+        try {
+            body.run();
+        } finally {
+            java.security.Policy.setPolicy(previous);
+        }
+    }
+
+    @Test
+    public void aPolicyThatFailsNeverAdmitsAPrincipal() throws Throwable {
+        byte[] w = wire(subject(set(ALICE_X500)));
+        for (Throwable t : new Throwable[] { new IllegalStateException("policy broke"),
+                                             new StackOverflowError("policy broke") }) {
+            withThrowingPolicy(t, () -> {
+                try {
+                    List<Subject> got = read(w, PeerPolicyFixture.peer());
+                    Assert.fail(t + ": principal admitted: " + got.get(0).getPrincipals());
+                } catch (IOException refusal) {
+                    // fail-closed: refused
+                } catch (Error propagated) {
+                    Assert.assertSame("the Error aborts the request, nothing is admitted", t, propagated);
+                } catch (Throwable other) {
+                    throw new AssertionError(other);
+                }
+            });
+        }
     }
 }

@@ -42,15 +42,30 @@ import java.util.List;
  * <h2>Names</h2>
  * The <em>target name</em> is the fully qualified class name of the principal,
  * or {@code *} for any class.  The <em>actions</em> string is the principal
- * name pattern: {@code *} (any name), an exact name, {@code prefix*} or
- * {@code *suffix}.  The name tested is {@code Principal.getName()}; for an
- * {@code X500Principal} that is the RFC 2253 form, which a policy author must
- * use.
+ * name pattern.  Exactly three forms are supported:
+ * <ul>
+ *   <li>{@code *} &mdash; any name;</li>
+ *   <li>an exact name, with no {@code *} in it;</li>
+ *   <li>a prefix pattern: a name followed by one trailing {@code *}
+ *       ({@code CN=staff-*}).</li>
+ * </ul>
+ * A pattern that has a {@code *} anywhere else (in the middle or at the
+ * start, such as {@code CN=*,O=Example} or {@code *,O=Example}) is not
+ * supported and the constructor throws {@code IllegalArgumentException}; it
+ * is never compared literally.  The name tested is
+ * {@code Principal.getName()}; for an {@code X500Principal} that is the
+ * RFC 2253 form, which a policy author must use.
+ *
+ * <p><b>Prefix patterns on distinguished names are weak.</b>  The prefix is a
+ * plain string prefix, so {@code "CN=alice*"} also matches
+ * {@code "CN=alice,O=Attacker"} and {@code "CN=alice2"}.  For X500 and
+ * Kerberos principals use exact names; use a prefix pattern only for a name
+ * space whose names you control end to end.
  *
  * <pre>
  * grant principal javax.security.auth.x500.X500Principal "CN=gateway,O=Example" {
  *     permission net.jini.security.AssertPrincipalPermission
- *         "javax.security.auth.x500.X500Principal", "CN=*,OU=staff,O=Example";
+ *         "javax.security.auth.x500.X500Principal", "CN=alice,OU=staff,O=Example";
  * };
  * </pre>
  *
@@ -59,8 +74,20 @@ import java.util.List;
  * callers as any matching user, so every principal-scoped grant for those
  * users becomes available to that peer.  Grant it only to a gateway the
  * deployer trusts to have authenticated the users, and keep both fields as
- * narrow as possible; {@code "*", "*"} gives the peer every identity except
- * the two that can never be asserted this way (see below).
+ * narrow as possible.
+ *
+ * <p>This permission does not distinguish a user identity from a workload
+ * identity of the same class.  A grant of {@code "*", "*"} or of
+ * {@code "javax.security.auth.x500.X500Principal", "*"} lets that peer assert
+ * <em>any</em> X500 identity, including the X500 identities of other
+ * workloads, so every {@code principal X500Principal "..."} workload grant
+ * becomes reachable from a user Subject.  Name the exact user identities.
+ *
+ * <p>The permission is only as narrow as the policy that grants it.  An
+ * unscoped {@code AllPermission} grant, or a policy entry written
+ * {@code principal * "..."} (a wildcard principal class matches every
+ * peer in some policy implementations), hands this permission to every
+ * authenticated peer.
  *
  * <p>No grant of this permission, however wide, lets a peer assert a
  * {@code SpiffePrincipal} (a workload identity) or a {@code JwtPrincipal}
@@ -81,19 +108,29 @@ public final class AssertPrincipalPermission extends Permission {
      * Creates an instance.
      *
      * @param principalClass the principal class name, or {@code *}
-     * @param namePattern    {@code *}, an exact name, {@code prefix*} or
-     *                       {@code *suffix}
+     * @param namePattern    {@code *}, an exact name, or a name followed by
+     *                       one trailing {@code *}
      * @throws NullPointerException     if an argument is {@code null}
-     * @throws IllegalArgumentException if an argument is empty
+     * @throws IllegalArgumentException if an argument is empty, or the
+     *         pattern has a {@code *} anywhere but as its last character
      */
     public AssertPrincipalPermission(String principalClass, String namePattern) {
         super(check(principalClass, "principalClass"));
+        this.namePattern = checkPattern(namePattern);
+        this.principalClass = "*".equals(principalClass) ? null : principalClass;
+    }
+
+    private static String checkPattern(String namePattern) {
         if (namePattern == null) throw new NullPointerException("namePattern");
         if (namePattern.isEmpty())
             throw new IllegalArgumentException("namePattern cannot be empty");
-        this.principalClass = "*".equals(principalClass) ? null : principalClass;
-        this.namePattern = namePattern;
+        int star = namePattern.indexOf('*');
+        if (star >= 0 && star != namePattern.length() - 1)
+            throw new IllegalArgumentException(
+                "namePattern may contain '*' only as its last character: " + namePattern);
+        return namePattern;
     }
+
 
     private static String check(String s, String what) {
         if (s == null) throw new NullPointerException(what);
@@ -117,12 +154,7 @@ public final class AssertPrincipalPermission extends Permission {
     private static boolean patternImplies(String mine, String other) {
         if ("*".equals(mine)) return true;
         if (mine.endsWith("*")) {
-            String prefix = mine.substring(0, mine.length() - 1);
-            return !other.startsWith("*") && other.startsWith(prefix);
-        }
-        if (mine.startsWith("*")) {
-            String suffix = mine.substring(1);
-            return !other.endsWith("*") && other.endsWith(suffix);
+            return other.startsWith(mine.substring(0, mine.length() - 1));
         }
         return mine.equals(other);
     }

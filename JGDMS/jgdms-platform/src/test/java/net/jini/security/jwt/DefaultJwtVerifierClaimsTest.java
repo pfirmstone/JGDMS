@@ -214,7 +214,7 @@ public class DefaultJwtVerifierClaimsTest {
     @Test
     public void derivedPrincipalsAreExactlyTheSignedSubjectEmailAndGroups() throws Exception {
         String p = payload("\"svc-a\"", String.valueOf(now() + 600),
-                "\"email\":\"alice@example.org\",\"groups\":[\"admins\",\"users\"]");
+                "\"email\":\"alice@example.org\",\"email_verified\":true,\"groups\":[\"admins\",\"users\"]");
         VerifiedJwt j = v.verify(token(p));
         Assert.assertEquals(Set.<Principal>of(
                 new JwtPrincipal("sub:alice"),
@@ -233,6 +233,109 @@ public class DefaultJwtVerifierClaimsTest {
                 "\"groups\":[\"admins\"]")));
         Assert.assertEquals("alice", j.getSubject());
         Assert.assertTrue("a token nobody authenticated gives no identity", j.getPrincipals().isEmpty());
+    }
+
+    // ---- email needs email_verified == JSON true ---------------------------
+
+    private static Set<Principal> principalsWith(String extra) throws Exception {
+        return v.verify(token(payload("\"svc-a\"", String.valueOf(now() + 600), extra))).getPrincipals();
+    }
+
+    @Test
+    public void emailPrincipalOnlyWhenEmailVerifiedIsJsonTrue() throws Exception {
+        String e = "\"email\":\"ceo@corp.example\"";
+        JwtPrincipal email = new JwtPrincipal("email:ceo@corp.example");
+        Assert.assertTrue(principalsWith(e + ",\"email_verified\":true").contains(email));
+        Assert.assertFalse(principalsWith(e + ",\"email_verified\":false").contains(email));
+        Assert.assertFalse(principalsWith(e).contains(email));
+        Assert.assertFalse(principalsWith(e + ",\"email_verified\":\"true\"").contains(email));
+        Assert.assertFalse(principalsWith(e + ",\"email_verified\":1").contains(email));
+        Assert.assertFalse(principalsWith(e + ",\"email_verified\":null").contains(email));
+        // the token is still accepted, with the sub principal and the unverified email on the claims
+        VerifiedJwt j = v.verify(token(payload("\"svc-a\"", String.valueOf(now() + 600),
+                e + ",\"email_verified\":false")));
+        Assert.assertEquals("ceo@corp.example", j.getEmail());
+        Assert.assertEquals(Set.<Principal>of(new JwtPrincipal("sub:alice")), j.getPrincipals());
+    }
+
+    // ---- empty names, principal cap ---------------------------------------
+
+    @Test
+    public void emptySubAndEmptyGroupAreRefused() throws Exception {
+        long exp = now() + 600;
+        rejected(v, token("{\"sub\":\"\",\"iss\":\"" + ISS + "\",\"aud\":\"svc-a\",\"exp\":" + exp + "}"), "empty sub");
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(exp), "\"groups\":[\"ok\",\"\"]")), "empty group");
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(exp),
+                "\"email\":\"\",\"email_verified\":true")), "empty email");
+        // controls: the same tokens with non-empty values are accepted
+        Assert.assertEquals(2, principalsWith("\"groups\":[\"ok\"]").size());
+    }
+
+    private static String groups(int n) {
+        StringBuilder g = new StringBuilder("\"groups\":[");
+        for (int i = 0; i < n; i++) g.append(i == 0 ? "" : ",").append("\"g").append(i).append('"');
+        return g.append(']').toString();
+    }
+
+    @Test
+    public void defaultCapOf64PrincipalsIsEnforced() throws Exception {
+        // sub + 63 groups = 64: accepted; sub + 64 groups = 65: refused
+        Assert.assertEquals(64, principalsWith(groups(63)).size());
+        long exp = now() + 600;
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(exp), groups(64))), "65 principals");
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(exp), groups(4000))), "4001 principals");
+    }
+
+    // ---- strict JSON (RFC 8259) -------------------------------------------
+
+    private static String withExp(String expLiteral) {
+        return "{\"sub\":\"alice\",\"iss\":\"" + ISS + "\",\"aud\":\"svc-a\",\"exp\":" + expLiteral + "}";
+    }
+
+    @Test
+    public void numbersFollowTheJsonGrammar() throws Exception {
+        long e = now() + 600;
+        v.verify(token(withExp(String.valueOf(e))));
+        v.verify(token(withExp(e + ".0")));
+        v.verify(token(withExp(e + "e0")));
+        v.verify(token(withExp(e + "E+0")));
+        rejected(v, token(withExp("+" + e)), "+exp");
+        rejected(v, token(withExp("0" + e)), "leading zero");
+        rejected(v, token(withExp("00")), "00");
+        rejected(v, token(withExp(e + ".")), "trailing dot");
+        rejected(v, token(withExp("." + e)), "leading dot");
+        rejected(v, token(withExp(e + "e")), "empty exponent");
+        rejected(v, token(withExp(e + "e+")), "sign-only exponent");
+        rejected(v, token(withExp("--" + e)), "double minus");
+        rejected(v, token(withExp("0x10")), "hex");
+    }
+
+    private static String withSub(String rawSubLiteral) {
+        return "{\"sub\":" + rawSubLiteral + ",\"iss\":\"" + ISS + "\",\"aud\":\"svc-a\",\"exp\":"
+                + (now() + 600) + "}";
+    }
+
+    @Test
+    public void unicodeEscapesAreFourHexDigitsAndSurrogatesPair() throws Exception {
+        Assert.assertEquals("A", v.verify(token(withSub("\"\\u0041\""))).getSubject());
+        Assert.assertEquals("\ud83d\ude00", v.verify(token(withSub("\"\\ud83d\\ude00\""))).getSubject());
+        rejected(v, token(withSub("\"\\u+041\"")), "plus sign in \\u escape");
+        rejected(v, token(withSub("\"\\u-041\"")), "minus sign in \\u escape");
+        rejected(v, token(withSub("\"\\u00g1\"")), "non-hex in \\u escape");
+        rejected(v, token(withSub("\"\\u00\"")), "short \\u escape");
+        rejected(v, token(withSub("\"\\ud800\"")), "lone high surrogate");
+        rejected(v, token(withSub("\"\\udc00\"")), "lone low surrogate");
+        rejected(v, token(withSub("\"\\ud800x\"")), "high surrogate then ordinary char");
+        rejected(v, token(withSub("\"\\ud800\\u0041\"")), "high surrogate then non-low escape");
+        rejected(v, token(withSub("\"\\ude00\\ud83d\"")), "reversed pair");
+    }
+
+    @Test
+    public void nullCritHeaderIsRefusedLikeAnyCrit() throws Exception {
+        String p = payload("\"svc-a\"", String.valueOf(now() + 600), "");
+        rejected(v, token("{\"alg\":\"RS256\",\"kid\":\"k1\",\"crit\":null}", p), "crit:null");
+        rejected(v, token("{\"alg\":\"RS256\",\"kid\":\"k1\",\"crit\":[\"exp\"]}", p), "crit array");
+        v.verify(token("{\"alg\":\"RS256\",\"kid\":\"k1\"}", p));
     }
 
     @Test(expected = UnsupportedOperationException.class)
