@@ -345,12 +345,14 @@ public class JwtPrincipalBindingTest {
     }
 
     @Test
-    public void aClaimsOnlyVerifierGivesNoJwtPrincipalAtAll() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(new DefaultJwtVerifier(ISS, AUD));
+    public void aVerifierThatConfersNoPrincipalsGivesNoJwtPrincipalAtAll() throws Throwable {
+        // a custom verifier that cannot authenticate returns VerifiedJwt.unauthenticated(...)
+        BasicInvocationDispatcher.setJwtVerifier(raw -> net.jini.security.jwt.VerifiedJwt.unauthenticated(
+                "hank", ISS, java.util.List.of(AUD), java.time.Instant.now().plusSeconds(600)));
         String t = token("hank");
         // the token is accepted as a token, but it confers no identity
         Assert.assertTrue(principalsOf(read(wire(subject(set(), t)), null)).isEmpty());
-        refused(wire(subject(set(new JwtPrincipal("sub:hank")), t)), null, "claims-only verifier");
+        refused(wire(subject(set(new JwtPrincipal("sub:hank")), t)), null, "verifier without principals");
     }
 
     @Test

@@ -258,15 +258,9 @@ public class DefaultJwtVerifierNegativeTest {
     }
 
     @Test
-    public void claimsOnlyModeStillRequiresExp() throws Exception {
-        DefaultJwtVerifier v = new DefaultJwtVerifier(ISS, AUD);
-        String si = b64("{\"alg\":\"none\"}") + "." + b64(claims(ISS, AUD, "")) + ".x";
-        rejected(v, si, "claims-only without exp");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void emptyAudienceConfigurationIsRefused() {
-        new DefaultJwtVerifier(ISS, "");
+    public void signedTokenWithoutExpIsRefused() throws Exception {
+        String t = sign("{\"alg\":\"RS256\",\"kid\":\"k1\"}", claims(ISS, AUD, ""), rsa, "SHA256withRSA");
+        rejected(rs256, t, "signed token without exp");
     }
 
     @Test(expected = IllegalArgumentException.class)

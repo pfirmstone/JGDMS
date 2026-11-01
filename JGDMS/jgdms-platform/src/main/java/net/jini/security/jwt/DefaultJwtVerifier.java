@@ -50,13 +50,6 @@ import java.util.Map;
  * another service must not be accepted here.  The principals of the result
  * are derived from the signed claims ({@link VerifiedJwt}).
  *
- * <h2>Claims-only mode</h2>
- * The constructors without keys check claims only.  A claims-only verifier
- * authenticates nothing: anyone can write a token it accepts.  Its results are
- * created with {@link VerifiedJwt#unauthenticated}, so they carry <b>no
- * principals</b>, and a dispatcher bound to such a verifier accepts no
- * {@code JwtPrincipal} at all.
- *
  * <h2>Checks performed</h2>
  * <ul>
  *   <li>The header and payload must each be one well-formed JSON object with
@@ -105,35 +98,12 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      */
     static final int MAX_TOKEN_LENGTH = 65_536;
 
-    private final String expectedIssuer;   // null → skip iss check (claims-only mode only)
-    private final String expectedAudience; // null → skip aud check (claims-only mode only)
-    private final String algorithm;        // null → claims-only mode
+    private final String expectedIssuer;
+    private final String expectedAudience;
+    private final String algorithm;
     private final Map<String, PublicKey> keys;
     private final Duration maxLifetime;
     private final int maxPrincipals;
-
-    /**
-     * Constructs a claims-only {@code DefaultJwtVerifier} that checks
-     * {@code exp} and the other time claims but neither issuer nor audience.
-     * Authenticates nothing; see the class documentation.
-     */
-    public DefaultJwtVerifier() {
-        this(null, null);
-    }
-
-    /**
-     * Constructs a claims-only {@code DefaultJwtVerifier} with optional issuer
-     * and audience constraints.  Authenticates nothing; see the class
-     * documentation.
-     *
-     * @param expectedIssuer    required value of the {@code iss} claim, or
-     *                          {@code null} to skip the check
-     * @param expectedAudience  required element of the {@code aud} claim, or
-     *                          {@code null} to skip
-     */
-    public DefaultJwtVerifier(String expectedIssuer, String expectedAudience) {
-        this(expectedIssuer, expectedAudience, null, null, DEFAULT_MAX_LIFETIME);
-    }
 
     /**
      * Constructs a signature-verifying {@code DefaultJwtVerifier} with the
@@ -192,29 +162,25 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             throw new IllegalArgumentException("issuer/audience must not be empty");
         if (maxLifetime == null || maxLifetime.isZero() || maxLifetime.isNegative())
             throw new IllegalArgumentException("maxLifetime must be positive");
-        if ((algorithm == null) != (keysByKid == null))
-            throw new IllegalArgumentException("algorithm and keys go together");
-        if (algorithm != null) {
-            if (expectedIssuer == null || expectedAudience == null)
-                throw new IllegalArgumentException(
-                    "signature mode requires an expected issuer and audience");
-            if (!"RS256".equals(algorithm) && !"ES256".equals(algorithm))
-                throw new IllegalArgumentException("unsupported algorithm");
-            if (keysByKid.isEmpty())
-                throw new IllegalArgumentException("no keys");
-            for (PublicKey k : keysByKid.values()) {
-                boolean ok = "RS256".equals(algorithm)
-                    ? (k instanceof RSAPublicKey
-                        && ((RSAPublicKey) k).getModulus().bitLength() >= 2048)
-                    : (k instanceof ECPublicKey
-                        && ((ECPublicKey) k).getParams().getCurve().getField()
-                            .getFieldSize() == 256);
-                if (!ok) throw new IllegalArgumentException("key unsuitable for " + algorithm);
-            }
-            this.keys = Map.copyOf(keysByKid);
-        } else {
-            this.keys = null;
+        if (algorithm == null || keysByKid == null)
+            throw new IllegalArgumentException("algorithm and keys are required");
+        if (expectedIssuer == null || expectedAudience == null)
+            throw new IllegalArgumentException(
+                "an expected issuer and audience are required");
+        if (!"RS256".equals(algorithm) && !"ES256".equals(algorithm))
+            throw new IllegalArgumentException("unsupported algorithm");
+        if (keysByKid.isEmpty())
+            throw new IllegalArgumentException("no keys");
+        for (PublicKey k : keysByKid.values()) {
+            boolean ok = "RS256".equals(algorithm)
+                ? (k instanceof RSAPublicKey
+                    && ((RSAPublicKey) k).getModulus().bitLength() >= 2048)
+                : (k instanceof ECPublicKey
+                    && ((ECPublicKey) k).getParams().getCurve().getField()
+                        .getFieldSize() == 256);
+            if (!ok) throw new IllegalArgumentException("key unsuitable for " + algorithm);
         }
+        this.keys = Map.copyOf(keysByKid);
         this.expectedIssuer   = expectedIssuer;
         this.expectedAudience = expectedAudience;
         this.algorithm        = algorithm;
@@ -224,8 +190,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
     /**
      * {@inheritDoc}
      *
-     * <p>In signature mode the principals of the result are derived from the
-     * signed claims; in claims-only mode the result has none.
+     * <p>The principals of the result are derived from the signed claims.
      *
      * @throws JwtVerificationException if any check fails or the JWT cannot
      *         be parsed
@@ -246,7 +211,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                             + parts.length);
 
         Map<String, Object> header = decodeObject(parts[0], "header");
-        if (algorithm != null) verifySignature(header, parts);
+        verifySignature(header, parts);
         checkType(header);
 
         Map<String, Object> payload = decodeObject(parts[1], "payload");
@@ -381,9 +346,6 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         String sub = stringClaim(payload, "sub");
         if (sub != null && sub.isEmpty())
             throw new JwtVerificationException("JWT 'sub' claim is empty");
-        if (algorithm == null) {
-            return VerifiedJwt.unauthenticated(sub, iss, aud, exp);
-        }
         return identityFromClaims(payload, maxPrincipals);
     }
 

@@ -229,15 +229,6 @@ public class DefaultJwtVerifierClaimsTest {
         Assert.assertNotNull(j.getExpiry());
     }
 
-    @Test
-    public void claimsOnlyVerifierYieldsNoPrincipals() throws Exception {
-        DefaultJwtVerifier claimsOnly = new DefaultJwtVerifier(ISS, AUD);
-        VerifiedJwt j = claimsOnly.verify(token(payload("\"svc-a\"", String.valueOf(now() + 600),
-                "\"groups\":[\"admins\"]")));
-        Assert.assertEquals("alice", j.getSubject());
-        Assert.assertTrue("a token nobody authenticated gives no identity", j.getPrincipals().isEmpty());
-    }
-
     // ---- email needs email_verified == JSON true ---------------------------
 
     private static Set<Principal> principalsWith(String extra) throws Exception {
