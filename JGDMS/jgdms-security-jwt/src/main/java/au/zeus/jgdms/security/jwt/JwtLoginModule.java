@@ -107,9 +107,11 @@ import net.jini.security.jwt.JwtPrincipal;
  *       credentials are rejected);</li>
  *   <li>an HTTP 200 whose body is not one JSON object, or has no
  *       {@code access_token} (the identity provider is malfunctioning);</li>
- *   <li>a refreshed token that fails validation: a bad signature or unknown
- *       key, another {@code iss}, a wrong {@code aud}, expired, missing
- *       {@code exp}, malformed claims, or not a JWT at all;</li>
+ *   <li>a refreshed token that fails validation: a bad signature, a
+ *       {@code kid} that the reachable JWKS does not list (the JWKS is fetched
+ *       again once before this is decided), another {@code iss}, a wrong
+ *       {@code aud}, expired, missing {@code exp}, malformed claims, or not a
+ *       JWT at all;</li>
  *   <li>a refreshed token with another {@code sub}, or either token without a
  *       {@code sub} (see below);</li>
  *   <li>an {@code Error} in the thread (an {@code OutOfMemoryError} excepted).</li>
@@ -117,7 +119,12 @@ import net.jini.security.jwt.JwtPrincipal;
  * <p><b>Transient failures</b> keep the token, log at WARNING level and retry
  * with exponential back-off (starting at 5 s, doubling up to 5 min): a network
  * error or timeout, a response over the size limit, and any other HTTP status
- * (including 5xx, 408 and 429).  The token stays until it expires.
+ * (including 5xx, 408 and 429), and a JWKS endpoint that cannot be read (a
+ * connection error or timeout, an HTTP status other than 200, a response over
+ * the size limit, or a body that is not a JWKS).  The old token is still valid
+ * until it expires, so it stays; {@code lastRefreshFailure} holds the class name
+ * {@code JwksUnavailableException} only.  A first login with the JWKS unreadable
+ * fails with a {@link LoginException}: there is no old token to keep.
  *
  * <p>A refresh replaces the {@link JwtPrincipal}s, the {@link JwtRawToken} and
  * the {@link JwtExpiryClaim} in one step under the Subject's monitor.  A
@@ -246,6 +253,10 @@ public final class JwtLoginModule implements LoginModule {
         JwtValidator validator = new JwtValidator(cache, issuer, audience, additionalClaims);
         try {
             parsedJwt = validator.validate(token);
+        } catch (JwksUnavailableException e) {
+            // No old token to keep at first login: fail, and say it is the keys, not the token.
+            throw new LoginException("JWT validation failed: the JWKS endpoint could not be read ("
+                    + e.getMessage() + ")");
         } catch (JwtValidationException e) {
             throw new LoginException("JWT validation failed: " + e.getMessage());
         }
@@ -671,6 +682,10 @@ public final class JwtLoginModule implements LoginModule {
                 // serving an identity that nobody can refresh until the access token expires.
                 if (!ok) owner.failClosed(this, "invalid_grant: the refresh token was rejected");
                 return ok;
+            } catch (JwksUnavailableException e) {
+                // Class name only: the message is for the log, the record is for callers.
+                owner.lastRefreshFailure = e.getClass().getSimpleName();
+                throw e;
             } catch (Exception e) {
                 owner.lastRefreshFailure = e.getClass().getSimpleName() + ": " + e.getMessage();
                 throw e;
@@ -765,6 +780,11 @@ public final class JwtLoginModule implements LoginModule {
             ParsedJwt newParsed;
             try {
                 newParsed = validator.validate(newAccessToken);
+            } catch (JwksUnavailableException e) {
+                // Transient: the keys could not be read, which says nothing about the token.  The
+                // old token is still valid until it expires; keep it and let the loop back off.
+                // The new refresh_token (rotation) is already held, so the retry uses it.
+                throw e;
             } catch (JwtValidationException e) {
                 // A new token that fails validation is permanent: keeping the old one would serve
                 // an identity the provider no longer vouches for.  The message names a claim, never a value.

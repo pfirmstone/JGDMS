@@ -136,8 +136,9 @@ final class JwksKeyCache {
      *
      * @param kid the key ID to look up; may be null (returns null)
      * @return the public key, or {@code null} if not found in the current cache
+     * @throws JwksUnavailableException if the JWKS had to be fetched and could not be
      */
-    PublicKey getKey(String kid) {
+    PublicKey getKey(String kid) throws JwksUnavailableException {
         if (kid == null) return null;
         ensureFresh();
         lock.readLock().lock();
@@ -152,8 +153,10 @@ final class JwksKeyCache {
      * Forces an immediate refresh of the JWKS cache from the remote endpoint.
      * Concurrent refresh calls are serialised; only the first caller fetches,
      * subsequent callers wait and then read the updated cache.
+     *
+     * @throws JwksUnavailableException if the JWKS could not be fetched or parsed
      */
-    void refresh() {
+    void refresh() throws JwksUnavailableException {
         lock.writeLock().lock();
         try {
             fetchAndUpdate();
@@ -166,7 +169,7 @@ final class JwksKeyCache {
     // Private helpers
     // -----------------------------------------------------------------
 
-    private void ensureFresh() {
+    private void ensureFresh() throws JwksUnavailableException {
         // Fast path: cache is valid
         lock.readLock().lock();
         try {
@@ -184,8 +187,11 @@ final class JwksKeyCache {
         }
     }
 
-    /** Must be called while holding the write lock. */
-    private void fetchAndUpdate() {
+    /**
+     * Must be called while holding the write lock.  Any failure to obtain a JWKS
+     * document is {@link JwksUnavailableException}; the cache is left as it was.
+     */
+    private void fetchAndUpdate() throws JwksUnavailableException {
         try {
             HttpRequest request = HttpRequest.newBuilder(jwksUri)
                     .GET()
@@ -200,7 +206,8 @@ final class JwksKeyCache {
                 try { response.body().close(); } catch (Exception ignore) {}
                 LOG.warning("JWKS fetch returned HTTP " + response.statusCode()
                         + " from " + jwksUri);
-                return;
+                throw new JwksUnavailableException(
+                        "JWKS endpoint returned HTTP " + response.statusCode(), null);
             }
             String body;
             try (InputStream is = response.body()) {
@@ -208,19 +215,28 @@ final class JwksKeyCache {
                 if (bytes.length > MAX_JWKS_RESPONSE_BYTES) {
                     LOG.warning("JWKS response from " + jwksUri + " exceeds size limit of "
                             + MAX_JWKS_RESPONSE_BYTES + " bytes; ignoring");
-                    return;
+                    throw new JwksUnavailableException(
+                            "JWKS response exceeds the size limit", null);
                 }
                 body = new String(bytes, StandardCharsets.UTF_8);
             }
-            Map<String, PublicKey> newCache = parseJwks(body);
+            boolean[] sawKeys = new boolean[1];
+            Map<String, PublicKey> newCache = parseJwks(body, sawKeys);
+            if (!sawKeys[0])
+                throw new JwksUnavailableException("JWKS response is not a JWKS document", null);
             cache = Collections.unmodifiableMap(newCache);
             cacheExpiry = Instant.now().plus(ttl);
             LOG.fine("JWKS cache refreshed: " + newCache.size() + " key(s) from " + jwksUri);
+        } catch (JwksUnavailableException e) {
+            throw e;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOG.log(Level.WARNING, "JWKS fetch interrupted", e);
+            throw new JwksUnavailableException("JWKS fetch interrupted", e);
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Failed to fetch JWKS from " + jwksUri, e);
+            throw new JwksUnavailableException(
+                    "JWKS fetch failed: " + e.getClass().getSimpleName(), e);
         }
     }
 
@@ -228,9 +244,9 @@ final class JwksKeyCache {
      * Parses a JWKS JSON body and returns a map of kid → PublicKey.
      * Uses a hand-rolled parser to avoid third-party JSON library dependencies.
      */
-    private static Map<String, PublicKey> parseJwks(String json) {
+    private static Map<String, PublicKey> parseJwks(String json, boolean[] sawKeys) {
         Map<String, PublicKey> result = new HashMap<>();
-        List<Map<String, String>> keys = parseJwksJson(json);
+        List<Map<String, String>> keys = parseJwksJson(json, sawKeys);
         for (Map<String, String> jwk : keys) {
             String kty = jwk.get("kty");
             String kid = jwk.get("kid");
@@ -341,6 +357,15 @@ final class JwksKeyCache {
      * arrays as field values (other than the top-level "keys" array itself).
      */
     static List<Map<String, String>> parseJwksJson(String json) {
+        return parseJwksJson(json, new boolean[1]);
+    }
+
+    /**
+     * As {@link #parseJwksJson(String)}; {@code sawKeys[0]} is set when the
+     * document held a {@code "keys"} array, so that an empty set of keys can be
+     * told from a body that is not a JWKS at all.
+     */
+    static List<Map<String, String>> parseJwksJson(String json, boolean[] sawKeys) {
         List<Map<String, String>> result = new ArrayList<>();
         if (json == null || json.isEmpty()) return result;
 
@@ -369,6 +394,7 @@ final class JwksKeyCache {
                 // Parse the array of key objects
                 if (pos[0] < json.length() && json.charAt(pos[0]) == '[') {
                     pos[0]++; // consume '['
+                    sawKeys[0] = true;
                     while (pos[0] < json.length()) {
                         skipWhitespace(json, pos);
                         if (pos[0] >= json.length()) break;

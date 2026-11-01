@@ -144,6 +144,10 @@ final class JwtValidator {
      * @throws JwtValidationException if the token is malformed, uses a rejected
      *                                algorithm, has an invalid signature, or fails
      *                                claims validation
+     * @throws JwksUnavailableException (a {@code JwtValidationException}) only when the
+     *                                keys could not be fetched from the JWKS endpoint;
+     *                                a JWKS that was read and lacks the {@code kid}
+     *                                is a plain {@code JwtValidationException}
      */
     ParsedJwt validate(String token) throws JwtValidationException {
         if (token == null || token.isEmpty())
@@ -232,10 +236,12 @@ final class JwtValidator {
     // Private helpers
     // -----------------------------------------------------------------
 
-    private PublicKey resolveKey(String kid) {
+    private PublicKey resolveKey(String kid) throws JwksUnavailableException {
         PublicKey key = keyCache.getKey(kid);
         if (key == null) {
-            // Key not found — may be a key rotation; refresh and retry once
+            // Key not found — may be a key rotation; refresh and retry once.  A failure
+            // of this refetch is JwksUnavailableException; a successful one that still
+            // lacks the kid returns null, which the caller refuses permanently.
             LOG.fine("Key not found in cache for kid=" + kid + "; refreshing JWKS");
             keyCache.refresh();
             key = keyCache.getKey(kid);

@@ -144,6 +144,12 @@ public class JwtLoginModuleTest {
     /** The status /token answers with when {@link #tokenEndpointRaw} is set; null means 400. */
     private static final AtomicReference<Integer> tokenEndpointStatus = new AtomicReference<>();
 
+    /** When non-null, /jwks.json answers with this status and {@link #jwksRaw} instead of the key set. */
+    private static final AtomicReference<Integer> jwksStatus = new AtomicReference<>();
+
+    /** The body /jwks.json sends while {@link #jwksStatus} is set. */
+    private static final AtomicReference<String> jwksRaw = new AtomicReference<>();
+
     /** When non-null, /token holds each request on this latch (a request in flight). */
     private static volatile java.util.concurrent.CountDownLatch tokenGate;
     private static volatile java.util.concurrent.CountDownLatch tokenGateEntered =
@@ -195,9 +201,12 @@ public class JwtLoginModuleTest {
 
         // /jwks.json — returns the current JWKS (supports key-rotation tests)
         httpsServer.createContext("/jwks.json", (HttpExchange exchange) -> {
-            byte[] body = currentJwksJson.get().getBytes(StandardCharsets.UTF_8);
+            Integer forced = jwksStatus.get();
+            String raw = jwksRaw.get();
+            byte[] body = (forced != null && raw != null ? raw : currentJwksJson.get())
+                    .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, body.length);
+            exchange.sendResponseHeaders(forced == null ? 200 : forced, body.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(body);
             }
@@ -922,6 +931,120 @@ public class JwtLoginModuleTest {
                 }
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Operator ruling 2026-11-02 (second): an unreadable JWKS is transient
+    // -----------------------------------------------------------------------
+
+    private static void jwksAnswers(Integer status, String raw) {
+        jwksStatus.set(status);
+        jwksRaw.set(raw);
+    }
+
+    /**
+     * A JWKS endpoint that fails at refresh time says nothing about the token:
+     * the old token and principals stay, the thread retries, and once the JWKS
+     * is back the new token is installed.  The /token gate holds the first
+     * request so the JWKS can be broken after the login read it.
+     */
+    @Test
+    public void testJwksDownDuringRefreshKeepsTheTokenAndRecovers() throws Exception {
+        String big = "x".repeat(JwksKeyCache.MAX_JWKS_RESPONSE_BYTES + 10);
+        Object[][] modes = {
+            {500, "{\"error\":\"down\"}", "HTTP 500"},
+            {200, "<html>gateway-marker</html>", "garbage 200"},
+            {200, big, "over the size limit"},
+        };
+        for (int i = 0; i < modes.length; i++) {
+            Integer status = (Integer) modes[i][0];
+            String raw = (String) modes[i][1];
+            String label = (String) modes[i][2];
+            String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+            String t2 = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+            Subject subject = new Subject();
+            tokenEndpointResponse.set(t2);
+            tokenGateEntered = new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+            tokenGate = gate;
+            JwtLoginModule m = null;
+            try {
+                m = loginWithRefresh(subject, t1);
+                Thread rt = refreshThreadOf(m);
+                assertTrue(label + ": the refresh reached the token endpoint",
+                        tokenGateEntered.await(15, java.util.concurrent.TimeUnit.SECONDS));
+                jwksAnswers(status, raw);
+                tokenGate = null;
+                gate.countDown();
+                long deadline = System.currentTimeMillis() + 15000;
+                while (m.lastRefreshFailure == null && System.currentTimeMillis() < deadline)
+                    Thread.sleep(20);
+                assertEquals(label + ": the failure is recorded as a class name only",
+                        "JwksUnavailableException", m.lastRefreshFailure);
+                assertTrue(label + ": the thread is retrying", rt.isAlive());
+                assertEquals(label + ": the old token stays", Set.of(t1), tokens(subject));
+                assertEquals(Set.of("sub:alice", "group:a"), jwtNames(subject));
+                assertEquals(1, expiries(subject).size());
+                if (i == 0) {
+                    jwksAnswers(null, null);
+                    deadline = System.currentTimeMillis() + 25000;
+                    while (!tokens(subject).equals(Set.of(t2)) && System.currentTimeMillis() < deadline)
+                        Thread.sleep(50);
+                    assertEquals("the JWKS is back: the new token is installed", Set.of(t2), tokens(subject));
+                    assertEquals(Set.of("sub:alice", "group:b"), jwtNames(subject));
+                    assertTrue("the thread lives on", rt.isAlive());
+                }
+            } finally {
+                tokenGate = null;
+                gate.countDown();
+                jwksAnswers(null, null);
+                tokenEndpointResponse.set(null);
+                if (m != null) m.logout();
+            }
+        }
+    }
+
+    /** A reachable JWKS that lacks the token's kid is a bad token, not an outage: permanent. */
+    @Test
+    public void testRefreshWithAKidTheReachableJwksLacksFailsClosed() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "");
+        String t2 = signPayload("unlisted-kid-marker", "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"" + AUD
+                + "\",\"sub\":\"alice\",\"exp\":" + inSeconds(5000) + "}");
+        assertThreadFailsClosed("kid not in the JWKS", t1, null, null, t2);
+    }
+
+    /** First login has no old token to keep: an unreadable JWKS fails the login, at once. */
+    @Test
+    public void testFirstLoginWithTheJwksUnreadableFailsWithALoginException() throws Exception {
+        String token = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "");
+        jwksAnswers(500, "{\"error\":\"down\"}");
+        try {
+            Subject subject = new Subject();
+            try {
+                loginAndCommit(subject, jwksUri(), JWT_ISSUER, AUD, token);
+                fail("login must fail while the JWKS is unreadable");
+            } catch (LoginException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("JWKS"));
+                for (String part : token.split("\\."))
+                    assertFalse("token text in the message", e.getMessage().contains(part));
+            }
+            assertNothingOfOurs(subject);
+        } finally {
+            jwksAnswers(null, null);
+        }
+        // Nothing listens on the port: connection refused.
+        int dead;
+        try (java.net.ServerSocket ss = new java.net.ServerSocket(0)) {
+            dead = ss.getLocalPort();
+        }
+        Subject subject = new Subject();
+        try {
+            loginAndCommit(subject, "https://localhost:" + dead + "/jwks.json", JWT_ISSUER, AUD, token);
+            fail("login must fail while the JWKS refuses connections");
+        } catch (LoginException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("JWKS"));
+        }
+        assertNothingOfOurs(subject);
     }
 
     /**
