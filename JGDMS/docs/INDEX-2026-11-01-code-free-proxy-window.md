@@ -19,11 +19,13 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-proxy-policy-tooling-round4-2026-10-31.md` | 10276 | 2026-10-31 | claude-sonnet-5-5 | LIVE: matches commit ae004e42f; its Opus check is REVIEW-proxy-policy-tooling-round4-opus (done); round 5 is in progress |
 | `INVESTIGATION-sm-test-failures-rootcause-2026-10-31.md` | 15542 | 2026-10-31 | claude-opus-5-5 | LIVE: matches commit bb2e10720 |
 | `INVESTIGATION-dirtychai-principal-matching-2026-11-01.md` | 7912 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-binding-followup-2026-11-01.md` | 5960 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-fix-2026-11-01.md` | 8984 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8211 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-policy-lint-general-2026-11-01.md` | 8771 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-policy-lint-rebuild-2026-11-01.md` | 7727 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
+| `INVESTIGATION-policy-lint-redesign-2026-11-01.md` | 8407 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-proxy-policy-tooling-round5-2026-11-01.md` | 9610 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-proxy-policy-tooling-round6-2026-11-01.md` | 6191 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `REVIEW-block-bound-fix-fable-2026-10-31.md` | 12112 | 2026-10-31 | claude-fable-5-1 | LIVE: matches commit bb2e10720 |
@@ -45,6 +47,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `REVIEW-handover-currency-sonnet-2026-11-01.md` | 12484 | 2026-11-01 | claude-sonnet-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-jwt-principal-binding-opus-2026-11-01.md` | 12070 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-lint-rebuild-and-jwt-opus-2026-11-01.md` | 13919 | 2026-11-01 | claude-opus-5-5 | not stated |
+| `REVIEW-policy-lint-general-opus-2026-11-01.md` | 13960 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 | `REVIEW-policy-lint-opus-2026-11-01.md` | 12374 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 | `SURVEY-som-hardware-root-of-trust-2026-11-02.md` | 14279 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 
