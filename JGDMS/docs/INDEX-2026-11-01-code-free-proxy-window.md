@@ -23,7 +23,9 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-jwt-binding-followup-2026-11-01.md` | 5960 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-client-align-2026-11-01.md` | 4650 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-fix-2026-11-01.md` | 8984 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-opus-followups-2026-11-01.md` | 4759 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8211 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-lint-opus-followups-2026-11-01.md` | 9467 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-policy-lint-general-2026-11-01.md` | 8771 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-policy-lint-rebuild-2026-11-01.md` | 7727 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
@@ -47,10 +49,12 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `REVIEW-handover-2026-11-01-fable.md` | 12364 | 2026-11-01 | claude-fable-5-1 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-handover-currency-opus-delta-2026-11-01.md` | 8480 | 2026-11-01 | claude-opus-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-handover-currency-sonnet-2026-11-01.md` | 12484 | 2026-11-01 | claude-sonnet-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
+| `REVIEW-jwt-client-followups-opus-2026-11-01.md` | 1593 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-jwt-principal-binding-opus-2026-11-01.md` | 12070 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-lint-rebuild-and-jwt-opus-2026-11-01.md` | 13919 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-policy-lint-general-opus-2026-11-01.md` | 13960 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 | `REVIEW-policy-lint-opus-2026-11-01.md` | 12374 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
+| `REVIEW-recent-commits-opus-2026-11-01.md` | 14238 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `SURVEY-som-hardware-root-of-trust-2026-11-02.md` | 14279 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 
 ## Other recordings of this window (not in the table above)
@@ -96,6 +100,10 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a133bba216fc34b5c` | Sonnet 5.5 | lint redesign (symbolic scope) | done (committed 06f7d8889) |
 | `ae0e713f14113e116` | Sonnet 5.5 | guard-based peer check and HOLD entry | done (committed 8a5632e01) |
 | `ae07f9e6a3783c076` | Sonnet 5.5 | JWT client alignment | done (committed in the client alignment commit) |
+| `a12f2cf263319db1f` | Opus 5.5 | review of the recent JWT, lint, guard and wildcard commits | done (report committed 5b649a558) |
+| `a8b43fe0277943354` | Sonnet 5.5 | JWT client follow-ups | done (committed c8a1c9d05) |
+| `a16ed7ba10099317a` | Sonnet 5.5 | lint catalogue, cross-check and codeBase fixes | done (patch applied, NOT committed) |
+| `a49a3cc2bea06673f` | Opus 5.5 | review of c8a1c9d05 | RUNNING |
 | `aa282920885d55c85` | Opus 5.5 | delta review of 06f7d8889 and 5799eeda6 | STOPPED by a safety classifier before any finding; no report (baseline tests green in scratchpad opus-r9/src) |
 | `a6311935e724074e0` | Sonnet 5.5 | SOM hardware root of trust survey | done |
 | `ad6cbaae05ddf03aa` | Sonnet 5.5 | handover currency check | done |
