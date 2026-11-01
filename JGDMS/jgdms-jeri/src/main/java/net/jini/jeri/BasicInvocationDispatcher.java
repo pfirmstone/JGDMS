@@ -50,6 +50,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.Policy;
 import java.security.Principal;
 import java.security.SecurityPermission;
 import java.security.PrivilegedAction;
@@ -89,6 +90,7 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.AccessPermission;
+import net.jini.security.AssertPrincipalPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
@@ -99,8 +101,10 @@ import java.util.Base64;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.Security;
+import net.jini.security.jwt.JwtPrincipal;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
+import net.jini.security.jwt.VerifiedJwt;
 import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.security.UserSubjectSupport;
 
@@ -259,9 +263,28 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      */
     private static final class JwtState {
         final JwtVerifier verifier;
-        final ConcurrentHashMap<String, Instant> cache = new ConcurrentHashMap<>();
+        final ConcurrentHashMap<String, CachedJwt> cache = new ConcurrentHashMap<>();
         JwtState(JwtVerifier verifier) { this.verifier = verifier; }
     }
+
+    /**
+     * A cache entry: what the verifier returned for a token, and the instant
+     * the entry stops being trusted.  The principals a cache hit yields are
+     * {@code jwt.getPrincipals()}, as derived when the verifier accepted the
+     * token.
+     */
+    private static final class CachedJwt {
+        final Instant until;
+        final VerifiedJwt jwt;
+        CachedJwt(Instant until, VerifiedJwt jwt) { this.until = until; this.jwt = jwt; }
+    }
+
+    /** Wire class name of the workload identity; never accepted in a user Subject. */
+    private static final String SPIFFE_PRINCIPAL_CLASS =
+        "au.net.zeus.jgdms.spiffe.SpiffePrincipal";
+
+    /** Wire class name of a principal that may only come from a verified token. */
+    private static final String JWT_PRINCIPAL_CLASS = JwtPrincipal.class.getName();
 
     /**
      * Current verifier state.  With no verifier installed ({@code null}) a
@@ -284,7 +307,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /**
      * Cache of tokens accepted by the installed verifier, keyed on the SHA-256
      * of the token (so the cache neither retains bearer tokens nor holds up to
-     * {@value #MAX_JWT_BYTES} bytes per entry) and valued with the instant the
+     * {@value #MAX_JWT_BYTES} bytes per entry) and valued with the verifier's
+     * {@link VerifiedJwt} and the instant the
      * entry stops being trusted: the smaller of the token's {@code exp} and
      * {@value #JWT_CACHE_MAX_AGE_SECONDS} seconds from acceptance.  The cap
      * bounds how long a revocation or key rotation at the verifier can be
@@ -1042,7 +1066,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		}
 	    }
 	    if (hasUserSubjects) {
-		List<Subject> userSubjects = readUserSubjects(rin);
+		List<Subject> userSubjects = readUserSubjects(rin, peerSubject(context));
 		if (!userSubjects.isEmpty()) {
 		    addUserSubjectsToContext(context, userSubjects);
 		}
@@ -1616,11 +1640,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    // domain.  No wire data and no certificate parsing here: the
 	    // connection-derived identity is established upstream, keeping this
 	    // library free of any net.jini.jeri.ssl dependency.
-	    pd = domains.computeIfAbsent(client, s -> {
-		Set<Principal> set = new HashSet<Principal>(s.getPrincipals());
-		Principal[] prins = set.toArray(new Principal[0]);
-		return new ProtectionDomain(emptyCS, null, null, prins);
-	    });
+	    pd = peerDomain(client);
 	}
 	if (logger.isLoggable(Level.FINEST)){
             logger.log(Level.FINEST, "Gate-1 principal check: " + permission +
@@ -1642,6 +1662,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		(PrivilegedAction<AccessControlContext>) () ->
 			Security.create(new ProtectionDomain[]{ pd }));
 	sm.checkPermission(permission, ctx);
+    }
+
+    /** The cached no-code ProtectionDomain carrying the authenticated peer's principals. */
+    private static ProtectionDomain peerDomain(Subject client) {
+	return domains.computeIfAbsent(client, s -> {
+	    Set<Principal> set = new HashSet<Principal>(s.getPrincipals());
+	    Principal[] prins = set.toArray(new Principal[0]);
+	    return new ProtectionDomain(emptyCS, null, null, prins);
+	});
     }
 
     /**
@@ -2279,10 +2308,25 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * {@link RemotePrincipal} placeholder that preserves the wire data
      * without loading untrusted code.
      *
-     * <p>If a {@link JwtVerifier} is registered via
-     * {@link #setJwtVerifier(JwtVerifier)} and the Subject carries one or more
-     * JWT tokens, each token is verified (with connection-level caching).  A
-     * verification failure throws {@link IOException}, aborting the request.
+     * <p>The principals of each user Subject are bound to evidence the server
+     * holds, not to the sender's say-so:
+     * <ul>
+     * <li>Every JWT in the Subject is verified by the installed
+     *     {@link JwtVerifier} (with caching).  The Subject's
+     *     {@link JwtPrincipal}s are exactly the principals derived from the
+     *     verified tokens.  A wire {@code JwtPrincipal} that is not among them
+     *     (including any when there is no token) refuses the call.</li>
+     * <li>A wire {@code SpiffePrincipal} refuses the call, whatever the
+     *     policy says: a user Subject must never satisfy a workload grant.</li>
+     * <li>Any other wire principal is accepted only if the authenticated
+     *     peer ({@code peer}, the connection's client Subject) holds
+     *     {@link AssertPrincipalPermission} for that class and name; with no
+     *     grant, no peer, or a peer with no principals the call is refused.</li>
+     * </ul>
+     * A verification failure or a refusal throws {@link IOException},
+     * aborting the request.
+     *
+     * @param peer the authenticated worker, or {@code null} if none
      *
      * <p>To guard against malicious or malformed input, at most
      * {@value #MAX_USER_SUBJECTS} Subjects and at most
@@ -2296,7 +2340,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *         respective limit, if the stream ends prematurely, or if JWT
      *         verification fails
      */
-    private static List<Subject> readUserSubjects(InputStream in)
+    private static List<Subject> readUserSubjects(InputStream in, Subject peer)
 	throws IOException
     {
 	int subjectCount = readUnsignedShort(in);
@@ -2316,12 +2360,13 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    "User-principal count " + principalCount
 		    + " in Subject " + si + " exceeds limit of " + MAX_USER_PRINCIPALS);
 	    }
-	    Set<Principal> principals = new LinkedHashSet<>((int)(principalCount / 0.75) + 1);
+	    List<Principal> wire = new ArrayList<>(principalCount);
+	    List<String> wireClasses = new ArrayList<>(principalCount);
 	    for (int i = 0; i < principalCount; i++) {
 		String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
 		String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
-		Principal p = instantiatePrincipal(className, name);
-		principals.add(p);
+		wireClasses.add(className);
+		wire.add(instantiatePrincipal(className, name));
 	    }
 	    // JWT block (Option D, Work Item 44): read jwtCount raw tokens.
 	    int jwtCount = in.read();
@@ -2331,10 +2376,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    "JWT token count " + jwtCount
 		    + " in Subject " + si + " exceeds limit of " + MAX_JWT_PER_SUBJECT);
 	    }
+	    Set<Principal> derived = new LinkedHashSet<>();
 	    for (int ji = 0; ji < jwtCount; ji++) {
 		String rawJwt = readJwtBytes(in);
-		verifyJwtWithCache(rawJwt, si, ji);
+		derived.addAll(verifyJwtWithCache(rawJwt, si, ji).getPrincipals());
 	    }
+	    Set<Principal> principals = bindPrincipals(wire, wireClasses, derived, peer, si);
 	    // A reconstructed remote client identity is a USER identity, so on a
 	    // DirtyChai JDK it must be a UserSubject — that is the type accepted
 	    // by Subject.callAs(Callable, UserSubject...).  (WorkerSubject is the
@@ -2387,9 +2434,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * {@code exp} still in the future; a token without {@code exp} is
      * re-verified on every call.
      *
+     * @return what the verifier returned for the token (from the cache on a
+     *         hit); its principals are the only {@link JwtPrincipal}s the
+     *         token may give a user Subject
      * @throws IOException if the token is refused
      */
-    private static void verifyJwtWithCache(String rawJwt, int subjectIdx, int jwtIdx)
+    private static VerifiedJwt verifyJwtWithCache(String rawJwt, int subjectIdx, int jwtIdx)
 	    throws IOException
     {
 	JwtState state = jwtState;
@@ -2405,13 +2455,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
 
 	String key = cacheKey(rawJwt);
-	Instant cachedUntil = state.cache.get(key);
-	if (cachedUntil != null && Instant.now().isBefore(cachedUntil)) {
-	    return;
+	CachedJwt hit = state.cache.get(key);
+	if (hit != null && Instant.now().isBefore(hit.until)) {
+	    return hit.jwt;
 	}
 
+	VerifiedJwt verified;
 	try {
-	    verifier.verify(rawJwt);
+	    verified = verifier.verify(rawJwt);
 	} catch (JwtVerificationException e) {
 	    throw new IOException(
 		"JWT verification failed for Subject[" + subjectIdx
@@ -2422,23 +2473,30 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		"JWT verification failed for Subject[" + subjectIdx
 		+ "] JWT[" + jwtIdx + "]: " + e.getClass().getName(), e);
 	}
+	if (verified == null) {
+	    // A verifier that accepts without saying whose token it was cannot bind anything.
+	    throw new IOException(
+		"JWT verifier returned no result for Subject[" + subjectIdx
+		+ "] JWT[" + jwtIdx + "]; refusing");
+	}
 
 	Instant now = Instant.now();
-	Instant exp = extractJwtExp(rawJwt);
+	Instant exp = verified.getExpiry();
 	if (exp == null || !now.isBefore(exp)) {
-	    return;
+	    return verified;
 	}
 	Instant cap = now.plusSeconds(JWT_CACHE_MAX_AGE_SECONDS);
 	Instant until = exp.isBefore(cap) ? exp : cap;
 	synchronized (state.cache) {
 	    if (state.cache.size() >= JWT_CACHE_MAX_SIZE) {
-		state.cache.entrySet().removeIf(e -> !now.isBefore(e.getValue()));
+		state.cache.entrySet().removeIf(e -> !now.isBefore(e.getValue().until));
 		if (state.cache.size() >= JWT_CACHE_MAX_SIZE) {
 		    state.cache.clear();
 		}
 	    }
-	    state.cache.put(key, until);
+	    state.cache.put(key, new CachedJwt(until, verified));
 	}
+	return verified;
     }
 
     private static String cacheKey(String rawJwt) throws IOException {
@@ -2452,31 +2510,96 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Extracts the {@code exp} epoch-seconds claim from a JWT compact string
-     * using minimal Base64url decode + JSON scan.  Returns {@code null} if the
-     * claim is absent or cannot be parsed.
+     * Returns the authenticated worker (the connection's client Subject)
+     * found in the server context, or {@code null} if there is none.
      */
-    private static Instant extractJwtExp(String rawJwt) {
-	if (rawJwt == null || rawJwt.isEmpty()) return null;
-	int firstDot  = rawJwt.indexOf('.');
-	int secondDot = rawJwt.indexOf('.', firstDot + 1);
-	if (firstDot < 0 || secondDot <= firstDot) return null;
+    private static Subject peerSubject(Collection context) {
+	for (Object o : context) {
+	    if (o instanceof ClientSubject) {
+		return AccessController.doPrivileged(
+		    (PrivilegedAction<Subject>) () -> ((ClientSubject) o).getClientSubject());
+	    }
+	}
+	return null;
+    }
+
+    /**
+     * Builds the principal set of one user Subject from the wire principals,
+     * the principals derived from its verified tokens, and the authenticated
+     * peer.  See {@link #readUserSubjects}.
+     *
+     * @throws IOException if a wire principal is not backed by a verified
+     *         token or by the peer's {@link AssertPrincipalPermission}
+     */
+    private static Set<Principal> bindPrincipals(List<Principal> wire,
+						 List<String> wireClasses,
+						 Set<Principal> derived,
+						 Subject peer, int subjectIdx)
+	throws IOException
+    {
+	Set<Principal> out = new LinkedHashSet<>(derived);
+	for (int i = 0; i < wire.size(); i++) {
+	    Principal p = wire.get(i);
+	    String cn = wireClasses.get(i);
+	    if (SPIFFE_PRINCIPAL_CLASS.equals(cn)) {
+		throw new IOException("Subject[" + subjectIdx
+		    + "] carries a SpiffePrincipal; a workload identity cannot be asserted in a user Subject");
+	    }
+	    if (JWT_PRINCIPAL_CLASS.equals(cn)) {
+		if (!derived.contains(p)) {
+		    throw new IOException("Subject[" + subjectIdx
+			+ "] carries a JwtPrincipal that no verified token of that Subject supports");
+		}
+		continue;
+	    }
+	    String name = (p instanceof RemotePrincipal)
+		? ((RemotePrincipal) p).getPrincipalName() : p.getName();
+	    if (!peerMayAssert(peer, cn, name)) {
+		throw new IOException("Subject[" + subjectIdx
+		    + "] carries a principal of class " + cn
+		    + " that the authenticated peer is not permitted to assert");
+	    }
+	    out.add(p);
+	}
+	return out;
+    }
+
+    /**
+     * Whether the policy grants the authenticated {@code peer}
+     * {@link AssertPrincipalPermission} for the named principal.  Evaluated
+     * the way {@link #checkClientPermission(Permission)} evaluates Gate 1: a
+     * ProtectionDomain with the peer's principals and no code identity,
+     * submitted through the installed SecurityManager, which stays the single
+     * authorization chokepoint.  With no SecurityManager installed nothing
+     * enforces permissions, but the permission is still decided by the
+     * policy (an unconfigured policy grants nothing), so the answer does not
+     * depend on whether a SecurityManager happens to be present.
+     *
+     * <p>Fails closed: no peer, a peer with no principals (not identified), a
+     * refusal, or any runtime failure while asking is "no".
+     */
+    private static boolean peerMayAssert(Subject peer, String className, String name) {
+	if (peer == null || peer.getPrincipals().isEmpty()) return false;
 	try {
-	    byte[] payloadBytes = Base64.getUrlDecoder()
-		    .decode(rawJwt.substring(firstDot + 1, secondDot));
-	    String json = new String(payloadBytes, StandardCharsets.UTF_8);
-	    int idx = json.indexOf("\"exp\"");
-	    if (idx < 0) return null;
-	    int colon = json.indexOf(':', idx + 5);
-	    if (colon < 0) return null;
-	    int start = colon + 1;
-	    while (start < json.length() && json.charAt(start) == ' ') start++;
-	    int end = start;
-	    while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
-	    if (end == start) return null;
-	    return Instant.ofEpochSecond(Long.parseLong(json.substring(start, end)));
-	} catch (Exception e) {
-	    return null;
+	    final Permission perm = new AssertPrincipalPermission(className, name);
+	    final ProtectionDomain pd = peerDomain(peer);
+	    SecurityManager sm = System.getSecurityManager();
+	    if (sm != null) {
+		AccessControlContext ctx = AccessController.doPrivileged(
+		    (PrivilegedAction<AccessControlContext>) () ->
+			Security.create(new ProtectionDomain[]{ pd }));
+		sm.checkPermission(perm, ctx);
+		return true;
+	    }
+	    return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
+		Policy.getPolicy().implies(pd, perm)).booleanValue();
+	} catch (RuntimeException e) {
+	    // SECURITY: a refusal (SecurityException), a name that cannot form the
+	    // permission, or any failure while consulting the policy is "not permitted".
+	    if (logger.isLoggable(Level.FINE)) {
+		logger.log(Level.FINE, "peer may not assert " + className + ":" + name, e);
+	    }
+	    return false;
 	}
     }
 

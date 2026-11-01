@@ -46,6 +46,7 @@ import javax.security.auth.x500.X500Principal;
 import net.jini.security.jwt.DefaultJwtVerifier;
 import net.jini.security.jwt.JwtRawToken;
 import net.jini.security.jwt.JwtVerificationException;
+import net.jini.security.jwt.VerifiedJwt;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -92,7 +93,7 @@ public class JwtDispatcherFailClosedTest {
     /** A token whose signature is junk: what an attacker with no key can write. */
     private static String forged(String sub, String expClaim) {
         return b64("{\"alg\":\"RS256\",\"kid\":\"k1\"}") + "."
-                + b64("{\"sub\":\"" + sub + "\",\"iss\":\"" + ISS + "\"" + expClaim + "}")
+                + b64("{\"sub\":\"" + sub + "\",\"iss\":\"" + ISS + "\",\"aud\":\"svc-a\"" + expClaim + "}")
                 + ".Zm9yZ2Vk";
     }
 
@@ -102,7 +103,7 @@ public class JwtDispatcherFailClosedTest {
 
     private static String signed(String sub, String expClaim) throws Exception {
         String si = b64("{\"alg\":\"RS256\",\"kid\":\"k1\"}") + "."
-                + b64("{\"sub\":\"" + sub + "\",\"iss\":\"" + ISS + "\"" + expClaim + "}");
+                + b64("{\"sub\":\"" + sub + "\",\"iss\":\"" + ISS + "\",\"aud\":\"svc-a\"" + expClaim + "}");
         Signature s = Signature.getInstance("SHA256withRSA");
         s.initSign(rsa.getPrivate());
         s.update(si.getBytes(StandardCharsets.US_ASCII));
@@ -112,8 +113,9 @@ public class JwtDispatcherFailClosedTest {
     private static byte[] wire(String jwt) throws IOException {
         Set<Object> creds = jwt == null ? Collections.emptySet()
                 : Collections.singleton((Object) new JwtRawToken(jwt));
-        Subject s = new Subject(true,
-                Collections.singleton((Principal) new X500Principal("CN=alice")),
+        // No wire principals: these tests are about the token path.  Principal
+        // binding is covered by JwtPrincipalBindingTest.
+        Subject s = new Subject(true, Collections.<Principal>emptySet(),
                 creds, Collections.emptySet());
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BasicInvocationHandler.writeUserSubjects(baos, new Subject[] {s});
@@ -123,10 +125,10 @@ public class JwtDispatcherFailClosedTest {
     @SuppressWarnings("unchecked")
     private static List<Subject> read(byte[] bytes) throws Throwable {
         Method m = BasicInvocationDispatcher.class
-                .getDeclaredMethod("readUserSubjects", java.io.InputStream.class);
+                .getDeclaredMethod("readUserSubjects", java.io.InputStream.class, Subject.class);
         m.setAccessible(true);
         try {
-            return (List<Subject>) m.invoke(null, new ByteArrayInputStream(bytes));
+            return (List<Subject>) m.invoke(null, new ByteArrayInputStream(bytes), null);
         } catch (InvocationTargetException e) {
             throw e.getCause();
         }
@@ -145,14 +147,27 @@ public class JwtDispatcherFailClosedTest {
         return null;
     }
 
+    /**
+     * A verifier that trusts the token: returns the claims it carries, whatever the
+     * signature.  For tests of the dispatcher's own behaviour; exp may be absent.
+     */
+    static VerifiedJwt trusting(String jwt) {
+        String json = new String(Base64.getUrlDecoder().decode(jwt.split("\\.")[1]),
+                StandardCharsets.UTF_8);
+        java.util.regex.Matcher e = java.util.regex.Pattern.compile("\"exp\":(\\d+)").matcher(json);
+        java.util.regex.Matcher u = java.util.regex.Pattern.compile("\"sub\":\"([^\"]*)\"").matcher(json);
+        return new VerifiedJwt(u.find() ? u.group(1) : null, ISS, null,
+                e.find() ? Instant.ofEpochSecond(Long.parseLong(e.group(1))) : null, null, null);
+    }
+
     @SuppressWarnings("unchecked")
-    private static ConcurrentHashMap<String, Instant> cache() throws Exception {
+    private static ConcurrentHashMap<String, Object> cache() throws Exception {
         Field sf = BasicInvocationDispatcher.class.getDeclaredField("jwtState");
         sf.setAccessible(true);
         Object state = sf.get(null);
         Field cf = state.getClass().getDeclaredField("cache");
         cf.setAccessible(true);
-        return (ConcurrentHashMap<String, Instant>) cf.get(state);
+        return (ConcurrentHashMap<String, Object>) cf.get(state);
     }
 
     // ---- fail closed with no verifier -------------------------------------
@@ -174,7 +189,7 @@ public class JwtDispatcherFailClosedTest {
         String token = forged("mallory", exp(36000));
         refused(wire(token), "before any verifier");
         BasicInvocationDispatcher.setJwtVerifier(new DefaultJwtVerifier(
-                ISS, null, "RS256", Map.of("k1", rsa.getPublic())));
+                ISS, "svc-a", "RS256", Map.of("k1", rsa.getPublic())));
         refused(wire(token), "after the real verifier is installed");
     }
 
@@ -196,7 +211,7 @@ public class JwtDispatcherFailClosedTest {
     @Test
     public void tokenAcceptedUnderVerifierAIsRefusedAfterVerifierBReplacesIt() throws Throwable {
         String token = forged("bob", exp(3600));
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         read(wire(token));
         AtomicInteger calls = new AtomicInteger();
         BasicInvocationDispatcher.setJwtVerifier(jwt -> {
@@ -210,7 +225,7 @@ public class JwtDispatcherFailClosedTest {
     @Test
     public void realVerifierAcceptsSignedAndRefusesTampered() throws Throwable {
         BasicInvocationDispatcher.setJwtVerifier(new DefaultJwtVerifier(
-                ISS, null, "RS256", Map.of("k1", rsa.getPublic())));
+                ISS, "svc-a", "RS256", Map.of("k1", rsa.getPublic())));
         String good = signed("alice", exp(600));
         Assert.assertEquals(1, read(wire(good)).size());
         String[] p = good.split("\\.");
@@ -230,20 +245,20 @@ public class JwtDispatcherFailClosedTest {
 
     @Test
     public void emptyTokenIsRefusedEvenByPermissiveVerifier() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         refused(rawJwtWire(new byte[0], 0), "empty token");
     }
 
     @Test
     public void negativeLengthIsAnIOExceptionNotACrash() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         refused(rawJwtWire(new byte[0], -1), "length 0xFFFFFFFF");
         refused(rawJwtWire(new byte[0], Integer.MIN_VALUE), "length 0x80000000");
     }
 
     @Test
     public void oversizedLengthIsRefusedBeforeAllocation() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         refused(rawJwtWire(new byte[0], 65_537), "length 65537");
         refused(rawJwtWire(new byte[0], Integer.MAX_VALUE), "length Integer.MAX_VALUE");
     }
@@ -264,17 +279,20 @@ public class JwtDispatcherFailClosedTest {
 
     @Test
     public void cacheEntryLifetimeIsCappedWhateverTheTokenClaims() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         read(wire(forged("farfuture", ",\"exp\":" + (now() + 10L * 365 * 86400))));
         Assert.assertEquals(1, cache().size());
-        Instant until = cache().values().iterator().next();
+        Object entry = cache().values().iterator().next();
+        Field uf = entry.getClass().getDeclaredField("until");
+        uf.setAccessible(true);
+        Instant until = (Instant) uf.get(entry);
         Assert.assertTrue("entry must not outlive the 300 s cap, was " + until,
                 until.isBefore(Instant.now().plusSeconds(301)));
     }
 
     @Test
     public void cacheNeverExceedsItsSizeLimit() throws Throwable {
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { });
+        BasicInvocationDispatcher.setJwtVerifier(JwtDispatcherFailClosedTest::trusting);
         for (int i = 0; i < 1500; i++) {
             read(wire(forged("u" + i, exp(3600))));
             Assert.assertTrue("size " + cache().size(), cache().size() <= 1024);
@@ -284,7 +302,7 @@ public class JwtDispatcherFailClosedTest {
     @Test
     public void tokenWithoutExpOrPastExpIsNeverCached() throws Throwable {
         AtomicInteger calls = new AtomicInteger();
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> calls.incrementAndGet());
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> { calls.incrementAndGet(); return trusting(jwt); });
         byte[] noExp = wire(forged("noexp", ""));
         read(noExp);
         read(noExp);
@@ -298,7 +316,7 @@ public class JwtDispatcherFailClosedTest {
     @Test
     public void verifiedTokenIsCachedAndCacheDoesNotRetainTheToken() throws Throwable {
         AtomicInteger calls = new AtomicInteger();
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> calls.incrementAndGet());
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> { calls.incrementAndGet(); return trusting(jwt); });
         String token = forged("cached", exp(3600));
         byte[] w = wire(token);
         read(w);
@@ -327,7 +345,7 @@ public class JwtDispatcherFailClosedTest {
             String token = forged("leaky", exp(3600));
             String sigSegment = token.substring(token.lastIndexOf('.') + 1);
             BasicInvocationDispatcher.setJwtVerifier(new DefaultJwtVerifier(
-                    ISS, null, "RS256", Map.of("k1", rsa.getPublic())));
+                    ISS, "svc-a", "RS256", Map.of("k1", rsa.getPublic())));
             List<String> texts = new ArrayList<>();
             IOException e = refused(wire(token), "forged");
             texts.add(String.valueOf(e.getMessage()));

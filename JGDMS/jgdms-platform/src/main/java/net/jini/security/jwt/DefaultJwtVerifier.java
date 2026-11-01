@@ -17,19 +17,24 @@
  */
 package net.jini.security.jwt;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * A {@link JwtVerifier} that validates JWT claims and, when constructed with
- * keys, the JWS signature.
+ * keys, the JWS signature, and returns the verified claims as a
+ * {@link VerifiedJwt}.
  *
  * <h2>Signature mode</h2>
  * {@link #DefaultJwtVerifier(String, String, String, Map)} pins one algorithm
@@ -40,27 +45,36 @@ import java.util.Map;
  * a configured key (a token with no {@code kid} is accepted only if exactly
  * one key is configured), the signature must be present and valid, and a
  * {@code crit} header is refused.  The signature is checked before the
- * payload is parsed.
+ * payload is parsed.  Construction in this mode <b>requires</b> a non-empty
+ * issuer and a non-empty audience: a token minted by the same issuer for
+ * another service must not be accepted here.  The principals of the result
+ * are derived from the signed claims ({@link VerifiedJwt}).
  *
  * <h2>Claims-only mode</h2>
  * The constructors without keys check claims only.  A claims-only verifier
- * authenticates nothing: anyone can write a token it accepts.  It is suitable
- * only where another mechanism has already authenticated the sender.
+ * authenticates nothing: anyone can write a token it accepts.  Its results are
+ * created with {@link VerifiedJwt#unauthenticated}, so they carry <b>no
+ * principals</b>, and a dispatcher bound to such a verifier accepts no
+ * {@code JwtPrincipal} at all.
  *
  * <h2>Checks performed</h2>
  * <ul>
- *   <li><b>{@code exp}</b> — required; token must not have expired (30-second
- *       clock-skew tolerance applied).  A token without {@code exp} never
- *       expires, which is not acceptable for a user-authentication
- *       credential.</li>
- *   <li><b>{@code nbf}</b> — if present, token must already be valid (30-second
- *       skew).</li>
- *   <li><b>{@code iat}</b> — if present, token must not have been issued in the
- *       future (30-second skew).</li>
- *   <li><b>{@code iss}</b> — if a non-null expected issuer was provided at
- *       construction time, the claim must match.</li>
- *   <li><b>{@code aud}</b> — if a non-null expected audience was provided at
- *       construction time, the claim must contain the expected value.</li>
+ *   <li>The header and payload must each be one well-formed JSON object with
+ *       no duplicate member name.  Only top-level members are read; the
+ *       members of nested objects are never promoted.</li>
+ *   <li><b>{@code typ}</b> (header) &mdash; if present must be {@code JWT},
+ *       compared ignoring case.</li>
+ *   <li><b>{@code exp}</b> &mdash; required, a JSON number; the token must not
+ *       have expired (30-second clock-skew tolerance) and must not expire
+ *       more than the maximum lifetime (default {@link #DEFAULT_MAX_LIFETIME},
+ *       24 hours) after now.</li>
+ *   <li><b>{@code nbf}</b>, <b>{@code iat}</b> &mdash; if present must be JSON
+ *       numbers and not in the future (30-second skew).</li>
+ *   <li><b>{@code iss}</b> &mdash; if an expected issuer was configured, the
+ *       claim must equal it.</li>
+ *   <li><b>{@code aud}</b> &mdash; if an expected audience was configured, the
+ *       claim (a string or an array of strings) must contain it as an
+ *       element; elements are compared whole and never split.</li>
  * </ul>
  *
  * <h2>No JWKS</h2>
@@ -73,8 +87,14 @@ import java.util.Map;
  */
 public final class DefaultJwtVerifier implements JwtVerifier {
 
+    /** Default maximum time an accepted token may still have to live. */
+    public static final Duration DEFAULT_MAX_LIFETIME = Duration.ofHours(24);
+
     /** Clock-skew tolerance in seconds. */
     private static final long CLOCK_SKEW_SECONDS = 30L;
+
+    /** Maximum nesting accepted while parsing a header or payload. */
+    private static final int MAX_JSON_DEPTH = 16;
 
     /**
      * Maximum length of a JWT token string accepted by this verifier.
@@ -82,37 +102,41 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      */
     static final int MAX_TOKEN_LENGTH = 65_536;
 
-    private final String expectedIssuer;   // null → skip iss check
-    private final String expectedAudience; // null → skip aud check
+    private final String expectedIssuer;   // null → skip iss check (claims-only mode only)
+    private final String expectedAudience; // null → skip aud check (claims-only mode only)
     private final String algorithm;        // null → claims-only mode
     private final Map<String, PublicKey> keys;
+    private final Duration maxLifetime;
 
     /**
-     * Constructs a {@code DefaultJwtVerifier} that performs only
-     * expiry and issued-at checks (no issuer or audience check).
+     * Constructs a claims-only {@code DefaultJwtVerifier} that checks
+     * {@code exp} and the other time claims but neither issuer nor audience.
+     * Authenticates nothing; see the class documentation.
      */
     public DefaultJwtVerifier() {
         this(null, null);
     }
 
     /**
-     * Constructs a {@code DefaultJwtVerifier} with optional issuer and
-     * audience constraints.
+     * Constructs a claims-only {@code DefaultJwtVerifier} with optional issuer
+     * and audience constraints.  Authenticates nothing; see the class
+     * documentation.
      *
      * @param expectedIssuer    required value of the {@code iss} claim, or
      *                          {@code null} to skip the check
-     * @param expectedAudience  required value (exact element match) of the
-     *                          {@code aud} claim, or {@code null} to skip
+     * @param expectedAudience  required element of the {@code aud} claim, or
+     *                          {@code null} to skip
      */
     public DefaultJwtVerifier(String expectedIssuer, String expectedAudience) {
-        this(expectedIssuer, expectedAudience, null, null);
+        this(expectedIssuer, expectedAudience, null, null, DEFAULT_MAX_LIFETIME);
     }
 
     /**
-     * Constructs a signature-verifying {@code DefaultJwtVerifier}.
+     * Constructs a signature-verifying {@code DefaultJwtVerifier} with the
+     * default maximum lifetime.
      *
-     * @param expectedIssuer   required {@code iss}, or {@code null} to skip
-     * @param expectedAudience required {@code aud} element, or {@code null}
+     * @param expectedIssuer   required {@code iss}; not null or empty
+     * @param expectedAudience required {@code aud} element; not null or empty
      * @param algorithm        the only accepted JWS algorithm: {@code RS256}
      *                         (RSA keys of at least 2048 bits) or
      *                         {@code ES256} (P-256 keys)
@@ -120,15 +144,37 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      *                         must be non-empty and each key must suit
      *                         {@code algorithm}
      * @throws IllegalArgumentException if an argument is unusable, including
-     *         an empty issuer or audience string
+     *         a null or empty issuer or audience
      */
     public DefaultJwtVerifier(String expectedIssuer, String expectedAudience,
                               String algorithm, Map<String, PublicKey> keysByKid) {
+        this(expectedIssuer, expectedAudience, algorithm, keysByKid, DEFAULT_MAX_LIFETIME);
+    }
+
+    /**
+     * Constructs a signature-verifying {@code DefaultJwtVerifier}.
+     *
+     * @param expectedIssuer   required {@code iss}; not null or empty
+     * @param expectedAudience required {@code aud} element; not null or empty
+     * @param algorithm        {@code RS256} or {@code ES256}
+     * @param keysByKid        trusted public keys indexed by {@code kid}
+     * @param maxLifetime      the longest time after now that an accepted
+     *                         token's {@code exp} may lie; positive
+     * @throws IllegalArgumentException if an argument is unusable
+     */
+    public DefaultJwtVerifier(String expectedIssuer, String expectedAudience,
+                              String algorithm, Map<String, PublicKey> keysByKid,
+                              Duration maxLifetime) {
         if ("".equals(expectedIssuer) || "".equals(expectedAudience))
             throw new IllegalArgumentException("issuer/audience must not be empty");
+        if (maxLifetime == null || maxLifetime.isZero() || maxLifetime.isNegative())
+            throw new IllegalArgumentException("maxLifetime must be positive");
         if ((algorithm == null) != (keysByKid == null))
             throw new IllegalArgumentException("algorithm and keys go together");
         if (algorithm != null) {
+            if (expectedIssuer == null || expectedAudience == null)
+                throw new IllegalArgumentException(
+                    "signature mode requires an expected issuer and audience");
             if (!"RS256".equals(algorithm) && !"ES256".equals(algorithm))
                 throw new IllegalArgumentException("unsupported algorithm");
             if (keysByKid.isEmpty())
@@ -149,20 +195,20 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         this.expectedIssuer   = expectedIssuer;
         this.expectedAudience = expectedAudience;
         this.algorithm        = algorithm;
+        this.maxLifetime      = maxLifetime;
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Parses the JWT payload (Base64url-decode + minimal JSON parse) and
-     * validates {@code exp}, {@code iat}, {@code iss}, and {@code aud} claims
-     * per the rules documented on the class.
+     * <p>In signature mode the principals of the result are derived from the
+     * signed claims; in claims-only mode the result has none.
      *
-     * @throws JwtVerificationException if any claim check fails or the JWT
-     *         cannot be parsed
+     * @throws JwtVerificationException if any check fails or the JWT cannot
+     *         be parsed
      */
     @Override
-    public void verify(String rawJwt) throws JwtVerificationException {
+    public VerifiedJwt verify(String rawJwt) throws JwtVerificationException {
         if (rawJwt == null || rawJwt.isBlank())
             throw new JwtVerificationException("JWT token must not be null or blank");
 
@@ -176,20 +222,13 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     "JWT must have exactly 3 parts (header.payload.signature), got: "
                             + parts.length);
 
-        if (algorithm != null) verifySignature(parts);
+        Map<String, Object> header = decodeObject(parts[0], "header");
+        if (algorithm != null) verifySignature(header, parts);
+        checkType(header);
 
-        Map<String, String> payload;
+        Map<String, Object> payload = decodeObject(parts[1], "payload");
         try {
-            payload = parseClaimsJson(
-                    new String(Base64.getUrlDecoder().decode(parts[1]),
-                               StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            throw new JwtVerificationException(
-                    "Failed to decode JWT payload: " + e.getMessage(), e);
-        }
-
-        try {
-            validateClaims(payload);
+            return validateClaims(payload);
         } catch (JwtVerificationException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -198,15 +237,30 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         }
     }
 
-    private void verifySignature(String[] parts) throws JwtVerificationException {
-        Map<String, String> header;
+    private static Map<String, Object> decodeObject(String part, String what)
+            throws JwtVerificationException {
+        try {
+            return parseObject(new String(Base64.getUrlDecoder().decode(part),
+                                          StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException e) {
+            throw new JwtVerificationException("JWT " + what + " is not valid: " + e.getMessage());
+        }
+    }
+
+    private static void checkType(Map<String, Object> header) throws JwtVerificationException {
+        if (!header.containsKey("typ")) return;
+        Object typ = header.get("typ");
+        if (!(typ instanceof String) || !"JWT".equalsIgnoreCase((String) typ))
+            throw new JwtVerificationException("JWT typ header is not JWT");
+    }
+
+    private void verifySignature(Map<String, Object> header, String[] parts)
+            throws JwtVerificationException {
         byte[] sig;
         try {
-            header = parseClaimsJson(new String(
-                    Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8));
             sig = parts[2].isEmpty() ? null : Base64.getUrlDecoder().decode(parts[2]);
         } catch (IllegalArgumentException e) {
-            throw new JwtVerificationException("JWT header or signature is not Base64url");
+            throw new JwtVerificationException("JWT signature is not Base64url");
         }
         if (!algorithm.equals(header.get("alg")))
             throw new JwtVerificationException("JWT alg is not the configured algorithm");
@@ -214,7 +268,10 @@ public final class DefaultJwtVerifier implements JwtVerifier {
             throw new JwtVerificationException("JWT crit header is not supported");
         if (sig == null || sig.length == 0)
             throw new JwtVerificationException("JWT signature is missing");
-        String kid = header.get("kid");
+        Object kidObj = header.get("kid");
+        if (kidObj != null && !(kidObj instanceof String))
+            throw new JwtVerificationException("JWT kid is not a string");
+        String kid = (String) kidObj;
         PublicKey key = kid != null ? keys.get(kid)
                 : (keys.size() == 1 ? keys.values().iterator().next() : null);
         if (key == null)
@@ -262,188 +319,230 @@ public final class DefaultJwtVerifier implements JwtVerifier {
 
     // -------------------------------------------------------------------------
 
-    private void validateClaims(Map<String, String> payload) throws JwtVerificationException {
+    private VerifiedJwt validateClaims(Map<String, Object> payload) throws JwtVerificationException {
         Instant now = Instant.now();
 
-        // exp — token must not have expired
-        String expStr = payload.get("exp");
-        if (expStr == null)
-            throw new JwtVerificationException("JWT has no 'exp' claim");
-        {
-            try {
-                Instant exp = Instant.ofEpochSecond(Long.parseLong(expStr));
-                if (now.isAfter(exp.plusSeconds(CLOCK_SKEW_SECONDS))) {
-                    throw new JwtVerificationException(
-                            "JWT has expired at " + exp
-                                    + " (clock skew tolerance: " + CLOCK_SKEW_SECONDS + "s)");
-                }
-            } catch (NumberFormatException e) {
-                throw new JwtVerificationException(
-                        "JWT 'exp' claim is not a valid number: " + expStr, e);
-            }
+        Instant exp = timeClaim(payload, "exp", true);
+        if (now.isAfter(exp.plusSeconds(CLOCK_SKEW_SECONDS))) {
+            throw new JwtVerificationException(
+                    "JWT has expired at " + exp
+                            + " (clock skew tolerance: " + CLOCK_SKEW_SECONDS + "s)");
+        }
+        if (exp.isAfter(now.plus(maxLifetime).plusSeconds(CLOCK_SKEW_SECONDS))) {
+            throw new JwtVerificationException(
+                    "JWT exp is more than the maximum lifetime of " + maxLifetime + " away");
         }
 
-        // nbf — token must already be valid
-        String nbfStr = payload.get("nbf");
-        if (nbfStr != null) {
-            try {
-                Instant nbf = Instant.ofEpochSecond(Long.parseLong(nbfStr));
-                if (now.plusSeconds(CLOCK_SKEW_SECONDS).isBefore(nbf)) {
-                    throw new JwtVerificationException("JWT is not yet valid");
-                }
-            } catch (NumberFormatException e) {
-                throw new JwtVerificationException(
-                        "JWT 'nbf' claim is not a valid number: " + nbfStr, e);
-            }
+        Instant nbf = timeClaim(payload, "nbf", false);
+        if (nbf != null && now.plusSeconds(CLOCK_SKEW_SECONDS).isBefore(nbf)) {
+            throw new JwtVerificationException("JWT is not yet valid");
         }
 
-        // iat — token must not have been issued in the future
-        String iatStr = payload.get("iat");
-        if (iatStr != null) {
-            try {
-                Instant iat = Instant.ofEpochSecond(Long.parseLong(iatStr));
-                if (now.plusSeconds(CLOCK_SKEW_SECONDS).isBefore(iat)) {
-                    throw new JwtVerificationException(
-                            "JWT issued-at (" + iat + ") is in the future");
-                }
-            } catch (NumberFormatException e) {
-                throw new JwtVerificationException(
-                        "JWT 'iat' claim is not a valid number: " + iatStr, e);
-            }
+        Instant iat = timeClaim(payload, "iat", false);
+        if (iat != null && now.plusSeconds(CLOCK_SKEW_SECONDS).isBefore(iat)) {
+            throw new JwtVerificationException("JWT issued-at (" + iat + ") is in the future");
         }
 
-        // iss — must match configured issuer
-        if (expectedIssuer != null) {
-            String iss = payload.get("iss");
-            if (!expectedIssuer.equals(iss))
-                throw new JwtVerificationException(
-                        "JWT issuer mismatch: expected '" + expectedIssuer
-                                + "', got '" + iss + "'");
-        }
+        String iss = stringClaim(payload, "iss");
+        if (expectedIssuer != null && !expectedIssuer.equals(iss))
+            throw new JwtVerificationException(
+                    "JWT issuer mismatch: expected '" + expectedIssuer
+                            + "', got '" + iss + "'");
 
-        // aud — must contain configured audience
-        if (expectedAudience != null) {
-            String aud = payload.get("aud");
-            if (aud == null || !containsExactAudience(aud, expectedAudience))
-                throw new JwtVerificationException(
-                        "JWT audience mismatch: expected '" + expectedAudience
-                                + "', got '" + aud + "'");
+        List<String> aud = audienceClaim(payload);
+        if (expectedAudience != null && !aud.contains(expectedAudience))
+            throw new JwtVerificationException(
+                    "JWT audience mismatch: expected '" + expectedAudience
+                            + "', got " + aud);
+
+        String sub = stringClaim(payload, "sub");
+        if (algorithm == null) {
+            return VerifiedJwt.unauthenticated(sub, iss, aud, exp);
+        }
+        String email = stringClaim(payload, "email");
+        List<String> groups = stringList(payload, "groups");
+        return new VerifiedJwt(sub, iss, aud, exp, email, groups);
+    }
+
+    private static Instant timeClaim(Map<String, Object> payload, String name, boolean required)
+            throws JwtVerificationException {
+        Object v = payload.get(name);
+        if (v == null) {
+            if (required) throw new JwtVerificationException("JWT has no '" + name + "' claim");
+            return null;
+        }
+        if (!(v instanceof BigDecimal))
+            throw new JwtVerificationException("JWT '" + name + "' claim is not a number");
+        BigDecimal n = (BigDecimal) v;
+        // Bound the magnitude before setScale: "1e999999999" would otherwise
+        // allocate a gigantic BigInteger.
+        if (n.precision() - n.scale() > 19)
+            throw new JwtVerificationException("JWT '" + name + "' claim is out of range");
+        try {
+            return Instant.ofEpochSecond(n.setScale(0, java.math.RoundingMode.FLOOR)
+                                          .longValueExact());
+        } catch (ArithmeticException | java.time.DateTimeException e) {
+            throw new JwtVerificationException("JWT '" + name + "' claim is out of range");
         }
     }
 
+    private static String stringClaim(Map<String, Object> payload, String name)
+            throws JwtVerificationException {
+        Object v = payload.get(name);
+        if (v == null) return null;
+        if (!(v instanceof String))
+            throw new JwtVerificationException("JWT '" + name + "' claim is not a string");
+        return (String) v;
+    }
+
+    /** {@code aud} is a string (a list of one) or an array of strings. */
+    private static List<String> audienceClaim(Map<String, Object> payload)
+            throws JwtVerificationException {
+        Object v = payload.get("aud");
+        if (v == null) return List.of();
+        if (v instanceof String) return List.of((String) v);
+        return stringList(payload, "aud");
+    }
+
+    private static List<String> stringList(Map<String, Object> payload, String name)
+            throws JwtVerificationException {
+        Object v = payload.get(name);
+        if (v == null) return List.of();
+        if (!(v instanceof List))
+            throw new JwtVerificationException("JWT '" + name + "' claim is not an array");
+        List<String> out = new ArrayList<>();
+        for (Object o : (List<?>) v) {
+            if (!(o instanceof String))
+                throw new JwtVerificationException(
+                        "JWT '" + name + "' claim has an element that is not a string");
+            out.add((String) o);
+        }
+        return out;
+    }
+
+    // -------------------------------------------------------------------------
+    // Strict JSON object parser, JDK only.  Values: String, BigDecimal,
+    // Boolean, NULL (JSON null), List<Object>, Map<String,Object>.  Only the
+    // top-level map is consulted by this class; nested values are parsed so
+    // that they are skipped correctly and never lifted.  A duplicate member
+    // name in any object, trailing text, or malformed input is an error.
+    // -------------------------------------------------------------------------
+
+    private static final Object NULL = new Object();
+
     /**
-     * Returns {@code true} if {@code rawAud} contains {@code expected} as an
-     * exact element.  The {@code aud} claim may be a scalar string or a
-     * comma-separated list (as produced by {@link #parseClaimsJson} for JSON
-     * arrays).  This method handles both by splitting on {@code ,} and
-     * comparing each trimmed token with {@link String#equals}.
+     * Parses a JSON object into a map of its top-level members; a member
+     * whose value is JSON {@code null} is treated as absent.
      *
-     * <p>Exact matching prevents false positives: {@code "example.com"} would
-     * NOT match {@code "notexample.com"} even though it is a substring.
+     * @throws IllegalArgumentException if the text is not one JSON object
      */
-    private static boolean containsExactAudience(String rawAud, String expected) {
-        if (rawAud.equals(expected)) return true;
-        for (String part : rawAud.split(",", -1)) {
-            if (part.trim().equals(expected)) return true;
-        }
-        return false;
-    }
-
-    // -------------------------------------------------------------------------
-    // Minimal JSON claims parser — no external dependencies, JDK only.
-    // Handles the flat object structure of a JWT payload; parses string scalar
-    // values and arrays (joined with commas) sufficient for exp/iat/iss/aud.
-    // -------------------------------------------------------------------------
-
-    /**
-     * Parses a flat JWT claims JSON object into a string map.
-     * Numeric values are kept as their raw decimal string representation.
-     * JSON arrays are stored as comma-joined strings under the claim key.
-     */
-    static Map<String, String> parseClaimsJson(String json) {
-        Map<String, String> result = new HashMap<>();
-        if (json == null || json.isEmpty()) return result;
-
+    static Map<String, Object> parseObject(String json) {
         int[] pos = {0};
         skipWhitespace(json, pos);
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '{') return result;
-        pos[0]++; // consume '{'
+        Object v = parseValue(json, pos, 0);
+        skipWhitespace(json, pos);
+        if (pos[0] != json.length() || !(v instanceof Map))
+            throw new IllegalArgumentException("not a single JSON object");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m = (Map<String, Object>) v;
+        m.values().removeIf(x -> x == NULL);
+        return m;
+    }
 
-        while (pos[0] < json.length()) {
+    private static Object parseValue(String json, int[] pos, int depth) {
+        if (depth > MAX_JSON_DEPTH) throw new IllegalArgumentException("JSON nested too deeply");
+        char c = peek(json, pos);
+        switch (c) {
+            case '{': return parseMap(json, pos, depth);
+            case '[': return parseList(json, pos, depth);
+            case '"': return readString(json, pos);
+            case 't': return literal(json, pos, "true", Boolean.TRUE);
+            case 'f': return literal(json, pos, "false", Boolean.FALSE);
+            case 'n': return literal(json, pos, "null", NULL);
+            default:  return readNumber(json, pos);
+        }
+    }
+
+    private static Map<String, Object> parseMap(String json, int[] pos, int depth) {
+        pos[0]++; // '{'
+        Map<String, Object> out = new LinkedHashMap<>();
+        skipWhitespace(json, pos);
+        if (peek(json, pos) == '}') { pos[0]++; return out; }
+        while (true) {
             skipWhitespace(json, pos);
-            if (pos[0] >= json.length()) break;
-            char c = json.charAt(pos[0]);
-            if (c == '}') break;
-            if (c == ',') { pos[0]++; continue; }
-
+            if (peek(json, pos) != '"') throw new IllegalArgumentException("expected member name");
             String key = readString(json, pos);
-            if (key == null) break;
             skipWhitespace(json, pos);
-            if (pos[0] >= json.length() || json.charAt(pos[0]) != ':') break;
-            pos[0]++; // consume ':'
+            if (peek(json, pos) != ':') throw new IllegalArgumentException("expected ':'");
+            pos[0]++;
             skipWhitespace(json, pos);
-
-            if (pos[0] >= json.length()) break;
-            char v = json.charAt(pos[0]);
-
-            if (v == '"') {
-                String value = readString(json, pos);
-                if (value != null) result.put(key, value);
-            } else if (v == '[') {
-                result.put(key, readStringArray(json, pos));
-            } else {
-                String raw = readRawScalar(json, pos);
-                if (raw != null) result.put(key, raw);
-            }
+            Object val = parseValue(json, pos, depth + 1);
+            if (out.containsKey(key))
+                throw new IllegalArgumentException("duplicate member '" + key + "'");
+            out.put(key, val);
+            skipWhitespace(json, pos);
+            char d = peek(json, pos);
+            pos[0]++;
+            if (d == '}') return out;
+            if (d != ',') throw new IllegalArgumentException("expected ',' or '}'");
         }
-        return result;
     }
 
-    private static String readStringArray(String json, int[] pos) {
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '[') return "";
-        pos[0]++; // consume '['
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
-        while (pos[0] < json.length()) {
+    private static List<Object> parseList(String json, int[] pos, int depth) {
+        pos[0]++; // '['
+        List<Object> out = new ArrayList<>();
+        skipWhitespace(json, pos);
+        if (peek(json, pos) == ']') { pos[0]++; return out; }
+        while (true) {
             skipWhitespace(json, pos);
-            if (pos[0] >= json.length()) break;
-            char c = json.charAt(pos[0]);
-            if (c == ']') { pos[0]++; break; }
-            if (c == ',') { pos[0]++; continue; }
-            String item = (c == '"') ? readString(json, pos) : readRawScalar(json, pos);
-            if (item != null) {
-                if (!first) sb.append(',');
-                sb.append(item);
-                first = false;
-            }
+            out.add(parseValue(json, pos, depth + 1));
+            skipWhitespace(json, pos);
+            char d = peek(json, pos);
+            pos[0]++;
+            if (d == ']') return out;
+            if (d != ',') throw new IllegalArgumentException("expected ',' or ']'");
         }
-        return sb.toString();
     }
 
-    private static String readRawScalar(String json, int[] pos) {
+    private static char peek(String json, int[] pos) {
+        if (pos[0] >= json.length()) throw new IllegalArgumentException("unexpected end of JSON");
+        return json.charAt(pos[0]);
+    }
+
+    private static Object literal(String json, int[] pos, String word, Object value) {
+        if (!json.startsWith(word, pos[0])) throw new IllegalArgumentException("bad literal");
+        pos[0] += word.length();
+        return value;
+    }
+
+    private static Object readNumber(String json, int[] pos) {
         int start = pos[0];
         while (pos[0] < json.length()) {
             char d = json.charAt(pos[0]);
-            if (d == ',' || d == '}' || d == ']' || d == ' ' || d == '\t'
-                    || d == '\r' || d == '\n') break;
-            pos[0]++;
+            if ((d >= '0' && d <= '9') || d == '-' || d == '+' || d == '.' || d == 'e' || d == 'E')
+                pos[0]++;
+            else break;
         }
-        if (pos[0] > start) return json.substring(start, pos[0]);
-        pos[0]++;
-        return null;
+        if (pos[0] == start) throw new IllegalArgumentException("unexpected character");
+        try {
+            return new BigDecimal(json.substring(start, pos[0]));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("bad number");
+        }
     }
 
     private static String readString(String json, int[] pos) {
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '"') return null;
-        pos[0]++; // consume opening '"'
+        pos[0]++; // opening '"'
         StringBuilder sb = new StringBuilder();
         while (pos[0] < json.length()) {
             char c = json.charAt(pos[0]++);
             if (c == '"') return sb.toString();
-            if (c == '\\' && pos[0] < json.length()) {
+            if (c < 0x20) throw new IllegalArgumentException("control character in string");
+            if (c == '\\') {
+                if (pos[0] >= json.length()) break;
                 char esc = json.charAt(pos[0]++);
                 switch (esc) {
-                    case '"': sb.append('"'); break;
+                    case '"':  sb.append('"');  break;
                     case '\\': sb.append('\\'); break;
                     case '/':  sb.append('/');  break;
                     case 'b':  sb.append('\b'); break;
@@ -452,21 +551,22 @@ public final class DefaultJwtVerifier implements JwtVerifier {
                     case 'r':  sb.append('\r'); break;
                     case 't':  sb.append('\t'); break;
                     case 'u':
-                        if (pos[0] + 4 <= json.length()) {
-                            try {
-                                int cp = Integer.parseInt(json, pos[0], pos[0] + 4, 16);
-                                sb.append((char) cp);
-                            } catch (NumberFormatException ignored) { }
-                            pos[0] += 4;
+                        if (pos[0] + 4 > json.length())
+                            throw new IllegalArgumentException("bad \\u escape");
+                        try {
+                            sb.append((char) Integer.parseInt(json, pos[0], pos[0] + 4, 16));
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("bad \\u escape");
                         }
+                        pos[0] += 4;
                         break;
-                    default: sb.append(esc);
+                    default: throw new IllegalArgumentException("bad escape");
                 }
             } else {
                 sb.append(c);
             }
         }
-        return sb.toString(); // unterminated string — return what we have
+        throw new IllegalArgumentException("unterminated string");
     }
 
     private static void skipWhitespace(String json, int[] pos) {
