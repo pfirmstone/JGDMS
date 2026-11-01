@@ -1,0 +1,3 @@
+grant codeBase "ftp://*/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

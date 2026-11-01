@@ -1,0 +1,3 @@
+grant {
+  permission net.jini.security.GrantPermission "java.lang.RuntimePermission \"setIO\"; java.lang.RuntimePermission \"createClassLoader\"";
+};

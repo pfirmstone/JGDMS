@@ -1,0 +1,3 @@
+grant codeBase "${undefined.prop}" {
+  permission java.security.AllPermission;
+};

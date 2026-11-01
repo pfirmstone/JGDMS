@@ -1,0 +1,245 @@
+# file	default-exit	strict-exit	kinds	trunk-default	trunk-strict	trunk-kinds  (trunk = lint of commit 54b392987, informational, not asserted)
+n/n01-https-net-ccl.policy	1	1	D1	0	0	
+n/n02-http-exorg-allperm.policy	1	1	U3 S1	0	1	S1
+n/n03-http-port-wild-setsm.policy	1	1	D1	0	0	
+n/n04-ftp-star-ccl.policy	1	1	D1	1	1	D1
+n/n05-https-pinned-narrow.policy	0	0		0	0	
+n/n06-https-pinned-getclassloader.policy	0	0	I1	0	0	
+n/n07-https-port-range-ccl.policy	1	1	D1	1	1	D1
+n/n10-unbuildable-principal-star-ccl.policy	1	1	D2	0	0	
+n/n11-java-principal-star-ccl.policy	1	1	D2	0	0	
+n/n12-spiffe-prefix-namespace-ccl.policy	0	0		0	0	
+n/n13-spiffe-bare-star-allperm.policy	1	1	S3	0	1	S3
+n/n14-x500-star-medium.policy	0	1	D5	0	1	D5
+n/n20-tmpdir-star-write.policy	0	1	D5	0	0	
+n/n21-undefined-prop-write.policy	1	1	D1	0	0	
+n/n22-dotdot-root-write.policy	1	1	D1	0	0	
+n/n23-home-subdir-write-clean.policy	0	0		0	0	
+n/n24-javahome-conf-write.policy	1	1	D1	0	0	
+n/n25-userdir-dash-execute.policy	1	1	D1	0	0	
+n/n26-home-read-medium.policy	0	1	D5	0	0	
+n/n30-grantperm-delim-ccl.policy	1	1	D1	0	0	
+n/n31-grantperm-assertprincipal.policy	1	1	D1	0	0	
+n/n32-grantperm-star.policy	1	1	U2 D1	1	1	U2
+n/n33-grantperm-java-io-star.policy	1	1	D1	0	0	
+n/n34-grantperm-narrow-clean.policy	0	0		0	0	
+n/n35-grantperm-delim-quote-semicolon.policy	1	1	D1	1	1	D1
+n/n40-property-security-manager-write.policy	1	1	D1	0	0	
+n/n41-serialobject-star.policy	1	1	D1	0	0	
+n/n42-serialobject-named-clean.policy	0	0		0	0	
+n/n43-loadclass-allow.policy	0	1	D5	0	0	
+n/n44-mbean-invoke-star.policy	1	1	D1	0	0	
+n/n45-privcred-wild-name.policy	1	1	D1	0	0	
+n/n46-assertprincipal-prefix.policy	1	1	D1	0	0	
+n/n47-assertprincipal-exact-clean.policy	0	0		0	0	
+n/n50-unknown-class-unscoped.policy	1	1	D1	0	0	
+n/n51-unknown-class-pinned.policy	0	1	D6	0	0	
+n/n52-unknown-class-https-wild.policy	1	1	D1	0	0	
+n/n53-throws-unscoped.policy	1	1	D1	1	1	U3
+n/n54-throws-pinned.policy	0	1	D6	0	0	
+n/n60-userdir-codebase-ccl.policy	1	1	D3	0	0	
+n/n61-tmpdir-codebase-allperm.policy	1	1	S1 D3	0	1	S1
+n/n62-relative-codebase-ccl.policy	1	1	D3	0	0	
+n/n63-file-opt-app-ccl-clean.policy	0	0		0	0	
+n/n64-jar-https-wild-ccl.policy	1	1	D1	0	0	
+r6/a01-unscoped.policy	1	1	U1	1	1	U1
+r6/a02-undefprop.policy	1	1	U3 U4 S1	1	1	U3 U4 S1
+r6/a03-signedby-noalias.policy	0	1	S1	0	1	S1
+r6/a04-princ-star.policy	1	1	S3	0	1	S3
+r6/a05-grantperm-unscoped.policy	1	1	U2 D1	1	1	U2 D1
+r6/a06-secperm-star.policy	1	1	D1 D5	1	1	D1
+r6/a07-setsm.policy	1	1	D1	1	1	D1
+r6/a08-grantperm-wild.policy	1	1	U2 D1	1	1	U2
+r6/a09-file-dash.policy	1	1	S1 D3	1	1	S1 D3
+r6/a10-jrt-dash.policy	1	1	S1 D4	1	1	S1 D4
+r6/a11-comment-hide.policy	1	1	U1	1	1	U1
+r6/a12-continuation.policy	1	1	D1 P1	1	1	P1
+r6/a13-whitespace.policy	1	1	U1	1	1	U1
+r6/a14-second-grant.policy	1	1	U1	1	1	U1
+r6/a15-unicode-kw.policy	1	1	U1	1	1	U1
+r6/a16-unicode-perm.policy	1	1	U1	1	1	U1
+r6/a17-https-star.policy	1	1	U3 S1	1	1	U3 S1
+r6/a18-http-star.policy	1	1	U3 S1	1	1	U3 S1
+r6/a19-princ-class-star.policy	1	1	S3	0	1	S3
+r6/a20-princ-other-star.policy	1	1	S3	0	1	S3
+r6/a21-signedby-undef.policy	0	1	S1	0	1	S1
+r6/a22-setpolicy.policy	1	1	D1 D5	1	1	D1 D5
+r6/a23-grantperm-setpolicy.policy	1	1	D1	1	1	D1
+r6/a24-garbage.policy	1	1	U1 P1	1	1	U1 P1
+r6/a25-uppercase.policy	1	1	U1	1	1	U1
+r6/a26-file-root-star.policy	1	1	S1 D3	0	1	S1
+r6/a27-codebase-dash.policy	0	1	S1	0	1	S1
+r6/a28-princ-x500-quoted-star.policy	1	1	S3	0	1	S3
+r6/a29-keystore-bad.policy	0	1	S1	0	1	S1
+r6/a30-umbrella.policy	1	1	U2 D1	1	1	U2 D1
+r6/a31-grant-allperm-subclass.policy	1	1	U1	1	1	U1
+r6/a32-http-noport.policy	1	1	P1 U3 S1	1	1	P1 S1
+r6/a33-princ-classwild.policy	1	1	S3	0	1	S3
+r6/a34-filedash-file.policy	1	1	S1 D3	1	1	S1 D3
+r6/a35-userhome.policy	1	1	S1 D3	0	1	S1
+r6/a36-wrongext.txt	1	1	U1	1	1	U1
+r6/b01-princ-undef.policy	0	0	S2	0	0	S2
+r6/b02-princclass-undef.policy	1	1	P1 P1	1	1	P1 P1
+r6/b03-digest-undef.policy	0	0	S2	0	0	S2
+r6/b04-https-host-star.policy	1	1	U3 S1	1	1	U3 S1
+r6/b05-two-files-a.policy	1	1	U3 S1	1	1	U3 S1
+r6/b06-princ-x500-anyname-unquoted.policy	0	0	S2	0	0	S2
+r8/c01-sec-getPolicy.policy	0	1	D5	0	0	
+r8/c02-sec-setPolicy.policy	1	1	D1	1	1	D1
+r8/c03-sec-createPolicy_JavaPolicy.policy	0	1	D5	0	0	
+r8/c04-sec-getProperty_S.policy	0	0		0	0	
+r8/c05-sec-setProperty_package_access.policy	1	1	D1	1	1	D1
+r8/c06-sec-setProperty_S.policy	1	1	D1	1	1	D1
+r8/c07-sec-insertProvider.policy	1	1	D1	1	1	D1
+r8/c08-sec-insertProvider_S.policy	1	1	D1	1	1	D1
+r8/c09-sec-putProviderProperty_S.policy	1	1	D1	1	1	D1
+r8/c10-sec-clearProviderProperties_S.policy	1	1	D1	0	0	
+r8/c11-sec-removeProviderProperty_S.policy	1	1	D1	1	1	D1
+r8/c12-sec-authProvider_S.policy	0	0		0	0	
+r8/c13-sec-createAccessControlContext.policy	1	1	D1	1	1	D1
+r8/c14-sec-getDomainCombiner.policy	0	0		0	0	
+r8/c15-sec-S.policy	1	1	D1 D5	1	1	D1
+r8/c16-sec-setS.policy	0	0		0	0	
+r8/f01-allfiles-read.policy	0	1	D5	0	1	D5
+r8/f02-allfiles-write.policy	1	1	D1	1	1	D1
+r8/f03-allfiles-delete.policy	1	1	D1	1	1	D1
+r8/f04-allfiles-execute.policy	1	1	D1	1	1	D1
+r8/f05-allfiles-readlink.policy	0	1	D5	0	1	D5
+r8/f06-allfiles-combined.policy	1	1	D1 D5	1	1	D1 D5
+r8/f07-slash-dash-write.policy	1	1	D1	1	1	D1
+r8/f08-slash-star-write.policy	1	1	D1	1	1	D1
+r8/f09-cdrive-dash-write.policy	1	1	D1	1	1	D1
+r8/f10-userhome-dash-write.policy	1	1	D1	0	0	
+r8/f11-userhome-star-write.policy	1	1	D1	0	0	
+r8/f12-rel-dash-write.policy	1	1	D1	1	1	D1
+r8/f13-rel-star-write.policy	1	1	D1	1	1	D1
+r8/f14-rel-sub-write.policy	0	0		0	0	
+r8/f15-dotdot-write.policy	1	1	D1	1	1	D1
+r8/f16-dotdot-fwd-write.policy	1	1	D1	0	0	
+r8/f17-javahome-write.policy	1	1	D1	0	0	
+r8/f18-cdrive-dash-read.policy	0	1	D5	0	1	D5
+r8/f19-dotdot-relative-write.policy	1	1	D1	1	1	D1
+r8/f21-drive-lower-write.policy	1	1	D1	1	1	D1
+r8/f22-other-drive-write.policy	1	1	D1	1	1	D1
+r8/f23-users-dotdot-write.policy	1	1	D1	1	1	D1
+r8/gp01-grantperm.policy	1	1	D1	1	1	D1
+r8/gp02-grantperm.policy	1	1	D1	1	1	D1
+r8/gp03-grantperm.policy	1	1	D1	0	0	
+r8/gp04-grantperm.policy	1	1	D1	1	1	D1
+r8/gp05-grantperm.policy	1	1	D1	0	0	
+r8/gp06-grantperm.policy	1	1	D1	0	0	
+r8/gp07-grantperm.policy	1	1	U2 D1	1	1	U2
+r8/gp08-grantperm.policy	1	1	D1	1	1	D1
+r8/gp09-grantperm.policy	1	1	D1	0	0	
+r8/gp10-grantperm.policy	1	1	U2 D1	1	1	U2 D1
+r8/gp11-grantperm.policy	1	1	D1	1	1	D1
+r8/gp12-grantperm.policy	1	1	D1	1	1	D1
+r8/h01-https-star-org.policy	1	1	U3 S1	0	1	S1
+r8/h02-http-star-exorg.policy	1	1	U3 S1	0	1	S1
+r8/h03-http-star-port.policy	1	1	U3 S1	0	1	S1
+r8/h04-https-star-net-ccl.policy	1	1	D1	0	0	
+r8/h05-http-com-anyport.policy	1	1	U3 S1	1	1	U3 S1
+r8/h06-https-specific.policy	0	1	S1	0	1	S1
+r8/j01-assertprincipal-star.policy	1	1	D1	0	0	
+r8/j02-privcred-star.policy	1	1	D1	0	0	
+r8/j03-deser-star.policy	1	1	D1	1	1	D1
+r8/j04-loadclass-star.policy	1	1	D1	0	0	
+r8/j05-dc-loadclass.policy	1	1	D1	0	0	
+r8/j06-dc-native.policy	1	1	D1	1	1	D1
+r8/j07-unknown-class.policy	1	1	D1	0	0	
+r8/j08-serial-subclass.policy	0	1	D5	0	1	D5
+r8/j09-mgmt-control.policy	1	1	D1	0	0	
+r8/j10-jdk-attach.policy	1	1	D1	0	0	
+r8/j11-mbean-star.policy	1	1	D1	0	0	
+r8/j12-mbeantrust.policy	1	1	D1	0	0	
+r8/j13-delegation.policy	0	1	D5	0	0	
+r8/j14-servicepermission.policy	0	1	D5	0	0	
+r8/j15-downloadperm.policy	0	1	D5	0	0	
+r8/j16-jaxpermission.policy	0	1	D5	0	0	
+r8/j17-sqlperm.policy	0	0		0	0	
+r8/j18-netperm.policy	1	1	D1 D5	0	0	
+r8/j19-sslperm.policy	1	1	D1 D5	0	0	
+r8/k01-signedby-absent.policy	0	0		0	0	
+r8/k02-keystore-absent.policy	0	0		0	0	
+r8/k03-codebase-undef.policy	1	1	D1	1	1	D1
+r8/k04-jar-file-dash.policy	1	1	D3	0	0	
+r8/k05-file-dash.policy	1	1	D3	1	1	D3
+r8/k06-file-star.policy	1	1	D3	0	0	
+r8/k07-file-slash.policy	1	1	D3	0	0	
+r8/k08-userhome-ccl.policy	1	1	D3	0	0	
+r8/k09-tmpdir-all.policy	1	1	S1 D3	0	1	S1
+r8/m01-split-combo.policy	1	1	D5 D1 D1	0	1	D5
+r8/m02-split-policyprop.policy	1	1	D1 D1	0	0	
+r8/m03-split-read-write.policy	1	1	D5 D1	1	1	D1 D5
+r8/n01-nested-keystore.policy	1	1	P1 U1	1	1	P1 U1
+r8/n02-nested-grant.policy	1	1	D1 P1	1	1	P1
+r8/ok1-jrt-javabase.policy	0	0	S5	0	0	S5
+r8/ok2-fileread-dir.policy	0	0		0	0	
+r8/p01-property-star-write.policy	1	1	D1	0	1	D5
+r8/p02-property-policy-write.policy	1	1	D1	0	0	
+r8/q01-princ-unloadable.policy	0	0		0	0	
+r8/q02-princ-unloadable-star.policy	1	1	S3	0	1	S3
+r8/q03-princ-star-setsm.policy	1	1	D2	0	1	D2
+r8/q04-x500star-files.policy	1	1	D2	0	1	D2
+r8/q05-jwtprincipal-star.policy	1	1	S3	0	1	S3
+r8/q06-kerberos-star.policy	1	1	S3	0	1	S3
+r8/q07-spiffe-star-setsm.policy	1	1	D2	0	0	
+r8/q08-jwt-star-ccl.policy	1	1	D2	0	0	
+r8/q09-krb-star-ccl.policy	1	1	D2	0	0	
+r8/r01-rt-setSecurityManager.policy	1	1	D1	1	1	D1
+r8/r02-rt-createClassLoader.policy	1	1	D1	1	1	D1
+r8/r03-rt-setContextClassLoader.policy	0	1	D5	0	1	D5
+r8/r04-rt-getClassLoader.policy	0	1	D5	0	0	
+r8/r05-rt-accessDeclaredMembers.policy	0	1	D5	0	1	D5
+r8/r06-rt-accessClassInPackage_sun_misc.policy	0	1	D5	0	1	D5
+r8/r07-rt-accessClassInPackage_sun_S.policy	0	1	D5	0	1	D5
+r8/r08-rt-accessClassInPackage_jdk_internal_misc.policy	1	1	D1	0	0	
+r8/r09-rt-accessClassInPackage_S.policy	1	1	D1 D5	0	1	D5
+r8/r10-rt-defineClassInPackage_java_lang.policy	1	1	D1	1	1	D1
+r8/r11-rt-loadLibrary_S.policy	1	1	D1	1	1	D1
+r8/r12-rt-modifyThread.policy	0	1	D5	0	0	
+r8/r13-rt-modifyThreadGroup.policy	0	1	D5	0	0	
+r8/r14-rt-setIO.policy	0	1	D5	0	0	
+r8/r15-rt-shutdownHooks.policy	0	0		0	0	
+r8/r16-rt-exitVM.policy	0	1	D5	0	1	D5
+r8/r17-rt-exitVM_0.policy	0	1	D5	0	1	D5
+r8/r18-rt-writeFileDescriptor.policy	0	1	D5	0	0	
+r8/r19-rt-readFileDescriptor.policy	0	1	D5	0	0	
+r8/r20-rt-S.policy	1	1	D1 D5	1	1	D1 D5
+r8/r21-rt-defineS.policy	0	0		0	0	
+r8/r22-rt-charsetProvider.policy	0	1	D5	0	0	
+r8/r23-rt-enableContextClassLoaderOverride.policy	0	1	D5	0	0	
+r8/r24-rt-manageProcess.policy	0	1	D5	0	0	
+r8/s01-socket-star.policy	0	1	D5	0	1	D5
+r8/s02-socket-star-port.policy	0	1	D5	0	1	D5
+r8/s03-socket-resolve.policy	0	1	D5	0	1	D5
+r8/s04-socket-subnet.policy	0	1	D5	0	1	D5
+r8/u01-auth-createLoginContext_S.policy	0	1	D5	0	1	D5
+r8/u02-auth-doAs.policy	0	1	D5	0	1	D5
+r8/u03-auth-doAsPrivileged.policy	1	1	D1	1	1	D1
+r8/u04-auth-modifyPrincipals.policy	1	1	D1	1	1	D1
+r8/u05-auth-getSubject.policy	0	1	D5	0	1	D5
+r8/u06-auth-setLoginConfiguration.policy	0	1	D5	0	1	D5
+r8/u07-auth-modifyPublicCredentials.policy	0	1	D5	0	1	D5
+r8/u08-auth-modifyPrivateCredentials.policy	1	1	D1	1	1	D1
+r8/u09-auth-S.policy	1	1	D1	1	1	D1
+r8/u10-auth-getLoginConfiguration.policy	0	1	D5	0	1	D5
+r8/u11-auth-refreshLoginConfiguration.policy	0	1	D5	0	1	D5
+r8/v01-comments.policy	1	1	D1	1	1	D1
+r8/v02-unicode-name.policy	0	0		0	0	
+r8/v03-unicode-class.policy	1	1	D1 P1	1	1	P1
+r8/v04-continuation.policy	0	0		0	0	
+r8/v05-whitespace.policy	1	1	D1	1	1	D1
+r8/v06-empty-actions.policy	1	1	D1	1	1	D1
+r8/v07-perm-signedby.policy	0	0		0	0	
+r8/v08-name-undefprop.policy	0	0		0	0	
+r8/v09-name-prop.policy	0	0		0	0	
+r8/v10-mixedcase.policy	1	1	D1	1	1	D1
+r8/v11-unicode-quote.policy	1	1	D1 P1	1	1	P1
+r8/x01-reflect-suppress.policy	1	1	D1	1	1	D1
+r8/x02-reflect-star.policy	1	1	D1	1	1	D1
+r8/x03-reflect-proxy.policy	0	1	D5	0	1	D5
+r8/z01-principal-noclass.policy	0	0	S2	0	0	S2
+r8/z02-order.policy	0	0	S2	0	1	S3
+r8/z03-no-semicolon.policy	1	1	U1	1	1	U1
+r8/z04-no-trailing-semicolon.policy	1	1	D1	1	1	D1

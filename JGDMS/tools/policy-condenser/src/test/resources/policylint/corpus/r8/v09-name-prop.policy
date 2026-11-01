@@ -1,0 +1,4 @@
+grant {
+  permission java.lang.RuntimePermission "${java.vm.specification.vendor}";
+  permission java.lang.RuntimePermission "${lint.rtname}";
+};

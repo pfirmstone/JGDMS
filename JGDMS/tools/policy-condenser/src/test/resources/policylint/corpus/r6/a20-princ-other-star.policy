@@ -1,0 +1,3 @@
+grant principal com.sun.security.auth.UserPrincipal * {
+  permission java.security.AllPermission;
+};

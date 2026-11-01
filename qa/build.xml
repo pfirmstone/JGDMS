@@ -815,28 +815,36 @@
 
         ant -Dpolicy.lint.paths=<files-or-dirs> policy-lint
 
-      The AllPermission verdict is the production policy provider's (DirtyChai's
-      ConcurrentPolicyFile if java.base exports it to the tool's JVM, else
-      jgdms-platform's); the printed PROVIDER line says which.
+      Two checks, either of which raises a finding: a symbolic one that reads each
+      grant's codeBase pattern (wildcard hosts and ports, user-writable file: paths,
+      jrt:/-), signedBy and principal list and applies the catalogue, and the production
+      policy provider's verdict (DirtyChai's ConcurrentPolicyFile if java.base exports it
+      to the tool's JVM, else jgdms-platform's) for a set of probe subjects; the printed
+      PROVIDER line says which.
 
       Exit status: fails the build on UNSCOPED_ALLPERMISSION (U1),
       UNSCOPED_META_GRANT (U2), REAL_VERDICT_UNSCOPED (U3),
-      PROPERTY_DEPENDENT_SCOPE (U4), UNPARSEABLE (P1), D1 (a dangerous permission
-      reaches a stranger's codebase), D3 (file:/-) and D4 (jrt:/-) and P2 (a file in a
-      walked directory with an unrecognised name that reads like a policy); also on S1,
-      S3 (WILDCARD_PRINCIPAL), S4 (CODEBASE_SCOPED_META_GRANT), D2 (any principal), D5
-      (broad permission) and W1/W2 (empty or unreadable directory, odd file) with
-      -Dpolicy.lint.strict=true.
+      PROPERTY_DEPENDENT_SCOPE (U4), UNPARSEABLE (P1), WILDCARD_PRINCIPAL (S3), D1 (a
+      dangerous permission reaches a stranger's codebase, wildcard hosts included), D2
+      (a dangerous permission reaches any principal of a class), D3 (file:/- and
+      user-writable file: codeBases) and D4 (jrt:/-), P2 (a file in a walked directory
+      that reads like a policy, whatever its name or extension) and P3 (a link loop);
+      also on S1, S4 (CODEBASE_SCOPED_META_GRANT), D5 (broad permission), D6 (a
+      permission the lint cannot judge) and W1/W2 (empty or unreadable directory, odd
+      file) with -Dpolicy.lint.strict=true.
       The STARTING policy of a polpAudit run must be linted with
       -Dpolicy.lint.audit.input=true, which fails on ANY AllPermission grant.
 
       Properties:
         policy.lint.paths        files and directories, separated by the path
-                                 separator (required); a directory is walked for
-                                 *.policy, *.policy.old, *.policy.new, policy.all
-                                 and *.policy.*, not *.proxy-permissions or
-                                 *.grantperm
-        policy.lint.strict       true to fail on the medium kinds (S1 S3 S4 D2 D5 W1 W2)
+                                 separator (required); a directory is walked and
+                                 every regular file in it is read, including
+                                 *.proxy-permissions directories and *.grantperm
+                                 files, except README*, *.md, *.log, *.jar, *.class,
+                                 *.png and a *.txt without the words grant,
+                                 permission or keystore; a file larger than 16 MiB
+                                 is a P1 failure
+        policy.lint.strict       true to fail on the medium kinds (S1 S4 D5 D6 W1 W2)
         policy.lint.require.defined  true to fail (U4) on any codeBase ${property}
                                  not given with policy.lint.define.NAME
         policy.lint.audit.input  true to fail on any AllPermission (S1, S2 too)

@@ -1,0 +1,3 @@
+grant codeBase "https://host.example.org/" {
+  permission java.lang.RuntimePermission "getClassLoader";
+};

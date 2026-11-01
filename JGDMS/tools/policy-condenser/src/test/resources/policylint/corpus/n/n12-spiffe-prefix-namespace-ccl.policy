@@ -1,0 +1,3 @@
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal "spiffe://td.example/host/bae/*" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

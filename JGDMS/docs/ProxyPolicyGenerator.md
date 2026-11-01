@@ -365,8 +365,41 @@ ant -Dpolicy.lint.paths=<files-or-dirs> [-Dpolicy.lint.strict=true] \
 
 ### Where the verdict comes from
 
-The question "does code from a **stranger** get this permission under this file?" is asked
-of a production policy provider, never decided by text: the file is loaded with the
+Two halves, and either one raising a finding counts: a **symbolic scope check** that reads
+the grant, and the **provider probes**. The probes ask about a few fixed subjects, and each
+fixed subject leaves another wildcard form that is not asked about (`https://*.net/-`,
+`http://*:8443/-`, a wildcard `SpiffePrincipal`), so the probes are no longer the only
+evidence.
+
+**Symbolic scope check** (`PolicyScope`, per grant block). A grant *reaches an attacker* if
+its codeBase pattern, `signedBy`, `digest` and principal list can match something an attacker
+controls; the catalogue (below) is then applied to every permission the block holds.
+A `digest`, a `signedBy` alias, a per-permission `signedBy` or a named principal pins the grant.
+Attacker-controllable scope is:
+
+* **no `codeBase`**, or one whose `${property}` is undefined here (the production parser drops
+  the location): everyone;
+* an **`http`, `https` or `ftp` codeBase** whose host holds a wildcard (`*`, `*.net`,
+  `*.example.org`) or is empty, or whose port is a wildcard or a range (`*`, `1024-`). An exact
+  host with an unspecified or fixed port is pinned: it reaches nobody, and a pinned grant that
+  holds a catalogued permission is reported at **I1** (INFO, never fails);
+* a **`file:` codeBase** that is relative, a root or drive (`file:/-`, `file:/*`), under a
+  temp or `Downloads` directory, written with `${user.home}`, `${java.io.tmpdir}` or
+  `${user.dir}`, or a recursive pattern above one of those; `jar:` forms are judged by what they
+  wrap; a **`jrt:/-`** or `jrt:/*` codeBase;
+* a **principal list** every entry of which is a wildcard class (`principal * *`), or a wildcard
+  or prefix name (`*`, `*suffix`, `prefix*`) of a class whose names an outside party issues
+  (`SpiffePrincipal`, `JwtPrincipal`, `KerberosPrincipal`, `X500Principal`, `UserPrincipal`...),
+  of a class the tool cannot load, or of a class no principal could be made of. A prefix that
+  names a trust domain and a path (`spiffe://td/host/bae/*`) is the issuer's namespace and is
+  not a wildcard.
+
+The kind follows the scope: a HIGH permission to everyone or a wildcard host is **D1** (AllPermission
+there is **U3**), to any principal **D2** (AllPermission: **S3**), to a `file:` scope **D3**, to a
+`jrt:` scope **D4**; a MEDIUM permission is **D5**.
+
+**Provider probes.** The question "does code from a **stranger** get this permission under this file?" is asked
+of a production policy provider: the file is loaded with the
 provider's own parser and `implies(ProtectionDomain, probe)` is asked for every probe
 (AllPermission first, then the dangerous-permission catalogue below, then each dangerous
 permission the file itself names) of these subjects:
@@ -374,16 +407,24 @@ permission the file itself names) of these subjects:
 * **stranger**: code from `http://`, `https://` (with and without a port), `ftp://`, a bare
   IP and `jar:http:` codebases of `evil.example.com`, no principal;
 * **principal**: the same code run by a principal of any class: an `X500Principal`, a class
-  of the tool (matches `principal * *`) and every principal class the policy names
-  (instantiated by name, e.g. `com.sun.security.auth.UserPrincipal`);
+  of the tool (matches `principal * *`) and every principal class the policy names. A class
+  that can be loaded is instantiated by name; one that cannot (a SPIFFE or JWT principal of a
+  module not on the tool's class path) or that has no constructor taking a name gets a
+  **generated stand-in class of the same name** (`StandInPrincipal`), which a provider matches
+  on class name. Where not even that is possible (a class in `java.*` without such a
+  constructor) the grant is treated as reaching a stranger instead of a `NOTE` and exit 0;
 * **file**: code from an arbitrary `file:` (or `jar:file:`) location; **platform**: code from
   an arbitrary `jrt:` module;
 * a null `CodeSource` is not implied by design; it is printed, not scored.
 
 A probe also counts as granted when an element of the permission collection the provider
 returns for the subject implies it, so a permission class the catalogue does not know is
-judged by what it implies (an unresolved class is loaded with the tool's own class loader;
-one that cannot be loaded is a `NOTE` line, not a verdict). The answers are printed per
+judged by what it implies (an unresolved class is loaded with the tool's own class loader).
+A permission the lint **cannot judge** is never clean: a class that cannot be loaded or whose
+constructor rejects its name (`GrantPermission "java.io.*"`: the class loads, its target is
+rejected), or one whose `implies` throws, counts as granted: **D6** (medium, strict only) in
+a scope that reaches no attacker, **D1/D2/D3/D4** (high) where it does, and always high when
+the provider lists it for one of the attacker subjects. The answers are printed per
 file as a `VERDICT` line (the AllPermission answers), and the provider as a `PROVIDER`
 line. The stock `sun.security.provider.PolicyFile` is never used: it disagrees with the
 production providers on seven of the review fixtures.
@@ -436,14 +477,19 @@ hold.
 
 ### Files, output, kinds
 
-A directory is walked for `*.policy`, `*.policy.old`, `*.policy.new`, `policy.all` and
-`*.policy.*` (names matched case-insensitively), never into `*.proxy-permissions`
-directories and never `*.grantperm` files; `--glob` adds file-name patterns. The runtime
-loads whatever name `java.security.policy` gives it, so the walk does not trust names: a
-regular file that is not recognised, whose extension is not plainly unrelated (`txt`, `md`,
-`jar`, `xml`, `list`, ...) and that reads like a policy (it mentions `grant`, `permission`,
-`keystore` or a `\u` escape) is **P2**: linted anyway and failing the gate. An unrecognised
-file that does not read like a policy is **W2**, a directory named on the command line that
+A directory is walked for `*.policy`, `*.policy.old`, `*.policy.new`, `policy.all`,
+`*.policy.*` and `*.grantperm` (names matched case-insensitively), **into `*.proxy-permissions`
+directories too**; `--glob` adds file-name patterns. The runtime
+loads whatever name `java.security.policy` gives it, so the walk does not trust names or
+extensions: **every regular file is read** unless its name is on a short ignore list (`README*`,
+`*.md`, `*.log`, `*.jar`, `*.class`, `*.png`, `PERMISSIONS.LIST` - a different grammar), and
+a `*.txt` that holds none of the words `grant`, `permission`, `keystore`. A file that reads
+like a policy (it mentions `grant`, `permission`, `keystore` or a `\u` escape, whatever its name:
+`all.txt`, `conf.properties`, `server.xml`) is **P2**: linted anyway and failing the gate. The
+whole file is read, so padding cannot push the grant out of view; a file over 16 MiB is not
+read and is **P1**. Links (symbolic links, Windows junctions) are followed to 8 hops with the real
+path of every ancestor remembered; a loop, or a chain deeper than 8, is **P3** (fails). An
+unrecognised file that does not read like a policy is **W2**, a directory named on the command line that
 yielded no policy file although another path did, or an entry the walk could not read, is
 **W1**; both are strict-only warnings. A file named on the command line is always
 linted whatever its name; a named path that does not exist is a usage error, and so is a
@@ -461,18 +507,21 @@ in policy text are printed as `\uXXXX`.
 | `U4 PROPERTY_DEPENDENT_SCOPE` | `codeBase` of an AllPermission/meta grant uses an undefined `${property}` | always |
 | `S1 ALLPERMISSION_CODEBASE_ONLY` | AllPermission scoped only by `codeBase`/`signedBy`: remotely assertable | `--strict` |
 | `S2 ALLPERMISSION_SCOPED` | AllPermission scoped by a `digest` or by named principals | `--audit-input` |
-| `S3 WILDCARD_PRINCIPAL` | scoped only by `principal * *`, `principal Class *` or `principal * "name"`: any authenticated subject | `--strict` |
+| `S3 WILDCARD_PRINCIPAL` | AllPermission scoped only by a wildcard principal that an attacker can be (`principal * *`, `Class *` for an outside-issued or unloadable class, `principal * "name"`) and no signer, digest or fixed codeBase: any authenticated subject. With a signer or a fixed codeBase it is S2 | always |
 | `S4 CODEBASE_SCOPED_META_GRANT` | codeBase/signedBy-scoped `GrantPermission` implying AllPermission, or Umbrella | `--strict` |
 | `S5 PLATFORM_MODULE_GRANT` | AllPermission for exactly `jrt:/<module>`: informational | `--audit-input` |
 | `P1 UNPARSEABLE` | unreadable file, a grammar error, or a file the production parser rejects | always |
 | `D1 DANGEROUS_TO_STRANGER` | a HIGH catalogue permission (not AllPermission) reaches a stranger's codebase on any scheme | always |
-| `D2 DANGEROUS_TO_ANY_PRINCIPAL` | a HIGH catalogue permission reaches code run by a principal of any class (`principal * *`, `Class *`) | `--strict` |
+| `D2 DANGEROUS_TO_ANY_PRINCIPAL` | a HIGH catalogue permission reaches code run by a principal of any class (`principal * *`, `Class *`) | always |
 | `D3 DANGEROUS_TO_ANY_FILE_CODE` | a HIGH permission, AllPermission included, reaches code from any `file:` location (`file:/-`) | always |
 | `D4 DANGEROUS_TO_ANY_PLATFORM_MODULE` | a HIGH permission, AllPermission included, reaches any `jrt:` module (`jrt:/-`); `jrt:/java.base` alone is S5 | always |
 | `D5 BROAD_PERMISSION` | a MEDIUM catalogue permission reaches any of those subjects | `--strict` |
-| `P2 UNRECOGNISED_POLICY_FILE` | unrecognised file name in a walked directory that reads like a policy (also linted) | always |
+| `D6 UNJUDGEABLE_PERMISSION` | a permission the lint cannot judge (class not loadable, constructor rejects it, `implies` throws) in a scope that reaches no attacker; in one that does it is D1..D4 | `--strict` |
+| `P2 UNRECOGNISED_POLICY_FILE` | a file in a walked directory, not on the ignore list and not named like a policy, that reads like one (also linted) | always |
+| `P3 WALK_LOOP_OR_DEPTH` | a link loop, or links more than 8 deep, in a walked directory | always |
 | `W1 EMPTY_OR_UNREADABLE_DIRECTORY` | a named directory with no policy file next to paths that had some, or an unreadable entry | `--strict` |
 | `W2 UNRECOGNISED_FILE` | unrecognised, non-policy-looking file in a walked directory | `--strict` |
+| `I1 PINNED_REMOTE_CODEBASE` | a grant pinned to one remote host that holds a catalogued permission: confirm the host is yours | never |
 
 Where a zone is granted AllPermission the other probes of that zone are not repeated, and a
 probe a stranger already holds is not repeated for the principal, file and platform zones.
@@ -487,8 +536,24 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
 
 * AllPermission, `UmbrellaGrantPermission`, `PolicyPermission`, `GrantPermission` whose target
   is `*`/`-` or contains a dangerous permission;
-* `FilePermission` write, delete or execute on `<<ALL FILES>>`, on `-` or `*`, or on a
-  root or drive tree (`/-`, `C:\-`); read on the same is MEDIUM;
+* `FilePermission` write, delete or execute on `<<ALL FILES>>`, on `-` or `*`, on a
+  root or drive tree (`/-`, `C:\-`), on the whole tree of the user home, the JDK home or the
+  temp directory (or of a directory above one: `/home/-`), on `*` in the home or JDK home, and
+  on any file below the JDK home. Names are expanded first (`--define` values, then this JVM's
+  properties, `${/}`) and normalised (`..` and `.` applied, `\` read as `/`); a property defined
+  in neither is read as the root; `${user.dir}` counts as the working directory. Read on the
+  same is MEDIUM. `/tmp/*` (the temp directory's own files) is MEDIUM: services keep scratch
+  files there, as the deploy policies do;
+* `AssertPrincipalPermission` with `*` in its class or name pattern (it confers identity),
+  `PrivateCredentialPermission` with a wildcard credential, principal class or name,
+  `NetPermission` `*` or `specifyStreamHandler`, `SSLPermission` `*` or `setDefaultSSLContext`,
+  `RuntimePermission` `accessClassInPackage.jdk.internal.*`, `SecurityPermission`
+  `clearProviderProperties.*`, `PropertyPermission` write on `java.security.policy`,
+  `java.security.manager`, `java.security.auth.login.config`, `java.security.properties` or a
+  wildcard covering them (`*` included), `MBeanPermission` with a wildcard class and a mutating
+  action, `MBeanServerPermission` `*`, `MBeanTrustPermission`, `ManagementPermission` `control`,
+  `AttachPermission` `attachVirtualMachine`, `LoadClassPermission` (`net.jini.loader` or
+  DirtyChai's) with a `*` name, DirtyChai's `SerialObjectPermission` with a `*` name;
 * `SecurityPermission` `*`, `setPolicy`, `setProperty.*`, `insertProvider.*`, `removeProvider.*`,
   `putProviderProperty.*`, `createAccessControlContext`;
 * `RuntimePermission` `*`, `setSecurityManager`, `createClassLoader`, `loadLibrary.*`,
@@ -500,17 +565,31 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
 
 MEDIUM (strict only): `RuntimePermission` `getProtectionDomain`, `exitVM.*`,
 `accessClassInPackage.sun.*`, `setContextClassLoader`, `setFactory`, `accessDeclaredMembers`;
-`SocketPermission` to any host (`*` or `*:ports`); `PropertyPermission` `*` with write;
+`SocketPermission` to any host (`*` or `*:ports`);
 `URLPermission` and `AuthenticationPermission` with a wildcard; `AuthPermission`,
-`SerializablePermission` and `ReflectPermission` entries not listed above. Not catalogued:
-`shutdownHooks` (runs only the caller's own code at exit).
+`SerializablePermission` and `ReflectPermission` entries not listed above; `RuntimePermission`
+`setIO`, `getClassLoader`, `modifyThread`, `modifyThreadGroup`, `writeFileDescriptor`,
+`readFileDescriptor`, `manageProcess`, `enableContextClassLoaderOverride`, `charsetProvider`;
+`SecurityPermission` `getPolicy`, `createPolicy.*`; `NetPermission` `setDefaultAuthenticator`
+and its kin; `SSLPermission` `setHostnameVerifier`; `MBeanPermission` with a wildcard class and
+a read action; `ManagementPermission` `monitor`; `LoggingPermission`; Kerberos
+`DelegationPermission`/`ServicePermission` with `*`; `DownloadPermission`; DirtyChai's
+`LoadClassPermission "ALLOW"` (it opens the class-loading gate; HIGH as `*`).
+`NativeInvocationPermission` is HIGH whatever its name. Not catalogued:
+`shutdownHooks` (runs only the caller's own code at exit). The DirtyChai guards are classes
+the tool cannot load: they are judged by name, so a `SerialObjectPermission` naming one class is
+clean and an unknown class of any other name is D6 (below).
 
-(`--audit-input` fails on every S kind; `--strict` fails on S1, S3, S4, D2, D5, W1 and W2.) S5 is counted,
+`GrantPermission` is read by `GrantPermission`'s own parser, so the `delim=|` forms and nested
+`GrantPermission`s are what the runtime sees; the target is HIGH if it holds a HIGH permission,
+`AssertPrincipalPermission`, a class `*`/`-`, or a package wildcard covering one (`java.io.*`).
+
+(`--audit-input` fails on every S kind; `--strict` fails on S1, S4, D5, D6, W1 and W2.) S5 is counted,
 not lumped into S1: platform code is privileged while it is alone on the stack, so a
 platform module needs no AllPermission grant at all.
 
-Exit status: `0` clean; `1` on any U1, U2, U3, U4, P1, P2, D1, D3 or D4 (also S1, S3, S4,
-D2, D5, W1, W2 with `--strict`; any AllPermission finding, S2 and S5 included, with
+Exit status: `0` clean; `1` on any U1, U2, U3, U4, P1, P2, P3, S3, D1, D2, D3 or D4 (also S1, S4,
+D5, D6, W1, W2 with `--strict`; any AllPermission finding, S2 and S5 included, with
 `--audit-input`); `2` usage error (no
 path, a missing path, an unknown option or provider, a forced provider that is not
 available, or no policy file found).
@@ -523,10 +602,10 @@ needs. The deployed policy should pass the default run and, preferably, `--stric
 `--fix-hint` prints, per U1, suggested replacement text only: start from an empty
 policy, or a digest-scoped skeleton with a `TODO` placeholder. It never edits a file.
 
-Not detected: a `jar:` codeBase (none of ten broad `jar:` forms matched a `jar:` probe in the
-provider), a dangerous permission whose class the tool cannot load (a `NOTE` line says so;
-the DirtyChai guards `LoadClassPermission` and `NativeInvocationPermission` are not on the
-tool's class path), and grants that mask polpAudit without a catalogued permission (see `qa/harness/policy/check-spiffe-policy-no-broad-grants.sh`
+Not detected: a `jar:` codeBase is judged by the symbolic check only (no `jar:` probe was
+ever matched by the provider), a user-writable `file:` location the lint cannot know (the
+lint's `user.home` and temp directory stand for the service's; `--define` them to say otherwise),
+and grants that mask polpAudit without a catalogued permission (see `qa/harness/policy/check-spiffe-policy-no-broad-grants.sh`
 for `AuthPermission`/`RuntimePermission` rules), and the JDK `java.policy` that a single
 `=` on `-Djava.security.policy` also loads.
 

@@ -1,0 +1,3 @@
+grant signedBy "${no.such.signer}" {
+  permission java.security.AllPermission;
+};

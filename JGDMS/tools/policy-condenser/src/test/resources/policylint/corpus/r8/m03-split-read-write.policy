@@ -1,0 +1,6 @@
+grant {
+  permission java.io.FilePermission "C:\\-", "read";
+};
+grant {
+  permission java.io.FilePermission "C:\\-", "write";
+};

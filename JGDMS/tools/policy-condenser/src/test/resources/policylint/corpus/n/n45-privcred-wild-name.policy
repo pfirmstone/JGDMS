@@ -1,0 +1,3 @@
+grant {
+  permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.kerberos.KerberosTicket * \"*\"", "read";
+};

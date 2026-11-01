@@ -1,0 +1,4 @@
+/* grant { */
+grant codeBase "file:/nonexistent/x.jar" { };
+// }
+/* */ grant /* c */ { permission /* x */ java.security.AllPermission; };

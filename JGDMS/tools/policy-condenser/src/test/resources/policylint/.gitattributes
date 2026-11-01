@@ -1,0 +1,2 @@
+# policy fixtures are byte-exact test inputs (line continuations, BOM, UTF-16): never convert line endings
+* -text

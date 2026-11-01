@@ -1,0 +1,3 @@
+grant digest "${no.such}" {
+  permission java.security.AllPermission;
+};

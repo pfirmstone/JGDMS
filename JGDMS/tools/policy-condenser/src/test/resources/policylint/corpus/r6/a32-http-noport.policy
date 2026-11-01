@@ -1,0 +1,3 @@
+grant codeBase "http:" {
+  permission java.security.AllPermission;
+};

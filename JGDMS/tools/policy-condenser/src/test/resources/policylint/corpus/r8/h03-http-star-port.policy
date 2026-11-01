@@ -1,0 +1,3 @@
+grant codeBase "http://*:8443/-" {
+  permission java.security.AllPermission;
+};

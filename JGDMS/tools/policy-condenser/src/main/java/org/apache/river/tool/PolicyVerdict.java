@@ -109,19 +109,40 @@ final class PolicyVerdict {
         }
     }
 
-    /** One probe the provider granted to a subject of one zone. */
+    /**
+     * One thing the provider granted to a subject of one zone: a catalogue probe, or a permission
+     * it could not judge (see {@link #UNJUDGED}, {@link #THROWS}).
+     */
     static final class Hit {
         final String zone;
-        /** The first subject (codebase and principal classes) that was granted the probe. */
+        /** The first subject (codebase and principal classes) that was granted it. */
         final String subject;
-        final PermissionSets.Probe probe;
+        final String id;
+        final int severity;
+        final String reason;
+        /** Class name of the permission asked about, or of the one that could not be judged. */
+        final String permissionClass;
 
         Hit(String zone, String subject, PermissionSets.Probe probe) {
+            this(zone, subject, probe.id, probe.severity, probe.reason,
+                    probe.permission.getClass().getName());
+        }
+
+        Hit(String zone, String subject, String id, int severity, String reason,
+                String permissionClass) {
             this.zone = zone;
             this.subject = subject;
-            this.probe = probe;
+            this.id = id;
+            this.severity = severity;
+            this.reason = reason;
+            this.permissionClass = permissionClass;
         }
     }
+
+    /** Id prefix of a hit for a permission class that cannot be loaded or built here. */
+    static final String UNJUDGED = "unjudgeable ";
+    /** Id prefix of a hit for a permission whose {@code implies} threw. */
+    static final String THROWS = "implies throws ";
 
     /** The answers for one policy file. */
     static final class Answer {
@@ -139,11 +160,13 @@ final class PolicyVerdict {
         boolean nullCodeSource;
         /** Every probe granted, by zone then catalogue order; AllPermission is a probe too. */
         final List<Hit> hits = new ArrayList<Hit>();
-        /** Subjects that could not be built (a principal class that cannot be instantiated). */
+        /** Subjects built from a stand-in, and what was done where none could be built. */
         final List<String> notes = new ArrayList<String>();
+        /** Principal classes named by the policy that no principal could be made of: fail closed. */
+        final List<String> unbuildable = new ArrayList<String>();
 
         boolean hit(String zone, String probeId) {
-            for (Hit h : hits) if (h.zone.equals(zone) && h.probe.id.equals(probeId)) return true;
+            for (Hit h : hits) if (h.zone.equals(zone) && h.id.equals(probeId)) return true;
             return false;
         }
     }
@@ -250,7 +273,7 @@ final class PolicyVerdict {
                 if (!known) probes.add(n);
             }
             Principal[] none = new Principal[0];
-            List<Principal> principals = principals(principalClasses, a.notes);
+            List<Principal> principals = principals(principalClasses, a.notes, a.unbuildable);
             for (String u : STRANGER_URLS) {
                 collect(p, a, ZONE_STRANGER, u, source(u), none, probes);
             }
@@ -282,17 +305,65 @@ final class PolicyVerdict {
         return a;
     }
 
+    /**
+     * Asks the provider, for subjects and permissions chosen by the caller, what a policy file
+     * grants: which of {@code perms} are implied for code from {@code url} run by {@code who}.
+     * This lets a test check the lint's verdict against questions the lint does not itself ask.
+     *
+     * @return the permissions granted; empty if the provider cannot load the file
+     */
+    synchronized List<Permission> grantedTo(File policy, Map<String, String> defines, String url,
+            Principal[] who, List<Permission> perms) {
+        List<Permission> res = new ArrayList<Permission>();
+        Properties sys = System.getProperties();
+        Map<String, String> saved = new HashMap<String, String>();
+        Map<String, String> set = new HashMap<String, String>(defines);
+        set.put("/", File.separator);
+        for (Map.Entry<String, String> e : set.entrySet()) {
+            saved.put(e.getKey(), sys.getProperty(e.getKey()));
+            sys.setProperty(e.getKey(), e.getValue());
+        }
+        try {
+            URL u = policy.toURI().toURL();
+            Policy p = (Policy) constructor.newInstance(new Object[]{new URL[]{u}});
+            CodeSource cs = source(url);
+            if (cs == null) return res;
+            ProtectionDomain pd = new ProtectionDomain(cs, null, null, who);
+            for (Permission perm : perms) {
+                try {
+                    if (p.implies(pd, perm)) res.add(perm);
+                } catch (RuntimeException e) {
+                    res.add(perm); // cannot tell: counted as granted
+                }
+            }
+        } catch (ReflectiveOperationException | MalformedURLException | RuntimeException e) {
+            // the file does not load: nothing is granted
+        } finally {
+            for (Map.Entry<String, String> e : saved.entrySet()) {
+                if (e.getValue() == null) sys.remove(e.getKey());
+                else sys.setProperty(e.getKey(), e.getValue());
+            }
+        }
+        return res;
+    }
+
     /** Asks every probe of one subject; records the first subject of a zone granted a probe. */
     private static void collect(Policy p, Answer a, String zone, String label, CodeSource cs,
             Principal[] who, List<PermissionSets.Probe> probes) {
         if (cs == null) return; // e.g. no such URL handler on this JDK; the question is not asked
         ProtectionDomain pd = new ProtectionDomain(cs, null, null, who);
-        List<Permission> granted = null;
+        // the listing is read once per subject: a permission the lint cannot judge must show up
+        // whether or not a probe happens to be implied
+        List<Permission> granted = elements(p, pd, zone, label, a);
         for (PermissionSets.Probe probe : probes) {
             if (a.hit(zone, probe.id)) continue;
-            boolean yes = p.implies(pd, probe.permission);
+            boolean yes = false;
+            try {
+                yes = p.implies(pd, probe.permission);
+            } catch (RuntimeException e) {
+                noteThrows(a, zone, label, probe.permission.getClass().getName(), e);
+            }
             if (!yes) {
-                if (granted == null) granted = elements(p, pd, a.notes);
                 for (Permission g : granted) {
                     try {
                         if (g.implies(probe.permission)) {
@@ -300,9 +371,8 @@ final class PolicyVerdict {
                             break;
                         }
                     } catch (RuntimeException e) {
-                        // a permission class that throws from implies is not trusted to say no
-                        yes = true;
-                        break;
+                        // cannot tell: recorded once as a finding of its own, never read as "no"
+                        noteThrows(a, zone, label, g.getClass().getName(), e);
                     }
                 }
             }
@@ -310,8 +380,20 @@ final class PolicyVerdict {
         }
     }
 
-    /** The permissions the provider lists for a subject; empty if it does not list them. */
-    private static List<Permission> elements(Policy p, ProtectionDomain pd, List<String> notes) {
+    private static void noteThrows(Answer a, String zone, String label, String cls, RuntimeException e) {
+        String id = THROWS + cls;
+        if (a.hit(zone, id)) return;
+        a.hits.add(new Hit(zone, label, id, PermissionSets.HIGH, "permission class " + cls
+                + " throws " + e.getClass().getSimpleName() + " from implies: what it grants cannot"
+                + " be judged, so it counts as granted", cls));
+    }
+
+    /**
+     * The permissions the provider lists for a subject; empty if it does not list them.  A
+     * permission whose class cannot be loaded or built here is recorded as a hit of its own.
+     */
+    private static List<Permission> elements(Policy p, ProtectionDomain pd, String zone, String label,
+            Answer a) {
         List<Permission> res = new ArrayList<Permission>();
         try {
             PermissionCollection pc = p.getPermissions(pd);
@@ -321,15 +403,18 @@ final class PolicyVerdict {
                     if (e instanceof UnresolvedPermission) {
                         // the provider resolves against the class loader of the checked class; the
                         // probe domains have none, so resolve with the lint's own loader
-                        Permission r = resolve((UnresolvedPermission) e);
-                        if (r == null) {
-                            String why = "permission class " + ((UnresolvedPermission) e)
-                                    .getUnresolvedType() + " is not loadable here: what it implies"
-                                    + " cannot be judged";
-                            if (!notes.contains(why)) notes.add(why);
+                        UnresolvedPermission u = (UnresolvedPermission) e;
+                        String why = unresolvable(u);
+                        if (why != null) {
+                            String id = UNJUDGED + u.getUnresolvedType();
+                            if (!a.notes.contains(why)) a.notes.add(why);
+                            if (!a.hit(zone, id)) {
+                                a.hits.add(new Hit(zone, label, id, PermissionSets.HIGH, why,
+                                        u.getUnresolvedType()));
+                            }
                             continue;
                         }
-                        e = r;
+                        e = resolve(u);
                     }
                     res.add(e);
                 }
@@ -340,49 +425,50 @@ final class PolicyVerdict {
         return res;
     }
 
-    private static Permission resolve(UnresolvedPermission u) {
-        try {
-            Class<?> c = Class.forName(u.getUnresolvedType(), true, PolicyVerdict.class.getClassLoader());
-            String n = u.getUnresolvedName();
-            String act = u.getUnresolvedActions();
-            boolean hasName = n != null && n.length() > 0;
-            boolean hasActions = act != null && act.length() > 0;
-            if (hasActions) {
-                return (Permission) c.getConstructor(String.class, String.class).newInstance(n, act);
-            }
-            for (int i = 0; i < 3; i++) {
-                try {
-                    if (i == 0 && hasName) {
-                        return (Permission) c.getConstructor(String.class).newInstance(n);
-                    }
-                    if (i == 1) return (Permission) c.getConstructor().newInstance();
-                    if (i == 2) {
-                        return (Permission) c.getConstructor(String.class, String.class)
-                                .newInstance(n == null ? "" : n, act == null ? "" : act);
-                    }
-                } catch (NoSuchMethodException e) {
-                    // try the next constructor shape
-                }
-            }
-            return null;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            return null;
+    /**
+     * Why an unresolved permission cannot be built here ("not loadable", or "rejected by its own
+     * constructor"), or {@code null} if it can.
+     */
+    private static String unresolvable(UnresolvedPermission u) {
+        String t = u.getUnresolvedType();
+        if (!PermissionSets.loadable(t)) {
+            return "permission class " + t + " is not loadable here: what it grants cannot be judged";
         }
+        if (resolve(u) == null) {
+            return "permission class " + t + " is loadable but rejects its name "
+                    + quote(u.getUnresolvedName()) + " and actions "
+                    + quote(u.getUnresolvedActions()) + ": what it grants cannot be judged";
+        }
+        return null;
     }
 
-    private static List<Principal> principals(Collection<String> named, List<String> notes) {
-        Map<Class<?>, Principal> res = new LinkedHashMap<Class<?>, Principal>();
+    private static String quote(String s) {
+        return s == null ? "null" : "\"" + s + "\"";
+    }
+
+    private static Permission resolve(UnresolvedPermission u) {
+        return PermissionSets.instantiate(u.getUnresolvedType(), nullIfEmpty(u.getUnresolvedName()),
+                nullIfEmpty(u.getUnresolvedActions()));
+    }
+
+    private static String nullIfEmpty(String s) {
+        return s == null || s.length() == 0 ? null : s;
+    }
+
+    private static List<Principal> principals(Collection<String> named, List<String> notes,
+            List<String> unbuildable) {
+        Map<String, Principal> res = new LinkedHashMap<String, Principal>();
         Principal x500 = new X500Principal("CN=lint-stranger");
-        res.put(x500.getClass(), x500);
+        res.put(x500.getClass().getName(), x500);
         Principal own = new StrangerPrincipal();
-        res.put(own.getClass(), own);
+        res.put(own.getClass().getName(), own);
         for (String cn : named == null ? Collections.<String>emptyList() : named) {
-            if (cn == null || cn.equals("*")) continue;
+            if (cn == null || cn.equals("*") || res.containsKey(cn)) continue;
             Principal made = null;
             try {
                 Class<?> c = Class.forName(cn, true, PolicyVerdict.class.getClassLoader());
-                if (!Principal.class.isAssignableFrom(c) || res.containsKey(c)) continue;
-                for (String arg : new String[]{"lint-stranger", "CN=lint-stranger"}) {
+                if (!Principal.class.isAssignableFrom(c)) continue;
+                for (String arg : NAME_FORMS) {
                     try {
                         made = (Principal) c.getConstructor(String.class).newInstance(arg);
                         break;
@@ -390,17 +476,30 @@ final class PolicyVerdict {
                         // try the next form of the name
                     }
                 }
-                if (made == null) {
-                    notes.add("principal class " + cn + " cannot be instantiated from a name");
-                } else {
-                    res.put(c, made);
-                }
             } catch (ClassNotFoundException | LinkageError e) {
-                notes.add("principal class " + cn + " is not loadable here");
+                // not on this classpath: stood in for below
+            }
+            if (made == null) {
+                made = StandInPrincipal.create(cn, NAME_FORMS[0]);
+                if (made != null) {
+                    notes.add("principal class " + cn + " cannot be made from a name here: a"
+                            + " generated class of the same name stands in for it");
+                }
+            }
+            if (made == null) {
+                unbuildable.add(cn);
+                notes.add("principal class " + cn + " can be neither made nor stood in for: grants"
+                        + " to it are treated as reaching a stranger");
+            } else {
+                res.put(cn, made);
             }
         }
         return new ArrayList<Principal>(res.values());
     }
+
+    /** Names tried in turn to make a principal of a class the policy names. */
+    private static final String[] NAME_FORMS = {"lint-stranger", "CN=lint-stranger",
+        "spiffe://lint.example/stranger", "lint-stranger@LINT.EXAMPLE"};
 
     private static CodeSource source(String url) {
         try {

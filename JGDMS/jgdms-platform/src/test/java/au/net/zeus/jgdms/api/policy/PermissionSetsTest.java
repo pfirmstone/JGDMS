@@ -148,7 +148,7 @@ public class PermissionSetsTest {
         assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "exitVM.1", null).severity);
         assertNull(PermissionSets.danger(r, "shutdownHooks", null));
         assertNull(PermissionSets.danger(r, "getenv.PATH", null));
-        assertEquals(PermissionSets.MEDIUM,
+        assertEquals(PermissionSets.HIGH,
             PermissionSets.danger("java.util.PropertyPermission", "*", "read,write").severity);
         assertNull(PermissionSets.danger("java.util.PropertyPermission", "*", "read"));
         assertNull(PermissionSets.danger("java.util.PropertyPermission", "user.dir", "write"));
@@ -190,5 +190,123 @@ public class PermissionSetsTest {
         assertNull(PermissionSets.holdReason("(java.lang.RuntimePermission \"setSecurityManager\""));
         assertNotNull(PermissionSets.flagReason(
             "(java.io.FilePermission \"<<ALL FILES>>\" \"read\")"));
+    }
+
+    private static int sev(String type, String name, String actions) {
+        PermissionSets.Danger d = PermissionSets.danger(type, name, actions);
+        return d == null ? 0 : d.severity;
+    }
+
+    // The catalogue gaps of the Opus review of 66974f70f: each entry that read as clean is now
+    // HIGH or MEDIUM.  A catalogue that dropped one fails its row.
+    @Test
+    public void testCatalogueGaps() {
+        int h = PermissionSets.HIGH;
+        int m = PermissionSets.MEDIUM;
+        String a = "net.jini.security.AssertPrincipalPermission";
+        assertEquals(h, sev(a, "*", "*"));
+        assertEquals(h, sev(a, "javax.security.auth.x500.X500Principal", "CN=*"));
+        assertEquals(0, sev(a, "javax.security.auth.x500.X500Principal", "CN=gateway,O=Example"));
+        String pc = "javax.security.auth.PrivateCredentialPermission";
+        assertEquals(h, sev(pc, "* * \"*\"", "read"));
+        assertEquals(h, sev(pc, "javax.security.auth.kerberos.KerberosTicket * \"*\"", "read"));
+        assertEquals(0, sev(pc, "a.B c.D \"x\"", "read"));
+        assertEquals(h, sev("java.net.NetPermission", "*", null));
+        assertEquals(h, sev("java.net.NetPermission", "specifyStreamHandler", null));
+        assertEquals(m, sev("java.net.NetPermission", "setDefaultAuthenticator", null));
+        assertEquals(h, sev("javax.net.ssl.SSLPermission", "*", null));
+        assertEquals(h, sev("javax.net.ssl.SSLPermission", "setDefaultSSLContext", null));
+        String r = "java.lang.RuntimePermission";
+        assertEquals(h, sev(r, "accessClassInPackage.jdk.internal.misc", null));
+        assertEquals(h, sev(r, "accessClassInPackage.jdk.internal.*", null));
+        assertEquals(m, sev(r, "accessClassInPackage.sun.misc", null));
+        for (String n : new String[]{"setIO", "getClassLoader", "modifyThread", "modifyThreadGroup",
+            "writeFileDescriptor", "readFileDescriptor", "manageProcess",
+            "enableContextClassLoaderOverride", "charsetProvider"}) {
+            assertEquals(n, m, sev(r, n, null));
+        }
+        assertEquals(h, sev("java.security.SecurityPermission", "clearProviderProperties.SUN", null));
+        assertEquals(m, sev("java.security.SecurityPermission", "getPolicy", null));
+        assertEquals(m, sev("java.security.SecurityPermission", "createPolicy.JavaPolicy", null));
+        String pp = "java.util.PropertyPermission";
+        assertEquals(h, sev(pp, "java.security.policy", "write"));
+        assertEquals(h, sev(pp, "java.security.manager", "write"));
+        assertEquals(h, sev(pp, "java.security.*", "write"));
+        assertEquals(h, sev(pp, "*", "read,write"));
+        assertEquals(0, sev(pp, "java.security.policy", "read"));
+        assertEquals(h, sev("javax.management.MBeanPermission", "*", "invoke"));
+        assertEquals(m, sev("javax.management.MBeanPermission", "*", "getAttribute"));
+        assertEquals(0, sev("javax.management.MBeanPermission", "app.Bean#x[app:type=Bean]", "invoke"));
+        assertEquals(h, sev("javax.management.MBeanServerPermission", "*", null));
+        assertEquals(h, sev("javax.management.MBeanTrustPermission", "register", null));
+        assertEquals(h, sev("java.lang.management.ManagementPermission", "control", null));
+        assertEquals(m, sev("java.lang.management.ManagementPermission", "monitor", null));
+        assertEquals(h, sev("com.sun.tools.attach.AttachPermission", "attachVirtualMachine", null));
+        assertEquals(m, sev("java.util.logging.LoggingPermission", "control", null));
+        assertEquals(m, sev("net.jini.loader.DownloadPermission", "x", null));
+        // DirtyChai's guards, by name: they are not on this classpath
+        String lc = "au.zeus.jdk.authorization.guards.LoadClassPermission";
+        assertEquals(h, sev(lc, "*", null));
+        assertEquals(m, sev(lc, "ALLOW", null));
+        assertEquals(h, sev("net.jini.loader.LoadClassPermission", "*", null));
+        assertEquals(0, sev("net.jini.loader.LoadClassPermission", "x.y.Z", null));
+        String so = "au.zeus.jdk.authorization.guards.SerialObjectPermission";
+        assertEquals(h, sev(so, "*", null));
+        assertEquals(0, sev(so, "net.jini.io.MarshalledInstance", null));
+        assertEquals(h, sev("au.zeus.jdk.authorization.guards.NativeInvocationPermission", "x", null));
+        assertTrue(PermissionSets.knownByName(so));
+        assertFalse(PermissionSets.knownByName("com.example.Mine"));
+    }
+
+    // Item 3: file names are expanded and normalised before they are judged.
+    @Test
+    public void testFileTargetsAreExpandedAndNormalised() {
+        String f = "java.io.FilePermission";
+        java.util.Properties env = new java.util.Properties();
+        env.setProperty("app.home", "/opt/app");
+        env.setProperty("user.home", "/home/alice");
+        env.setProperty("java.home", "/usr/lib/jvm/jdk");
+        env.setProperty("java.io.tmpdir", "/var/tmp-x");
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${user.home}/-", "write", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${user.home}${/}*", "write", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/home/-", "delete", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${java.home}/-", "write", env).severity);
+        assertEquals(PermissionSets.HIGH,
+            PermissionSets.danger(f, "${java.home}/conf/security/java.security", "write", env).severity);
+        assertNull(PermissionSets.danger(f, "${java.home}/conf/security/java.security", "read", env));
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/opt/../-", "write", env).severity);
+        assertEquals(PermissionSets.HIGH,
+            PermissionSets.danger(f, "/home/alice/work/../../-", "write", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${io.not.defined}/x/-", "write", env).severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "${user.home}/-", "read", env).severity);
+        // a temp directory's own files are medium, its whole tree is high
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "/tmp/*", "write", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/tmp/-", "write", env).severity);
+        // clean: an application's own directory, a subdirectory of the home, a read of the JDK home
+        assertNull(PermissionSets.danger(f, "${app.home}/work/-", "write", env));
+        assertNull(PermissionSets.danger(f, "${user.home}/.myapp/-", "write", env));
+        assertNull(PermissionSets.danger(f, "${java.home}/lib/-", "read", env));
+        assertNull(PermissionSets.danger(f, "/opt/app/-", "read,write", env));
+        // the working directory only when the name says ${user.dir}
+        env.setProperty("user.dir", "/srv/svc");
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${user.dir}/-", "execute", env).severity);
+        assertNull(PermissionSets.danger(f, "/srv/svc/-", "execute", env));
+    }
+
+    // Item 4: a GrantPermission target is read by GrantPermission's own parser, so a custom
+    // delimiter does not hide an entry.
+    @Test
+    public void testGrantPermissionDelimiterForms() {
+        String g = "net.jini.security.GrantPermission";
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g,
+            "delim=| java.lang.RuntimePermission |createClassLoader|", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g,
+            "net.jini.security.AssertPrincipalPermission \"*\", \"*\"", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g,
+            "delim=' java.net.SocketPermission 'localhost:1024-', 'accept'; java.io.FilePermission '/-', 'write'", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g, "java.io.*", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g, "javax.security.auth.*", null).severity);
+        assertNull(PermissionSets.danger(g,
+            "delim=| java.net.SocketPermission |localhost:1024-|, |accept,listen|", null));
     }
 }

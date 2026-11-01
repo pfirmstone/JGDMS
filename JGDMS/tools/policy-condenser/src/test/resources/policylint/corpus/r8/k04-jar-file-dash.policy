@@ -1,0 +1,3 @@
+grant codeBase "jar:file:/-!/" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

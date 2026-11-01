@@ -1,0 +1,4 @@
+grant /* a */ {
+  permission /* b */ java.lang.RuntimePermission // c
+     /* d */ "setSecurityManager" /* e */ ;
+};

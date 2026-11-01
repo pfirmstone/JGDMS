@@ -25,7 +25,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import net.jini.security.GrantPermission;
 import org.apache.river.api.security.AdvisoryPermissionParser;
 
 /**
@@ -226,12 +230,24 @@ public final class PermissionSets {
      * Whether a permission is dangerous when it reaches code the policy does not scope tightly.
      * It extends HOLD and FLAG (a held entry is HIGH, a flagged one MEDIUM) with what a policy
      * gate needs: AllPermission and the meta classes, GrantPermission of a dangerous target,
-     * write/delete/execute (HIGH) or read (MEDIUM) on all files or on a root, drive or
-     * current-directory tree, and the deserialisation wildcard.
+     * write/delete/execute (HIGH) or read (MEDIUM) on all files, on a root, drive or
+     * current-directory tree, or on a whole user-home, JDK-home or temp-directory tree, the
+     * deserialisation wildcard, and the identity, credential, network, TLS, JMX and management
+     * permissions listed in {@link #extraDanger}.  File names are expanded with the system
+     * properties.
      *
      * @return {@code null} if the entry is not in the catalogue
      */
     public static Danger danger(String type, String name, String actions) {
+        return danger(type, name, actions, null);
+    }
+
+    /**
+     * As {@link #danger(String, String, String)}; {@code ${property}} in a file name is looked up
+     * in {@code env} first and then in the system properties (null {@code env}: system only).  A
+     * file name with a property defined in neither is treated as the root.
+     */
+    public static Danger danger(String type, String name, String actions, Properties env) {
         if (type == null) return null;
         if (ALL_PERMISSION.equals(type)) return new Danger(HIGH, "AllPermission grants everything");
         if (UMBRELLA_GRANT_PERMISSION.equals(type) || POLICY_PERMISSION.equals(type)) {
@@ -240,43 +256,228 @@ public final class PermissionSets {
         if (GRANT_PERMISSION.equals(type)) return grantDanger(name);
         String hold = holdReason(type, name, actions);
         if (hold != null) return new Danger(HIGH, hold);
-        if (FILE.equals(type) && broadFile(name)) {
-            for (String a : new String[]{"write", "delete", "execute"}) {
-                if (hasAction(actions, a)) {
-                    return new Danger(HIGH, "FilePermission " + a + " on " + name
-                        + " reaches all files or a whole root, drive or directory tree");
-                }
-            }
-            return new Danger(MEDIUM, "FilePermission read on " + name
-                + " reaches all files or a whole root, drive or directory tree");
+        if (FILE.equals(type) && name != null) {
+            Danger f = fileDanger(name, actions, env);
+            if (f != null) return f;
         }
         if (DESERIALIZATION.equals(type) && name != null
                 && (name.equals("*") || name.equals("MARSHALLED"))) {
             return new Danger(HIGH, "DeSerializationPermission " + name
                 + " lets any serialized class be read from an untrusted stream");
         }
+        Danger x = extraDanger(type, name, actions);
+        if (x != null) return x;
         String flag = flagReason(type, name, actions);
         return flag == null ? null : new Danger(MEDIUM, flag);
     }
 
-    /** GrantPermission is as dangerous as the most dangerous entry of its target. */
+    private static final String ASSERT_PRINCIPAL = "net.jini.security.AssertPrincipalPermission";
+    private static final String PRIVATE_CREDENTIAL = "javax.security.auth.PrivateCredentialPermission";
+    private static final String NET = "java.net.NetPermission";
+    private static final String SSL = "javax.net.ssl.SSLPermission";
+    private static final String MBEAN = "javax.management.MBeanPermission";
+    private static final String MBEAN_SERVER = "javax.management.MBeanServerPermission";
+    private static final String MBEAN_TRUST = "javax.management.MBeanTrustPermission";
+    private static final String MANAGEMENT = "java.lang.management.ManagementPermission";
+    private static final String ATTACH = "com.sun.tools.attach.AttachPermission";
+    private static final String LOGGING = "java.util.logging.LoggingPermission";
+    private static final String KRB_DELEGATION = "javax.security.auth.kerberos.DelegationPermission";
+    private static final String KRB_SERVICE = "javax.security.auth.kerberos.ServicePermission";
+    private static final String DOWNLOAD = "net.jini.loader.DownloadPermission";
+    private static final String LOAD_CLASS = "net.jini.loader.LoadClassPermission";
+    private static final String DC_LOAD_CLASS = "au.zeus.jdk.authorization.guards.LoadClassPermission";
+    private static final String DC_SERIAL_OBJECT = "au.zeus.jdk.authorization.guards.SerialObjectPermission";
+
+    /** Permission classes whose wildcard entries are HIGH: a package stem of one of these is too. */
+    private static final String[] HIGH_CLASSES = {ALL_PERMISSION, RUNTIME, SECURITY, REFLECT, FILE,
+        AUTH, SERIAL, NET, SSL, PRIVATE_CREDENTIAL, ASSERT_PRINCIPAL, UMBRELLA_GRANT_PERMISSION,
+        POLICY_PERMISSION, GRANT_PERMISSION, NATIVE};
+
+    private static final String[] AUTH_PROPERTIES = {"java.security.policy", "java.security.manager",
+        "java.security.auth.login.config", "java.security.properties"};
+
+    /**
+     * The catalogue entries beyond HOLD and FLAG.  The table of the review notes
+     * ({@code INVESTIGATION-policy-lint-redesign}) gives the reason for each severity.
+     */
+    private static Danger extraDanger(String type, String name, String actions) {
+        if (name == null) return null;
+        if (ASSERT_PRINCIPAL.equals(type)) {
+            if (name.indexOf('*') >= 0 || (actions != null && actions.indexOf('*') >= 0)) {
+                return new Danger(HIGH, "AssertPrincipalPermission " + name + " " + actions
+                    + " lets the holder pass itself off as any matching user");
+            }
+            return null;
+        }
+        if (PRIVATE_CREDENTIAL.equals(type)) {
+            if (name.indexOf('*') >= 0) {
+                return new Danger(HIGH, "PrivateCredentialPermission " + name
+                    + " reads the private credentials (keys, tickets) of any matching subject");
+            }
+            return null;
+        }
+        if (NET.equals(type)) {
+            if (basic(name, new String[]{"specifyStreamHandler"}, none())) {
+                return new Danger(HIGH, "NetPermission " + name + " replaces the URL stream handlers");
+            }
+            if (basic(name, new String[]{"setDefaultAuthenticator", "requestPasswordAuthentication",
+                    "setProxySelector", "setCookieHandler", "setResponseCache", "getCookieHandler",
+                    "getResponseCache"}, none())) {
+                return new Danger(MEDIUM, "NetPermission " + name + " changes or reads global network state");
+            }
+            return null;
+        }
+        if (SSL.equals(type)) {
+            if (basic(name, new String[]{"setDefaultSSLContext"}, none())) {
+                return new Danger(HIGH, "SSLPermission " + name + " replaces the TLS context and trust");
+            }
+            if (basic(name, new String[]{"setHostnameVerifier", "getSSLSessionContext"}, none())) {
+                return new Danger(MEDIUM, "SSLPermission " + name + " changes TLS verification or reads sessions");
+            }
+            return null;
+        }
+        if (RUNTIME.equals(type)) {
+            if (basic(name, none(), new String[]{"accessClassInPackage.jdk.internal."})) {
+                return new Danger(HIGH, "RuntimePermission " + name + " reaches the JDK's internal packages");
+            }
+            if (basic(name, new String[]{"setIO", "getClassLoader", "modifyThread", "modifyThreadGroup",
+                    "writeFileDescriptor", "readFileDescriptor", "manageProcess",
+                    "enableContextClassLoaderOverride", "charsetProvider", "accessSystemModules"},
+                    none())) {
+                return new Danger(MEDIUM, "RuntimePermission " + name
+                    + " reaches global I/O, threads, processes or class loaders");
+            }
+            return null;
+        }
+        if (SECURITY.equals(type)) {
+            if (basic(name, none(), new String[]{"clearProviderProperties."})) {
+                return new Danger(HIGH, "SecurityPermission " + name + " clears a provider's properties");
+            }
+            if (basic(name, new String[]{"getPolicy"}, new String[]{"createPolicy."})) {
+                return new Danger(MEDIUM, "SecurityPermission " + name + " reads or creates a policy");
+            }
+            return null;
+        }
+        if (PROPERTY.equals(type)) {
+            if (hasAction(actions, "write")) {
+                for (String p : AUTH_PROPERTIES) {
+                    if (name.equals(p) || name.equals("*")
+                            || (name.endsWith(".*") && p.startsWith(name.substring(0, name.length() - 1)))) {
+                        return new Danger(HIGH, "PropertyPermission write on " + name
+                            + " changes where the policy, security manager or login configuration come from");
+                    }
+                }
+            }
+            return null;
+        }
+        if (MBEAN.equals(type)) {
+            if (name.indexOf('*') >= 0) {
+                boolean mutate = actions == null || actions.indexOf('*') >= 0;
+                for (String a : new String[]{"registerMBean", "invoke", "setAttribute", "unregisterMBean",
+                        "instantiate", "createMBean"}) {
+                    mutate |= hasAction(actions, a);
+                }
+                return new Danger(mutate ? HIGH : MEDIUM, "MBeanPermission " + name + " " + actions
+                    + (mutate ? " registers, invokes or changes any MBean" : " reads any MBean"));
+            }
+            return null;
+        }
+        if (MBEAN_SERVER.equals(type)) {
+            if (name.equals("*")) return new Danger(HIGH, "MBeanServerPermission * creates and replaces MBean servers");
+            return new Danger(MEDIUM, "MBeanServerPermission " + name);
+        }
+        if (MBEAN_TRUST.equals(type)) {
+            return new Danger(HIGH, "MBeanTrustPermission " + name + " registers trusted MBeans");
+        }
+        if (MANAGEMENT.equals(type)) {
+            if (name.equals("control") || name.equals("*")) {
+                return new Danger(HIGH, "ManagementPermission " + name + " changes the running JVM");
+            }
+            return new Danger(MEDIUM, "ManagementPermission " + name);
+        }
+        if (ATTACH.equals(type)) {
+            if (name.equals("attachVirtualMachine") || name.equals("*")) {
+                return new Danger(HIGH, "AttachPermission " + name + " attaches to any JVM of the same user");
+            }
+            return new Danger(MEDIUM, "AttachPermission " + name);
+        }
+        if (LOGGING.equals(type)) {
+            return new Danger(MEDIUM, "LoggingPermission " + name + " reconfigures logging");
+        }
+        if ((KRB_DELEGATION.equals(type) || KRB_SERVICE.equals(type)) && name.indexOf('*') >= 0) {
+            return new Danger(MEDIUM, simple(type) + " " + name + " uses Kerberos tickets for any service");
+        }
+        if (DOWNLOAD.equals(type)) {
+            return new Danger(MEDIUM, "DownloadPermission lets code download classes");
+        }
+        if (LOAD_CLASS.equals(type) || DC_LOAD_CLASS.equals(type)) {
+            if (name.indexOf('*') >= 0) {
+                return new Danger(HIGH, simple(type) + " " + name + " opens the class-loading gate for every codebase");
+            }
+            return DC_LOAD_CLASS.equals(type)
+                ? new Danger(MEDIUM, "LoadClassPermission " + name + " opens the class-loading gate") : null;
+        }
+        if (DC_SERIAL_OBJECT.equals(type)) {
+            if (name.indexOf('*') >= 0) {
+                return new Danger(HIGH, "SerialObjectPermission " + name + " lets any class be deserialised");
+            }
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * GrantPermission is as dangerous as the most dangerous permission its target contains.  The
+     * target is read by {@code GrantPermission} itself (so {@code delim=} forms are what the
+     * runtime sees); an entry whose class is a wildcard, which that parser rejects, is judged from
+     * the text.
+     */
     private static Danger grantDanger(String target) {
         if (target == null) return null;
+        Danger best = null;
+        for (String entry : grantEntries(target)) {
+            String[] w = entry.trim().split("\\s+", 2);
+            String cls = w[0];
+            if (cls.equals("*") || cls.equals("-") || wildcardCoversHigh(cls)) {
+                return new Danger(HIGH, "GrantPermission to grant any permission (" + cls + ")");
+            }
+        }
+        Permission[] contained = containedPermissions(target);
+        if (contained == null) return grantTextDanger(target);
+        for (Permission p : contained) {
+            Danger d;
+            if (p instanceof UnresolvedPermission) {
+                UnresolvedPermission u = (UnresolvedPermission) p;
+                d = danger(u.getUnresolvedType(), u.getUnresolvedName(), u.getUnresolvedActions());
+            } else {
+                d = danger(p.getClass().getName(), p.getName(), p.getActions());
+            }
+            if (d != null && (best == null || d.severity > best.severity)) {
+                best = new Danger(d.severity, "GrantPermission may grant " + p.getName() + ": " + d.reason);
+                if (best.severity >= HIGH) return best;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The fallback for a target GrantPermission's parser rejects (the runtime then cannot use it
+     * either, but a reader still must not take it for harmless): entries split on {@code ;} with a
+     * custom delimiter turned back into the double quote.
+     */
+    private static Danger grantTextDanger(String target) {
         String t = target.trim();
         if (t.startsWith("delim=") && t.length() > "delim=".length() + 1) {
             char d = t.charAt("delim=".length());
             t = t.substring("delim=".length() + 1);
-            for (String entry : t.split(java.util.regex.Pattern.quote(String.valueOf(d)))) {
-                Danger g = grantEntryDanger(entry);
-                if (g != null) return g;
-            }
-            return null;
+            if (d != '"') t = t.replace(d, '"');
         }
+        Danger best = null;
         for (String entry : t.split(";")) {
             Danger g = grantEntryDanger(entry);
-            if (g != null) return g;
+            if (g != null && (best == null || g.severity > best.severity)) best = g;
         }
-        return null;
+        return best;
     }
 
     private static Danger grantEntryDanger(String entry) {
@@ -284,15 +485,10 @@ public final class PermissionSets {
         if (e.length() == 0) return null;
         String[] w = e.split("\\s+", 2);
         String cls = w[0];
-        if (cls.equals("*") || cls.equals("-") || (cls.endsWith(".*")
-                && (ALL_PERMISSION.startsWith(cls.substring(0, cls.length() - 1))
-                || RUNTIME.startsWith(cls.substring(0, cls.length() - 1))))) {
-            return new Danger(HIGH, "GrantPermission to grant any permission (" + cls + ")");
-        }
         String rest = w.length > 1 ? w[1].trim() : "";
         String name = null;
         String actions = null;
-        java.util.regex.Matcher m = java.util.regex.Pattern
+        Matcher m = Pattern
             .compile("^\\s*\"((?:[^\"\\\\]|\\\\.)*)\"(?:\\s*,?\\s*\"((?:[^\"\\\\]|\\\\.)*)\")?").matcher(rest);
         if (m.find()) {
             name = m.group(1).replace("\\\"", "\"");
@@ -307,20 +503,189 @@ public final class PermissionSets {
             + name + ": " + d.reason);
     }
 
+    private static boolean wildcardCoversHigh(String cls) {
+        if (!cls.endsWith(".*")) return false;
+        String stem = cls.substring(0, cls.length() - 1);
+        for (String h : HIGH_CLASSES) if (h.startsWith(stem)) return true;
+        return false;
+    }
+
+    /** The class-name words of a GrantPermission target, with a leading {@code delim=C} dropped. */
+    private static List<String> grantEntries(String target) {
+        String t = target.trim();
+        if (t.startsWith("delim=") && t.length() > "delim=".length() + 1) {
+            t = t.substring("delim=".length() + 1);
+        }
+        List<String> res = new ArrayList<String>();
+        for (String e : t.split(";")) if (e.trim().length() > 0) res.add(e);
+        return res;
+    }
+
+    /**
+     * What GrantPermission's own parser made of a target; {@code null} if it rejects the target.
+     * The contained permissions are not exposed, so the field is read.
+     */
+    private static Permission[] containedPermissions(String target) {
+        try {
+            GrantPermission g = new GrantPermission(target);
+            java.lang.reflect.Field f = GrantPermission.class.getDeclaredField("grants");
+            f.setAccessible(true);
+            return (Permission[]) f.get(g);
+        } catch (RuntimeException | ReflectiveOperationException | LinkageError e) {
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------ file targets
+
+    private static final Pattern PROPERTY_REF = Pattern.compile("\\$\\{([^{}]*)\\}");
+
+    /** The value of a property for a policy: {@code env} first, then the system. */
+    private static String property(Properties env, String key) {
+        if ("/".equals(key)) return File.separator;
+        String v = env == null ? null : env.getProperty(key);
+        return v != null ? v : System.getProperty(key);
+    }
+
+    /**
+     * {@code s} with every {@code ${property}} replaced; {@code null} if one is defined neither in
+     * {@code env} nor in the system properties.
+     */
+    public static String expand(String s, Properties env) {
+        if (s == null) return null;
+        Matcher m = PROPERTY_REF.matcher(s);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String v = property(env, m.group(1));
+            if (v == null) return null;
+            m.appendReplacement(sb, Matcher.quoteReplacement(v));
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    private static Danger fileDanger(String name, String actions, Properties env) {
+        boolean write = hasAction(actions, "write") || hasAction(actions, "delete")
+            || hasAction(actions, "execute");
+        String exp = expand(name, env);
+        String why = exp == null
+            ? "a ${property} defined neither by --define nor in this JVM, treated as the root"
+            : fileReach(exp, write, env, name.contains("${user.dir}"));
+        if (why == null) return null;
+        boolean medium = why.startsWith("[M]");
+        if (medium) why = why.substring(3);
+        String shown = "FilePermission " + (actions == null ? "" : actions + " ") + "on " + name;
+        return new Danger(write && !medium ? HIGH : MEDIUM, shown + " reaches " + why);
+    }
+
+    /** A file name taken apart: optional drive, absolute or relative, segments, trailing wildcard. */
+    public static final class FilePath {
+        public String drive;
+        public boolean absolute;
+        public final List<String> segments = new ArrayList<String>();
+        /** {@code "-"}, {@code "*"} or null. */
+        public String wildcard;
+    }
+
+    /** Splits a file name: separators unified, {@code .} dropped, {@code ..} applied. */
+    public static FilePath filePath(String name) {
+        FilePath f = new FilePath();
+        String p = name.trim().replace('\\', '/');
+        if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
+            f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
+            p = p.substring(2);
+        }
+        f.absolute = p.startsWith("/");
+        String[] raw = p.split("/");
+        int last = raw.length - 1;
+        while (last >= 0 && raw[last].length() == 0) last--;
+        if (last >= 0 && (raw[last].equals("-") || raw[last].equals("*"))) {
+            f.wildcard = raw[last];
+            last--;
+        }
+        for (int i = 0; i <= last; i++) {
+            String s = raw[i];
+            if (s.length() == 0 || s.equals(".")) continue;
+            if (s.equals("..")) {
+                int n = f.segments.size();
+                if (n > 0 && !f.segments.get(n - 1).equals("..")) f.segments.remove(n - 1);
+                else if (!f.absolute) f.segments.add("..");
+            } else {
+                f.segments.add(s);
+            }
+        }
+        return f;
+    }
+
+    /** Whether {@code prefix} is the same as, or a leading part of, {@code path} (case ignored). */
+    private static boolean isPrefix(List<String> prefix, List<String> path) {
+        if (prefix.size() > path.size()) return false;
+        for (int i = 0; i < prefix.size(); i++) {
+            if (!prefix.get(i).equalsIgnoreCase(path.get(i))) return false;
+        }
+        return true;
+    }
+
+    private static boolean sameDrive(FilePath a, FilePath b) {
+        return a.drive == null || b.drive == null || a.drive.equals(b.drive);
+    }
+
+    /**
+     * Why a file name, already expanded, reaches too much; {@code null} if it does not.  Wide are:
+     * all files, the current directory tree or anything above it, a root or drive, a recursive
+     * name over a whole home, JDK-home or temp directory (or over a directory above one), a
+     * {@code *} name in such a directory, and, for writing, any exact name below the JDK home.
+     */
+    static String fileReach(String expanded, boolean write, Properties env, boolean refsWorkingDir) {
+        String n = expanded.trim();
+        if (ALL_FILES.equals(n)) return "all files";
+        FilePath f = filePath(n);
+        if (f.wildcard != null && f.segments.isEmpty()) {
+            return f.absolute ? "a whole root or drive tree"
+                : f.drive != null ? "a whole drive-relative tree" : "the whole current directory tree";
+        }
+        if (!f.absolute) {
+            if (f.drive == null && !f.segments.isEmpty() && f.segments.get(0).equals("..")) {
+                return "a path above the current directory";
+            }
+            return null;
+        }
+        List<String[]> dirs = new ArrayList<String[]>();
+        dirs.add(new String[]{"the user home", property(env, "user.home")});
+        if (refsWorkingDir) dirs.add(new String[]{"the working directory", property(env, "user.dir")});
+        if (write) {
+            dirs.add(new String[]{"the JDK home", property(env, "java.home")});
+            dirs.add(new String[]{"the temp directory", property(env, "java.io.tmpdir")});
+            dirs.add(new String[]{"/tmp", "/tmp"});
+            dirs.add(new String[]{"/var/tmp", "/var/tmp"});
+        }
+        for (String[] d : dirs) {
+            if (d[1] == null || d[1].length() == 0) continue;
+            FilePath dir = filePath(d[1]);
+            if (!sameDrive(f, dir)) continue;
+            if ("-".equals(f.wildcard) && isPrefix(f.segments, dir.segments)) return "the whole of " + d[0];
+            if ("*".equals(f.wildcard) && f.segments.size() == dir.segments.size()
+                    && isPrefix(f.segments, dir.segments)) {
+                // a temp directory's own files: services use /tmp/* for scratch space (the deploy
+                // policies do), so the pattern is a medium finding, the whole tree stays high
+                boolean temp = d[0].equals("the temp directory") || d[0].startsWith("/");
+                return (temp ? "[M]" : "") + "every file directly in " + d[0];
+            }
+            if (write && d[0].equals("the JDK home") && isPrefix(dir.segments, f.segments)) {
+                return "a file of the JDK home";
+            }
+        }
+        return null;
+    }
+
     /**
      * Whether a FilePermission name covers all files, or a whole root, drive or current-directory
      * tree: {@code <<ALL FILES>>}, {@code -}, {@code *}, {@code /-}, {@code C:\-} and the like.
      */
     static boolean broadFile(String name) {
         if (name == null) return false;
-        String n = name.trim();
-        if (ALL_FILES.equals(n) || n.equals("-") || n.equals("*")) return true;
-        if (n.endsWith("-") || n.endsWith("*")) {
-            String dir = n.substring(0, n.length() - 1);
-            while (dir.endsWith("/") || dir.endsWith("\\")) dir = dir.substring(0, dir.length() - 1);
-            return dir.length() == 0 || dir.matches("(?i)[a-z]:");
-        }
-        return false;
+        String e = expand(name, null);
+        return e == null || fileReach(e, true, null, name.contains("${user.dir}")) != null;
     }
 
     /**
@@ -369,6 +734,34 @@ public final class PermissionSets {
         add(res, AUTHENTICATION, "javax.security.auth.x500.X500Principal \"CN=lint-probe\"",
             "connect", "* *");
         add(res, UMBRELLA_GRANT_PERMISSION, null, null, null);
+        String home = System.getProperty("user.home");
+        String jhome = System.getProperty("java.home");
+        if (home != null) add(res, FILE, home + sep + "lint-probe", "write", home + sep + "-");
+        if (jhome != null) {
+            add(res, FILE, jhome + sep + "conf" + sep + "security" + sep + "lint-probe", "write",
+                jhome + sep + "-");
+        }
+        add(res, ASSERT_PRINCIPAL, "*", "*", null);
+        add(res, PRIVATE_CREDENTIAL, "* * \"*\"", "read", null);
+        add(res, NET, "specifyStreamHandler", null, null);
+        add(res, NET, "setDefaultAuthenticator", null, null);
+        add(res, SSL, "setDefaultSSLContext", null, null);
+        add(res, SSL, "setHostnameVerifier", null, null);
+        for (String n : new String[]{"accessClassInPackage.jdk.internal.lint", "setIO", "getClassLoader",
+            "modifyThread", "modifyThreadGroup", "writeFileDescriptor", "readFileDescriptor",
+            "manageProcess", "enableContextClassLoaderOverride", "charsetProvider"}) {
+            add(res, RUNTIME, n, null, null);
+        }
+        for (String n : new String[]{"clearProviderProperties.lint", "getPolicy", "createPolicy.lint"}) {
+            add(res, SECURITY, n, null, null);
+        }
+        add(res, PROPERTY, "java.security.policy", "write", null);
+        add(res, PROPERTY, "java.security.manager", "write", null);
+        add(res, MBEAN, "*", "registerMBean,invoke,setAttribute", null);
+        add(res, MBEAN_SERVER, "*", null, null);
+        add(res, MBEAN_TRUST, "register", null, null);
+        add(res, MANAGEMENT, "control", null, null);
+        add(res, DOWNLOAD, null, null, "x");
         for (String[] g : new String[][]{{RUNTIME, "setSecurityManager"}, {SECURITY, "setPolicy"},
             {REFLECT, "suppressAccessChecks"}}) {
             Permission inner = create(g[0], g[1], null);
@@ -394,8 +787,20 @@ public final class PermissionSets {
      *         class cannot be built here
      */
     public static Probe probe(String type, String name, String actions) {
+        return probe(type, name, actions, null);
+    }
+
+    /**
+     * As {@link #probe(String, String, String)} with {@code ${property}} in the name expanded from
+     * {@code env} and the system properties; {@code null} if one is undefined.
+     */
+    public static Probe probe(String type, String name, String actions, Properties env) {
         if (type == null || ALL_PERMISSION.equals(type)) return null;
-        Danger d = danger(type, name, actions);
+        if (name != null && name.contains("${")) {
+            name = expand(name, env);
+            if (name == null) return null;
+        }
+        Danger d = danger(type, name, actions, env);
         if (d == null) return null;
         Permission p = create(type, name, actions);
         if (p == null) return null;
@@ -429,14 +834,54 @@ public final class PermissionSets {
         }
     }
 
+    /**
+     * Whether the catalogue knows the class by name although it is not on this tool's classpath
+     * (the DirtyChai guards): such a class is judged by its name, so it is not "unknown".
+     */
+    public static boolean knownByName(String type) {
+        return NATIVE.equals(type) || DC_LOAD_CLASS.equals(type) || DC_SERIAL_OBJECT.equals(type);
+    }
+
+    /** Whether the class can be loaded by this tool, without initialising it. */
+    public static boolean loadable(String type) {
+        try {
+            Class.forName(type, false, PermissionSets.class.getClassLoader());
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return false;
+        }
+    }
+
+    /**
+     * The permission of a class, name and actions as the policy would build it; {@code null} if the
+     * class cannot be loaded or its constructor refuses the arguments.
+     */
+    public static Permission instantiate(String type, String name, String actions) {
+        return create(type, name, actions);
+    }
+
     private static Permission create(String type, String name, String actions) {
         try {
             Class<?> c = Class.forName(type, true, PermissionSets.class.getClassLoader());
             if (actions != null) {
                 return (Permission) c.getConstructor(String.class, String.class).newInstance(name, actions);
             }
-            if (name != null) return (Permission) c.getConstructor(String.class).newInstance(name);
-            return (Permission) c.getConstructor().newInstance();
+            // the shapes a policy entry without actions can mean, as the provider's loader tries them
+            for (int i = 0; i < 3; i++) {
+                try {
+                    if (i == 0 && name != null) {
+                        return (Permission) c.getConstructor(String.class).newInstance(name);
+                    }
+                    if (i == 1 && name == null) return (Permission) c.getConstructor().newInstance();
+                    if (i == 2) {
+                        return (Permission) c.getConstructor(String.class, String.class)
+                            .newInstance(name == null ? "" : name, "");
+                    }
+                } catch (NoSuchMethodException e) {
+                    // try the next constructor shape
+                }
+            }
+            return null;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             return null;
         }
