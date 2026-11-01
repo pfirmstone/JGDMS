@@ -99,8 +99,10 @@ import net.jini.security.jwt.JwtPrincipal;
  * (i.e. when 20% of the lifetime remains).  On failure the thread retries with
  * exponential back-off (starting at 5 s, doubling up to 5 min).  If the
  * identity provider returns a fatal error (HTTP 400 with
- * {@code "error":"invalid_grant"}) the thread logs at SEVERE level and stops,
- * effectively marking the module as logged-out.
+ * {@code "error":"invalid_grant"}) the thread logs at SEVERE level, stops, and
+ * removes the token, expiry claim and principals this module installed, so the
+ * Subject fails closed at once.  A transient failure keeps retrying and leaves
+ * the token until it expires.
  *
  * <p>A refresh replaces the {@link JwtPrincipal}s, the {@link JwtRawToken} and
  * the {@link JwtExpiryClaim} in one step under the Subject's monitor.  A
@@ -606,18 +608,23 @@ public final class JwtLoginModule implements LoginModule {
                         refreshed = refreshOnce();
                         if (!refreshed) {
                             // Fatal failure (invalid_grant etc.)
-                            if (running)
-                                LOG.severe("JWT refresh token has been revoked or is invalid; "
-                                        + "marking session as logged-out");
+                            // failClosed (in refreshOnce) already stopped the thread and removed
+                            // our token; say so once, without token text.
+                            LOG.severe("JWT refresh token has been revoked or is invalid; "
+                                    + "marking session as logged-out");
                             running = false;
                             return;
                         }
                         attempted = true;
                     } catch (FatalRefreshException e) {
                         // loggedOut: logout or an undo won the race; nothing to report.
-                        if (!e.loggedOut)
+                        if (!e.loggedOut) {
                             LOG.severe("JWT refresh permanently failed: " + e.getMessage()
                                     + "; marking session as logged-out");
+                            // A permanent failure (HTTP 400 other than invalid_grant, or a refusal)
+                            // also takes our token out: a stopped thread must not leave a token behind.
+                            owner.failClosed(this, "FatalRefreshException: " + e.getMessage());
+                        }
                         running = false;
                         return;
                     } catch (Exception e) {
@@ -642,7 +649,10 @@ public final class JwtLoginModule implements LoginModule {
         boolean refreshOnce() throws Exception {
             try {
                 boolean ok = doRefresh();
-                if (!ok) owner.lastRefreshFailure = "invalid_grant: the refresh token was rejected";
+                // invalid_grant: the identity provider revoked or expired the refresh token, so the
+                // session is over.  Fail closed now (take our token and principals out) instead of
+                // serving an identity that nobody can refresh until the access token expires.
+                if (!ok) owner.failClosed(this, "invalid_grant: the refresh token was rejected");
                 return ok;
             } catch (Exception e) {
                 owner.lastRefreshFailure = e.getClass().getSimpleName() + ": " + e.getMessage();

@@ -1200,6 +1200,8 @@ public class JwtLoginModuleTest {
             String why = m.lastRefreshFailure;
             assertNotNull("recorded", why);
             assertTrue(why, why.contains("invalid_grant"));
+            // operator ruling 2026-11-02: a revoked refresh token fails closed at once.
+            assertNothingOfOurs(subject);
         } finally {
             tokenEndpointRaw.set(null);
             m.logout();
