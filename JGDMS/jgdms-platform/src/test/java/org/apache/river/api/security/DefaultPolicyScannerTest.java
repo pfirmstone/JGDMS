@@ -169,4 +169,51 @@ public class DefaultPolicyScannerTest {
             fail("Expected InvalidFormatException but got " + e);
         }
     }
+
+    // -----------------------------------------------------------------------
+    // A wildcard principal class is refused (operator decision 2026-11-01):
+    // it matched every principal, including peer-asserted ones.
+    // -----------------------------------------------------------------------
+
+    private void assertRefused(String policy, String why) {
+        try {
+            scan(policy);
+            fail(why + ": expected InvalidFormatException");
+        } catch (InvalidFormatException e) {
+            assertTrue("message should say the class wildcard is unsupported: " + e.getMessage(),
+                    e.getMessage().contains("wildcard principal class"));
+        } catch (Exception e) {
+            fail(why + ": expected InvalidFormatException but got " + e);
+        }
+    }
+
+    @Test
+    public void testScanWildcardPrincipalClassAndNameIsRefused() {
+        System.out.println("testScanWildcardPrincipalClassAndNameIsRefused");
+        assertRefused("grant principal * * { permission java.security.AllPermission; };",
+                "principal * *");
+    }
+
+    @Test
+    public void testScanWildcardPrincipalClassWithNameIsRefused() {
+        System.out.println("testScanWildcardPrincipalClassWithNameIsRefused");
+        assertRefused("grant principal * \"CN=alice\" { permission java.security.AllPermission; };",
+                "principal * \"CN=alice\"");
+    }
+
+    @Test
+    public void testScanWildcardClassAmongSeveralPrincipalsIsRefused() {
+        System.out.println("testScanWildcardClassAmongSeveralPrincipalsIsRefused");
+        assertRefused("grant principal javax.security.auth.x500.X500Principal \"CN=a\","
+                + " principal * * { permission java.security.AllPermission; };",
+                "second principal has a class wildcard");
+    }
+
+    @Test
+    public void testScanExactClassWithWildcardNameStillAccepted() throws Exception {
+        System.out.println("testScanExactClassWithWildcardNameStillAccepted");
+        List<GrantEntry> grants = scan("grant principal javax.security.auth.x500.X500Principal *"
+                + " { permission java.security.SecurityPermission \"test\"; };");
+        assertEquals(1, grants.size());
+    }
 }

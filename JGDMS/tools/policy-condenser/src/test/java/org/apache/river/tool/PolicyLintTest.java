@@ -151,7 +151,7 @@ public class PolicyLintTest {
         {"f03-lone-slash.policy", "U1", new boolean[]{true, true}},
         {"f04-keystore-nosemi.policy", "U1", new boolean[]{true, true}},
         {"f05-signedby-comma.policy", "U1", new boolean[]{true, true}},
-        {"f06-principal-wild.policy", "S3", new boolean[]{false, true}},
+        {"f06-principal-wild.policy", "P1 S3", null},
         {"f07-file-dash.policy", "S1 D3", new boolean[]{false, false}},
         {"f08-bom.policy", "P1 U1", null},
         {"f09-digest-emptyhex.policy", "S2", new boolean[]{false, false}},
@@ -192,6 +192,13 @@ public class PolicyLintTest {
             String name = (String) row[0];
             String kinds = (String) row[1];
             boolean[] real = (boolean[]) row[2];
+            if (name.equals("f06-principal-wild.policy") && !provider.equals("platform")) {
+                // KNOWN DIVERGENCE (2026-11-01): jgdms-platform's scanner refuses a wildcard
+                // principal CLASS (P1); DirtyChai's scanner still accepts it, but its provider now matches nothing.
+                // Delete this branch when DirtyChai's scanner refuses it too.
+                kinds = "S3";
+                real = new boolean[]{false, false};
+            }
             File f = fixture(name);
             Run r = lint("--provider=" + provider, f.getPath());
             String why = name + " [" + provider + "]\n" + r.out;
@@ -803,14 +810,20 @@ public class PolicyLintTest {
     // UserPrincipal wildcard answered principal=false although every UserPrincipal is granted.
     @Test
     public void principalOfAnyClassIsProbed() throws Exception {
-        for (String f : new String[]{"g03-userprincipal-star.policy", "g04-x500-quoted-star.policy",
-            "f06-principal-wild.policy"}) {
+        for (String f : new String[]{"g03-userprincipal-star.policy", "g04-x500-quoted-star.policy"}) {
             Run r = lintFixture(f);
             assertEquals(f + r.out, "S3", r.kinds());
             assertTrue(f + r.out, r.verdictLine().contains("principal=true"));
         }
         String rt = " {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n";
-        for (String who : new String[]{"* *", "com.sun.security.auth.UserPrincipal *",
+        // A wildcard principal CLASS is refused by the policy scanner (2026-11-01): the file does
+        // not load, so the lint reports it as unparseable and fails the run.
+        for (String who : new String[]{"* *", "* \"CN=alice\""}) {
+            Run r = lintFile("grant principal " + who + rt, "--provider=platform");
+            assertTrue(who + r.out, r.kinds().contains("P1"));
+            assertEquals(who, 1, r.exit);
+        }
+        for (String who : new String[]{"com.sun.security.auth.UserPrincipal *",
             "javax.security.auth.x500.X500Principal *", "javax.security.auth.x500.X500Principal \"*\""}) {
             Run r = lintFile("grant principal " + who + rt);
             assertEquals(who + r.out, "D2", r.kinds());

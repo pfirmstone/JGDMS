@@ -42,7 +42,12 @@ import java.security.Principal;
 public final class UnresolvedPrincipal implements Principal {
 
     /** 
-     * Wildcard value denotes any class and/or any name. 
+     * Wildcard value denotes any name.  It is NOT a class wildcard: a
+     * definition whose class is the wildcard implies no principal (operator
+     * decision 2026-11-01; the class wildcard of the Harmony policy grammar
+     * matched every principal, which no deployer can scope, and
+     * polpAudit records the actual class).  The policy scanner refuses a
+     * wildcard class with a clear error.
      */
     public static final String WILDCARD = DefaultPolicyScanner.PrincipalEntry.WILDCARD;
 
@@ -55,7 +60,7 @@ public final class UnresolvedPrincipal implements Principal {
     /**
      * Constructs a a new definition of a Principal with specified
      * parameters. 
-     * @param klass fully qualified class name, may be wildcard
+     * @param klass fully qualified class name
      * @param name name of principal, may be wildcard
      * @throws IllegalArgumentException if <code>klass</code> value 
      * is <code>null </code> or is empty string 
@@ -107,16 +112,15 @@ public final class UnresolvedPrincipal implements Principal {
      * of class of passed Principal is equal to the class name value
      * of this definition and the name of passed Principal is equal to 
      * the name value of this definition, or if this definition allows
-     * any class or name, respectively.  
+     * any name.  The class is always compared exactly.  
      * Otherwise returns <code>false</code> .
      */
     public boolean implies(Principal another) {
         return (another != null)
-                && (WILDCARD.equals(klass) 
-                    || klass.equals(another.getClass().getName())
+                && klass.equals(another.getClass().getName())
                 && (WILDCARD.equals(name) 
                     || (name == null ? another.getName() == null 
-                        : name.equals(another.getName()))));
+                        : name.equals(another.getName())));
     }
 
     /** 
