@@ -130,6 +130,10 @@ public final class PermissionSets {
     public static String holdReason(String type, String name, String actions) {
         if (type == null) return null;
         if (NATIVE.equals(type)) return "escalation: native code invocation";
+        // Operator ruling 2026-11-01: a proxy must not hold the right to pass itself off
+        // as a user, whatever the class and name; only the deployer's own policy grants it.
+        if (ASSERT_PRINCIPAL.equals(type)) return "escalation: AssertPrincipalPermission lets "
+            + "the holder pass itself off as a user; a proxy must not hold it";
         if (name == null) return null;
         if (RUNTIME.equals(type) && basic(name, new String[]{"setSecurityManager",
                 "createClassLoader", "createAccessControlContext"},
@@ -255,7 +259,9 @@ public final class PermissionSets {
         }
         if (GRANT_PERMISSION.equals(type)) return grantDanger(name);
         String hold = holdReason(type, name, actions);
-        if (hold != null) return new Danger(HIGH, hold);
+        // AssertPrincipalPermission is HOLD for proxy lists but graded by extraDanger for a
+        // deployer's own policy: an exact grant to a named gateway is legitimate there.
+        if (hold != null && !ASSERT_PRINCIPAL.equals(type)) return new Danger(HIGH, hold);
         if (FILE.equals(type) && name != null) {
             Danger f = fileDanger(name, actions, env);
             if (f != null) return f;

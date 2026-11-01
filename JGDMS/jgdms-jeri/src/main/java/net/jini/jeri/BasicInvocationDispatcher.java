@@ -50,7 +50,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.Policy;
+import java.security.Guard;
 import java.security.Principal;
 import java.security.SecurityPermission;
 import java.security.PrivilegedAction;
@@ -2343,6 +2343,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *     peer ({@code peer}, the connection's client Subject) holds
      *     {@link AssertPrincipalPermission} for that class and name; with no
      *     grant, no peer, or a peer with no principals the call is refused.
+     *     The permission is checked through a static {@link Guard} that asks
+     *     the SecurityManager, never the Policy directly, so the
+     *     SecurityManager's caching of repeated checks applies.  With no
+     *     SecurityManager installed the Guard would do nothing and admit
+     *     everything, so the dispatcher accepts only the principals derived
+     *     from verified tokens and refuses the call if any other wire
+     *     principal is present (no policy lookup at all).  Production never
+     *     runs without a SecurityManager; this is the safe degradation.
      *     The permission cannot tell a user from a workload identity of the
      *     same class: a grant of {@code "*","*"} or
      *     {@code "...X500Principal","*"} lets the peer assert any X500
@@ -2625,37 +2633,74 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Whether the policy grants the authenticated {@code peer}
-     * {@link AssertPrincipalPermission} for the named principal.  Evaluated
-     * the way {@link #checkClientPermission(Permission)} evaluates Gate 1: a
-     * ProtectionDomain with the peer's principals and no code identity,
-     * submitted through the installed SecurityManager, which stays the single
-     * authorization chokepoint.  With no SecurityManager installed nothing
-     * enforces permissions, but the permission is still decided by the
-     * policy (an unconfigured policy grants nothing), so the answer does not
-     * depend on whether a SecurityManager happens to be present.
+     * The single place the right to assert a principal is decided: a static
+     * {@link Guard}, in the idiom of the other JGDMS guards, that asks the
+     * installed SecurityManager and never the {@link java.security.Policy}, so
+     * the SecurityManager's own caching of repeated permission checks applies.
+     * The permission is evaluated for the authenticated peer's domain (see
+     * {@link PeerAssertion}), not for the calling stack.
      *
-     * <p>Fails closed: no peer, a peer with no principals (not identified), a
-     * refusal, or any runtime failure while asking is "no".
+     * <p>Like every {@code Guard} it does nothing when no SecurityManager is
+     * installed; {@link #peerMayAssert} therefore refuses before reaching it in
+     * that case, rather than reading "no check" as "allowed".
+     */
+    private static final Guard PEER_ASSERT_GUARD = new Guard() {
+	@Override
+	public void checkGuard(Object object) throws SecurityException {
+	    SecurityManager sm = System.getSecurityManager();
+	    if (sm == null) return;
+	    PeerAssertion a = (PeerAssertion) object;
+	    sm.checkPermission(a.permission, a.context);
+	}
+    };
+
+    /** The permission asked of {@link #PEER_ASSERT_GUARD} and the context it is asked in. */
+    private static final class PeerAssertion {
+	final Permission permission;
+	final AccessControlContext context;
+	PeerAssertion(Permission permission, AccessControlContext context) {
+	    this.permission = permission;
+	    this.context = context;
+	}
+    }
+
+    /**
+     * Whether the authenticated {@code peer} may assert the named principal,
+     * that is whether the SecurityManager grants it
+     * {@link AssertPrincipalPermission} for that class and name.  Asked
+     * through {@link #PEER_ASSERT_GUARD} the way
+     * {@link #checkClientPermission(Permission)} asks Gate 1: a
+     * ProtectionDomain with the peer's principals and no code identity,
+     * submitted to the installed SecurityManager, which stays the single
+     * authorization chokepoint.  This method never consults the Policy
+     * itself, so the SecurityManager's caching of repeated checks is kept.
+     *
+     * <p>With no SecurityManager installed there is nothing to ask and the
+     * answer is "no": the caller then accepts only the principals derived from
+     * verified tokens.  Production never runs without a SecurityManager, so
+     * this is the safe degradation, not a supported mode.
+     *
+     * <p>Fails closed: no SecurityManager, no peer, a peer with no principals
+     * (not identified), a refusal, or any runtime failure while asking is "no".
      */
     private static boolean peerMayAssert(Subject peer, String className, String name) {
+	// SECURITY: without a SecurityManager the Guard would silently pass and
+	// admit every wire-asserted principal.  Refuse instead, and do not fall
+	// back to a direct Policy lookup: the SecurityManager is the only
+	// consumer of the Policy.
+	if (System.getSecurityManager() == null) return false;
 	if (peer == null || peer.getPrincipals().isEmpty()) return false;
 	try {
 	    final Permission perm = new AssertPrincipalPermission(className, name);
 	    final ProtectionDomain pd = peerDomain(peer);
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) {
-		AccessControlContext ctx = AccessController.doPrivileged(
-		    (PrivilegedAction<AccessControlContext>) () ->
-			Security.create(new ProtectionDomain[]{ pd }));
-		sm.checkPermission(perm, ctx);
-		return true;
-	    }
-	    return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
-		Policy.getPolicy().implies(pd, perm)).booleanValue();
+	    AccessControlContext ctx = AccessController.doPrivileged(
+		(PrivilegedAction<AccessControlContext>) () ->
+		    Security.create(new ProtectionDomain[]{ pd }));
+	    PEER_ASSERT_GUARD.checkGuard(new PeerAssertion(perm, ctx));
+	    return true;
 	} catch (RuntimeException e) {
 	    // SECURITY: a refusal (SecurityException), a name that cannot form the
-	    // permission, or any failure while consulting the policy is "not permitted".
+	    // permission, or any failure while asking is "not permitted".
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(Level.FINE, "peer may not assert " + className + ":" + name, e);
 	    }

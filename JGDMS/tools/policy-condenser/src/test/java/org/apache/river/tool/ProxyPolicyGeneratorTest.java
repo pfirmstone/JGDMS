@@ -1220,7 +1220,8 @@ public class ProxyPolicyGeneratorTest {
             "javax.security.auth.AuthPermission \"modifyPrincipals\"",
             "javax.security.auth.AuthPermission \"modifyPrivateCredentials\"",
             "java.io.FilePermission \"<<ALL FILES>>\", \"read,execute\"",
-            "au.zeus.jdk.authorization.guards.NativeInvocationPermission \"libx\""};
+            "au.zeus.jdk.authorization.guards.NativeInvocationPermission \"libx\"",
+            "net.jini.security.AssertPrincipalPermission \"javax.security.auth.x500.X500Principal\", \"CN=gateway\""};
         List<String> lines = new ArrayList<String>();
         lines.add("grant codebase \"file:/lib/esc-dl.jar\" {");
         for (String h : hold) lines.add("    permission " + h + ";");

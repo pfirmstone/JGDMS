@@ -532,4 +532,61 @@ public class JwtPrincipalBindingTest {
             });
         }
     }
+
+    // ---- the Guard, and no SecurityManager ---------------------------------
+
+    @Test
+    public void thePolicyIsConsultedOnlyByTheSecurityManager() throws Throwable {
+        try (PeerPolicyFixture f = new PeerPolicyFixture(allow(X500, "CN=alice"))) {
+            Assert.assertNotNull("a SecurityManager is installed", System.getSecurityManager());
+            Assert.assertEquals(set(ALICE_X500),
+                    principalsOf(read(wire(subject(set(ALICE_X500))), PeerPolicyFixture.peer())));
+            refused(wire(subject(set(BOB_X500))), PeerPolicyFixture.peer(), "ungranted principal");
+            Assert.assertTrue("the SecurityManager reached the policy: " + f.principalCalls(),
+                    f.principalCalls() > 0);
+            Assert.assertEquals("calls made by the dispatcher itself", 0, f.dispatcherCalls());
+        }
+    }
+
+    /**
+     * The no-SecurityManager branch needs a JVM without one, and an earlier test
+     * of this JVM may have installed it (it cannot be removed), so it runs in a
+     * child JVM: {@link #main}.
+     */
+    @Test
+    public void withoutASecurityManagerOnlyTokenDerivedPrincipalsAreAccepted() throws Exception {
+        String javaExe = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString();
+        Process p = new ProcessBuilder(javaExe, "-cp", System.getProperty("java.class.path"),
+                JwtPrincipalBindingTest.class.getName())
+                .redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        Assert.assertTrue("child timed out: " + out, p.waitFor(120, java.util.concurrent.TimeUnit.SECONDS));
+        Assert.assertEquals(out, 0, p.exitValue());
+        Assert.assertTrue(out, out.contains("NO-SECURITY-MANAGER-OK"));
+    }
+
+    /**
+     * Child JVM of {@link #withoutASecurityManagerOnlyTokenDerivedPrincipalsAreAccepted}:
+     * no SecurityManager, and a policy that would grant the peer everything.  The
+     * wire X500 principal must be refused (the Guard would silently pass), the
+     * token-derived JwtPrincipals accepted, and the policy never asked.
+     */
+    public static void main(String[] args) throws Throwable {
+        if (System.getSecurityManager() != null) throw new AssertionError("a SecurityManager is installed");
+        keys();
+        JwtPrincipalBindingTest t = new JwtPrincipalBindingTest();
+        try (PeerPolicyFixture f = PeerPolicyFixture.withoutSecurityManager(allow("*", "*"))) {
+            Subject peer = PeerPolicyFixture.peer();
+            BasicInvocationDispatcher.setJwtVerifier(real);
+            refused(wire(subject(set(ALICE_X500))), peer, "no SecurityManager, X500, permissive policy");
+            refused(wire(subject(set(new X500Principal("CN=x")), token("bob"))), peer,
+                    "no SecurityManager, token plus an X500 principal");
+            Assert.assertEquals(set(new JwtPrincipal("sub:bob"), new JwtPrincipal("group:ops")),
+                    principalsOf(read(wire(subject(set(), token("bob", "ops"))), peer)));
+            Assert.assertEquals(set(new JwtPrincipal("sub:bob")),
+                    principalsOf(read(wire(subject(set(), token("bob"))), null)));
+            Assert.assertEquals("policy consulted", 0, f.principalCalls());
+        }
+        System.out.println("NO-SECURITY-MANAGER-OK");
+    }
 }

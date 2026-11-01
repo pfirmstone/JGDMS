@@ -105,6 +105,13 @@ public class PermissionSetsTest {
         assertNull(PermissionSets.holdReason(f, "/tmp/x", "execute"));
         assertNotNull(PermissionSets.holdReason(
             "au.zeus.jdk.authorization.guards.NativeInvocationPermission", null, null));
+        // Operator ruling 2026-11-01: a proxy must not hold AssertPrincipalPermission, any class/name
+        String ap = "net.jini.security.AssertPrincipalPermission";
+        assertNotNull(PermissionSets.holdReason(ap, "javax.security.auth.x500.X500Principal", "CN=gateway"));
+        assertNotNull(PermissionSets.holdReason(ap, "*", "*"));
+        assertNotNull(PermissionSets.holdReason(ap, null, null));
+        assertNotNull(PermissionSets.holdReason(
+            "(" + ap + " \"javax.security.auth.x500.X500Principal\" \"CN=gateway\")"));
         assertNull(PermissionSets.holdReason(null, "x", "y"));
     }
 

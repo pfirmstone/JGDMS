@@ -944,7 +944,8 @@ public class ListPromotionTest {
         "(javax.security.auth.AuthPermission \"doAsPrivileged\")",
         "(javax.security.auth.AuthPermission \"modifyPrincipals\")",
         "(java.io.FilePermission \"<<ALL FILES>>\" \"execute\")",
-        "(au.zeus.jdk.authorization.guards.NativeInvocationPermission \"x\")"};
+        "(au.zeus.jdk.authorization.guards.NativeInvocationPermission \"x\")",
+        "(net.jini.security.AssertPrincipalPermission \"javax.security.auth.x500.X500Principal\" \"CN=gateway\")"};
     private static final String[] GATE_META_ENTRIES = {
         "(net.jini.loader.pref.INCONCLUSIVEPermit \"*\")",
         "(net.jini.loader.pref.BootstrapPermission \"loadCodebase\")",

@@ -39,4 +39,14 @@ public class PermissionSetsTest {
             ProxyPolicyGenerator.excludedReason("org.apache.river.api.security.PolicyPermission"));
         assertNull(ProxyPolicyGenerator.excludedReason("java.lang.RuntimePermission"));
     }
+
+    /** Operator ruling 2026-11-01: a proxy must not hold AssertPrincipalPermission. */
+    @Test
+    public void testAssertPrincipalPermissionIsHeld() {
+        String ap = "net.jini.security.AssertPrincipalPermission";
+        assertNotNull(PermissionSets.holdReason(ap, "javax.security.auth.x500.X500Principal", "CN=gateway"));
+        assertNotNull(PermissionSets.holdReason(ap, "*", "*"));
+        assertNotNull(PermissionSets.holdReason(
+            "(" + ap + " \"javax.security.auth.x500.X500Principal\" \"CN=gateway\")"));
+    }
 }
