@@ -19,7 +19,9 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-proxy-policy-tooling-round4-2026-10-31.md` | 10276 | 2026-10-31 | claude-sonnet-5-5 | LIVE: matches commit ae004e42f; its Opus check is REVIEW-proxy-policy-tooling-round4-opus (done); round 5 is in progress |
 | `INVESTIGATION-sm-test-failures-rootcause-2026-10-31.md` | 15542 | 2026-10-31 | claude-opus-5-5 | LIVE: matches commit bb2e10720 |
 | `INVESTIGATION-dirtychai-principal-matching-2026-11-01.md` | 7912 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-guard-and-hold-2026-11-01.md` | 4780 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-binding-followup-2026-11-01.md` | 5960 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-client-align-2026-11-01.md` | 4650 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-fix-2026-11-01.md` | 8984 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8211 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
@@ -92,6 +94,8 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a5d0d4bda7b630d28` | Opus 5.5 | review of 66974f70f (general lint) | done |
 | `a401ac7b6f99a2e95` | Sonnet 5.5 | binding follow-ups | done (committed 5799eeda6) |
 | `a133bba216fc34b5c` | Sonnet 5.5 | lint redesign (symbolic scope) | done (committed 06f7d8889) |
+| `ae0e713f14113e116` | Sonnet 5.5 | guard-based peer check and HOLD entry | done (committed 8a5632e01) |
+| `ae07f9e6a3783c076` | Sonnet 5.5 | JWT client alignment | done (committed in the client alignment commit) |
 | `aa282920885d55c85` | Opus 5.5 | delta review of 06f7d8889 and 5799eeda6 | STOPPED by a safety classifier before any finding; no report (baseline tests green in scratchpad opus-r9/src) |
 | `a6311935e724074e0` | Sonnet 5.5 | SOM hardware root of trust survey | done |
 | `ad6cbaae05ddf03aa` | Sonnet 5.5 | handover currency check | done |
