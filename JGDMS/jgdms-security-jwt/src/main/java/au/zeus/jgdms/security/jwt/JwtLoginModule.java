@@ -104,9 +104,19 @@ import net.jini.security.jwt.JwtPrincipal;
  *
  * <p>A refresh replaces the {@link JwtPrincipal}s, the {@link JwtRawToken} and
  * the {@link JwtExpiryClaim} in one step under the Subject's monitor.  A
- * refreshed token whose {@code sub} or {@code iss} differs from the login
- * token is refused: the Subject keeps the old identity and the thread stops.
- * Logout removes whatever is installed at that time.
+ * refreshed token is refused when its {@code sub} or {@code iss} differs from
+ * the login token, or when either token has no {@code sub}.  A refusal stops
+ * the thread and removes what this module installed, so the Subject fails
+ * closed at the server rather than keeping an identity nobody refreshes.  An
+ * {@code Error} in the thread (an {@code OutOfMemoryError} excepted) does the
+ * same.  A token already past its expiry, inside the validator's clock skew,
+ * is refreshed once and then no more often than every 5 s.
+ *
+ * <p>The module removes only what it actually added to the Subject: a
+ * principal or credential that was already present (installed by another
+ * module) is never removed.  A second {@code commit} and an {@code abort}
+ * after a {@code commit} first undo the previous commit.  Logout removes
+ * whatever is installed at that time.
  *
  * @since 3.1.1
  */
@@ -126,10 +136,19 @@ public final class JwtLoginModule implements LoginModule {
     private CallbackHandler callbackHandler;
     private Map<String, ?> options;
 
-    /** Principals added to the Subject on commit. */
+    /**
+     * Principals this module added to the Subject (Set.add returned true),
+     * refreshed values included.  Guarded by the monitor of {@link #installedOn}.
+     */
     private final List<JwtPrincipal> addedPrincipals = new ArrayList<>();
-    /** Public credentials added to the Subject on commit. */
+    /** Public credentials this module added, same rule. */
     private final List<Object> addedCredentials = new ArrayList<>();
+
+    /**
+     * The Subject the last commit installed into; undo and logout lock and
+     * clean this one even if {@link #initialize} has since been given another.
+     */
+    private volatile Subject installedOn;
 
     private boolean loginSucceeded = false;
     private boolean commitSucceeded = false;
@@ -230,67 +249,87 @@ public final class JwtLoginModule implements LoginModule {
     @Override
     public boolean commit() throws LoginException {
         if (!loginSucceeded) {
-            clearState();
+            clearLoginState();
             return false;
         }
 
-        // --- Build principals ---
-        addedPrincipals.clear();
-        addedCredentials.clear();
+        // A second commit on this instance (a LoginContext reuses its modules)
+        // first undoes the previous one: its thread and what it installed.
+        Subject previous = installedOn;
+        if (previous != null) {
+            synchronized (previous) {
+                uninstallLocked();
+            }
+        }
 
-        addJwtPrincipals(addedPrincipals, parsedJwt);
+        // --- Build principals ---
+        List<JwtPrincipal> principals = new ArrayList<>();
+        addJwtPrincipals(principals, parsedJwt);
 
         // --- Public credentials ---
         Instant expiry = tokenExpiry != null ? tokenExpiry : Instant.now().plusSeconds(3600);
-        JwtExpiryClaim expiryClaim = new JwtExpiryClaim(expiry);
-        addedCredentials.add(expiryClaim);
+        List<Object> credentials = new ArrayList<>();
+        credentials.add(new JwtExpiryClaim(expiry));
         // JwtRawToken carries the compact-serialization for JERI wire transmission
         // (BasicInvocationHandler.writeUserSubjects) so the server-side JwtVerifier
         // can independently verify the token.  It is stored as a public credential
         // because writeUserSubjects executes outside a Subject.doAs context.
         if (rawToken != null) {
-            addedCredentials.add(new JwtRawToken(rawToken));
+            credentials.add(new JwtRawToken(rawToken));
         }
+
+        String refreshTokenUri = (String) options.get("refreshTokenUri");
+        String refreshToken    = (String) options.get("refreshToken");
+        boolean refresh = refreshTokenUri != null && !refreshTokenUri.isBlank()
+                && refreshToken != null && !refreshToken.isBlank();
 
         // --- Populate Subject ---
         // Under the Subject's monitor, the same lock a refresh swaps under, so
         // a reader that locks the Subject sees principals and token together.
-        synchronized (subject) {
-            subject.getPrincipals().addAll(addedPrincipals);
-            subject.getPublicCredentials().addAll(addedCredentials);
+        // Only what Set.add reports as added is ours to remove later.
+        Subject target = subject;
+        synchronized (target) {
+            installedOn = target;
+            for (JwtPrincipal p : principals)
+                if (target.getPrincipals().add(p)) addedPrincipals.add(p);
+            for (Object c : credentials)
+                if (target.getPublicCredentials().add(c)) addedCredentials.add(c);
             installedSub = parsedJwt.subject();
             installedIss = parsedJwt.allClaims().get("iss");
-        }
+            commitSucceeded = true;
 
-        // --- Start background refresh thread if configured ---
-        String refreshTokenUri = (String) options.get("refreshTokenUri");
-        String refreshToken    = (String) options.get("refreshToken");
-        if (refreshTokenUri != null && !refreshTokenUri.isBlank()
-                && refreshToken != null && !refreshToken.isBlank()) {
-            Object clientIdObj     = options.get("clientId");
-            Object clientSecretObj = options.get("clientSecret");
-            String clientId        = clientIdObj     != null ? clientIdObj.toString()     : "";
-            String clientSecret    = clientSecretObj != null ? clientSecretObj.toString() : "";
-            RefreshThread rt = new RefreshThread(
-                    this, subject, refreshTokenUri, refreshToken,
-                    clientId, clientSecret, expiry,
-                    (String) options.get("jwksUri"),
-                    (String) options.get("issuer"),
-                    (String) options.get("audience"));
-            rt.setDaemon(true);
-            rt.setName("JwtLoginModule-refresh");
-            rt.start();
-            refreshThread = rt;
+            // --- Start background refresh thread if configured ---
+            if (refresh) {
+                Object clientIdObj     = options.get("clientId");
+                Object clientSecretObj = options.get("clientSecret");
+                String clientId        = clientIdObj     != null ? clientIdObj.toString()     : "";
+                String clientSecret    = clientSecretObj != null ? clientSecretObj.toString() : "";
+                RefreshThread rt = new RefreshThread(
+                        this, target, refreshTokenUri, refreshToken,
+                        clientId, clientSecret, expiry,
+                        (String) options.get("jwksUri"),
+                        (String) options.get("issuer"),
+                        (String) options.get("audience"));
+                rt.setDaemon(true);
+                rt.setName("JwtLoginModule-refresh");
+                refreshThread = rt;
+                rt.start();
+            }
         }
-
-        commitSucceeded = true;
         return true;
     }
 
     @Override
     public boolean abort() throws LoginException {
         if (!loginSucceeded) return false;
-        clearState();
+        Subject target = installedOn;
+        if (target != null) {
+            // abort after a successful commit: undo it
+            synchronized (target) {
+                uninstallLocked();
+            }
+        }
+        clearLoginState();
         return true;
     }
 
@@ -300,50 +339,107 @@ public final class JwtLoginModule implements LoginModule {
         // a refresh in flight checks 'running' under the same lock, so it cannot
         // install a token after this point.  addedPrincipals / addedCredentials
         // always hold what is installed now, refreshed values included.
-        synchronized (subject) {
-            RefreshThread rt = refreshThread;
-            if (rt != null) {
-                rt.shutdown();
-                refreshThread = null;
-            }
-            if (commitSucceeded) {
-                subject.getPrincipals().removeAll(addedPrincipals);
-                subject.getPublicCredentials().removeAll(addedCredentials);
-            }
-            clearState();
+        Subject target = installedOn != null ? installedOn : subject;
+        synchronized (target) {
+            uninstallLocked();
+            clearLoginState();
         }
         return true;
     }
 
     /**
+     * Stops the refresh thread and removes what this module added.  The caller
+     * holds the monitor of {@link #installedOn}.
+     */
+    private void uninstallLocked() {
+        RefreshThread rt = refreshThread;
+        if (rt != null) {
+            rt.shutdown();
+            refreshThread = null;
+        }
+        removeInstalledLocked();
+        installedSub = null;
+        installedIss = null;
+        commitSucceeded = false;
+    }
+
+    /** Removes exactly what this module added; the caller holds the Subject's monitor. */
+    private void removeInstalledLocked() {
+        Subject target = installedOn;
+        if (target == null) return;
+        target.getPrincipals().removeAll(addedPrincipals);
+        target.getPublicCredentials().removeAll(addedCredentials);
+        addedPrincipals.clear();
+        addedCredentials.clear();
+    }
+
+    /**
+     * Fails closed: stops the thread and removes the token, the expiry claim
+     * and the principals this module installed.  The caller holds the Subject's
+     * monitor.  Does nothing if the thread was already stopped (logout, undo).
+     */
+    private void failClosedLocked(RefreshThread caller) {
+        if (!caller.running) return;
+        caller.shutdown();
+        commitSucceeded = false;
+        removeInstalledLocked();
+    }
+
+    /** {@link #failClosedLocked} for the thread's own failure path; records {@code why}. */
+    private void failClosed(RefreshThread caller, String why) {
+        synchronized (caller.subject) {
+            lastRefreshFailure = why;
+            try {
+                failClosedLocked(caller);
+            } catch (RuntimeException e) {
+                // A read-only Subject, or a SecurityManager refusing the removal:
+                // the token cannot be taken out; say so, without token text.
+                LOG.log(Level.SEVERE, "JWT refresh stopped but the token could not be removed: "
+                        + e.getClass().getName());
+            }
+        }
+    }
+
+    /**
      * Test hook: performs one refresh now, on the calling thread.
      *
+     * @return false if the identity provider rejected the refresh token
      * @throws IllegalStateException if no refresh is configured
      */
-    void refreshNow() throws Exception {
+    boolean refreshNow() throws Exception {
         RefreshThread rt = refreshThread;
         if (rt == null) throw new IllegalStateException("no refresh configured");
-        rt.refreshOnce();
+        return rt.refreshOnce();
     }
 
     /**
      * Replaces the Subject's principals, {@link JwtRawToken} and expiry claim
      * with those of a refreshed token, in one step under the Subject's monitor.
-     * Refuses a token whose {@code sub} or {@code iss} differs from the one
-     * installed; the Subject is left unchanged in every refusal.
+     * A token with another {@code sub} or {@code iss}, or a login or refreshed
+     * token without {@code sub}, is refused and the module fails closed (see
+     * {@link #failClosedLocked}).
      */
     private void installRefreshed(RefreshThread caller, ParsedJwt newParsed,
                                   String newToken, Instant newExpiry)
             throws FatalRefreshException {
-        synchronized (subject) {
+        Subject target = caller.subject;
+        synchronized (target) {
             if (!caller.running || !commitSucceeded)
-                throw new FatalRefreshException("login module is logged out");
-            if (!java.util.Objects.equals(installedSub, newParsed.subject())
-                    || !java.util.Objects.equals(installedIss, newParsed.allClaims().get("iss")))
+                throw new FatalRefreshException("login module is logged out", true);
+            String newSub = newParsed.subject();
+            if (installedSub == null || installedSub.isEmpty() || newSub == null || newSub.isEmpty()) {
+                failClosedLocked(caller);
                 throw new FatalRefreshException(
-                        "refreshed token has a different sub or iss; refused");
-            if (subject.isReadOnly())
-                throw new FatalRefreshException("Subject is read-only; refresh not installed");
+                        "refresh refused: the login token or the refreshed token has no sub", false);
+            }
+            if (!installedSub.equals(newSub)
+                    || !java.util.Objects.equals(installedIss, newParsed.allClaims().get("iss"))) {
+                failClosedLocked(caller);
+                throw new FatalRefreshException(
+                        "refreshed token has a different sub or iss; refused", false);
+            }
+            if (target.isReadOnly())
+                throw new FatalRefreshException("Subject is read-only; refresh not installed", false);
 
             List<JwtPrincipal> newPrincipals = new ArrayList<>();
             addJwtPrincipals(newPrincipals, newParsed);
@@ -351,16 +447,13 @@ public final class JwtLoginModule implements LoginModule {
             newCredentials.add(new JwtExpiryClaim(newExpiry));
             newCredentials.add(new JwtRawToken(newToken));
 
-            // Only what this module installed is removed, not principals other
-            // login modules added.
-            subject.getPrincipals().removeAll(addedPrincipals);
-            subject.getPublicCredentials().removeAll(addedCredentials);
-            subject.getPrincipals().addAll(newPrincipals);
-            subject.getPublicCredentials().addAll(newCredentials);
-            addedPrincipals.clear();
-            addedPrincipals.addAll(newPrincipals);
-            addedCredentials.clear();
-            addedCredentials.addAll(newCredentials);
+            // Only what this module added is removed, not principals other
+            // login modules installed (including equal ones).
+            removeInstalledLocked();
+            for (JwtPrincipal p : newPrincipals)
+                if (target.getPrincipals().add(p)) addedPrincipals.add(p);
+            for (Object c : newCredentials)
+                if (target.getPublicCredentials().add(c)) addedCredentials.add(c);
         }
     }
 
@@ -394,14 +487,12 @@ public final class JwtLoginModule implements LoginModule {
         return token;
     }
 
-    private void clearState() {
+    /** Forgets the login-time values; what a commit installed is {@link #uninstallLocked}'s. */
+    private void clearLoginState() {
         parsedJwt     = null;
         tokenExpiry   = null;
         rawToken      = null;
         loginSucceeded = false;
-        commitSucceeded = false;
-        addedPrincipals.clear();
-        addedCredentials.clear();
     }
 
     // -----------------------------------------------------------------------
@@ -473,9 +564,30 @@ public final class JwtLoginModule implements LoginModule {
 
         @Override
         public void run() {
+            try {
+                loop();
+            } catch (OutOfMemoryError oom) {
+                throw oom;
+            } catch (Throwable t) {
+                // An Error (or other non-Exception Throwable) must not leave the
+                // Subject holding a token nobody refreshes: record the class
+                // name only (no message, no token text), log, fail closed.
+                String name = t.getClass().getName();
+                if (running)
+                    LOG.log(Level.SEVERE, "JWT refresh thread died with " + name
+                            + "; removing the token and principals");
+                owner.failClosed(this, name);
+            }
+        }
+
+        private void loop() {
+            boolean attempted = false;
             while (running) {
                 // Determine when to wake up: at 80% of lifetime elapsed
                 long sleepMs = computeSleepMs();
+                // A token already past its expiry (inside the clock skew) gives 0;
+                // never attempt again sooner than the first back-off step.
+                if (attempted) sleepMs = Math.max(sleepMs, MIN_BACKOFF_MS);
                 if (sleepMs > 0) {
                     try {
                         Thread.sleep(sleepMs);
@@ -494,17 +606,24 @@ public final class JwtLoginModule implements LoginModule {
                         refreshed = refreshOnce();
                         if (!refreshed) {
                             // Fatal failure (invalid_grant etc.)
-                            LOG.severe("JWT refresh token has been revoked or is invalid; "
-                                    + "marking session as logged-out");
+                            if (running)
+                                LOG.severe("JWT refresh token has been revoked or is invalid; "
+                                        + "marking session as logged-out");
                             running = false;
                             return;
                         }
+                        attempted = true;
                     } catch (FatalRefreshException e) {
-                        LOG.severe("JWT refresh permanently failed: " + e.getMessage()
-                                + "; marking session as logged-out");
+                        // loggedOut: logout or an undo won the race; nothing to report.
+                        if (!e.loggedOut)
+                            LOG.severe("JWT refresh permanently failed: " + e.getMessage()
+                                    + "; marking session as logged-out");
                         running = false;
                         return;
                     } catch (Exception e) {
+                        // A logout interrupts an in-flight send: not a failure.
+                        if (!running) return;
+                        attempted = true;
                         LOG.log(Level.WARNING,
                                 "JWT refresh failed (will retry in " + backoffMs + "ms)", e);
                         try {
@@ -522,7 +641,9 @@ public final class JwtLoginModule implements LoginModule {
         /** {@link #doRefresh()}, recording any failure on the module (no token text). */
         boolean refreshOnce() throws Exception {
             try {
-                return doRefresh();
+                boolean ok = doRefresh();
+                if (!ok) owner.lastRefreshFailure = "invalid_grant: the refresh token was rejected";
+                return ok;
             } catch (Exception e) {
                 owner.lastRefreshFailure = e.getClass().getSimpleName() + ": " + e.getMessage();
                 throw e;
@@ -582,7 +703,7 @@ public final class JwtLoginModule implements LoginModule {
                 // Check for invalid_grant error (permanent failure)
                 if (responseBody.contains("\"invalid_grant\""))
                     return false; // fatal — refresh token revoked
-                throw new FatalRefreshException("Token endpoint returned HTTP 400");
+                throw new FatalRefreshException("Token endpoint returned HTTP 400", false);
             }
             if (status != 200) {
                 throw new Exception("Token endpoint returned HTTP " + status);
@@ -632,6 +753,11 @@ public final class JwtLoginModule implements LoginModule {
 
     /** Thrown to signal a permanent refresh failure that should stop the refresh thread. */
     private static final class FatalRefreshException extends Exception {
-        FatalRefreshException(String message) { super(message); }
+        /** True when logout or an undo stopped the thread first: not worth a log line. */
+        final boolean loggedOut;
+        FatalRefreshException(String message, boolean loggedOut) {
+            super(message);
+            this.loggedOut = loggedOut;
+        }
     }
 }

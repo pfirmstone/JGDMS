@@ -44,6 +44,15 @@ import javax.security.auth.x500.X500Principal;
  * {@link #withoutSecurityManager} variant installs only the policy, for tests
  * that run in a child JVM and must see no SecurityManager.
  *
+ * <p><b>Run every class that uses this fixture in its own JVM.</b>  The normal
+ * constructor installs a SecurityManager that DirtyChai cannot uninstall, so
+ * any test class running later in the same JVM would silently run with one.
+ * {@code jgdms-jeri/pom.xml} excludes the classes that use it from the default
+ * surefire execution and runs them in the {@code peer-policy-fork} execution
+ * ({@code reuseForks=false}); add a new user to both lists there.  Tests that
+ * must see no SecurityManager use a child JVM as well
+ * ({@link #withoutSecurityManager}).
+ *
  * <p>It counts the calls to {@code Policy.implies} for a domain that has
  * principals, and how many of them came straight from the dispatcher.
  */

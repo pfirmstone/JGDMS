@@ -134,6 +134,18 @@ public class JwtLoginModuleTest {
     private static final AtomicReference<String> tokenEndpointResponse =
             new AtomicReference<>();
 
+    /** Requests the /token endpoint has served. */
+    private static final java.util.concurrent.atomic.AtomicInteger tokenHits =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /** When non-null, /token answers HTTP 400 with this body. */
+    private static final AtomicReference<String> tokenEndpointRaw = new AtomicReference<>();
+
+    /** When non-null, /token holds each request on this latch (a request in flight). */
+    private static volatile java.util.concurrent.CountDownLatch tokenGate;
+    private static volatile java.util.concurrent.CountDownLatch tokenGateEntered =
+            new java.util.concurrent.CountDownLatch(1);
+
     /** The default SSL context that was in place before our tests replaced it. */
     private static SSLContext originalDefaultSslContext;
 
@@ -191,6 +203,25 @@ public class JwtLoginModuleTest {
         // /token — OAuth2 client_credentials/refresh_token endpoint
         httpsServer.createContext("/token", (HttpExchange exchange) -> {
             String body = readBody(exchange);
+            tokenHits.incrementAndGet();
+            java.util.concurrent.CountDownLatch gate = tokenGate;
+            if (gate != null) {
+                tokenGateEntered.countDown();
+                try {
+                    gate.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            String raw = tokenEndpointRaw.get();
+            if (raw != null) {
+                byte[] rb = raw.getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(400, rb.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(rb);
+                }
+                return;
+            }
             String accessToken = tokenEndpointResponse.get();
             if (accessToken == null) {
                 // Default: issue a fresh short-lived token signed with key pair 1
@@ -803,13 +834,6 @@ public class JwtLoginModuleTest {
         assertEquals("a principal of another module survives logout", Set.of("other:module"), jwtNames(subject));
     }
 
-    @Test
-    public void testRefreshWithADifferentSubIsRefused() throws Exception {
-        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
-        String t2 = tokenFor("mallory-marker", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"admin\"]");
-        assertRefreshRefused(t1, t2);
-    }
-
     /**
      * The validator already refuses another issuer; this pins the outcome (the
      * Subject keeps the old identity), not which of the two checks fired.
@@ -915,6 +939,322 @@ public class JwtLoginModuleTest {
             m.logout();
         }
         assertNull("torn view: " + torn.get(), torn.get());
+    }
+
+    // -----------------------------------------------------------------------
+    // Lifecycle: what the module owns, second commit, abort, fail-closed stop
+    // -----------------------------------------------------------------------
+
+    private static Thread refreshThreadOf(JwtLoginModule m) throws Exception {
+        java.lang.reflect.Field f = JwtLoginModule.class.getDeclaredField("refreshThread");
+        f.setAccessible(true);
+        return (Thread) f.get(m);
+    }
+
+    private static int liveRefreshThreads() {
+        int n = 0;
+        for (Thread t : Thread.getAllStackTraces().keySet())
+            if (t.isAlive() && "JwtLoginModule-refresh".equals(t.getName())) n++;
+        return n;
+    }
+
+    private static void assertNothingOfOurs(Subject s) {
+        assertTrue("principals " + jwtNames(s), jwtNames(s).isEmpty());
+        assertTrue("tokens", tokens(s).isEmpty());
+        assertTrue("expiry claims", expiries(s).isEmpty());
+    }
+
+    /** A token with no {@code sub}; identity is the verified email. */
+    private static String subLess(String email, String extra) throws Exception {
+        return signPayload(JWT_KID, "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"" + AUD
+                + "\",\"exp\":" + inSeconds(1000) + ",\"email\":\"" + email
+                + "\",\"email_verified\":true" + extra + "}");
+    }
+
+    /** Collects what the module logs. */
+    private static final class Capture extends java.util.logging.Handler {
+        final java.util.List<java.util.logging.LogRecord> records =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        @Override public void publish(java.util.logging.LogRecord r) { records.add(r); }
+        @Override public void flush() { }
+        @Override public void close() { }
+        java.util.List<java.util.logging.LogRecord> atLeast(java.util.logging.Level l) {
+            java.util.List<java.util.logging.LogRecord> out = new java.util.ArrayList<>();
+            synchronized (records) {
+                for (java.util.logging.LogRecord r : records)
+                    if (r.getLevel().intValue() >= l.intValue()) out.add(r);
+            }
+            return out;
+        }
+    }
+
+    private static java.util.logging.Logger moduleLogger() {
+        return java.util.logging.Logger.getLogger(JwtLoginModule.class.getName());
+    }
+
+    /**
+     * A refusal on identity fails closed: the refreshed token is not installed,
+     * and the token, expiry claim and our principals are removed (a foreign
+     * principal stays), the failure is recorded and the thread stops.
+     */
+    private static void assertRefreshFailsClosed(String t1, String response) throws Exception {
+        Subject subject = new Subject();
+        JwtPrincipal foreign = new JwtPrincipal("other:module");
+        subject.getPrincipals().add(foreign);
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        Thread rt = refreshThreadOf(m);
+        try {
+            assertEquals(Set.of(t1), tokens(subject));
+            tokenEndpointResponse.set(response);
+            try {
+                m.refreshNow();
+                fail("refresh was accepted");
+            } catch (Exception expected) {
+                // refused
+            }
+            assertEquals("only the foreign principal stays", Set.of("other:module"), jwtNames(subject));
+            assertTrue("tokens", tokens(subject).isEmpty());
+            assertTrue("expiry claims", expiries(subject).isEmpty());
+            String why = m.lastRefreshFailure;
+            assertNotNull("the failure is recorded", why);
+            assertFalse("no claim value in the record: " + why, why.contains("marker"));
+            rt.join(5000);
+            assertFalse("the refresh thread stopped", rt.isAlive());
+        } finally {
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+    }
+
+    // K1: only what we added is ours to remove
+
+    @Test
+    public void testPrincipalsAnotherModuleInstalledAreNeverRemoved() throws Exception {
+        String t1 = tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("s", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        subject.getPrincipals().add(new JwtPrincipal("sub:s"));
+        subject.getPrincipals().add(new JwtPrincipal("group:b"));
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        try {
+            assertEquals(Set.of("sub:s", "group:a", "group:b"), jwtNames(subject));
+            tokenEndpointResponse.set(t2);
+            m.refreshNow();
+            assertEquals("group:a was ours and goes", Set.of("sub:s", "group:b"), jwtNames(subject));
+        } finally {
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+        assertEquals("foreign sub:s and group:b survive logout",
+                Set.of("sub:s", "group:b"), jwtNames(subject));
+        assertTrue(tokens(subject).isEmpty());
+        assertTrue(expiries(subject).isEmpty());
+    }
+
+    // K2: second commit and abort undo the previous commit
+
+    private static JwtLoginModule callbackModule(Subject s, AtomicReference<String> tok) {
+        Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD, null);
+        opts.put("refreshTokenUri", serverBaseUri + "/token");
+        opts.put("refreshToken", "dummy-refresh-token");
+        opts.put("clientId", "test-client");
+        opts.put("clientSecret", "test-secret");
+        javax.security.auth.callback.CallbackHandler h = callbacks -> {
+            for (javax.security.auth.callback.Callback c : callbacks)
+                if (c instanceof javax.security.auth.callback.PasswordCallback)
+                    ((javax.security.auth.callback.PasswordCallback) c)
+                            .setPassword(tok.get().toCharArray());
+        };
+        JwtLoginModule m = new JwtLoginModule();
+        m.initialize(s, h, new HashMap<>(), opts);
+        return m;
+    }
+
+    @Test
+    public void testSecondCommitOnTheSameModuleReplacesTheFirstIdentity() throws Exception {
+        String ta = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String tb = tokenFor("bob", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"c\"]");
+        AtomicReference<String> tok = new AtomicReference<>(ta);
+        Subject subject = new Subject();
+        JwtLoginModule m = callbackModule(subject, tok);
+        assertTrue(m.login());
+        assertTrue(m.commit());
+        Thread rt1 = refreshThreadOf(m);
+        assertTrue(rt1.isAlive());
+        int before = liveRefreshThreads();
+        tok.set(tb);
+        assertTrue(m.login());
+        assertTrue(m.commit());
+        Thread rt2 = refreshThreadOf(m);
+        try {
+            rt1.join(5000);
+            assertFalse("the first refresh thread stopped", rt1.isAlive());
+            assertTrue(rt2.isAlive());
+            assertEquals("one live thread, as before", before, liveRefreshThreads());
+            assertEquals(Set.of("sub:bob", "group:c"), jwtNames(subject));
+            assertEquals(Set.of(tb), tokens(subject));
+            assertEquals(1, expiries(subject).size());
+        } finally {
+            m.logout();
+        }
+        assertNothingOfOurs(subject);
+        rt2.join(5000);
+        assertFalse(rt2.isAlive());
+    }
+
+    @Test
+    public void testAbortAfterCommitUndoesTheCommit() throws Exception {
+        String ta = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        Subject subject = new Subject();
+        JwtLoginModule m = callbackModule(subject, new AtomicReference<>(ta));
+        assertTrue(m.login());
+        assertTrue(m.commit());
+        Thread rt = refreshThreadOf(m);
+        assertFalse(tokens(subject).isEmpty());
+        assertTrue(m.abort());
+        assertNothingOfOurs(subject);
+        rt.join(5000);
+        assertFalse("the refresh thread stopped", rt.isAlive());
+    }
+
+    // K3 and K4: sub is required on both sides; a refusal fails closed
+
+    @Test
+    public void testSubLessRefreshIntoAnotherIdentityIsRefused() throws Exception {
+        // the review's probe: alice's verified email, refreshed to mallory plus group admin
+        assertRefreshFailsClosed(subLess("alice@x", ""), subLess("mallory-marker@x", ",\"groups\":[\"admin\"]"));
+    }
+
+    @Test
+    public void testSubLessRefreshIsRefusedEvenForTheSameEmail() throws Exception {
+        assertRefreshFailsClosed(subLess("alice@x", ""), subLess("alice@x", ""));
+    }
+
+    @Test
+    public void testRefreshThatAddsOrDropsTheSubIsRefused() throws Exception {
+        assertRefreshFailsClosed(subLess("alice@x", ""), tokenFor("alice", JWT_ISSUER, inSeconds(5000), ""));
+        assertRefreshFailsClosed(tokenFor("alice", JWT_ISSUER, inSeconds(1000), ""), subLess("alice@x", ""));
+    }
+
+    @Test
+    public void testRefreshWithADifferentSubFailsClosed() throws Exception {
+        assertRefreshFailsClosed(
+                tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"),
+                tokenFor("mallory-marker", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"admin\"]"));
+    }
+
+    // K5: robustness of the thread
+
+    /** An Error in the thread: caught, recorded by class name, logged SEVERE, token removed. */
+    @Test
+    public void testAnErrorInTheRefreshThreadFailsClosed() throws Exception {
+        // Subject is final: a foreign principal whose equals() throws an Error
+        // once, armed after commit, fires inside the refresh swap (the Subject's
+        // sets call equals() on their elements) before anything is changed.
+        final java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
+        Subject subject = new Subject();
+        subject.getPrincipals().add(new java.security.Principal() {
+            @Override public String getName() { return "trap"; }
+            @Override public boolean equals(Object o) {
+                if (armed.compareAndSet(true, false)) throw new AssertionError("boom-marker");
+                return o == this;
+            }
+            @Override public int hashCode() { return 1; }
+        });
+        String t1 = tokenFor("s", JWT_ISSUER, inSeconds(3), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("s", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+        Capture log = new Capture();
+        moduleLogger().addHandler(log);
+        tokenEndpointResponse.set(t2);
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        Thread rt = refreshThreadOf(m);
+        try {
+            assertEquals(Set.of(t1), tokens(subject));
+            armed.set(true);
+            rt.join(15000);
+            assertFalse("the thread ended", rt.isAlive());
+            assertNothingOfOurs(subject);
+            assertEquals("class name only", "java.lang.AssertionError", m.lastRefreshFailure);
+            java.util.List<java.util.logging.LogRecord> severe = log.atLeast(java.util.logging.Level.SEVERE);
+            assertFalse("logged at SEVERE", severe.isEmpty());
+            for (java.util.logging.LogRecord r : severe) {
+                assertFalse(r.getMessage().contains("boom-marker"));
+                assertFalse("token text", r.getMessage().contains("eyJ"));
+                assertNull("no stack trace with the Error message", r.getThrown());
+            }
+        } finally {
+            tokenEndpointResponse.set(null);
+            moduleLogger().removeHandler(log);
+            m.logout();
+        }
+    }
+
+    @Test
+    public void testInvalidGrantIsRecorded() throws Exception {
+        String t1 = tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        tokenEndpointRaw.set("{\"error\":\"invalid_grant\"}");
+        try {
+            assertFalse("a revoked refresh token is a fatal result", m.refreshNow());
+            String why = m.lastRefreshFailure;
+            assertNotNull("recorded", why);
+            assertTrue(why, why.contains("invalid_grant"));
+        } finally {
+            tokenEndpointRaw.set(null);
+            m.logout();
+        }
+    }
+
+    /** A token past its expiry but inside the skew: one refresh, then not a tight loop. */
+    @Test
+    public void testExpiredWithinSkewDoesNotSpin() throws Exception {
+        String expired = tokenFor("s", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+        tokenHits.set(0);
+        tokenEndpointResponse.set(expired);
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, expired);
+        try {
+            long deadline = System.currentTimeMillis() + 15000;
+            while (tokenHits.get() < 1 && System.currentTimeMillis() < deadline) Thread.sleep(20);
+            assertTrue("the thread refreshed at once", tokenHits.get() >= 1);
+            Thread.sleep(1500);
+            int hits = tokenHits.get();
+            assertTrue("refresh attempts in 1.5 s: " + hits, hits <= 2);
+        } finally {
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+    }
+
+    /** Logout while a refresh request is in flight: no WARNING, no SEVERE, thread gone promptly. */
+    @Test
+    public void testLogoutDuringAnInFlightRefreshLogsNothingAlarming() throws Exception {
+        String expired = tokenFor("s", JWT_ISSUER, inSeconds(-10), "");
+        Capture log = new Capture();
+        moduleLogger().addHandler(log);
+        tokenGateEntered = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        tokenGate = gate;
+        tokenEndpointResponse.set(expired);
+        try {
+            Subject subject = new Subject();
+            JwtLoginModule m = loginWithRefresh(subject, expired);
+            Thread rt = refreshThreadOf(m);
+            assertTrue("the request reached the endpoint",
+                    tokenGateEntered.await(15, java.util.concurrent.TimeUnit.SECONDS));
+            m.logout();
+            rt.join(2000);
+            assertFalse("the thread did not sleep out a back-off", rt.isAlive());
+            assertNothingOfOurs(subject);
+            assertTrue("alarming lines: " + log.atLeast(java.util.logging.Level.WARNING).size(),
+                    log.atLeast(java.util.logging.Level.WARNING).isEmpty());
+        } finally {
+            tokenGate = null;
+            gate.countDown();
+            tokenEndpointResponse.set(null);
+            moduleLogger().removeHandler(log);
+        }
     }
 
     // -----------------------------------------------------------------------

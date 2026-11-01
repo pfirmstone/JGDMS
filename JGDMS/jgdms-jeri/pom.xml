@@ -132,8 +132,34 @@
                 <configuration>
                     <excludes>
                         <exclude>**/QuicEngineMtlsTest.java</exclude>
+                        <!-- Install a SecurityManager that cannot be uninstalled
+                             (PeerPolicyFixture): they run in the execution below,
+                             each class in its own JVM.  Add a new user of
+                             PeerPolicyFixture to both lists. -->
+                        <exclude>**/JwtPrincipalBindingTest.java</exclude>
+                        <exclude>**/BasicInvocationDispatcherMultiSubjectTest.java</exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>peer-policy-fork</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludes combine.self="override">
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes combine.self="override">
+                                <include>**/JwtPrincipalBindingTest.java</include>
+                                <include>**/BasicInvocationDispatcherMultiSubjectTest.java</include>
+                            </includes>
+                            <forkCount>1</forkCount>
+                            <reuseForks>false</reuseForks>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
