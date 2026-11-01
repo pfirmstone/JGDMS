@@ -885,3 +885,28 @@ Open and not yet decided: rebuilding `PolicyLint` on the production policy provi
 - **(3)** already the design (one SPIFFE ID per board); revocation must be per identity and quick.
 - **(4)** performance counters are only evidence if read by something the board's own software cannot forge (a secure-world monitor or a reader outside the board); counters read by the untrusted JVM are a claim like the remote ACC. Rates and monitoring belong in the chassis host, which sees all board traffic.
 (Index addition: **Ruling 21** is this entry.)
+
+## 15. A compromised board: detect, power off, let the identity expire (added 2026-11-02, at the operator's request)
+
+**Status of each statement:** the operator's statements are marked OPERATOR; everything else is the author's reading and UNREVIEWED. Sources are the surveys of 2026-11-02 listed at the end.
+
+**The response (OPERATOR, 2026-11-02, in chat: "So that's why we try to detect a compromise, then shut down the SOM and allow the Spiffe ID cert to expire."):**
+1. **Detect** with something the board's own software cannot forge (Ruling 21, mitigation 4: performance-counter signals read from a secure-world monitor or from outside the board; re-attestation at renewal, mitigation 1).
+2. **Shut down** the SOM. The authority to power a board off must sit on the HOST/chassis side, outside the board's reach: a compromised board will not switch itself off. (Author's reading; the memo and the board requirements do not yet say where this authority lives.)
+3. **Let the SPIFFE ID certificate expire.** No revocation machinery is needed if lifetimes are short. A board that has been shut down or flagged must fail re-attestation, so it cannot renew.
+
+**Why this is the control and not a fallback (OPERATOR rulings 2026-11-02 and earlier):** untrusted code on the same machine cannot be defended against with Rowhammer, cache or speculation attacks; memory encryption (TME/SME/SEV) protects DRAM contents and not caches; an in-order core reduces transient-execution attacks and timing variance and removes neither the cache channel nor data-dependent latencies. Physical separation (one board per identity) is therefore the primary control, and this section is the response when one board is nevertheless compromised.
+
+**Key custody does not remove the window (author's reading, from `SURVEY-ele-signing-key-custody-2026-11-02.md`):** on the i.MX95 the EdgeLock Secure Enclave (ELE) can generate an ECDSA P-256 key and sign with it while NXP's manual says secret keys "cannot be exported under any circumstances", so a compromised application core cannot COPY the key out. It can still open a session and have ELE sign arbitrary data for as long as the board is alive. The documented access control is a key-store identifier with a nonce, shared and exclusive flags and MU-bound blobs; nothing binds a key to a Linux process, user or TRDC domain. The manual's per-request flag `HSM_OP_GENERATE_SIGN_FLAGS_PLAINTEXT_KEY` lets a caller pass its own private key in the request; the survey found NO fuse, lifecycle state or key attribute that forbids it (open). So detection and expiry, not key custody, bound the damage.
+
+**The exposure window (author's reading):** window = detection delay + the time left on the board's SPIFFE certificate when the board is shut down (+ the time left on any bearer token the board holds). Bounds already ruled: JWT maximum lifetime 1 hour (OPERATOR, 2026-11-02, `DefaultJwtVerifier.DEFAULT_MAX_LIFETIME`); SVID lifetime shorter than the token's (Ruling 21(1), earlier rulings). A token bound to the board's certificate (RFC 8705, candidate noted earlier, not adopted) would stop being usable by an attacker once that certificate expires.
+
+**What this makes necessary (author's reading):**
+- **Shutdown authority on the host side** (above): a host-side agent that can cut power to one SOM slot on a detection signal, and a statement of who may trigger it (the monitor, an operator, the SPIFFE issuer).
+- **Short, fixed SVID lifetime as the real control**, because detection will not be perfect; the lifetime sets the worst case.
+- **Fresh evidence at every renewal (O24, O25):** a certificate may be issued only against fresh attestation. The survey found ELE exposes `hsm_dev_attest` (SoC ID, lifecycle, chip UID, firmware hashes, OEM SRK hash, signature) but NXP's manual does not say which key signs it, what chain verifies it, or whether it is DICE or PSA, and SPIRE has no node attestor for it (`SURVEY-som-hardware-root-of-trust-2026-11-02.md`); who issues P's SVID and what evidence they accept are still open.
+- **A decision on whether a detected board's JWT is also invalidated** (the user's identity token, up to 1 hour): not decided; with a certificate-bound token the question goes away.
+
+**Open items added by this section:** O32 where the host-side shutdown authority lives and who may trigger it; O33 whether ELE's plaintext-key flags can be disabled (a lifecycle or fuse setting), or whether the design must tolerate a caller supplying its own key; O34 the detection signal and its latency (what the secure-world monitor reads, how often, what counts as a compromise), none specified; O25 unchanged. (Index addition: **Section 15** is this entry.)
+
+**Sources (all in `docs/`):** `SURVEY-core-transient-execution-2026-11-02.md`, `SURVEY-ele-signing-key-custody-2026-11-02.md`, `SURVEY-som-hardware-root-of-trust-2026-11-02.md`, `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md`, `SURVEY-timing-mitigations-edge-and-browsers-2026-11-01.md`; the rulings above are in the session transcript and the handover (revisions 4h and 4i).
