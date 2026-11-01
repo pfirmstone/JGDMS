@@ -56,7 +56,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 - `docs/ProxyPolicyGenerator.md` (modified, commits ae004e42f and 61d597451); `.claude/skills/jgdms-board-review/SKILL.md` (68acb611e, absolute path fix) and `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (61d597451, the missing-policy-file correction); both skills are TRACKED although `.claude` matches an ignore pattern.
 
 ## Pending reports (sub-agents running at composition time; these files may not exist yet)
-- Lint rebuild (agent aceeb002f43e5c78c) and JWT fixes (agent a0f64aba593501b22): reports INVESTIGATION-policy-lint-rebuild-2026-11-01.md and INVESTIGATION-jwt-fix-2026-11-01.md may not exist yet (checked 02:19, no patch).
+- None: the delta review aa282920885d55c85 produced no report (see roster); commits 06f7d8889 and 5799eeda6 are NOT second-model reviewed.
 
 ## Sub-agent roster (none is enumerable by any tool; single-shot; each report is that agent's advice)
 | id | model | role | status |
@@ -82,8 +82,17 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a87e915bd6993cf9b` | Sonnet 5.5 | tooling round 5 (fixes from the round-4 check) | done (committed 4055eec11) |
 | `add49aa87baa67f65` | Opus 5.5 | review of the lint (archive copy only) | done |
 | `a47ac0b063c110e81` | Fable 5.1 | review of this handover | done |
-| `aceeb002f43e5c78c` | Sonnet 5.5 | policy lint rebuild on the production parser (worktree scratchpad\\lint2) | RUNNING |
-| `a0f64aba593501b22` | Sonnet 5.5 | JWT cache clear, fail closed, negative tests (worktree scratchpad\\jwt) | RUNNING |
+| `aceeb002f43e5c78c` | Sonnet 5.5 | policy lint rebuild on the production parser | done (committed c96183b6d) |
+| `a0f64aba593501b22` | Sonnet 5.5 | JWT cache clear, fail closed, negative tests | done (committed b4b9bd562) |
+| `ab15a136a8442cd67` | Opus 5.5 | adversarial review of lint rebuild and JWT fix | done |
+| `a6c87b42f62544696` | Sonnet 5.5 | JWT principal binding and AssertPrincipalPermission | done (committed 396227b5c) |
+| `a916343a14d784ddc` | Sonnet 5.5 | general dangerous-policy lint | done (committed 66974f70f) |
+| `a42ec42b19193aa29` | Sonnet 5.5 | DirtyChai principal-matching read-only check | done |
+| `ab5484388c4d4d466` | Opus 5.5 | review of 396227b5c (principal binding) | done |
+| `a5d0d4bda7b630d28` | Opus 5.5 | review of 66974f70f (general lint) | done |
+| `a401ac7b6f99a2e95` | Sonnet 5.5 | binding follow-ups | done (committed 5799eeda6) |
+| `a133bba216fc34b5c` | Sonnet 5.5 | lint redesign (symbolic scope) | done (committed 06f7d8889) |
+| `aa282920885d55c85` | Opus 5.5 | delta review of 06f7d8889 and 5799eeda6 | STOPPED by a safety classifier before any finding; no report (baseline tests green in scratchpad opus-r9/src) |
 | `a6311935e724074e0` | Sonnet 5.5 | SOM hardware root of trust survey | done |
 | `ad6cbaae05ddf03aa` | Sonnet 5.5 | handover currency check | done |
 | `aab061b27b33a1bc9` | Opus 5.5 | delta review of the currency check | done |
