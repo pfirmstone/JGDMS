@@ -58,5 +58,5 @@ No survivor. Not run on a git-archive copy (the worktree is private).
 1. No SecurityManager: ask the Policy (built) or always deny?
 2. Derive `email:` (JwtLoginModule sends it, so I did) or only sub and groups?
 3. Put `AssertPrincipalPermission` in PermissionSets' HOLD set (it confers identity)?
-4. Is 24 h the right maximum lifetime for your IdP; keep claims-only DefaultJwtVerifier public now that it confers nothing?
+4. Is 24 h the right maximum lifetime for your IdP; ~~keep claims-only DefaultJwtVerifier public now that it confers nothing?~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** ANSWERED: removed (operator decision 2026-11-02, after a search found no uses outside four tests); the claims-only constructors are gone and `DefaultJwtVerifier` is signature mode only, default maximum token lifetime 1 hour. (The 24 h maximum lifetime in the same question is also superseded: the default is now 1 hour.)
 5. Look at: on a real Proxy to Service call, does the ClientSubject in the server context carry the worker's X500/SPIFFE principals when the user-Subject block is read?

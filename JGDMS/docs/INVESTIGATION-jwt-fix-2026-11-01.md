@@ -37,7 +37,7 @@ D. Claims-only DefaultJwtVerifier messages echo unauthenticated iss/aud (log inj
 ## Decisions needed
 1. Missing exp: I chose REJECT in DefaultJwtVerifier (RFC 7519 makes exp optional, but a non-expiring bearer credential for user authentication is unsound); dispatcher never caches a token lacking a future exp, so a custom verifier that accepts exp-less tokens is re-run each call.
 2. Cache bounds: 1024 entries, 300 s cap (a revocation or key rotation is ignored for at most 5 minutes). Wire limit left at 65,536 bytes, 4 tokens per Subject, 16 Subjects (HEAD constants); lower it if 64 KiB is too generous.
-3. Behaviour change: deployments that ran with no verifier and sent tokens, or relied on the old structure-only default, are now refused until they install a verifier. Keep claims-only DefaultJwtVerifier public, or remove it?
+3. Behaviour change: deployments that ran with no verifier and sent tokens, or relied on the old structure-only default, are now refused until they install a verifier. ~~Keep claims-only DefaultJwtVerifier public, or remove it?~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** ANSWERED: removed (operator decision 2026-11-02, after a search found no uses outside four tests); the claims-only constructors are gone and `DefaultJwtVerifier` is signature mode only, default maximum token lifetime 1 hour.
 4. Whether to take on finding A now.
 
 ## Not verified
