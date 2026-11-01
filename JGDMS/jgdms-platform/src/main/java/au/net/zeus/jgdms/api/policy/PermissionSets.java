@@ -16,11 +16,14 @@
  */
 package au.net.zeus.jgdms.api.policy;
 
+import java.io.File;
 import java.security.Permission;
 import java.security.UnresolvedPermission;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import org.apache.river.api.security.AdvisoryPermissionParser;
@@ -125,14 +128,17 @@ public final class PermissionSets {
         if (NATIVE.equals(type)) return "escalation: native code invocation";
         if (name == null) return null;
         if (RUNTIME.equals(type) && basic(name, new String[]{"setSecurityManager",
-                "createClassLoader", "createAccessControlContext"}, new String[]{"loadLibrary."})) {
+                "createClassLoader", "createAccessControlContext"},
+                new String[]{"loadLibrary.", "defineClassInPackage."})) {
             return "escalation: RuntimePermission " + name + " replaces or escapes the SecurityManager";
         }
         if (REFLECT.equals(type) && basic(name, new String[]{"suppressAccessChecks"}, none())) {
             return "escalation: ReflectPermission suppressAccessChecks defeats every access check";
         }
         if (SECURITY.equals(type) && basic(name, new String[]{"createAccessControlContext",
-                "setPolicy"}, new String[]{"setProperty."})) {
+                "setPolicy", "insertProvider", "removeProvider"}, new String[]{"setProperty.",
+                "insertProvider.", "removeProvider.", "putProviderProperty.",
+                "removeProviderProperty."})) {
             return "escalation: SecurityPermission " + name + " changes the policy or its inputs";
         }
         if (FILE.equals(type) && ALL_FILES.equals(name) && hasAction(actions, "execute")) {
@@ -160,13 +166,280 @@ public final class PermissionSets {
         if (SERIAL.equals(type)) return "SerializablePermission " + name;
         if (REFLECT.equals(type)) return "ReflectPermission " + name;
         if (RUNTIME.equals(type) && (basic(name, new String[]{"accessDeclaredMembers",
-                "setContextClassLoader", "setFactory"}, new String[]{"accessClassInPackage.sun."}))) {
+                "setContextClassLoader", "setFactory", "getProtectionDomain"},
+                new String[]{"accessClassInPackage.sun.", "exitVM."}))) {
             return "RuntimePermission " + name + " reaches into JDK internals or global state";
         }
+        if (PROPERTY.equals(type) && (name.equals("*") || name.endsWith(".*"))
+                && hasAction(actions, "write")) {
+            return "PropertyPermission write on " + name + " changes global state";
+        }
+        if (AUTHENTICATION.equals(type) && name.contains("*")) return "AuthenticationPermission " + name;
+        if (URL.equals(type) && name.contains("*")) return "URLPermission " + name;
         if (SOCKET.equals(type) && (name.equals("*") || name.startsWith("*:"))) {
             return "SocketPermission to any host";
         }
         return null;
+    }
+
+    // ------------------------------------------------------------ dangerous-policy catalogue
+
+    /** Severity of a {@link Danger}: lets code leave or rewrite the sandbox in one step. */
+    public static final int HIGH = 2;
+    /** Severity of a {@link Danger}: broad reach worth a reviewer's second look. */
+    public static final int MEDIUM = 1;
+
+    private static final String PROPERTY = "java.util.PropertyPermission";
+    private static final String AUTHENTICATION = "net.jini.security.AuthenticationPermission";
+    private static final String URL = "java.net.URLPermission";
+    private static final String DESERIALIZATION = "org.apache.river.api.io.DeSerializationPermission";
+
+    /** A permission found dangerous: its severity and why. */
+    public static final class Danger {
+        public final int severity;
+        public final String reason;
+
+        Danger(int severity, String reason) {
+            this.severity = severity;
+            this.reason = reason;
+        }
+    }
+
+    /** A representative of a dangerous family, to be asked of a policy provider. */
+    public static final class Probe {
+        /** Short label for reports, e.g. {@code RuntimePermission setSecurityManager}. */
+        public final String id;
+        public final int severity;
+        public final String reason;
+        /** The permission to pass to {@code Policy.implies}. */
+        public final Permission permission;
+
+        Probe(String id, int severity, String reason, Permission permission) {
+            this.id = id;
+            this.severity = severity;
+            this.reason = reason;
+            this.permission = permission;
+        }
+    }
+
+    /**
+     * Whether a permission is dangerous when it reaches code the policy does not scope tightly.
+     * It extends HOLD and FLAG (a held entry is HIGH, a flagged one MEDIUM) with what a policy
+     * gate needs: AllPermission and the meta classes, GrantPermission of a dangerous target,
+     * write/delete/execute (HIGH) or read (MEDIUM) on all files or on a root, drive or
+     * current-directory tree, and the deserialisation wildcard.
+     *
+     * @return {@code null} if the entry is not in the catalogue
+     */
+    public static Danger danger(String type, String name, String actions) {
+        if (type == null) return null;
+        if (ALL_PERMISSION.equals(type)) return new Danger(HIGH, "AllPermission grants everything");
+        if (UMBRELLA_GRANT_PERMISSION.equals(type) || POLICY_PERMISSION.equals(type)) {
+            return new Danger(HIGH, META_REASON);
+        }
+        if (GRANT_PERMISSION.equals(type)) return grantDanger(name);
+        String hold = holdReason(type, name, actions);
+        if (hold != null) return new Danger(HIGH, hold);
+        if (FILE.equals(type) && broadFile(name)) {
+            for (String a : new String[]{"write", "delete", "execute"}) {
+                if (hasAction(actions, a)) {
+                    return new Danger(HIGH, "FilePermission " + a + " on " + name
+                        + " reaches all files or a whole root, drive or directory tree");
+                }
+            }
+            return new Danger(MEDIUM, "FilePermission read on " + name
+                + " reaches all files or a whole root, drive or directory tree");
+        }
+        if (DESERIALIZATION.equals(type) && name != null
+                && (name.equals("*") || name.equals("MARSHALLED"))) {
+            return new Danger(HIGH, "DeSerializationPermission " + name
+                + " lets any serialized class be read from an untrusted stream");
+        }
+        String flag = flagReason(type, name, actions);
+        return flag == null ? null : new Danger(MEDIUM, flag);
+    }
+
+    /** GrantPermission is as dangerous as the most dangerous entry of its target. */
+    private static Danger grantDanger(String target) {
+        if (target == null) return null;
+        String t = target.trim();
+        if (t.startsWith("delim=") && t.length() > "delim=".length() + 1) {
+            char d = t.charAt("delim=".length());
+            t = t.substring("delim=".length() + 1);
+            for (String entry : t.split(java.util.regex.Pattern.quote(String.valueOf(d)))) {
+                Danger g = grantEntryDanger(entry);
+                if (g != null) return g;
+            }
+            return null;
+        }
+        for (String entry : t.split(";")) {
+            Danger g = grantEntryDanger(entry);
+            if (g != null) return g;
+        }
+        return null;
+    }
+
+    private static Danger grantEntryDanger(String entry) {
+        String e = entry.trim();
+        if (e.length() == 0) return null;
+        String[] w = e.split("\\s+", 2);
+        String cls = w[0];
+        if (cls.equals("*") || cls.equals("-") || (cls.endsWith(".*")
+                && (ALL_PERMISSION.startsWith(cls.substring(0, cls.length() - 1))
+                || RUNTIME.startsWith(cls.substring(0, cls.length() - 1))))) {
+            return new Danger(HIGH, "GrantPermission to grant any permission (" + cls + ")");
+        }
+        String rest = w.length > 1 ? w[1].trim() : "";
+        String name = null;
+        String actions = null;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("^\\s*\"((?:[^\"\\\\]|\\\\.)*)\"(?:\\s*,?\\s*\"((?:[^\"\\\\]|\\\\.)*)\")?").matcher(rest);
+        if (m.find()) {
+            name = m.group(1).replace("\\\"", "\"");
+            actions = m.group(2);
+        } else if (rest.length() > 0) {
+            String[] r = rest.replace("\\", "").replace("\"", "").split("\\s+");
+            name = r[0];
+            actions = r.length > 1 ? r[1] : null;
+        }
+        Danger d = danger(cls, name, actions);
+        return d == null ? null : new Danger(d.severity, "GrantPermission may grant " + cls + " "
+            + name + ": " + d.reason);
+    }
+
+    /**
+     * Whether a FilePermission name covers all files, or a whole root, drive or current-directory
+     * tree: {@code <<ALL FILES>>}, {@code -}, {@code *}, {@code /-}, {@code C:\-} and the like.
+     */
+    static boolean broadFile(String name) {
+        if (name == null) return false;
+        String n = name.trim();
+        if (ALL_FILES.equals(n) || n.equals("-") || n.equals("*")) return true;
+        if (n.endsWith("-") || n.endsWith("*")) {
+            String dir = n.substring(0, n.length() - 1);
+            while (dir.endsWith("/") || dir.endsWith("\\")) dir = dir.substring(0, dir.length() - 1);
+            return dir.length() == 0 || dir.matches("(?i)[a-z]:");
+        }
+        return false;
+    }
+
+    /**
+     * The representatives of the dangerous families, built for the file system of this machine,
+     * each with the severity {@link #danger} gives its family.  A policy provider is asked whether
+     * code it should not trust is granted one: a wildcard, a broad path or a permission class the
+     * catalogue does not know shows up as an {@code implies} that answers true.  Entries whose class
+     * cannot be loaded here (the DirtyChai guards) are left out.
+     */
+    public static List<Probe> probes() {
+        List<Probe> res = new ArrayList<Probe>();
+        String root = File.listRoots() != null && File.listRoots().length > 0
+            ? File.listRoots()[0].getPath() : File.separator;
+        String sep = File.separator;
+        String rootTree = root + "-";
+        String under = root + "lint-probe" + sep + "x";
+        // relative names: a policy "-" or "*" is relative to the current directory
+        String cwd = "lint-probe" + sep + "x";
+        add(res, ALL_PERMISSION, null, null, null);
+        for (String a : new String[]{"write", "delete", "execute", "read"}) {
+            add(res, FILE, ALL_FILES, a, null);
+            add(res, FILE, under, a, rootTree);
+        }
+        add(res, FILE, cwd, "write", "-");
+        add(res, FILE, cwd, "execute", "-");
+        add(res, FILE, "lint-probe", "write", "*");
+        for (String n : new String[]{"setPolicy", "setProperty.package.access", "insertProvider.lint",
+            "removeProvider.lint", "putProviderProperty.lint", "createAccessControlContext"}) {
+            add(res, SECURITY, n, null, null);
+        }
+        for (String n : new String[]{"setSecurityManager", "createClassLoader", "loadLibrary.lint",
+            "defineClassInPackage.lint.probe", "createAccessControlContext", "getProtectionDomain",
+            "accessClassInPackage.sun.lint", "setContextClassLoader", "setFactory", "exitVM.1"}) {
+            add(res, RUNTIME, n, null, null);
+        }
+        add(res, REFLECT, "suppressAccessChecks", null, null);
+        add(res, AUTH, "doAsPrivileged", null, null);
+        add(res, AUTH, "modifyPrincipals", null, null);
+        add(res, SERIAL, "enableSubclassImplementation", null, null);
+        add(res, SOCKET, "evil.example.com:80", "connect,resolve", "*");
+        add(res, SOCKET, "evil.example.com:80", "accept,resolve", "*");
+        add(res, SOCKET, "localhost:80", "listen", "*");
+        add(res, PROPERTY, "lint.probe.property", "write", "*");
+        add(res, URL, "https://evil.example.com/lint", "GET", "*");
+        add(res, DESERIALIZATION, "MARSHALLED", null, null);
+        add(res, AUTHENTICATION, "javax.security.auth.x500.X500Principal \"CN=lint-probe\"",
+            "connect", "* *");
+        add(res, UMBRELLA_GRANT_PERMISSION, null, null, null);
+        for (String[] g : new String[][]{{RUNTIME, "setSecurityManager"}, {SECURITY, "setPolicy"},
+            {REFLECT, "suppressAccessChecks"}}) {
+            Permission inner = create(g[0], g[1], null);
+            if (inner != null) {
+                Permission gp = create(GRANT_PERMISSION, null, null, inner);
+                if (gp != null) {
+                    String target = g[0] + " \"" + g[1] + "\"";
+                    Danger d = danger(GRANT_PERMISSION, target, null);
+                    res.add(new Probe("GrantPermission of " + simple(g[0]) + " " + g[1],
+                        d == null ? HIGH : d.severity, d == null ? "GrantPermission" : d.reason, gp));
+                }
+            }
+        }
+        return res;
+    }
+
+    /**
+     * The probe for one permission a policy file names, so a grant of a specific dangerous name
+     * (say {@code insertProvider.BC}) is asked of the provider although the catalogue lists only a
+     * representative of its family.
+     *
+     * @return {@code null} if the entry is not dangerous, is AllPermission (always asked) or its
+     *         class cannot be built here
+     */
+    public static Probe probe(String type, String name, String actions) {
+        if (type == null || ALL_PERMISSION.equals(type)) return null;
+        Danger d = danger(type, name, actions);
+        if (d == null) return null;
+        Permission p = create(type, name, actions);
+        if (p == null) return null;
+        return new Probe(simple(type) + (name == null ? "" : " " + name)
+            + (actions == null ? "" : " " + actions), d.severity, d.reason, p);
+    }
+
+    private static void add(List<Probe> res, String type, String name, String actions,
+            String classifyName) {
+        Permission p = create(type, name, actions);
+        if (p == null) return;
+        Danger d = danger(type, classifyName != null ? classifyName : name, actions);
+        if (d == null) {
+            throw new IllegalStateException("probe not in the catalogue: " + type + " " + name);
+        }
+        String id = simple(type) + (name == null ? "" : " " + (classifyName != null ? classifyName : name))
+            + (actions == null ? "" : " " + actions);
+        res.add(new Probe(id, d.severity, d.reason, p));
+    }
+
+    private static String simple(String type) {
+        return type.substring(type.lastIndexOf('.') + 1);
+    }
+
+    private static Permission create(String type, String name, String actions, Permission inner) {
+        try {
+            Class<?> c = Class.forName(type, true, PermissionSets.class.getClassLoader());
+            return (Permission) c.getConstructor(Permission.class).newInstance(inner);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return null;
+        }
+    }
+
+    private static Permission create(String type, String name, String actions) {
+        try {
+            Class<?> c = Class.forName(type, true, PermissionSets.class.getClassLoader());
+            if (actions != null) {
+                return (Permission) c.getConstructor(String.class, String.class).newInstance(name, actions);
+            }
+            if (name != null) return (Permission) c.getConstructor(String.class).newInstance(name);
+            return (Permission) c.getConstructor().newInstance();
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return null;
+        }
     }
 
     /**

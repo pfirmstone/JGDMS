@@ -121,6 +121,68 @@ public class PermissionSetsTest {
         assertNull(PermissionSets.flagReason("java.io.FilePermission", "data/x", "read"));
     }
 
+    // The dangerous-policy catalogue extends HOLD and FLAG; each row below names its severity.
+    @Test
+    public void testDangerSeverities() {
+        String f = "java.io.FilePermission";
+        String r = "java.lang.RuntimePermission";
+        String s = "java.security.SecurityPermission";
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger("java.security.AllPermission", null, null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "<<ALL FILES>>", "write").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "<<ALL FILES>>", "read,delete").severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "<<ALL FILES>>", "read").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/-", "write").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "C:\\-", "write").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "-", "execute").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "*", "write").severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "/-", "read").severity);
+        assertNull(PermissionSets.danger(f, "/opt/app/-", "write"));
+        assertNull(PermissionSets.danger(f, "/", "write"));
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(s, "*", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(s, "insertProvider.BC", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(s, "removeProvider.SUN", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(s, "putProviderProperty.X", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(r, "setSecurityManager", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(r, "defineClassInPackage.p", null).severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "getProtectionDomain", null).severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "exitVM.1", null).severity);
+        assertNull(PermissionSets.danger(r, "shutdownHooks", null));
+        assertNull(PermissionSets.danger(r, "getenv.PATH", null));
+        assertEquals(PermissionSets.MEDIUM,
+            PermissionSets.danger("java.util.PropertyPermission", "*", "read,write").severity);
+        assertNull(PermissionSets.danger("java.util.PropertyPermission", "*", "read"));
+        assertNull(PermissionSets.danger("java.util.PropertyPermission", "user.dir", "write"));
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(
+            "org.apache.river.api.io.DeSerializationPermission", "*", null).severity);
+        assertNull(PermissionSets.danger(
+            "org.apache.river.api.io.DeSerializationPermission", "ATOMIC", null));
+        String g = "net.jini.security.GrantPermission";
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g, "*", null).severity);
+        assertEquals(PermissionSets.HIGH,
+            PermissionSets.danger(g, "java.security.SecurityPermission \"setPolicy\"", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(g,
+            "java.io.FilePermission \"/tmp/x\" \"read\"; java.lang.RuntimePermission \"createClassLoader\"",
+            null).severity);
+        assertNull(PermissionSets.danger(g, "java.io.FilePermission \"/tmp/x\" \"read\"", null));
+        assertNull(PermissionSets.danger("com.example.Mine", "setSecurityManager", null));
+    }
+
+    @Test
+    public void testProbesAreBuiltAndClassifiedByTheCatalogue() {
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        for (PermissionSets.Probe p : PermissionSets.probes()) {
+            assertNotNull(p.id, p.permission);
+            assertTrue(p.id, p.severity == PermissionSets.HIGH || p.severity == PermissionSets.MEDIUM);
+            assertTrue("duplicate probe " + p.id, ids.add(p.id));
+        }
+        assertTrue(ids.toString(), ids.contains("AllPermission"));
+        assertTrue(ids.toString(), ids.contains("RuntimePermission setSecurityManager"));
+        assertTrue(ids.toString(), ids.contains("FilePermission <<ALL FILES>> write"));
+        assertNotNull(PermissionSets.probe("java.security.SecurityPermission", "insertProvider.BC", null));
+        assertNull(PermissionSets.probe("java.security.SecurityPermission", "getProperty.x", null));
+        assertNull(PermissionSets.probe("java.security.AllPermission", null, null));
+    }
+
     @Test
     public void testAnEntryLineIsReadAsTheLoaderReadsIt() {
         assertNotNull(PermissionSets.holdReason(

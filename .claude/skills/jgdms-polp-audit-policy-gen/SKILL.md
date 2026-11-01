@@ -22,7 +22,7 @@ DirtyChai is AI-contribution-restricted (analyze/advise only — humans write Di
 -Djava.security.policy=<path-to-policy-file>   # must already exist: pre-create an EMPTY file
 ```
 
-The policy file is not created for you: with a missing file the forked JVM died at startup with `SecurityException: Unable to load policy url`, and pre-creating an EMPTY file fixed it (observed with only these two properties; `polpAudit.path.properties` was not used). The starting policy must contain no `AllPermission` grant, because polpAudit only adds permissions and an unscoped grant masks everything (a scoped one masks the code it covers); check it with `org.apache.river.tool.PolicyLint --audit-input` (ant `policy-lint` with `-Dpolicy.lint.audit.input=true`; see `JGDMS/docs/ProxyPolicyGenerator.md`).
+The policy file is not created for you: with a missing file the forked JVM died at startup with `SecurityException: Unable to load policy url`, and pre-creating an EMPTY file fixed it (observed with only these two properties; `polpAudit.path.properties` was not used). The starting policy must contain no `AllPermission` grant, because polpAudit only adds permissions and an unscoped grant masks everything (a scoped one masks the code it covers); check it with `org.apache.river.tool.PolicyLint --audit-input` (the lint also fails a policy that grants another dangerous permission, such as `FilePermission "<<ALL FILES>>"` write, `setSecurityManager` or `SecurityPermission "*"`, to code it does not scope tightly) (ant `policy-lint` with `-Dpolicy.lint.audit.input=true`; see `JGDMS/docs/ProxyPolicyGenerator.md`).
 
 Run the service or test normally. On exit, the shutdown hook writes any newly-observed, not-yet-granted
 permissions as `grant { ... }` blocks appended to the file.

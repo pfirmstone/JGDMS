@@ -63,7 +63,7 @@ public class PolicyLintTest {
             for (String l : out.split("\n")) {
                 if (l.length() > 0 && !l.startsWith("SUMMARY") && !l.startsWith("TOTAL")
                         && !l.startsWith("#") && !l.startsWith("---")
-                        && l.matches(".*:\\d+ [USP]\\d+ .*")) {
+                        && l.matches(".*:\\d+ [A-Z]\\d+ .*")) {
                     r.add(l);
                 }
             }
@@ -75,7 +75,7 @@ public class PolicyLintTest {
             StringBuilder sb = new StringBuilder();
             for (String l : findings()) {
                 if (sb.length() > 0) sb.append(' ');
-                sb.append(l.replaceAll("^.*:\\d+ ([USP]\\d+) .*$", "$1"));
+                sb.append(l.replaceAll("^.*:\\d+ ([A-Z]\\d+) .*$", "$1"));
             }
             return sb.toString();
         }
@@ -152,7 +152,7 @@ public class PolicyLintTest {
         {"f04-keystore-nosemi.policy", "U1", new boolean[]{true, true}},
         {"f05-signedby-comma.policy", "U1", new boolean[]{true, true}},
         {"f06-principal-wild.policy", "S3", new boolean[]{false, true}},
-        {"f07-file-dash.policy", "S1", new boolean[]{false, false}},
+        {"f07-file-dash.policy", "S1 D3", new boolean[]{false, false}},
         {"f08-bom.policy", "P1 U1", null},
         {"f09-digest-emptyhex.policy", "S2", new boolean[]{false, false}},
         {"f10-codebase-empty.policy", "U1", new boolean[]{false, false}},
@@ -196,7 +196,7 @@ public class PolicyLintTest {
             Run r = lint("--provider=" + provider, f.getPath());
             String why = name + " [" + provider + "]\n" + r.out;
             assertEquals(why, kinds, r.kinds());
-            boolean fails = kinds.matches(".*\\b(U\\d|P1)\\b.*");
+            boolean fails = kinds.matches(".*\\b(U\\d|P[12]|D[134])\\b.*");
             assertEquals(why, fails ? 1 : 0, r.exit);
             assertEquals(why, kinds.isEmpty() ? 0 : 1,
                     lint("--provider=" + provider, "--strict", "--audit-input", f.getPath()).exit);
@@ -489,10 +489,11 @@ public class PolicyLintTest {
                 + "grant codeBase \"jrt:/java.sql/-\"" + a
                 + "grant codeBase \"jrt:/-\"" + a
                 + "grant codeBase \"jrt:/java.sql\", signedBy \"duke\"" + a);
-        assertEquals(r.out, "S5 S1 S1 S1", r.kinds());
+        // jrt:/- is every module: AllPermission there is D4 (fails by default), jrt:/java.sql alone is clean
+        assertEquals(r.out, "S5 D4 S1 S1 S1", r.kinds());
         assertTrue(r.out, r.out.contains("t.policy:1 S5 PLATFORM_MODULE_GRANT AllPermission (line 2)"
                 + " for platform module jrt:/java.sql"));
-        assertEquals(0, r.exit);
+        assertEquals(1, r.exit);
         String only = "grant codeBase \"jrt:/java.sql\"" + a;
         assertEquals(0, lintFile(only).exit);
         assertEquals(0, lintFile(only, "--strict").exit);
@@ -697,7 +698,7 @@ public class PolicyLintTest {
         Run r = lint(dir.getPath());
         List<String> names = new ArrayList<String>();
         for (String l : r.findings()) {
-            names.add(new File(l.replaceAll("^(.*):\\d+ [USP]\\d+ .*$", "$1")).getName());
+            names.add(new File(l.replaceAll("^(.*):\\d+ [A-Z]\\d+ .*$", "$1")).getName());
         }
         java.util.Collections.sort(names);
         assertEquals(r.out, Arrays.asList("a.policy", "b.policy.old", "c.policy.new", "d.policy.bak",
@@ -762,5 +763,293 @@ public class PolicyLintTest {
         assertEquals(0, r.exit);
         assertTrue(r.out, r.out.contains("TOTAL files=1 "));
         assertTrue(r.out, r.verdictLine().contains("stranger=false"));
+    }
+
+    // ------------------------------------------------ the general dangerous-policy gate
+
+    private Run lintFixture(String name, String... opts) throws Exception {
+        List<String> a = new ArrayList<String>(Arrays.asList(opts));
+        a.add(fixture(name).getPath());
+        return lint(a.toArray(new String[0]));
+    }
+
+    private static String grantText(java.security.Permission p) {
+        StringBuilder sb = new StringBuilder("grant {\n permission ").append(p.getClass().getName());
+        if (p.getName() != null) sb.append(" \"").append(p.getName().replace("\\", "\\\\")
+                .replace("\"", "\\\"")).append('"');
+        if (p.getActions() != null && p.getActions().length() > 0) {
+            sb.append(", \"").append(p.getActions()).append('"');
+        }
+        return sb.append(";\n};\n").toString();
+    }
+
+    // Gap (a): the probe tries https and the other schemes.  A tool that asked only for
+    // http://evil.example.com reports S1 and exits 0 here.
+    @Test
+    public void httpsWildcardCodebaseGrantsAStranger() throws Exception {
+        for (String f : new String[]{"g01-https-wild.policy", "g02-https-com.policy"}) {
+            Run r = lintFixture(f);
+            assertEquals(f + r.out, "U3 S1", r.kinds());
+            assertEquals(f + r.out, 1, r.exit);
+            assertTrue(f + r.out, r.verdictLine().contains("stranger=true"));
+        }
+        // ftp and a bare IP are strangers too
+        assertEquals(1, lintFile("grant codeBase \"ftp://*/-\" {\n permission java.security.AllPermission;\n};\n").exit);
+        assertEquals(1, lintFile("grant codeBase \"http://*:8080/-\" {\n permission java.security.AllPermission;\n};\n").exit);
+    }
+
+    // Gap (b): a principal of any class.  The old probe used an X500Principal only, so a
+    // UserPrincipal wildcard answered principal=false although every UserPrincipal is granted.
+    @Test
+    public void principalOfAnyClassIsProbed() throws Exception {
+        for (String f : new String[]{"g03-userprincipal-star.policy", "g04-x500-quoted-star.policy",
+            "f06-principal-wild.policy"}) {
+            Run r = lintFixture(f);
+            assertEquals(f + r.out, "S3", r.kinds());
+            assertTrue(f + r.out, r.verdictLine().contains("principal=true"));
+        }
+        String rt = " {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n";
+        for (String who : new String[]{"* *", "com.sun.security.auth.UserPrincipal *",
+            "javax.security.auth.x500.X500Principal *", "javax.security.auth.x500.X500Principal \"*\""}) {
+            Run r = lintFile("grant principal " + who + rt);
+            assertEquals(who + r.out, "D2", r.kinds());
+            assertEquals(who, 0, r.exit);
+            assertEquals(who, 1, lintFile("grant principal " + who + rt, "--strict").exit);
+        }
+        // a named principal is not a stranger
+        assertEquals("", lintFile("grant principal com.sun.security.auth.UserPrincipal \"alice\""
+                + rt).kinds());
+    }
+
+    // Gap (c): file:/-, jrt:/- and jar: carrying a dangerous permission fail the default run;
+    // AllPermission for exactly one platform module stays clean.
+    @Test
+    public void broadFileAndPlatformCodebasesCount() throws Exception {
+        Run r = lintFixture("g05-file-dash-write.policy");
+        assertEquals(r.out, "D3", r.kinds());
+        assertEquals(r.out, 1, r.exit);
+        r = lintFixture("g06-jrt-dash.policy");
+        assertEquals(r.out, "S1 D4", r.kinds());
+        assertEquals(r.out, 1, r.exit);
+        r = lintFixture("f07-file-dash.policy");
+        assertEquals(r.out, "S1 D3", r.kinds());
+        assertEquals(1, r.exit);
+        String all = " {\n permission java.security.AllPermission;\n};\n";
+        assertEquals("S1 D3", lintFile("grant codeBase \"file:${/}-\"" + all).kinds());
+        // the legitimate platform grant, and a specific local directory, are clean
+        r = lintFixture("c3-jrt-java-base.policy");
+        assertEquals(r.out, "S5", r.kinds());
+        assertEquals(r.out, 0, lintFixture("c3-jrt-java-base.policy", "--strict").exit);
+        assertEquals(0, lintFile("grant codeBase \"file:/opt/app/lib/-\"" + all).exit);
+    }
+
+    // The catalogue: unscoped grants of each dangerous family, with the kind and the exit codes.
+    @Test
+    public void dangerousPermissionsGrantedToStrangers() throws Exception {
+        Object[][] rows = {
+            // fixture, kinds, exit, strict exit
+            {"g07-allfiles-write-unscoped.policy", "D1 D5", 1, 1},
+            {"g08-allfiles-read-unscoped.policy", "D5", 0, 1},
+            {"g09-setsecuritymanager.policy", "D1", 1, 1},
+            {"g10-securitypermission-star.policy", "D1", 1, 1},
+            {"g11-multi-escalation.policy", "D1", 1, 1},
+            {"g12-grantperm-setpolicy.policy", "D1", 1, 1},
+            {"g14-insertprovider-bc.policy", "D1", 1, 1},
+            {"c4-fileread-dir.policy", "", 0, 0},
+        };
+        for (Object[] row : rows) {
+            Run r = lintFixture((String) row[0]);
+            assertEquals(row[0] + "\n" + r.out, row[1], r.kinds());
+            assertEquals(row[0] + "\n" + r.out, row[2], r.exit);
+            assertEquals((String) row[0], row[3], lintFixture((String) row[0], "--strict").exit);
+        }
+        Object[][] inline = {
+            {"java.net.SocketPermission \"*\", \"connect,accept,listen\"", "D5"},
+            {"java.util.PropertyPermission \"*\", \"read,write\"", "D5"},
+            {"java.lang.RuntimePermission \"createClassLoader\"", "D1"},
+            {"java.lang.RuntimePermission \"loadLibrary.*\"", "D1"},
+            {"java.lang.RuntimePermission \"defineClassInPackage.foo\"", "D1"},
+            {"java.lang.RuntimePermission \"getProtectionDomain\"", "D5"},
+            {"java.lang.reflect.ReflectPermission \"suppressAccessChecks\"", "D1"},
+            {"java.security.SecurityPermission \"setPolicy\"", "D1"},
+            {"java.security.SecurityPermission \"removeProvider.SUN\"", "D1"},
+            {"java.io.FilePermission \"<<ALL FILES>>\", \"execute\"", "D1"},
+            {"java.io.FilePermission \"<<ALL FILES>>\", \"delete\"", "D1"},
+            {"org.apache.river.api.io.DeSerializationPermission \"MARSHALLED\"", "D1"},
+            {"net.jini.security.GrantPermission \"java.lang.RuntimePermission \\\"setSecurityManager\\\"\"", "D1"},
+            {"net.jini.security.policy.UmbrellaGrantPermission", "U2 D1"},
+            {"java.lang.RuntimePermission \"getenv.*\"", ""},
+            {"java.util.PropertyPermission \"java.version\", \"read\"", ""},
+            {"java.io.FilePermission \"/opt/app/-\", \"read,write\"", ""},
+            {"java.net.SocketPermission \"*:1024-\", \"connect\"", "D5"},
+            {"java.net.SocketPermission \"app.example.org:8080\", \"connect\"", ""},
+        };
+        for (Object[] row : inline) {
+            Run r = lintFile("grant {\n permission " + row[0] + ";\n};\n");
+            assertEquals(row[0] + "\n" + r.out, row[1], r.kinds());
+        }
+        // a write grant on a filesystem root or on the whole current directory (- or *)
+        java.io.File root = java.io.File.listRoots()[0];
+        String rootTree = (root.getPath() + "-").replace("\\", "\\\\");
+        Run r = lintFile("grant {\n permission java.io.FilePermission \"" + rootTree
+                + "\", \"write\";\n};\n");
+        assertEquals(rootTree + r.out, "D1", r.kinds());
+        assertEquals("D1", lintFile("grant {\n permission java.io.FilePermission \"-\", \"write\";\n};\n")
+                .kinds());
+    }
+
+    // Every probe of the catalogue is found when granted on its own, in the kind of its severity:
+    // a probe the provider is not asked about, or asked with the wrong severity, fails its row.
+    @Test
+    public void everyCatalogueProbeIsFoundWhenGranted() throws Exception {
+        List<au.net.zeus.jgdms.api.policy.PermissionSets.Probe> probes =
+                au.net.zeus.jgdms.api.policy.PermissionSets.probes();
+        assertTrue(probes.size() > 30);
+        for (au.net.zeus.jgdms.api.policy.PermissionSets.Probe p : probes) {
+            if (p.id.equals("AllPermission")) continue;
+            Run r = lintFile(grantText(p.permission), "--provider=platform");
+            String want = p.severity >= au.net.zeus.jgdms.api.policy.PermissionSets.HIGH ? "D1" : "D5";
+            assertEquals(p.id + "\n" + r.out, want, r.kinds().replace("U2 ", ""));
+            assertTrue(p.id + "\n" + r.out, r.out.contains(p.id));
+        }
+    }
+
+    // An unknown permission class is judged by what the provider shows it implies, not by name.
+    @Test
+    public void unknownPermissionClassIsFoundByWhatItImplies() throws Exception {
+        for (String provider : new String[]{"platform", "auto"}) {
+            Run r = lintFixture("g13-trojan-class.policy", "--provider=" + provider);
+            assertEquals(r.out, "D1", r.kinds());
+            assertEquals(r.out, 1, r.exit);
+            assertTrue(r.out, r.out.contains("RuntimePermission setSecurityManager"));
+        }
+    }
+
+    // Severities and exits: high kinds fail the default run, medium ones only --strict.
+    @Test
+    public void newKindsFollowTheSeverityExitRules() throws Exception {
+        Object[][] rows = {
+            // text, default exit, strict exit
+            {"grant {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n", 1, 1},   // D1
+            {"grant principal * * {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n", 0, 1}, // D2
+            {"grant codeBase \"file:/-\" {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n", 1, 1}, // D3
+            {"grant codeBase \"jrt:/-\" {\n permission java.lang.RuntimePermission \"setSecurityManager\";\n};\n", 1, 1}, // D4
+            {"grant {\n permission java.net.SocketPermission \"*\", \"connect\";\n};\n", 0, 1},        // D5
+        };
+        for (Object[] row : rows) {
+            assertEquals(row[0] + lintFile((String) row[0]).out, row[1], lintFile((String) row[0]).exit);
+            assertEquals((String) row[0], row[2], lintFile((String) row[0], "--strict").exit);
+        }
+    }
+
+    // Gap (d): the walk matches names case-insensitively, reports files it does not recognise,
+    // and warns about a directory that yielded nothing.
+    @Test
+    public void walkMatchesPolicyNamesCaseInsensitively() throws Exception {
+        write("d/good.policy", "grant codeBase \"file:/a\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n");
+        write("d/java.Policy", UNSCOPED_ALL);
+        write("d/SERVER.POLICY.OLD", UNSCOPED_ALL);
+        Run r = lint(new File(dir, "d").getPath());
+        assertEquals(r.out, 2, r.count("U1"));
+        // recognised by name: not P2, which would otherwise catch them as odd names
+        assertEquals(r.out, 0, r.count("P2"));
+        assertEquals(r.out, 1, r.exit);
+        assertTrue(r.out, r.out.contains("TOTAL files=3 "));
+    }
+
+    @Test
+    public void unrecognisedPolicyLookingFilesFailTheGate() throws Exception {
+        write("d/good.policy", "grant codeBase \"file:/a\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n");
+        write("d/server.pol", UNSCOPED_ALL);
+        write("d/all.policy~", UNSCOPED_ALL);
+        write("d/noext", UNSCOPED_ALL);
+        write("d/notes.txt", UNSCOPED_ALL);
+        write("d/blob.dat", "just some bytes, no policy words here\n");
+        Run r = lint(new File(dir, "d").getPath());
+        assertEquals(r.out, 3, r.count("P2"));
+        assertEquals(r.out, 3, r.count("U1"));   // the unrecognised files are linted too
+        assertEquals(r.out, 1, r.count("W2"));
+        assertEquals(r.out, 1, r.exit);
+        assertFalse(r.out, r.out.contains("notes.txt:"));
+        assertTrue(r.out, r.out.contains("server.pol:0 P2 UNRECOGNISED_POLICY_FILE "));
+        // a directory whose only odd file is not policy-like: a strict-only warning
+        write("e/good.policy", "grant codeBase \"file:/a\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n");
+        write("e/blob.dat", "no policy here\n");
+        Run w = lint(new File(dir, "e").getPath());
+        assertEquals(w.out, "W2", w.kinds());
+        assertEquals(w.out, 0, w.exit);
+        assertEquals(w.out, 1, lint("--strict", new File(dir, "e").getPath()).exit);
+    }
+
+    @Test
+    public void emptyDirectoryNextToGoodFileWarns() throws Exception {
+        File good = write("good.policy", "grant codeBase \"file:/a\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n");
+        File empty = new File(dir, "empty");
+        assertTrue(empty.mkdirs());
+        Run r = lint(good.getPath(), empty.getPath());
+        assertEquals(r.out, "W1", r.kinds());
+        assertEquals(r.out, 0, r.exit);
+        assertEquals(r.out, 1, lint("--strict", good.getPath(), empty.getPath()).exit);
+        // alone it is still a usage error: nothing was checked
+        assertEquals(2, lint(empty.getPath()).exit);
+    }
+
+    @Test
+    public void unreadableDirectoryWarns() throws Exception {
+        Assume.assumeFalse("cannot chmod on Windows", System.getProperty("os.name").startsWith("Windows"));
+        File good = write("d/good.policy", "grant codeBase \"file:/a\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n");
+        File locked = new File(dir, "d/locked");
+        assertTrue(locked.mkdirs());
+        write("d/locked/x.policy", UNSCOPED_ALL);
+        assertTrue(locked.setReadable(false) && locked.setExecutable(false));
+        try {
+            Assume.assumeFalse("running as a user that ignores modes", locked.canRead());
+            Run r = lint("--strict", new File(dir, "d").getPath());
+            assertEquals(r.out, 1, r.count("W1"));
+            assertEquals(r.out, 1, r.exit);
+        } finally {
+            locked.setReadable(true);
+            locked.setExecutable(true);
+        }
+    }
+
+    // Gap (e): property names are printed, and --require-defined makes every codeBase property
+    // be given with --define whatever the grant holds.
+    @Test
+    public void requireDefinedAndPropertyNames() throws Exception {
+        String scoped = "grant codeBase \"file:${a.b}/-\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n";
+        assertEquals("", lintFile(scoped).kinds());
+        assertEquals(0, lintFile(scoped).exit);
+        Run r = lintFile(scoped, "--require-defined");
+        assertEquals(r.out, "U4", r.kinds());
+        assertEquals(r.out, 1, r.exit);
+        assertTrue(r.out, r.out.contains("[a.b]"));
+        assertEquals("", lintFile(scoped, "--require-defined", "--define", "a.b=/opt").kinds());
+        // a lint-JVM system property does not count as defined under --require-defined
+        String sys = "grant codeBase \"file:${user.dir}/-\" {\n permission java.io.FilePermission \"x\", \"read\";\n};\n";
+        assertEquals("", lintFile(sys).kinds());
+        assertEquals("U4", lintFile(sys, "--require-defined").kinds());
+        // S1 names the properties and where each value came from
+        String all = "grant codeBase \"file:${a.b}/${user.dir}/-\" {\n permission java.security.AllPermission;\n};\n";
+        Run s = lintFile(all, "--define", "a.b=/opt");
+        assertEquals(s.out, "S1", s.kinds());
+        assertTrue(s.out, s.out.contains("a.b (--define)"));
+        assertTrue(s.out, s.out.contains("user.dir (lint JVM system property)"));
+    }
+
+    // The policies the repository ships (deploy/policy) raise no high-severity finding: the default
+    // run exits 0.  Their only findings are D5 for SocketPermission to any host, a medium kind.
+    @Test
+    public void deployPoliciesStayClean() throws Exception {
+        File deploy = new File("../../../deploy/policy");
+        Assume.assumeTrue(deploy.isDirectory());
+        Run r = lint(deploy.getPath());
+        assertEquals(r.out, 0, r.exit);
+        assertEquals(r.out, 0, r.count("U1") + r.count("U2") + r.count("U3") + r.count("U4")
+                + r.count("P1") + r.count("P2") + r.count("S1") + r.count("S3") + r.count("D1")
+                + r.count("D2") + r.count("D3") + r.count("D4") + r.count("W1") + r.count("W2"));
+        for (String l : r.findings()) {
+            assertTrue(l, l.contains(" D5 ") && l.contains("SocketPermission"));
+        }
     }
 }

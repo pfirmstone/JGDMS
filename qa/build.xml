@@ -804,8 +804,11 @@
     <!--
       policy-lint target
       ==================
-      Finds unscoped and weakly scoped java.security.AllPermission grants in
-      java.policy files (org.apache.river.tool.PolicyLint).  polpAudit only
+      Dangerous-policy gate for java.policy files (org.apache.river.tool.PolicyLint):
+      unscoped and weakly scoped java.security.AllPermission grants, and grants of
+      other dangerous permissions (FilePermission "<<ALL FILES>>" write/delete/execute,
+      setSecurityManager, SecurityPermission "*", ...) to code the policy does not
+      scope tightly.  polpAudit only
       ADDS missing permissions, so an unscoped AllPermission grant in the
       starting or deployed policy masks everything and defeats least privilege.
       Reads policy text only; writes nothing.
@@ -818,8 +821,11 @@
 
       Exit status: fails the build on UNSCOPED_ALLPERMISSION (U1),
       UNSCOPED_META_GRANT (U2), REAL_VERDICT_UNSCOPED (U3),
-      PROPERTY_DEPENDENT_SCOPE (U4) and UNPARSEABLE (P1); also on S1, S3
-      (WILDCARD_PRINCIPAL) and S4 (CODEBASE_SCOPED_META_GRANT) with
+      PROPERTY_DEPENDENT_SCOPE (U4), UNPARSEABLE (P1), D1 (a dangerous permission
+      reaches a stranger's codebase), D3 (file:/-) and D4 (jrt:/-) and P2 (a file in a
+      walked directory with an unrecognised name that reads like a policy); also on S1,
+      S3 (WILDCARD_PRINCIPAL), S4 (CODEBASE_SCOPED_META_GRANT), D2 (any principal), D5
+      (broad permission) and W1/W2 (empty or unreadable directory, odd file) with
       -Dpolicy.lint.strict=true.
       The STARTING policy of a polpAudit run must be linted with
       -Dpolicy.lint.audit.input=true, which fails on ANY AllPermission grant.
@@ -830,7 +836,9 @@
                                  *.policy, *.policy.old, *.policy.new, policy.all
                                  and *.policy.*, not *.proxy-permissions or
                                  *.grantperm
-        policy.lint.strict       true to fail on S1 as well
+        policy.lint.strict       true to fail on the medium kinds (S1 S3 S4 D2 D5 W1 W2)
+        policy.lint.require.defined  true to fail (U4) on any codeBase ${property}
+                                 not given with policy.lint.define.NAME
         policy.lint.audit.input  true to fail on any AllPermission (S1, S2 too)
         policy.lint.format       text (default) or tsv
         policy.lint.glob         optional extra file-name glob to include
@@ -857,6 +865,9 @@
         <condition property="policy.lint.audit.arg" value="--audit-input" else="">
             <istrue value="${policy.lint.audit.input}"/>
         </condition>
+        <condition property="policy.lint.require.arg" value="--require-defined" else="">
+            <istrue value="${policy.lint.require.defined}"/>
+        </condition>
         <condition property="policy.lint.glob.arg" value="--glob=${policy.lint.glob}" else="">
             <isset property="policy.lint.glob"/>
         </condition>
@@ -865,12 +876,13 @@
     </target>
 
     <target name="policy-lint" depends="policy-lint-args"
-            description="Fail on unscoped AllPermission grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] [-Dpolicy.lint.define.NAME=VALUE] policy-lint">
+            description="Fail on unscoped AllPermission and other dangerous grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] [-Dpolicy.lint.require.defined=true] [-Dpolicy.lint.define.NAME=VALUE] policy-lint">
         <java classname="org.apache.river.tool.PolicyLint"
               fork="yes"
               failonerror="true">
             <arg line="${policy.lint.strict.arg}"/>
             <arg line="${policy.lint.audit.arg}"/>
+            <arg line="${policy.lint.require.arg}"/>
             <arg line="${policy.lint.glob.arg}"/>
             <arg value="--format=${policy.lint.format}"/>
             <arg value="--provider=${policy.lint.provider}"/>
