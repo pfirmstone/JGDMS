@@ -67,7 +67,7 @@ import java.util.Map;
  *   <li><b>{@code exp}</b> &mdash; required, a JSON number; the token must not
  *       have expired (30-second clock-skew tolerance) and must not expire
  *       more than the maximum lifetime (default {@link #DEFAULT_MAX_LIFETIME},
- *       24 hours) after now.</li>
+ *       1 hour) after now.</li>
  *   <li><b>{@code nbf}</b>, <b>{@code iat}</b> &mdash; if present must be JSON
  *       numbers and not in the future (30-second skew).</li>
  *   <li><b>{@code iss}</b> &mdash; if an expected issuer was configured, the
@@ -88,7 +88,7 @@ import java.util.Map;
 public final class DefaultJwtVerifier implements JwtVerifier {
 
     /** Default maximum time an accepted token may still have to live. */
-    public static final Duration DEFAULT_MAX_LIFETIME = Duration.ofHours(24);
+    public static final Duration DEFAULT_MAX_LIFETIME = Duration.ofHours(1);
 
     /** Default maximum number of principals one accepted token may name. */
     public static final int DEFAULT_MAX_PRINCIPALS = 64;

@@ -173,10 +173,13 @@ public class DefaultJwtVerifierClaimsTest {
 
     @Test
     public void expiryBeyondTheMaximumLifetimeIsRefused() throws Exception {
-        rejected(v, token(payload("\"svc-a\"", String.valueOf(now() + 25 * 3600), "")),
-                "exp 25 h away, default 24 h");
+        // operator ruling 2026-11-02: the default maximum lifetime is 1 hour.
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(now() + 2 * 3600), "")),
+                "exp 2 h away, default 1 h");
+        rejected(v, token(payload("\"svc-a\"", String.valueOf(now() + 3600 + 120), "")),
+                "exp 1 h 2 min away, default 1 h");
         rejected(v, token(payload("\"svc-a\"", "253402300799", "")), "exp in year 9999");
-        v.verify(token(payload("\"svc-a\"", String.valueOf(now() + 23 * 3600), "")));
+        v.verify(token(payload("\"svc-a\"", String.valueOf(now() + 3500), "")));
     }
 
     @Test
