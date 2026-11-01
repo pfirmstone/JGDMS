@@ -7,6 +7,8 @@ n/n05-https-pinned-narrow.policy	0	0		0	0
 n/n06-https-pinned-getclassloader.policy	0	0	I1	0	0	
 n/n07-https-port-range-ccl.policy	1	1	D1	1	1	D1
 n/n10-unbuildable-principal-star-ccl.policy	1	1	D2	0	0	
+n/n100-jar-file-7slash-ccl.policy	1	1	D1			
+n/n101-file-localhost-then-host-ccl.policy	1	1	D1			
 n/n11-java-principal-star-ccl.policy	1	1	D2	0	0	
 n/n12-spiffe-prefix-namespace-ccl.policy	0	0		0	0	
 n/n13-spiffe-bare-star-allperm.policy	1	1	S3	0	1	S3
@@ -65,6 +67,13 @@ n/n89-sql-setnetworktimeout-unscoped.policy	0	1	D5	0	0
 n/n90-defineclass-pinned-https.policy	0	0	I1	0	0	
 n/n91-defineclass-wild-https.policy	1	1	D1	0	0	
 n/n92-defineclass-star-unscoped.policy	1	1	D1	1	1	D1
+n/n93-file-1slash-ccl-clean.policy	0	0				
+n/n94-file-5slash-ccl.policy	1	1	D1			
+n/n95-file-6slash-ccl.policy	1	1	D1			
+n/n96-file-7slash-ccl.policy	1	1	D1			
+n/n97-file-127001-ccl.policy	1	1	D1			
+n/n98-unc-backslash-ccl.policy	1	1	D1			
+n/n99-jar-file-5slash-ccl.policy	1	1	D1			
 r6/a01-unscoped.policy	1	1	U1	1	1	U1
 r6/a02-undefprop.policy	1	1	U3 U4 S1	1	1	U3 U4 S1
 r6/a03-signedby-noalias.policy	0	1	S1	0	1	S1

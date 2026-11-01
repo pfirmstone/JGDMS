@@ -352,7 +352,64 @@ final class PolicyVerdict {
      * @throws LoadFailure if the provider cannot load the file or a subject's URL has no handler
      */
     synchronized List<List<Permission>> grantedToEach(File policy, Map<String, String> defines,
-            List<Subject> subjects, List<Permission> perms) {
+            List<Subject> subjects, final List<Permission> perms) {
+        return eachSubject(policy, defines, subjects, new Ask() {
+            public List<Permission> of(Policy p, ProtectionDomain pd) {
+                List<Permission> res = new ArrayList<Permission>();
+                for (Permission perm : perms) {
+                    try {
+                        if (p.implies(pd, perm)) res.add(perm);
+                    } catch (RuntimeException e) {
+                        res.add(perm); // cannot tell: counted as granted
+                    }
+                }
+                return res;
+            }
+        });
+    }
+
+    /**
+     * What the provider lists as granted to each subject, element {@code i} for
+     * {@code subjects.get(i)}: the elements of the {@code PermissionCollection} that
+     * {@link Policy#getPermissions(ProtectionDomain)} returns, not the answers to questions.  A
+     * permission whose class cannot be resolved here stays an {@link UnresolvedPermission}.  An
+     * empty list means the provider lists nothing for that subject.
+     *
+     * @throws LoadFailure if the provider cannot load the file, throws from the listing or
+     *         returns no collection: that is not "nothing granted"
+     */
+    synchronized List<List<Permission>> listedToEach(File policy, Map<String, String> defines,
+            List<Subject> subjects) {
+        return eachSubject(policy, defines, subjects, new Ask() {
+            public List<Permission> of(Policy p, ProtectionDomain pd) {
+                PermissionCollection pc;
+                try {
+                    pc = p.getPermissions(pd);
+                } catch (RuntimeException e) {
+                    throw new LoadFailure(providerClass + " cannot list what it grants: " + why(e), e);
+                }
+                if (pc == null) throw new LoadFailure(providerClass + " returned no permission list", null);
+                List<Permission> res = new ArrayList<Permission>();
+                for (Enumeration<Permission> en = pc.elements(); en.hasMoreElements();) {
+                    Permission e = en.nextElement();
+                    if (e instanceof UnresolvedPermission) {
+                        Permission r = resolve((UnresolvedPermission) e);
+                        if (r != null) e = r;
+                    }
+                    res.add(e);
+                }
+                return res;
+            }
+        });
+    }
+
+    /** One question asked of a loaded provider about one subject. */
+    private interface Ask {
+        List<Permission> of(Policy p, ProtectionDomain pd);
+    }
+
+    private List<List<Permission>> eachSubject(File policy, Map<String, String> defines,
+            List<Subject> subjects, Ask ask) {
         List<List<Permission>> all = new ArrayList<List<Permission>>();
         Properties sys = System.getProperties();
         Map<String, String> saved = new HashMap<String, String>();
@@ -373,16 +430,7 @@ final class PolicyVerdict {
             for (Subject s : subjects) {
                 CodeSource cs = source(s.url);
                 if (cs == null) throw new LoadFailure("no URL handler for " + s.url, null);
-                ProtectionDomain pd = new ProtectionDomain(cs, null, null, s.who);
-                List<Permission> res = new ArrayList<Permission>();
-                for (Permission perm : perms) {
-                    try {
-                        if (p.implies(pd, perm)) res.add(perm);
-                    } catch (RuntimeException e) {
-                        res.add(perm); // cannot tell: counted as granted
-                    }
-                }
-                all.add(res);
+                all.add(ask.of(p, new ProtectionDomain(cs, null, null, s.who)));
             }
         } catch (ReflectiveOperationException | MalformedURLException | RuntimeException e) {
             if (e instanceof LoadFailure) throw (LoadFailure) e;

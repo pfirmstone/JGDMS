@@ -487,6 +487,60 @@ public class PolicyLintGateTest {
         expect("n/n74-file-empty-host-ccl-clean", "0/0 ");
     }
 
+    // Windows opens file:////host/share and every longer run of slashes as the UNC share
+    // \host\share, so the only local forms are one slash, three slashes (empty authority) and
+    // //localhost.  A pinned local directory that is in fact a share is a stranger.
+    @Test
+    public void slashRunsOfAFileCodeBaseDecideLocalOrShare() throws Exception {
+        expect("n/n93-file-1slash-ccl-clean", "0/0 ");
+        expect("n/n74-file-empty-host-ccl-clean", "0/0 ");
+        expect("n/n73-file-localhost-ccl-clean", "0/0 ");
+        expect("n/n72-file-unc-fourslash-ccl", "1/1 D1");
+        expect("n/n94-file-5slash-ccl", "1/1 D1");
+        expect("n/n95-file-6slash-ccl", "1/1 D1");
+        expect("n/n96-file-7slash-ccl", "1/1 D1");
+        expect("n/n97-file-127001-ccl", "1/1 D1");
+        expect("n/n98-unc-backslash-ccl", "1/1 D1");
+        expect("n/n99-jar-file-5slash-ccl", "1/1 D1");
+        expect("n/n100-jar-file-7slash-ccl", "1/1 D1");
+        expect("n/n101-file-localhost-then-host-ccl", "1/1 D1");
+    }
+
+    private static PolicyScope.Kind kindOf(String codeBase) {
+        return PolicyScope.classify(codeBase, new java.util.Properties()).kind;
+    }
+
+    @Test
+    public void slashRunTable() {
+        String tail = "fileserver.example/share/-";
+        PolicyScope.Kind[] want = new PolicyScope.Kind[8];
+        want[1] = PolicyScope.Kind.FILE_PINNED;
+        want[2] = PolicyScope.Kind.REMOTE_WILD;
+        want[3] = PolicyScope.Kind.FILE_PINNED;
+        for (int n = 4; n <= 7; n++) want[n] = PolicyScope.Kind.REMOTE_WILD;
+        for (int n = 1; n <= 7; n++) {
+            StringBuilder sl = new StringBuilder();
+            for (int i = 0; i < n; i++) sl.append('/');
+            assertEquals("file:" + sl + tail, want[n], kindOf("file:" + sl + tail));
+            assertEquals("jar:file:" + sl + "x/a.jar", want[n],
+                    kindOf("jar:file:" + sl + "fileserver.example/share/a.jar!/"));
+            if (n == 2 || n >= 4) {
+                assertEquals("scheme-less " + sl, PolicyScope.Kind.REMOTE_WILD, kindOf(sl + tail));
+            }
+        }
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file://localhost/opt/app/-"));
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file://LOCALHOST/opt/app/-"));
+        assertEquals(PolicyScope.Kind.REMOTE_WILD, kindOf("file://127.0.0.1/opt/app/-"));
+        assertEquals(PolicyScope.Kind.REMOTE_WILD,
+                kindOf("file://localhost//fileserver.example/share/-"));
+        String bs = "\\";
+        assertEquals(PolicyScope.Kind.REMOTE_WILD,
+                kindOf(bs + bs + "fileserver.example" + bs + "share" + bs + "-"));
+        assertEquals(PolicyScope.Kind.REMOTE_WILD,
+                kindOf("file:///" + bs + bs + "fileserver.example" + bs + "share" + bs + "-"));
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/" + bs + bs + "opt" + bs + "app" + bs + "-"));
+    }
+
     @Test
     public void unrecognisedCodeBaseSchemesFailClosed() throws Exception {
         expect("n/n75-unknown-scheme-ccl", "1/1 D1");

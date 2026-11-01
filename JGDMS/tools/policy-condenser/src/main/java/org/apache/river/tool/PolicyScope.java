@@ -43,8 +43,12 @@ import java.util.regex.Pattern;
  *     Downloads directory, written with {@code ${user.home}}, {@code ${java.io.tmpdir}} or
  *     {@code ${user.dir}}, or that is a recursive pattern over a directory above one of those:
  *     {@link Reach#FILE}.  {@code jar:} forms are judged by what they wrap;</li>
- * <li>a {@code file:} codeBase with a host other than {@code localhost} ({@code file://host/share/-},
- *     {@code file:////host/share/-}, a UNC path): a network share, so {@link Reach#STRANGER};</li>
+ * <li>a {@code file:} codeBase is local only as one slash ({@code file:/path}), three slashes (an
+ *     empty authority) or behind {@code //localhost}.  Two slashes and a host, and four or more
+ *     slashes before a name ({@code file://host/share/-}, {@code file:////host/share/-},
+ *     {@code file://///host/share/-}, a UNC path, a backslash form) are a network share, because
+ *     Windows opens a run of four or more slashes as the UNC share {@code \\host\share}: so
+ *     {@link Reach#STRANGER};</li>
  * <li>a codeBase scheme other than file, jrt, jar, http, https and ftp: not recognised, so treated as
  *     attacker-controlled ({@link Reach#STRANGER}), never as pinned.  {@code jar:} is judged by the
  *     URL it wraps, however deeply nested;</li>
@@ -256,16 +260,32 @@ final class PolicyScope {
 
     private static CodeBase file(String path, boolean writableProperty) {
         String p = path.replace('\\', '/');
-        // //host/share, ////host/share and \\host\share name a share on another machine (a UNC
-        // path on Windows); only an empty host or localhost is this machine
-        while (p.startsWith("//")) {
-            int i = p.indexOf('/', 2);
-            String host = i < 0 ? p.substring(2) : p.substring(2, i);
-            if (host.length() > 0 && !host.equalsIgnoreCase("localhost")) {
-                return new CodeBase(Kind.REMOTE_WILD, "file: codeBase on the host " + host
-                        + ", a network share another party can serve code from");
+        // The text after "file:" is local only as "/path" (one slash), "///path" (an empty
+        // authority) or behind "//localhost".  Any other run of leading slashes before a
+        // non-empty segment names a host as far as the lint can tell, because Windows opens
+        // "file://///host/share" and "file:////host/share" as the UNC share \\host\share.
+        // A backslash has been read as a slash above, as the Windows path parser does.
+        while (true) {
+            int n = 0;
+            while (n < p.length() && p.charAt(n) == '/') n++;
+            if (n < 2) break;
+            if (n == p.length()) { // slashes only: names nothing but the root
+                p = "/";
+                break;
             }
-            p = i < 0 ? "/" : p.substring(i);
+            if (n == 3) { // empty authority
+                p = p.substring(2);
+                break;
+            }
+            int i = p.indexOf('/', n);
+            String host = i < 0 ? p.substring(n) : p.substring(n, i);
+            if (n == 2 && host.equalsIgnoreCase("localhost")) {
+                p = i < 0 ? "/" : p.substring(i);
+                continue; // what follows is judged again: localhost//host is still a share
+            }
+            return new CodeBase(Kind.REMOTE_WILD, "file: codeBase on the host " + host
+                    + (n == 2 ? "" : " (" + n + " leading slashes)")
+                    + ", a network share another party can serve code from");
         }
         if (p.matches("^/[A-Za-z]:([\\\\/].*)?$")) p = p.substring(1);
         PermissionSets.FilePath f = PermissionSets.filePath(p);
