@@ -96,23 +96,40 @@ import net.jini.security.jwt.JwtPrincipal;
  * <h2>Background refresh</h2>
  * If {@code refreshTokenUri} and {@code refreshToken} are configured, a daemon
  * thread proactively fetches a new access token at 80% of the token lifetime
- * (i.e. when 20% of the lifetime remains).  On failure the thread retries with
- * exponential back-off (starting at 5 s, doubling up to 5 min).  If the
- * identity provider returns a fatal error (HTTP 400 with
- * {@code "error":"invalid_grant"}) the thread logs at SEVERE level, stops, and
- * removes the token, expiry claim and principals this module installed, so the
- * Subject fails closed at once.  A transient failure keeps retrying and leaves
- * the token until it expires.
+ * (i.e. when 20% of the lifetime remains).
+ *
+ * <p><b>Permanent failures</b> log at SEVERE level, stop the thread and remove
+ * the token, expiry claim and principals this module installed, so the Subject
+ * fails closed at once:
+ * <ul>
+ *   <li>HTTP 400 (with {@code "error":"invalid_grant"} or without), HTTP 401
+ *       and HTTP 403 from the token endpoint (the refresh token or the client
+ *       credentials are rejected);</li>
+ *   <li>an HTTP 200 whose body is not one JSON object, or has no
+ *       {@code access_token} (the identity provider is malfunctioning);</li>
+ *   <li>a refreshed token that fails validation: a bad signature or unknown
+ *       key, another {@code iss}, a wrong {@code aud}, expired, missing
+ *       {@code exp}, malformed claims, or not a JWT at all;</li>
+ *   <li>a refreshed token with another {@code sub}, or either token without a
+ *       {@code sub} (see below);</li>
+ *   <li>an {@code Error} in the thread (an {@code OutOfMemoryError} excepted).</li>
+ * </ul>
+ * <p><b>Transient failures</b> keep the token, log at WARNING level and retry
+ * with exponential back-off (starting at 5 s, doubling up to 5 min): a network
+ * error or timeout, a response over the size limit, and any other HTTP status
+ * (including 5xx, 408 and 429).  The token stays until it expires.
  *
  * <p>A refresh replaces the {@link JwtPrincipal}s, the {@link JwtRawToken} and
  * the {@link JwtExpiryClaim} in one step under the Subject's monitor.  A
  * refreshed token is refused when its {@code sub} or {@code iss} differs from
- * the login token, or when either token has no {@code sub}.  A refusal stops
- * the thread and removes what this module installed, so the Subject fails
- * closed at the server rather than keeping an identity nobody refreshes.  An
- * {@code Error} in the thread (an {@code OutOfMemoryError} excepted) does the
- * same.  A token already past its expiry, inside the validator's clock skew,
- * is refreshed once and then no more often than every 5 s.
+ * the login token, or when either token has no {@code sub}.  A token already
+ * past its expiry, inside the validator's clock skew, is refreshed once and
+ * then no more often than every 5 s.
+ *
+ * <p>The client does not enforce the server's maximum token lifetime (default
+ * 1 hour in {@code DefaultJwtVerifier}).  A deployment whose identity provider
+ * issues longer-lived tokens must raise {@code maxLifetime} on the server
+ * verifier, or the server refuses a token this module accepted.
  *
  * <p>The module removes only what it actually added to the Subject: a
  * principal or credential that was already present (installed by another
@@ -715,6 +732,11 @@ public final class JwtLoginModule implements LoginModule {
                     return false; // fatal — refresh token revoked
                 throw new FatalRefreshException("Token endpoint returned HTTP 400", false);
             }
+            if (status == 401 || status == 403) {
+                // The client credentials are rejected (RFC 6749 5.2, invalid_client); retrying
+                // cannot succeed.
+                throw new FatalRefreshException("Token endpoint returned HTTP " + status, false);
+            }
             if (status != 200) {
                 throw new Exception("Token endpoint returned HTTP " + status);
             }
@@ -724,12 +746,13 @@ public final class JwtLoginModule implements LoginModule {
             try {
                 tokenResponse = JwtValidator.parseTokenResponse(responseBody);
             } catch (IllegalArgumentException e) {
-                // The body holds the new tokens; say nothing about its content.
-                throw new Exception("Token endpoint response is not a valid JSON object");
+                // The body holds the new tokens; say nothing about its content.  A 200 that is
+                // not a token response is an identity-provider malfunction, not a passing outage.
+                throw new FatalRefreshException("Token endpoint response is not a valid JSON object", false);
             }
             String newAccessToken = tokenResponse.get("access_token");
             if (newAccessToken == null || newAccessToken.isBlank())
-                throw new Exception("Token endpoint response missing 'access_token'");
+                throw new FatalRefreshException("Token endpoint response missing 'access_token'", false);
 
             // Update refresh_token if a new one was provided (token rotation)
             String newRefreshToken = tokenResponse.get("refresh_token");
@@ -739,7 +762,14 @@ public final class JwtLoginModule implements LoginModule {
             // Validate and install the new token
             JwksKeyCache cache = new JwksKeyCache(URI.create(jwksUri));
             JwtValidator validator = new JwtValidator(cache, issuer, audience);
-            ParsedJwt newParsed = validator.validate(newAccessToken);
+            ParsedJwt newParsed;
+            try {
+                newParsed = validator.validate(newAccessToken);
+            } catch (JwtValidationException e) {
+                // A new token that fails validation is permanent: keeping the old one would serve
+                // an identity the provider no longer vouches for.  The message names a claim, never a value.
+                throw new FatalRefreshException("refreshed token failed validation: " + e.getMessage(), false);
+            }
 
             // Compute new expiry
             String expStr = newParsed.allClaims().get("exp");

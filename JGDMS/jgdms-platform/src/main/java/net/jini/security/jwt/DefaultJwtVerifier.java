@@ -63,11 +63,10 @@ import java.util.Map;
  *       1 hour) after now.</li>
  *   <li><b>{@code nbf}</b>, <b>{@code iat}</b> &mdash; if present must be JSON
  *       numbers and not in the future (30-second skew).</li>
- *   <li><b>{@code iss}</b> &mdash; if an expected issuer was configured, the
- *       claim must equal it.</li>
- *   <li><b>{@code aud}</b> &mdash; if an expected audience was configured, the
- *       claim (a string or an array of strings) must contain it as an
- *       element; elements are compared whole and never split.</li>
+ *   <li><b>{@code iss}</b> &mdash; must equal the configured issuer.</li>
+ *   <li><b>{@code aud}</b> &mdash; the claim (a string or an array of strings)
+ *       must contain the configured audience as an element; elements are
+ *       compared whole and never split.</li>
  * </ul>
  *
  * <h2>No JWKS</h2>
@@ -332,13 +331,13 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         }
 
         String iss = stringClaim(payload, "iss");
-        if (expectedIssuer != null && !expectedIssuer.equals(iss))
+        if (!expectedIssuer.equals(iss))
             throw new JwtVerificationException(
                     "JWT issuer mismatch: expected '" + expectedIssuer
                             + "', got '" + iss + "'");
 
         List<String> aud = audienceClaim(payload);
-        if (expectedAudience != null && !aud.contains(expectedAudience))
+        if (!aud.contains(expectedAudience))
             throw new JwtVerificationException(
                     "JWT audience mismatch: expected '" + expectedAudience
                             + "', got " + aud);

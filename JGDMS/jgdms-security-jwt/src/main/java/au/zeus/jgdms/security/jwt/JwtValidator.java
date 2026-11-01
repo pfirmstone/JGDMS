@@ -48,6 +48,10 @@ import net.jini.security.jwt.VerifiedJwt;
  *
  * <p>This class is package-private and is used by {@link JwtLoginModule}.
  *
+ * <p>It does not enforce the server's maximum token lifetime (default 1 hour
+ * in {@code DefaultJwtVerifier}); a deployment whose identity provider issues
+ * longer-lived tokens must raise {@code maxLifetime} on the server verifier.
+ *
  * @since 3.1.1
  */
 final class JwtValidator {

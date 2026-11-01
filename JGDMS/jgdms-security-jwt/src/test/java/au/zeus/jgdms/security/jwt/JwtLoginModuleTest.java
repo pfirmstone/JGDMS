@@ -138,8 +138,11 @@ public class JwtLoginModuleTest {
     private static final java.util.concurrent.atomic.AtomicInteger tokenHits =
             new java.util.concurrent.atomic.AtomicInteger();
 
-    /** When non-null, /token answers HTTP 400 with this body. */
+    /** When non-null, /token answers (HTTP 400 unless {@link #tokenEndpointStatus}) with this body. */
     private static final AtomicReference<String> tokenEndpointRaw = new AtomicReference<>();
+
+    /** The status /token answers with when {@link #tokenEndpointRaw} is set; null means 400. */
+    private static final AtomicReference<Integer> tokenEndpointStatus = new AtomicReference<>();
 
     /** When non-null, /token holds each request on this latch (a request in flight). */
     private static volatile java.util.concurrent.CountDownLatch tokenGate;
@@ -216,7 +219,8 @@ public class JwtLoginModuleTest {
             String raw = tokenEndpointRaw.get();
             if (raw != null) {
                 byte[] rb = raw.getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(400, rb.length);
+                Integer st = tokenEndpointStatus.get();
+                exchange.sendResponseHeaders(st == null ? 400 : st, rb.length);
                 try (OutputStream os = exchange.getResponseBody()) {
                     os.write(rb);
                 }
@@ -835,49 +839,126 @@ public class JwtLoginModuleTest {
     }
 
     /**
-     * The validator already refuses another issuer; this pins the outcome (the
-     * Subject keeps the old identity), not which of the two checks fired.
+     * Operator ruling 2026-11-02: a refreshed token that fails validation is a
+     * permanent failure.  The thread stops and the Subject fails closed; before
+     * this the old token stayed and the thread retried forever.  The thread
+     * starts with a token inside the validator's skew, so it refreshes at once.
      */
     @Test
-    public void testRefreshWithADifferentIssIsRefused() throws Exception {
-        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "");
+    public void testRefreshWithADifferentIssFailsClosed() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "");
         String t2 = tokenFor("alice", "https://rogue-marker.example", inSeconds(5000), "");
-        assertRefreshRefused(t1, t2);
+        assertThreadFailsClosed("another iss", t1, null, null, t2);
     }
 
     @Test
-    public void testRefreshResponseThatIsNotAValidTokenLeavesTheSubjectUnchanged() throws Exception {
-        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+    public void testRefreshResponseThatIsNotAValidTokenFailsClosed() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
         String bad = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "").replaceAll("\\.[^.]*$", ".AAAA");
-        for (String response : new String[] {"not-a-jwt-marker", bad,
-                tokenFor("alice", JWT_ISSUER, inSeconds(-600), "")}) {
-            assertRefreshRefused(t1, response);
+        String noExp = signPayload(JWT_KID, "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"" + AUD
+                + "\",\"sub\":\"alice\"}");
+        String wrongAud = signPayload(JWT_KID, "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"other-marker\","
+                + "\"sub\":\"alice\",\"exp\":" + inSeconds(5000) + "}");
+        String[] responses = {"not-a-jwt-marker", bad, tokenFor("alice", JWT_ISSUER, inSeconds(-600), ""),
+                noExp, wrongAud};
+        String[] labels = {"not a JWT", "bad signature", "expired", "no exp", "wrong aud"};
+        for (int i = 0; i < responses.length; i++)
+            assertThreadFailsClosed(labels[i], t1, null, null, responses[i]);
+    }
+
+    /** A 200 whose body is not a token response is an identity-provider malfunction: permanent. */
+    @Test
+    public void testMalformedTokenResponseFailsClosed() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "");
+        assertThreadFailsClosed("not JSON", t1, 200, "<html>gateway-marker</html>", null);
+        assertThreadFailsClosed("no access_token", t1, 200, "{\"token_type\":\"Bearer\"}", null);
+    }
+
+    /**
+     * HTTP 400 (with or without invalid_grant), 401 and 403 on the real thread:
+     * permanent.  {@code refreshNow} bypasses the thread loop, whose own
+     * permanent-failure branch these reach.
+     */
+    @Test
+    public void testPermanentHttpStatusesFailClosedOnTheRealThread() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+        assertThreadFailsClosed("400 invalid_grant", t1, 400, "{\"error\":\"invalid_grant\"}", null);
+        assertThreadFailsClosed("400 other", t1, 400, "{\"error\":\"invalid_request\"}", null);
+        assertThreadFailsClosed("401", t1, 401, "{\"error\":\"invalid_client\"}", null);
+        assertThreadFailsClosed("403", t1, 403, "{\"error\":\"access_denied\"}", null);
+    }
+
+    /** 5xx, 408 and 429 are transient: the token stays, the thread lives and retries. */
+    @Test
+    public void testTransientHttpStatusesKeepTheTokenAndTheThread() throws Exception {
+        for (int status : new int[] {503, 500, 408, 429}) {
+            String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+            Subject subject = new Subject();
+            tokenHits.set(0);
+            tokenEndpointStatus.set(status);
+            tokenEndpointRaw.set("{\"error\":\"temporarily_unavailable\"}");
+            JwtLoginModule m = null;
+            try {
+                m = loginWithRefresh(subject, t1);
+                Thread rt = refreshThreadOf(m);
+                long deadline = System.currentTimeMillis() + 10000;
+                while ((tokenHits.get() < 1 || m.lastRefreshFailure == null)
+                        && System.currentTimeMillis() < deadline) Thread.sleep(20);
+                String why = m.lastRefreshFailure;
+                assertNotNull("HTTP " + status + ": the attempt was made and recorded", why);
+                assertTrue(why, why.contains(Integer.toString(status)));
+                assertTrue("HTTP " + status + ": the thread is retrying", rt.isAlive());
+                assertEquals("HTTP " + status + ": the token stays", Set.of(t1), tokens(subject));
+                assertEquals(Set.of("sub:alice", "group:a"), jwtNames(subject));
+                assertEquals(1, expiries(subject).size());
+            } finally {
+                tokenEndpointRaw.set(null);
+                tokenEndpointStatus.set(null);
+                if (m != null) {
+                    Thread rt = refreshThreadOf(m);
+                    m.logout();
+                    rt.join(5000);
+                    assertFalse("logout stopped the thread", rt.isAlive());
+                }
+            }
         }
     }
 
-    private static void assertRefreshRefused(String t1, String response) throws Exception {
+    /**
+     * Drives the real refresh thread against the test endpoint (a status and
+     * body, or a token response) and asserts it ends with nothing of ours in
+     * the Subject: no token, no expiry claim, only a foreign principal left.
+     */
+    private static void assertThreadFailsClosed(String label, String t1, Integer status, String raw,
+            String tokenResponse) throws Exception {
         Subject subject = new Subject();
-        JwtLoginModule m = loginWithRefresh(subject, t1);
+        subject.getPrincipals().add(new JwtPrincipal("other:module"));
+        tokenHits.set(0);
+        tokenEndpointStatus.set(status);
+        tokenEndpointRaw.set(raw);
+        tokenEndpointResponse.set(tokenResponse);
+        JwtLoginModule m = null;
         try {
-            Set<String> names = jwtNames(subject);
-            Set<String> toks = tokens(subject);
-            Set<Instant> exps = expiries(subject);
-            tokenEndpointResponse.set(response);
-            try {
-                m.refreshNow();
-                fail("refresh was accepted");
-            } catch (Exception expected) {
-                // refused
-            }
-            assertUnchanged(subject, names, toks, exps);
+            m = loginWithRefresh(subject, t1);
+            Thread rt = refreshThreadOf(m);
+            rt.join(10000);
+            assertFalse(label + ": the refresh thread stopped", rt.isAlive());
+            assertTrue(label + ": the endpoint was asked", tokenHits.get() >= 1);
+            assertEquals(label + ": only the foreign principal stays",
+                    Set.of("other:module"), jwtNames(subject));
+            assertTrue(label + ": tokens " + tokens(subject), tokens(subject).isEmpty());
+            assertTrue(label + ": expiry claims", expiries(subject).isEmpty());
             String why = m.lastRefreshFailure;
-            assertNotNull("the failure is recorded", why);
-            assertFalse("no claim value in the record: " + why, why.contains("marker"));
-            for (String part : response.split("\\."))
-                if (part.length() > 3) assertFalse("token segment in the record", why.contains(part));
+            assertNotNull(label + ": the failure is recorded", why);
+            assertFalse(label + ": no claim value in the record: " + why, why.contains("marker"));
+            if (tokenResponse != null)
+                for (String part : tokenResponse.split("\\."))
+                    if (part.length() > 3) assertFalse("token segment in the record", why.contains(part));
         } finally {
             tokenEndpointResponse.set(null);
-            m.logout();
+            tokenEndpointRaw.set(null);
+            tokenEndpointStatus.set(null);
+            if (m != null) m.logout();
         }
     }
 
