@@ -45,7 +45,7 @@ n/n64-jar-https-wild-ccl.policy	1	1	D1	0	0
 r6/a01-unscoped.policy	1	1	U1	1	1	U1
 r6/a02-undefprop.policy	1	1	U3 U4 S1	1	1	U3 U4 S1
 r6/a03-signedby-noalias.policy	0	1	S1	0	1	S1
-r6/a04-princ-star.policy	1	1	S3	0	1	S3
+r6/a04-princ-star.policy	1	1	P1 S3	0	1	P1 S3
 r6/a05-grantperm-unscoped.policy	1	1	U2 D1	1	1	U2 D1
 r6/a06-secperm-star.policy	1	1	D1 D5	1	1	D1
 r6/a07-setsm.policy	1	1	D1	1	1	D1
@@ -74,7 +74,7 @@ r6/a29-keystore-bad.policy	0	1	S1	0	1	S1
 r6/a30-umbrella.policy	1	1	U2 D1	1	1	U2 D1
 r6/a31-grant-allperm-subclass.policy	1	1	U1	1	1	U1
 r6/a32-http-noport.policy	1	1	P1 U3 S1	1	1	P1 S1
-r6/a33-princ-classwild.policy	1	1	S3	0	1	S3
+r6/a33-princ-classwild.policy	1	1	P1 S3	0	1	P1 S3
 r6/a34-filedash-file.policy	1	1	S1 D3	1	1	S1 D3
 r6/a35-userhome.policy	1	1	S1 D3	0	1	S1
 r6/a36-wrongext.txt	1	1	U1	1	1	U1
@@ -179,7 +179,7 @@ r8/p01-property-star-write.policy	1	1	D1	0	1	D5
 r8/p02-property-policy-write.policy	1	1	D1	0	0	
 r8/q01-princ-unloadable.policy	0	0		0	0	
 r8/q02-princ-unloadable-star.policy	1	1	S3	0	1	S3
-r8/q03-princ-star-setsm.policy	1	1	D2	0	1	D2
+r8/q03-princ-star-setsm.policy	1	1	P1 D2	0	1	P1 D2
 r8/q04-x500star-files.policy	1	1	D2	0	1	D2
 r8/q05-jwtprincipal-star.policy	1	1	S3	0	1	S3
 r8/q06-kerberos-star.policy	1	1	S3	0	1	S3
@@ -240,6 +240,6 @@ r8/x01-reflect-suppress.policy	1	1	D1	1	1	D1
 r8/x02-reflect-star.policy	1	1	D1	1	1	D1
 r8/x03-reflect-proxy.policy	0	1	D5	0	1	D5
 r8/z01-principal-noclass.policy	0	0	S2	0	0	S2
-r8/z02-order.policy	0	0	S2	0	1	S3
+r8/z02-order.policy	1	1	P1 S2	0	1	P1 S3
 r8/z03-no-semicolon.policy	1	1	U1	1	1	U1
 r8/z04-no-trailing-semicolon.policy	1	1	D1	1	1	D1

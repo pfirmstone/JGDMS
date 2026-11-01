@@ -107,7 +107,7 @@ public class PolicyLintGateTest {
         expect("r8/q07-spiffe-star-setsm", "1/1 D2");
         expect("r8/q08-jwt-star-ccl", "1/1 D2");
         expect("r8/q09-krb-star-ccl", "1/1 D2");
-        expect("r8/q03-princ-star-setsm", "1/1 D2");
+        expect("r8/q03-princ-star-setsm", "1/1 P1 D2"); // wildcard principal class: refused by the scanner
         expect("r8/q04-x500star-files", "1/1 D2");
         expect("n/n13-spiffe-bare-star-allperm", "1/1 S3");
         // medium permissions stay strict-only

@@ -192,13 +192,6 @@ public class PolicyLintTest {
             String name = (String) row[0];
             String kinds = (String) row[1];
             boolean[] real = (boolean[]) row[2];
-            if (name.equals("f06-principal-wild.policy") && !provider.equals("platform")) {
-                // KNOWN DIVERGENCE (2026-11-01): jgdms-platform's scanner refuses a wildcard
-                // principal CLASS (P1); DirtyChai's scanner still accepts it, but its provider now matches nothing.
-                // Delete this branch when DirtyChai's scanner refuses it too.
-                kinds = "S3";
-                real = new boolean[]{false, false};
-            }
             File f = fixture(name);
             Run r = lint("--provider=" + provider, f.getPath());
             String why = name + " [" + provider + "]\n" + r.out;
@@ -447,7 +440,7 @@ public class PolicyLintTest {
                 + " permission java.security.AllPermission;\n};\n"
                 + "grant principal javax.security.auth.x500.X500Principal \"CN=a\" {\n"
                 + " permission java.security.AllPermission;\n};\n"
-                + "grant digest \"SHA-256:00ff\" principal * * {\n"
+                + "grant digest \"SHA-256:00ff\" principal javax.security.auth.x500.X500Principal * {\n"
                 + " permission java.security.AllPermission;\n};\n");
         assertEquals(r.out, "S2 S2 S2", r.kinds());
         assertEquals(0, r.exit);
@@ -463,7 +456,7 @@ public class PolicyLintTest {
                 + "grant codeBase \"file:/a.jar\" principal * *" + a
                 + "grant principal javax.security.auth.x500.X500Principal \"CN=a\"" + a);
         // the fourth is pinned by its codeBase: a wildcard principal there reaches no stranger
-        assertEquals(r.out, "S3 S3 S3 S2 S2", r.kinds());
+        assertEquals(r.out, "P1 S3 S3 S3 S2 S2", r.kinds()); // P1: a wildcard principal class is refused by the scanner
         assertEquals(1, r.exit);
         assertEquals(1, lintFile("grant principal * *" + a, "--strict").exit);
         assertEquals(1, lintFile("grant principal * *" + a, "--audit-input").exit);
