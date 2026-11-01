@@ -23,6 +23,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-jwt-binding-followup-2026-11-01.md` | 5960 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-client-align-2026-11-01.md` | 4650 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-fix-2026-11-01.md` | 8984 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-lifecycle-2026-11-01.md` | 6111 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-opus-followups-2026-11-01.md` | 4759 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8211 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-lint-opus-followups-2026-11-01.md` | 9467 | 2026-11-01 | claude-sonnet-5-5 | not stated |
@@ -49,7 +50,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `REVIEW-handover-2026-11-01-fable.md` | 12364 | 2026-11-01 | claude-fable-5-1 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-handover-currency-opus-delta-2026-11-01.md` | 8480 | 2026-11-01 | claude-opus-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
 | `REVIEW-handover-currency-sonnet-2026-11-01.md` | 12484 | 2026-11-01 | claude-sonnet-5-5 | LIVE: review of the handover (Fable); applied in revision 3 |
-| `REVIEW-jwt-client-followups-opus-2026-11-01.md` | 1593 | 2026-11-01 | claude-opus-5-5 | not stated |
+| `REVIEW-jwt-client-followups-opus-2026-11-01.md` | 11316 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-jwt-principal-binding-opus-2026-11-01.md` | 12070 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-lint-rebuild-and-jwt-opus-2026-11-01.md` | 13919 | 2026-11-01 | claude-opus-5-5 | not stated |
 | `REVIEW-policy-lint-general-opus-2026-11-01.md` | 13960 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
