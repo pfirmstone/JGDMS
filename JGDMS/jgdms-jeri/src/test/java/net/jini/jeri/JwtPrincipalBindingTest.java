@@ -555,14 +555,28 @@ public class JwtPrincipalBindingTest {
      */
     @Test
     public void withoutASecurityManagerOnlyTokenDerivedPrincipalsAreAccepted() throws Exception {
+        runChild("NO-SECURITY-MANAGER-OK");
+    }
+
+    /**
+     * The Guard itself, asked directly with no SecurityManager, must deny: it
+     * must not rely on {@code peerMayAssert} having refused first.
+     */
+    @Test
+    public void theGuardItselfDeniesWithoutASecurityManager() throws Exception {
+        runChild("GUARD-DENIED-OK", "guard");
+    }
+
+    private static void runChild(String marker, String... args) throws Exception {
         String javaExe = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-        Process p = new ProcessBuilder(javaExe, "-cp", System.getProperty("java.class.path"),
-                JwtPrincipalBindingTest.class.getName())
-                .redirectErrorStream(true).start();
+        List<String> cmd = new ArrayList<>(List.of(javaExe, "-cp", System.getProperty("java.class.path"),
+                JwtPrincipalBindingTest.class.getName()));
+        cmd.addAll(List.of(args));
+        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         Assert.assertTrue("child timed out: " + out, p.waitFor(120, java.util.concurrent.TimeUnit.SECONDS));
         Assert.assertEquals(out, 0, p.exitValue());
-        Assert.assertTrue(out, out.contains("NO-SECURITY-MANAGER-OK"));
+        Assert.assertTrue(out, out.contains(marker));
     }
 
     /**
@@ -571,8 +585,29 @@ public class JwtPrincipalBindingTest {
      * wire X500 principal must be refused (the Guard would silently pass), the
      * token-derived JwtPrincipals accepted, and the policy never asked.
      */
+    private static void guardDeniesWithoutASecurityManager() throws Throwable {
+        java.lang.reflect.Field gf = BasicInvocationDispatcher.class.getDeclaredField("PEER_ASSERT_GUARD");
+        gf.setAccessible(true);
+        java.security.Guard guard = (java.security.Guard) gf.get(null);
+        Class<?> pa = Class.forName("net.jini.jeri.BasicInvocationDispatcher$PeerAssertion");
+        java.lang.reflect.Constructor<?> c = pa.getDeclaredConstructors()[0];
+        c.setAccessible(true);
+        Object assertion = c.newInstance(allow(X500, "CN=alice"), null);
+        try {
+            guard.checkGuard(assertion);
+        } catch (SecurityException expected) {
+            return;
+        }
+        throw new AssertionError("the Guard passed silently with no SecurityManager");
+    }
+
     public static void main(String[] args) throws Throwable {
         if (System.getSecurityManager() != null) throw new AssertionError("a SecurityManager is installed");
+        if (args.length > 0 && args[0].equals("guard")) {
+            guardDeniesWithoutASecurityManager();
+            System.out.println("GUARD-DENIED-OK");
+            return;
+        }
         keys();
         JwtPrincipalBindingTest t = new JwtPrincipalBindingTest();
         try (PeerPolicyFixture f = PeerPolicyFixture.withoutSecurityManager(allow("*", "*"))) {

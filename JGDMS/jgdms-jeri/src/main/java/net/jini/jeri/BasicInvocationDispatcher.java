@@ -2640,15 +2640,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * The permission is evaluated for the authenticated peer's domain (see
      * {@link PeerAssertion}), not for the calling stack.
      *
-     * <p>Like every {@code Guard} it does nothing when no SecurityManager is
-     * installed; {@link #peerMayAssert} therefore refuses before reaching it in
-     * that case, rather than reading "no check" as "allowed".
+     * <p>Unlike most guards it does not pass when no SecurityManager is
+     * installed: it throws, because "no check" must never read as "allowed" for
+     * a right to act as another principal.  {@link #peerMayAssert} also refuses
+     * before reaching it in that case; the two are independent, so a second
+     * caller of the Guard cannot fail open.
      */
     private static final Guard PEER_ASSERT_GUARD = new Guard() {
 	@Override
 	public void checkGuard(Object object) throws SecurityException {
 	    SecurityManager sm = System.getSecurityManager();
-	    if (sm == null) return;
+	    // SECURITY: fail closed.  With nothing to ask there is no authority to
+	    // assert a principal.
+	    if (sm == null) throw new SecurityException(
+		"no SecurityManager installed: assertion of a principal cannot be authorized");
 	    PeerAssertion a = (PeerAssertion) object;
 	    sm.checkPermission(a.permission, a.context);
 	}
@@ -2684,8 +2689,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * (not identified), a refusal, or any runtime failure while asking is "no".
      */
     private static boolean peerMayAssert(Subject peer, String className, String name) {
-	// SECURITY: without a SecurityManager the Guard would silently pass and
-	// admit every wire-asserted principal.  Refuse instead, and do not fall
+	// SECURITY: refuse here too (the Guard itself also throws without a
+	// SecurityManager), so neither layer alone admits a wire-asserted
+	// principal.  Do not fall
 	// back to a direct Policy lookup: the SecurityManager is the only
 	// consumer of the Policy.
 	if (System.getSecurityManager() == null) return false;

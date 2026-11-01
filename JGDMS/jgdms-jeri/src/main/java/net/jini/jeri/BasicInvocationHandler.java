@@ -2175,7 +2175,21 @@ public class BasicInvocationHandler
 	out.write((subjectCount >>> 8) & 0xFF);
 	out.write(subjectCount & 0xFF);
 	for (int si = 0; si < subjectCount; si++) {
-	    Set<Principal> principals = subjects[si].getPrincipals();
+	    // Snapshot principals and tokens under the Subject's monitor: a token
+	    // refresh (JwtLoginModule) swaps both under the same lock, so the pair
+	    // written is never half old and half new.
+	    Set<Principal> principals;
+	    Set<JwtRawToken> jwtTokens;
+	    synchronized (subjects[si]) {
+		principals = new java.util.LinkedHashSet<Principal>(subjects[si].getPrincipals());
+		try {
+		    jwtTokens = new java.util.LinkedHashSet<JwtRawToken>(
+			    subjects[si].getPublicCredentials(JwtRawToken.class));
+		} catch (Exception ignored) {
+		    // Defensive: if getPublicCredentials fails for any reason, skip JWT block.
+		    jwtTokens = java.util.Collections.emptySet();
+		}
+	    }
 	    int count = Math.min(principals.size(), 0xFFFF);
 	    out.write((count >>> 8) & 0xFF);
 	    out.write(count & 0xFF);
@@ -2187,13 +2201,6 @@ public class BasicInvocationHandler
 		written++;
 	    }
 	    // JWT block: raw tokens from public credentials (Option D, Work Item 44).
-	    Set<JwtRawToken> jwtTokens;
-	    try {
-		jwtTokens = subjects[si].getPublicCredentials(JwtRawToken.class);
-	    } catch (Exception ignored) {
-		// Defensive: if getPublicCredentials fails for any reason, skip JWT block.
-		jwtTokens = java.util.Collections.emptySet();
-	    }
 	    int jwtCount = Math.min(jwtTokens.size(), 0xFF);
 	    out.write(jwtCount & 0xFF);
 	    int jwtWritten = 0;

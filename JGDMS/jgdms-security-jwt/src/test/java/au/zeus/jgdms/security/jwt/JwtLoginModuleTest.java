@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -698,6 +699,222 @@ public class JwtLoginModuleTest {
                 assertFalse("claim value in message: " + msg, msg.contains("leak-marker"));
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // crit header refusal
+    // -----------------------------------------------------------------------
+
+    private static String signWithHeader(String headerJson, String payload) throws Exception {
+        String sigInput = base64UrlEncode(headerJson) + "." + base64UrlEncode(payload);
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initSign(jwtSigningKeyPair.getPrivate());
+        sig.update(sigInput.getBytes(StandardCharsets.US_ASCII));
+        return sigInput + "." + base64UrlEncode(sig.sign());
+    }
+
+    @Test
+    public void testCritHeaderIsRefusedWhateverItsValue() throws Exception {
+        String base = "\"alg\":\"RS256\",\"kid\":\"" + JWT_KID + "\"";
+        // control: the same header without crit is accepted
+        clientPrincipals(signWithHeader("{" + base + "}", payloadJson("\"sub\":\"s\"")));
+        for (String crit : new String[] {"null", "[]", "[\"x\"]", "[\"exp\"]", "\"x\"", "1", "{}"}) {
+            try {
+                clientPrincipals(signWithHeader("{" + base + ",\"crit\":" + crit + "}",
+                        payloadJson("\"sub\":\"s\"")));
+                fail("crit header accepted: " + crit);
+            } catch (LoginException expected) {
+                assertTrue(expected.getMessage(), expected.getMessage().contains("crit"));
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // refresh replaces principals, token and expiry together, same sub and iss
+    // -----------------------------------------------------------------------
+
+    private static String tokenFor(String sub, String iss, long exp, String groups) throws Exception {
+        return signPayload(JWT_KID, "{\"iss\":\"" + iss + "\",\"aud\":\"" + AUD + "\",\"sub\":\""
+                + sub + "\",\"exp\":" + exp + (groups.isEmpty() ? "" : "," + groups) + "}");
+    }
+
+    private static long inSeconds(long s) {
+        return Instant.now().getEpochSecond() + s;
+    }
+
+    /** Logs in with a refresh endpoint configured (the thread sleeps; tests refresh by hand). */
+    private static JwtLoginModule loginWithRefresh(Subject subject, String token) throws LoginException {
+        Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD, token);
+        opts.put("refreshTokenUri", serverBaseUri + "/token");
+        opts.put("refreshToken", "dummy-refresh-token");
+        opts.put("clientId", "test-client");
+        opts.put("clientSecret", "test-secret");
+        return loginAndCommit(subject, opts);
+    }
+
+    private static Set<String> jwtNames(Subject s) {
+        Set<String> out = new java.util.TreeSet<>();
+        for (JwtPrincipal p : s.getPrincipals(JwtPrincipal.class)) out.add(p.getName());
+        return out;
+    }
+
+    private static Set<String> tokens(Subject s) {
+        Set<String> out = new java.util.TreeSet<>();
+        for (net.jini.security.jwt.JwtRawToken t : s.getPublicCredentials(net.jini.security.jwt.JwtRawToken.class))
+            out.add(t.getToken());
+        return out;
+    }
+
+    private static Set<Instant> expiries(Subject s) {
+        Set<Instant> out = new java.util.HashSet<>();
+        for (JwtExpiryClaim c : s.getPublicCredentials(JwtExpiryClaim.class)) out.add(c.getExpiry());
+        return out;
+    }
+
+    /** What a refusal must leave behind: exactly the state before. */
+    private static void assertUnchanged(Subject s, Set<String> names, Set<String> toks, Set<Instant> exps) {
+        assertEquals(names, jwtNames(s));
+        assertEquals(toks, tokens(s));
+        assertEquals(exps, expiries(s));
+    }
+
+    @Test
+    public void testRefreshReplacesPrincipalsTokenAndExpiryTogether() throws Exception {
+        long exp1 = inSeconds(1000), exp2 = inSeconds(5000);
+        String t1 = tokenFor("s", JWT_ISSUER, exp1, "\"groups\":[\"a\"]");
+        String t2 = tokenFor("s", JWT_ISSUER, exp2, "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        JwtPrincipal foreign = new JwtPrincipal("other:module");
+        subject.getPrincipals().add(foreign);
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        try {
+            assertEquals(Set.of("sub:s", "group:a", "other:module"), jwtNames(subject));
+            assertEquals(Set.of(t1), tokens(subject));
+            tokenEndpointResponse.set(t2);
+            m.refreshNow();
+            assertEquals(Set.of("sub:s", "group:b", "other:module"), jwtNames(subject));
+            assertEquals("the raw token follows the principals", Set.of(t2), tokens(subject));
+            assertEquals(Set.of(Instant.ofEpochSecond(exp2)), expiries(subject));
+            assertNull(m.lastRefreshFailure);
+        } finally {
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+        assertEquals("a principal of another module survives logout", Set.of("other:module"), jwtNames(subject));
+    }
+
+    @Test
+    public void testRefreshWithADifferentSubIsRefused() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("mallory-marker", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"admin\"]");
+        assertRefreshRefused(t1, t2);
+    }
+
+    /**
+     * The validator already refuses another issuer; this pins the outcome (the
+     * Subject keeps the old identity), not which of the two checks fired.
+     */
+    @Test
+    public void testRefreshWithADifferentIssIsRefused() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "");
+        String t2 = tokenFor("alice", "https://rogue-marker.example", inSeconds(5000), "");
+        assertRefreshRefused(t1, t2);
+    }
+
+    @Test
+    public void testRefreshResponseThatIsNotAValidTokenLeavesTheSubjectUnchanged() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String bad = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "").replaceAll("\\.[^.]*$", ".AAAA");
+        for (String response : new String[] {"not-a-jwt-marker", bad,
+                tokenFor("alice", JWT_ISSUER, inSeconds(-600), "")}) {
+            assertRefreshRefused(t1, response);
+        }
+    }
+
+    private static void assertRefreshRefused(String t1, String response) throws Exception {
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        try {
+            Set<String> names = jwtNames(subject);
+            Set<String> toks = tokens(subject);
+            Set<Instant> exps = expiries(subject);
+            tokenEndpointResponse.set(response);
+            try {
+                m.refreshNow();
+                fail("refresh was accepted");
+            } catch (Exception expected) {
+                // refused
+            }
+            assertUnchanged(subject, names, toks, exps);
+            String why = m.lastRefreshFailure;
+            assertNotNull("the failure is recorded", why);
+            assertFalse("no claim value in the record: " + why, why.contains("marker"));
+            for (String part : response.split("\\."))
+                if (part.length() > 3) assertFalse("token segment in the record", why.contains(part));
+        } finally {
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+    }
+
+    @Test
+    public void testLogoutAfterRefreshRemovesEverythingAndStopsTheThread() throws Exception {
+        String t1 = tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("s", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, t1);
+        java.lang.reflect.Field f = JwtLoginModule.class.getDeclaredField("refreshThread");
+        f.setAccessible(true);
+        Thread rt = (Thread) f.get(m);
+        assertTrue(rt.isAlive());
+        tokenEndpointResponse.set(t2);
+        try {
+            m.refreshNow();
+        } finally {
+            tokenEndpointResponse.set(null);
+        }
+        m.logout();
+        assertTrue(jwtNames(subject).isEmpty());
+        assertTrue(tokens(subject).isEmpty());
+        assertTrue(expiries(subject).isEmpty());
+        assertTrue(subject.getPublicCredentials().isEmpty());
+        rt.join(5000);
+        assertFalse("the refresh thread stopped", rt.isAlive());
+    }
+
+    /** Probabilistic on its own; the deterministic pins are the tests above. */
+    @Test
+    public void testAReaderUnderTheSubjectLockNeverSeesHalfARefresh() throws Exception {
+        String ta = tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        String tb = tokenFor("s", JWT_ISSUER, inSeconds(2000), "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, ta);
+        java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicReference<String> torn = new AtomicReference<>();
+        Thread reader = new Thread(() -> {
+            while (!stop.get() && torn.get() == null) {
+                synchronized (subject) {
+                    Set<String> names = jwtNames(subject);
+                    Set<String> toks = tokens(subject);
+                    String want = toks.contains(ta) ? "group:a" : "group:b";
+                    if (toks.size() != 1 || names.size() != 2 || !names.contains(want))
+                        torn.set(names + " with " + toks.size() + " token(s)");
+                }
+            }
+        });
+        reader.start();
+        try {
+            for (int i = 0; i < 60 && torn.get() == null; i++) {
+                tokenEndpointResponse.set(i % 2 == 0 ? tb : ta);
+                m.refreshNow();
+            }
+        } finally {
+            stop.set(true);
+            reader.join();
+            tokenEndpointResponse.set(null);
+            m.logout();
+        }
+        assertNull("torn view: " + torn.get(), torn.get());
     }
 
     // -----------------------------------------------------------------------
