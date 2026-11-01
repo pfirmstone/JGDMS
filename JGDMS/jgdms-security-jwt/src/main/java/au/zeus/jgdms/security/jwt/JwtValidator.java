@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
+import net.jini.security.jwt.DefaultJwtVerifier;
+import net.jini.security.jwt.JwtVerificationException;
+import net.jini.security.jwt.VerifiedJwt;
 
 /**
  * Validates a compact-serialized JWT string (header.payload.signature).
@@ -89,11 +92,10 @@ final class JwtValidator {
     static final int MAX_TOKEN_LENGTH = 65_536;
 
     /**
-     * Maximum number of elements accepted from a JWT array claim (e.g. {@code groups}).
-     * Prevents memory exhaustion from a JWT carrying an unbounded list of groups,
-     * which would also create that many {@link net.jini.security.jwt.JwtPrincipal} objects in the Subject.
+     * Most principals one token may name; the value the server enforces, so
+     * a token the server would refuse fails the login instead.
      */
-    static final int MAX_GROUPS = 200;
+    static final int MAX_PRINCIPALS = DefaultJwtVerifier.DEFAULT_MAX_PRINCIPALS;
 
     private final JwksKeyCache keyCache;
     private final String expectedIssuer;
@@ -155,9 +157,17 @@ final class JwtValidator {
                             + parts.length);
 
         // ---- 1. Decode and parse header ----
-        Map<String, String> header = decodeJsonPart(parts[0], "header");
-        String alg = header.get("alg");
-        String kid = header.get("kid");
+        Map<String, Object> header = decodeJsonPart(parts[0], "header");
+        Object algObj = header.get("alg");
+        Object kidObj = header.get("kid");
+        if (algObj != null && !(algObj instanceof String))
+            throw new JwtValidationException("JWT header 'alg' is not a string");
+        if (kidObj != null && !(kidObj instanceof String))
+            throw new JwtValidationException("JWT header 'kid' is not a string");
+        if (header.containsKey("crit"))
+            throw new JwtValidationException("JWT crit header is not supported");
+        String alg = (String) algObj;
+        String kid = (String) kidObj;
 
         if (alg == null)
             throw new JwtValidationException("JWT header missing 'alg' field");
@@ -167,13 +177,12 @@ final class JwtValidator {
                             + "symmetric and unsigned algorithms are rejected");
         String jcaAlg = ALG_MAP.get(alg);
         if (jcaAlg == null)
-            throw new JwtValidationException("Unsupported JWT algorithm: " + alg);
+            throw new JwtValidationException("Unsupported JWT algorithm");
 
         // ---- 2. Look up public key ----
         PublicKey publicKey = resolveKey(kid);
         if (publicKey == null)
-            throw new JwtValidationException(
-                    "No public key found for kid=" + kid + " in JWKS cache");
+            throw new JwtValidationException("No public key found for the JWT key id");
 
         // ---- 3. Verify signature ----
         byte[] signingInput = (parts[0] + "." + parts[1]).getBytes(StandardCharsets.US_ASCII);
@@ -181,7 +190,7 @@ final class JwtValidator {
         try {
             signature = Base64.getUrlDecoder().decode(parts[2]);
         } catch (IllegalArgumentException e) {
-            throw new JwtValidationException("JWT signature is not valid Base64URL", e);
+            throw new JwtValidationException("JWT signature is not valid Base64URL");
         }
 
         boolean valid;
@@ -191,19 +200,28 @@ final class JwtValidator {
             sig.update(signingInput);
             valid = sig.verify(signature);
         } catch (Exception e) {
-            throw new JwtValidationException("JWT signature verification failed: " + e.getMessage(), e);
+            throw new JwtValidationException("JWT signature verification failed");
         }
         if (!valid)
             throw new JwtValidationException("JWT signature verification failed: signature mismatch");
 
         // ---- 4. Decode and parse payload ----
-        Map<String, String> payload = decodeJsonPart(parts[1], "payload");
+        Map<String, Object> payload = decodeJsonPart(parts[1], "payload");
 
-        // ---- 5. Validate standard claims ----
-        validateClaims(payload);
+        // ---- 5. Derive the identity exactly as the server does ----
+        VerifiedJwt identity;
+        try {
+            identity = DefaultJwtVerifier.identityFromClaims(payload, MAX_PRINCIPALS);
+        } catch (JwtVerificationException | RuntimeException e) {
+            // The message names a claim and never a value.
+            throw new JwtValidationException("JWT claims refused: " + e.getMessage());
+        }
 
-        // ---- 6. Build ParsedJwt ----
-        return buildParsedJwt(payload);
+        // ---- 6. Validate time, issuer and audience ----
+        validateClaims(identity);
+
+        // ---- 7. Build ParsedJwt ----
+        return buildParsedJwt(payload, identity);
     }
 
     // -----------------------------------------------------------------
@@ -221,216 +239,74 @@ final class JwtValidator {
         return key;
     }
 
-    private void validateClaims(Map<String, String> payload) throws JwtValidationException {
-        // Validate exp
-        String expStr = payload.get("exp");
-        if (expStr != null) {
-            try {
-                long expEpoch = Long.parseLong(expStr);
-                Instant exp = Instant.ofEpochSecond(expEpoch);
-                if (Instant.now().isAfter(exp.plusSeconds(CLOCK_SKEW_SECONDS))) {
-                    throw new JwtValidationException(
-                            "JWT has expired at " + exp + " (clock skew tolerance: "
-                                    + CLOCK_SKEW_SECONDS + "s)");
-                }
-            } catch (NumberFormatException e) {
-                throw new JwtValidationException("JWT 'exp' claim is not a valid number: " + expStr, e);
-            }
-        }
-
-        // Validate iss
-        String iss = payload.get("iss");
-        if (!expectedIssuer.equals(iss))
+    private void validateClaims(VerifiedJwt identity) throws JwtValidationException {
+        Instant exp = identity.getExpiry();
+        if (Instant.now().isAfter(exp.plusSeconds(CLOCK_SKEW_SECONDS))) {
             throw new JwtValidationException(
-                    "JWT issuer mismatch: expected '" + expectedIssuer + "', got '" + iss + "'");
-
-        // Validate aud (if configured)
-        if (expectedAudience != null) {
-            String aud = payload.get("aud");
-            if (aud == null || !aud.contains(expectedAudience))
-                throw new JwtValidationException(
-                        "JWT audience mismatch: expected '" + expectedAudience
-                                + "', got '" + aud + "'");
+                    "JWT has expired at " + exp + " (clock skew tolerance: "
+                            + CLOCK_SKEW_SECONDS + "s)");
         }
+
+        if (!expectedIssuer.equals(identity.getIssuer()))
+            throw new JwtValidationException(
+                    "JWT issuer mismatch: expected '" + expectedIssuer + "'");
+
+        // aud is a string or an array of strings; the element must match exactly.
+        if (expectedAudience != null && !identity.getAudience().contains(expectedAudience))
+            throw new JwtValidationException(
+                    "JWT audience mismatch: expected '" + expectedAudience + "'");
     }
 
-    private ParsedJwt buildParsedJwt(Map<String, String> payload) {
-        String subject = payload.get("sub");
-        String email   = payload.get("email");
-
-        // Parse groups array from the raw payload string (stored with special marker)
-        List<String> groups = parseGroups(payload.get("__groups__"));
-
-        // Build allClaims map from well-known + additional claims
+    private ParsedJwt buildParsedJwt(Map<String, Object> payload, VerifiedJwt identity) {
         Map<String, String> allClaims = new HashMap<>();
         for (String key : WELL_KNOWN_CLAIMS) {
-            String val = payload.get(key);
+            String val = scalar(payload.get(key));
             if (val != null) allClaims.put(key, val);
         }
         for (String extra : additionalClaimNames) {
-            String val = payload.get(extra);
+            String val = scalar(payload.get(extra));
             if (val != null) allClaims.put(extra, val);
         }
-        return new ParsedJwt(subject, email, groups, allClaims);
+        // exp as the server reads it (floored), so a fractional exp still parses.
+        allClaims.put("exp", Long.toString(identity.getExpiry().getEpochSecond()));
+        return new ParsedJwt(identity.getSubject(), identity.getEmail(),
+                identity.getGroups(), allClaims, identity.getPrincipals());
     }
 
-    private static List<String> parseGroups(String groupsMarker) {
-        if (groupsMarker == null || groupsMarker.isEmpty()) return Collections.emptyList();
-        // groupsMarker is a comma-separated list built by decodeJsonPart
-        List<String> result = new ArrayList<>();
-        for (String g : groupsMarker.split(",", -1)) {
-            if (!g.isEmpty()) result.add(g);
-        }
-        return result;
-    }
-
-    /**
-     * Base64URL-decodes a JWT part and parses it as a flat JSON object.
-     * Array fields named {@code groups} or {@code aud} are concatenated with
-     * commas and stored as strings.  The {@code groups} value is stored under
-     * the key {@code "__groups__"} to distinguish it from a string-valued claim.
-     */
-    private static Map<String, String> decodeJsonPart(String b64url, String partName)
-            throws JwtValidationException {
-        byte[] decoded;
-        try {
-            decoded = Base64.getUrlDecoder().decode(b64url);
-        } catch (IllegalArgumentException e) {
-            throw new JwtValidationException(
-                    "JWT " + partName + " is not valid Base64URL", e);
-        }
-        String json = new String(decoded, StandardCharsets.UTF_8);
-        try {
-            return parseClaimsJson(json);
-        } catch (Exception e) {
-            throw new JwtValidationException(
-                    "Failed to parse JWT " + partName + " JSON: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Parses a flat JWT claims / header JSON object into a string map.
-     * Numeric values are kept as their raw decimal string representation.
-     * The {@code groups} array is stored as a comma-joined string under
-     * {@code "__groups__"}; the {@code aud} array is stored as a
-     * comma-joined string under {@code "aud"}.
-     */
-    static Map<String, String> parseClaimsJson(String json) {
-        Map<String, String> result = new HashMap<>();
-        if (json == null || json.isEmpty()) return result;
-
-        int[] pos = {0};
-        JwksKeyCache.skipWhitespace(json, pos);
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '{') return result;
-        pos[0]++; // consume '{'
-
-        while (pos[0] < json.length()) {
-            JwksKeyCache.skipWhitespace(json, pos);
-            if (pos[0] >= json.length()) break;
-            char c = json.charAt(pos[0]);
-            if (c == '}') break;
-            if (c == ',') { pos[0]++; continue; }
-
-            String key = JwksKeyCache.readString(json, pos);
-            if (key == null) break;
-            JwksKeyCache.skipWhitespace(json, pos);
-            if (pos[0] >= json.length() || json.charAt(pos[0]) != ':') break;
-            pos[0]++; // consume ':'
-            JwksKeyCache.skipWhitespace(json, pos);
-
-            if (pos[0] >= json.length()) break;
-            char v = json.charAt(pos[0]);
-
-            if (v == '"') {
-                String value = JwksKeyCache.readString(json, pos);
-                if (value != null) result.put(key, value);
-            } else if (v == '[') {
-                // Array: collect string elements, join with comma
-                String joined = readStringArray(json, pos);
-                String storeKey = "groups".equals(key) ? "__groups__" : key;
-                result.put(storeKey, joined);
-            } else {
-                // Number, boolean, null, nested object
-                String raw = readRawScalar(json, pos);
-                if (raw != null) result.put(key, raw);
-            }
-        }
-        return result;
-    }
-
-    /** Reads a JSON array of strings/numbers and returns them joined by commas. */
-    private static String readStringArray(String json, int[] pos) {
-        if (pos[0] >= json.length() || json.charAt(pos[0]) != '[') return "";
-        pos[0]++; // consume '['
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
-        int count = 0;
-        while (pos[0] < json.length()) {
-            JwksKeyCache.skipWhitespace(json, pos);
-            if (pos[0] >= json.length()) break;
-            char c = json.charAt(pos[0]);
-            if (c == ']') { pos[0]++; break; }
-            if (c == ',') { pos[0]++; continue; }
-            if (count >= MAX_GROUPS) {
-                // Limit reached — skip remaining elements to the closing ']'.
-                // Track depth so nested '[' or '{' inside any remaining element
-                // values do not cause premature termination.
-                int depth = 1; // we are inside the outer '['
-                while (pos[0] < json.length() && depth > 0) {
-                    char s = json.charAt(pos[0]);
-                    if (s == '"') {
-                        JwksKeyCache.readString(json, pos); // skip quoted value
-                    } else {
-                        pos[0]++;
-                        if (s == '[' || s == '{') depth++;
-                        else if (s == ']') { if (--depth == 0) break; }
-                        else if (s == '}') depth--;
-                    }
-                }
-                LOG.warning("JWT array claim exceeds maximum of " + MAX_GROUPS
-                        + " elements; truncating");
-                break;
-            }
-            String item;
-            if (c == '"') {
-                item = JwksKeyCache.readString(json, pos);
-            } else {
-                item = readRawScalar(json, pos);
-            }
-            if (item != null) {
-                if (!first) sb.append(',');
-                sb.append(item);
-                first = false;
-                count++;
-            }
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Reads a raw scalar JSON value (number, boolean, null) stopping before
-     * {@code ,}, {@code ]}, or {@code }}.
-     */
-    private static String readRawScalar(String json, int[] pos) {
-        int start = pos[0];
-        while (pos[0] < json.length()) {
-            char d = json.charAt(pos[0]);
-            if (d == ',' || d == '}' || d == ']' || d == ' ' || d == '\t'
-                    || d == '\r' || d == '\n') break;
-            pos[0]++;
-        }
-        if (pos[0] > start) return json.substring(start, pos[0]);
-        // Skip unexpected tokens
-        pos[0]++;
+    /** A top-level string, number or boolean as text; arrays and objects are not claims here. */
+    private static String scalar(Object v) {
+        if (v instanceof String || v instanceof Boolean) return v.toString();
+        if (v instanceof BigDecimal) return ((BigDecimal) v).toPlainString();
         return null;
     }
 
-    // Package-private accessors for package-level helpers used in parseClaimsJson
-    static void skipWhitespace(String json, int[] pos) {
-        JwksKeyCache.skipWhitespace(json, pos);
+    /**
+     * Base64URL-decodes a JWT part and parses it with the server's strict
+     * RFC 8259 parser; only the top-level members are returned.  The failure
+     * message carries nothing from the token.
+     */
+    private static Map<String, Object> decodeJsonPart(String b64url, String partName)
+            throws JwtValidationException {
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(b64url);
+            return DefaultJwtVerifier.parseObject(new String(decoded, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException e) {
+            throw new JwtValidationException("JWT " + partName + " is not a valid JSON object");
+        }
     }
 
-    static String readString(String json, int[] pos) {
-        return JwksKeyCache.readString(json, pos);
+    /**
+     * Parses an OAuth2 token endpoint response with the same strict parser
+     * and returns its top-level string, number and boolean members as text.
+     *
+     * @throws IllegalArgumentException if {@code json} is not one JSON object
+     */
+    static Map<String, String> parseTokenResponse(String json) {
+        Map<String, String> out = new HashMap<>();
+        for (Map.Entry<String, Object> e : DefaultJwtVerifier.parseObject(json).entrySet()) {
+            String v = scalar(e.getValue());
+            if (v != null) out.put(e.getKey(), v);
+        }
+        return out;
     }
 }

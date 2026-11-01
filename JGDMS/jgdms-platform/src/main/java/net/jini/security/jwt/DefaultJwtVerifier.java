@@ -384,6 +384,33 @@ public final class DefaultJwtVerifier implements JwtVerifier {
         if (algorithm == null) {
             return VerifiedJwt.unauthenticated(sub, iss, aud, exp);
         }
+        return identityFromClaims(payload, maxPrincipals);
+    }
+
+    /**
+     * The one mapping from the top-level members of an authenticated payload
+     * to a {@link VerifiedJwt}; the server verifier and the client login
+     * module both call it, so what a client sends is what the server derives.
+     * It checks only the shape of {@code exp}, {@code iss}, {@code aud},
+     * {@code sub}, {@code email}, {@code email_verified} and {@code groups};
+     * the caller checks signature, time and expected issuer/audience.
+     *
+     * @param payload       the map returned by {@link #parseObject}
+     * @param maxPrincipals the most principals the token may name
+     * @return the claims and the principals derived from them
+     * @throws JwtVerificationException if a claim has the wrong type, is
+     *         empty, or the token names more than {@code maxPrincipals}
+     */
+    public static VerifiedJwt identityFromClaims(Map<String, Object> payload, int maxPrincipals)
+            throws JwtVerificationException {
+        if (maxPrincipals <= 0)
+            throw new IllegalArgumentException("maxPrincipals must be positive");
+        Instant exp = timeClaim(payload, "exp", true);
+        String iss = stringClaim(payload, "iss");
+        List<String> aud = audienceClaim(payload);
+        String sub = stringClaim(payload, "sub");
+        if (sub != null && sub.isEmpty())
+            throw new JwtVerificationException("JWT 'sub' claim is empty");
         String email = stringClaim(payload, "email");
         if (email != null && email.isEmpty())
             throw new JwtVerificationException("JWT 'email' claim is empty");
@@ -474,7 +501,7 @@ public final class DefaultJwtVerifier implements JwtVerifier {
      *
      * @throws IllegalArgumentException if the text is not one JSON object
      */
-    static Map<String, Object> parseObject(String json) {
+    public static Map<String, Object> parseObject(String json) {
         int[] pos = {0};
         skipWhitespace(json, pos);
         Object v = parseValue(json, pos, 0);

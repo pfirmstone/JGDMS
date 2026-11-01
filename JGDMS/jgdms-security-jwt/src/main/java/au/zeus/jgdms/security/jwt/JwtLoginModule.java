@@ -27,6 +27,7 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Principal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -81,8 +82,13 @@ import net.jini.security.jwt.JwtPrincipal;
  * <h2>Subject population</h2>
  * On successful commit, the following are added to the {@link Subject}:
  * <ul>
- *   <li>One {@link JwtPrincipal} per claim: {@code sub}, {@code email}, and
- *       each element of the {@code groups} array.</li>
+ *   <li>The {@link JwtPrincipal}s the server derives from the same token
+ *       (see {@code VerifiedJwt#derivePrincipals}): {@code sub:}, {@code email:}
+ *       <em>only if</em> the token has {@code email_verified} equal to JSON
+ *       {@code true}, and one {@code group:} per element of {@code groups}.  A
+ *       token the server would refuse (empty {@code sub}, {@code email} or
+ *       group, a non-string group, or more than 64 principals) fails the
+ *       login.</li>
  *   <li>One {@link JwtExpiryClaim} public credential recording the token
  *       expiry instant.</li>
  * </ul>
@@ -213,12 +219,7 @@ public final class JwtLoginModule implements LoginModule {
         addedPrincipals.clear();
         addedCredentials.clear();
 
-        if (parsedJwt.subject() != null)
-            addedPrincipals.add(new JwtPrincipal("sub:" + parsedJwt.subject()));
-        if (parsedJwt.email() != null)
-            addedPrincipals.add(new JwtPrincipal("email:" + parsedJwt.email()));
-        for (String group : parsedJwt.groups())
-            addedPrincipals.add(new JwtPrincipal("group:" + group));
+        addJwtPrincipals(addedPrincipals, parsedJwt);
 
         // --- Public credentials ---
         Instant expiry = tokenExpiry != null ? tokenExpiry : Instant.now().plusSeconds(3600);
@@ -289,6 +290,10 @@ public final class JwtLoginModule implements LoginModule {
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    private static void addJwtPrincipals(List<JwtPrincipal> out, ParsedJwt parsed) {
+        for (Principal p : parsed.principals()) out.add((JwtPrincipal) p);
+    }
 
     private String requireOption(String name) throws LoginException {
         Object val = options.get(name);
@@ -488,16 +493,20 @@ public final class JwtLoginModule implements LoginModule {
                 // Check for invalid_grant error (permanent failure)
                 if (responseBody.contains("\"invalid_grant\""))
                     return false; // fatal — refresh token revoked
-                throw new FatalRefreshException(
-                        "Token endpoint returned HTTP 400: " + responseBody);
+                throw new FatalRefreshException("Token endpoint returned HTTP 400");
             }
             if (status != 200) {
-                throw new Exception("Token endpoint returned HTTP " + status
-                        + ": " + responseBody);
+                throw new Exception("Token endpoint returned HTTP " + status);
             }
 
             // Parse response JSON for access_token, refresh_token, expires_in
-            Map<String, String> tokenResponse = JwtValidator.parseClaimsJson(responseBody);
+            Map<String, String> tokenResponse;
+            try {
+                tokenResponse = JwtValidator.parseTokenResponse(responseBody);
+            } catch (IllegalArgumentException e) {
+                // The body holds the new tokens; say nothing about its content.
+                throw new Exception("Token endpoint response is not a valid JSON object");
+            }
             String newAccessToken = tokenResponse.get("access_token");
             if (newAccessToken == null || newAccessToken.isBlank())
                 throw new Exception("Token endpoint response missing 'access_token'");
@@ -533,12 +542,7 @@ public final class JwtLoginModule implements LoginModule {
 
             // Replace JwtPrincipals
             subject.getPrincipals().removeIf(p -> p instanceof JwtPrincipal);
-            if (newParsed.subject() != null)
-                subject.getPrincipals().add(new JwtPrincipal("sub:" + newParsed.subject()));
-            if (newParsed.email() != null)
-                subject.getPrincipals().add(new JwtPrincipal("email:" + newParsed.email()));
-            for (String group : newParsed.groups())
-                subject.getPrincipals().add(new JwtPrincipal("group:" + group));
+            subject.getPrincipals().addAll(newParsed.principals());
         }
 
         private static String urlEncode(String value) {

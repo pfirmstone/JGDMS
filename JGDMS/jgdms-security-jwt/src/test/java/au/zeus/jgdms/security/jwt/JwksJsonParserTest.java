@@ -102,69 +102,39 @@ public class JwksJsonParserTest {
     }
 
     // -----------------------------------------------------------------------
-    // JwtValidator.parseClaimsJson — claims parsing
+    // JwtValidator.parseTokenResponse — the strict server parser, top level only
     // -----------------------------------------------------------------------
 
     @Test
-    public void parseClaimsBasic() {
-        String json = "{\"iss\":\"https://example.org\",\"sub\":\"alice\","
-                + "\"exp\":9999999999,\"iat\":1700000000}";
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json);
-        assertEquals("https://example.org", claims.get("iss"));
-        assertEquals("alice", claims.get("sub"));
-        assertEquals("9999999999", claims.get("exp"));
-        assertEquals("1700000000", claims.get("iat"));
+    public void tokenResponseTopLevelScalarsAsText() {
+        Map<String, String> m = JwtValidator.parseTokenResponse(
+                "{\"access_token\":\"a.b.c\",\"expires_in\":3600,\"flag\":true}");
+        assertEquals("a.b.c", m.get("access_token"));
+        assertEquals("3600", m.get("expires_in"));
+        assertEquals("true", m.get("flag"));
     }
 
     @Test
-    public void parseClaimsGroupsArray() {
-        String json = "{\"sub\":\"alice\",\"groups\":[\"admins\",\"users\"]}";
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json);
-        // groups stored under __groups__
-        String groups = claims.get("__groups__");
-        assertNotNull("Expected __groups__ key", groups);
-        assertTrue(groups.contains("admins"));
-        assertTrue(groups.contains("users"));
+    public void tokenResponseNestedMembersAreNotLifted() {
+        Map<String, String> m = JwtValidator.parseTokenResponse(
+                "{\"meta\":{\"access_token\":\"evil\"},\"list\":[\"x\"]}");
+        assertNull(m.get("access_token"));
+        assertNull(m.get("meta"));
+        assertNull(m.get("list"));
     }
 
     @Test
-    public void parseClaimsAudArray() {
-        String json = "{\"aud\":[\"service-a\",\"service-b\"],\"sub\":\"bob\"}";
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json);
-        String aud = claims.get("aud");
-        assertNotNull(aud);
-        assertTrue(aud.contains("service-a"));
-        assertTrue(aud.contains("service-b"));
-    }
-
-    @Test
-    public void parseClaimsAudString() {
-        String json = "{\"aud\":\"service-a\",\"sub\":\"bob\"}";
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json);
-        assertEquals("service-a", claims.get("aud"));
-    }
-
-    @Test
-    public void parseClaimsBooleanField() {
-        // Some JWTs include boolean claims — they should be stored as strings
-        String json = "{\"sub\":\"alice\",\"email_verified\":true}";
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json);
-        assertEquals("alice", claims.get("sub"));
-        assertEquals("true", claims.get("email_verified"));
-    }
-
-    @Test
-    public void parseClaimsEmptyObject() {
-        Map<String, String> claims = JwtValidator.parseClaimsJson("{}");
-        assertNotNull(claims);
-        assertTrue(claims.isEmpty());
-    }
-
-    @Test
-    public void parseClaimsNullReturnsEmpty() {
-        Map<String, String> claims = JwtValidator.parseClaimsJson(null);
-        assertNotNull(claims);
-        assertTrue(claims.isEmpty());
+    public void tokenResponseRefusesWhatTheServerParserRefuses() {
+        String[] bad = {"", "[]", "{\"a\":01}", "{\"a\":+1}", "{\"a\":1,\"a\":2}",
+                "{\"a\":1} x", "{\"a\":\"\\u+041\"}", "{\"a\":1,}"};
+        for (String json : bad) {
+            try {
+                JwtValidator.parseTokenResponse(json);
+                fail("accepted: " + json);
+            } catch (IllegalArgumentException expected) {
+                // refused
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -240,28 +210,6 @@ public class JwksJsonParserTest {
         List<Map<String, String>> keys = JwksKeyCache.parseJwksJson(json.toString());
         assertEquals("Should be capped at MAX_JWKS_KEYS",
                 JwksKeyCache.MAX_JWKS_KEYS, keys.size());
-    }
-
-    /**
-     * parseClaimsJson() must truncate a groups array that exceeds
-     * {@link JwtValidator#MAX_GROUPS} elements.
-     */
-    @Test
-    public void parseClaimsJsonTruncatesLargeGroupsArray() {
-        int groupCount = JwtValidator.MAX_GROUPS + 20;
-        StringBuilder json = new StringBuilder("{\"sub\":\"alice\",\"groups\":[");
-        for (int i = 0; i < groupCount; i++) {
-            if (i > 0) json.append(',');
-            json.append("\"group").append(i).append('"');
-        }
-        json.append("]}");
-        Map<String, String> claims = JwtValidator.parseClaimsJson(json.toString());
-        // Groups are stored comma-joined under __groups__
-        String groups = claims.get("__groups__");
-        assertNotNull("Expected __groups__ key", groups);
-        long count = groups.chars().filter(c -> c == ',').count() + 1;
-        assertTrue("Group count should be capped at MAX_GROUPS",
-                count <= JwtValidator.MAX_GROUPS);
     }
 
     /**

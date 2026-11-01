@@ -251,8 +251,9 @@ public class JwtLoginModuleTest {
 
     @Test
     public void testValidJwtPopulatesEmailPrincipal() throws Exception {
-        String token = buildJwt(jwtSigningKeyPair.getPrivate(), JWT_KID,
-                JWT_ISSUER, JWT_SUBJECT, JWT_EMAIL, 3600);
+        String token = signPayload(JWT_KID, payloadJson(
+                "\"sub\":\"" + JWT_SUBJECT + "\",\"email\":\"" + JWT_EMAIL
+                + "\",\"email_verified\":true"));
         Subject subject = new Subject();
         loginAndCommit(subject, jwksUri(), JWT_ISSUER, null, token);
 
@@ -508,6 +509,194 @@ public class JwtLoginModuleTest {
                     subject.getPrincipals(JwtPrincipal.class).isEmpty());
         } finally {
             tokenEndpointResponse.set(null);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Client principals equal what the server derives; strict claims parsing
+    // -----------------------------------------------------------------------
+
+    private static final String AUD = "svc-a";
+
+    /** Payload with iss, aud "svc-a" (unless {@code extra} sets aud) and a valid exp. */
+    private static String payloadJson(String extra) {
+        long exp = Instant.now().getEpochSecond() + 3600;
+        return "{\"iss\":\"" + JWT_ISSUER + "\",\"exp\":" + exp
+                + (extra.contains("\"aud\"") ? "" : ",\"aud\":\"" + AUD + "\"")
+                + (extra.isEmpty() ? "" : "," + extra) + "}";
+    }
+
+    private static String signPayload(String kid, String payload) throws Exception {
+        String headerPart  = base64UrlEncode("{\"alg\":\"RS256\",\"kid\":\"" + kid + "\"}");
+        String sigInput = headerPart + "." + base64UrlEncode(payload);
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initSign(jwtSigningKeyPair.getPrivate());
+        sig.update(sigInput.getBytes(StandardCharsets.US_ASCII));
+        return sigInput + "." + base64UrlEncode(sig.sign());
+    }
+
+    private static String groupsJson(int n, String prefix) {
+        StringBuilder b = new StringBuilder("\"groups\":[");
+        for (int i = 0; i < n; i++) b.append(i > 0 ? "," : "").append("\"").append(prefix).append(i).append("\"");
+        return b.append(']').toString();
+    }
+
+    /** Names of the JwtPrincipals a login of {@code token} puts in the Subject; LoginException if refused. */
+    private static Set<String> clientPrincipals(String token) throws LoginException {
+        Subject subject = new Subject();
+        loginAndCommit(subject, jwksUri(), JWT_ISSUER, AUD, token);
+        Set<String> out = new java.util.TreeSet<>();
+        for (JwtPrincipal p : subject.getPrincipals(JwtPrincipal.class)) out.add(p.getName());
+        return out;
+    }
+
+    /** Names the server verifier derives from {@code token}; null if it refuses. */
+    private static Set<String> serverPrincipals(String token) {
+        try {
+            net.jini.security.jwt.DefaultJwtVerifier v = new net.jini.security.jwt.DefaultJwtVerifier(
+                    JWT_ISSUER, AUD, "RS256", Map.of(JWT_KID, jwtSigningKeyPair.getPublic()));
+            Set<String> out = new java.util.TreeSet<>();
+            for (java.security.Principal p : v.verify(token).getPrincipals()) out.add(p.getName());
+            return out;
+        } catch (net.jini.security.jwt.JwtVerificationException e) {
+            return null;
+        }
+    }
+
+    private static void assertSameAsServer(String label, String payload) throws Exception {
+        String token = signPayload(JWT_KID, payload);
+        Set<String> server = serverPrincipals(token);
+        Set<String> client;
+        try {
+            client = clientPrincipals(token);
+        } catch (LoginException e) {
+            client = null;
+        }
+        assertEquals(label + ": client " + client + " vs server " + server, server, client);
+    }
+
+    @Test
+    public void testEmailPrincipalOnlyWhenEmailVerifiedIsJsonTrue() throws Exception {
+        String e = "\"sub\":\"s\",\"email\":\"a@b.c\"";
+        assertFalse(clientPrincipals(signPayload(JWT_KID, payloadJson(e + ",\"email_verified\":false")))
+                .contains("email:a@b.c"));
+        assertFalse(clientPrincipals(signPayload(JWT_KID, payloadJson(e))).contains("email:a@b.c"));
+        assertFalse(clientPrincipals(signPayload(JWT_KID, payloadJson(e + ",\"email_verified\":\"true\"")))
+                .contains("email:a@b.c"));
+        assertTrue(clientPrincipals(signPayload(JWT_KID, payloadJson(e + ",\"email_verified\":true")))
+                .contains("email:a@b.c"));
+    }
+
+    @Test
+    public void testClientPrincipalsEqualServerDerivedSet() throws Exception {
+        String[][] table = {
+            {"verified email + groups", "\"sub\":\"s\",\"email\":\"a@b.c\",\"email_verified\":true,\"groups\":[\"g1\",\"g2\"]"},
+            {"unverified email", "\"sub\":\"s\",\"email\":\"a@b.c\",\"email_verified\":false"},
+            {"email_verified absent", "\"sub\":\"s\",\"email\":\"a@b.c\""},
+            {"email_verified string", "\"sub\":\"s\",\"email\":\"a@b.c\",\"email_verified\":\"true\""},
+            {"email_verified 1", "\"sub\":\"s\",\"email\":\"a@b.c\",\"email_verified\":1"},
+            {"no sub", "\"groups\":[\"g\"]"},
+            {"empty sub", "\"sub\":\"\",\"groups\":[\"g\"]"},
+            {"empty group", "\"sub\":\"s\",\"groups\":[\"\"]"},
+            {"empty email", "\"sub\":\"s\",\"email\":\"\",\"email_verified\":true"},
+            {"duplicate groups", "\"sub\":\"s\",\"groups\":[\"g\",\"g\"]"},
+            {"non-string group", "\"sub\":\"s\",\"groups\":[\"g\",1]"},
+            {"groups not array", "\"sub\":\"s\",\"groups\":\"g\""},
+            {"63 groups + sub", "\"sub\":\"s\"," + groupsJson(63, "g")},
+            {"64 groups + sub (65)", "\"sub\":\"s\"," + groupsJson(64, "g")},
+            {"64 groups no sub", groupsJson(64, "g")},
+            {"65 groups no sub", groupsJson(65, "g")},
+            {"aud array with match", "\"aud\":[\"x\",\"svc-a\"],\"sub\":\"s\""},
+            {"aud comma flaw array", "\"aud\":[\"evil,svc-a\"],\"sub\":\"s\""},
+            {"aud comma flaw string", "\"aud\":\"evil,svc-a\",\"sub\":\"s\""},
+            {"nested sub not lifted", "\"x\":{\"sub\":\"evil\",\"groups\":[\"root\"]}"},
+            {"duplicate member", "\"sub\":\"a\",\"sub\":\"b\""},
+        };
+        for (String[] row : table) assertSameAsServer(row[0], payloadJson(row[1]));
+    }
+
+    @Test
+    public void testNestedClaimsAreNotLiftedToTheTopLevel() throws Exception {
+        long exp = Instant.now().getEpochSecond() + 3600;
+        // no top-level exp: the nested one must not stand in for it
+        String noExp = "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"svc-a\",\"x\":{\"exp\":" + exp + "}}";
+        try {
+            clientPrincipals(signPayload(JWT_KID, noExp));
+            fail("nested exp was lifted");
+        } catch (LoginException expected) { }
+        // wrong top-level aud: the nested one must not satisfy the check
+        try {
+            clientPrincipals(signPayload(JWT_KID, payloadJson("\"aud\":\"other\",\"x\":{\"aud\":\"svc-a\"}")));
+            fail("nested aud was lifted");
+        } catch (LoginException expected) { }
+        // a nested sub gives no principal
+        assertTrue(clientPrincipals(signPayload(JWT_KID, payloadJson("\"x\":{\"sub\":\"evil\"}"))).isEmpty());
+    }
+
+    @Test
+    public void testAudienceIsAnExactElementNotASubstring() throws Exception {
+        for (String aud : new String[] {"\"evil,svc-a\"", "[\"evil,svc-a\"]", "\"xsvc-ay\"", "[\"svc-ab\"]"}) {
+            try {
+                clientPrincipals(signPayload(JWT_KID, payloadJson("\"aud\":" + aud)));
+                fail("audience accepted: " + aud);
+            } catch (LoginException expected) { }
+        }
+        clientPrincipals(signPayload(JWT_KID, payloadJson("\"aud\":[\"a\",\"svc-a\"]")));
+    }
+
+    @Test
+    public void testSixtyFiveGroupsFailsTheLogin() throws Exception {
+        try {
+            clientPrincipals(signPayload(JWT_KID, payloadJson(groupsJson(65, "g"))));
+            fail("65 groups accepted");
+        } catch (LoginException expected) { }
+        assertEquals(64, clientPrincipals(signPayload(JWT_KID, payloadJson(groupsJson(64, "g")))).size());
+    }
+
+    @Test
+    public void testEmptySubFailsTheLogin() throws Exception {
+        try {
+            clientPrincipals(signPayload(JWT_KID, payloadJson("\"sub\":\"\"")));
+            fail("empty sub accepted");
+        } catch (LoginException expected) { }
+    }
+
+    @Test
+    public void testFailedLoginMessageHasNoTokenFragment() throws Exception {
+        long exp = Instant.now().getEpochSecond() + 3600;
+        String hdr = "\"alg\":\"RS256\"";
+        String[] tokens = {
+            // too many principals, marker in sub
+            signPayload(JWT_KID, payloadJson("\"sub\":\"sub-leak-marker\"," + groupsJson(70, "grp-leak-marker"))),
+            // issuer mismatch with a marker issuer
+            signPayload(JWT_KID, "{\"iss\":\"iss-leak-marker\",\"exp\":" + exp + ",\"aud\":\"svc-a\"}"),
+            // audience mismatch with a marker audience
+            signPayload(JWT_KID, payloadJson("\"aud\":\"aud-leak-marker\"")),
+            // unknown key id carrying a marker
+            signPayload("kid-leak-marker", payloadJson("")),
+            // payload that is not a JSON object, marker inside
+            signPayload(JWT_KID, "[\"json-leak-marker\"]"),
+            // duplicate member name, marker as the name
+            signPayload(JWT_KID, "{\"dup-leak-marker\":1,\"dup-leak-marker\":2}"),
+            // expired
+            signPayload(JWT_KID, "{\"iss\":\"" + JWT_ISSUER + "\",\"exp\":1,\"sub\":\"exp-leak-marker\"}"),
+            // signature that does not verify
+            signPayload(JWT_KID, payloadJson("\"sub\":\"sig-leak-marker\"")).replaceAll("\\.[^.]*$", ".AAAA"),
+        };
+        for (String token : tokens) {
+            String[] parts = token.split("\\.", -1);
+            try {
+                clientPrincipals(token);
+                fail("token was accepted");
+            } catch (LoginException e) {
+                StringBuilder all = new StringBuilder();
+                for (Throwable t = e; t != null; t = t.getCause()) all.append(t.getMessage()).append('\n');
+                String msg = all.toString();
+                assertFalse("token in message", msg.contains(token));
+                for (String part : parts)
+                    if (part.length() > 3) assertFalse("token segment in message: " + msg, msg.contains(part));
+                assertFalse("claim value in message: " + msg, msg.contains("leak-marker"));
+            }
         }
     }
 
