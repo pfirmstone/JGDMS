@@ -786,6 +786,10 @@ public final class PermissionSets {
                     || f.segments.get(0).equalsIgnoreCase("Users"))) {
                 return "[H]the whole of the directory holding every user home";
             }
+            // operator ruling 2026-11-03: the root user's home is a whole tree of credentials and keys
+            if (f.segments.size() == 1 && f.segments.get(0).equalsIgnoreCase("root")) {
+                return "[H]the whole of the root user's home";
+            }
         }
         List<String[]> dirs = new ArrayList<String[]>();
         dirs.add(new String[]{"the user home", property(env, "user.home")});

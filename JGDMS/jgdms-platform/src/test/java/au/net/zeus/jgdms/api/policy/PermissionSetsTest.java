@@ -421,6 +421,12 @@ public class PermissionSetsTest {
         for (String n : new String[]{"/home/-", "/Users/-", "C:\\Users\\-"}) {
             assertEquals(n, h, sev(f, n, "read"));
         }
+        // the root user's home, on every platform
+        for (String n : new String[]{"/root/-", "/Root/-"}) {
+            assertEquals(n, h, sev(f, n, "read"));
+        }
+        // a named directory below it stays clean
+        assertEquals(0, sev(f, "/root/work/-", "read"));
         assertEquals(h, sev(f, "<<ALL FILES>>", "read"));
         assertEquals(h, sev(f, "<<ALL FILES>>", "read,readlink"));
         assertEquals(h, sev(f, "<<ALL FILES>>", "readlink,read"));
