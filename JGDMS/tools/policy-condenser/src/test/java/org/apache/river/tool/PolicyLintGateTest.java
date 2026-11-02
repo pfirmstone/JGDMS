@@ -541,6 +541,115 @@ public class PolicyLintGateTest {
         assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/" + bs + bs + "opt" + bs + "app" + bs + "-"));
     }
 
+    // Opus review 2026-11-02, finding 1.  After localhost only one slash may follow, and the path
+    // part of a file: URL is percent-decoded (%2F and %5C are separators) before the slash rule is
+    // applied; a malformed escape fails closed.  Every row is (codeBase, kind).
+    private static void table(Object[][] rows) {
+        for (Object[] r : rows) {
+            assertEquals((String) r[0], r[1], kindOf((String) r[0]));
+        }
+    }
+
+    @Test
+    public void localhostIsLocalOnlyBeforeASinglePathSlash() {
+        PolicyScope.Kind loc = PolicyScope.Kind.FILE_PINNED;
+        PolicyScope.Kind rem = PolicyScope.Kind.REMOTE_WILD;
+        String b = "\\";
+        table(new Object[][]{
+            {"file://localhost/opt/app/-", loc},
+            {"file://LOCALHOST/opt/app/-", loc},
+            {"file://localhost/localhost/share/-", loc},
+            {"jar:file://localhost/opt/app/a.jar!/", loc},
+            {"file://localhost//host/share/-", rem},
+            {"file://localhost///host/share/-", rem},
+            {"file://localhost////host/share/-", rem},
+            {"file://localhost/" + b + b + "host" + b + "share/-", rem},
+            {"file://localhost" + b + b + "host" + b + "share/-", rem},
+            {"file://localhost" + b + b + b + b + "host" + b + "share/-", rem},
+            {"file://localhost/" + b + "host/share/-", rem},
+            {"jar:file://localhost///host/share/a.jar!/", rem},
+            {"jar:file://localhost/" + b + b + "host" + b + "share/a.jar!/", rem},
+            {"jar:file://localhost//host/share/a.jar!/", rem},
+            {"file://localhost:80/opt/-", rem},
+            {"file://LocalHost./opt/-", rem},
+            {"file://%6Cocalhost/opt/-", rem},
+        });
+    }
+
+    @Test
+    public void percentEncodedSeparatorsAreDecodedBeforeTheSlashRule() {
+        PolicyScope.Kind rem = PolicyScope.Kind.REMOTE_WILD;
+        table(new Object[][]{
+            {"file:/%2F%2Fhost/share/-", rem},
+            {"file:/%2Fhost/share/-", rem},
+            {"file:///%2Fhost/share/-", rem},
+            {"file:/%5C%5Chost/share/-", rem},
+            {"file:/%5Chost/share/-", rem},
+            {"file:%2F%2Fhost/share/-", rem},
+            {"file:%5C%5Chost%5Cshare/-", rem},
+            {"file:/%2f%2fhost/share/-", rem},
+            {"file://localhost/%2Fhost/share/-", rem},
+            {"file://localhost/%5C%5Chost/share/-", rem},
+            {"jar:file:/%2F%2Fhost/share/a.jar!/", rem},
+            {"jar:file:/%5C%5Chost/share/a.jar!/", rem},
+            {"jar:file:///%2Fhost/share/a.jar!/", rem},
+            {"jar:jar:file:/%2F%2Fhost/share/a.jar!/b.jar!/", rem},
+        });
+    }
+
+    @Test
+    public void ordinaryEscapesAreDecidedAfterDecoding() {
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/opt/%61pp/-"));
+        assertEquals(kindOf("file:/C:/x/-"), kindOf("file:/%43:/x/-"));
+        assertEquals(kindOf("file:/A:/x/-"), kindOf("file:/%41:/x/-"));
+        assertEquals(kindOf("file:/opt/../x/-"), kindOf("file:/opt/%2e%2e/x/-"));
+        assertEquals(kindOf("file:/opt/%2E%2E/x/-"), kindOf("file:/opt/%2e%2e/x/-"));
+        assertEquals(kindOf("file:/opt/a b/-"), kindOf("file:/opt/a%20b/-"));
+        assertEquals(kindOf("file:/opt/\u00e9/-"), kindOf("file:/opt/%C3%A9/-"));
+        // the escape is decoded to a temp directory name, which makes the codeBase user-writable
+        assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/%74mp/x/-"));
+        assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/var/%74mp/x/-"));
+        // a plain path is not a URL: no decoding
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("/opt/app%2Fx/-"));
+        assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("/opt/app%zz/-"));
+    }
+
+    @Test
+    public void aMalformedEscapeInAFileCodeBaseIsAStranger() {
+        PolicyScope.Kind rem = PolicyScope.Kind.REMOTE_WILD;
+        table(new Object[][]{
+            {"file:/opt/%zz/-", rem},
+            {"file:/opt/%/-", rem},
+            {"file:/opt/100%", rem},
+            {"file:/opt/%4", rem},
+            {"file:/opt/%4/-", rem},
+            {"file:/opt/%G1/-", rem},
+            {"file:///opt/%zz/-", rem},
+            {"file://localhost/opt/%zz/-", rem},
+            {"jar:file:/opt/%zz/a.jar!/", rem},
+            {"jar:jar:file:/opt/%/a.jar!/b.jar!/", rem},
+        });
+    }
+
+    @Test
+    public void everySlashRunKeepsItsResult() {
+        PolicyScope.Kind loc = PolicyScope.Kind.FILE_PINNED;
+        PolicyScope.Kind rem = PolicyScope.Kind.REMOTE_WILD;
+        String bs = "\\";
+        table(new Object[][]{
+            {"file:/opt/x/-", loc}, {"file:/C:/x/-", loc}, {"file:///C:/x/-", loc},
+            {"file:///opt/x/-", loc}, {"file://localhost/C:/x/-", loc},
+            {"file://" + "/opt/x/-", loc},
+            {"file://host/share/-", rem}, {"file://127.0.0.1/share/-", rem},
+            {"file:////host/share/-", rem}, {"file://///host/share/-", rem},
+            {"file://////host/share/-", rem}, {"file:///////host/share/-", rem},
+            {"file://C:/x/-", rem}, {"file:////C:/x/-", rem},
+            {"//opt/x/-", rem}, {bs + bs + "host" + bs + "share" + bs + "-", rem},
+            {"jar:file:/opt/x/a.jar!/", loc}, {"jar:file:///C:/x/a.jar!/", loc},
+            {"jar:file:////host/share/a.jar!/", rem}, {"jar:file://host/share/a.jar!/", rem},
+        });
+    }
+
     @Test
     public void unrecognisedCodeBaseSchemesFailClosed() throws Exception {
         expect("n/n75-unknown-scheme-ccl", "1/1 D1");

@@ -9,6 +9,12 @@ n/n07-https-port-range-ccl.policy	1	1	D1	1	1	D1
 n/n10-unbuildable-principal-star-ccl.policy	1	1	D2	0	0	
 n/n100-jar-file-7slash-ccl.policy	1	1	D1			
 n/n101-file-localhost-then-host-ccl.policy	1	1	D1			
+n/n102-file-localhost-3slash-ccl.policy	1	1	D1			
+n/n103-file-pct2f-unc-ccl.policy	1	1	D1			
+n/n104-file-pct5c-unc-ccl.policy	1	1	D1			
+n/n105-file-malformed-pct-ccl.policy	1	1	P1 D1			
+n/n106-jar-file-localhost-3slash-ccl.policy	1	1	D1			
+n/n107-file-pct-decoded-local-ccl-clean.policy	0	0				
 n/n11-java-principal-star-ccl.policy	1	1	D2	0	0	
 n/n12-spiffe-prefix-namespace-ccl.policy	0	0		0	0	
 n/n13-spiffe-bare-star-allperm.policy	1	1	S3	0	1	S3

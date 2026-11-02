@@ -5,6 +5,7 @@
 # starts to list something here, fails the test.
 n/n05-https-pinned-narrow.policy	codeBase pins one https host and path; none of the stranger subjects is served from it
 n/n06-https-pinned-getclassloader.policy	codeBase pins one https host; no stranger subject is served from it
+n/n107-file-pct-decoded-local-ccl-clean.policy	file:/opt/%61pp/- decodes to the local directory /opt/app; no stranger subject is loaded from it
 n/n12-spiffe-prefix-namespace-ccl.policy	principal in one SPIFFE trust-domain namespace; the stranger principals are not in it
 n/n51-unknown-class-pinned.policy	grant pinned to a local directory (file:/opt/app/-) that no stranger subject is loaded from
 n/n54-throws-pinned.policy	grant pinned to a local directory (file:/opt/app/-) that no stranger subject is loaded from

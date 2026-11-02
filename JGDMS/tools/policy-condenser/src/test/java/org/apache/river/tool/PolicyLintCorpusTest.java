@@ -195,6 +195,10 @@ public class PolicyLintCorpusTest {
         /** The files for which no stranger subject has anything listed. */
         final java.util.Set<String> noListing = new TreeSet<String>();
         final java.util.Set<String> allowUsed = new TreeSet<String>();
+        /** Per allow-list entry (by key): the corpus files whose listing it matched. */
+        final Map<String, java.util.Set<String>> entryFiles = new TreeMap<String, java.util.Set<String>>();
+        /** Listed permissions that an entry allows, in a file that entry does not name. */
+        final StringBuilder outsideList = new StringBuilder();
         boolean canaryListed;
         /** Distinct listed permissions with the first file, for the allow-list dump. */
         final Map<String, String> dump = new TreeMap<String, String>();
@@ -206,18 +210,39 @@ public class PolicyLintCorpusTest {
         List<Permission> high;
     }
 
-    /** An entry of the allow-list: a class, a name pattern and an actions pattern, and why. */
+    /**
+     * An entry of the allow-list: a class, a name pattern and an actions pattern; the corpus files
+     * that may grant it (paths relative to the corpus, or a glob where {@code *} stands for any
+     * characters except a slash); and why that grant to a stranger is accepted for those files.
+     */
     static final class Allow {
         final String cls;
         final Pattern name;
         final Pattern actions;
+        final List<String> files;
+        final List<Pattern> filePatterns = new ArrayList<Pattern>();
         final String why;
 
-        Allow(String cls, String name, String actions, String why) {
+        Allow(String cls, String name, String actions, String files, String why) {
             this.cls = cls;
             this.name = Pattern.compile(expand(name));
             this.actions = Pattern.compile(actions);
+            this.files = new ArrayList<String>();
+            for (String f : files.split(";")) {
+                if (f.trim().length() > 0) this.files.add(f.trim());
+            }
+            for (String f : this.files) filePatterns.add(glob(f));
             this.why = why;
+        }
+
+        private static Pattern glob(String g) {
+            StringBuilder b = new StringBuilder();
+            String[] parts = g.split("[*]", -1);
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0) b.append("[^/]*");
+                if (parts[i].length() > 0) b.append(Pattern.quote(parts[i]));
+            }
+            return Pattern.compile(b.toString());
         }
 
         private static String expand(String regex) {
@@ -233,9 +258,81 @@ public class PolicyLintCorpusTest {
             return cls.equals(c) && name.matcher(n).matches() && actions.matcher(a).matches();
         }
 
+        /** Whether the file is one this entry names (exactly, or by a glob). */
+        boolean names(String file) {
+            for (Pattern f : filePatterns) {
+                if (f.matcher(file).matches()) return true;
+            }
+            return false;
+        }
+
         String key() {
             return cls + "\t" + name.pattern() + "\t" + actions.pattern();
         }
+    }
+
+    /** Reasons shorter than this are boilerplate. */
+    static final int MIN_REASON = 25;
+
+    /**
+     * What is wrong with the entries' own text: a reason that is empty, shorter than
+     * {@link #MIN_REASON}, equal to another entry's, or that cites none of the fixtures the entry
+     * names; no files; a file reference that is only wildcards.
+     */
+    static List<String> allowListProblems(List<Allow> entries) {
+        List<String> res = new ArrayList<String>();
+        Map<String, Allow> seen = new LinkedHashMap<String, Allow>();
+        for (Allow a : entries) {
+            String why = a.why.trim();
+            String id = a.cls + " " + a.name.pattern() + " " + a.actions.pattern();
+            if (why.length() == 0) {
+                res.add(id + ": empty reason");
+            } else if (why.length() < MIN_REASON) {
+                res.add(id + ": boilerplate reason (shorter than " + MIN_REASON + "): " + why);
+            }
+            Allow other = seen.get(why);
+            if (other != null) {
+                res.add(id + ": boilerplate reason, identical to the one of " + other.cls + " "
+                        + other.name.pattern() + ": " + why);
+            } else {
+                seen.put(why, a);
+            }
+            if (a.files.isEmpty()) res.add(id + ": names no file");
+            boolean cites = false;
+            boolean exact = false;
+            for (String f : a.files) {
+                if (f.replace("*", "").length() == 0) res.add(id + ": file reference " + f + " matches everything");
+                if (f.indexOf('*') >= 0) continue;
+                exact = true;
+                String stem = f.substring(f.lastIndexOf('/') + 1).replaceFirst("[.]policy$", "");
+                if (why.contains(stem)) cites = true;
+            }
+            if (exact && !cites) res.add(id + ": the reason cites none of the fixtures the entry names");
+        }
+        return res;
+    }
+
+    /** Every file an entry names must be one whose listing the entry matched; else the reference is stale. */
+    static List<String> staleReferences(List<Allow> entries, Map<String, java.util.Set<String>> entryFiles) {
+        List<String> res = new ArrayList<String>();
+        for (Allow a : entries) {
+            java.util.Set<String> got = entryFiles.get(a.key());
+            if (got == null) got = Collections.<String>emptySet();
+            for (int i = 0; i < a.files.size(); i++) {
+                boolean hit = false;
+                for (String f : got) {
+                    if (a.filePatterns.get(i).matcher(f).matches()) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (!hit) {
+                    res.add(a.cls + " " + a.name.pattern() + " names " + a.files.get(i)
+                            + ", which does not list a permission the entry matches (stale file reference)");
+                }
+            }
+        }
+        return res;
     }
 
     private static final String ALLOW = "/policylint/cross-check-allow.tsv";
@@ -261,10 +358,11 @@ public class PolicyLintCorpusTest {
     static List<Allow> allowList() throws Exception {
         List<Allow> res = new ArrayList<Allow>();
         for (String[] c : table(ALLOW)) {
-            assertEquals("allow-list line: class, name, actions, why: " + Arrays.toString(c), 4, c.length);
-            assertTrue("an allow-list entry gives its reason: " + Arrays.toString(c), c[3].trim().length() > 10);
-            res.add(new Allow(c[0], c[1], c[2], c[3]));
+            assertEquals("allow-list line: class, name, actions, files, why: " + Arrays.toString(c), 5, c.length);
+            res.add(new Allow(c[0], c[1], c[2], c[3], c[4]));
         }
+        List<String> problems = allowListProblems(res);
+        assertTrue("allow-list entries: " + problems, problems.isEmpty());
         return res;
     }
 
@@ -461,15 +559,22 @@ public class PolicyLintCorpusTest {
             if (!question) c.impliedNoQuestion++;
             c.dump.put(e.getKey(), row.file + (question ? "	Q" : "	-"));
             Allow allowed = null;
+            int matching = 0;
             for (Allow a : c.allow) {
-                if (a.allows(t[0], t[1], t[2])) {
-                    allowed = a;
-                    break;
-                }
+                if (!a.allows(t[0], t[1], t[2])) continue;
+                matching++;
+                java.util.Set<String> fs = c.entryFiles.get(a.key());
+                if (fs == null) c.entryFiles.put(a.key(), fs = new TreeSet<String>());
+                fs.add(row.file);
+                if (allowed == null && a.names(row.file)) allowed = a;
             }
             if (allowed != null) {
                 c.allowListed++;
                 c.allowUsed.add(allowed.key());
+            } else if (matching > 0) {
+                // an exemption written for other files must not cover this one
+                c.outsideList.append(row.file).append(" is granted ").append(Arrays.toString(t))
+                        .append(", which only entries for other files allow\n");
             } else if (!question) {
                 c.unjudged.append(row.file).append(" subject ").append(firstSubject.get(e.getKey()))
                         .append(" is granted ").append(Arrays.toString(t))
@@ -496,6 +601,9 @@ public class PolicyLintCorpusTest {
         assertTrue("the provider listed nothing for a control file that grants all file reads: it"
                 + " cannot list what it grants", c.canaryListed);
         assertEquals(c.unjudged.toString(), 0, c.unjudged.length());
+        assertEquals(c.outsideList.toString(), 0, c.outsideList.length());
+        List<String> stale = staleReferences(c.allow, c.entryFiles);
+        assertTrue("allow-list file references: " + stale, stale.isEmpty());
         // per file: the files for which no stranger subject gets anything listed are exactly the
         // pinned ones (a pinned codeBase, a signer, a digest or a named principal)
         java.util.Set<String> pinned = new TreeSet<String>();
@@ -534,6 +642,9 @@ public class PolicyLintCorpusTest {
             PrintWriter w = new PrintWriter(dumpTo, "UTF-8");
             try {
                 for (Map.Entry<String, String> e : c.dump.entrySet()) w.println(e.getKey() + "	" + e.getValue());
+                for (Map.Entry<String, java.util.Set<String>> e : c.entryFiles.entrySet()) {
+                    w.println("#ENTRY	" + e.getKey() + "	" + e.getValue());
+                }
                 w.println("#NOLISTING");
                 for (String f : c.noListing) w.println(f);
             } finally {
@@ -561,6 +672,80 @@ public class PolicyLintCorpusTest {
         assertTrue("reported: " + c.unjudged, c.unjudged.toString().contains("awt.policy subject")
                 && c.unjudged.toString().contains("createRobot"));
         assertEquals("the fixed questions alone see nothing: " + c.bad, 0, c.bad.length());
+    }
+
+    // Opus review 2026-11-02, finding 3.  The allow-list is checked by what it says (own reason, named
+    // files) as well as by what it matches.
+    private static PolicyLintCorpusTest.Allow entry(String name, String files, String why) {
+        return new Allow("java.lang.RuntimePermission", name, "", files, why);
+    }
+
+    @Test
+    public void everyAllowEntryNeedsItsOwnSpecificReason() {
+        String why1 = "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only.";
+        String why2 = "setIO lets a stranger redirect the console of the VM (r14-rt-setIO), accepted as D5.";
+        assertEquals(Collections.<String>emptyList(), allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", why1),
+                entry("setIO", "r8/r14-rt-setIO.policy", why2))));
+        assertFalse("identical reasons", allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", why1),
+                entry("exitVM\\.0", "r8/r16-rt-exitVM.policy", why1))).isEmpty());
+        assertFalse("empty reason", allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", ""))).isEmpty());
+        assertFalse("blank reason", allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", "   "))).isEmpty());
+        assertFalse("short reason", allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", "r16-rt-exitVM D5 rated"))).isEmpty());
+        assertFalse("reason that cites none of its fixtures", allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", "exitVM lets a stranger stop the VM, a denial of service."))).isEmpty());
+        assertFalse("no files", allowListProblems(Arrays.asList(entry("exitVM", "", why1))).isEmpty());
+        assertFalse("a glob that matches everything", allowListProblems(Arrays.asList(
+                entry("exitVM", "*", why1))).isEmpty());
+    }
+
+    @Test
+    public void anAllowEntryCoversOnlyTheFilesItNames() throws Exception {
+        Cross c = new Cross();
+        c.universe = universe();
+        c.allow = Arrays.asList(entry("exitVM", "r8/r16-rt-exitVM.policy",
+                "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only."));
+        List<PolicyVerdict.Subject> subjects = Arrays.asList(
+                new PolicyVerdict.Subject("https://evil.net/x.jar", new Principal[0]));
+        List<List<Permission>> listed = new ArrayList<List<Permission>>();
+        listed.add(Arrays.<Permission>asList(new RuntimePermission("exitVM")));
+        Row own = new Row();
+        own.file = "r8/r16-rt-exitVM.policy";
+        judgeListed(c, own, subjects, listed);
+        assertEquals("the named file is allowed: " + c.outsideList + c.unjudged, 0,
+                c.outsideList.length() + c.unjudged.length());
+        assertEquals(1, c.allowListed);
+        Row other = new Row();
+        other.file = "r8/z99-new-file.policy";
+        judgeListed(c, other, subjects, listed);
+        assertTrue("a file the entry does not name inherits nothing: " + c.outsideList,
+                c.outsideList.toString().contains("z99-new-file"));
+        assertEquals(1, c.allowListed);
+        // a second entry that does name the new file covers it
+        c.allow = Arrays.asList(c.allow.get(0), entry("exitVM", "r8/z99-new-file.policy",
+                "exitVM is wanted by the new file (z99-new-file), stopping the VM only."));
+        c.outsideList.setLength(0);
+        judgeListed(c, other, subjects, listed);
+        assertEquals(c.outsideList.toString(), 0, c.outsideList.length());
+    }
+
+    @Test
+    public void aStaleFileReferenceFails() {
+        List<Allow> a = Arrays.asList(entry("exitVM", "r8/r16-rt-exitVM.policy;r8/gone.policy;n/n9*",
+                "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only."));
+        Map<String, java.util.Set<String>> got = new TreeMap<String, java.util.Set<String>>();
+        got.put(a.get(0).key(), new TreeSet<String>(Arrays.asList("r8/r16-rt-exitVM.policy", "n/n90-x.policy")));
+        List<String> stale = staleReferences(a, got);
+        assertEquals(stale.toString(), 1, stale.size());
+        assertTrue(stale.get(0), stale.get(0).contains("r8/gone.policy"));
+        got.get(a.get(0).key()).add("r8/gone.policy");
+        assertEquals(Collections.<String>emptyList(), staleReferences(a, got));
+        assertEquals("an entry nothing matched has only stale references", 3,
+                staleReferences(a, new TreeMap<String, java.util.Set<String>>()).size());
     }
 
     // M8: a provider that answers implies() but lists nothing: the questions look fine, the listing

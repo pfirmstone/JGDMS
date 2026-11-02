@@ -195,12 +195,12 @@ final class PolicyScope {
         }
         if (lower.startsWith("jrt:")) return jrt(s.substring(4));
         boolean writableProperty = WRITABLE_PROPERTY.matcher(raw).find();
-        if (lower.startsWith("file:")) return file(s.substring(5), writableProperty);
+        if (lower.startsWith("file:")) return file(s.substring(5), writableProperty, true);
         if (s.equals("-") || s.equals("*")) {
             return new CodeBase(Kind.OTHER, "codeBase is a bare wildcard, which names no location");
         }
         if (lower.indexOf(':') < 0 || lower.matches("^[a-z]:[\\\\/].*")) {
-            return file(s, writableProperty); // no scheme: a path
+            return file(s, writableProperty, false); // no scheme: a path
         }
         // a scheme the lint does not recognise cannot be shown to be pinned: fail closed
         return new CodeBase(Kind.REMOTE_WILD, "codeBase scheme " + lower.substring(0, lower.indexOf(':'))
@@ -249,6 +249,39 @@ final class PolicyScope {
         return new CodeBase(Kind.REMOTE_PINNED, "codeBase pins the host " + host);
     }
 
+    private static CodeBase share(String p, int slashes, String how) {
+        int i = p.indexOf('/', slashes);
+        String host = i < 0 ? p.substring(slashes) : p.substring(slashes, i);
+        if (host.length() == 0) host = "(empty)";
+        return new CodeBase(Kind.REMOTE_WILD, "file: codeBase on the host " + host + " (" + slashes
+                + " leading slashes" + how + "), a network share another party can serve code from");
+    }
+
+    /** Percent-decodes as {@code URL} and {@code File(URI)} do (UTF-8); null if an escape is malformed. */
+    static String percentDecode(String s) {
+        if (s.indexOf('%') < 0) return s;
+        StringBuilder out = new StringBuilder(s.length());
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        int i = 0;
+        while (i < s.length()) {
+            if (s.charAt(i) != '%') {
+                out.append(s.charAt(i++));
+                continue;
+            }
+            bytes.reset();
+            while (i < s.length() && s.charAt(i) == '%') {
+                if (i + 2 >= s.length()) return null;
+                int hi = Character.digit(s.charAt(i + 1), 16);
+                int lo = Character.digit(s.charAt(i + 2), 16);
+                if (hi < 0 || lo < 0) return null;
+                bytes.write((hi << 4) | lo);
+                i += 3;
+            }
+            out.append(new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return out.toString();
+    }
+
     private static CodeBase jrt(String path) {
         String p = path.trim();
         while (p.startsWith("/")) p = p.substring(1);
@@ -258,35 +291,56 @@ final class PolicyScope {
         return new CodeBase(Kind.JRT_PINNED, "jrt: codeBase names one module");
     }
 
-    private static CodeBase file(String path, boolean writableProperty) {
+    /**
+     * The text after {@code file:} (or a scheme-less path) is read as Windows reads it: a backslash
+     * is a slash, and the path part (never the host) of a {@code file:} URL is percent-decoded as
+     * {@code URL} and {@code File(URI)} do before a {@code File} is made, so {@code %2F} and
+     * {@code %5C} are separators.  Two or more slashes before the rest of the decoded path are a
+     * UNC share {@code \\host\share}.
+     *
+     * <pre>
+     * raw leading slashes  authority       path judged                      result
+     * 0 or 1               none            the text, decoded                local, unless it then starts with 2+ slashes
+     * 2                    first segment   after the host, decoded          localhost: as the path rule; any other host: share
+     * 3                    empty           from the third slash, decoded    as the path rule
+     * 4 or more            a share         -                                share
+     * slashes only         -               the root                         local
+     * decoded path starts with 2+ slashes (even only slashes)                share
+     * malformed escape ({@code %zz}, a lone {@code %}) in the path           share (fail closed)
+     * </pre>
+     * A host written percent-encoded ({@code %6Cocalhost}) is not decoded and stays a host.
+     */
+    private static CodeBase file(String path, boolean writableProperty, boolean url) {
         String p = path.replace('\\', '/');
-        // The text after "file:" is local only as "/path" (one slash), "///path" (an empty
-        // authority) or behind "//localhost".  Any other run of leading slashes before a
-        // non-empty segment names a host as far as the lint can tell, because Windows opens
-        // "file://///host/share" and "file:////host/share" as the UNC share \\host\share.
-        // A backslash has been read as a slash above, as the Windows path parser does.
-        while (true) {
-            int n = 0;
-            while (n < p.length() && p.charAt(n) == '/') n++;
-            if (n < 2) break;
-            if (n == p.length()) { // slashes only: names nothing but the root
-                p = "/";
-                break;
-            }
-            if (n == 3) { // empty authority
-                p = p.substring(2);
-                break;
-            }
+        int n = 0;
+        while (n < p.length() && p.charAt(n) == '/') n++;
+        String q; // the path component: what File is made from
+        if (n >= 2 && n == p.length()) { // slashes only: names nothing but the root
+            q = "/";
+        } else if (n >= 4) {
+            return share(p, n, "");
+        } else if (n == 2) {
             int i = p.indexOf('/', n);
             String host = i < 0 ? p.substring(n) : p.substring(n, i);
-            if (n == 2 && host.equalsIgnoreCase("localhost")) {
-                p = i < 0 ? "/" : p.substring(i);
-                continue; // what follows is judged again: localhost//host is still a share
-            }
-            return new CodeBase(Kind.REMOTE_WILD, "file: codeBase on the host " + host
-                    + (n == 2 ? "" : " (" + n + " leading slashes)")
-                    + ", a network share another party can serve code from");
+            if (!host.equalsIgnoreCase("localhost")) return share(p, n, "");
+            q = i < 0 ? "/" : p.substring(i);
+        } else if (n == 3) { // empty authority
+            q = p.substring(2);
+        } else {
+            q = p;
         }
+        if (url) {
+            String d = percentDecode(q);
+            if (d == null) {
+                return new CodeBase(Kind.REMOTE_WILD, "file: codeBase with a malformed percent escape:"
+                        + " it cannot be shown to name a local file, treated as a network share");
+            }
+            q = d.replace('\\', '/'); // a decoded %5C is a separator too
+        }
+        int m = 0;
+        while (m < q.length() && q.charAt(m) == '/') m++;
+        if (m >= 2) return share(q, m, url ? ", after decoding" : "");
+        p = q;
         if (p.matches("^/[A-Za-z]:([\\\\/].*)?$")) p = p.substring(1);
         PermissionSets.FilePath f = PermissionSets.filePath(p);
         if (!f.absolute && f.drive == null) {
