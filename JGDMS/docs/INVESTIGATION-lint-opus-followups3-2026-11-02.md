@@ -24,7 +24,7 @@ Entries 49 (unchanged); distinct reasons 49 (before: 33 shared one boilerplate s
 | broadest entry | file that grants it |
 |---|---|
 | `[A-Za-z]:[\\/]- read` (drive root) | r8/f18-cdrive-dash-read |
-| `${user.home}[\\/]- read` | n/n26-home-read-medium |
+| `${user.home}[\\/]- read` | n/n26-home-read-high |
 | `<<ALL FILES>> readlink` | r8/f05-allfiles-readlink |
 | `SocketPermission *.com connect,resolve` | r8/s04-socket-subnet |
 | `setIO`, `exitVM` (and `exitVM.0`) | r8/r14-rt-setIO; r8/r16-rt-exitVM (r17-rt-exitVM_0) |

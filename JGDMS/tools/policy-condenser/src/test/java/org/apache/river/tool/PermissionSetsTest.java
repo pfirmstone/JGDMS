@@ -85,4 +85,43 @@ public class PermissionSetsTest {
             ProxyPolicyGenerator.deleteTree(dir);
         }
     }
+
+    private static final String BS = "\\";
+
+    /**
+     * Operator ruling 2026-11-03: every spelling of a whole-tree read is refused by the default lint run
+     * (D1), whatever the case of the drive, the slash, the order of the actions or the platform; a
+     * readlink alone on all files, a pinned directory and a named file are not.
+     */
+    @Test
+    public void testWholeTreeReadVariantsAreRefusedByTheLint() throws Exception {
+        String f = "java.io.FilePermission";
+        String unc = BS + BS + "server" + BS + "share" + BS + "-";
+        String[][] cases = {
+            {"c:" + BS + "-", "read", "1", "D1"}, {"C:/-", "read", "1", "D1"},
+            {"c:" + BS + "-", "read,readlink", "1", "D1"}, {"c:" + BS + "-", "readlink,read", "1", "D1"},
+            {"c:" + BS + "-", "read, write", "1", "D1"},
+            {unc, "read", "1", "D1"}, {unc, "write", "1", "D1"}, {BS + BS + "server" + BS + "-", "read", "1", "D1"},
+            {"//server/share/-", "read", "1", "D1"}, {"//server/share/-", "write", "1", "D1"},
+            {"/home/-", "read", "1", "D1"}, {"/Users/-", "read", "1", "D1"},
+            {"${user.home}${/}-", "read,readlink", "1", "D1"}, {"${user.home}${/}-", "readlink,read", "1", "D1"},
+            {"${user.home}${/}-", "readlink", "1", "D1"},
+            {"<<ALL FILES>>", "read", "1", "D1"}, {"<<ALL FILES>>", "read,readlink", "1", "D1"},
+            {"<<ALL FILES>>", "readlink", "0", "D5"},
+            {"/opt/app/conf/-", "read", "0", ""}, {"/etc/hosts", "read", "0", ""}};
+        java.io.File dir = java.nio.file.Files.createTempDirectory("sets-lint-tree").toFile();
+        try {
+            for (String[] c : cases) {
+                java.io.File p = new java.io.File(dir, "t.policy");
+                String text = "grant {\n  permission " + f + " \"" + c[0].replace(BS, BS + BS) + "\", \""
+                    + c[1] + "\";\n};\n";
+                java.nio.file.Files.write(p.toPath(), text.getBytes("UTF-8"));
+                LintHarness.Result r = LintHarness.run(p.getPath());
+                assertEquals(text + r.out, Integer.parseInt(c[2]), r.exit);
+                assertEquals(text, c[3], r.kinds());
+            }
+        } finally {
+            ProxyPolicyGenerator.deleteTree(dir);
+        }
+    }
 }

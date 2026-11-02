@@ -1219,6 +1219,8 @@ public class ProxyPolicyGeneratorTest {
             "javax.security.auth.AuthPermission \"doAsPrivileged\"",
             "javax.security.auth.AuthPermission \"modifyPrincipals\"",
             "javax.security.auth.AuthPermission \"modifyPrivateCredentials\"",
+            "javax.security.auth.AuthPermission \"doAs\"",
+            "javax.security.auth.AuthPermission \"setLoginConfiguration\"",
             "java.io.FilePermission \"<<ALL FILES>>\", \"read,execute\"",
             "au.zeus.jdk.authorization.guards.NativeInvocationPermission \"libx\"",
             "net.jini.security.AssertPrincipalPermission \"javax.security.auth.x500.X500Principal\", \"CN=gateway\""};
@@ -1231,6 +1233,9 @@ public class ProxyPolicyGeneratorTest {
         lines.add("    permission java.security.SecurityPermission \"getProperty.java.version\";");
         lines.add("    permission java.io.FilePermission \"<<ALL FILES>>\", \"read\";");
         lines.add("    permission java.io.FilePermission \"data/x\", \"execute\";");
+        // the AuthPermission names that do not themselves change who the code acts as stay live
+        lines.add("    permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";");
+        lines.add("    permission javax.security.auth.AuthPermission \"createLoginContext.x\";");
         lines.add("};");
         File policy = writePolicy("esc.policy", lines.toArray(new String[0]));
         File outDir = new File(tempDir, "out");
@@ -1245,7 +1250,9 @@ public class ProxyPolicyGeneratorTest {
                 "(java.lang.RuntimePermission \"accessDeclaredMembers\")",
                 "(java.security.SecurityPermission \"getProperty.java.version\")",
                 "(java.io.FilePermission \"<<ALL FILES>>\" \"read\")",
-                "(java.io.FilePermission \"data/x\" \"execute\")")),
+                "(java.io.FilePermission \"data/x\" \"execute\")",
+                "(javax.security.auth.AuthPermission \"modifyPublicCredentials\")",
+                "(javax.security.auth.AuthPermission \"createLoginContext.x\")")),
             new HashSet<String>(liveLines(list)));
         try {
             new ProxyPolicyGenerator().failOnHeld(true).generate(policy, new File(tempDir, "out2"));
@@ -1253,6 +1260,72 @@ public class ProxyPolicyGeneratorTest {
         } catch (ProxyPolicyGenerator.GenerationException e) {
             assertTrue(e.getMessage(), e.getMessage().contains("setSecurityManager"));
         }
+    }
+
+    /**
+     * Operator ruling 2026-11-02/03: what changes WHO the code acts as is never written live into a
+     * proxy list: doAs, doAsPrivileged, setLoginConfiguration, modifyPrincipals,
+     * modifyPrivateCredentials, and the AuthPermission wildcard that implies them, each with its
+     * own reason; the names that only start a login or read the subject stay live.
+     */
+    @Test
+    public void testIdentityChangingAuthPermissionsAreHeldFromAProxyPolicy() throws Exception {
+        String[] names = {"doAs", "doAsPrivileged", "setLoginConfiguration", "modifyPrincipals",
+            "modifyPrivateCredentials", "*"};
+        List<String> lines = new ArrayList<String>();
+        lines.add("grant codebase \"file:/lib/who-dl.jar\" {");
+        for (String n : names) lines.add("    permission javax.security.auth.AuthPermission \"" + n + "\";");
+        lines.add("    permission javax.security.auth.AuthPermission \"createLoginContext.*\";");
+        lines.add("    permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";");
+        lines.add("    permission javax.security.auth.AuthPermission \"getSubject\";");
+        lines.add("};");
+        File policy = writePolicy("who.policy", lines.toArray(new String[0]));
+        File outDir = new File(tempDir, "out");
+
+        ProxyPolicyGenerator.Result r = new ProxyPolicyGenerator().generate(policy, outDir);
+
+        File list = new File(outDir, "who-dl/META-INF/PERMISSIONS.LIST");
+        assertEquals(names.length, r.heldCount());
+        assertEquals(names.length, linesStartingWith(list, "# HELD (escalation: AuthPermission").size());
+        assertEquals(new HashSet<String>(Arrays.asList(
+                "(javax.security.auth.AuthPermission \"createLoginContext.*\")",
+                "(javax.security.auth.AuthPermission \"modifyPublicCredentials\")",
+                "(javax.security.auth.AuthPermission \"getSubject\")")),
+            new HashSet<String>(liveLines(list)));
+        try {
+            new ProxyPolicyGenerator().failOnHeld(true).generate(policy, new File(tempDir, "out2"));
+            fail("--fail-on-held refuses an identity-changing entry");
+        } catch (ProxyPolicyGenerator.GenerationException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("doAs"));
+        }
+    }
+
+    /**
+     * Operator ruling 2026-11-03: a whole-tree read never reaches a proxy list silently.  A root,
+     * drive, share or /home tree names the audit host, so the generator holds it; the all-files
+     * read, which names no host, is written live and the promotion plan flags it (ListPromotionTest).
+     */
+    @Test
+    public void testWholeTreeReadsOfAProxyPolicyAreHeldOrFlagged() throws Exception {
+        File policy = writePolicy("tree.policy",
+            "grant codebase \"file:/lib/tree-dl.jar\" {",
+            "    permission java.io.FilePermission \"/-\", \"read\";",
+            "    permission java.io.FilePermission \"/home/-\", \"read\";",
+            "    permission java.io.FilePermission \"C:/-\", \"read\";",
+            "    permission java.io.FilePermission \"//server/share/-\", \"read\";",
+            "    permission java.io.FilePermission \"<<ALL FILES>>\", \"read\";",
+            "};");
+        File outDir = new File(tempDir, "out");
+
+        ProxyPolicyGenerator.Result r = new ProxyPolicyGenerator().generate(policy, outDir);
+
+        File list = new File(outDir, "tree-dl/META-INF/PERMISSIONS.LIST");
+        assertEquals(4, r.heldCount());
+        assertEquals(4, linesStartingWith(list, "# HELD (absolute path on the audit host").size());
+        List<String> live = liveLines(list);
+        assertEquals(Arrays.asList("(java.io.FilePermission \"<<ALL FILES>>\" \"read\")"), live);
+        assertNotNull("the live whole-tree read is flagged", au.net.zeus.jgdms.api.policy.PermissionSets
+            .flagReason(live.get(0)));
     }
 
     /** F1: a BasicPermission wildcard implies a held name, so it is held too. */

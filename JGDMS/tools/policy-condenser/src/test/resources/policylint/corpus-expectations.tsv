@@ -16,7 +16,23 @@ n/n105-file-malformed-pct-ccl.policy	1	1	P1 D1
 n/n106-jar-file-localhost-3slash-ccl.policy	1	1	D1			
 n/n107-file-pct-decoded-local-ccl-clean.policy	0	0				
 n/n11-java-principal-star-ccl.policy	1	1	D2	0	0	
+n/n110-cdrive-lower-dash-read.policy	1	1	D1			
+n/n111-cdrive-fwdslash-dash-read.policy	1	1	D1			
+n/n112-cdrive-read-readlink.policy	1	1	D1			
+n/n113-cdrive-readlink-read.policy	1	1	D1			
+n/n114-cdrive-read-space-write.policy	1	1	D1			
+n/n115-unc-share-read.policy	1	1	D1			
+n/n116-unc-share-write.policy	1	1	D1			
+n/n117-unc-host-read.policy	1	1	D1			
+n/n118-unc-fwdslash-share-read.policy	1	1	D1			
+n/n119-home-parent-read.policy	1	1	D1			
 n/n12-spiffe-prefix-namespace-ccl.policy	0	0		0	0	
+n/n120-users-parent-read.policy	1	1	D1			
+n/n121-userhome-read-readlink.policy	1	1	D1			
+n/n122-userhome-readlink-read.policy	1	1	D1			
+n/n123-userhome-readlink-only.policy	1	1	D1			
+n/n124-allfiles-read-readlink.policy	1	1	D1			
+n/n125-specific-file-read-clean.policy	0	0				
 n/n13-spiffe-bare-star-allperm.policy	1	1	S3	0	1	S3
 n/n14-x500-star-medium.policy	0	1	D5	0	1	D5
 n/n20-tmpdir-star-write.policy	0	1	D5	0	0	
@@ -25,7 +41,7 @@ n/n22-dotdot-root-write.policy	1	1	D1	0	0
 n/n23-home-subdir-write-clean.policy	0	0		0	0	
 n/n24-javahome-conf-write.policy	1	1	D1	0	0	
 n/n25-userdir-dash-execute.policy	1	1	D1	0	0	
-n/n26-home-read-medium.policy	1	1	D1	0	0	
+n/n26-home-read-high.policy	1	1	D1	0	0	
 n/n30-grantperm-delim-ccl.policy	1	1	D1	0	0	
 n/n31-grantperm-assertprincipal.policy	1	1	D1	0	0	
 n/n32-grantperm-star.policy	1	1	U2 D1	1	1	U2
@@ -101,7 +117,7 @@ r6/a18-http-star.policy	1	1	U3 S1	1	1	U3 S1
 r6/a19-princ-class-star.policy	1	1	S3	0	1	S3
 r6/a20-princ-other-star.policy	1	1	S3	0	1	S3
 r6/a21-signedby-undef.policy	0	1	S1	0	1	S1
-r6/a22-setpolicy.policy	1	1	D1 D5	1	1	D1 D5
+r6/a22-setpolicy.policy	1	1	D1	1	1	D1 D5
 r6/a23-grantperm-setpolicy.policy	1	1	D1	1	1	D1
 r6/a24-garbage.policy	1	1	U1 P1	1	1	U1 P1
 r6/a25-uppercase.policy	1	1	U1	1	1	U1
@@ -135,15 +151,15 @@ r8/c10-sec-clearProviderProperties_S.policy	1	1	D1	0	0
 r8/c11-sec-removeProviderProperty_S.policy	1	1	D1	1	1	D1
 r8/c12-sec-authProvider_S.policy	0	1	D5	0	0	
 r8/c13-sec-createAccessControlContext.policy	1	1	D1	1	1	D1
-r8/c14-sec-getDomainCombiner.policy	0	0		0	0	
+r8/c14-sec-getDomainCombiner.policy	0	1	D5	0	0	
 r8/c15-sec-S.policy	1	1	D1 D5	1	1	D1
 r8/c16-sec-setS.policy	0	0		0	0	
-r8/f01-allfiles-read.policy	0	1	D5	0	1	D5
+r8/f01-allfiles-read.policy	1	1	D1	0	1	D5
 r8/f02-allfiles-write.policy	1	1	D1	1	1	D1
 r8/f03-allfiles-delete.policy	1	1	D1	1	1	D1
 r8/f04-allfiles-execute.policy	1	1	D1	1	1	D1
 r8/f05-allfiles-readlink.policy	0	1	D5	0	1	D5
-r8/f06-allfiles-combined.policy	1	1	D1 D5	1	1	D1 D5
+r8/f06-allfiles-combined.policy	1	1	D1	1	1	D1 D5
 r8/f07-slash-dash-write.policy	1	1	D1	1	1	D1
 r8/f08-slash-star-write.policy	1	1	D1	1	1	D1
 r8/f09-cdrive-dash-write.policy	1	1	D1	1	1	D1
@@ -238,7 +254,7 @@ r8/r11-rt-loadLibrary_S.policy	1	1	D1	1	1	D1
 r8/r12-rt-modifyThread.policy	0	1	D5	0	0	
 r8/r13-rt-modifyThreadGroup.policy	0	1	D5	0	0	
 r8/r14-rt-setIO.policy	0	1	D5	0	0	
-r8/r15-rt-shutdownHooks.policy	0	0		0	0	
+r8/r15-rt-shutdownHooks.policy	0	1	D5	0	0	
 r8/r16-rt-exitVM.policy	0	1	D5	0	1	D5
 r8/r17-rt-exitVM_0.policy	0	1	D5	0	1	D5
 r8/r18-rt-writeFileDescriptor.policy	0	1	D5	0	0	

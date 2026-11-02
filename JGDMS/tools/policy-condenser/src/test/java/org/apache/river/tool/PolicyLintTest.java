@@ -855,8 +855,9 @@ public class PolicyLintTest {
     public void dangerousPermissionsGrantedToStrangers() throws Exception {
         Object[][] rows = {
             // fixture, kinds, exit, strict exit
-            {"g07-allfiles-write-unscoped.policy", "D1 D5", 1, 1},
-            {"g08-allfiles-read-unscoped.policy", "D5", 0, 1},
+            // operator ruling 2026-11-03: <<ALL FILES>> read is an unscoped whole-tree read, HIGH like write
+            {"g07-allfiles-write-unscoped.policy", "D1", 1, 1},
+            {"g08-allfiles-read-unscoped.policy", "D1", 1, 1},
             {"g09-setsecuritymanager.policy", "D1", 1, 1},
             {"g10-securitypermission-star.policy", "D1 D5", 1, 1},
             {"g11-multi-escalation.policy", "D1", 1, 1},

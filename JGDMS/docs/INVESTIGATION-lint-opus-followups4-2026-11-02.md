@@ -8,7 +8,7 @@ Evidence: my runs, `JAVA_HOME` = DirtyChai image, `mvn -o -pl jgdms-platform,too
 ## Fixtures whose outcome changed (default/strict exit, kinds)
 | fixture | before | after |
 |---|---|---|
-| r8/f18-cdrive-dash-read, n/n26-home-read-medium, r8/u02-auth-doAs, r8/u06-auth-setLoginConfiguration | 0/1 D5 | 1/1 D1 |
+| r8/f18-cdrive-dash-read, n/n26-home-read-high, r8/u02-auth-doAs, r8/u06-auth-setLoginConfiguration | 0/1 D5 | 1/1 D1 |
 | r8/m03-split-read-write (read half) | 1/1 D5 D1 | 1/1 D1 D1 |
 | r8/c12-sec-authProvider_S, r8/c04-sec-getProperty_S | 0/0 clean | 0/1 D5 |
 Kept: exitVM, exitVM.0, setIO, f05 readlink, s04 `*.com`, u07 (all 0/1 D5). r8/s04 needed a catalogue rule: `danger()` rated `*.com` nothing; the lint's D5 came from a probe.
@@ -37,4 +37,4 @@ Linux; the full platform suite; whether a stale DirtyChai image without #236 is 
 ## Questions
 1. 25 rows with reason "D5 in the catalogue" (exitVM, setContextClassLoader, ...) are now redundant with the rule; I kept them (you named 11). Drop them?
 2. c14 getDomainCombiner and r15 shutdownHooks are rated clean, so the rule cannot take them and their rows stay (reason is the rating only). Rate them MEDIUM, or keep the rows?
-3. Rename fixture `n26-home-read-medium` (now HIGH)? I did not.
+3. Rename fixture `n26-home-read-high` (now HIGH)? I did not.

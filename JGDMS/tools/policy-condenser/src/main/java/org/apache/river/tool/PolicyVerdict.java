@@ -122,14 +122,22 @@ final class PolicyVerdict {
         final String reason;
         /** Class name of the permission asked about, or of the one that could not be judged. */
         final String permissionClass;
+        /** The permission asked about; null for a hit that stands for a class that could not be judged. */
+        final java.security.Permission permission;
 
         Hit(String zone, String subject, PermissionSets.Probe probe) {
             this(zone, subject, probe.id, probe.severity, probe.reason,
-                    probe.permission.getClass().getName());
+                    probe.permission.getClass().getName(), probe.permission);
         }
 
         Hit(String zone, String subject, String id, int severity, String reason,
                 String permissionClass) {
+            this(zone, subject, id, severity, reason, permissionClass, null);
+        }
+
+        private Hit(String zone, String subject, String id, int severity, String reason,
+                String permissionClass, java.security.Permission permission) {
+            this.permission = permission;
             this.zone = zone;
             this.subject = subject;
             this.id = id;

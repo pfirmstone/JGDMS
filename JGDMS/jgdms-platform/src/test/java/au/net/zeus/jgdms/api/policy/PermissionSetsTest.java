@@ -137,7 +137,8 @@ public class PermissionSetsTest {
         assertEquals(PermissionSets.HIGH, PermissionSets.danger("java.security.AllPermission", null, null).severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "<<ALL FILES>>", "write").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "<<ALL FILES>>", "read,delete").severity);
-        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "<<ALL FILES>>", "read").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "<<ALL FILES>>", "read").severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "<<ALL FILES>>", "readlink").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/-", "write").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "C:\\-", "write").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "-", "execute").severity);
@@ -153,7 +154,8 @@ public class PermissionSetsTest {
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(r, "defineClassInPackage.p", null).severity);
         assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "getProtectionDomain", null).severity);
         assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "exitVM.1", null).severity);
-        assertNull(PermissionSets.danger(r, "shutdownHooks", null));
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "exitVM", null).severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(r, "shutdownHooks", null).severity);
         assertNull(PermissionSets.danger(r, "getenv.PATH", null));
         assertEquals(PermissionSets.HIGH,
             PermissionSets.danger("java.util.PropertyPermission", "*", "read,write").severity);
@@ -221,9 +223,10 @@ public class PermissionSetsTest {
         assertEquals(h, sev(f, "d:/-", "read"));
         assertEquals(h, sev(f, "/-", "read"));
         assertEquals(h, sev(f, "${user.home}${/}-", "read"));
-        // kept MEDIUM: all files read or readlink, a root's own files, the temp directory's own files
-        assertEquals(m, sev(f, "<<ALL FILES>>", "read"));
+        // kept MEDIUM: readlink alone on all files, a root's own files, the temp directory's own files
+        // (operator ruling 2026-11-03: <<ALL FILES>> with read is an unscoped whole-tree read, HIGH)
         assertEquals(m, sev(f, "<<ALL FILES>>", "readlink"));
+        assertEquals(h, sev(f, "<<ALL FILES>>", "read"));
         assertEquals(m, sev(f, "C:\\*", "read"));
         // clean: a pinned exact read, a directory below the home
         assertEquals(0, sev(f, "/opt/app/conf/-", "read"));
@@ -389,5 +392,97 @@ public class PermissionSetsTest {
         assertFalse(PermissionSets.catalogued("net.jini.export.ExportPermission"));
         assertNull(PermissionSets.danger("net.jini.export.ExportPermission", "*", null));
         assertFalse(PermissionSets.catalogued(null));
+    }
+
+    // Operator ruling 2026-11-03 (Opus review finding 4): a whole tree is HIGH to read, whatever the
+    // spelling of the root, the order of the actions, the share or the platform the lint runs on.
+    @Test
+    public void testWholeTreeReadVariantsAreHigh() {
+        int h = PermissionSets.HIGH;
+        String f = "java.io.FilePermission";
+        for (String n : new String[]{"c:\\-", "C:/-", "C:\\-", "d:/-", "/-", "/tmp/../-"}) {
+            for (String a : new String[]{"read", "read,readlink", "readlink,read", "read, write", "readlink",
+                "write", "delete", "execute"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        for (String n : new String[]{"${user.home}${/}-", "${user.home}/-"}) {
+            for (String a : new String[]{"read", "read,readlink", "readlink,read", "readlink", "read, write"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        // a whole UNC share or host, written either way, for every action
+        for (String n : new String[]{"\\\\server\\share\\-", "\\\\server\\-", "//server/share/-", "//server/-"}) {
+            for (String a : new String[]{"read", "write", "delete", "execute", "read,readlink", "readlink,read"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        // the parent of every user home, on every platform
+        for (String n : new String[]{"/home/-", "/Users/-", "C:\\Users\\-"}) {
+            assertEquals(n, h, sev(f, n, "read"));
+        }
+        assertEquals(h, sev(f, "<<ALL FILES>>", "read"));
+        assertEquals(h, sev(f, "<<ALL FILES>>", "read,readlink"));
+        assertEquals(h, sev(f, "<<ALL FILES>>", "readlink,read"));
+        assertEquals(h, sev(f, "<<ALL FILES>>", "READ"));
+        assertEquals(h, sev(f, "<<ALL FILES>>", "write"));
+        // readlink alone on all files stays MEDIUM
+        assertEquals(PermissionSets.MEDIUM, sev(f, "<<ALL FILES>>", "readlink"));
+        // clean: an exact directory below a share or a home, a specific file, a pinned directory
+        assertEquals(0, sev(f, "\\\\server\\share\\dir\\-", "read"));
+        assertEquals(0, sev(f, "\\\\server\\share\\file.txt", "read"));
+        assertEquals(0, sev(f, "/home/alice/work/-", "read"));
+        assertEquals(0, sev(f, "/opt/app/conf/-", "read"));
+        assertEquals(0, sev(f, "/etc/hosts", "read"));
+        assertEquals(0, sev(f, "C:\\data\\app\\-", "read"));
+    }
+
+    // Operator ruling 2026-11-03 (finding 8): what changes WHO the code acts as is HOLD for a proxy.
+    @Test
+    public void testIdentityChangingAuthPermissionsAreHeld() {
+        String au = "javax.security.auth.AuthPermission";
+        for (String n : new String[]{"doAs", "doAsPrivileged", "setLoginConfiguration", "modifyPrincipals",
+            "modifyPrivateCredentials", "*"}) {
+            assertNotNull(n, PermissionSets.holdReason(au, n, null));
+            assertEquals(n, PermissionSets.HIGH, sev(au, n, null));
+        }
+        assertNotNull(PermissionSets.holdReason("(" + au + " \"doAs\")"));
+        assertNotNull(PermissionSets.holdReason("(" + au + " \"setLoginConfiguration\")"));
+        // flagged, not held: they do not themselves change who the code acts as
+        for (String n : new String[]{"modifyPublicCredentials", "createLoginContext.*", "createLoginContext.x",
+            "getSubject", "getLoginConfiguration", "refreshLoginConfiguration"}) {
+            assertNull(n, PermissionSets.holdReason(au, n, null));
+            assertNotNull(n, PermissionSets.flagReason(au, n, null));
+            assertEquals(n, PermissionSets.MEDIUM, sev(au, n, null));
+        }
+        // the same names under another class are not that permission
+        assertNull(PermissionSets.holdReason("com.example.Mine", "doAs", null));
+    }
+
+    // Operator ruling 2026-11-03 (finding 8): a whole-tree read is FLAG (written, but reported).
+    @Test
+    public void testWholeTreeReadsAreFlagged() {
+        String f = "java.io.FilePermission";
+        for (String n : new String[]{"<<ALL FILES>>", "/-", "C:\\-", "c:/-", "\\\\server\\share\\-",
+            "//server/-", "/home/-", "${user.home}${/}-"}) {
+            assertNotNull(n, PermissionSets.flagReason(f, n, "read"));
+            assertNull(n + " is not held", PermissionSets.holdReason(f, n, "read"));
+        }
+        assertNull(PermissionSets.flagReason(f, "/opt/app/conf/-", "read"));
+        assertNull(PermissionSets.flagReason(f, "\\\\server\\share\\dir\\-", "read"));
+        assertNull(PermissionSets.flagReason(f, "data/x", "read"));
+        assertNotNull(PermissionSets.flagReason("(java.io.FilePermission \"/-\" \"read\")"));
+    }
+
+    // Operator ruling 2026-11-03: two names the catalogue had left clean are MEDIUM.
+    @Test
+    public void testGetDomainCombinerAndShutdownHooksAreMedium() {
+        assertEquals(PermissionSets.MEDIUM, sev("java.security.SecurityPermission", "getDomainCombiner", null));
+        assertEquals(PermissionSets.MEDIUM, sev("java.lang.RuntimePermission", "shutdownHooks", null));
+        assertTrue(PermissionSets.danger("java.security.SecurityPermission", "getDomainCombiner", null)
+            .reason.contains("protection-domain"));
+        assertTrue(PermissionSets.danger("java.lang.RuntimePermission", "shutdownHooks", null)
+            .reason.contains("JVM exit"));
+        assertEquals(0, sev("java.security.SecurityPermission", "getProperty.java.version", null));
     }
 }

@@ -152,9 +152,16 @@ public final class PermissionSets {
         if (FILE.equals(type) && ALL_FILES.equals(name) && hasAction(actions, "execute")) {
             return "escalation: executes any program";
         }
-        if (AUTH.equals(type) && basic(name, new String[]{"doAsPrivileged", "modifyPrincipals",
-                "modifyPrivateCredentials"}, none())) {
-            return "escalation: AuthPermission " + name + " runs as, or becomes, another subject";
+        // Operator ruling 2026-11-02: what changes WHO the code acts as is never a proxy's need.  HOLD:
+        // doAs, doAsPrivileged (run as any subject), modifyPrincipals (add an identity to a subject),
+        // modifyPrivateCredentials (take or plant keys and tickets), setLoginConfiguration (choose the
+        // login modules that decide who a caller is).  Not held, only flagged: modifyPublicCredentials
+        // (public credentials carry no authority by themselves), createLoginContext.* (it starts a login;
+        // acting as the result still needs doAs), getSubject, getLoginConfiguration, refreshLoginConfiguration.
+        if (AUTH.equals(type) && basic(name, new String[]{"doAs", "doAsPrivileged", "setLoginConfiguration",
+                "modifyPrincipals", "modifyPrivateCredentials"}, none())) {
+            return "escalation: AuthPermission " + name + " changes who the code acts as: it runs as,"
+                + " becomes or logs in as another subject";
         }
         if (SERIAL.equals(type) && basic(name, new String[]{"enableSubclassImplementation"}, none())) {
             return "escalation: SerializablePermission enableSubclassImplementation overrides"
@@ -170,11 +177,15 @@ public final class PermissionSets {
     public static String flagReason(String type, String name, String actions) {
         if (type == null || name == null) return null;
         if (FILE.equals(type) && ALL_FILES.equals(name)) return "reads or writes every file";
+        if (FILE.equals(type) && wholeTree(name)) {
+            return "FilePermission " + name + " covers a whole root, drive, share or home tree";
+        }
         if (AUTH.equals(type)) return "AuthPermission " + name + " acts on the current subject";
         if (SERIAL.equals(type)) return "SerializablePermission " + name;
         if (REFLECT.equals(type)) return "ReflectPermission " + name;
+        // RuntimePermission("exitVM") is exitVM.* (the JDK renames it), so the bare name is flagged too
         if (RUNTIME.equals(type) && (basic(name, new String[]{"accessDeclaredMembers",
-                "setContextClassLoader", "setFactory", "getProtectionDomain"},
+                "setContextClassLoader", "setFactory", "getProtectionDomain", "exitVM"},
                 new String[]{"accessClassInPackage.sun.", "exitVM."}))) {
             return "RuntimePermission " + name + " reaches into JDK internals or global state";
         }
@@ -188,6 +199,20 @@ public final class PermissionSets {
             return "SocketPermission to any host";
         }
         return null;
+    }
+
+    /**
+     * Whether a FilePermission name covers a whole root, drive, UNC share or host, or user-home tree
+     * ({@code /-}, {@code C:\-}, a UNC share or host tree, {@code /home/-}, {@code ${user.home}/-}):
+     * the names {@link #fileReach} marks high whatever the action.
+     */
+    private static boolean wholeTree(String name) {
+        if (name == null) return false;
+        String e = expand(name, null);
+        // an undefined ${property} cannot be judged here (danger() rates it from its own environment)
+        if (e == null) return false;
+        String why = fileReach(e, false, null, false);
+        return why != null && why.startsWith("[H]");
     }
 
     // ------------------------------------------------------------ dangerous-policy catalogue
@@ -234,8 +259,10 @@ public final class PermissionSets {
      * Whether a permission is dangerous when it reaches code the policy does not scope tightly.
      * It extends HOLD and FLAG (a held entry is HIGH, a flagged one MEDIUM) with what a policy
      * gate needs: AllPermission and the meta classes, GrantPermission of a dangerous target,
-     * write/delete/execute (HIGH) or read (MEDIUM) on all files, on a root, drive or
-     * current-directory tree, or on a whole user-home, JDK-home or temp-directory tree, the
+     * write, delete, execute or read (HIGH; {@code readlink} alone is MEDIUM) on all files, and
+     * those actions on a root, drive, UNC share or host tree, or on /home or /Users (read also
+     * HIGH), and on a whole user-home tree; write/delete/execute (HIGH) or read (MEDIUM) on a
+     * current-directory tree; write/delete/execute (HIGH) on a whole JDK-home or temp-directory tree, the
      * deserialisation wildcard, and the identity, credential, network, TLS, JMX and management
      * permissions listed in {@link #extraDanger}.  File names are expanded with the system
      * properties.
@@ -344,13 +371,6 @@ public final class PermissionSets {
             return new Danger(HIGH, "NativeMemoryPermission " + name + " gives access to off-heap memory:"
                 + " raw reads and writes, or exhausting it, outside the heap limit");
         }
-        if (AUTH.equals(type) && name != null && basic(name, new String[]{"doAs", "setLoginConfiguration"}, none())) {
-            // operator ruling 2026-11-02: both bear on identity (run as any subject; replace the
-            // JVM-wide login configuration), so a grant to everyone is not a medium finding
-            return new Danger(HIGH, "AuthPermission " + name + (name.equals("doAs")
-                ? " runs an action as any subject the holder can obtain"
-                : " replaces the JVM-wide login configuration and so chooses the login modules"));
-        }
         if (SUBJECT_DELEGATION.equals(type)) {
             return new Danger(HIGH, "SubjectDelegationPermission " + name
                 + " lets the holder act over JMX as another authenticated subject");
@@ -421,6 +441,11 @@ public final class PermissionSets {
             if (basic(name, none(), new String[]{"accessClassInPackage.jdk.internal."})) {
                 return new Danger(HIGH, "RuntimePermission " + name + " reaches the JDK's internal packages");
             }
+            // operator ruling 2026-11-03: shutdownHooks runs code at JVM exit
+            if (basic(name, new String[]{"shutdownHooks"}, none())) {
+                return new Danger(MEDIUM, "RuntimePermission " + name + " registers code that runs at JVM exit"
+                    + " and can delay it");
+            }
             if (basic(name, new String[]{"setIO", "getClassLoader", "modifyThread", "modifyThreadGroup",
                     "writeFileDescriptor", "readFileDescriptor", "manageProcess",
                     "enableContextClassLoaderOverride", "charsetProvider", "accessSystemModules"},
@@ -433,6 +458,11 @@ public final class PermissionSets {
         if (SECURITY.equals(type)) {
             if (basic(name, none(), new String[]{"clearProviderProperties."})) {
                 return new Danger(HIGH, "SecurityPermission " + name + " clears a provider's properties");
+            }
+            // operator ruling 2026-11-03: getDomainCombiner reaches protection-domain information
+            if (basic(name, new String[]{"getDomainCombiner"}, none())) {
+                return new Danger(MEDIUM, "SecurityPermission " + name
+                    + " reaches the protection-domain information of an access-control context");
             }
             if (basic(name, new String[]{"getPolicy"}, new String[]{"createPolicy."})) {
                 return new Danger(MEDIUM, "SecurityPermission " + name + " reads or creates a policy");
@@ -662,6 +692,9 @@ public final class PermissionSets {
         boolean medium = why.startsWith("[M]");
         boolean high = why.startsWith("[H]");
         if (medium || high) why = why.substring(3);
+        // operator ruling 2026-11-03: read of <<ALL FILES>> is an unscoped whole-tree read, HIGH like
+        // "/-" read; readlink alone (links, not contents) stays MEDIUM
+        if ("all files".equals(why) && hasAction(actions, "read")) high = true;
         String shown = "FilePermission " + (actions == null ? "" : actions + " ") + "on " + name;
         return new Danger((write && !medium) || high ? HIGH : MEDIUM, shown + " reaches " + why);
     }
@@ -670,6 +703,8 @@ public final class PermissionSets {
     public static final class FilePath {
         public String drive;
         public boolean absolute;
+        /** A UNC name (two leading slashes or backslashes, then host and share): a network host or share. */
+        public boolean unc;
         public final List<String> segments = new ArrayList<String>();
         /** {@code "-"}, {@code "*"} or null. */
         public String wildcard;
@@ -679,6 +714,7 @@ public final class PermissionSets {
     public static FilePath filePath(String name) {
         FilePath f = new FilePath();
         String p = name.trim().replace('\\', '/');
+        f.unc = p.startsWith("//") && p.length() > 2 && p.charAt(2) != '/';
         if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
             f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
             p = p.substring(2);
@@ -741,6 +777,15 @@ public final class PermissionSets {
                 return "a path above the current directory";
             }
             return null;
+        }
+        if ("-".equals(f.wildcard)) {
+            // operator ruling 2026-11-03: a whole UNC share or host, and the parent of every user home,
+            // are whole trees whatever the platform the lint runs on or the action
+            if (f.unc && f.segments.size() <= 2) return "[H]a whole network share or host tree";
+            if (f.segments.size() == 1 && (f.segments.get(0).equalsIgnoreCase("home")
+                    || f.segments.get(0).equalsIgnoreCase("Users"))) {
+                return "[H]the whole of the directory holding every user home";
+            }
         }
         List<String[]> dirs = new ArrayList<String[]>();
         dirs.add(new String[]{"the user home", property(env, "user.home")});

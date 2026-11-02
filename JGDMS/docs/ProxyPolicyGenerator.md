@@ -118,7 +118,11 @@ reviewer can stand behind:
   `createAccessControlContext`, `loadLibrary.*`; `ReflectPermission`
   `suppressAccessChecks`; `SecurityPermission` `createAccessControlContext`, `setPolicy`,
   `setProperty.*`; `SerializablePermission` `enableSubclassImplementation`;
-  `AuthPermission` `doAsPrivileged`, `modifyPrincipals`, `modifyPrivateCredentials`;
+  `AuthPermission` `doAs`, `doAsPrivileged`, `setLoginConfiguration`, `modifyPrincipals`,
+  `modifyPrivateCredentials` (operator ruling 2026-11-02/03: whatever changes WHO the code
+  acts as is never a proxy's need: it runs as another subject, adds an identity or takes its
+  keys, or chooses the login modules; a login module in the client is not a proxy, so the
+  client's own policy grants these, a proxy list never does);
   `FilePermission` `<<ALL FILES>>` with `execute`;
   `au.zeus.jdk.authorization.guards.NativeInvocationPermission` (any name). A
   `BasicPermission` wildcard that implies one of these names (`*`, `loadLibrary.*`) is
@@ -126,8 +130,13 @@ reviewer can stand behind:
   cap and one term of the effective grant, and `BasicProxyPreparer` uses it as the grant set
   when no permissions are configured, so under a grantor that holds `AllPermission` the list
   *is* the grant.
-* **Flagged, not held (the FLAG set).** `FilePermission` `<<ALL FILES>>` (read, write),
-  `AuthPermission` (for example `getSubject`, which JERI uses), `SerializablePermission` and
+* **Flagged, not held (the FLAG set).** `FilePermission` `<<ALL FILES>>` (read, write), and a
+  whole-tree read or write (a root or drive `/-`, `C:\-`, a UNC share or host, `/home/-`,
+  `/Users/-`, the user-home tree), `AuthPermission` names that do not themselves change who
+  the code acts as (`getSubject`, which JERI uses; `modifyPublicCredentials`, because public
+  credentials carry no authority by themselves; `createLoginContext.*`, which starts a login
+  but acting as the result still needs `doAs`; `getLoginConfiguration`,
+  `refreshLoginConfiguration`), `SerializablePermission` and
   `ReflectPermission` with other names, `RuntimePermission` `accessDeclaredMembers`,
   `setContextClassLoader`, `setFactory`, `accessClassInPackage.sun.*`, and `SocketPermission`
   to `*`. They are written live; the promotion plan and gate mark each added one
@@ -537,16 +546,19 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
 * AllPermission, `UmbrellaGrantPermission`, `PolicyPermission`, `GrantPermission` whose target
   is `*`/`-` or contains a dangerous permission;
 * `FilePermission` write, delete or execute on `<<ALL FILES>>`, on `-` or `*`, on a
-  root or drive tree (`/-`, `C:\-`), on the whole tree of the user home, the JDK home or the
+  root or drive tree (`/-`, `C:\-`), on a whole UNC share or host
+  (`\\host\share\-`, `\\host\-`, `//host/share/-`), on the whole tree of the user home, the JDK home or the
   temp directory (or of a directory above one: `/home/-`), on `*` in the home or JDK home, and
   on any file below the JDK home. Names are expanded first (`--define` values, then this JVM's
   properties, `${/}`) and normalised (`..` and `.` applied, `\` read as `/`); a property defined
   in neither is read as the root; `${user.dir}` counts as the working directory. Read on the
-  same is MEDIUM, except read of a whole root or drive tree (`/-`, `C:\-`) and of the whole
-  tree of the user home (`${user.home}${/}-`), which are HIGH (operator decision 2026-11-02;
-  read of `<<ALL FILES>>`, `readlink` and `C:\*` stay MEDIUM, and an exact or pinned read is
-  clean). `/tmp/*` (the temp directory's own files) is MEDIUM: services keep scratch
-  files there, as the deploy policies do;
+  same is MEDIUM, except read of a whole root or drive tree (`/-`, `C:\-`, in any case or
+  slash, with any order of `read,readlink`), of a whole UNC share or host, of `/home/-` and
+  `/Users/-` (on every platform the lint runs on), of the whole tree of the user home
+  (`${user.home}${/}-`) and of `<<ALL FILES>>`, which are HIGH (operator decisions 2026-11-02
+  and 2026-11-03). `readlink` alone on `<<ALL FILES>>` and `C:\*` stay MEDIUM, and an exact or
+  pinned read (a directory, or a named file) is clean. `/tmp/*` (the temp directory's own files)
+  is MEDIUM: services keep scratch files there, as the deploy policies do;
 * `AssertPrincipalPermission` with `*` in its class or name pattern (it confers identity),
   `PrivateCredentialPermission` with a wildcard credential, principal class or name,
   `NetPermission` `*` or `specifyStreamHandler`, `SSLPermission` `*` or `setDefaultSSLContext`,
@@ -561,14 +573,17 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
   `putProviderProperty.*`, `createAccessControlContext`;
 * `RuntimePermission` `*`, `setSecurityManager`, `createClassLoader`, `loadLibrary.*`,
   `defineClassInPackage.*`, `createAccessControlContext`; `ReflectPermission`
-  `suppressAccessChecks`; `AuthPermission` `doAs` and `setLoginConfiguration` (both bear on
-  identity; HIGH by operator decision 2026-11-02), `doAsPrivileged`, `modifyPrincipals`,
-  `modifyPrivateCredentials`; `SerializablePermission` `enableSubclassImplementation`;
+  `suppressAccessChecks`; `AuthPermission` `doAs`, `setLoginConfiguration`, `doAsPrivileged`,
+  `modifyPrincipals`, `modifyPrivateCredentials` (the HOLD set above: HIGH to the lint as well);
+  `SerializablePermission` `enableSubclassImplementation`;
   `NativeInvocationPermission`;
 * `DeSerializationPermission` `*` or `MARSHALLED`.
 
-MEDIUM (strict only): `RuntimePermission` `getProtectionDomain`, `exitVM.*`,
-`accessClassInPackage.sun.*`, `setContextClassLoader`, `setFactory`, `accessDeclaredMembers`;
+MEDIUM (strict only): `RuntimePermission` `getProtectionDomain`, `exitVM` and `exitVM.*`,
+`accessClassInPackage.sun.*`, `setContextClassLoader`, `setFactory`, `accessDeclaredMembers`,
+`shutdownHooks` (registers code that runs at JVM exit and can delay it; operator decision
+2026-11-03); `SecurityPermission` `getDomainCombiner` (reaches the protection-domain
+information of an access-control context; operator decision 2026-11-03);
 `SocketPermission` to any host (`*` or `*:ports`) or to a whole top-level domain (`*.com`);
 `URLPermission` and `AuthenticationPermission` with a wildcard; `AuthPermission`,
 `SerializablePermission` and `ReflectPermission` entries not listed above; `RuntimePermission`
@@ -579,8 +594,19 @@ and its kin; `SSLPermission` `setHostnameVerifier`; `MBeanPermission` with a wil
 a read action; `ManagementPermission` `monitor`; `LoggingPermission`; Kerberos
 `DelegationPermission`/`ServicePermission` with `*`; `DownloadPermission`; DirtyChai's
 `LoadClassPermission "ALLOW"` (it opens the class-loading gate; HIGH as `*`).
-`NativeInvocationPermission` is HIGH whatever its name. Not catalogued:
-`shutdownHooks` (runs only the caller's own code at exit). The DirtyChai guards are classes
+`NativeInvocationPermission` is HIGH whatever its name.
+
+Three ratings that commit ab94352a6 added without naming them in its message, recorded here with
+their reason (operator decision 2026-11-02, named on 2026-11-03): `SocketPermission` `*.<tld>`
+(one label after the wildcard, such as `*.com`) is MEDIUM because it reaches every host of a
+top-level domain, which is as wide as any host; a name with two or more labels after the
+wildcard (`*.example.com`, `*.com.au`) stays clean. `SecurityPermission` `authProvider.*` is
+MEDIUM because it obtains any named authentication provider, and `getProperty.*` is MEDIUM
+because it reads any Security property by name; a specific `getProperty.<name>` stays clean.
+
+The lint accepts a MEDIUM permission that a stranger is listed, without an allow-list row, only
+where a D5 finding of the lint for the same file names that very permission (per permission,
+not per file; operator decision 2026-11-03). The DirtyChai guards are classes
 the tool cannot load: they are judged by name, so a `SerialObjectPermission` naming one class is
 clean and an unknown class of any other name is D6 (below).
 

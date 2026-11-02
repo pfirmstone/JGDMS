@@ -147,12 +147,52 @@ public final class PolicyLint {
         final int line;
         final String kind;
         final String reason;
+        /**
+         * The permissions a D5 finding is about, as {class, name, actions}, every one (the reason
+         * text shows at most six).  Empty for the other kinds.
+         */
+        final List<String[]> permissions = new ArrayList<String[]>();
 
         Finding(String file, int line, String kind, String reason) {
             this.file = file;
             this.line = line;
             this.kind = kind;
             this.reason = reason;
+        }
+
+        /**
+         * Whether this finding names the permission: the finding lists it, or one the permission
+         * implies (a wildcard grant covers the specific name the finding was raised for).  A class
+         * that cannot be loaded here is compared by its text.
+         */
+        boolean names(java.security.Permission listed) {
+            String lt;
+            String ln;
+            String la;
+            if (listed instanceof java.security.UnresolvedPermission) {
+                java.security.UnresolvedPermission u = (java.security.UnresolvedPermission) listed;
+                lt = u.getUnresolvedType();
+                ln = u.getUnresolvedName();
+                la = u.getUnresolvedActions();
+            } else {
+                lt = listed.getClass().getName();
+                ln = listed.getName();
+                la = listed.getActions();
+            }
+            for (String[] t : permissions) {
+                if (t[0].equals(lt) && String.valueOf(t[1]).equals(String.valueOf(ln))
+                        && String.valueOf(t[2]).equals(String.valueOf(la))) {
+                    return true;
+                }
+                if (listed instanceof java.security.UnresolvedPermission) continue;
+                java.security.Permission mine = PermissionSets.instantiate(t[0], t[1], t[2]);
+                try {
+                    if (mine != null && listed.implies(mine)) return true;
+                } catch (RuntimeException e) {
+                    // a permission whose implies throws names nothing here
+                }
+            }
+            return false;
         }
 
         String name() {
@@ -669,6 +709,7 @@ public final class PolicyLint {
         PolicyScope.Verdict v = PolicyScope.scope(g, env, unbuildable);
         boolean reaches = v.reach != PolicyScope.Reach.NONE;
         Map<String, List<String>> found = new LinkedHashMap<String, List<String>>();
+        Map<String, List<String[]>> foundPerms = new LinkedHashMap<String, List<String[]>>();
         boolean holdsOther = false; // a catalogued permission other than AllPermission (S1 covers that)
         for (ProxyPolicyGenerator.Perm p : g.permissions) {
             if (hasSigner(p.signedBy)) continue; // a per-permission signedBy needs a signer too
@@ -725,6 +766,11 @@ public final class PolicyLint {
             if (kind != null) {
                 add(found, kind, what + (unknown ? " [what it grants cannot be judged: the class cannot"
                         + " be loaded or built here, or its implies throws]" : " [" + d.reason + "]"));
+                String shown = p.name != null && p.name.contains("${") && PermissionSets.expand(p.name, env) != null
+                        ? PermissionSets.expand(p.name, env) : p.name;
+                List<String[]> ps = foundPerms.get(kind);
+                if (ps == null) foundPerms.put(kind, ps = new ArrayList<String[]>());
+                ps.add(new String[]{p.type, shown, p.actions});
             }
         }
         for (Map.Entry<String, List<String>> e : found.entrySet()) {
@@ -737,7 +783,9 @@ public final class PolicyLint {
                 sb.append(l.get(i));
             }
             if (l.size() > 6) sb.append("; and ").append(l.size() - 6).append(" more");
-            res.add(new Finding(display, g.line, e.getKey(), sb.toString()));
+            Finding f = new Finding(display, g.line, e.getKey(), sb.toString());
+            if (foundPerms.get(e.getKey()) != null) f.permissions.addAll(foundPerms.get(e.getKey()));
+            res.add(f);
         }
         boolean reported = false;
         for (Finding f : res) reported |= f.line == g.line && !f.kind.equals("I1");
@@ -849,9 +897,21 @@ public final class PolicyLint {
                 res.add(new Finding(display, lineOf(grants, high), highKind[z], describe(high,
                         who[z], "dangerous permission")));
             }
-            if (!medium.isEmpty() && !has(res, "D5")) {
-                res.add(new Finding(display, lineOf(grants, medium), "D5", describe(medium,
-                        who[z], "broad permission")));
+            if (!medium.isEmpty()) {
+                // the file's D5 finding names every medium permission the provider granted, also
+                // when the symbolic check raised the finding first (the text is not repeated)
+                Finding d5 = firstOf(res, "D5");
+                if (d5 == null) {
+                    d5 = new Finding(display, lineOf(grants, medium), "D5", describe(medium,
+                            who[z], "broad permission"));
+                    res.add(d5);
+                }
+                for (PolicyVerdict.Hit h : medium) {
+                    if (h.permission != null) {
+                        d5.permissions.add(new String[]{h.permission.getClass().getName(),
+                            h.permission.getName(), h.permission.getActions()});
+                    }
+                }
             }
         }
     }
@@ -889,6 +949,11 @@ public final class PolicyLint {
             }
         }
         return 1;
+    }
+
+    private static Finding firstOf(List<Finding> res, String kind) {
+        for (Finding f : res) if (f.kind.equals(kind)) return f;
+        return null;
     }
 
     private static boolean has(List<Finding> res, String kind) {

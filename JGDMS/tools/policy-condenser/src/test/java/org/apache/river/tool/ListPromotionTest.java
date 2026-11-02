@@ -933,7 +933,7 @@ public class ListPromotionTest {
 
     // ------------------------------------------------------- round 5 findings
 
-    /** The 13 entries of the round-4 review that every earlier gate passed, held or refused now. */
+    /** The entries of the round-4 review (and doAs, setLoginConfiguration, ruling 2026-11-03) that every earlier gate passed, held now. */
     private static final String[] HOLD_ENTRIES = {
         "(java.lang.RuntimePermission \"setSecurityManager\")",
         "(java.lang.RuntimePermission \"createClassLoader\")",
@@ -943,6 +943,8 @@ public class ListPromotionTest {
         "(java.io.SerializablePermission \"enableSubclassImplementation\")",
         "(javax.security.auth.AuthPermission \"doAsPrivileged\")",
         "(javax.security.auth.AuthPermission \"modifyPrincipals\")",
+        "(javax.security.auth.AuthPermission \"doAs\")",
+        "(javax.security.auth.AuthPermission \"setLoginConfiguration\")",
         "(java.io.FilePermission \"<<ALL FILES>>\" \"execute\")",
         "(au.zeus.jdk.authorization.guards.NativeInvocationPermission \"x\")",
         "(net.jini.security.AssertPrincipalPermission \"javax.security.auth.x500.X500Principal\" \"CN=gateway\")"};
@@ -1025,6 +1027,40 @@ public class ListPromotionTest {
         ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP);
         assertFalse(c.report, c.failed);
         assertTrue(c.report, c.report.contains("  +! (java.io.FilePermission \"<<ALL FILES>>\""));
+        assertTrue(applyPlan(Arrays.asList(M), false).contains("WROTE"));
+    }
+
+    /**
+     * Operator ruling 2026-11-03: a whole-tree read in a proxy list (the all-files read, a root, the
+     * /home tree, a UNC share) is flagged in the plan and in the gate's report, and refused nowhere;
+     * a pinned directory or a named file is not flagged.
+     */
+    @Test
+    public void testAWholeTreeReadIsFlaggedButNeverRefused() throws Exception {
+        write(mahaloTarget, GET_CL);
+        generateMahalo();
+        File list = new File(gen, M + "/META-INF/PERMISSIONS.LIST");
+        String[] flagged = {
+            "(java.io.FilePermission \"<<ALL FILES>>\" \"read\")",
+            "(java.io.FilePermission \"/-\" \"read\")",
+            "(java.io.FilePermission \"/home/-\" \"read\")",
+            "(java.io.FilePermission \"//server/share/-\" \"read\")"};
+        String[] plain = {
+            "(java.io.FilePermission \"/opt/app/conf/-\" \"read\")",
+            "(java.io.FilePermission \"/etc/hosts\" \"read\")"};
+        StringBuilder sb = new StringBuilder();
+        for (String e : flagged) sb.append("  ").append(e).append("\n");
+        for (String e : plain) sb.append("  ").append(e).append("\n");
+        Files.write(list.toPath(), sb.toString().getBytes(UTF8), java.nio.file.StandardOpenOption.APPEND);
+
+        ListPromotion.Plan p = makePlan();
+        assertNull(p.summary(), p.items.get(0).refusal);
+        assertTrue(p.summary(), p.summary().contains("flagged " + flagged.length));
+        for (String e : flagged) assertTrue(e, read(plan).contains("    +! " + e + "   [FLAG: "));
+        for (String e : plain) assertFalse(e, read(plan).contains("+! " + e));
+        ListPromotion.CheckResult c = ListPromotion.check(gen, roots(), NOMAP);
+        assertFalse(c.report, c.failed);
+        for (String e : flagged) assertTrue(e + c.report, c.report.contains("  +! " + e));
         assertTrue(applyPlan(Arrays.asList(M), false).contains("WROTE"));
     }
 
