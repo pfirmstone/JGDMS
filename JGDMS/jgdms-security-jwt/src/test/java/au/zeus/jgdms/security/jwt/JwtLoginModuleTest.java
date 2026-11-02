@@ -50,7 +50,9 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1938,6 +1940,99 @@ public class JwtLoginModuleTest {
     }
 
     // -----------------------------------------------------------------------
+    // The HttpClients do not outlive the login or the session
+    // -----------------------------------------------------------------------
+
+    /** The threads of every live java.net.http.HttpClient (HttpClient-N-Worker-M, the selector); they end when the client is closed. */
+    private static Set<Thread> selectorThreads() {
+        Set<Thread> out = new HashSet<>();
+        for (Thread t : Thread.getAllStackTraces().keySet())
+            if (t.isAlive() && t.getName().startsWith("HttpClient-")) out.add(t);
+        return out;
+    }
+
+    /** Selector threads that started after {@code before} was taken and are still alive. */
+    private static Set<Thread> newSelectorThreads(Set<Thread> before) {
+        Set<Thread> now = selectorThreads();
+        now.removeAll(before);
+        return now;
+    }
+
+    /** Waits for the clients closed on a closer thread; returns the selector threads still alive. */
+    private static Set<Thread> awaitNoNewSelectorThreads(Set<Thread> before) throws InterruptedException {
+        long end = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+        Set<Thread> left = newSelectorThreads(before);
+        while (!left.isEmpty() && System.nanoTime() < end) {
+            Thread.sleep(50);
+            left = newSelectorThreads(before);
+        }
+        return left;
+    }
+
+    /**
+     * Invariant: no HttpClient (so no selector thread) outlives logout.  The refresh
+     * thread's client and the clients of the JWKS caches (login, refreshes) are all closed.
+     */
+    @Test(timeout = 60000)
+    public void testLogoutClosesTheHttpClients() throws Exception {
+        Set<Thread> before = selectorThreads();
+        JwtLoginModule m = loginWithRefresh(new Subject(),
+                tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+        tokenEndpointResponse.set(tokenFor("s", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]"));
+        try {
+            // One refresh by hand: the refresh thread's client sends, so it has threads of its own.
+            m.refreshNow();
+        } finally {
+            tokenEndpointResponse.set(null);
+        }
+        assertTrue("the clients have threads", !newSelectorThreads(before).isEmpty());
+        m.logout();
+        assertEquals("selector threads alive after logout", Collections.emptySet(), awaitNoNewSelectorThreads(before));
+    }
+
+    /** The login's JWKS client is closed once the token is validated, without a logout. */
+    @Test(timeout = 60000)
+    public void testTheLoginsJwksClientIsClosedAfterValidation() throws Exception {
+        Set<Thread> before = selectorThreads();
+        Subject subject = new Subject();
+        JwtLoginModule m = loginAndCommit(subject, jwksUri(), JWT_ISSUER, null,
+                tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+        try {
+            assertEquals("selector threads alive after login", Collections.emptySet(),
+                    awaitNoNewSelectorThreads(before));
+        } finally {
+            m.logout();
+        }
+    }
+
+    /** A commit that fails to start the refresh thread and the abort that follows leave no client behind. */
+    @Test(timeout = 60000)
+    public void testAFailedCommitAndAbortCloseTheHttpClients() throws Exception {
+        Set<Thread> before = selectorThreads();
+        Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD,
+                tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+        opts.put("refreshTokenUri", serverBaseUri + "/token");
+        opts.put("refreshToken", "dummy-refresh-token");
+        JwtLoginModule module = new JwtLoginModule();
+        module.initialize(new Subject(), null, new HashMap<>(), opts);
+        assertTrue(module.login());
+        JwtLoginModule.threadStarter = (r, name) -> {
+            throw new SecurityException("no thread");
+        };
+        try {
+            module.commit();
+            fail("commit succeeded");
+        } catch (LoginException expected) {
+            // expected
+        } finally {
+            JwtLoginModule.threadStarter = BoundedBody::startThread;
+        }
+        module.abort();
+        assertEquals("selector threads alive after the failed commit", Collections.emptySet(),
+                awaitNoNewSelectorThreads(before));
+    }
+
+    // -----------------------------------------------------------------------
     // Under a SecurityManager (child JVM): the watchdog is the module's business
     // -----------------------------------------------------------------------
 
@@ -1977,8 +2072,10 @@ public class JwtLoginModuleTest {
      * need none of it.
      */
     private String refreshGrant(int port) {
+        // Exactly the two endpoints and methods the refresh uses (the deployment rule of the class comment).
         return WatchdogSecurityManagerTest.THREAD_PERMS + WatchdogSecurityManagerTest.DEFINE
-                + "permission java.net.URLPermission \"https://localhost:" + port + "/-\", \"*:*\";\n"
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/token\", \"POST:*\";\n"
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/jwks.json\", \"GET:*\";\n"
                 + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
                 + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
                 + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
@@ -1999,6 +2096,36 @@ public class JwtLoginModuleTest {
             + "permission java.net.NetPermission \"getProxySelector\";\n"
             + "permission java.util.PropertyPermission \"*\", \"read\";\n";
 
+    /**
+     * What the caller (the child's main class) holds: what its own login needs, the JWKS GET
+     * (the fetch runs on the caller's thread), the Subject permissions of commit and logout, and
+     * reflection for the child's checks.  It holds NO permission for the token endpoint: the
+     * refresh runs on the module's thread, and a regression that sent the token request on the
+     * caller's context would be refused.
+     */
+    private String refreshCallerPolicy(int port) {
+        return WatchdogSecurityManagerTest.CALLER_BASE
+                + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/jwks.json\", \"GET:*\";\n"
+                + "permission java.lang.reflect.ReflectPermission \"suppressAccessChecks\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n";
+    }
+
+    /**
+     * Invariant: the policy the refresh child's caller runs under grants it no token endpoint
+     * permission and no method but GET, so the child test is a test of the module's own context.
+     */
+    @Test
+    public void testTheRefreshChildsCallerHoldsNoTokenEndpointPermission() {
+        String caller = refreshCallerPolicy(httpsServer.getAddress().getPort());
+        assertFalse(caller, caller.contains("/token"));
+        assertFalse(caller, caller.contains("POST"));
+        assertFalse(caller, caller.contains("*:*"));
+        assertFalse(caller, caller.contains("/-"));
+    }
+
     /** Runs a child that logs in with a refresh endpoint; the caller holds no thread permission. */
     private String runRefreshChild(String mode, java.nio.file.Path audit, String moduleGrant, String callerExtra)
             throws Exception {
@@ -2006,15 +2133,7 @@ public class JwtLoginModuleTest {
         java.io.File trust = WatchdogSecurityManagerTest.trustStore(serverCertificate,
                 KEYSTORE_PASSWORD.toCharArray());
         int port = httpsServer.getAddress().getPort();
-        // The caller needs what the login does on its own thread (the JWKS fetch) and reflection for the checks.
-        String caller = WatchdogSecurityManagerTest.CALLER_BASE
-                + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
-                + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
-                + "permission java.net.URLPermission \"https://localhost:" + port + "/-\", \"*:*\";\n"
-                + "permission java.lang.reflect.ReflectPermission \"suppressAccessChecks\";\n"
-                + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
-                + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n"
-                + callerExtra;
+        String caller = refreshCallerPolicy(port) + callerExtra;
         return WatchdogSecurityManagerTest.runChild(audit, moduleGrant, caller,
                 new String[] {"-Djavax.net.ssl.trustStore=" + trust, "-Djavax.net.ssl.trustStoreType=PKCS12",
                     "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
@@ -2046,6 +2165,13 @@ public class JwtLoginModuleTest {
         assertTrue(out, out.contains("CHILD-REFRESHED"));
         WatchdogSecurityManagerTest.assertOnlyTheModuleIsRecorded(recorded, "createPlatformThread",
                 "setContextClassLoader", "URLPermission", "modifyPrincipals", "modifyPublicCredentials");
+        // The caller (the test classes) was never recorded as needing the token endpoint.
+        String text = new String(Files.readAllBytes(recorded), StandardCharsets.UTF_8);
+        for (Map.Entry<String, String> e : WatchdogSecurityManagerTest.parseGrants(text).entrySet()) {
+            if (!e.getKey().replace('\\', '/').contains("test-classes")) continue;
+            assertFalse("caller recorded with the token endpoint: " + e, e.getValue().contains("/token"));
+            assertFalse("caller recorded with POST: " + e, e.getValue().contains("POST"));
+        }
     }
 
     /**

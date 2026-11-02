@@ -160,6 +160,28 @@ final class JwksKeyCache {
     }
 
     /**
+     * Closes this cache's HTTP client (see {@link #closeClient}); call it when the cache
+     * is no longer used.  Does not block.
+     */
+    void close() {
+        closeClient(httpClient);
+    }
+
+    /**
+     * Shuts {@code client} down without blocking the caller: its selector thread would
+     * otherwise live until the client is garbage collected.  {@code shutdownNow} cancels
+     * what is in flight and {@code close} waits for the client to terminate; both run on
+     * a closer thread of {@link BoundedBody#closeAsync}, because the wait is unbounded
+     * against a peer that never answers.  Safe to call more than once.
+     */
+    static void closeClient(HttpClient client) {
+        BoundedBody.closeAsync(() -> {
+            client.shutdownNow();
+            client.close();
+        });
+    }
+
+    /**
      * Returns the public key for the given {@code kid}, fetching from the
      * JWKS endpoint if the cache is empty or expired.
      *

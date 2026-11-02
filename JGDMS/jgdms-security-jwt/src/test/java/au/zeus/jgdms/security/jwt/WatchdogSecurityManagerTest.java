@@ -99,6 +99,25 @@ public class WatchdogSecurityManagerTest {
     }
 
     /**
+     * Invariant: every login after a watchdog that failed to start fails with the same message
+     * and the same root cause as the first.  The class is unusable after its first failed
+     * initialisation and the JVM then reports only a NoClassDefFoundError that names nothing.
+     */
+    @Test
+    public void everyLoginAfterAFailedWatchdogReportsTheFirstRootCause() throws Exception {
+        String out = runChild(DEFINE, CALLER_BASE, new String[0],
+                "login3", "https://localhost:1/jwks.json", "https://x", "a.b.c");
+        String[] lines = new String[3];
+        for (String l : out.split("\\R")) {
+            if (l.startsWith("CHILD-LOGIN3 ")) lines[Integer.parseInt(l.substring(13, 14)) - 1] = l.substring(15);
+        }
+        for (int i = 0; i < 3; i++) assertTrue("attempt " + (i + 1) + " in:\n" + out, lines[i] != null && lines[i].startsWith("message="));
+        assertTrue(out, lines[0].contains("createPlatformThread"));
+        assertEquals("second login differs from the first:\n" + out, lines[0], lines[1]);
+        assertEquals("third login differs from the first:\n" + out, lines[0], lines[2]);
+    }
+
+    /**
      * Runs {@link WatchdogChild} under a SecurityManager with a policy that gives the
      * JWT module {@code moduleGrant} and the child itself {@code callerGrant}.  The
      * jgdms-collections jar is granted nothing but what loading its classes needs: the

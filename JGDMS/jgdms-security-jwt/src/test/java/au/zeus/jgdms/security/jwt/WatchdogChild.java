@@ -82,12 +82,38 @@ public final class WatchdogChild {
                     System.out.println("CHILD-LOGIN-REFUSED " + e.getMessage());
                 }
                 break;
+            case "login3":
+                // Three logins in one JVM with the watchdog unable to start: the first fails in the
+                // static initialiser, the later ones find the class unusable.
+                for (int i = 1; i <= 3; i++) {
+                    Map<String, String> o = new HashMap<>();
+                    o.put("jwksUri", args[1]);
+                    o.put("issuer", args[2]);
+                    o.put("token", args[3]);
+                    JwtLoginModule lm = new JwtLoginModule();
+                    lm.initialize(new Subject(), null, new HashMap<>(), o);
+                    try {
+                        lm.login();
+                        System.out.println("CHILD-LOGIN3 " + i + " LOGGED-IN");
+                    } catch (LoginException e) {
+                        Throwable root = e;
+                        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+                        System.out.println("CHILD-LOGIN3 " + i + " message=" + one(e.getMessage())
+                                + " cause=" + e.getCause().getClass().getName()
+                                + " root=" + one(String.valueOf(root)));
+                    }
+                }
+                break;
             case "refresh":
                 refresh(args);
                 break;
             default:
                 throw new IllegalArgumentException(args[0]);
         }
+    }
+
+    private static String one(String s) {
+        return s == null ? "null" : s.replace('\r', ' ').replace('\n', ' ');
     }
 
     /**

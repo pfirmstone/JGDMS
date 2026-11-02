@@ -112,6 +112,18 @@ import net.jini.security.jwt.JwtPrincipal;
  * class loader.  If the thread cannot be started, {@code commit} undoes itself and
  * throws a {@link LoginException}.
  *
+ * <p><b>Policy for the module's codebase.</b>  The refresh thread contacts the URIs
+ * it is given in the login options ({@code refreshTokenUri}, {@code jwksUri}), and
+ * it does so with this module's permissions, not the caller's.  Code that may choose
+ * the login configuration (for example one holding {@code createLoginContext} with its
+ * own {@code Configuration}) thereby chooses those URIs.  A deployment policy must
+ * therefore grant this module's codebase {@code URLPermission} for only the exact token
+ * endpoint URL with method {@code POST} and the exact JWKS URL with method {@code GET},
+ * never a wildcard such as {@code https://idp/-}, {@code https://*} or {@code *:*}.
+ * Callers need no token endpoint permission.  The jgdms-collections jar needs none of
+ * the thread, HTTP or Subject permissions of this module (it is not on the thread's
+ * context since {@link NewDaemonThread} creates the threads).
+ *
  * <p><b>Permanent failures</b> log at SEVERE level, stop the thread and remove
  * the token, expiry claim and principals this module installed, so the Subject
  * fails closed at once:
@@ -169,6 +181,14 @@ public final class JwtLoginModule implements LoginModule {
      * {@code additionalClaims} configuration option.
      */
     private static final int MAX_ADDITIONAL_CLAIMS = 50;
+
+    /**
+     * The first {@link ExceptionInInitializerError} (or, if the class was already unusable
+     * when this module first looked, the {@link NoClassDefFoundError}) from starting the
+     * body-deadline watchdog, or null.  Holds the permission failure that explains it; no
+     * token text can be in it.
+     */
+    private static volatile Throwable watchdogFailure;
 
     // ---- JAAS state --------------------------------------------------------
 
@@ -267,9 +287,18 @@ public final class JwtLoginModule implements LoginModule {
             // The body-deadline watchdog thread could not be started (under a SecurityManager:
             // the module's codebase lacks RuntimePermission createPlatformThread or
             // setContextClassLoader).  Reading bodies without a deadline is not an option, so fail.
+            // BoundedBody fails to initialise once; every later use only throws NoClassDefFoundError,
+            // which names nothing.  So the first failure is kept and is the cause of every login that follows.
+            Throwable first = watchdogFailure;
+            if (first == null) {
+                synchronized (JwtLoginModule.class) {
+                    if (watchdogFailure == null) watchdogFailure = e;
+                    first = watchdogFailure;
+                }
+            }
             LoginException le = new LoginException("JWT login unavailable: the response-body deadline "
-                    + "watchdog could not be started (" + (e.getCause() != null ? e.getCause() : e) + ")");
-            le.initCause(e);
+                    + "watchdog could not be started (" + (first.getCause() != null ? first.getCause() : first) + ")");
+            le.initCause(first);
             throw le;
         }
 
@@ -309,6 +338,9 @@ public final class JwtLoginModule implements LoginModule {
                     + e.getMessage() + ")");
         } catch (JwtValidationException e) {
             throw new LoginException("JWT validation failed: " + e.getMessage());
+        } finally {
+            // The cache served this one validation; its HTTP client must not outlive it.
+            cache.close();
         }
 
         // Extract expiry instant from allClaims
@@ -656,6 +688,8 @@ public final class JwtLoginModule implements LoginModule {
             running = false;
             Thread t = thread;
             if (t != null) t.interrupt();
+            // Closes the client without waiting (BoundedBody.closeAsync): logout must not block on it.
+            JwksKeyCache.closeClient(httpClient);
         }
 
         @Override
@@ -673,6 +707,9 @@ public final class JwtLoginModule implements LoginModule {
                     LOG.log(Level.SEVERE, "JWT refresh thread died with " + name
                             + "; removing the token and principals");
                 owner.failClosed(this, name);
+            } finally {
+                // However the thread ends (logout, a permanent failure, an Error) its client goes too.
+                JwksKeyCache.closeClient(httpClient);
             }
         }
 
@@ -856,6 +893,8 @@ public final class JwtLoginModule implements LoginModule {
                 // A new token that fails validation is permanent: keeping the old one would serve
                 // an identity the provider no longer vouches for.  The message names a claim, never a value.
                 throw new FatalRefreshException("refreshed token failed validation: " + e.getMessage(), false);
+            } finally {
+                cache.close();
             }
 
             // Compute new expiry
