@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -107,6 +108,36 @@ final class BoundedBody {
      */
     private static Thread newThread(Runnable r, String name) {
         return AccessController.doPrivileged(new NewThreadAction(r, name, true));
+    }
+
+    /**
+     * Creates and starts a daemon thread named {@code name} in one privileged block, so
+     * the thread permissions are checked against this module (and the thread factory) and
+     * never against the code that called the module, and the thread inherits no caller's
+     * context.  Its context class loader is the system class loader (NewThreadAction).
+     * Used for the long-lived refresh thread.
+     *
+     * @throws SecurityException if the module is not granted the thread permissions
+     */
+    static Thread startThread(Runnable r, String name) {
+        return AccessController.doPrivileged(new StartAction(r, name));
+    }
+
+    private static final class StartAction implements PrivilegedAction<Thread> {
+        private final Runnable r;
+        private final String name;
+
+        StartAction(Runnable r, String name) {
+            this.r = r;
+            this.name = name;
+        }
+
+        @Override
+        public Thread run() {
+            Thread t = newThread(r, name);
+            t.start();
+            return t;
+        }
     }
 
     /**

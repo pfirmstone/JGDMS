@@ -59,6 +59,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1354,9 +1355,7 @@ public class JwtLoginModuleTest {
         String t2 = tokenFor("s", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
         Subject subject = new Subject();
         JwtLoginModule m = loginWithRefresh(subject, t1);
-        java.lang.reflect.Field f = JwtLoginModule.class.getDeclaredField("refreshThread");
-        f.setAccessible(true);
-        Thread rt = (Thread) f.get(m);
+        Thread rt = refreshThreadOf(m);
         assertTrue(rt.isAlive());
         tokenEndpointResponse.set(t2);
         try {
@@ -1415,13 +1414,18 @@ public class JwtLoginModuleTest {
     private static Thread refreshThreadOf(JwtLoginModule m) throws Exception {
         java.lang.reflect.Field f = JwtLoginModule.class.getDeclaredField("refreshThread");
         f.setAccessible(true);
-        return (Thread) f.get(m);
+        Object task = f.get(m);
+        if (task == null) return null;
+        if (task instanceof Thread) return (Thread) task;
+        java.lang.reflect.Field t = task.getClass().getDeclaredField("thread");
+        t.setAccessible(true);
+        return (Thread) t.get(task);
     }
 
     private static int liveRefreshThreads() {
         int n = 0;
         for (Thread t : Thread.getAllStackTraces().keySet())
-            if (t.isAlive() && "JwtLoginModule-refresh".equals(t.getName())) n++;
+            if (t.isAlive() && t.getName().endsWith("JwtLoginModule-refresh")) n++;
         return n;
     }
 
@@ -1961,5 +1965,133 @@ public class JwtLoginModuleTest {
                     "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
                 "login", jwksUri(), JWT_ISSUER, token);
         assertTrue(out, out.contains("CHILD-LOGIN-OK"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Under a SecurityManager (child JVM): the refresh thread is the module's business
+    // -----------------------------------------------------------------------
+
+    /**
+     * What the module and the thread factory need for the refresh thread's own work: the
+     * thread inherits only their two protection domains, so the HTTP calls and the Subject
+     * update are checked against both.  The caller (the child's main class) needs none of it.
+     */
+    private String refreshGrant(int port) {
+        return WatchdogSecurityManagerTest.THREAD_PERMS + WatchdogSecurityManagerTest.DEFINE
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/-\", \"*:*\";\n"
+                + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n";
+    }
+
+    /**
+     * The module also builds the HttpClient (privileged, in its own right): what polpAudit
+     * recorded against its codebase for that, on top of {@link #refreshGrant}.
+     */
+    private static final String HTTP_CLIENT_GRANT =
+            "permission java.lang.RuntimePermission \"createInnocuousThread\";\n"
+            + "permission java.lang.RuntimePermission \"createVirtualThread\";\n"
+            + "permission java.lang.reflect.ReflectPermission \"suppressAccessChecks\";\n"
+            + "permission java.util.PropertyPermission \"jdk.*\", \"read\";\n"
+            + "permission java.security.SecurityPermission \"putProviderProperty.*\";\n"
+            + "permission java.security.SecurityPermission \"getProperty.*\";\n"
+            + "permission java.net.NetPermission \"getProxySelector\";\n"
+            + "permission java.util.PropertyPermission \"*\", \"read\";\n";
+
+    /** Runs a child that logs in with a refresh endpoint; the caller holds no thread permission. */
+    private String runRefreshChild(String mode, String moduleGrant, String collectionsGrant, String callerExtra)
+            throws Exception {
+        String token = buildJwt(jwtSigningKeyPair.getPrivate(), JWT_KID, JWT_ISSUER, JWT_SUBJECT, JWT_EMAIL, 3);
+        java.io.File trust = WatchdogSecurityManagerTest.trustStore(serverCertificate,
+                KEYSTORE_PASSWORD.toCharArray());
+        int port = httpsServer.getAddress().getPort();
+        // The caller needs what the login does on its own thread (the JWKS fetch) and reflection for the checks.
+        String caller = WatchdogSecurityManagerTest.CALLER_BASE
+                + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/-\", \"*:*\";\n"
+                + "permission java.lang.reflect.ReflectPermission \"suppressAccessChecks\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n"
+                + callerExtra;
+        return WatchdogSecurityManagerTest.runChild(moduleGrant, collectionsGrant, caller,
+                new String[] {"-Djavax.net.ssl.trustStore=" + trust, "-Djavax.net.ssl.trustStoreType=PKCS12",
+                    "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
+                mode, jwksUri(), JWT_ISSUER, token, serverBaseUri + "/token");
+    }
+
+    /**
+     * (a) commit starts the thread although the caller lacks createPlatformThread, (b) the thread
+     * refreshes under the SecurityManager with the grants of {@link #refreshGrant}, (d) logout
+     * stops it and removes the token.
+     */
+    @Test
+    public void testRefreshThreadUnderASecurityManagerWhenTheCallerLacksCreatePlatformThread() throws Exception {
+        int port = httpsServer.getAddress().getPort();
+        String out = runRefreshChild("refresh", refreshGrant(port) + HTTP_CLIENT_GRANT, refreshGrant(port), "");
+        assertTrue(out, out.contains("CHILD-COMMIT-OK thread=(JSK) JwtLoginModule-refresh daemon=true ccl=system"));
+        assertTrue(out, out.contains("CHILD-REFRESHED"));
+        assertTrue(out, out.contains("CHILD-LOGOUT alive=false principals=0 credentials=0"));
+    }
+
+    /**
+     * The refresh thread is a daemon with a fixed name and the system class loader as context class
+     * loader, whatever the caller's: a thread that lives as long as the session must not pin
+     * the loader of the application (or web application) that happened to log in.
+     */
+    @Test
+    public void testRefreshThreadIsADaemonWithTheSystemClassLoaderNotTheCallers() throws Exception {
+        ClassLoader callers = new ClassLoader(null) { };
+        ClassLoader saved = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(callers);
+        JwtLoginModule m = null;
+        try {
+            m = loginWithRefresh(new Subject(), tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+            Thread rt = refreshThreadOf(m);
+            assertTrue(rt.isAlive());
+            assertTrue(rt.isDaemon());
+            assertEquals("(JSK) JwtLoginModule-refresh", rt.getName());
+            assertSame(ClassLoader.getSystemClassLoader(), rt.getContextClassLoader());
+        } finally {
+            Thread.currentThread().setContextClassLoader(saved);
+            if (m != null) m.logout();
+        }
+    }
+
+    /**
+     * (c) A refresh thread that cannot be started (a missing thread grant raises the same
+     * SecurityException) makes commit fail with a LoginException and leaves the Subject as it was,
+     * not a session that never refreshes.  The permission itself cannot be withdrawn between login
+     * and commit in a child JVM (the SecurityManager caches), so the starter is replaced.  Without
+     * the grant at all the login fails earlier: see WatchdogSecurityManagerTest.
+     */
+    @Test
+    public void testCommitFailsClearlyWhenTheRefreshThreadCannotBeStarted() throws Exception {
+        String token = tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]");
+        Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD, token);
+        opts.put("refreshTokenUri", serverBaseUri + "/token");
+        opts.put("refreshToken", "dummy-refresh-token");
+        Subject subject = new Subject();
+        JwtLoginModule module = new JwtLoginModule();
+        module.initialize(subject, null, new HashMap<>(), opts);
+        assertTrue(module.login());
+        int before = liveRefreshThreads();
+        JwtLoginModule.threadStarter = (r, name) -> {
+            throw new SecurityException("access denied (\"java.lang.RuntimePermission\" \"createPlatformThread\")");
+        };
+        try {
+            module.commit();
+            fail("commit succeeded without a refresh thread");
+        } catch (LoginException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("refresh thread could not be started"));
+            assertTrue(expected.getCause() instanceof SecurityException);
+        } finally {
+            JwtLoginModule.threadStarter = BoundedBody::startThread;
+        }
+        assertNothingOfOurs(subject);
+        assertNull(refreshThreadOf(module));
+        assertEquals(before, liveRefreshThreads());
+        module.abort();
     }
 }

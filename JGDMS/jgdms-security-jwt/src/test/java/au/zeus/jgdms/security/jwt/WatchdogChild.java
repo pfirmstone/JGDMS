@@ -82,8 +82,57 @@ public final class WatchdogChild {
                     System.out.println("CHILD-LOGIN-REFUSED " + e.getMessage());
                 }
                 break;
+            case "refresh":
+                refresh(args);
+                break;
             default:
                 throw new IllegalArgumentException(args[0]);
         }
+    }
+
+    /**
+     * {@code args}: mode, jwksUri, issuer, token, tokenUri.  Logs in with a refresh endpoint, lets the
+     * refresh thread run once, logs out.
+     */
+    private static void refresh(String[] args) throws Exception {
+        Map<String, String> opts = new HashMap<>();
+        opts.put("jwksUri", args[1]);
+        opts.put("issuer", args[2]);
+        opts.put("token", args[3]);
+        opts.put("refreshTokenUri", args[4]);
+        opts.put("refreshToken", "dummy-refresh-token");
+        opts.put("clientId", "test-client");
+        opts.put("clientSecret", "test-secret");
+        JwtLoginModule m = new JwtLoginModule();
+        Subject s = new Subject();
+        m.initialize(s, null, new HashMap<>(), opts);
+        if (!m.login()) throw new AssertionError("login returned false");
+        try {
+            if (!m.commit()) throw new AssertionError("commit returned false");
+        } catch (LoginException e) {
+            System.out.println("CHILD-COMMIT-REFUSED " + e.getMessage());
+            return;
+        }
+        java.lang.reflect.Field f = JwtLoginModule.class.getDeclaredField("refreshThread");
+        f.setAccessible(true);
+        Object task = f.get(m);
+        Thread t;
+        if (task instanceof Thread) {
+            t = (Thread) task;
+        } else {
+            java.lang.reflect.Field tf = task.getClass().getDeclaredField("thread");
+            tf.setAccessible(true);
+            t = (Thread) tf.get(task);
+        }
+        System.out.println("CHILD-COMMIT-OK thread=" + t.getName() + " daemon=" + t.isDaemon()
+                + " ccl=" + (t.getContextClassLoader() == ClassLoader.getSystemClassLoader() ? "system" : "other"));
+        long end = System.currentTimeMillis() + 20_000;
+        while (m.lastRefreshed == null && System.currentTimeMillis() < end) Thread.sleep(100);
+        System.out.println(m.lastRefreshed != null ? "CHILD-REFRESHED"
+                : "CHILD-NO-REFRESH " + m.lastRefreshFailure);
+        m.logout();
+        t.join(5000);
+        System.out.println("CHILD-LOGOUT alive=" + t.isAlive() + " principals=" + s.getPrincipals().size()
+                + " credentials=" + s.getPublicCredentials().size());
     }
 }

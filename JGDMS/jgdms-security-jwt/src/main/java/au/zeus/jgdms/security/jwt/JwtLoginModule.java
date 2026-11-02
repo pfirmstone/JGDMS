@@ -102,6 +102,16 @@ import net.jini.security.jwt.JwtPrincipal;
  * thread proactively fetches a new access token at 80% of the token lifetime
  * (i.e. when 20% of the lifetime remains).
  *
+ * <p><b>Security manager.</b>  {@code commit} creates and starts the thread in a
+ * privileged block ({@code NewThreadAction}), so a policy grants the thread
+ * permissions to this module's codebase and not to the code that calls the
+ * module.  The thread does not inherit the caller's context: it carries only the
+ * protection domains of this module and of the thread factory, so the refresh (the
+ * HTTP calls to the token endpoint and the JWKS, and the update of the Subject) needs
+ * its permissions from those two codebases.  The context class loader is the system
+ * class loader.  If the thread cannot be started, {@code commit} undoes itself and
+ * throws a {@link LoginException}.
+ *
  * <p><b>Permanent failures</b> log at SEVERE level, stop the thread and remove
  * the token, expiry claim and principals this module installed, so the Subject
  * fails closed at once:
@@ -217,6 +227,16 @@ public final class JwtLoginModule implements LoginModule {
     // ---- Background refresh ------------------------------------------------
 
     private volatile RefreshThread refreshThread;
+
+    /** Test hook: how commit creates and starts the refresh thread (privileged, see {@link BoundedBody#startThread}). */
+    static volatile java.util.function.BiFunction<Runnable, String, Thread> threadStarter =
+            new java.util.function.BiFunction<Runnable, String, Thread>() {
+                // Not a lambda: loading this class must not need the lambda (DefineClass) grant.
+                @Override
+                public Thread apply(Runnable r, String name) {
+                    return BoundedBody.startThread(r, name);
+                }
+            };
 
     // -----------------------------------------------------------------------
     // LoginModule interface
@@ -371,10 +391,18 @@ public final class JwtLoginModule implements LoginModule {
                         (String) options.get("issuer"),
                         (String) options.get("audience"),
                         additionalClaims, bodyDeadlineMs);
-                rt.setDaemon(true);
-                rt.setName("JwtLoginModule-refresh");
                 refreshThread = rt;
-                rt.start();
+                try {
+                    // Privileged: the thread permissions are the module's, not the caller's.
+                    rt.thread = threadStarter.apply(rt, "JwtLoginModule-refresh");
+                } catch (RuntimeException | Error e) {
+                    // No refresh thread means a token nobody refreshes: undo the commit and say so.
+                    uninstallLocked();
+                    LoginException le = new LoginException(
+                            "JWT refresh thread could not be started: " + e.getClass().getName());
+                    le.initCause(e);
+                    throw le;
+                }
             }
         }
         return true;
@@ -567,7 +595,7 @@ public final class JwtLoginModule implements LoginModule {
      * calls the token endpoint with the refresh token, validates the new
      * access token, and updates the Subject.
      */
-    private static final class RefreshThread extends Thread {
+    private static final class RefreshThread implements Runnable {
 
         private static final long MIN_BACKOFF_MS  =  5_000L;
         private static final long MAX_BACKOFF_MS  = 300_000L; // 5 minutes
@@ -601,6 +629,9 @@ public final class JwtLoginModule implements LoginModule {
 
         volatile boolean running = true;
 
+        /** The thread running this; set once by commit, which holds the Subject's monitor. */
+        volatile Thread thread;
+
         private final HttpClient httpClient = JwksKeyCache.newHttpClient();
 
         RefreshThread(JwtLoginModule owner, Subject subject, String refreshTokenUri, String refreshToken,
@@ -623,7 +654,8 @@ public final class JwtLoginModule implements LoginModule {
 
         void shutdown() {
             running = false;
-            interrupt();
+            Thread t = thread;
+            if (t != null) t.interrupt();
         }
 
         @Override
