@@ -95,6 +95,7 @@ final class JwksKeyCache {
     private final URI jwksUri;
     private final HttpClient httpClient;
     private final Duration ttl;
+    private final long bodyDeadlineMs;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Map<String, PublicKey> cache = Collections.emptyMap();
@@ -108,7 +109,17 @@ final class JwksKeyCache {
      * @throws NullPointerException     if {@code jwksUri} is null
      */
     JwksKeyCache(URI jwksUri) {
-        this(jwksUri, DEFAULT_TTL);
+        this(jwksUri, DEFAULT_TTL, BoundedBody.DEFAULT_DEADLINE_MS);
+    }
+
+    /**
+     * Constructs a {@code JwksKeyCache} with a total time limit for reading the response body.
+     *
+     * @param jwksUri        the JWKS endpoint URI; must use the {@code https} scheme
+     * @param bodyDeadlineMs total time allowed for reading one JWKS response body
+     */
+    JwksKeyCache(URI jwksUri, long bodyDeadlineMs) {
+        this(jwksUri, DEFAULT_TTL, bodyDeadlineMs);
     }
 
     /**
@@ -119,12 +130,17 @@ final class JwksKeyCache {
      * @throws IllegalArgumentException if the URI does not use the {@code https} scheme
      */
     JwksKeyCache(URI jwksUri, Duration ttl) {
+        this(jwksUri, ttl, BoundedBody.DEFAULT_DEADLINE_MS);
+    }
+
+    private JwksKeyCache(URI jwksUri, Duration ttl, long bodyDeadlineMs) {
         if (jwksUri == null) throw new NullPointerException("jwksUri");
         if (!"https".equalsIgnoreCase(jwksUri.getScheme()))
             throw new IllegalArgumentException(
                     "JWKS URI must use https scheme, got: " + jwksUri);
         this.jwksUri = jwksUri;
         this.ttl = ttl;
+        this.bodyDeadlineMs = bodyDeadlineMs;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -209,17 +225,15 @@ final class JwksKeyCache {
                 throw new JwksUnavailableException(
                         "JWKS endpoint returned HTTP " + response.statusCode(), null);
             }
-            String body;
-            try (InputStream is = response.body()) {
-                byte[] bytes = is.readNBytes(MAX_JWKS_RESPONSE_BYTES + 1);
-                if (bytes.length > MAX_JWKS_RESPONSE_BYTES) {
-                    LOG.warning("JWKS response from " + jwksUri + " exceeds size limit of "
-                            + MAX_JWKS_RESPONSE_BYTES + " bytes; ignoring");
-                    throw new JwksUnavailableException(
-                            "JWKS response exceeds the size limit", null);
-                }
-                body = new String(bytes, StandardCharsets.UTF_8);
+            // One total time limit for the whole body: the request timeout covers only the headers.
+            byte[] bytes = BoundedBody.read(response.body(), MAX_JWKS_RESPONSE_BYTES, bodyDeadlineMs);
+            if (bytes.length > MAX_JWKS_RESPONSE_BYTES) {
+                LOG.warning("JWKS response from " + jwksUri + " exceeds size limit of "
+                        + MAX_JWKS_RESPONSE_BYTES + " bytes; ignoring");
+                throw new JwksUnavailableException(
+                        "JWKS response exceeds the size limit", null);
             }
+            String body = new String(bytes, StandardCharsets.UTF_8);
             boolean[] sawKeys = new boolean[1];
             Map<String, PublicKey> newCache = parseJwks(body, sawKeys);
             if (!sawKeys[0])

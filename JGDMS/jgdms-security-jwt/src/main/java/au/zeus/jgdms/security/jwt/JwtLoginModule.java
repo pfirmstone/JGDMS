@@ -74,6 +74,10 @@ import net.jini.security.jwt.JwtPrincipal;
  *       <td>OAuth2 client identifier</td></tr>
  *   <tr><td>{@code clientSecret}</td><td>no</td>
  *       <td>OAuth2 client secret</td></tr>
+ *   <tr><td>{@code responseBodyTimeoutMs}</td><td>no</td>
+ *       <td>Total time allowed for reading one response body from the token endpoint or the
+ *           JWKS endpoint, 100 to 120000, default 10000.  A server that sends its body more
+ *           slowly is a transient failure (a failed login at first login).</td></tr>
  *   <tr><td>{@code additionalClaims}</td><td>no</td>
  *       <td>Comma-separated list of additional claim names to extract into
  *           {@link ParsedJwt#allClaims()}</td></tr>
@@ -176,6 +180,11 @@ public final class JwtLoginModule implements LoginModule {
      */
     private volatile Subject installedOn;
 
+    /** Claim names the {@code additionalClaims} option asks for; the refresh reads tokens with the same set. */
+    private Set<String> additionalClaims = Collections.emptySet();
+    /** Total time allowed for reading one response body (token endpoint or JWKS). */
+    private long bodyDeadlineMs = BoundedBody.DEFAULT_DEADLINE_MS;
+
     private boolean loginSucceeded = false;
     private boolean commitSucceeded = false;
 
@@ -191,6 +200,12 @@ public final class JwtLoginModule implements LoginModule {
      * Package-private for tests.
      */
     volatile String lastRefreshFailure;
+
+    /**
+     * The validated result of the last refresh that was installed, or null.  Package-private
+     * for tests, which read {@link ParsedJwt#allClaims()}; nothing in the module reads it.
+     */
+    volatile ParsedJwt lastRefreshed;
 
     // ---- Validated token result --------------------------------------------
 
@@ -224,6 +239,12 @@ public final class JwtLoginModule implements LoginModule {
         String audience = (String) options.get("audience");
         String additionalClaimsOpt = (String) options.get("additionalClaims");
 
+        try {
+            bodyDeadlineMs = BoundedBody.parseDeadline(options.get("responseBodyTimeoutMs"));
+        } catch (IllegalArgumentException e) {
+            throw new LoginException(e.getMessage());
+        }
+
         Set<String> additionalClaims = Collections.emptySet();
         if (additionalClaimsOpt != null && !additionalClaimsOpt.isBlank()) {
             String[] claimNames = additionalClaimsOpt.split(",\\s*");
@@ -232,6 +253,7 @@ public final class JwtLoginModule implements LoginModule {
                         + MAX_ADDITIONAL_CLAIMS + " claim names");
             additionalClaims = new HashSet<>(Arrays.asList(claimNames));
         }
+        this.additionalClaims = additionalClaims;
 
         // Obtain the JWT access token
         String token = (String) options.get("token");
@@ -249,7 +271,7 @@ public final class JwtLoginModule implements LoginModule {
             throw new LoginException("Invalid jwksUri: " + jwksUri);
         }
 
-        JwksKeyCache cache = new JwksKeyCache(jwksUriParsed);
+        JwksKeyCache cache = new JwksKeyCache(jwksUriParsed, bodyDeadlineMs);
         JwtValidator validator = new JwtValidator(cache, issuer, audience, additionalClaims);
         try {
             parsedJwt = validator.validate(token);
@@ -339,7 +361,8 @@ public final class JwtLoginModule implements LoginModule {
                         clientId, clientSecret, expiry,
                         (String) options.get("jwksUri"),
                         (String) options.get("issuer"),
-                        (String) options.get("audience"));
+                        (String) options.get("audience"),
+                        additionalClaims, bodyDeadlineMs);
                 rt.setDaemon(true);
                 rt.setName("JwtLoginModule-refresh");
                 refreshThread = rt;
@@ -565,6 +588,8 @@ public final class JwtLoginModule implements LoginModule {
         private final String   jwksUri;
         private final String   issuer;
         private final String   audience;
+        private final Set<String> additionalClaims;
+        private final long     bodyDeadlineMs;
 
         volatile boolean running = true;
 
@@ -574,7 +599,8 @@ public final class JwtLoginModule implements LoginModule {
 
         RefreshThread(JwtLoginModule owner, Subject subject, String refreshTokenUri, String refreshToken,
                       String clientId, String clientSecret, Instant currentExpiry,
-                      String jwksUri, String issuer, String audience) {
+                      String jwksUri, String issuer, String audience,
+                      Set<String> additionalClaims, long bodyDeadlineMs) {
             this.owner          = owner;
             this.subject        = subject;
             this.refreshTokenUri = refreshTokenUri;
@@ -585,6 +611,8 @@ public final class JwtLoginModule implements LoginModule {
             this.jwksUri        = jwksUri;
             this.issuer         = issuer;
             this.audience       = audience;
+            this.additionalClaims = additionalClaims;
+            this.bodyDeadlineMs = bodyDeadlineMs;
         }
 
         void shutdown() {
@@ -731,15 +759,14 @@ public final class JwtLoginModule implements LoginModule {
             HttpResponse<InputStream> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             int status = response.statusCode();
-            String responseBody;
-            try (InputStream is = response.body()) {
-                byte[] bytes = is.readNBytes(MAX_TOKEN_RESPONSE_BYTES + 1);
-                if (bytes.length > MAX_TOKEN_RESPONSE_BYTES) {
-                    throw new Exception("Token endpoint response exceeds size limit of "
-                            + MAX_TOKEN_RESPONSE_BYTES + " bytes");
-                }
-                responseBody = new String(bytes, StandardCharsets.UTF_8);
+            // One total time limit for the whole body (a SocketTimeoutException is transient):
+            // the request timeout above covers only the headers.
+            byte[] bytes = BoundedBody.read(response.body(), MAX_TOKEN_RESPONSE_BYTES, bodyDeadlineMs);
+            if (bytes.length > MAX_TOKEN_RESPONSE_BYTES) {
+                throw new Exception("Token endpoint response exceeds size limit of "
+                        + MAX_TOKEN_RESPONSE_BYTES + " bytes");
             }
+            String responseBody = new String(bytes, StandardCharsets.UTF_8);
 
             if (status == 400) {
                 // Check for invalid_grant error (permanent failure)
@@ -775,8 +802,10 @@ public final class JwtLoginModule implements LoginModule {
                 this.refreshToken = newRefreshToken;
 
             // Validate and install the new token
-            JwksKeyCache cache = new JwksKeyCache(URI.create(jwksUri));
-            JwtValidator validator = new JwtValidator(cache, issuer, audience);
+            // The same rules as login, additionalClaims included: a refreshed token is held to
+            // what the first token was.
+            JwksKeyCache cache = new JwksKeyCache(URI.create(jwksUri), bodyDeadlineMs);
+            JwtValidator validator = new JwtValidator(cache, issuer, audience, additionalClaims);
             ParsedJwt newParsed;
             try {
                 newParsed = validator.validate(newAccessToken);
@@ -799,6 +828,7 @@ public final class JwtLoginModule implements LoginModule {
 
             // Replace principals, token and expiry together; refuses another identity.
             owner.installRefreshed(this, newParsed, newAccessToken, newExpiry);
+            owner.lastRefreshed = newParsed;
             currentExpiry = newExpiry;
 
             LOG.fine("JWT access token refreshed; new expiry: " + newExpiry);

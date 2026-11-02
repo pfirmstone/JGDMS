@@ -155,6 +155,25 @@ public class JwtLoginModuleTest {
     private static volatile java.util.concurrent.CountDownLatch tokenGateEntered =
             new java.util.concurrent.CountDownLatch(1);
 
+    /** When true, /token sends its headers and then the body one byte at a time. */
+    private static volatile boolean dripToken;
+
+    /** When true, /jwks.json sends its headers and then the body one byte at a time. */
+    private static volatile boolean dripJwks;
+
+    /**
+     * Number of /jwks.json requests still answered with the key set; once it
+     * reaches 0 the endpoint answers HTTP 500.  Negative means unlimited.
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger jwksOkBudget =
+            new java.util.concurrent.atomic.AtomicInteger(-1);
+
+    /** Longest a drip response goes on, so a client with no deadline gives up the test early. */
+    private static final long DRIP_MAX_MS = 6000;
+
+    /** Pool for the test server: a dripping handler must not block the other endpoint. */
+    private static java.util.concurrent.ExecutorService serverPool;
+
     /** The default SSL context that was in place before our tests replaced it. */
     private static SSLContext originalDefaultSslContext;
 
@@ -201,8 +220,16 @@ public class JwtLoginModuleTest {
 
         // /jwks.json — returns the current JWKS (supports key-rotation tests)
         httpsServer.createContext("/jwks.json", (HttpExchange exchange) -> {
+            if (dripJwks) {
+                drip(exchange, currentJwksJson.get().getBytes(StandardCharsets.UTF_8));
+                return;
+            }
             Integer forced = jwksStatus.get();
             String raw = jwksRaw.get();
+            if (forced == null && jwksBudgetSpent()) {
+                forced = 500;
+                raw = "{\"error\":\"down\"}";
+            }
             byte[] body = (forced != null && raw != null ? raw : currentJwksJson.get())
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -249,6 +276,10 @@ public class JwtLoginModuleTest {
             String responseJson = "{\"access_token\":\"" + accessToken
                     + "\",\"token_type\":\"Bearer\",\"expires_in\":3600}";
             byte[] respBytes = responseJson.getBytes(StandardCharsets.UTF_8);
+            if (dripToken) {
+                drip(exchange, respBytes);
+                return;
+            }
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, respBytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
@@ -256,7 +287,12 @@ public class JwtLoginModuleTest {
             }
         });
 
-        httpsServer.setExecutor(null);
+        serverPool = java.util.concurrent.Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "test-https-server");
+            t.setDaemon(true);
+            return t;
+        });
+        httpsServer.setExecutor(serverPool);
         httpsServer.start();
 
         int port = httpsServer.getAddress().getPort();
@@ -268,6 +304,7 @@ public class JwtLoginModuleTest {
         if (httpsServer != null) {
             httpsServer.stop(0);
         }
+        if (serverPool != null) serverPool.shutdownNow();
         // Restore the original JVM default SSL context
         if (originalDefaultSslContext != null) {
             SSLContext.setDefault(originalDefaultSslContext);
@@ -1081,6 +1118,228 @@ public class JwtLoginModuleTest {
             tokenEndpointResponse.set(null);
             tokenEndpointRaw.set(null);
             tokenEndpointStatus.set(null);
+            if (m != null) m.logout();
+        }
+    }
+
+    /**
+     * Answers 200 with the full length declared, then sends one byte every 150 ms
+     * for at most {@link #DRIP_MAX_MS}: every single read is quick, only the whole
+     * body is slow, which a per-read timeout would never catch.
+     */
+    private static void drip(HttpExchange exchange, byte[] body) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        long end = System.currentTimeMillis() + DRIP_MAX_MS;
+        try (OutputStream os = exchange.getResponseBody()) {
+            for (int i = 0; i < body.length && System.currentTimeMillis() < end; i++) {
+                os.write(body[i]);
+                os.flush();
+                Thread.sleep(150);
+            }
+        } catch (IOException | InterruptedException e) {
+            // The client gave up (the deadline did its job), or the test is over.
+        }
+    }
+
+    private static boolean jwksBudgetSpent() {
+        synchronized (jwksOkBudget) {
+            int b = jwksOkBudget.get();
+            if (b < 0) return false;
+            if (b == 0) return true;
+            jwksOkBudget.set(b - 1);
+            return false;
+        }
+    }
+
+    private static void waitUntil(java.util.function.BooleanSupplier c, long ms) throws InterruptedException {
+        long end = System.currentTimeMillis() + ms;
+        while (!c.getAsBoolean() && System.currentTimeMillis() < end) Thread.sleep(20);
+    }
+
+    /** {@link #loginWithRefresh(Subject, String)} with more module options. */
+    private static JwtLoginModule loginWithRefresh(Subject subject, String token,
+            Map<String, String> extra) throws LoginException {
+        Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD, token);
+        opts.put("refreshTokenUri", serverBaseUri + "/token");
+        opts.put("refreshToken", "dummy-refresh-token");
+        opts.put("clientId", "test-client");
+        opts.put("clientSecret", "test-secret");
+        opts.putAll(extra);
+        return loginAndCommit(subject, opts);
+    }
+
+    // -----------------------------------------------------------------------
+    // Follow-ups 4: a read deadline on response bodies, the refetch ordering,
+    // and the claims a refreshed token is read with
+    // -----------------------------------------------------------------------
+
+    /** Body deadline for these tests (the default is 10 s). */
+    private static final String BODY_MS = "1000";
+    /** The deadline plus what a slow machine may add. */
+    private static final long CUT_OFF_BY_MS = 4000;
+
+    /** A token endpoint that drips its body: cut off at the deadline, transient, retried. */
+    @Test
+    public void testDrippedTokenResponseIsCutOffAtTheDeadlineAndRetried() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        tokenEndpointResponse.set(t2);
+        dripToken = true;
+        JwtLoginModule m = null;
+        try {
+            long t0 = System.currentTimeMillis();
+            m = loginWithRefresh(subject, t1, Map.of("responseBodyTimeoutMs", BODY_MS));
+            final JwtLoginModule fm = m;
+            Thread rt = refreshThreadOf(m);
+            waitUntil(() -> fm.lastRefreshFailure != null, CUT_OFF_BY_MS);
+            long took = System.currentTimeMillis() - t0;
+            assertNotNull("the body was not cut off within " + CUT_OFF_BY_MS + " ms", m.lastRefreshFailure);
+            assertTrue("cut off after " + took + " ms", took < CUT_OFF_BY_MS);
+            assertTrue("transient: the thread lives", rt.isAlive());
+            assertEquals("transient: the old token stays", Set.of(t1), tokens(subject));
+            assertEquals(Set.of("sub:alice", "group:a"), jwtNames(subject));
+            assertEquals(1, expiries(subject).size());
+            dripToken = false;
+            waitUntil(() -> tokens(subject).equals(Set.of(t2)), 25000);
+            assertEquals("the retry installs the new token", Set.of(t2), tokens(subject));
+            assertEquals(Set.of("sub:alice", "group:b"), jwtNames(subject));
+            assertTrue(rt.isAlive());
+        } finally {
+            dripToken = false;
+            tokenEndpointResponse.set(null);
+            if (m != null) m.logout();
+        }
+    }
+
+    /** A JWKS that drips its body during a refresh: JwksUnavailableException, token kept. */
+    @Test
+    public void testDrippedJwksDuringRefreshIsCutOffAndKeepsTheToken() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+        String t2 = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "\"groups\":[\"b\"]");
+        Subject subject = new Subject();
+        tokenEndpointResponse.set(t2);
+        tokenGateEntered = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        tokenGate = gate;
+        JwtLoginModule m = null;
+        try {
+            m = loginWithRefresh(subject, t1, Map.of("responseBodyTimeoutMs", BODY_MS));
+            final JwtLoginModule fm = m;
+            Thread rt = refreshThreadOf(m);
+            assertTrue(tokenGateEntered.await(15, java.util.concurrent.TimeUnit.SECONDS));
+            dripJwks = true;
+            tokenGate = null;
+            long t0 = System.currentTimeMillis();
+            gate.countDown();
+            waitUntil(() -> fm.lastRefreshFailure != null, CUT_OFF_BY_MS);
+            long took = System.currentTimeMillis() - t0;
+            assertEquals("cut off within " + CUT_OFF_BY_MS + " ms (took " + took + ")",
+                    "JwksUnavailableException", m.lastRefreshFailure);
+            assertTrue(rt.isAlive());
+            assertEquals(Set.of(t1), tokens(subject));
+            assertEquals(Set.of("sub:alice", "group:a"), jwtNames(subject));
+            assertEquals(1, expiries(subject).size());
+        } finally {
+            tokenGate = null;
+            gate.countDown();
+            dripJwks = false;
+            tokenEndpointResponse.set(null);
+            if (m != null) m.logout();
+        }
+    }
+
+    /** First login with a JWKS that drips its body: a LoginException at the deadline. */
+    @Test
+    public void testFirstLoginWithADrippedJwksFailsWithinTheDeadline() throws Exception {
+        String token = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "");
+        dripJwks = true;
+        Subject subject = new Subject();
+        long t0 = System.currentTimeMillis();
+        try {
+            Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, AUD, token);
+            opts.put("responseBodyTimeoutMs", BODY_MS);
+            loginAndCommit(subject, opts);
+            fail("login must fail while the JWKS body is not delivered");
+        } catch (LoginException e) {
+            long took = System.currentTimeMillis() - t0;
+            assertTrue("failed after " + took + " ms", took < CUT_OFF_BY_MS);
+            assertTrue(e.getMessage(), e.getMessage().contains("JWKS"));
+        } finally {
+            dripJwks = false;
+        }
+        assertNothingOfOurs(subject);
+    }
+
+    /**
+     * Invariant: a refreshed token is installed only against a key set that was read.  The
+     * kid is not in the JWKS that answers and the refetch gets HTTP 500: that is an outage
+     * (JwksUnavailableException), so the old token stays, the thread retries, and the new
+     * token is not installed.  (The other half, a refetch that succeeds without the kid is
+     * permanent, is testRefreshWithAKidTheReachableJwksLacksFailsClosed.)
+     */
+    @Test
+    public void testRefetchFailingAfterAnUnknownKidKeepsTheOldToken() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(-10), "\"groups\":[\"a\"]");
+        String t2 = signPayload("unlisted-kid-marker", "{\"iss\":\"" + JWT_ISSUER + "\",\"aud\":\"" + AUD
+                + "\",\"sub\":\"alice\",\"exp\":" + inSeconds(5000) + ",\"groups\":[\"b\"]}");
+        Subject subject = new Subject();
+        tokenHits.set(0);
+        tokenEndpointResponse.set(t2);
+        tokenGateEntered = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        tokenGate = gate;
+        JwtLoginModule m = null;
+        try {
+            m = loginWithRefresh(subject, t1);
+            final JwtLoginModule fm = m;
+            Thread rt = refreshThreadOf(m);
+            assertTrue(tokenGateEntered.await(15, java.util.concurrent.TimeUnit.SECONDS));
+            // The refresh's first JWKS fetch answers (no such kid); the refetch gets 500.
+            jwksOkBudget.set(1);
+            tokenGate = null;
+            gate.countDown();
+            waitUntil(() -> fm.lastRefreshFailure != null, 15000);
+            assertEquals("JwksUnavailableException", m.lastRefreshFailure);
+            assertTrue("the thread stays alive", rt.isAlive());
+            assertEquals("no new token against the stale key set", Set.of(t1), tokens(subject));
+            assertEquals(Set.of("sub:alice", "group:a"), jwtNames(subject));
+            assertEquals(1, expiries(subject).size());
+            waitUntil(() -> tokenHits.get() >= 2, 20000);
+            assertTrue("the thread retries", tokenHits.get() >= 2);
+            assertTrue(rt.isAlive());
+            assertEquals(Set.of(t1), tokens(subject));
+        } finally {
+            tokenGate = null;
+            gate.countDown();
+            jwksOkBudget.set(-1);
+            tokenEndpointResponse.set(null);
+            if (m != null) m.logout();
+        }
+    }
+
+    /**
+     * The refresh reads a token with the login's {@code additionalClaims}.  (The option only
+     * names claims to copy into allClaims; it is not a requirement, so a missing one is not a
+     * failure on either path.)
+     */
+    @Test
+    public void testRefreshedTokenIsReadWithTheLoginsAdditionalClaims() throws Exception {
+        String t1 = tokenFor("alice", JWT_ISSUER, inSeconds(1000), "\"dept\":\"eng\"");
+        String t2 = tokenFor("alice", JWT_ISSUER, inSeconds(5000), "\"dept\":\"ops\",\"team\":\"x\"");
+        Subject subject = new Subject();
+        tokenEndpointResponse.set(t2);
+        JwtLoginModule m = null;
+        try {
+            m = loginWithRefresh(subject, t1, Map.of("additionalClaims", "dept"));
+            assertTrue(m.refreshNow());
+            assertEquals(Set.of(t2), tokens(subject));
+            assertEquals("the configured claim is extracted from the refreshed token",
+                    "ops", m.lastRefreshed.allClaims().get("dept"));
+            assertNull("a claim that was not configured is not", m.lastRefreshed.allClaims().get("team"));
+        } finally {
+            tokenEndpointResponse.set(null);
             if (m != null) m.logout();
         }
     }
