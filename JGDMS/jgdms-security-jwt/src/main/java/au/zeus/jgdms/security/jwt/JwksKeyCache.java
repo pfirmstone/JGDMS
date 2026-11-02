@@ -24,7 +24,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
 import java.security.KeyFactory;
+import java.security.PrivilegedAction;
 import java.security.PublicKey;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
@@ -141,9 +143,20 @@ final class JwksKeyCache {
         this.jwksUri = jwksUri;
         this.ttl = ttl;
         this.bodyDeadlineMs = bodyDeadlineMs;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = newHttpClient();
+    }
+
+    /**
+     * Builds the HTTP client in a privileged block.  The JDK client starts its own
+     * threads and reads several properties when it is built, and the caller (the
+     * application's login code) must not need those permissions: they are checked
+     * against this module's code source, not the whole stack of whichever application
+     * code logged in.  Sending a request is not privileged: the permission to connect
+     * stays the caller's to grant.
+     */
+    static HttpClient newHttpClient() {
+        return AccessController.doPrivileged((PrivilegedAction<HttpClient>) () ->
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
     }
 
     /**

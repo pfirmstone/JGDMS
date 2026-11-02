@@ -243,6 +243,14 @@ public final class JwtLoginModule implements LoginModule {
             bodyDeadlineMs = BoundedBody.parseDeadline(options.get("responseBodyTimeoutMs"));
         } catch (IllegalArgumentException e) {
             throw new LoginException(e.getMessage());
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // The body-deadline watchdog thread could not be started (under a SecurityManager:
+            // the module's codebase lacks RuntimePermission createPlatformThread or
+            // setContextClassLoader).  Reading bodies without a deadline is not an option, so fail.
+            LoginException le = new LoginException("JWT login unavailable: the response-body deadline "
+                    + "watchdog could not be started (" + (e.getCause() != null ? e.getCause() : e) + ")");
+            le.initCause(e);
+            throw le;
         }
 
         Set<String> additionalClaims = Collections.emptySet();
@@ -593,9 +601,7 @@ public final class JwtLoginModule implements LoginModule {
 
         volatile boolean running = true;
 
-        private final HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        private final HttpClient httpClient = JwksKeyCache.newHttpClient();
 
         RefreshThread(JwtLoginModule owner, Subject subject, String refreshTokenUri, String refreshToken,
                       String clientId, String clientSecret, Instant currentExpiry,

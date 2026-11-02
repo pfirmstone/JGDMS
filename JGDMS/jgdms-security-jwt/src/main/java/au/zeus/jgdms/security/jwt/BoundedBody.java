@@ -20,10 +20,14 @@ package au.zeus.jgdms.security.jwt;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
+import java.security.AccessController;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.river.thread.NewThreadAction;
 
 /**
  * Reads an HTTP response body under one total time limit.
@@ -35,6 +39,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * cancels the exchange and wakes a blocked read.  The reader then reports a
  * timeout whatever the read returned, because a stream closed early can look like
  * a normal end of data.
+ *
+ * <p><b>Security manager.</b>  This class runs in the trusted client JVM, which
+ * runs under a SecurityManager.  Every thread it needs is created inside
+ * {@code AccessController.doPrivileged} by {@link NewThreadAction}, so the one
+ * permission needed ({@code RuntimePermission "createPlatformThread"}, plus
+ * {@code "setContextClassLoader"}, which NewThreadAction uses) is checked against
+ * this module's protection domain and not against whichever application code
+ * happened to read a body first.  That keeps a policy that grants them to the
+ * module's codebase enough, and an auditing SecurityManager (polpAudit) records
+ * them against that codebase only.  The scheduler thread is started eagerly when
+ * this class is initialised, so a missing grant fails there, loudly
+ * ({@link ExceptionInInitializerError}), and not on a first read.  Threads created
+ * later (a replacement, or a closer) go through the same privileged factory, so no
+ * thread keeps the context of the caller that happened to cause its creation.
+ * NewThreadAction gives each thread the system class loader as its context class
+ * loader, as the rest of JGDMS does, so a thread cannot pin an application loader.
  */
 final class BoundedBody {
 
@@ -44,18 +64,49 @@ final class BoundedBody {
     static final long MIN_DEADLINE_MS = 100L;
     static final long MAX_DEADLINE_MS = 120_000L;
 
-    private static final ScheduledThreadPoolExecutor WATCHDOG = newWatchdog();
+    /** Most threads that may be closing streams at once. */
+    private static final int MAX_CLOSERS = 4;
+
+    /**
+     * Fires the deadlines and does nothing else, so a slow close cannot hold a
+     * later deadline: the close runs on {@link #CLOSERS}.
+     */
+    private static final ScheduledThreadPoolExecutor WATCHDOG;
+    /**
+     * Closes the stream whose deadline passed.  A close that blocks holds one of
+     * at most {@link #MAX_CLOSERS} threads; idle threads end after 30 s.
+     */
+    private static final ThreadPoolExecutor CLOSERS;
+
+    static {
+        ScheduledThreadPoolExecutor w;
+        ThreadPoolExecutor c;
+        try {
+            w = new ScheduledThreadPoolExecutor(1, r -> newThread(r, "JwtLoginModule-body-watchdog"));
+            w.setRemoveOnCancelPolicy(true);
+            c = new ThreadPoolExecutor(MAX_CLOSERS, MAX_CLOSERS, 30L, TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(), r -> newThread(r, "JwtLoginModule-body-closer"));
+            c.allowCoreThreadTimeOut(true);
+            // Started now, so that a missing permission fails here and not at the first read.
+            w.prestartAllCoreThreads();
+        } catch (RuntimeException | Error e) {
+            // Whatever the cause (a SecurityException for a missing thread permission, or an
+            // Error from the lambda machinery under a SecurityManager) the class must not
+            // initialise: a read without a deadline is not an option.
+            throw new ExceptionInInitializerError(e);
+        }
+        WATCHDOG = w;
+        CLOSERS = c;
+    }
 
     private BoundedBody() {}
 
-    private static ScheduledThreadPoolExecutor newWatchdog() {
-        ScheduledThreadPoolExecutor e = new ScheduledThreadPoolExecutor(1, r -> {
-            Thread t = new Thread(r, "JwtLoginModule-body-watchdog");
-            t.setDaemon(true);
-            return t;
-        });
-        e.setRemoveOnCancelPolicy(true);
-        return e;
+    /**
+     * Creates a daemon thread in a privileged block of its own, each time the
+     * executor needs one, so the new thread inherits no caller's context.
+     */
+    private static Thread newThread(Runnable r, String name) {
+        return AccessController.doPrivileged(new NewThreadAction(r, name, true));
     }
 
     /**
@@ -70,11 +121,13 @@ final class BoundedBody {
         AtomicBoolean expired = new AtomicBoolean();
         ScheduledFuture<?> watch = WATCHDOG.schedule(() -> {
             expired.set(true);
-            try {
-                in.close();
-            } catch (IOException ignore) {
-                // The reader sees the timeout flag; there is nothing else to do with it.
-            }
+            CLOSERS.execute(() -> {
+                try {
+                    in.close();
+                } catch (IOException ignore) {
+                    // The reader sees the timeout flag; there is nothing else to do with it.
+                }
+            });
         }, deadlineMs, TimeUnit.MILLISECONDS);
         try (InputStream is = in) {
             byte[] bytes;

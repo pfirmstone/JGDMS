@@ -174,6 +174,9 @@ public class JwtLoginModuleTest {
     /** Pool for the test server: a dripping handler must not block the other endpoint. */
     private static java.util.concurrent.ExecutorService serverPool;
 
+    /** The test server's self-signed certificate, trusted by the child JVMs of the SecurityManager test. */
+    private static java.security.cert.Certificate serverCertificate;
+
     /** The default SSL context that was in place before our tests replaced it. */
     private static SSLContext originalDefaultSslContext;
 
@@ -191,6 +194,7 @@ public class JwtLoginModuleTest {
 
         // 2. Generate self-signed TLS cert for the HTTPS server via keytool
         KeyStore serverKeyStore = generateServerKeyStore();
+        serverCertificate = serverKeyStore.getCertificate("server");
 
         // 3. Build server-side SSLContext (cert + key from the keystore)
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(
@@ -1899,5 +1903,63 @@ public class JwtLoginModuleTest {
         try (InputStream is = exchange.getRequestBody()) {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // responseBodyTimeoutMs option range
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void testResponseBodyTimeoutMsRangeIsEnforcedAtLogin() throws Exception {
+        String token = buildJwt(jwtSigningKeyPair.getPrivate(), JWT_KID, JWT_ISSUER, JWT_SUBJECT, JWT_EMAIL, 3600);
+        for (String bad : new String[] {"99", "120001", "abc", "-1", "-100", "0", "1e3", "1000.0",
+                "99999999999999999999"}) {
+            Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, null, token);
+            opts.put("responseBodyTimeoutMs", bad);
+            try {
+                loginAndCommit(new Subject(), opts);
+                fail("responseBodyTimeoutMs=" + bad + " was accepted");
+            } catch (LoginException expected) {
+                assertTrue(bad + ": " + expected.getMessage(),
+                        expected.getMessage().contains("responseBodyTimeoutMs"));
+            }
+        }
+        // Boundaries, surrounding blanks, and the documented default for a blank or absent value.
+        for (String ok : new String[] {"100", "120000", " 250 ", "", "   ", null}) {
+            Map<String, String> opts = buildOptions(jwksUri(), JWT_ISSUER, null, token);
+            opts.put("responseBodyTimeoutMs", ok);
+            JwtLoginModule m = loginAndCommit(new Subject(), opts);
+            m.logout();
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Under a SecurityManager (child JVM): the watchdog is the module's business
+    // -----------------------------------------------------------------------
+
+    /**
+     * The caller holds no thread permission; the module's codebase does.  A login
+     * (JWKS fetch through BoundedBody) must succeed.  Before the fix the watchdog thread
+     * was created unprivileged and the caller's stack failed createPlatformThread.
+     */
+    @Test
+    public void testLoginUnderASecurityManagerWhenTheCallerLacksCreatePlatformThread() throws Exception {
+        String token = buildJwt(jwtSigningKeyPair.getPrivate(), JWT_KID, JWT_ISSUER, JWT_SUBJECT, JWT_EMAIL, 3600);
+        java.io.File trust = WatchdogSecurityManagerTest.trustStore(serverCertificate,
+                KEYSTORE_PASSWORD.toCharArray());
+        int port = httpsServer.getAddress().getPort();
+        String caller = WatchdogSecurityManagerTest.CALLER_BASE
+                + "permission java.net.SocketPermission \"localhost:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.SocketPermission \"127.0.0.1:" + port + "\", \"connect,resolve\";\n"
+                + "permission java.net.URLPermission \"https://localhost:" + port + "/-\", \"*:*\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
+                + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n";
+        String out = WatchdogSecurityManagerTest.runChild(
+                "permission java.security.AllPermission;\n",
+                WatchdogSecurityManagerTest.THREAD_PERMS, caller,
+                new String[] {"-Djavax.net.ssl.trustStore=" + trust, "-Djavax.net.ssl.trustStoreType=PKCS12",
+                    "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
+                "login", jwksUri(), JWT_ISSUER, token);
+        assertTrue(out, out.contains("CHILD-LOGIN-OK"));
     }
 }
