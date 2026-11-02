@@ -64,8 +64,10 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-claims-only-jwt-verifier-uses-2026-11-02.md` | 6106 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md` | 10837 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-jwks-transient-2026-11-02.md` | 4118 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-opus-followups4-2026-11-02.md` | 4805 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-refresh-fixes-2026-11-02.md` | 4724 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-lint-opus-followups2-2026-11-02.md` | 6155 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-lint-opus-followups3-2026-11-02.md` | 6412 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-stale-jwt-verifier-docs-2026-11-02.md` | 2414 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 
 ## Other recordings of this window (not in the table above)
@@ -73,7 +75,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 - `docs/ProxyPolicyGenerator.md` (modified, commits ae004e42f and 61d597451); `.claude/skills/jgdms-board-review/SKILL.md` (68acb611e, absolute path fix) and `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (61d597451, the missing-policy-file correction); both skills are TRACKED although `.claude` matches an ignore pattern.
 
 ## Pending reports (sub-agents running at composition time; these files may not exist yet)
-- Patches from agents afab390171efcd4fa (lint) and afd4b67aa616df5d4 (JWT); reports INVESTIGATION-lint-opus-followups3-2026-11-02.md and INVESTIGATION-jwt-opus-followups4-2026-11-02.md travel in the patches and will appear after they are applied.
+- None at 11:55 (the two agents have landed).
 
 ## Sub-agent roster (none is enumerable by any tool; single-shot; each report is that agent's advice)
 | id | model | role | status |
@@ -137,8 +139,8 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a1a2276c028eb1b64` | Sonnet 5.5 | fault, timing and memory exposure survey | done |
 | `a384a766edb217e0e` | Sonnet 5.5 | core transient-execution and real-time-core survey | done |
 | `ad83ac570b0d2fbaf` | Sonnet 5.5 | ELE signing and key custody survey | done |
-| `afab390171efcd4fa` | Sonnet 5.5 | lint slash rule (localhost, percent-decoding) and allow-list tightening | RUNNING at 2026-11-02 11:32 (worktree scratchpad lint7; patch lint7/lint-fixes3.patch) |
-| `afd4b67aa616df5d4` | Sonnet 5.5 | JWT body read deadline, kid-refetch pin, additionalClaims on refresh | RUNNING at 2026-11-02 11:32 (worktree scratchpad jwt9; patch jwt9/jwt-fixes4.patch) |
+| `afab390171efcd4fa` | Sonnet 5.5 | lint slash rule (localhost, percent-decoding) and allow-list tightening | done (committed in the PolicyLint commit after 3b6562ade) |
+| `afd4b67aa616df5d4` | Sonnet 5.5 | JWT body read deadline, kid-refetch pin, additionalClaims on refresh | done (committed 3b6562ade) |
 
 ## Deliberately excluded
 - Other sessions threads: the 2026-10-26 session transcript `a5b3b202-8215-414b-98e7-070d5975705a.jsonl` (searched for timing attack and initPhase3: 0 hits, so no code-free-proxy content); `E:\Claude\` material (the briefs forbid it).
