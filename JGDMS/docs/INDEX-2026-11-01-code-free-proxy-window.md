@@ -4,7 +4,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 
 | file | bytes | modified | model id (first line) | status |
 |---|---|---|---|---|
-| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 154124 | 2026-11-01 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
+| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 162762 | 2026-11-02 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `TRAINING-code-free-proxy-investigation-2026-10-31.md` | 6132 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `INVESTIGATION-code-free-fiddler-2026-10-31.md` | 21798 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
 | `INVESTIGATION-code-free-mahalo-2026-10-31.md` | 17749 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
@@ -22,10 +22,10 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `INVESTIGATION-guard-and-hold-2026-11-01.md` | 4780 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-binding-followup-2026-11-01.md` | 5960 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-client-align-2026-11-01.md` | 4650 | 2026-11-01 | claude-sonnet-5-5 | not stated |
-| `INVESTIGATION-jwt-fix-2026-11-01.md` | 8984 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-fix-2026-11-01.md` | 9258 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-lifecycle-2026-11-01.md` | 6111 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-opus-followups-2026-11-01.md` | 4759 | 2026-11-01 | claude-sonnet-5-5 | not stated |
-| `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8211 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-principal-binding-2026-11-01.md` | 8581 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-lint-opus-followups-2026-11-01.md` | 9467 | 2026-11-01 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-policy-lint-2026-11-01.md` | 8997 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
 | `INVESTIGATION-policy-lint-general-2026-11-01.md` | 8771 | 2026-11-01 | claude-sonnet-5-5 | LIVE: matches commit 61d597451; a different-model (Opus) review is pending |
@@ -56,14 +56,24 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `REVIEW-policy-lint-general-opus-2026-11-01.md` | 13960 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 | `REVIEW-policy-lint-opus-2026-11-01.md` | 12374 | 2026-11-01 | claude-opus-5-5 | LIVE: review of 61d597451 |
 | `REVIEW-recent-commits-opus-2026-11-01.md` | 14238 | 2026-11-01 | claude-opus-5-5 | not stated |
+| `SURVEY-core-transient-execution-2026-11-02.md` | 9540 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `SURVEY-ele-signing-key-custody-2026-11-02.md` | 9087 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `SURVEY-som-hardware-root-of-trust-2026-11-02.md` | 14279 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `REVIEW-lint-and-jwt-lifecycle-opus-2026-11-02.md` | 12596 | 2026-11-02 | claude-opus-5-5 | not stated |
+| `REVIEW-refresh-jwks-lint-opus-2026-11-02.md` | 10718 | 2026-11-02 | claude-opus-5-5 | not stated |
+| `INVESTIGATION-claims-only-jwt-verifier-uses-2026-11-02.md` | 6106 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md` | 10837 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-jwks-transient-2026-11-02.md` | 4118 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-refresh-fixes-2026-11-02.md` | 4724 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-lint-opus-followups2-2026-11-02.md` | 6155 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-stale-jwt-verifier-docs-2026-11-02.md` | 2414 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 
 ## Other recordings of this window (not in the table above)
 - `HANDOVER-2026-11-01-code-free-proxy-window.md` and this index (written by the main session, Sonnet 5.5; reviewed by Fable 5.1).
 - `docs/ProxyPolicyGenerator.md` (modified, commits ae004e42f and 61d597451); `.claude/skills/jgdms-board-review/SKILL.md` (68acb611e, absolute path fix) and `.claude/skills/jgdms-polp-audit-policy-gen/SKILL.md` (61d597451, the missing-policy-file correction); both skills are TRACKED although `.claude` matches an ignore pattern.
 
 ## Pending reports (sub-agents running at composition time; these files may not exist yet)
-- None: the delta review aa282920885d55c85 produced no report (see roster); commits 06f7d8889 and 5799eeda6 are NOT second-model reviewed.
+- Patches from agents afab390171efcd4fa (lint) and afd4b67aa616df5d4 (JWT); reports INVESTIGATION-lint-opus-followups3-2026-11-02.md and INVESTIGATION-jwt-opus-followups4-2026-11-02.md travel in the patches and will appear after they are applied.
 
 ## Sub-agent roster (none is enumerable by any tool; single-shot; each report is that agent's advice)
 | id | model | role | status |
@@ -116,6 +126,19 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a71e100c2a3cca1ba` | Sonnet 5.5 | week's security news | done |
 | `ad0c829704da3dfe7` | Sonnet 5.5 | eMudhra verification | done |
 | `a1bbf2759c1f572f3` | Sonnet 5.5 | landscape survey (search summaries only) | done |
+| `a2c1a521325c7f571` | Sonnet 5.5 | JwtLoginModule lifecycle fixes | done (committed 93abc815b) |
+| `aac2349742fa92242` | Sonnet 5.5 | JWT refresh failure fixes (validation, 401/403, real-thread tests) | done (committed 14fbbd08c) |
+| `a66f94d342a7471aa` | Sonnet 5.5 | JWKS outage transient | done (committed 11080ae29) |
+| `a55d8cbdcdd5036bf` | Sonnet 5.5 | lint UNC slash rule and listing cross-check | done (committed 3a65485c0) |
+| `a32867ff7d840c9dc` | Opus 5.5 | review of the lint fixes and JWT lifecycle commits | done (report committed 473d246ea) |
+| `a084ebdcf5e635b31` | Opus 5.5 | narrow re-check of refresh, JWKS and lint commits | done (report committed 50697bc18) |
+| `aeb8a8d69a191e5b4` | Sonnet 5.5 | search for uses of the claims-only DefaultJwtVerifier | done |
+| `af5672acadddce278` | Sonnet 5.5 | strike stale DefaultJwtVerifier docs | done (committed eeef2a01f) |
+| `a1a2276c028eb1b64` | Sonnet 5.5 | fault, timing and memory exposure survey | done |
+| `a384a766edb217e0e` | Sonnet 5.5 | core transient-execution and real-time-core survey | done |
+| `ad83ac570b0d2fbaf` | Sonnet 5.5 | ELE signing and key custody survey | done |
+| `afab390171efcd4fa` | Sonnet 5.5 | lint slash rule (localhost, percent-decoding) and allow-list tightening | RUNNING at 2026-11-02 11:32 (worktree scratchpad lint7; patch lint7/lint-fixes3.patch) |
+| `afd4b67aa616df5d4` | Sonnet 5.5 | JWT body read deadline, kid-refetch pin, additionalClaims on refresh | RUNNING at 2026-11-02 11:32 (worktree scratchpad jwt9; patch jwt9/jwt-fixes4.patch) |
 
 ## Deliberately excluded
 - Other sessions threads: the 2026-10-26 session transcript `a5b3b202-8215-414b-98e7-070d5975705a.jsonl` (searched for timing attack and initPhase3: 0 hits, so no code-free-proxy content); `E:\Claude\` material (the briefs forbid it).
