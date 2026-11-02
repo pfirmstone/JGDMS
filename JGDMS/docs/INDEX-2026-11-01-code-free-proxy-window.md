@@ -59,15 +59,22 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `SURVEY-core-transient-execution-2026-11-02.md` | 9540 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `SURVEY-ele-signing-key-custody-2026-11-02.md` | 9087 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `SURVEY-som-hardware-root-of-trust-2026-11-02.md` | 14279 | 2026-11-01 | claude-sonnet-5-5 | not stated |
+| `REVIEW-deadline-and-lint-opus-2026-11-02.md` | 13105 | 2026-11-02 | claude-opus-5-5 | not stated |
 | `REVIEW-lint-and-jwt-lifecycle-opus-2026-11-02.md` | 12596 | 2026-11-02 | claude-opus-5-5 | not stated |
+| `REVIEW-lint-watchdog-refreshthread-opus-2026-11-02.md` | 13422 | 2026-11-02 | claude-opus-5-5 | not stated |
 | `REVIEW-refresh-jwks-lint-opus-2026-11-02.md` | 10718 | 2026-11-02 | claude-opus-5-5 | not stated |
 | `INVESTIGATION-claims-only-jwt-verifier-uses-2026-11-02.md` | 6106 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md` | 10837 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-jwks-transient-2026-11-02.md` | 4118 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-opus-followups4-2026-11-02.md` | 4805 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-own-thread-factory-2026-11-02.md` | 4235 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-refresh-fixes-2026-11-02.md` | 4724 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-refresh-thread-privileged-2026-11-02.md` | 5047 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-token-path-c-to-p-2026-11-02.md` | 8759 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-jwt-watchdog-2026-11-02.md` | 5130 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-lint-opus-followups2-2026-11-02.md` | 6155 | 2026-11-02 | claude-sonnet-5-5 | not stated |
-| `INVESTIGATION-lint-opus-followups3-2026-11-02.md` | 6412 | 2026-11-02 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-lint-opus-followups3-2026-11-02.md` | 6410 | 2026-11-03 | claude-sonnet-5-5 | not stated |
+| `INVESTIGATION-lint-opus-followups4-2026-11-02.md` | 5274 | 2026-11-03 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-stale-jwt-verifier-docs-2026-11-02.md` | 2414 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 
 ## Other recordings of this window (not in the table above)
@@ -141,6 +148,15 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `ad83ac570b0d2fbaf` | Sonnet 5.5 | ELE signing and key custody survey | done |
 | `afab390171efcd4fa` | Sonnet 5.5 | lint slash rule (localhost, percent-decoding) and allow-list tightening | done (committed in the PolicyLint commit after 3b6562ade) |
 | `afd4b67aa616df5d4` | Sonnet 5.5 | JWT body read deadline, kid-refetch pin, additionalClaims on refresh | done (committed 3b6562ade) |
+| `a48a1006e71fbb8d9` | Sonnet 5.5 | BoundedBody watchdog privileged and eager, close pool, polpAudit check | done (committed 2c1d903c3) |
+| `ac6a7aa8c0b404e77` | Sonnet 5.5 | RefreshThread privileged creation | done (committed a21acb2df) |
+| `aba74f60c3bc7b26f` | Sonnet 5.5 | read-only trace of the JWT token path from client to proxy | done (report committed a92d6db90) |
+| `a8ff0510d882cb78b` | Sonnet 5.5 | lint allow-list exact paths, provider check, MEDIUM rule, doAs HIGH | done (committed ab94352a6) |
+| `a1a5a836116e58661` | Opus 5.5 | review of the lint, watchdog and refresh-thread commits | done (report committed 5111c1396) |
+| `a8df7cd0e3280dc2a` | Opus 5.5 | review of the body deadline and lint commits | done (report committed 07767c524) |
+| `a3275b656fe7360a8` | Sonnet 5.5 | own privileged NewDaemonThread, no jgdms-collections grants | done (committed 3cf1f31d9) |
+| `a064594fbd783fecf` | Sonnet 5.5 | JWT: close queue bounded, HttpClient closed, root cause, caller policy | done (committed ca58e7430) |
+| `a0ef1a9b0068ca15c` | Sonnet 5.5 | lint: whole-tree reads HIGH, HOLD doAs, per-permission rule, rows 39 to 13 | done (committed 7652bc63f) |
 
 ## Deliberately excluded
 - Other sessions threads: the 2026-10-26 session transcript `a5b3b202-8215-414b-98e7-070d5975705a.jsonl` (searched for timing attack and initPhase3: 0 hits, so no code-free-proxy content); `E:\Claude\` material (the briefs forbid it).
