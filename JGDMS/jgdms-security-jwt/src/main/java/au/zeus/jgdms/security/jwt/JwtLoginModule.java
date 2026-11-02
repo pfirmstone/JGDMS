@@ -103,12 +103,12 @@ import net.jini.security.jwt.JwtPrincipal;
  * (i.e. when 20% of the lifetime remains).
  *
  * <p><b>Security manager.</b>  {@code commit} creates and starts the thread in a
- * privileged block ({@code NewThreadAction}), so a policy grants the thread
+ * privileged block ({@link NewDaemonThread}), so a policy grants the thread
  * permissions to this module's codebase and not to the code that calls the
  * module.  The thread does not inherit the caller's context: it carries only the
- * protection domains of this module and of the thread factory, so the refresh (the
+ * protection domain of this module (and the platform base), so the refresh (the
  * HTTP calls to the token endpoint and the JWKS, and the update of the Subject) needs
- * its permissions from those two codebases.  The context class loader is the system
+ * its permissions from this module's codebase alone.  The context class loader is the system
  * class loader.  If the thread cannot be started, {@code commit} undoes itself and
  * throws a {@link LoginException}.
  *

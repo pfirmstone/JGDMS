@@ -21,14 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.river.thread.NewThreadAction;
 
 /**
  * Reads an HTTP response body under one total time limit.
@@ -43,9 +41,9 @@ import org.apache.river.thread.NewThreadAction;
  *
  * <p><b>Security manager.</b>  This class runs in the trusted client JVM, which
  * runs under a SecurityManager.  Every thread it needs is created inside
- * {@code AccessController.doPrivileged} by {@link NewThreadAction}, so the one
+ * {@code AccessController.doPrivileged} by {@link NewDaemonThread}, so the one
  * permission needed ({@code RuntimePermission "createPlatformThread"}, plus
- * {@code "setContextClassLoader"}, which NewThreadAction uses) is checked against
+ * {@code "setContextClassLoader"}, which {@link NewDaemonThread} uses) is checked against
  * this module's protection domain and not against whichever application code
  * happened to read a body first.  That keeps a policy that grants them to the
  * module's codebase enough, and an auditing SecurityManager (polpAudit) records
@@ -54,7 +52,8 @@ import org.apache.river.thread.NewThreadAction;
  * ({@link ExceptionInInitializerError}), and not on a first read.  Threads created
  * later (a replacement, or a closer) go through the same privileged factory, so no
  * thread keeps the context of the caller that happened to cause its creation.
- * NewThreadAction gives each thread the system class loader as its context class
+ * NewDaemonThread, which calls nothing outside this module and the JDK, so that no
+ * other jar enters the new thread's inherited context, gives each thread the system class loader as its context class
  * loader, as the rest of JGDMS does, so a thread cannot pin an application loader.
  */
 final class BoundedBody {
@@ -107,37 +106,20 @@ final class BoundedBody {
      * executor needs one, so the new thread inherits no caller's context.
      */
     private static Thread newThread(Runnable r, String name) {
-        return AccessController.doPrivileged(new NewThreadAction(r, name, true));
+        return AccessController.doPrivileged(new NewDaemonThread(r, name, false));
     }
 
     /**
      * Creates and starts a daemon thread named {@code name} in one privileged block, so
-     * the thread permissions are checked against this module (and the thread factory) and
+     * the thread permissions are checked against this module and
      * never against the code that called the module, and the thread inherits no caller's
-     * context.  Its context class loader is the system class loader (NewThreadAction).
+     * context.  Its context class loader is the system class loader ({@link NewDaemonThread}).
      * Used for the long-lived refresh thread.
      *
      * @throws SecurityException if the module is not granted the thread permissions
      */
     static Thread startThread(Runnable r, String name) {
-        return AccessController.doPrivileged(new StartAction(r, name));
-    }
-
-    private static final class StartAction implements PrivilegedAction<Thread> {
-        private final Runnable r;
-        private final String name;
-
-        StartAction(Runnable r, String name) {
-            this.r = r;
-            this.name = name;
-        }
-
-        @Override
-        public Thread run() {
-            Thread t = newThread(r, name);
-            t.start();
-            return t;
-        }
+        return AccessController.doPrivileged(new NewDaemonThread(r, name, true));
     }
 
     /**

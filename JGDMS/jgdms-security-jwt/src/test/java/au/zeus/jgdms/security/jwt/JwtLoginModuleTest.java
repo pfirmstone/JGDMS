@@ -1959,8 +1959,7 @@ public class JwtLoginModuleTest {
                 + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
                 + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n";
         String out = WatchdogSecurityManagerTest.runChild(
-                "permission java.security.AllPermission;\n",
-                WatchdogSecurityManagerTest.THREAD_PERMS, caller,
+                "permission java.security.AllPermission;\n", caller,
                 new String[] {"-Djavax.net.ssl.trustStore=" + trust, "-Djavax.net.ssl.trustStoreType=PKCS12",
                     "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
                 "login", jwksUri(), JWT_ISSUER, token);
@@ -1972,9 +1971,10 @@ public class JwtLoginModuleTest {
     // -----------------------------------------------------------------------
 
     /**
-     * What the module and the thread factory need for the refresh thread's own work: the
-     * thread inherits only their two protection domains, so the HTTP calls and the Subject
-     * update are checked against both.  The caller (the child's main class) needs none of it.
+     * What the module needs for the refresh thread's own work: the thread inherits only the
+     * module's protection domain, so the HTTP calls and the Subject update are checked
+     * against it alone.  The caller (the child's main class) and the jgdms-collections jar
+     * need none of it.
      */
     private String refreshGrant(int port) {
         return WatchdogSecurityManagerTest.THREAD_PERMS + WatchdogSecurityManagerTest.DEFINE
@@ -2000,7 +2000,7 @@ public class JwtLoginModuleTest {
             + "permission java.util.PropertyPermission \"*\", \"read\";\n";
 
     /** Runs a child that logs in with a refresh endpoint; the caller holds no thread permission. */
-    private String runRefreshChild(String mode, String moduleGrant, String collectionsGrant, String callerExtra)
+    private String runRefreshChild(String mode, java.nio.file.Path audit, String moduleGrant, String callerExtra)
             throws Exception {
         String token = buildJwt(jwtSigningKeyPair.getPrivate(), JWT_KID, JWT_ISSUER, JWT_SUBJECT, JWT_EMAIL, 3);
         java.io.File trust = WatchdogSecurityManagerTest.trustStore(serverCertificate,
@@ -2015,7 +2015,7 @@ public class JwtLoginModuleTest {
                 + "permission javax.security.auth.AuthPermission \"modifyPrincipals\";\n"
                 + "permission javax.security.auth.AuthPermission \"modifyPublicCredentials\";\n"
                 + callerExtra;
-        return WatchdogSecurityManagerTest.runChild(moduleGrant, collectionsGrant, caller,
+        return WatchdogSecurityManagerTest.runChild(audit, moduleGrant, caller,
                 new String[] {"-Djavax.net.ssl.trustStore=" + trust, "-Djavax.net.ssl.trustStoreType=PKCS12",
                     "-Djavax.net.ssl.trustStorePassword=" + KEYSTORE_PASSWORD},
                 mode, jwksUri(), JWT_ISSUER, token, serverBaseUri + "/token");
@@ -2029,10 +2029,23 @@ public class JwtLoginModuleTest {
     @Test
     public void testRefreshThreadUnderASecurityManagerWhenTheCallerLacksCreatePlatformThread() throws Exception {
         int port = httpsServer.getAddress().getPort();
-        String out = runRefreshChild("refresh", refreshGrant(port) + HTTP_CLIENT_GRANT, refreshGrant(port), "");
+        String out = runRefreshChild("refresh", null, refreshGrant(port) + HTTP_CLIENT_GRANT, "");
         assertTrue(out, out.contains("CHILD-COMMIT-OK thread=(JSK) JwtLoginModule-refresh daemon=true ccl=system"));
         assertTrue(out, out.contains("CHILD-REFRESHED"));
         assertTrue(out, out.contains("CHILD-LOGOUT alive=false principals=0 credentials=0"));
+    }
+
+    /**
+     * Invariant: the refresh thread's HTTP and Subject permissions are recorded for the module's
+     * codebase, and the jgdms-collections jar is recorded with none of them.
+     */
+    @Test
+    public void testPolpAuditRecordsTheRefreshThreadForTheModuleAndNotForJgdmsCollections() throws Exception {
+        java.nio.file.Path recorded = Files.createTempFile("refresh-audit", ".policy");
+        String out = runRefreshChild("refresh", recorded, "", "");
+        assertTrue(out, out.contains("CHILD-REFRESHED"));
+        WatchdogSecurityManagerTest.assertOnlyTheModuleIsRecorded(recorded, "createPlatformThread",
+                "setContextClassLoader", "URLPermission", "modifyPrincipals", "modifyPublicCredentials");
     }
 
     /**

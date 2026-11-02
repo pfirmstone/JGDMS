@@ -62,7 +62,7 @@ public class WatchdogSecurityManagerTest {
 
     @Test
     public void theFirstReadSucceedsWhenTheCallerLacksCreatePlatformThread() throws Exception {
-        String out = runChild(MODULE_PERMS, THREAD_PERMS, CALLER_BASE, new String[0], "read");
+        String out = runChild(MODULE_PERMS, CALLER_BASE, new String[0], "read");
         assertTrue(out, out.contains("CHILD-READ-OK 5"));
         assertEquals(out, 2, out.split("CHILD-READ-OK", -1).length - 1);
     }
@@ -70,14 +70,29 @@ public class WatchdogSecurityManagerTest {
     /** The deadline passes: the closer thread is created too, with no thread permission for the caller. */
     @Test
     public void aDeadlineThatPassesWorksWhenTheCallerLacksCreatePlatformThread() throws Exception {
-        String out = runChild(MODULE_PERMS, THREAD_PERMS, CALLER_BASE, new String[0], "expire");
+        String out = runChild(MODULE_PERMS, CALLER_BASE, new String[0], "expire");
         assertTrue(out, out.contains("CHILD-EXPIRE-OK"));
+    }
+
+    /**
+     * Invariant: the module's threads inherit the module's protection domain alone, so
+     * polpAudit (empty starting policy) records the thread permissions against the module
+     * and the jgdms-collections jar needs none of them.
+     */
+    @Test
+    public void polpAuditRecordsTheThreadPermissionsForTheModuleAndNotForJgdmsCollections() throws Exception {
+        Path recorded = Files.createTempFile("watchdog-audit", ".policy");
+        String out = runChild(recorded, "", "", new String[0], "read");
+        assertTrue(out, out.contains("CHILD-READ-OK 5"));
+        out = runChild(recorded, "", "", new String[0], "expire");
+        assertTrue(out, out.contains("CHILD-EXPIRE-OK"));
+        assertOnlyTheModuleIsRecorded(recorded, "createPlatformThread", "setContextClassLoader");
     }
 
     /** Without the grant the failure is loud and at login, not a silent missing deadline. */
     @Test
     public void withoutTheGrantLoginFailsWithAClearMessage() throws Exception {
-        String out = runChild(DEFINE, "", CALLER_BASE, new String[0],
+        String out = runChild(DEFINE, CALLER_BASE, new String[0],
                 "login", "https://localhost:1/jwks.json", "https://x", "a.b.c");
         assertTrue(out, out.contains("CHILD-LOGIN-REFUSED"));
         assertTrue(out, out.contains("watchdog could not be started"));
@@ -85,13 +100,24 @@ public class WatchdogSecurityManagerTest {
 
     /**
      * Runs {@link WatchdogChild} under a SecurityManager with a policy that gives the
-     * JWT module {@code moduleGrant}, the module's thread factory ({@code NewThreadAction},
-     * on the stack of every thread creation) {@code collectionsGrant} and the child itself
-     * {@code callerGrant}.
+     * JWT module {@code moduleGrant} and the child itself {@code callerGrant}.  The
+     * jgdms-collections jar is granted nothing but what loading its classes needs: the
+     * module's threads must not put it on their context.
      *
      * @return the child's combined output; fails the test if the child exits non-zero
      */
-    static String runChild(String moduleGrant, String collectionsGrant, String callerGrant,
+    static String runChild(String moduleGrant, String callerGrant,
+            String[] systemProperties, String... args) throws Exception {
+        return runChild(null, moduleGrant, callerGrant, systemProperties, args);
+    }
+
+    /**
+     * As {@link #runChild(String, String, String[], String...)}; with {@code auditFile} not
+     * null the child runs under polpAudit with an empty starting policy instead, and the
+     * grants each domain needed are appended to {@code auditFile}.  polpAudit never denies,
+     * so only the recorded file says anything.
+     */
+    static String runChild(Path auditFile, String moduleGrant, String callerGrant,
             String[] systemProperties, String... args) throws Exception {
         Path policy = Files.createTempFile("watchdog-sm", ".policy");
         StringBuilder p = new StringBuilder();
@@ -100,13 +126,14 @@ public class WatchdogSecurityManagerTest {
         // jgdms-platform (JwtPrincipal and the rest of the base) is trusted JGDMS code, not what is tested.
         p.append(grant(net.jini.security.jwt.JwtPrincipal.class, "permission java.security.AllPermission;\n"));
         p.append(grant(BoundedBody.class, moduleGrant));
-        p.append(grant(org.apache.river.thread.NewThreadAction.class, collectionsGrant));
+        // jgdms-collections: loadable and readable, nothing else.
+        p.append(grant(COLLECTIONS_CLASS, ""));
         p.append(grant(WatchdogChild.class, callerGrant));
         Files.write(policy, p.toString().getBytes(StandardCharsets.UTF_8));
         // Developer aid: -Dwatchdog.audit.policy=FILE runs the child under polpAudit with an
         // empty policy instead, which appends to FILE the grants each domain needed, and
         // checks nothing (polpAudit never denies).
-        String audit = System.getProperty("watchdog.audit.policy");
+        String audit = auditFile != null ? auditFile.toString() : System.getProperty("watchdog.audit.policy");
         if (audit != null) {
             policy = Path.of(audit);
             Files.write(policy, new byte[0]);
@@ -119,10 +146,79 @@ public class WatchdogSecurityManagerTest {
         cmd.addAll(List.of("-cp", classPath(), WatchdogChild.class.getName()));
         cmd.addAll(List.of(args));
         Process proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
-        String out = new String(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertTrue("child timed out: " + out, proc.waitFor(120, TimeUnit.SECONDS));
+        // Read on another thread: a child that does not exit (a non-daemon thread) must time out, not hang the test.
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        Thread reader = new Thread(() -> {
+            try {
+                proc.getInputStream().transferTo(buf);
+            } catch (java.io.IOException ignore) {
+                // The child was destroyed.
+            }
+        });
+        reader.setDaemon(true);
+        reader.start();
+        boolean exited = proc.waitFor(120, TimeUnit.SECONDS);
+        if (!exited) proc.destroyForcibly().waitFor();
+        reader.join(10_000);
+        String out = new String(buf.toByteArray(), StandardCharsets.UTF_8);
+        assertTrue("child timed out: " + out, exited);
         assertEquals("policy:\n" + p + "\noutput:\n" + out, 0, proc.exitValue());
         return out;
+    }
+
+    /** A class of the jgdms-collections jar, which locates it for the policy. */
+    static final Class<?> COLLECTIONS_CLASS = org.apache.river.thread.NewThreadAction.class;
+
+    /** Permission names a module thread needs, which the jgdms-collections jar must never be recorded with. */
+    static final String[] VIRAL = {"createPlatformThread", "setContextClassLoader", "URLPermission", "AuthPermission"};
+
+    /**
+     * Parses a policy recorded by polpAudit into codebase to the concatenated text of its
+     * grant blocks.  A grant without a codebase is keyed "".
+     */
+    static java.util.Map<String, String> parseGrants(String policyText) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("grant\\s+(?:codebase\\s+\"([^\"]*)\"\\s*)?[^{]*\\{(.*?)\\n\\s*\\}\\s*;",
+                        java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.DOTALL)
+                .matcher(policyText);
+        while (m.find()) out.merge(m.group(1) == null ? "" : m.group(1), m.group(2), (x, y) -> x + "\n" + y);
+        return out;
+    }
+
+    /** The recorded text of every domain of the module's own classes (not the test classes, which play the caller). */
+    static String moduleDomains(java.util.Map<String, String> grants) {
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<String, String> e : grants.entrySet()) {
+            String cb = e.getKey().replace('\\', '/');
+            if (cb.contains("jgdms-security-jwt") && !cb.contains("test-classes")) sb.append(e.getValue());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Fails unless the recorded policy gives the jgdms-collections jar none of {@link #VIRAL}
+     * (LoadClassPermission and reading its own jar are fine) and the module's domain every
+     * name in {@code moduleNeeds}.
+     */
+    static void assertOnlyTheModuleIsRecorded(Path recorded, String... moduleNeeds) throws Exception {
+        String text = new String(Files.readAllBytes(recorded), StandardCharsets.UTF_8);
+        // Developer aid: -Dwatchdog.audit.copy=FILE keeps the recorded policy for reading.
+        if (System.getProperty("watchdog.audit.copy") != null) {
+            Files.write(Path.of(System.getProperty("watchdog.audit.copy")), text.getBytes(StandardCharsets.UTF_8));
+        }
+        java.util.Map<String, String> grants = parseGrants(text);
+        String module = moduleDomains(grants);
+        assertTrue("no jwt module domain recorded in:\n" + text, module.length() > 0);
+        for (String need : moduleNeeds) {
+            assertTrue(need + " not recorded for the jwt module in:\n" + text, module.contains(need));
+        }
+        for (java.util.Map.Entry<String, String> e : grants.entrySet()) {
+            if (!e.getKey().contains("jgdms-collections")) continue;
+            for (String v : VIRAL) {
+                assertTrue(v + " recorded for " + e.getKey() + " in:\n" + text, !e.getValue().contains(v));
+            }
+        }
     }
 
     /**
