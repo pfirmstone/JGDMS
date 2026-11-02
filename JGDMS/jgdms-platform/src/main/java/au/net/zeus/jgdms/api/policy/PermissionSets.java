@@ -344,6 +344,13 @@ public final class PermissionSets {
             return new Danger(HIGH, "NativeMemoryPermission " + name + " gives access to off-heap memory:"
                 + " raw reads and writes, or exhausting it, outside the heap limit");
         }
+        if (AUTH.equals(type) && name != null && basic(name, new String[]{"doAs", "setLoginConfiguration"}, none())) {
+            // operator ruling 2026-11-02: both bear on identity (run as any subject; replace the
+            // JVM-wide login configuration), so a grant to everyone is not a medium finding
+            return new Danger(HIGH, "AuthPermission " + name + (name.equals("doAs")
+                ? " runs an action as any subject the holder can obtain"
+                : " replaces the JVM-wide login configuration and so chooses the login modules"));
+        }
         if (SUBJECT_DELEGATION.equals(type)) {
             return new Danger(HIGH, "SubjectDelegationPermission " + name
                 + " lets the holder act over JMX as another authenticated subject");
@@ -364,6 +371,10 @@ public final class PermissionSets {
                 + " (flow control, keep-alive) of connections it did not open");
         }
         if (name == null) return null;
+        if (SOCKET.equals(type) && name.matches("\\*\\.[^.:*]+(:.*)?")) {
+            // operator ruling 2026-11-02: a whole top-level domain (*.com) is as broad as any host, so MEDIUM
+            return new Danger(MEDIUM, "SocketPermission " + name + " reaches every host of a top-level domain");
+        }
         if (SQL.equals(type)) {
             if (basic(name, new String[]{"setLog", "setSyncFactory", "setNetworkTimeout", "callAbort",
                     "deregisterDriver"}, none())) {
@@ -425,6 +436,12 @@ public final class PermissionSets {
             }
             if (basic(name, new String[]{"getPolicy"}, new String[]{"createPolicy."})) {
                 return new Danger(MEDIUM, "SecurityPermission " + name + " reads or creates a policy");
+            }
+            // operator ruling 2026-11-02: these two BasicPermission wildcards are rated here, not allow-listed
+            if (name.equals("authProvider.*") || name.equals("getProperty.*")) {
+                return new Danger(MEDIUM, "SecurityPermission " + name + (name.startsWith("authProvider")
+                    ? " obtains any named authentication provider"
+                    : " reads any Security property by name"));
             }
             return null;
         }
@@ -643,9 +660,10 @@ public final class PermissionSets {
             : fileReach(exp, write, env, name.contains("${user.dir}"));
         if (why == null) return null;
         boolean medium = why.startsWith("[M]");
-        if (medium) why = why.substring(3);
+        boolean high = why.startsWith("[H]");
+        if (medium || high) why = why.substring(3);
         String shown = "FilePermission " + (actions == null ? "" : actions + " ") + "on " + name;
-        return new Danger(write && !medium ? HIGH : MEDIUM, shown + " reaches " + why);
+        return new Danger((write && !medium) || high ? HIGH : MEDIUM, shown + " reaches " + why);
     }
 
     /** A file name taken apart: optional drive, absolute or relative, segments, trailing wildcard. */
@@ -711,6 +729,10 @@ public final class PermissionSets {
         if (ALL_FILES.equals(n)) return "all files";
         FilePath f = filePath(n);
         if (f.wildcard != null && f.segments.isEmpty()) {
+            // operator ruling 2026-11-02: reading a whole root or drive tree is HIGH, not only writing it
+            if ("-".equals(f.wildcard) && f.absolute) {
+                return "[H]a whole root or drive tree";
+            }
             return f.absolute ? "a whole root or drive tree"
                 : f.drive != null ? "a whole drive-relative tree" : "the whole current directory tree";
         }
@@ -733,7 +755,10 @@ public final class PermissionSets {
             if (d[1] == null || d[1].length() == 0) continue;
             FilePath dir = filePath(d[1]);
             if (!sameDrive(f, dir)) continue;
-            if ("-".equals(f.wildcard) && isPrefix(f.segments, dir.segments)) return "the whole of " + d[0];
+            if ("-".equals(f.wildcard) && isPrefix(f.segments, dir.segments)) {
+                // operator ruling 2026-11-02: reading the whole user-home tree is HIGH as well
+                return (d[0].equals("the user home") ? "[H]" : "") + "the whole of " + d[0];
+            }
             if ("*".equals(f.wildcard) && f.segments.size() == dir.segments.size()
                     && isPrefix(f.segments, dir.segments)) {
                 // a temp directory's own files: services use /tmp/* for scratch space (the deploy
@@ -794,6 +819,8 @@ public final class PermissionSets {
         add(res, REFLECT, "suppressAccessChecks", null, null);
         add(res, AUTH, "doAsPrivileged", null, null);
         add(res, AUTH, "modifyPrincipals", null, null);
+        add(res, AUTH, "doAs", null, null);
+        add(res, AUTH, "setLoginConfiguration", null, null);
         add(res, SERIAL, "enableSubclassImplementation", null, null);
         add(res, SOCKET, "evil.example.com:80", "connect,resolve", "*");
         add(res, SOCKET, "evil.example.com:80", "accept,resolve", "*");
@@ -807,6 +834,7 @@ public final class PermissionSets {
         String home = System.getProperty("user.home");
         String jhome = System.getProperty("java.home");
         if (home != null) add(res, FILE, home + sep + "lint-probe", "write", home + sep + "-");
+        if (home != null) add(res, FILE, home + sep + "lint-probe", "read", home + sep + "-");
         if (jhome != null) {
             add(res, FILE, jhome + sep + "conf" + sep + "security" + sep + "lint-probe", "write",
                 jhome + sep + "-");

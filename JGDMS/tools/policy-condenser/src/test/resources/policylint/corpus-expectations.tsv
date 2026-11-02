@@ -25,7 +25,7 @@ n/n22-dotdot-root-write.policy	1	1	D1	0	0
 n/n23-home-subdir-write-clean.policy	0	0		0	0	
 n/n24-javahome-conf-write.policy	1	1	D1	0	0	
 n/n25-userdir-dash-execute.policy	1	1	D1	0	0	
-n/n26-home-read-medium.policy	0	1	D5	0	0	
+n/n26-home-read-medium.policy	1	1	D1	0	0	
 n/n30-grantperm-delim-ccl.policy	1	1	D1	0	0	
 n/n31-grantperm-assertprincipal.policy	1	1	D1	0	0	
 n/n32-grantperm-star.policy	1	1	U2 D1	1	1	U2
@@ -125,7 +125,7 @@ r6/b06-princ-x500-anyname-unquoted.policy	0	0	S2	0	0	S2
 r8/c01-sec-getPolicy.policy	0	1	D5	0	0	
 r8/c02-sec-setPolicy.policy	1	1	D1	1	1	D1
 r8/c03-sec-createPolicy_JavaPolicy.policy	0	1	D5	0	0	
-r8/c04-sec-getProperty_S.policy	0	0		0	0	
+r8/c04-sec-getProperty_S.policy	0	1	D5	0	0	
 r8/c05-sec-setProperty_package_access.policy	1	1	D1	1	1	D1
 r8/c06-sec-setProperty_S.policy	1	1	D1	1	1	D1
 r8/c07-sec-insertProvider.policy	1	1	D1	1	1	D1
@@ -133,7 +133,7 @@ r8/c08-sec-insertProvider_S.policy	1	1	D1	1	1	D1
 r8/c09-sec-putProviderProperty_S.policy	1	1	D1	1	1	D1
 r8/c10-sec-clearProviderProperties_S.policy	1	1	D1	0	0	
 r8/c11-sec-removeProviderProperty_S.policy	1	1	D1	1	1	D1
-r8/c12-sec-authProvider_S.policy	0	0		0	0	
+r8/c12-sec-authProvider_S.policy	0	1	D5	0	0	
 r8/c13-sec-createAccessControlContext.policy	1	1	D1	1	1	D1
 r8/c14-sec-getDomainCombiner.policy	0	0		0	0	
 r8/c15-sec-S.policy	1	1	D1 D5	1	1	D1
@@ -155,7 +155,7 @@ r8/f14-rel-sub-write.policy	0	0		0	0
 r8/f15-dotdot-write.policy	1	1	D1	1	1	D1
 r8/f16-dotdot-fwd-write.policy	1	1	D1	0	0	
 r8/f17-javahome-write.policy	1	1	D1	0	0	
-r8/f18-cdrive-dash-read.policy	0	1	D5	0	1	D5
+r8/f18-cdrive-dash-read.policy	1	1	D1	0	1	D5
 r8/f19-dotdot-relative-write.policy	1	1	D1	1	1	D1
 r8/f21-drive-lower-write.policy	1	1	D1	1	1	D1
 r8/f22-other-drive-write.policy	1	1	D1	1	1	D1
@@ -208,7 +208,7 @@ r8/k08-userhome-ccl.policy	1	1	D3	0	0
 r8/k09-tmpdir-all.policy	1	1	S1 D3	0	1	S1
 r8/m01-split-combo.policy	1	1	D5 D1 D1	0	1	D5
 r8/m02-split-policyprop.policy	1	1	D1 D1	0	0	
-r8/m03-split-read-write.policy	1	1	D5 D1	1	1	D1 D5
+r8/m03-split-read-write.policy	1	1	D1 D1	1	1	D1 D5
 r8/n01-nested-keystore.policy	1	1	P1 U1	1	1	P1 U1
 r8/n02-nested-grant.policy	1	1	D1 P1	1	1	P1
 r8/ok1-jrt-javabase.policy	0	0	S5	0	0	S5
@@ -253,11 +253,11 @@ r8/s02-socket-star-port.policy	0	1	D5	0	1	D5
 r8/s03-socket-resolve.policy	0	1	D5	0	1	D5
 r8/s04-socket-subnet.policy	0	1	D5	0	1	D5
 r8/u01-auth-createLoginContext_S.policy	0	1	D5	0	1	D5
-r8/u02-auth-doAs.policy	0	1	D5	0	1	D5
+r8/u02-auth-doAs.policy	1	1	D1	0	1	D5
 r8/u03-auth-doAsPrivileged.policy	1	1	D1	1	1	D1
 r8/u04-auth-modifyPrincipals.policy	1	1	D1	1	1	D1
 r8/u05-auth-getSubject.policy	0	1	D5	0	1	D5
-r8/u06-auth-setLoginConfiguration.policy	0	1	D5	0	1	D5
+r8/u06-auth-setLoginConfiguration.policy	1	1	D1	0	1	D5
 r8/u07-auth-modifyPublicCredentials.policy	0	1	D5	0	1	D5
 r8/u08-auth-modifyPrivateCredentials.policy	1	1	D1	1	1	D1
 r8/u09-auth-S.policy	1	1	D1	1	1	D1

@@ -49,4 +49,40 @@ public class PermissionSetsTest {
         assertNotNull(PermissionSets.holdReason(
             "(" + ap + " \"javax.security.auth.x500.X500Principal\" \"CN=gateway\")"));
     }
+
+    /**
+     * Operator decision 2026-11-02: an unscoped grant of doAs, setLoginConfiguration, a read of a
+     * whole drive or of the home tree is HIGH, so the default lint run refuses it (D1); a medium
+     * one (exitVM) and a pinned exact read still pass.
+     */
+    @Test
+    public void testIdentityAndBroadReadAreHighToTheLint() throws Exception {
+        String au = "javax.security.auth.AuthPermission";
+        String f = "java.io.FilePermission";
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(au, "doAs", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(au, "setLoginConfiguration", null).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "C:\\-", "read").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${user.home}${/}-", "read").severity);
+        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(au, "modifyPublicCredentials", null).severity);
+        String[][] cases = {
+            {"permission " + au + " \"doAs\";", "1", "D1"},
+            {"permission " + au + " \"setLoginConfiguration\";", "1", "D1"},
+            {"permission " + f + " \"C:\\\\-\", \"read\";", "1", "D1"},
+            {"permission " + f + " \"${user.home}${/}-\", \"read\";", "1", "D1"},
+            {"permission " + au + " \"modifyPublicCredentials\";", "0", "D5"},
+            {"permission java.lang.RuntimePermission \"exitVM\";", "0", "D5"},
+            {"permission " + f + " \"/opt/app/conf/app.properties\", \"read\";", "0", ""}};
+        java.io.File dir = java.nio.file.Files.createTempDirectory("sets-lint").toFile();
+        try {
+            for (String[] c : cases) {
+                java.io.File p = new java.io.File(dir, "t.policy");
+                java.nio.file.Files.write(p.toPath(), ("grant {\n  " + c[0] + "\n};\n").getBytes("UTF-8"));
+                LintHarness.Result r = LintHarness.run(p.getPath());
+                assertEquals(c[0] + ": " + r.out, Integer.parseInt(c[1]), r.exit);
+                assertEquals(c[0], c[2], r.kinds());
+            }
+        } finally {
+            ProxyPolicyGenerator.deleteTree(dir);
+        }
+    }
 }

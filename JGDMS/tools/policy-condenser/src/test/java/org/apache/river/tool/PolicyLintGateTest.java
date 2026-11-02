@@ -151,7 +151,7 @@ public class PolicyLintGateTest {
         expect("n/n22-dotdot-root-write", "1/1 D1");
         expect("n/n24-javahome-conf-write", "1/1 D1");
         expect("n/n25-userdir-dash-execute", "1/1 D1");
-        expect("n/n26-home-read-medium", "0/1 D5");
+        expect("n/n26-home-read-medium", "1/1 D1");   // reading the whole home tree: HIGH (operator 2026-11-02)
         // an unresolvable property in a file target is the root; defined, it is an ordinary path
         expect("n/n21-undefined-prop-write", "1/1 D1");
         expect("n/n21-undefined-prop-write", "0/0 ", "--define", "catalina.home=/opt/tomcat/work");

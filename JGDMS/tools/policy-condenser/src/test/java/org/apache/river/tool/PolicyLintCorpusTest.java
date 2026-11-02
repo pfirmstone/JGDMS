@@ -71,6 +71,58 @@ public class PolicyLintCorpusTest {
         ProxyPolicyGenerator.deleteTree(dir);
     }
 
+    // Operator ruling 2026-11-02: the corpus expectations are the answers of DirtyChai's own policy
+    // provider and parser.  A run on another JDK (or a stale build) must fail loudly, naming the cause,
+    // and not with a handful of unrelated mismatches.
+    static final String DIRTYCHAI_PROVIDER = "au.zeus.jdk.authorization.policy.ConcurrentPolicyFile";
+
+    /** A wildcard principal class: the DirtyChai parser (issue 236) and the platform parser reject it. */
+    static final String WILDCARD_PRINCIPAL_PROBE =
+            "grant principal * * {\n  permission java.lang.RuntimePermission \"x\";\n};\n";
+
+    /** The provider class a lint run answered with, from its {@code PROVIDER} line; null if it has none. */
+    static String providerLine(String lintOutput) {
+        for (String l : lintOutput.split("\n")) {
+            if (l.startsWith("PROVIDER ") || l.startsWith("# PROVIDER ")) return l.trim();
+        }
+        return null;
+    }
+
+    /** Fails unless {@code providerClass} (with the provider's note) is DirtyChai's own provider. */
+    static void requireDirtyChaiProvider(String providerClass, String note) {
+        if (DIRTYCHAI_PROVIDER.equals(providerClass)) return;
+        fail("the policy provider that answered is " + providerClass + ", not " + DIRTYCHAI_PROVIDER
+                + ": run on the DirtyChai JDK and pass --add-exports"
+                + " java.base/au.zeus.jdk.authorization.policy=ALL-UNNAMED (the pom profile"
+                + " dirtychai-policy-export arranges it).  Provider note: " + note);
+    }
+
+    /** As above, from the {@code PROVIDER} line a lint run printed. */
+    static void requireDirtyChaiProviderFrom(String lintOutput) {
+        String line = providerLine(lintOutput);
+        if (line == null) fail("the lint printed no PROVIDER line, so the provider that answered is unknown");
+        String[] w = line.replaceFirst("^# ", "").split("\\s+", 3);
+        requireDirtyChaiProvider(w.length > 1 ? w[1] : "", w.length > 2 ? w[2] : "");
+    }
+
+    /** Fails with the cause if the lint run on {@link #WILDCARD_PRINCIPAL_PROBE} found no P1. */
+    static void requireWildcardPrincipalRejected(LintHarness.Result probe) {
+        if (probe.count("P1") == 0) {
+            fail("the loaded DirtyChai/platform parser accepts a wildcard principal class: wrong or stale"
+                    + " JDK (the expectations of r6/a04, r6/a33, r8/q03 and r8/z02 need the P1 of the"
+                    + " parser of DirtyChai issue 236).  Lint said: " + probe.out);
+        }
+    }
+
+    /** Runs the probe and applies both requirements. */
+    void requireRightProviderAndParser() throws Exception {
+        File p = new File(dir, "wildcard-principal-probe.policy");
+        Files.write(p.toPath(), WILDCARD_PRINCIPAL_PROBE.getBytes("UTF-8"));
+        LintHarness.Result r = LintHarness.run(p.getPath());
+        requireDirtyChaiProviderFrom(r.out);
+        requireWildcardPrincipalRejected(r);
+    }
+
     static final class Row {
         String file;
         int def;
@@ -113,6 +165,7 @@ public class PolicyLintCorpusTest {
     // asserted (used to build the file; the result is reviewed by hand).
     @Test
     public void corpusExitCodesAndKinds() throws Exception {
+        requireRightProviderAndParser();
         String dump = System.getProperty("lint.corpus.dump");
         PrintWriter w = dump == null ? null : new PrintWriter(dump, "UTF-8");
         StringBuilder bad = new StringBuilder();
@@ -200,6 +253,12 @@ public class PolicyLintCorpusTest {
         /** Listed permissions that an entry allows, in a file that entry does not name. */
         final StringBuilder outsideList = new StringBuilder();
         boolean canaryListed;
+        /** The corpus files the default lint run reports D5 for (the lint's own answer). */
+        final java.util.Set<String> d5Files = new TreeSet<String>();
+        /** Listed permissions accepted by the rule (catalogue MEDIUM and the lint says D5), by file. */
+        final java.util.Set<String> autoAccepted = new TreeSet<String>();
+        /** Listed MEDIUM permissions in a file for which the lint reports no D5: provider and lint disagree. */
+        final StringBuilder ratingMismatch = new StringBuilder();
         /** Distinct listed permissions with the first file, for the allow-list dump. */
         final Map<String, String> dump = new TreeMap<String, String>();
         List<Allow> allow;
@@ -212,15 +271,14 @@ public class PolicyLintCorpusTest {
 
     /**
      * An entry of the allow-list: a class, a name pattern and an actions pattern; the corpus files
-     * that may grant it (paths relative to the corpus, or a glob where {@code *} stands for any
-     * characters except a slash); and why that grant to a stranger is accepted for those files.
+     * that may grant it (exact paths relative to the corpus, never a glob: operator ruling
+     * 2026-11-02); and why that grant to a stranger is accepted for those files.
      */
     static final class Allow {
         final String cls;
         final Pattern name;
         final Pattern actions;
         final List<String> files;
-        final List<Pattern> filePatterns = new ArrayList<Pattern>();
         final String why;
 
         Allow(String cls, String name, String actions, String files, String why) {
@@ -231,18 +289,7 @@ public class PolicyLintCorpusTest {
             for (String f : files.split(";")) {
                 if (f.trim().length() > 0) this.files.add(f.trim());
             }
-            for (String f : this.files) filePatterns.add(glob(f));
             this.why = why;
-        }
-
-        private static Pattern glob(String g) {
-            StringBuilder b = new StringBuilder();
-            String[] parts = g.split("[*]", -1);
-            for (int i = 0; i < parts.length; i++) {
-                if (i > 0) b.append("[^/]*");
-                if (parts[i].length() > 0) b.append(Pattern.quote(parts[i]));
-            }
-            return Pattern.compile(b.toString());
         }
 
         private static String expand(String regex) {
@@ -258,12 +305,9 @@ public class PolicyLintCorpusTest {
             return cls.equals(c) && name.matcher(n).matches() && actions.matcher(a).matches();
         }
 
-        /** Whether the file is one this entry names (exactly, or by a glob). */
+        /** Whether the file is one this entry names (an exact path). */
         boolean names(String file) {
-            for (Pattern f : filePatterns) {
-                if (f.matcher(file).matches()) return true;
-            }
-            return false;
+            return files.contains(file);
         }
 
         String key() {
@@ -277,9 +321,15 @@ public class PolicyLintCorpusTest {
     /**
      * What is wrong with the entries' own text: a reason that is empty, shorter than
      * {@link #MIN_REASON}, equal to another entry's, or that cites none of the fixtures the entry
-     * names; no files; a file reference that is only wildcards.
+     * names; no files; a file reference that is not the exact path of a fixture (a glob, or, when
+     * {@code corpus} is given, a path that is no corpus file).
      */
     static List<String> allowListProblems(List<Allow> entries) {
+        return allowListProblems(entries, null);
+    }
+
+    /** As {@link #allowListProblems(List)}; {@code corpus}, if not null, is the set of fixture paths. */
+    static List<String> allowListProblems(List<Allow> entries, java.util.Set<String> corpus) {
         List<String> res = new ArrayList<String>();
         Map<String, Allow> seen = new LinkedHashMap<String, Allow>();
         for (Allow a : entries) {
@@ -299,15 +349,19 @@ public class PolicyLintCorpusTest {
             }
             if (a.files.isEmpty()) res.add(id + ": names no file");
             boolean cites = false;
-            boolean exact = false;
             for (String f : a.files) {
-                if (f.replace("*", "").length() == 0) res.add(id + ": file reference " + f + " matches everything");
-                if (f.indexOf('*') >= 0) continue;
-                exact = true;
+                if (f.indexOf('*') >= 0 || f.indexOf('?') >= 0 || f.indexOf('[') >= 0) {
+                    res.add(id + ": file reference " + f + " is a glob; only exact paths are allowed");
+                    continue;
+                }
+                if (corpus != null && !corpus.contains(f)) {
+                    res.add(id + ": file reference " + f + " is no corpus fixture");
+                    continue;
+                }
                 String stem = f.substring(f.lastIndexOf('/') + 1).replaceFirst("[.]policy$", "");
                 if (why.contains(stem)) cites = true;
             }
-            if (exact && !cites) res.add(id + ": the reason cites none of the fixtures the entry names");
+            if (!cites) res.add(id + ": the reason cites none of the fixtures the entry names");
         }
         return res;
     }
@@ -319,14 +373,7 @@ public class PolicyLintCorpusTest {
             java.util.Set<String> got = entryFiles.get(a.key());
             if (got == null) got = Collections.<String>emptySet();
             for (int i = 0; i < a.files.size(); i++) {
-                boolean hit = false;
-                for (String f : got) {
-                    if (a.filePatterns.get(i).matcher(f).matches()) {
-                        hit = true;
-                        break;
-                    }
-                }
-                if (!hit) {
+                if (!got.contains(a.files.get(i))) {
                     res.add(a.cls + " " + a.name.pattern() + " names " + a.files.get(i)
                             + ", which does not list a permission the entry matches (stale file reference)");
                 }
@@ -361,9 +408,20 @@ public class PolicyLintCorpusTest {
             assertEquals("allow-list line: class, name, actions, files, why: " + Arrays.toString(c), 5, c.length);
             res.add(new Allow(c[0], c[1], c[2], c[3], c[4]));
         }
-        List<String> problems = allowListProblems(res);
+        List<String> problems = allowListProblems(res, corpusNames());
         assertTrue("allow-list entries: " + problems, problems.isEmpty());
         return res;
+    }
+
+    /** The fixtures of the corpus, as paths relative to it ({@code r8/f05-allfiles-readlink.policy}). */
+    static java.util.Set<String> corpusNames() throws Exception {
+        java.util.Set<String> names = new TreeSet<String>();
+        File[] all = new File(PolicyLintCorpusTest.class.getResource("/policylint/corpus").toURI()).listFiles();
+        for (File g : all) {
+            if (!g.isDirectory()) continue;
+            for (File f : g.listFiles()) names.add(g.getName() + "/" + f.getName());
+        }
+        return names;
     }
 
     /** The listed permission as (class, name, actions); one that could not be resolved gives its stored text. */
@@ -490,6 +548,7 @@ public class PolicyLintCorpusTest {
             return;
         }
         c.covered++;
+        if (LintHarness.run(f.getPath()).count("D5") > 0) c.d5Files.add(row.file);
         judgeListed(c, row, c.listSubjectList, listed);
         c.questions += (long) c.wide.size() * c.universe.permissions.size()
                 + (long) c.probeSubjects.size() * c.high.size();
@@ -512,10 +571,14 @@ public class PolicyLintCorpusTest {
     }
 
     /**
-     * Judges everything the provider lists for the file: each permission is on the allow-list, or
-     * it implies one of the universe's questions (so the question loop above judged it), or it is
-     * reported by file, subject and permission.  A listed permission the catalogue rates HIGH is
-     * a finding whatever else is true of it.
+     * Judges everything the provider lists for the file.  First, a listed permission the catalogue
+     * rates HIGH is a finding whatever else is true of it: no row and no rule below accepts it.
+     * Then each permission is on the allow-list (an explicit row naming this file, with its own
+     * reason), or it is rated MEDIUM by the catalogue and the lint reports D5 for the file (the
+     * provider and the lint agree: no row needed), or it implies one of the universe's questions
+     * (so the question loop above judged it), or it is reported by file, subject and permission.
+     * A MEDIUM permission in a file for which the lint reports no D5 is a disagreement and a
+     * finding.
      */
     private static void judgeListed(Cross c, Row row, List<PolicyVerdict.Subject> subjects,
             List<List<Permission>> listed) {
@@ -568,6 +631,11 @@ public class PolicyLintCorpusTest {
                 fs.add(row.file);
                 if (allowed == null && a.names(row.file)) allowed = a;
             }
+            boolean medium = d != null && d.severity == PermissionSets.MEDIUM;
+            if (medium && !c.d5Files.contains(row.file)) {
+                c.ratingMismatch.append(row.file).append(" lists ").append(Arrays.toString(t))
+                        .append(", which the catalogue rates MEDIUM, but the lint reports no D5 for the file\n");
+            }
             if (allowed != null) {
                 c.allowListed++;
                 c.allowUsed.add(allowed.key());
@@ -575,6 +643,8 @@ public class PolicyLintCorpusTest {
                 // an exemption written for other files must not cover this one
                 c.outsideList.append(row.file).append(" is granted ").append(Arrays.toString(t))
                         .append(", which only entries for other files allow\n");
+            } else if (medium && c.d5Files.contains(row.file)) {
+                c.autoAccepted.add(row.file + "\t" + t[0] + " " + t[1] + " " + t[2]);
             } else if (!question) {
                 c.unjudged.append(row.file).append(" subject ").append(firstSubject.get(e.getKey()))
                         .append(" is granted ").append(Arrays.toString(t))
@@ -602,6 +672,7 @@ public class PolicyLintCorpusTest {
                 + " cannot list what it grants", c.canaryListed);
         assertEquals(c.unjudged.toString(), 0, c.unjudged.length());
         assertEquals(c.outsideList.toString(), 0, c.outsideList.length());
+        assertEquals(c.ratingMismatch.toString(), 0, c.ratingMismatch.length());
         List<String> stale = staleReferences(c.allow, c.entryFiles);
         assertTrue("allow-list file references: " + stale, stale.isEmpty());
         // per file: the files for which no stranger subject gets anything listed are exactly the
@@ -625,7 +696,9 @@ public class PolicyLintCorpusTest {
 
     @Test
     public void cleanFilesGrantNoStrangerAHighPermission() throws Exception {
+        requireRightProviderAndParser();
         PolicyVerdict provider = PolicyVerdict.open("auto");
+        requireDirtyChaiProvider(provider.providerClass, provider.note);
         Cross c = crossCheck(provider);
         System.out.println("provider cross-check: files covered=" + c.covered + " of clean=" + c.cleanRows
                 + " permission-classes=" + c.universe.classes.size() + " constructed="
@@ -635,6 +708,7 @@ public class PolicyLintCorpusTest {
                 + " grants=" + c.grants + " provider=" + provider.providerClass);
         System.out.println("provider listing: permissions listed=" + c.listings + " (file x subject x permission)"
                 + " distinct-per-file=" + c.listedDistinct + " allow-listed=" + c.allowListed
+                + " auto-accepted(MEDIUM+D5)=" + c.autoAccepted.size() + " explicit-rows=" + c.allow.size()
                 + " implying-no-universe-question=" + c.impliedNoQuestion + " files-with-nothing-listed="
                 + c.noListing.size() + " subjects-listed=" + c.listSubjects);
         String dumpTo = System.getenv("LINT_CROSS_DUMP");
@@ -681,7 +755,7 @@ public class PolicyLintCorpusTest {
     }
 
     @Test
-    public void everyAllowEntryNeedsItsOwnSpecificReason() {
+    public void everyAllowEntryNeedsItsOwnSpecificReason() throws Exception {
         String why1 = "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only.";
         String why2 = "setIO lets a stranger redirect the console of the VM (r14-rt-setIO), accepted as D5.";
         assertEquals(Collections.<String>emptyList(), allowListProblems(Arrays.asList(
@@ -699,8 +773,140 @@ public class PolicyLintCorpusTest {
         assertFalse("reason that cites none of its fixtures", allowListProblems(Arrays.asList(
                 entry("exitVM", "r8/r16-rt-exitVM.policy", "exitVM lets a stranger stop the VM, a denial of service."))).isEmpty());
         assertFalse("no files", allowListProblems(Arrays.asList(entry("exitVM", "", why1))).isEmpty());
-        assertFalse("a glob that matches everything", allowListProblems(Arrays.asList(
-                entry("exitVM", "*", why1))).isEmpty());
+        assertEquals(Collections.<String>emptyList(), allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy", why1),
+                entry("setIO", "r8/r14-rt-setIO.policy", why2)), corpusNames()));
+    }
+
+    // Opus review 2026-11-02, finding 2, and the operator's ruling: a file reference is the exact path
+    // of an existing fixture.  A glob, even one with a slash in it, covers files the entry does not name.
+    @Test
+    public void globFileReferencesAreRejected() throws Exception {
+        String why = "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only.";
+        for (String g : new String[]{"*", "**", "*/*", "r8/*", "n/*.policy", "r8/r16-rt-exitVM.polic?",
+            "r8/r1[6]-rt-exitVM.policy", "r8/r16-rt-exitVM.policy;*/*"}) {
+            assertFalse("glob " + g + " without the corpus", allowListProblems(Arrays.asList(
+                    entry("exitVM", g, why))).isEmpty());
+            assertFalse("glob " + g + " with the corpus", allowListProblems(Arrays.asList(
+                    entry("exitVM", g, why)), corpusNames()).isEmpty());
+        }
+        List<String> p = allowListProblems(Arrays.asList(entry("exitVM", "r8/*", why)), corpusNames());
+        assertTrue(p.toString(), p.toString().contains("glob"));
+    }
+
+    @Test
+    public void aFileReferenceMustBeAnExistingFixture() throws Exception {
+        String why = "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only.";
+        List<String> p = allowListProblems(Arrays.asList(
+                entry("exitVM", "r8/r16-rt-exitVM.policy;r8/no-such-fixture.policy", why)), corpusNames());
+        assertEquals(p.toString(), 1, p.size());
+        assertTrue(p.toString(), p.get(0).contains("no-such-fixture"));
+    }
+
+    // Operator ruling 2026-11-02: the run must be against DirtyChai's provider and parser, and say so.
+    @Test
+    public void aRunOnTheWrongProviderFailsLoudly() {
+        requireDirtyChaiProviderFrom("SUMMARY x\nPROVIDER " + DIRTYCHAI_PROVIDER + " (production provider)\n");
+        requireDirtyChaiProviderFrom("# PROVIDER " + DIRTYCHAI_PROVIDER + " (production provider)\n");
+        for (String out : new String[]{
+            "PROVIDER org.apache.river.api.security.ConcurrentPolicyFile (fell back from x: IllegalAccessError)"
+                + " [not the DirtyChai provider]\n",
+            "PROVIDER sun.security.provider.PolicyFile (n)\n", "no provider line here\n", ""}) {
+            try {
+                requireDirtyChaiProviderFrom(out);
+            } catch (AssertionError expected) {
+                String m = String.valueOf(expected.getMessage());
+                assertTrue(m, m.contains("add-exports") || m.contains("no PROVIDER line"));
+                continue;
+            }
+            fail("accepted a run of: " + out);
+        }
+    }
+
+    @Test
+    public void aParserThatAcceptsAWildcardPrincipalFailsWithItsCause() {
+        LintHarness.Result accepts = new LintHarness.Result();
+        accepts.out = "p.policy:1 S3 principal * the policy grants AllPermission to any principal\n";
+        try {
+            requireWildcardPrincipalRejected(accepts);
+        } catch (AssertionError expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains(
+                    "accepts a wildcard principal class: wrong or stale JDK"));
+            LintHarness.Result rejects = new LintHarness.Result();
+            rejects.out = "p.policy:0 P1 - the production policy parser rejects this file: principal *\n";
+            requireWildcardPrincipalRejected(rejects);
+            return;
+        }
+        fail("a parser that accepts principal * passed");
+    }
+
+    // The real run, not a stand-in: the lint on the probe answers with the DirtyChai provider and P1.
+    @Test
+    public void theLoadedProviderAndParserAreDirtyChais() throws Exception {
+        requireRightProviderAndParser();
+    }
+
+    // A listed permission the catalogue rates HIGH is a finding although a row names the file and the
+    // file is D5: nothing accepts it.
+    @Test
+    public void aHighRatedPermissionIsNeverAcceptedByARowOrTheRule() throws Exception {
+        Cross c = new Cross();
+        c.universe = universe();
+        c.allow = Arrays.asList(entry("setSecurityManager", "r8/r14-rt-setIO.policy",
+                "setSecurityManager is named by a row for a fixture, r14-rt-setIO, and must still fail."));
+        c.d5Files.add("r8/r14-rt-setIO.policy");
+        List<PolicyVerdict.Subject> subjects = Arrays.asList(
+                new PolicyVerdict.Subject("https://evil.net/x.jar", new Principal[0]));
+        List<List<Permission>> listed = new ArrayList<List<Permission>>();
+        listed.add(Arrays.<Permission>asList(new RuntimePermission("setSecurityManager")));
+        Row row = new Row();
+        row.file = "r8/r14-rt-setIO.policy";
+        judgeListed(c, row, subjects, listed);
+        assertTrue("HIGH reported: " + c.bad, c.bad.toString().contains("setSecurityManager"));
+        // and without a row, in a D5 file, the rule does not take it either
+        Cross d = new Cross();
+        d.universe = universe();
+        d.allow = Collections.<Allow>emptyList();
+        d.d5Files.add(row.file);
+        judgeListed(d, row, subjects, listed);
+        assertTrue("HIGH reported: " + d.bad, d.bad.toString().contains("setSecurityManager"));
+        assertTrue("not auto-accepted: " + d.autoAccepted, d.autoAccepted.isEmpty());
+    }
+
+    // The automatic rule: MEDIUM in the catalogue and D5 from the lint, for the file.  Either alone
+    // is not enough.
+    @Test
+    public void aMediumPermissionIsAcceptedOnlyWhereTheLintReportsD5() throws Exception {
+        List<PolicyVerdict.Subject> subjects = Arrays.asList(
+                new PolicyVerdict.Subject("https://evil.net/x.jar", new Principal[0]));
+        List<List<Permission>> listed = new ArrayList<List<Permission>>();
+        listed.add(Arrays.<Permission>asList(new RuntimePermission("setIO")));
+        Row row = new Row();
+        row.file = "r8/r14-rt-setIO.policy";
+        Cross yes = new Cross();
+        yes.universe = universe();
+        yes.allow = Collections.<Allow>emptyList();
+        yes.d5Files.add(row.file);
+        judgeListed(yes, row, subjects, listed);
+        assertEquals("accepted by the rule", 1, yes.autoAccepted.size());
+        assertEquals(yes.ratingMismatch.toString() + yes.unjudged, 0,
+                yes.ratingMismatch.length() + yes.unjudged.length() + yes.bad.length());
+        Cross no = new Cross();
+        no.universe = universe();
+        no.allow = Collections.<Allow>emptyList();
+        judgeListed(no, row, subjects, listed);
+        assertTrue("not accepted without D5: " + no.autoAccepted, no.autoAccepted.isEmpty());
+        assertTrue("reported as a disagreement: " + no.ratingMismatch,
+                no.ratingMismatch.toString().contains("setIO"));
+        // a permission the catalogue does not rate is not taken by the rule, D5 or not
+        Cross clean = new Cross();
+        clean.universe = universe();
+        clean.allow = Collections.<Allow>emptyList();
+        clean.d5Files.add(row.file);
+        List<List<Permission>> other = new ArrayList<List<Permission>>();
+        other.add(Arrays.<Permission>asList(new RuntimePermission("shutdownHooks")));
+        judgeListed(clean, row, subjects, other);
+        assertTrue("shutdownHooks is not rated: " + clean.autoAccepted, clean.autoAccepted.isEmpty());
     }
 
     @Test
@@ -735,7 +941,7 @@ public class PolicyLintCorpusTest {
 
     @Test
     public void aStaleFileReferenceFails() {
-        List<Allow> a = Arrays.asList(entry("exitVM", "r8/r16-rt-exitVM.policy;r8/gone.policy;n/n9*",
+        List<Allow> a = Arrays.asList(entry("exitVM", "r8/r16-rt-exitVM.policy;r8/gone.policy;n/n90-x.policy",
                 "exitVM lets a stranger stop the VM (r16-rt-exitVM), a denial of service only."));
         Map<String, java.util.Set<String>> got = new TreeMap<String, java.util.Set<String>>();
         got.put(a.get(0).key(), new TreeSet<String>(Arrays.asList("r8/r16-rt-exitVM.policy", "n/n90-x.policy")));

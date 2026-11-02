@@ -542,7 +542,10 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
   on any file below the JDK home. Names are expanded first (`--define` values, then this JVM's
   properties, `${/}`) and normalised (`..` and `.` applied, `\` read as `/`); a property defined
   in neither is read as the root; `${user.dir}` counts as the working directory. Read on the
-  same is MEDIUM. `/tmp/*` (the temp directory's own files) is MEDIUM: services keep scratch
+  same is MEDIUM, except read of a whole root or drive tree (`/-`, `C:\-`) and of the whole
+  tree of the user home (`${user.home}${/}-`), which are HIGH (operator decision 2026-11-02;
+  read of `<<ALL FILES>>`, `readlink` and `C:\*` stay MEDIUM, and an exact or pinned read is
+  clean). `/tmp/*` (the temp directory's own files) is MEDIUM: services keep scratch
   files there, as the deploy policies do;
 * `AssertPrincipalPermission` with `*` in its class or name pattern (it confers identity),
   `PrivateCredentialPermission` with a wildcard credential, principal class or name,
@@ -558,19 +561,20 @@ of the provider. HIGH means one step from leaving or rewriting the sandbox:
   `putProviderProperty.*`, `createAccessControlContext`;
 * `RuntimePermission` `*`, `setSecurityManager`, `createClassLoader`, `loadLibrary.*`,
   `defineClassInPackage.*`, `createAccessControlContext`; `ReflectPermission`
-  `suppressAccessChecks`; `AuthPermission` `doAsPrivileged`, `modifyPrincipals`,
+  `suppressAccessChecks`; `AuthPermission` `doAs` and `setLoginConfiguration` (both bear on
+  identity; HIGH by operator decision 2026-11-02), `doAsPrivileged`, `modifyPrincipals`,
   `modifyPrivateCredentials`; `SerializablePermission` `enableSubclassImplementation`;
   `NativeInvocationPermission`;
 * `DeSerializationPermission` `*` or `MARSHALLED`.
 
 MEDIUM (strict only): `RuntimePermission` `getProtectionDomain`, `exitVM.*`,
 `accessClassInPackage.sun.*`, `setContextClassLoader`, `setFactory`, `accessDeclaredMembers`;
-`SocketPermission` to any host (`*` or `*:ports`);
+`SocketPermission` to any host (`*` or `*:ports`) or to a whole top-level domain (`*.com`);
 `URLPermission` and `AuthenticationPermission` with a wildcard; `AuthPermission`,
 `SerializablePermission` and `ReflectPermission` entries not listed above; `RuntimePermission`
 `setIO`, `getClassLoader`, `modifyThread`, `modifyThreadGroup`, `writeFileDescriptor`,
 `readFileDescriptor`, `manageProcess`, `enableContextClassLoaderOverride`, `charsetProvider`;
-`SecurityPermission` `getPolicy`, `createPolicy.*`; `NetPermission` `setDefaultAuthenticator`
+`SecurityPermission` `getPolicy`, `createPolicy.*`, `authProvider.*`, `getProperty.*`; `NetPermission` `setDefaultAuthenticator`
 and its kin; `SSLPermission` `setHostnameVerifier`; `MBeanPermission` with a wildcard class and
 a read action; `ManagementPermission` `monitor`; `LoggingPermission`; Kerberos
 `DelegationPermission`/`ServicePermission` with `*`; `DownloadPermission`; DirtyChai's

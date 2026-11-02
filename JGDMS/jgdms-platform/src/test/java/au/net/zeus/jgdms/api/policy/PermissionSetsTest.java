@@ -142,7 +142,7 @@ public class PermissionSetsTest {
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "C:\\-", "write").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "-", "execute").severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "*", "write").severity);
-        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "/-", "read").severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/-", "read").severity);
         assertNull(PermissionSets.danger(f, "/opt/app/-", "write"));
         assertNull(PermissionSets.danger(f, "/", "write"));
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(s, "*", null).severity);
@@ -202,6 +202,46 @@ public class PermissionSetsTest {
     private static int sev(String type, String name, String actions) {
         PermissionSets.Danger d = PermissionSets.danger(type, name, actions);
         return d == null ? 0 : d.severity;
+    }
+
+    // Operator decision 2026-11-02: what bears on identity, and reading a whole root or the whole
+    // home tree, is HIGH; the rest of the broad-but-common set stays MEDIUM.
+    @Test
+    public void testIdentityAndBroadReadRatings() {
+        int h = PermissionSets.HIGH;
+        int m = PermissionSets.MEDIUM;
+        String au = "javax.security.auth.AuthPermission";
+        assertEquals(h, sev(au, "doAs", null));
+        assertEquals(h, sev(au, "setLoginConfiguration", null));
+        assertEquals(m, sev(au, "modifyPublicCredentials", null));
+        assertEquals(m, sev(au, "getSubject", null));
+        assertEquals(m, sev(au, "getLoginConfiguration", null));
+        String f = "java.io.FilePermission";
+        assertEquals(h, sev(f, "C:\\-", "read"));
+        assertEquals(h, sev(f, "d:/-", "read"));
+        assertEquals(h, sev(f, "/-", "read"));
+        assertEquals(h, sev(f, "${user.home}${/}-", "read"));
+        // kept MEDIUM: all files read or readlink, a root's own files, the temp directory's own files
+        assertEquals(m, sev(f, "<<ALL FILES>>", "read"));
+        assertEquals(m, sev(f, "<<ALL FILES>>", "readlink"));
+        assertEquals(m, sev(f, "C:\\*", "read"));
+        // clean: a pinned exact read, a directory below the home
+        assertEquals(0, sev(f, "/opt/app/conf/-", "read"));
+        assertEquals(0, sev(f, "/etc/hosts", "read"));
+        assertEquals(0, sev(f, "${user.home}${/}.myapp${/}-", "read"));
+        String r = "java.lang.RuntimePermission";
+        for (String n : new String[]{"exitVM.*", "exitVM.0", "setIO"}) assertEquals(n, m, sev(r, n, null));
+        String s = "java.security.SecurityPermission";
+        assertEquals(m, sev(s, "authProvider.*", null));
+        assertEquals(m, sev(s, "getProperty.*", null));
+        assertEquals(0, sev(s, "getProperty.java.version", null));
+        assertTrue(PermissionSets.danger(au, "doAs", null).reason.contains("doAs"));
+        String so = "java.net.SocketPermission";
+        assertEquals(m, sev(so, "*.com", "connect,resolve"));
+        assertEquals(m, sev(so, "*.com:443", "connect"));
+        assertEquals(m, sev(so, "*", "resolve"));
+        assertEquals(0, sev(so, "*.example.com", "connect"));
+        assertEquals(0, sev(so, "host.example.com:443", "connect"));
     }
 
     // The catalogue gaps of the Opus review of 66974f70f: each entry that read as clean is now
@@ -285,7 +325,7 @@ public class PermissionSetsTest {
         assertEquals(PermissionSets.HIGH,
             PermissionSets.danger(f, "/home/alice/work/../../-", "write", env).severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${io.not.defined}/x/-", "write", env).severity);
-        assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "${user.home}/-", "read", env).severity);
+        assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "${user.home}/-", "read", env).severity);
         // a temp directory's own files are medium, its whole tree is high
         assertEquals(PermissionSets.MEDIUM, PermissionSets.danger(f, "/tmp/*", "write", env).severity);
         assertEquals(PermissionSets.HIGH, PermissionSets.danger(f, "/tmp/-", "write", env).severity);
