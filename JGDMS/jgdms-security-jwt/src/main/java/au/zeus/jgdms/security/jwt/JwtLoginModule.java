@@ -474,11 +474,13 @@ public final class JwtLoginModule implements LoginModule {
      */
     private void uninstallLocked() {
         RefreshThread rt = refreshThread;
-        if (rt != null) {
-            rt.shutdown();
-            refreshThread = null;
+        refreshThread = null;
+        try {
+            // Remove first: nothing after this point may leave the token on the Subject.
+            removeInstalledLocked();
+        } finally {
+            if (rt != null) rt.shutdown();
         }
-        removeInstalledLocked();
         installedSub = null;
         installedIss = null;
         commitSucceeded = false;
@@ -501,9 +503,13 @@ public final class JwtLoginModule implements LoginModule {
      */
     private void failClosedLocked(RefreshThread caller) {
         if (!caller.running) return;
-        caller.shutdown();
+        // Remove first: nothing after this point may leave the token on the Subject.
         commitSucceeded = false;
-        removeInstalledLocked();
+        try {
+            removeInstalledLocked();
+        } finally {
+            caller.shutdown();
+        }
     }
 
     /** {@link #failClosedLocked} for the thread's own failure path; records {@code why}. */
@@ -513,8 +519,8 @@ public final class JwtLoginModule implements LoginModule {
             try {
                 failClosedLocked(caller);
             } catch (RuntimeException e) {
-                // A read-only Subject, or a SecurityManager refusing the removal:
-                // the token cannot be taken out; say so, without token text.
+                // A read-only Subject, a SecurityManager refusing the removal, or the thread's shutdown
+                // failing: the token may not have been taken out; say so, without token text.
                 LOG.log(Level.SEVERE, "JWT refresh stopped but the token could not be removed: "
                         + e.getClass().getName());
             }
@@ -689,7 +695,13 @@ public final class JwtLoginModule implements LoginModule {
             Thread t = thread;
             if (t != null) t.interrupt();
             // Closes the client without waiting (BoundedBody.closeAsync): logout must not block on it.
-            JwksKeyCache.closeClient(httpClient);
+            // The close needs a pooled thread, which can fail to start (native threads exhausted, thread
+            // grant revoked); that must never stop the caller from removing the token, so it is only logged.
+            try {
+                JwksKeyCache.closeClient(httpClient);
+            } catch (Throwable e) {
+                LOG.log(Level.WARNING, "JWT refresh client could not be closed: " + e.getClass().getName());
+            }
         }
 
         @Override

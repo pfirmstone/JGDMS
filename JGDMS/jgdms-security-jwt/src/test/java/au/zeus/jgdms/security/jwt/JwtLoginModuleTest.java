@@ -2233,4 +2233,52 @@ public class JwtLoginModuleTest {
         assertEquals(before, liveRefreshThreads());
         module.abort();
     }
+
+    // Opus review 2026-11-03 (F1): the client close at shutdown needs a pooled thread; when none can be
+    // created the token and principals must still be removed.
+    private static java.util.concurrent.ThreadPoolExecutor idleClosers() throws Exception {
+        java.lang.reflect.Field f = BoundedBody.class.getDeclaredField("CLOSERS");
+        f.setAccessible(true);
+        java.util.concurrent.ThreadPoolExecutor c = (java.util.concurrent.ThreadPoolExecutor) f.get(null);
+        long keep = c.getKeepAliveTime(java.util.concurrent.TimeUnit.MILLISECONDS);
+        c.setKeepAliveTime(1, java.util.concurrent.TimeUnit.MILLISECONDS);
+        long end = System.nanoTime() + 20_000_000_000L;
+        while (c.getPoolSize() > 0 && System.nanoTime() < end) Thread.sleep(10);
+        c.setKeepAliveTime(keep, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertEquals("no closer thread alive, so the next close must create one", 0, c.getPoolSize());
+        return c;
+    }
+
+    @Test(timeout = 60000)
+    public void testLogoutRemovesTheTokenWhenNoCloserThreadCanBeCreated() throws Exception {
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+        java.util.concurrent.ThreadPoolExecutor closers = idleClosers();
+        java.util.concurrent.ThreadFactory saved = closers.getThreadFactory();
+        closers.setThreadFactory(r -> { throw new OutOfMemoryError("unable to create native thread (test)"); });
+        try {
+            m.logout();
+        } finally {
+            closers.setThreadFactory(saved);
+        }
+        assertNothingOfOurs(subject);
+    }
+
+    @Test(timeout = 60000)
+    public void testInvalidGrantRemovesTheTokenWhenNoCloserThreadCanBeCreated() throws Exception {
+        Subject subject = new Subject();
+        JwtLoginModule m = loginWithRefresh(subject, tokenFor("s", JWT_ISSUER, inSeconds(1000), "\"groups\":[\"a\"]"));
+        java.util.concurrent.ThreadPoolExecutor closers = idleClosers();
+        java.util.concurrent.ThreadFactory saved = closers.getThreadFactory();
+        tokenEndpointRaw.set("{\"error\":\"invalid_grant\"}");
+        closers.setThreadFactory(r -> { throw new SecurityException("no thread (test)"); });
+        try {
+            assertFalse(m.refreshNow());
+        } finally {
+            closers.setThreadFactory(saved);
+            tokenEndpointRaw.set(null);
+        }
+        assertNothingOfOurs(subject);
+        m.logout();
+    }
 }
