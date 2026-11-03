@@ -714,7 +714,17 @@ public final class PermissionSets {
     public static FilePath filePath(String name) {
         FilePath f = new FilePath();
         String p = name.trim().replace('\\', '/');
-        f.unc = p.startsWith("//") && p.length() > 2 && p.charAt(2) != '/';
+        // Opus review 2026-11-03 (F3): java.io.File on Windows drops the slashes before a drive letter, so
+        // "/C:/-" is the whole C: drive; read it as a drive whatever the host the lint runs on.
+        int lead = 0;
+        while (lead < p.length() && p.charAt(lead) == '/') lead++;
+        boolean driveAfterSlashes = lead > 0 && p.length() >= lead + 2 && p.charAt(lead + 1) == ':'
+                && Character.isLetter(p.charAt(lead)) && (p.length() == lead + 2 || p.charAt(lead + 2) == '/');
+        if (driveAfterSlashes) p = p.substring(lead);
+        // Opus review 2026-11-03 (F2): java.io.File on Windows collapses three or more leading separators
+        // into the same UNC prefix as two, so "///server/share/-" is a whole share; any run of two or more
+        // slashes followed by a name is a UNC name (conservative where the host reads it as a plain path).
+        f.unc = !driveAfterSlashes && lead >= 2 && p.length() > lead;
         if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
             f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
             p = p.substring(2);

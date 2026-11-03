@@ -417,6 +417,21 @@ public class PermissionSetsTest {
                 assertEquals(n + " " + a, h, sev(f, n, a));
             }
         }
+        // three or more leading separators are the same UNC prefix on Windows (Opus review 2026-11-03, F2)
+        for (String n : new String[]{"///server/share/-", "\\\\\\server\\share\\-", "////server/-"}) {
+            for (String a : new String[]{"read", "write"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        // a slash before the drive letter is the same drive (F3)
+        for (String n : new String[]{"/C:/-", "//c:/-", "\\C:\\-"}) {
+            for (String a : new String[]{"read", "write"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        assertEquals(h, sev(f, "/c:/Users/-", "read"));
+        assertEquals(0, sev(f, "///server/share/dir/-", "read"));
+        assertEquals(0, sev(f, "/C:/data/app/-", "read"));
         // the parent of every user home, on every platform
         for (String n : new String[]{"/home/-", "/Users/-", "C:\\Users\\-"}) {
             assertEquals(n, h, sev(f, n, "read"));
