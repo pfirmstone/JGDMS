@@ -479,11 +479,12 @@ public final class JwtLoginModule implements LoginModule {
             // Remove first: nothing after this point may leave the token on the Subject.
             removeInstalledLocked();
         } finally {
+            // reset before shutdown(): nothing it does may leave the module reporting a commit
+            installedSub = null;
+            installedIss = null;
+            commitSucceeded = false;
             if (rt != null) rt.shutdown();
         }
-        installedSub = null;
-        installedIss = null;
-        commitSucceeded = false;
     }
 
     /** Removes exactly what this module added; the caller holds the Subject's monitor. */
@@ -693,7 +694,12 @@ public final class JwtLoginModule implements LoginModule {
         void shutdown() {
             running = false;
             Thread t = thread;
-            if (t != null) t.interrupt();
+            try {
+                if (t != null) t.interrupt();
+            } catch (RuntimeException e) {
+                // a SecurityManager may refuse the interrupt; running is false, so the loop ends by itself
+                LOG.log(Level.WARNING, "JWT refresh thread could not be interrupted: " + e.getClass().getName());
+            }
             // Closes the client without waiting (BoundedBody.closeAsync): logout must not block on it.
             // The close needs a pooled thread, which can fail to start (native threads exhausted, thread
             // grant revoked); that must never stop the caller from removing the token, so it is only logged.
