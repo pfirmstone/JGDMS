@@ -297,3 +297,12 @@ Default every dispatch to Sonnet. Reviews are two-stage: a Sonnet agent runs the
 - Step 4 (message every agent for its experience) NOT DONE: the global rule is to treat every agent as single-shot, and each agent's report is on disk. The roster's model ids were instead checked against each report's first line (see the index): all match the model dispatched.
 - Different-model review of this handover: DONE (Fable 5.1, `docs/REVIEW-handover-2026-11-01-fable.md`).
 - The sub-agent roster is in the index file, not here.
+
+## REVISION 4o, AS-OF 2026-11-03 10:45 +1000 (newest block; it overrides 4n where they differ)
+
+- **State (VERIFIED by git log at 10:40):** HEAD `6e99c5841`; the operator pushed through `7652bc63f`, so the commits below are unpushed. Nothing was running.
+- **Commits since 4n:** `a003c0172` `/root/-` read HIGH (4n item 1 DONE); `fabc79650` JWT F1 fix (token removed before the client close; `shutdown()` only logs a failed close; two tests fail without it); `84e394eff` F2 and F3 (three or more leading separators are a UNC name; a slash before a drive letter is that drive); `6e99c5841` F4 and F5 (one user's whole home HIGH; an undefined property HIGH for a read). All tested on the fresh DirtyChai JDK (JAVA_HOME as in 4n); suites in the commit messages.
+- **Second-model review DONE:** Opus 5.5 (agent `abaad6298e1cb80e8`, single-shot), `docs/REVIEW-threadfactory-bounded-close-lint-opus-2026-11-03.md`, covered `3cf1f31d9`, `ca58e7430`, `7652bc63f`, `a003c0172`. F1 (fail-open regression in `ca58e7430`) to F5 are fixed above; F6 (a comment says a later NoClassDefFoundError names nothing, false on JDK 27), F7 (BoundedBody class comment on dropped closes inaccurate) and F8 (polpAudit assertion checks one foreign domain; mutant not run) are OPEN and LOW. The fixes themselves have NOT had a second-model review.
+- **Open operator question:** the allow-list row `java.io.FilePermission lib/- write` (f14-rel-sub-write) stays clean by an earlier ruling on relative paths; flagging it needs a rule for relative-path writes, not made.
+- **Not verified:** F2 and F3 on a Linux lint host; the lint gate end to end on the new spellings (only the catalogue rating is tested).
+- Items 2 to 5 of 4n section 3 are unchanged. Rulings 4n section 4 stand; added: whole `/root`, one user's home and an undefined-property root are HIGH for a read.

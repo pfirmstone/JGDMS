@@ -149,6 +149,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `afab390171efcd4fa` | Sonnet 5.5 | lint slash rule (localhost, percent-decoding) and allow-list tightening | done (committed in the PolicyLint commit after 3b6562ade) |
 | `afd4b67aa616df5d4` | Sonnet 5.5 | JWT body read deadline, kid-refetch pin, additionalClaims on refresh | done (committed 3b6562ade) |
 | `a48a1006e71fbb8d9` | Sonnet 5.5 | BoundedBody watchdog privileged and eager, close pool, polpAudit check | done (committed 2c1d903c3) |
+| `abaad6298e1cb80e8` | Opus 5.5 | delta review of 3cf1f31d9, ca58e7430, 7652bc63f, a003c0172 | done (report docs/REVIEW-threadfactory-bounded-close-lint-opus-2026-11-03.md; fixes fabc79650, 84e394eff, 6e99c5841) |
 | `ac6a7aa8c0b404e77` | Sonnet 5.5 | RefreshThread privileged creation | done (committed a21acb2df) |
 | `aba74f60c3bc7b26f` | Sonnet 5.5 | read-only trace of the JWT token path from client to proxy | done (report committed a92d6db90) |
 | `a8ff0510d882cb78b` | Sonnet 5.5 | lint allow-list exact paths, provider check, MEDIUM rule, doAs HIGH | done (committed ab94352a6) |
