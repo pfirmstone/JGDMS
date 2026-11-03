@@ -436,6 +436,13 @@ public class PermissionSetsTest {
         for (String n : new String[]{"/home/-", "/Users/-", "C:\\Users\\-"}) {
             assertEquals(n, h, sev(f, n, "read"));
         }
+        // one user's whole home (Opus review F4), and a name built on an undefined property (F5)
+        for (String n : new String[]{"/home/alice/-", "/Users/Alice/-", "C:\\Users\\alice\\-", "/var/root/-",
+                "${review.no.such.property}${/}-"}) {
+            assertEquals(n, h, sev(f, n, "read"));
+        }
+        assertEquals(0, sev(f, "/home/alice/work/-", "read"));
+        assertEquals(0, sev(f, "/var/log/-", "read"));
         // the root user's home, on every platform
         for (String n : new String[]{"/root/-", "/Root/-"}) {
             assertEquals(n, h, sev(f, n, "read"));

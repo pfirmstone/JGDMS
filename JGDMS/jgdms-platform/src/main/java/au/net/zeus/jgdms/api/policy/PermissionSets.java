@@ -686,7 +686,7 @@ public final class PermissionSets {
             || hasAction(actions, "execute");
         String exp = expand(name, env);
         String why = exp == null
-            ? "a ${property} defined neither by --define nor in this JVM, treated as the root"
+            ? "[H]a ${property} defined neither by --define nor in this JVM, treated as the root"
             : fileReach(exp, write, env, name.contains("${user.dir}"));
         if (why == null) return null;
         boolean medium = why.startsWith("[M]");
@@ -795,6 +795,13 @@ public final class PermissionSets {
             if (f.segments.size() == 1 && (f.segments.get(0).equalsIgnoreCase("home")
                     || f.segments.get(0).equalsIgnoreCase("Users"))) {
                 return "[H]the whole of the directory holding every user home";
+            }
+            // operator ruling 2026-11-03 (Opus review F4): one user's whole home, on every platform
+            if (f.segments.size() == 2 && (f.segments.get(0).equalsIgnoreCase("home")
+                    || f.segments.get(0).equalsIgnoreCase("Users"))
+                    || f.segments.size() == 2 && f.segments.get(0).equalsIgnoreCase("var")
+                    && f.segments.get(1).equalsIgnoreCase("root")) {
+                return "[H]the whole of one user's home";
             }
             // operator ruling 2026-11-03: the root user's home is a whole tree of credentials and keys
             if (f.segments.size() == 1 && f.segments.get(0).equalsIgnoreCase("root")) {
