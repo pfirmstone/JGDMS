@@ -430,6 +430,15 @@ public class PermissionSetsTest {
             }
         }
         assertEquals(h, sev(f, "/c:/Users/-", "read"));
+        // the JDK strips the long-path prefix on Windows; a slash before "C:" needs no separator after it
+        for (String n : new String[]{"\\\\?\\UNC\\server\\share\\-", "//?/unc/server/share/-", "\\\\?\\C:\\-"}) {
+            for (String a : new String[]{"read", "write"}) {
+                assertEquals(n + " " + a, h, sev(f, n, a));
+            }
+        }
+        assertEquals(h, sev(f, "/C:-", "write"));
+        assertEquals(h, sev(f, "/C:*", "write"));
+        assertEquals(0, sev(f, "\\\\?\\UNC\\server\\share\\dir\\-", "read"));
         assertEquals(0, sev(f, "///server/share/dir/-", "read"));
         assertEquals(0, sev(f, "/C:/data/app/-", "read"));
         // the parent of every user home, on every platform
