@@ -4,7 +4,7 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 
 | file | bytes | modified | model id (first line) | status |
 |---|---|---|---|---|
-| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 162762 | 2026-11-02 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
+| `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` | 166256 | 2026-11-07 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `TRAINING-code-free-proxy-investigation-2026-10-31.md` | 6132 | 2026-10-31 | none in the file; written by the main session (Sonnet 5.5) or reported in the agent hand-back | LIVE |
 | `INVESTIGATION-code-free-fiddler-2026-10-31.md` | 21798 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
 | `INVESTIGATION-code-free-mahalo-2026-10-31.md` | 17749 | 2026-10-31 | claude-sonnet-5-5 | LIVE as findings; static reading only, nothing run |
@@ -155,6 +155,12 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a8ff0510d882cb78b` | Sonnet 5.5 | lint allow-list exact paths, provider check, MEDIUM rule, doAs HIGH | done (committed ab94352a6) |
 | `a1a5a836116e58661` | Opus 5.5 | review of the lint, watchdog and refresh-thread commits | done (report committed 5111c1396) |
 | `a8df7cd0e3280dc2a` | Opus 5.5 | review of the body deadline and lint commits | done (report committed 07767c524) |
+| `a9194d41e4b5eb946` | Opus 5.5 | differential review of the path ratings and d95503fe7 | done (report docs/REVIEW-path-ratings-differential-opus-2026-11-06.md, committed c9da0bd84) |
+| `a3d2585ccfcf24bcd` | Fable 5.1 | review of memo section 15 and handover 4n/4o | done (report docs/REVIEW-memo-s15-handover-4n-fable-2026-11-06.md, from the hand-back; corrections in the memo and handover 4p) |
+| `a86f2de13b7c2d104` | Fable 5.1 | review of the F1-F5 fixes of 2026-11-03 | done (hand-back summary only, NO review file on disk) |
+| `a0ec7eea314444da3` | Sonnet 5.5 | rewrite of PermissionSets.filePath, differential test, rounds 1 to 3 | done (committed 7ab89decc) |
+| `a3caf5ea1ade68dd0` | Opus 5.5 | normaliser review, round 1 | done (report docs/REVIEW-normaliser-opus-2026-11-06.md, committed c9da0bd84) |
+| `a6d89a04d5a2071f6` | Opus 5.5 | normaliser delta review, round 2 | done (report docs/REVIEW-normaliser-r2-opus-2026-11-07.md, committed c9da0bd84; round 3 has no second-model review) |
 | `a3275b656fe7360a8` | Sonnet 5.5 | own privileged NewDaemonThread, no jgdms-collections grants | done (committed 3cf1f31d9) |
 | `a064594fbd783fecf` | Sonnet 5.5 | JWT: close queue bounded, HttpClient closed, root cause, caller policy | done (committed ca58e7430) |
 | `a0ef1a9b0068ca15c` | Sonnet 5.5 | lint: whole-tree reads HIGH, HOLD doAs, per-permission rule, rows 39 to 13 | done (committed 7652bc63f) |
