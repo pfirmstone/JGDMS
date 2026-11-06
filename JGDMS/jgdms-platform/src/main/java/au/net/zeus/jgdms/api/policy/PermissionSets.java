@@ -708,50 +708,139 @@ public final class PermissionSets {
         public final List<String> segments = new ArrayList<String>();
         /** {@code "-"}, {@code "*"} or null. */
         public String wildcard;
+        /**
+         * A Win32 device-namespace name ({@code //./} before the first name).  Only the prefix is taken off:
+         * {@code segments} start at the device name, which is not a drive and not a UNC share.
+         */
+        public boolean device;
     }
 
-    /** Splits a file name: separators unified, {@code .} dropped, {@code ..} applied. */
+    private static int leadingSlashes(String p) {
+        int n = 0;
+        while (n < p.length() && p.charAt(n) == '/') n++;
+        return n;
+    }
+
+    /**
+     * {@code p} (separators unified) without any long-path prefix.  Opus review 2026-11-06 (F2): three steps
+     * of the JDK remove it, in this order: WinNTFileSystem.normalize strips a raw prefix that was written
+     * with backslashes (stripLongOrUNCPrefix, DirtyChai WinNTFileSystem.java:69, called at :132), then
+     * normalizePrefix collapses the run of leading separators (:225-252), then WindowsPathParser.parse strips
+     * the prefix again (WindowsPathParser.java:66-67).  So "///?/C:/Users/-" and a doubled prefix are both
+     * C:/Users/-.  It is stripped repeatedly, a superset of those strips, and takes one separator after the
+     * "?": the rest of a run belongs to the next prefix, while "UNC" may follow the whole run because the
+     * collapse has happened by then.  "UNC" is matched without regard to case although the JDK's test is
+     * case-sensitive: the JDK refuses "//?/unc/server/share/-" and reads the backslash form as the relative
+     * path unc/server/share (both measured 2026-11-06), so HIGH is a conservative rating of a name that
+     * grants no share there, kept because testWholeTreeReadVariantsAreHigh has pinned it since 0eb9f0cc7.
+     */
+    private static String withoutLongPathPrefix(String p) {
+        for (;;) {
+            int lead = leadingSlashes(p);
+            String rest = p.substring(lead);
+            if (lead < 2 || !(rest.equals("?") || rest.startsWith("?/"))) return p;
+            rest = rest.substring(1);
+            if (rest.startsWith("/")) rest = rest.substring(1);
+            String name = rest.substring(leadingSlashes(rest));
+            if (name.regionMatches(true, 0, "UNC", 0, 3) && (name.length() == 3 || name.charAt(3) == '/')) {
+                p = "//" + (name.length() > 4 ? name.substring(4) : "");
+            } else {
+                p = rest;
+            }
+        }
+    }
+
+    /**
+     * Sets {@code f.device} and returns {@code p} without the "//./" root of a Win32 device-namespace name;
+     * the name is deliberately not resolved.  Opus normaliser review 2026-11-07 (N1, N2): the JDK reads
+     * "//./X/" as a UNC root (host ".", share X) and clamps ".." there, so "//./x/../Volume{guid}/Users/-" has
+     * the npath "//./x/Volume{guid}/Users" (measured on the DirtyChai build JDK), while Win32 roots the name at
+     * "//./" alone and applies "..", "." and one trailing dot to the device name itself: "//./x/../Volume{guid}/Users"
+     * and "//./UNC./localhost/C$/Users" reach C:/Users (live on the review host).  Neither reading gives
+     * the other's reach, and the 2026-11-06 model of the volume, UNC and GLOBALROOT names as drive and share
+     * roots both lowered base ratings and missed spellings, so fileReach rates every wildcard name here HIGH.
+     * One separator, as in "/Device/Mup/server/share/-", is no device name: Win32 reads it as a path below
+     * the current drive (File.exists is false for "/Device/Mup/localhost/C$/Users").
+     */
+    private static String withoutDeviceRoot(String p, FilePath f) {
+        int lead = leadingSlashes(p);
+        String rest = p.substring(lead);
+        if (lead < 2 || !(rest.equals(".") || rest.startsWith("./"))) return p;
+        f.device = true;
+        return rest.substring(1);
+    }
+
+    /**
+     * Win32 removes one trailing dot from a path segment (Opus review 2026-11-06 (F5): Files.isSameFile
+     * "C:\Users.\peter" == "C:\Users\peter" on the review host), which the JDK does not do lexically.
+     * A name made only of dots is left alone, so that "..." is not read as ".." .
+     */
+    private static String withoutTrailingDot(String s) {
+        return s.endsWith(".") && s.replace(".", "").length() > 0 ? s.substring(0, s.length() - 1) : s;
+    }
+
+    /**
+     * Splits a file name the way {@code java.io.FilePermission} reads a Windows name, whatever host the lint
+     * runs on, adding Win32's removal of one trailing dot per segment: separators unified, the long-path
+     * prefix removed, {@code .} dropped, {@code ..} applied and only then the last name tested for {@code -}.
+     * A {@code *} is a wildcard only as the raw last name, because the JDK tests {@code endsWith("*")} before
+     * it normalises ({@code C:\Users\*\.} is invalid there).  Two limits: a device-namespace name
+     * ({@code //./}) is flagged and not resolved, and
+     * {@code ..} may pop a UNC host or share.  A name the JDK refuses is parsed by the same rules, so what
+     * it is rated says nothing about what the JDK grants.
+     */
     public static FilePath filePath(String name) {
         FilePath f = new FilePath();
-        String p = name.trim().replace('\\', '/');
-        // Fable review 2026-11-03: WinNTFileSystem strips the long-path prefix, so a "//?/UNC/server/share/-"
-        // is "//server/share/-" and a "//?/C:/-" is "C:/-"
-        if (p.length() >= 8 && p.regionMatches(true, 0, "//?/UNC/", 0, 8)) p = "//" + p.substring(8);
-        else if (p.startsWith("//?/")) p = p.substring(4);
-        // Opus review 2026-11-03 (F3): java.io.File on Windows drops the slashes before a drive letter, so
-        // "/C:/-" is the whole C: drive; read it as a drive whatever the host the lint runs on.
-        int lead = 0;
-        while (lead < p.length() && p.charAt(lead) == '/') lead++;
-        boolean driveAfterSlashes = lead > 0 && p.length() >= lead + 2 && p.charAt(lead + 1) == ':'
-                && Character.isLetter(p.charAt(lead));
-        if (driveAfterSlashes) p = p.substring(lead);
-        // Opus review 2026-11-03 (F2): java.io.File on Windows collapses three or more leading separators
-        // into the same UNC prefix as two, so "///server/share/-" is a whole share; any run of two or more
-        // slashes followed by a name is a UNC name (conservative where the host reads it as a plain path).
-        f.unc = !driveAfterSlashes && lead >= 2 && p.length() > lead;
-        if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
-            f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
-            p = p.substring(2);
+        String p = withoutDeviceRoot(withoutLongPathPrefix(name.trim().replace('\\', '/')), f);
+        if (!f.device) {
+            // Opus review 2026-11-03 (F3): java.io.File on Windows drops the slashes before a drive letter, so
+            // "/C:/-" is the whole C: drive; read it as a drive whatever the host the lint runs on.
+            int lead = leadingSlashes(p);
+            boolean driveAfterSlashes = lead > 0 && p.length() >= lead + 2 && p.charAt(lead + 1) == ':'
+                    && Character.isLetter(p.charAt(lead));
+            if (driveAfterSlashes) p = p.substring(lead);
+            // Opus review 2026-11-03 (F2): java.io.File on Windows collapses three or more leading separators
+            // into the same UNC prefix as two, so "///server/share/-" is a whole share; any run of two or more
+            // slashes followed by a name is a UNC name (conservative where the host reads it as a plain path).
+            f.unc = !driveAfterSlashes && lead >= 2 && p.length() > lead;
+            if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
+                f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
+                p = p.substring(2);
+            }
         }
-        f.absolute = p.startsWith("/");
+        f.absolute = f.device || p.startsWith("/");
         String[] raw = p.split("/");
         int last = raw.length - 1;
         while (last >= 0 && raw[last].length() == 0) last--;
-        if (last >= 0 && (raw[last].equals("-") || raw[last].equals("*"))) {
-            f.wildcard = raw[last];
-            last--;
-        }
+        // Opus review 2026-11-06 (F1): FilePermission replaces a trailing "*" by "-", normalises, and only then
+        // tests the last name (DirtyChai FilePermission.java:373-389), so "C:/-/." and "C:/-/x/.." are the whole
+        // drive while "C:/Users/*/." is a name the JDK refuses.  A "*" counts only as the raw last name; a
+        // trailing separator is let through, the wider reading of a name the JDK refuses.
+        boolean star = last >= 0 && raw[last].equals("*");
+        if (star) raw[last] = "-";
+        // Opus normaliser review 2026-11-07 (N3): ".." pops a UNC host and share here.  The Windows JDK clamps
+        // at the share ("//server/share/../-/-" has the npath "//server/share/-", measured), but on a Unix JDK
+        // "//" is "/", so "//home/alice/../bob/-" is one user's home; the catalogue is host-blind and takes
+        // the reading that rates wider.  The 2026-11-06 floor at host and share, which narrowed these names
+        // to unrated on every host, is withdrawn.
+        List<String> names = new ArrayList<String>();
         for (int i = 0; i <= last; i++) {
             String s = raw[i];
             if (s.length() == 0 || s.equals(".")) continue;
             if (s.equals("..")) {
-                int n = f.segments.size();
-                if (n > 0 && !f.segments.get(n - 1).equals("..")) f.segments.remove(n - 1);
-                else if (!f.absolute) f.segments.add("..");
+                int n = names.size();
+                if (n > 0 && !names.get(n - 1).equals("..")) names.remove(n - 1);
+                else if (!f.absolute) names.add("..");
             } else {
-                f.segments.add(s);
+                names.add(s);
             }
         }
+        int n = names.size();
+        if (n > 0 && names.get(n - 1).equals("-")) {
+            f.wildcard = star ? "*" : "-";
+            names.remove(n - 1);
+        }
+        for (String s : names) f.segments.add(withoutTrailingDot(s));
         return f;
     }
 
@@ -778,6 +867,16 @@ public final class PermissionSets {
         String n = expanded.trim();
         if (ALL_FILES.equals(n)) return "all files";
         FilePath f = filePath(n);
+        // Opus normaliser review 2026-11-07 (N1, N2, R2-1): the JDK and Win32 root a "//./" name differently, so no
+        // reading of its device name says what a wildcard grant reaches; any depth is HIGH, whatever the action.
+        // A "*" is not recursive but is not harmless: the JDK clamps ".." at "//./X/", so "//./pipe/*" implies
+        // "//./pipe/../Volume{guid}" and "//./pipe/../PhysicalDrive0" (read and write, measured on the DirtyChai
+        // build JDK), and Win32 opens the raw device (access denied, not "not found", on the review host).  An
+        // exact name is not rated: it implies only itself, as "/dev/sda" does.  Whether this is the ruling is
+        // operator question Q3.
+        if (f.device && f.wildcard != null) {
+            return "[H]a wildcard name in the Win32 device namespace, which the JDK and the OS root differently";
+        }
         if (f.wildcard != null && f.segments.isEmpty()) {
             // operator ruling 2026-11-02: reading a whole root or drive tree is HIGH, not only writing it
             if ("-".equals(f.wildcard) && f.absolute) {
@@ -787,7 +886,10 @@ public final class PermissionSets {
                 : f.drive != null ? "a whole drive-relative tree" : "the whole current directory tree";
         }
         if (!f.absolute) {
-            if (f.drive == null && !f.segments.isEmpty() && f.segments.get(0).equals("..")) {
+            // Opus review 2026-11-06 (F3): 0eb9f0cc7 made "/C:../../-" a drive-relative name, and this test
+            // left it unrated while "../../-" is rated; "C:.." climbs out of that drive's current directory
+            // just the same (Files.isSameFile "C:..\..\..\Windows" == "C:\Windows" on the review host).
+            if (!f.segments.isEmpty() && f.segments.get(0).equals("..")) {
                 return "a path above the current directory";
             }
             return null;
