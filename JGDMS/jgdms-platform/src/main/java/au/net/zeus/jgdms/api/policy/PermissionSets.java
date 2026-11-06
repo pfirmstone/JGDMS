@@ -171,15 +171,28 @@ public final class PermissionSets {
     }
 
     /**
+     * A FilePermission name is read as {@link #danger} reads it (the normaliser, the OS aliases and the
+     * undefined-{@code ${property}} ruling) and flagged when that reading is a whole tree, which is HIGH
+     * whatever the action.  A name that is HIGH only to write (a relative {@code ..} chain, the JDK home, a
+     * temp tree) is not flagged: FLAG does not look at the action.
+     *
      * @return why an entry is worth a reviewer's second look although it is written live,
      *         or {@code null}; reported by the plan and the gate, never refused
      */
     public static String flagReason(String type, String name, String actions) {
+        return flagReason(type, name, actions, null);
+    }
+
+    /**
+     * As {@link #flagReason(String, String, String)}; {@code env} is the environment {@link #danger} judged the
+     * name in.  Without it a property defined only there would read as undefined here and flag a name that
+     * {@code danger} has just found clean.
+     */
+    private static String flagReason(String type, String name, String actions, Properties env) {
         if (type == null || name == null) return null;
         if (FILE.equals(type) && ALL_FILES.equals(name)) return "reads or writes every file";
-        if (FILE.equals(type) && wholeTree(name)) {
-            return "FilePermission " + name + " covers a whole root, drive, share or home tree";
-        }
+        String tree = FILE.equals(type) ? wholeTree(name, env) : null;
+        if (tree != null) return "FilePermission " + name + " " + tree;
         if (AUTH.equals(type)) return "AuthPermission " + name + " acts on the current subject";
         if (SERIAL.equals(type)) return "SerializablePermission " + name;
         if (REFLECT.equals(type)) return "ReflectPermission " + name;
@@ -202,17 +215,20 @@ public final class PermissionSets {
     }
 
     /**
-     * Whether a FilePermission name covers a whole root, drive, UNC share or host, or user-home tree
-     * ({@code /-}, {@code C:\-}, a UNC share or host tree, {@code /home/-}, {@code ${user.home}/-}):
-     * the names {@link #fileReach} marks high whatever the action.
+     * Why a FilePermission name covers a whole root, drive, UNC share or host, or user-home tree
+     * ({@code /-}, {@code C:\-}, a UNC share or host tree, {@code /home/-}, {@code ${user.home}/-}), or
+     * {@code null}: the names {@link #fileReach} marks high whatever the action, and a name built on an
+     * undefined {@code ${property}}, which {@link #danger} rates as the root.
      */
-    private static boolean wholeTree(String name) {
-        if (name == null) return false;
-        String e = expand(name, null);
-        // an undefined ${property} cannot be judged here (danger() rates it from its own environment)
-        if (e == null) return false;
-        String why = fileReach(e, false, null, false);
-        return why != null && why.startsWith("[H]");
+    private static String wholeTree(String name, Properties env) {
+        if (name == null) return null;
+        // Operator ruling 2026-11-07 (Opus review 2026-11-06, F6): this returned false for an undefined ${property}
+        // because "danger() rates it", but ListPromotion never calls danger() (it asks holdReason and flagReason).
+        // The reading is now danger()'s own (nameReach), so a name danger() reads as a whole tree is flagged too.
+        String why = nameReach(name, false, env);
+        if (why == null || !why.startsWith("[H]")) return null;
+        return UNDEFINED_PROPERTY.equals(why) ? "names a ${property} defined nowhere here, rated as the root"
+            : "covers a whole root, drive, share or home tree";
     }
 
     // ------------------------------------------------------------ dangerous-policy catalogue
@@ -265,7 +281,8 @@ public final class PermissionSets {
      * current-directory tree; write/delete/execute (HIGH) on a whole JDK-home or temp-directory tree, the
      * deserialisation wildcard, and the identity, credential, network, TLS, JMX and management
      * permissions listed in {@link #extraDanger}.  File names are expanded with the system
-     * properties.
+     * properties; a {@code Documents and Settings} first name is read as {@code Users} and a
+     * {@code <letter>$} share as that drive, on any host (operator ruling 2026-11-07).
      *
      * @return {@code null} if the entry is not in the catalogue
      */
@@ -300,7 +317,7 @@ public final class PermissionSets {
         }
         Danger x = extraDanger(type, name, actions);
         if (x != null) return x;
-        String flag = flagReason(type, name, actions);
+        String flag = flagReason(type, name, actions, env);
         return flag == null ? null : new Danger(MEDIUM, flag);
     }
 
@@ -681,13 +698,19 @@ public final class PermissionSets {
         return sb.toString();
     }
 
+    private static final String UNDEFINED_PROPERTY =
+        "[H]a ${property} defined neither by --define nor in this JVM, treated as the root";
+
+    /** The one reading of a FilePermission name that {@link #danger} and {@link #flagReason} share. */
+    private static String nameReach(String name, boolean write, Properties env) {
+        String exp = expand(name, env);
+        return exp == null ? UNDEFINED_PROPERTY : fileReach(exp, write, env, name.contains("${user.dir}"));
+    }
+
     private static Danger fileDanger(String name, String actions, Properties env) {
         boolean write = hasAction(actions, "write") || hasAction(actions, "delete")
             || hasAction(actions, "execute");
-        String exp = expand(name, env);
-        String why = exp == null
-            ? "[H]a ${property} defined neither by --define nor in this JVM, treated as the root"
-            : fileReach(exp, write, env, name.contains("${user.dir}"));
+        String why = nameReach(name, write, env);
         if (why == null) return null;
         boolean medium = why.startsWith("[M]");
         boolean high = why.startsWith("[H]");
@@ -844,6 +867,37 @@ public final class PermissionSets {
         return f;
     }
 
+    private static boolean isDriveShare(String share) {
+        if (share.length() != 2 || share.charAt(1) != '$') return false;
+        char c = share.charAt(0);
+        return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z';
+    }
+
+    /**
+     * {@link #filePath} with two OS aliases of a ruled tree read as the tree they reach.  Operator ruling
+     * 2026-11-07 (Opus review 2026-11-06, F7), host-blind and without asking the OS: the review measured
+     * {@code Files.isSameFile} true for {@code C:\Documents and Settings\peter} (a junction) and
+     * {@code C:\Users\peter}, and for {@code \\localhost\C$\Users\peter} (the admin share) and the same, so a
+     * first name {@code Documents and Settings} below a root is {@code Users} and a share named a letter and
+     * {@code $} is that drive, whatever the host.  Every other share keeps the ruling that a named directory
+     * below it is unrated: {@code ADMIN$}, {@code IPC$}, {@code CC$} and {@code C$x} are no drive, and
+     * {@code \\h\ADMIN$\-} is HIGH as a whole share.  The JDK does not model either alias lexically, so the
+     * differential test cannot score this.  A relative or drive-relative name is left alone, as {@code C:Users\-} is.
+     */
+    private static FilePath aliased(String name) {
+        FilePath f = filePath(name);
+        List<String> s = f.segments;
+        if (f.unc && s.size() >= 2 && isDriveShare(s.get(1))) {
+            f.drive = s.get(1).substring(0, 1).toLowerCase(Locale.ROOT) + ":";
+            f.unc = false;
+            s.subList(0, 2).clear();
+        }
+        if (f.absolute && !f.unc && !f.device && !s.isEmpty() && s.get(0).equalsIgnoreCase("Documents and Settings")) {
+            s.set(0, "Users");
+        }
+        return f;
+    }
+
     /** Whether {@code prefix} is the same as, or a leading part of, {@code path} (case ignored). */
     private static boolean isPrefix(List<String> prefix, List<String> path) {
         if (prefix.size() > path.size()) return false;
@@ -866,7 +920,7 @@ public final class PermissionSets {
     static String fileReach(String expanded, boolean write, Properties env, boolean refsWorkingDir) {
         String n = expanded.trim();
         if (ALL_FILES.equals(n)) return "all files";
-        FilePath f = filePath(n);
+        FilePath f = aliased(n);
         // Opus normaliser review 2026-11-07 (N1, N2, R2-1): the JDK and Win32 root a "//./" name differently, so no
         // reading of its device name says what a wildcard grant reaches; any depth is HIGH, whatever the action.
         // A "*" is not recursive but is not harmless: the JDK clamps ".." at "//./X/", so "//./pipe/*" implies
@@ -925,7 +979,7 @@ public final class PermissionSets {
         }
         for (String[] d : dirs) {
             if (d[1] == null || d[1].length() == 0) continue;
-            FilePath dir = filePath(d[1]);
+            FilePath dir = aliased(d[1]);
             if (!sameDrive(f, dir)) continue;
             if ("-".equals(f.wildcard) && isPrefix(f.segments, dir.segments)) {
                 // operator ruling 2026-11-02: reading the whole user-home tree is HIGH as well

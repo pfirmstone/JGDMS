@@ -33,6 +33,9 @@ n/n122-userhome-readlink-read.policy	1	1	D1
 n/n123-userhome-readlink-only.policy	1	1	D1			
 n/n124-allfiles-read-readlink.policy	1	1	D1			
 n/n125-specific-file-read-clean.policy	0	0				
+n/n126-docsettings-users-read.policy	1	1	D1			
+n/n127-admin-share-users-read.policy	1	1	D1			
+n/n128-unc-share-dir-read-clean.policy	0	0				
 n/n13-spiffe-bare-star-allperm.policy	1	1	S3	0	1	S3
 n/n14-x500-star-medium.policy	0	1	D5	0	1	D5
 n/n20-tmpdir-star-write.policy	0	1	D5	0	0	

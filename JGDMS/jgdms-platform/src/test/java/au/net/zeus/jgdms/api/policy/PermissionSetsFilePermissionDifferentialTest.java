@@ -80,7 +80,9 @@ import static org.junit.Assert.*;
  * check with HarddiskVolume3 failed).  The zero volume GUID and HarddiskVolume3 used here are stand-ins:
  * ASSUMPTION that they behave as the verified names.  The Documents and Settings junction, the
  * {@code \\localhost\C$} admin share and the reach of a relative {@code ..} chain to the drive from the working
- * directory (review F7) are neither generated nor scored.
+ * directory (review F7) are neither generated nor scored.  The junction and the admin share are rated by the
+ * operator ruling of 2026-11-07, which the JDK cannot corroborate; {@link #testTheOsAliasesAreRatedByRulingAndNotScoredAgainstTheJdk}
+ * pins both facts.
  * <p>
  * Tier: fast (seconds), default suite, skipped (not passed) off Windows.
  */
@@ -573,6 +575,50 @@ public class PermissionSetsFilePermissionDifferentialTest {
         for (String narrow : new String[]{"C:\\Users\\alice\\Documents\\-", "C:\\Users\\bob\\-", "C:\\data\\-",
                 "\\\\server\\share\\dir\\-", "C:\\Users\\alice\\*", "C:\\Users\\*", "\\\\server\\-", "\\\\.\\UNC\\other\\-"}) {
             assertTrue(narrow, covered(new Spelling(narrow, false, groups), 0, probes).trees.isEmpty());
+        }
+    }
+
+    /**
+     * Operator ruling 2026-11-07 (Opus review 2026-11-06, F7): {@code C:\Documents and Settings\...} is read as
+     * {@code C:\Users\...} and {@code \\host\C$\...} as {@code C:\...}, on any host.  This is not a differential
+     * and does not say the JDK agrees: {@code FilePermission} compares names lexically and knows neither a
+     * junction nor an admin share, so no spelling below is covered by any probe of the ruled trees, which is why
+     * the generators above do not produce them.  Each grant is shown to be a real wildcard (it implies a file
+     * below its own name, so the instrument is not blind for want of a wildcard), the JDK to imply none of the
+     * ruled trees, and the catalogue to rate it HIGH to read and to write by the ruling.  The premise, that the OS
+     * resolves the alias to the tree, is the review's measurement ({@code Files.isSameFile}, live), not this test's.
+     */
+    @Test
+    public void testTheOsAliasesAreRatedByRulingAndNotScoredAgainstTheJdk() {
+        Assume.assumeTrue("Windows only: the JDK reads these names by the Windows rules", windows());
+        Assume.assumeTrue("lexical FilePermission only", lexical());
+        Map<String, List<Probe>> probes = probes(ruledTrees());
+        String[] groups = {"", "D", "pipe", "unc", "a"};
+        String below = "\\zq81\\deep\\f.txt";
+        String[][] aliases = {
+            {"C:\\Documents and Settings\\-", "C:\\Documents and Settings" + below},
+            {"C:\\Documents and Settings\\alice\\-", "C:\\Documents and Settings\\alice" + below},
+            {"\\Documents and Settings\\-", "\\Documents and Settings" + below},
+            {"\\\\localhost\\C$\\-", "\\\\localhost\\C$" + below},
+            {"\\\\localhost\\C$\\Users\\-", "\\\\localhost\\C$\\Users" + below},
+            {"\\\\h\\d$\\Users\\alice\\-", "\\\\h\\d$\\Users\\alice" + below},
+            {"\\\\h\\C$\\Documents and Settings\\-", "\\\\h\\C$\\Documents and Settings" + below}};
+        for (String[] a : aliases) {
+            for (int act = 0; act < ACTIONS.length; act++) {
+                assertTrue(a[0] + " is a wildcard", new FilePermission(a[0], ACTIONS[act])
+                    .implies(new FilePermission(a[1], ACTIONS[act])));
+                assertTrue(a[0] + " " + ACTIONS[act] + ": the JDK reads the alias as a name of its own",
+                    covered(new Spelling(a[0], false, groups), act, probes).trees.isEmpty());
+                PermissionSets.Danger d = PermissionSets.danger(FILE, a[0], ACTIONS[act]);
+                assertNotNull(a[0] + " " + ACTIONS[act], d);
+                assertEquals(a[0] + " " + ACTIONS[act], PermissionSets.HIGH, d.severity);
+            }
+        }
+        // the aliases of a named directory are as narrow as the directory, and the ordinary share is no drive
+        for (String narrow : new String[]{"C:\\Documents and Settings\\alice\\Documents\\-",
+                "\\\\localhost\\C$\\Users\\alice\\Documents\\-", "\\\\h\\share\\Users\\-", "\\\\h\\ADMIN$\\Users\\-"}) {
+            assertTrue(narrow, covered(new Spelling(narrow, false, groups), 0, probes).trees.isEmpty());
+            assertNull(narrow, PermissionSets.danger(FILE, narrow, "read"));
         }
     }
 }

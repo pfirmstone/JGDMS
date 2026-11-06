@@ -1,0 +1,3 @@
+grant codeBase "file:/opt/app/-" {
+  permission java.io.FilePermission "//h/share/data/-", "read";
+};

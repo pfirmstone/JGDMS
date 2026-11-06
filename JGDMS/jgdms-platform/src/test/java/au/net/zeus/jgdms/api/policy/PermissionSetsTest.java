@@ -694,4 +694,178 @@ public class PermissionSetsTest {
             .reason.contains("JVM exit"));
         assertEquals(0, sev("java.security.SecurityPermission", "getProperty.java.version", null));
     }
+
+    // Operator ruling 2026-11-07 (Opus review 2026-11-06, F7), host-blind: Windows keeps "Documents and Settings" as a
+    // junction to "Users" (the review measured Files.isSameFile of the two homes true), so as the first name below a
+    // drive or the root it is "Users" for every Users rule.  The JDK does not model junctions lexically, so the
+    // differential test cannot score these; the ratings are the ruling's.
+    @Test
+    public void testDocumentsAndSettingsIsUsers() {
+        int h = PermissionSets.HIGH;
+        // the whole Users tree and one user's whole home, in any case, separator, prefix or dotted spelling
+        assertReadAndWrite(h, h, "C:\\Documents and Settings\\-", "c:/documents and settings/-",
+            "C:\\DOCUMENTS AND SETTINGS\\-", "\\Documents and Settings\\-", "/Documents and Settings/-",
+            "\\\\?\\C:\\Documents and Settings\\-", "///?/C:/Documents and Settings/-",
+            "C:\\Documents and Settings.\\-", "C:\\Documents and Settings\\-\\.",
+            "C:\\x\\..\\Documents and Settings\\-", "C:\\Documents and Settings\\alice\\-",
+            "C:/Documents and Settings/Alice/-", "\\Documents and Settings\\alice\\-",
+            "/documents and settings/alice/-", "C:\\Documents and Settings\\alice.\\-");
+        // below a home, as under Users; "*" over a home or Users has no ruling (Q2) and is unrated, as C:\Users\*
+        assertReadAndWrite(0, 0, "C:\\Documents and Settings\\alice\\Documents\\-",
+            "C:/Documents and Settings/alice/work/-", "C:\\Documents and Settings\\alice\\ntuser.dat",
+            "C:\\Documents and Settings\\*", "C:\\Documents and Settings\\alice\\*");
+        // no root name: relative, drive-relative, below another name or below an ordinary share
+        assertReadAndWrite(0, 0, "Documents and Settings\\-", "C:Documents and Settings\\-",
+            "C:\\data\\Documents and Settings\\-", "\\\\server\\share\\Documents and Settings\\-",
+            "\\\\server\\share\\Documents and Settings\\alice\\-", "C:\\Documents and Settings\\alice\\Documents.\\-");
+        // the lexical parse is not aliased: the fold belongs to the rating
+        assertEquals(java.util.Arrays.asList("Documents and Settings"),
+            PermissionSets.filePath("C:\\Documents and Settings\\-").segments);
+        // the working home is compared in the same form: a home spelt through the junction is the same home
+        java.util.Properties env = new java.util.Properties();
+        env.setProperty("user.home", "C:\\Documents and Settings\\bob\\h");
+        assertEquals(h, PermissionSets.danger("java.io.FilePermission", "C:\\Users\\bob\\h\\-", "read", env).severity);
+        assertEquals(h,
+            PermissionSets.danger("java.io.FilePermission", "C:\\Documents and Settings\\bob\\h\\-", "read", env).severity);
+        assertNull(PermissionSets.danger("java.io.FilePermission", "C:\\Users\\bob\\h\\sub\\-", "read", env));
+    }
+
+    // Operator ruling 2026-11-07 (F7), host-blind: a UNC share named one letter and "$" is that drive on ANY host
+    // (the review measured Files.isSameFile of \\localhost\C$\Users\peter and C:\Users\peter true), so every rule of
+    // the drive holds below it.  Any other share keeps the ruling of 2026-11-03: a named directory below it is unrated.
+    @Test
+    public void testALetterAndDollarShareIsThatDriveOnAnyHost() {
+        int h = PermissionSets.HIGH;
+        int m = PermissionSets.MEDIUM;
+        // the whole drive, the whole Users tree, one user's whole home, the junction through the share
+        assertReadAndWrite(h, h, "\\\\localhost\\C$\\-", "\\\\h\\c$\\-", "\\\\h\\D$\\-", "//h/C$/-", "\\\\h\\C$\\-\\.",
+            "\\\\localhost\\C$\\Users\\-", "\\\\h\\c$\\users\\-", "//h/C$/Users/-", "\\\\10.0.0.7\\C$\\Users\\-",
+            "\\\\?\\UNC\\h\\C$\\Users\\-", "///h/C$/Users/-", "\\\\h\\C$\\x\\..\\Users\\-",
+            "\\\\localhost\\C$\\Users\\alice\\-", "\\\\h\\E$\\Users\\Alice\\-", "//h/C$/Users/alice/-/.",
+            "\\\\localhost\\C$\\Documents and Settings\\-", "\\\\h\\C$\\Documents and Settings\\alice\\-",
+            "//h/c$/documents and settings/-");
+        // the drive's own files, as C:\*; a "*" over Users or a home has no ruling (Q2), as under C:
+        assertReadAndWrite(m, h, "\\\\h\\C$\\*");
+        assertReadAndWrite(0, 0, "\\\\h\\C$\\Users\\*", "\\\\h\\C$\\Users\\alice\\*");
+        // a named directory below the drive, Users or a home stays unrated, as under C:
+        assertReadAndWrite(0, 0, "\\\\h\\C$\\Users\\alice\\Documents\\-", "\\\\h\\C$\\data\\-",
+            "\\\\h\\C$\\Users\\alice\\ntuser.dat", "\\\\h\\C$\\Documents and Settings\\alice\\Documents\\-");
+        // an ordinary share is no drive, whatever its directory is called
+        assertReadAndWrite(0, 0, "\\\\h\\share\\Users\\-", "\\\\h\\share\\Users\\alice\\-",
+            "\\\\h\\share\\Documents and Settings\\-", "//h/share/data/-", "\\\\h\\share\\C$\\Users\\-");
+        // ADMIN$ and IPC$ are shares: a whole one is HIGH as any share is, a directory below it is unrated
+        assertReadAndWrite(h, h, "\\\\h\\ADMIN$\\-", "\\\\h\\IPC$\\-");
+        assertReadAndWrite(0, 0, "\\\\h\\ADMIN$\\Users\\x", "\\\\h\\ADMIN$\\Users\\-", "\\\\h\\ADMIN$\\Users\\alice\\-",
+            "\\\\h\\IPC$\\Users\\-");
+        // not "one letter and $": two letters, trailing text, a digit, a non-ASCII letter, no letter
+        for (String share : new String[]{"CC$", "C$x", "1$", "$", "C$$", "\u00e9$", "C"}) {
+            assertReadAndWrite(0, 0, "\\\\h\\" + share + "\\Users\\-", "\\\\h\\" + share + "\\Users\\alice\\-");
+        }
+        // only the second name is the share: a host called C$ is no drive
+        assertReadAndWrite(0, 0, "\\\\C$\\share\\Users\\-");
+        // the drive is the share's letter: a home on D: is reached through D$, and not through E$ or from C:
+        java.util.Properties env = new java.util.Properties();
+        env.setProperty("user.home", "D:\\data\\home");
+        String f = "java.io.FilePermission";
+        assertEquals(h, PermissionSets.danger(f, "\\\\h\\D$\\data\\home\\-", "read", env).severity);
+        assertNull(PermissionSets.danger(f, "\\\\h\\E$\\data\\home\\-", "read", env));
+        assertNull(PermissionSets.danger(f, "C:\\data\\home\\-", "read", env));
+    }
+
+    // Opus alias review 2026-11-07 (F6): "Documents and Settings" is the junction only as the first name below a
+    // drive or the root.  Each input is unrated because a guard of aliased() leaves the name plain, and is rated when
+    // that guard is removed; the home and JDK-home values come from the environment, so the result does not depend on
+    // who runs the test.  The relative property value is contrived: for a name the f.absolute guard changes no
+    // rating, because fileReach returns a relative name unrated before any Users rule.
+    @Test
+    public void testTheDocumentsAndSettingsFoldKeepsToADriveOrRootName() {
+        String f = "java.io.FilePermission";
+        java.util.Properties env = new java.util.Properties();
+        // a UNC host called "Documents and Settings" is a host, and its share "bob" is no home of user bob
+        env.setProperty("user.home", "C:\\Users\\bob");
+        assertNull(PermissionSets.danger(f, "\\\\Documents and Settings\\bob\\*", "read", env));
+        assertNull(PermissionSets.danger(f, "\\\\Documents and Settings\\bob\\*", "write", env));
+        // a device name is not a path below a drive: this exact name is no file of the JDK home
+        env.setProperty("java.home", "C:\\Users\\bob\\jdk");
+        assertNull(PermissionSets.danger(f, "//./Documents and Settings/bob/jdk/bin/java.exe", "write", env));
+        // a relative name is not below the root: the junction is not "Documents and Settings" below the working directory
+        env.setProperty("java.home", "Documents and Settings\\bob\\jdk");
+        assertNull(PermissionSets.danger(f, "C:\\Users\\bob\\jdk\\conf\\x", "write", env));
+        // control: the same JDK home, below a drive, is the Users tree, so the name above is a file of it
+        env.setProperty("java.home", "C:\\Documents and Settings\\bob\\jdk");
+        assertEquals(PermissionSets.HIGH,
+            PermissionSets.danger(f, "C:\\Users\\bob\\jdk\\conf\\x", "write", env).severity);
+    }
+
+    // Opus alias review 2026-11-07 (F4), accepted by the dispatching session as a conservative over-rating and pinned:
+    // narrowing it is the operator's decision.  filePath pops the share on "..", which is the reading of a Unix JDK
+    // ("//" is "/"; N3) and the wider one, and the X$ fold exists only on Windows, where the JDK and the OS clamp ".."
+    // at the share and see a named directory below a share, which the ruling leaves unrated.  So the combination is
+    // a reading no host produces.  Both names were unrated before the fold.
+    @Test
+    public void testDotDotAcrossAShareBeforeADriveShareIsHigh() {
+        int h = PermissionSets.HIGH;
+        assertReadAndWrite(h, h, "\\\\h\\x\\..\\C$\\Users\\-", "\\\\h\\C$\\..\\C$\\Users\\-");
+    }
+
+    private static boolean flagged(String name) {
+        return PermissionSets.flagReason("java.io.FilePermission", name, "read") != null;
+    }
+
+    // Operator ruling 2026-11-07 (Opus review 2026-11-06, F6): ListPromotion never calls danger() (it asks holdReason
+    // and flagReason), so a spelling that only danger() read as a whole tree promoted unflagged.  flagReason reads a
+    // FilePermission name as danger does: the F1 to F5 spellings of the normaliser, the OS aliases and the
+    // undefined-property ruling.
+    // (At 685e1e541 every F1 to F5 spelling below was already flagged, through fileReach; this pins it, and the
+    // undefined property was the one that was not.)
+    @Test
+    public void testFlagReasonReadsAFileNameAsDangerDoes() {
+        String f = "java.io.FilePermission";
+        String[] wholeTrees = {
+            // F1: the wildcard is the last normalised name
+            "C:\\-\\.", "C:/-/./", "C:\\-\\x\\..", "C:\\Users\\-\\.", "C:\\Users\\alice\\-\\.", "${user.home}${/}-${/}.",
+            "/-/.", "/home/-/.", "/root/-/x/..", "\\\\server\\share\\-\\.", "//server/share/-/x/..",
+            // F2: a long-path prefix behind a run of separators
+            "\\\\\\?\\C:\\Users\\-", "///?/C:/Users/alice/-", "\\\\\\?\\UNC\\server\\share\\-", "\\\\?\\\\\\?\\C:\\Users\\-",
+            // F4: the device namespace
+            "\\\\.\\UNC\\server\\share\\-", "//./UNC/server/share/-", "\\\\.\\pipe\\x\\-", "//./*",
+            "\\\\.\\Volume{00000000-0000-0000-0000-000000000000}\\Users\\alice\\-",
+            // F5: a trailing dot on a segment
+            "C:\\Users.\\-", "C:\\Users.\\alice\\-", "C:\\Users\\alice.\\-", "/home./-", "/Root./-",
+            // the OS aliases
+            "C:\\Documents and Settings\\-", "C:\\Documents and Settings\\alice\\-", "\\\\localhost\\C$\\-",
+            "\\\\localhost\\C$\\Users\\-", "\\\\h\\c$\\Users\\alice\\-", "//h/C$/Documents and Settings/-",
+            // the undefined-property ruling
+            "${undefined.prop}/-", "${undefined.prop}${/}-", "${undefined.prop}/x/-"};
+        for (String n : wholeTrees) {
+            assertNotNull("flagReason " + n, PermissionSets.flagReason(f, n, "read"));
+            assertEquals("danger " + n, PermissionSets.HIGH, sev(f, n, "read"));
+            assertNull("flagReason is not held " + n, PermissionSets.holdReason(f, n, "read"));
+        }
+        // as ListPromotion calls it, from an entry line
+        assertNotNull(PermissionSets.flagReason("(java.io.FilePermission \"C:\\\\-\\\\.\" \"read\")"));
+        assertNotNull(PermissionSets.flagReason("(java.io.FilePermission \"${undefined.prop}/-\" \"read\")"));
+        assertNotNull(PermissionSets.flagReason("(java.io.FilePermission \"\\\\\\\\localhost\\\\C$\\\\Users\\\\-\" \"read\")"));
+        // danger() rates a name on an undefined property as the root whatever its tail, so the flag does too;
+        // the reason says so
+        assertTrue(PermissionSets.flagReason(f, "${undefined.prop}/foo.jar", "read").contains("${property}"));
+        // F3: a relative chain is MEDIUM to read and HIGH only to write, so it is no whole tree, with or without a
+        // drive, and FLAG does not look at the action
+        assertEquals(flagged("..\\..\\-"), flagged("C:..\\..\\-"));
+        assertFalse(flagged("C:..\\..\\-"));
+        assertEquals(PermissionSets.MEDIUM, sev(f, "C:..\\..\\-", "read"));
+        // narrow names are not flagged
+        for (String n : new String[]{"C:\\Users\\alice\\Documents\\-\\..", "/home/alice/work/-/x", "C:\\Users\\*\\.",
+                "C:\\Documents and Settings\\alice\\Documents\\-", "\\\\h\\ADMIN$\\Users\\x", "\\\\h\\CC$\\Users\\-",
+                "\\\\h\\C$\\Users\\alice\\work\\-", "//h/share/data/-", "\\\\h\\share\\Users\\-", "C:\\Users\\*",
+                "\\\\.\\pipe\\foo"}) {
+            assertNull("flagReason " + n, PermissionSets.flagReason(f, n, "read"));
+        }
+        // danger() judges a property in the environment it is given; ListPromotion passes none, so flagReason reads
+        // the same property as undefined, and danger()'s own FLAG step must not (it passes its environment on)
+        java.util.Properties env = new java.util.Properties();
+        env.setProperty("app.home", "/opt/app");
+        assertNull(PermissionSets.danger(f, "${app.home}/work/-", "read", env));
+        assertNotNull(PermissionSets.flagReason(f, "${app.home}/work/-", "read"));
+    }
 }
