@@ -874,7 +874,8 @@ public final class PermissionSets {
     }
 
     /**
-     * {@link #filePath} with two OS aliases of a ruled tree read as the tree they reach.  Operator ruling
+     * {@link #filePath} with three OS aliases of a ruled tree read as the tree they reach (the third, a profile's
+     * {@code Local Settings} as {@code AppData\Local}, is described at its fold below).  Operator ruling
      * 2026-11-07 (Opus review 2026-11-06, F7), host-blind and without asking the OS: the review measured
      * {@code Files.isSameFile} true for {@code C:\Documents and Settings\peter} (a junction) and
      * {@code C:\Users\peter}, and for {@code \\localhost\C$\Users\peter} (the admin share) and the same, so a
@@ -884,7 +885,7 @@ public final class PermissionSets {
      * {@code \\h\ADMIN$\-} is HIGH as a whole share.  The JDK does not model either alias lexically, so the
      * differential test cannot score this.  A relative or drive-relative name is left alone, as {@code C:Users\-} is.
      */
-    private static FilePath aliased(String name) {
+    public static FilePath aliased(String name) {
         FilePath f = filePath(name);
         List<String> s = f.segments;
         if (f.unc && s.size() >= 2 && isDriveShare(s.get(1))) {
@@ -895,7 +896,34 @@ public final class PermissionSets {
         if (f.absolute && !f.unc && !f.device && !s.isEmpty() && s.get(0).equalsIgnoreCase("Documents and Settings")) {
             s.set(0, "Users");
         }
+        // operator ruling 2026-11-07: "Local Settings" in a profile is the junction to AppData\Local, so the temp
+        // directory is reached as Users\<name>\Local Settings\Temp as well as Users\<name>\AppData\Local\Temp.
+        if (f.absolute && !f.unc && !f.device && s.size() >= 3 && s.get(0).equalsIgnoreCase("Users")
+                && s.get(2).equalsIgnoreCase("Local Settings")) {
+            s.set(2, "AppData");
+            s.add(3, "Local");
+        }
         return f;
+    }
+
+    private static final Pattern SHORT_NAME =
+        Pattern.compile("[^~]{1,6}~[0-9]+(\\.[^.~]{0,3})?");
+
+    /**
+     * Whether a recursive name this close to the root has an 8.3 short name ({@code DOCUME~1}, {@code USERS~1},
+     * {@code PETER~1}) among its first two names, so it may reach a user home or the directory holding every
+     * home.  Operator ruling 2026-11-07, host-blind: the file system, not the name, says what a short name
+     * stands for and 8.3 generation can be off on a volume, so the shape alone is rated.  The names this rates
+     * HIGH include real directories such as {@code C:\PROGRA~1\-}; no PolicyLint option or corpus row clears one
+     * (the corpus allow-list takes no HIGH row), which is operator question Q3 of the 2026-11-07 Opus review.
+     * Deeper names stay unrated by the ruling that bounds the rule to the first two names.
+     */
+    public static boolean mayBeShortName(FilePath f) {
+        if (!f.absolute || f.device || !"-".equals(f.wildcard) || f.segments.size() > 2) return false;
+        for (String s : f.segments) {
+            if (SHORT_NAME.matcher(s).matches()) return true;
+        }
+        return false;
     }
 
     /** Whether {@code prefix} is the same as, or a leading part of, {@code path} (case ignored). */
@@ -915,7 +943,8 @@ public final class PermissionSets {
      * Why a file name, already expanded, reaches too much; {@code null} if it does not.  Wide are:
      * all files, the current directory tree or anything above it, a root or drive, a recursive
      * name over a whole home, JDK-home or temp directory (or over a directory above one), a
-     * {@code *} name in such a directory, and, for writing, any exact name below the JDK home.
+     * {@code *} name in such a directory, a recursive name with an 8.3 short-name shape among its first two
+     * names ({@link #mayBeShortName}), and, for writing, any exact name below the JDK home.
      */
     static String fileReach(String expanded, boolean write, Properties env, boolean refsWorkingDir) {
         String n = expanded.trim();
@@ -966,6 +995,9 @@ public final class PermissionSets {
             // operator ruling 2026-11-03: the root user's home is a whole tree of credentials and keys
             if (f.segments.size() == 1 && f.segments.get(0).equalsIgnoreCase("root")) {
                 return "[H]the whole of the root user's home";
+            }
+            if (mayBeShortName(f)) {
+                return "[H]a whole tree named by an 8.3 short name, which may stand for a user home";
             }
         }
         List<String[]> dirs = new ArrayList<String[]>();

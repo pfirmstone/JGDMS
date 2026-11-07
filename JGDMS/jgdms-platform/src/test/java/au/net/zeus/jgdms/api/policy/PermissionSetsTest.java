@@ -797,6 +797,46 @@ public class PermissionSetsTest {
             PermissionSets.danger(f, "C:\\Users\\bob\\jdk\\conf\\x", "write", env).severity);
     }
 
+    // Operator ruling 2026-11-07: a recursive name with an 8.3 short name among its first two names may stand for a
+    // user home, so it is HIGH on every host; the shape alone is rated, since the file system says what a short name
+    // is and 8.3 generation can be off.  Deeper names, "*" names, exact names and any non-short name are unrated.
+    @Test
+    public void testAnEightDotThreeNameNearTheRootIsHigh() {
+        int h = PermissionSets.HIGH;
+        assertReadAndWrite(h, h, "C:\\DOCUME~1\\-", "c:/docume~1/-", "C:\\USERS~1\\-", "C:\\USERS~1\\PETER~1\\-",
+            "C:\\Users\\PETER~1\\-", "C:\\DOCUME~1\\alice\\-", "C:\\PROGRA~1\\-", "\\USERS~1\\-", "/HOME~1/-",
+            "\\\\?\\C:\\DOCUME~1\\-", "C:\\DOCUME~12\\-", "C:\\ABCDEF~1.TXT\\-", "C:\\DOCUME~1\\-\\.");
+        assertReadAndWrite(0, 0, "C:\\PROGRA~1\\app\\lib\\-", "C:\\DOCUME~1\\alice\\Documents\\-", "C:\\DOCUME~1\\*",
+            "C:\\USERS~1\\alice\\ntuser.dat", "C:\\data~\\-", "C:\\ABCDEFG~1\\-", "C:\\~1\\-", "C:\\Users\\alice\\~x\\-",
+            "DOCUME~1\\-", "C:DOCUME~1\\-");
+    }
+
+    // Operator ruling 2026-11-07: "Local Settings" in a profile is the junction to AppData\Local, so it reaches the
+    // temp directory as the long spelling does; the home value comes from the environment.
+    @Test
+    public void testLocalSettingsIsAppDataLocal() {
+        String f = "java.io.FilePermission";
+        java.util.Properties env = new java.util.Properties();
+        env.setProperty("user.home", "C:\\Users\\bob");
+        env.setProperty("java.io.tmpdir", "C:\\Users\\bob\\AppData\\Local\\Temp");
+        for (String n : new String[]{"C:\\Users\\bob\\AppData\\Local\\Temp\\-", "C:\\Users\\bob\\Local Settings\\Temp\\-",
+            "C:\\Documents and Settings\\bob\\Local Settings\\Temp\\-", "c:/users/bob/local settings/temp/-"}) {
+            PermissionSets.Danger d = PermissionSets.danger(f, n, "write", env);
+            assertNotNull(n, d);
+            assertTrue(n + " reason " + d.reason, d.reason.contains("temp directory"));
+        }
+        // a UNC host called Users is a host, not the Users directory.  The other two guards of the fold (first name
+        // Users, an absolute name) change no rating with this environment: a relocated profile is left open, which
+        // is operator question Q1 of the 2026-11-07 Opus review, so they are not pinned here.
+        assertNull(PermissionSets.danger(f, "\\\\Users\\bob\\Local Settings\\Temp\\-", "write", env));
+    }
+
+    // Opus review 2026-11-07 (MP1): the rule looks at the second name too; this name has no Users or home rule behind it.
+    @Test
+    public void testAShortNameInTheSecondPlaceIsHigh() {
+        assertReadAndWrite(PermissionSets.HIGH, PermissionSets.HIGH, "C:\\data\\PETERF~1\\-", "/srv/PETERF~1/-");
+    }
+
     // Opus alias review 2026-11-07 (F4), accepted by the dispatching session as a conservative over-rating and pinned:
     // narrowing it is the operator's decision.  filePath pops the share on "..", which is the reading of a Unix JDK
     // ("//" is "/"; N3) and the wider one, and the X$ fold exists only on Windows, where the JDK and the OS clamp ".."

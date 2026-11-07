@@ -510,6 +510,32 @@ public class PolicyLintGateTest {
         return PolicyScope.classify(codeBase, new java.util.Properties()).kind;
     }
 
+    // Operator ruling 2026-11-07: the codeBase check reads the Documents and Settings junction as Users, as the
+    // permission ratings do, and an 8.3 short name this close to the root may stand for a home.  user.home is
+    // set for the test, since the over-home rule reads the host's own.
+    @Test
+    public void junctionAndShortNamesOfAHomeAreWritable() {
+        String old = System.getProperty("user.home");
+        try {
+            System.setProperty("user.home", "C:\\Users\\alice");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/alice/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Documents%20and%20Settings/alice/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Documents%20and%20Settings/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/USERS~1/ALICE~1/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/opt/app/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/PROGRA~1/app/lib/-"));
+            // a short name that is not a recursive tree names one file, as C:/opt/app/x.jar does
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/DOCUME~1/x.jar"));
+            // the host's own home is compared in the same reading: a home spelt through the junction is the same home
+            System.setProperty("user.home", "C:\\Documents and Settings\\bob");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/bob/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/Users/carol/-"));
+        } finally {
+            if (old == null) System.clearProperty("user.home"); else System.setProperty("user.home", old);
+        }
+    }
+
     @Test
     public void slashRunTable() {
         String tail = "fileserver.example/share/-";

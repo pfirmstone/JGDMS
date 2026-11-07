@@ -29,4 +29,3 @@ r8/q01-princ-unloadable.policy	principal of a class that cannot be loaded and a 
 r8/v07-perm-signedby.policy	the permission itself carries signedBy a missing alias: the provider does not list it
 r8/v08-name-undefprop.policy	the permission name is an undefined property: the provider drops the permission
 r8/z01-principal-noclass.policy	a principal entry without a class, which the provider does not match for any subject
-n/n128-unc-share-dir-read-clean.policy	grant pinned to the local directory file:/opt/app/-; the file permission names a directory below an ordinary share, which no stranger subject is loaded from
