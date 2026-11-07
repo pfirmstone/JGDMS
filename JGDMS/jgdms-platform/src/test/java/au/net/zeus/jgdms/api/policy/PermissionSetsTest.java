@@ -820,14 +820,17 @@ public class PermissionSetsTest {
         env.setProperty("user.home", "C:\\Users\\bob");
         env.setProperty("java.io.tmpdir", "C:\\Users\\bob\\AppData\\Local\\Temp");
         for (String n : new String[]{"C:\\Users\\bob\\AppData\\Local\\Temp\\-", "C:\\Users\\bob\\Local Settings\\Temp\\-",
-            "C:\\Documents and Settings\\bob\\Local Settings\\Temp\\-", "c:/users/bob/local settings/temp/-"}) {
+            "C:\\Documents and Settings\\bob\\Local Settings\\Temp\\-", "c:/users/bob/local settings/temp/-",
+            // operator ruling 2026-11-07 (Q1): the 8.3 names of the two junctions fold too
+            "C:\\Users\\bob\\LOCALS~1\\Temp\\-", "C:\\DOCUME~1\\bob\\AppData\\Local\\Temp\\-",
+            "C:\\DOCUME~1\\bob\\LOCALS~1\\Temp\\-", "c:/docume~1/bob/locals~1/temp/-"}) {
             PermissionSets.Danger d = PermissionSets.danger(f, n, "write", env);
             assertNotNull(n, d);
             assertTrue(n + " reason " + d.reason, d.reason.contains("temp directory"));
         }
         // a UNC host called Users is a host, not the Users directory.  The other two guards of the fold (first name
-        // Users, an absolute name) change no rating with this environment: a relocated profile is left open, which
-        // is operator question Q1 of the 2026-11-07 Opus review, so they are not pinned here.
+        // Users, an absolute name) change no rating with this environment: a relocated profile is left open
+        // (Q1 of the 2026-11-07 Opus review folded the 8.3 names only), so they are not pinned here.
         assertNull(PermissionSets.danger(f, "\\\\Users\\bob\\Local Settings\\Temp\\-", "write", env));
     }
 

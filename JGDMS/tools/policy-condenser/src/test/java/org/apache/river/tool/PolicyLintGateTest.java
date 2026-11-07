@@ -516,6 +516,8 @@ public class PolicyLintGateTest {
     @Test
     public void junctionAndShortNamesOfAHomeAreWritable() {
         String old = System.getProperty("user.home");
+        String oldTmp = System.getProperty("java.io.tmpdir");
+        String oldDir = System.getProperty("user.dir");
         try {
             System.setProperty("user.home", "C:\\Users\\alice");
             assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/alice/-"));
@@ -531,8 +533,19 @@ public class PolicyLintGateTest {
             System.setProperty("user.home", "C:\\Documents and Settings\\bob");
             assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/bob/-"));
             assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/Users/carol/-"));
+            // the junction's 8.3 name is rated by shape and by fold on a host whose home is elsewhere (Q1)
+            // every host property is moved off Users, so only the shape (tested before the fold) can rate the name
+            System.setProperty("user.home", "/home/lint");
+            System.setProperty("java.io.tmpdir", "/tmp");
+            System.setProperty("user.dir", "/work");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/-"));
+            System.setProperty("java.io.tmpdir", "C:\\Users\\bob\\AppData\\Local\\Temp");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/bob/AppData/Local/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/DOCUME~1/carol/AppData/Local/-"));
         } finally {
             if (old == null) System.clearProperty("user.home"); else System.setProperty("user.home", old);
+            if (oldTmp == null) System.clearProperty("java.io.tmpdir"); else System.setProperty("java.io.tmpdir", oldTmp);
+            if (oldDir == null) System.clearProperty("user.dir"); else System.setProperty("user.dir", oldDir);
         }
     }
 

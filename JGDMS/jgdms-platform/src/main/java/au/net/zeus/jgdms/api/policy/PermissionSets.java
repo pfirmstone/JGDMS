@@ -893,13 +893,15 @@ public final class PermissionSets {
             f.unc = false;
             s.subList(0, 2).clear();
         }
-        if (f.absolute && !f.unc && !f.device && !s.isEmpty() && s.get(0).equalsIgnoreCase("Documents and Settings")) {
+        // operator ruling 2026-11-07 (Q1): DOCUME~1 is the 8.3 name of that same junction
+        if (f.absolute && !f.unc && !f.device && !s.isEmpty()
+                && (s.get(0).equalsIgnoreCase("Documents and Settings") || s.get(0).equalsIgnoreCase("DOCUME~1"))) {
             s.set(0, "Users");
         }
         // operator ruling 2026-11-07: "Local Settings" in a profile is the junction to AppData\Local, so the temp
         // directory is reached as Users\<name>\Local Settings\Temp as well as Users\<name>\AppData\Local\Temp.
         if (f.absolute && !f.unc && !f.device && s.size() >= 3 && s.get(0).equalsIgnoreCase("Users")
-                && s.get(2).equalsIgnoreCase("Local Settings")) {
+                && (s.get(2).equalsIgnoreCase("Local Settings") || s.get(2).equalsIgnoreCase("LOCALS~1"))) {
             s.set(2, "AppData");
             s.add(3, "Local");
         }

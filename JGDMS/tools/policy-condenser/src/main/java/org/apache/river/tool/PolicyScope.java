@@ -368,7 +368,8 @@ final class PolicyScope {
         if (tmp) {
             return new CodeBase(Kind.FILE_WRITABLE, "file: codeBase in a temp or Downloads directory");
         }
-        if (PermissionSets.mayBeShortName(f)) {
+        // the shape is tested before the alias fold, which would turn DOCUME~1 into Users and hide it from this rule
+        if (PermissionSets.mayBeShortName(PermissionSets.filePath(p))) {
             return new CodeBase(Kind.FILE_WRITABLE, "file: codeBase over a tree named by an 8.3 short name,"
                     + " which may stand for a user home");
         }
