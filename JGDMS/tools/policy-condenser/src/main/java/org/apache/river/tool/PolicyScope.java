@@ -195,12 +195,12 @@ final class PolicyScope {
         }
         if (lower.startsWith("jrt:")) return jrt(s.substring(4));
         boolean writableProperty = WRITABLE_PROPERTY.matcher(raw).find();
-        if (lower.startsWith("file:")) return file(s.substring(5), writableProperty, true);
+        if (lower.startsWith("file:")) return file(s.substring(5), writableProperty, true, env);
         if (s.equals("-") || s.equals("*")) {
             return new CodeBase(Kind.OTHER, "codeBase is a bare wildcard, which names no location");
         }
         if (lower.indexOf(':') < 0 || lower.matches("^[a-z]:[\\\\/].*")) {
-            return file(s, writableProperty, false); // no scheme: a path
+            return file(s, writableProperty, false, env); // no scheme: a path
         }
         // a scheme the lint does not recognise cannot be shown to be pinned: fail closed
         return new CodeBase(Kind.REMOTE_WILD, "codeBase scheme " + lower.substring(0, lower.indexOf(':'))
@@ -310,7 +310,7 @@ final class PolicyScope {
      * </pre>
      * A host written percent-encoded ({@code %6Cocalhost}) is not decoded and stays a host.
      */
-    private static CodeBase file(String path, boolean writableProperty, boolean url) {
+    private static CodeBase file(String path, boolean writableProperty, boolean url, Properties env) {
         String p = path.replace('\\', '/');
         int n = 0;
         while (n < p.length() && p.charAt(n) == '/') n++;
@@ -374,8 +374,14 @@ final class PolicyScope {
                     + " which may stand for a user home");
         }
         if ("-".equals(f.wildcard)) {
+            // operator ruling 2026-11-07 (Q2): the home trees are the same on every lint host, as in the ratings
+            String home = PermissionSets.homeTreeReason(f);
+            if (home != null) {
+                return new CodeBase(Kind.FILE_WRITABLE, "file: codeBase over " + home.replace("[H]", ""));
+            }
             for (String prop : new String[]{"user.home", "java.io.tmpdir", "user.dir"}) {
-                String d = System.getProperty(prop);
+                // --define wins over the host, as it does for the permission ratings
+                String d = env != null && env.getProperty(prop) != null ? env.getProperty(prop) : System.getProperty(prop);
                 if (d == null) continue;
                 PermissionSets.FilePath dir = PermissionSets.aliased(d);
                 if ((f.drive == null || dir.drive == null || f.drive.equals(dir.drive))

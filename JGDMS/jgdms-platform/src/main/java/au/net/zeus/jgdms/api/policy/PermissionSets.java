@@ -928,6 +928,30 @@ public final class PermissionSets {
         return false;
     }
 
+    /**
+     * Why an absolute recursive name is the directory holding every user home, one user's whole home or the root
+     * user's home, on every platform whatever the host's own properties; {@code null} if it is not.  The one
+     * definition of the home trees, used by {@link #fileReach} and by the lint's codeBase check (operator ruling
+     * 2026-11-07, Q2 of the Opus review).  Operator rulings 2026-11-03: the parent of every home, and (Opus review
+     * F4) one user's whole home, on every platform; the root user's home is a whole tree of credentials and keys.
+     */
+    public static String homeTreeReason(FilePath f) {
+        if (!f.absolute || !"-".equals(f.wildcard)) return null;
+        List<String> s = f.segments;
+        boolean homes = s.size() >= 1 && (s.get(0).equalsIgnoreCase("home") || s.get(0).equalsIgnoreCase("Users"));
+        if (s.size() == 1 && homes) {
+            return "[H]the whole of the directory holding every user home";
+        }
+        if (s.size() == 2 && homes
+                || s.size() == 2 && s.get(0).equalsIgnoreCase("var") && s.get(1).equalsIgnoreCase("root")) {
+            return "[H]the whole of one user's home";
+        }
+        if (s.size() == 1 && s.get(0).equalsIgnoreCase("root")) {
+            return "[H]the whole of the root user's home";
+        }
+        return null;
+    }
+
     /** Whether {@code prefix} is the same as, or a leading part of, {@code path} (case ignored). */
     private static boolean isPrefix(List<String> prefix, List<String> path) {
         if (prefix.size() > path.size()) return false;
@@ -983,21 +1007,8 @@ public final class PermissionSets {
             // operator ruling 2026-11-03: a whole UNC share or host, and the parent of every user home,
             // are whole trees whatever the platform the lint runs on or the action
             if (f.unc && f.segments.size() <= 2) return "[H]a whole network share or host tree";
-            if (f.segments.size() == 1 && (f.segments.get(0).equalsIgnoreCase("home")
-                    || f.segments.get(0).equalsIgnoreCase("Users"))) {
-                return "[H]the whole of the directory holding every user home";
-            }
-            // operator ruling 2026-11-03 (Opus review F4): one user's whole home, on every platform
-            if (f.segments.size() == 2 && (f.segments.get(0).equalsIgnoreCase("home")
-                    || f.segments.get(0).equalsIgnoreCase("Users"))
-                    || f.segments.size() == 2 && f.segments.get(0).equalsIgnoreCase("var")
-                    && f.segments.get(1).equalsIgnoreCase("root")) {
-                return "[H]the whole of one user's home";
-            }
-            // operator ruling 2026-11-03: the root user's home is a whole tree of credentials and keys
-            if (f.segments.size() == 1 && f.segments.get(0).equalsIgnoreCase("root")) {
-                return "[H]the whole of the root user's home";
-            }
+            String home = homeTreeReason(f);
+            if (home != null) return home;
             if (mayBeShortName(f)) {
                 return "[H]a whole tree named by an 8.3 short name, which may stand for a user home";
             }
