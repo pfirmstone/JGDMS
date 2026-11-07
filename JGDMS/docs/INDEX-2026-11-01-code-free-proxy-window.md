@@ -63,6 +63,13 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `REVIEW-lint-and-jwt-lifecycle-opus-2026-11-02.md` | 12596 | 2026-11-02 | claude-opus-5-5 | not stated |
 | `REVIEW-lint-watchdog-refreshthread-opus-2026-11-02.md` | 13422 | 2026-11-02 | claude-opus-5-5 | not stated |
 | `REVIEW-refresh-jwks-lint-opus-2026-11-02.md` | 10718 | 2026-11-02 | claude-opus-5-5 | not stated |
+| `REVIEW-aliases-opus-2026-11-07.md` | 15328 | 2026-11-07 | claude-opus-5-5 | LIVE: review of 073333b04; its owed rulings (8.3 names, PolicyScope junction, n128) were answered in 44505725f, 9c14ea866 and 8800a7a69 |
+| `REVIEW-memo-s15-handover-4n-fable-2026-11-06.md` | 5850 | 2026-11-07 | claude-fable-5-1 | LIVE: corrections applied in memo sections 14 and 15 and handover 4p |
+| `REVIEW-normaliser-opus-2026-11-06.md` | 21011 | 2026-11-07 | claude-opus-5-5 | HISTORICAL: findings fixed in 7ab89decc rounds 2 and 3 |
+| `REVIEW-normaliser-r2-opus-2026-11-07.md` | 21847 | 2026-11-07 | claude-opus-5-5 | HISTORICAL: findings fixed in 7ab89decc rounds 2 and 3 |
+| `REVIEW-path-ratings-differential-opus-2026-11-06.md` | 29754 | 2026-11-07 | claude-opus-5-5 | LIVE: rulings F7 and the flag set answered 2026-11-07 (073333b04); see handover 4p and 4q |
+| `REVIEW-shortnames-opus-2026-11-07.md` | 32175 | 2026-11-07 | claude-opus-5-5 | LIVE: review of the change before 44505725f; F3 fixed in 8800a7a69, F2 mostly in 9c14ea866; F1, F5 and the F2 residue remain open, see handover 4q |
+| `REVIEW-threadfactory-bounded-close-lint-opus-2026-11-03.md` | 25720 | 2026-11-03 | claude-opus-5-5 | HISTORICAL: findings fixed in fabc79650, 84e394eff, 6e99c5841 |
 | `INVESTIGATION-claims-only-jwt-verifier-uses-2026-11-02.md` | 6106 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md` | 10837 | 2026-11-02 | claude-sonnet-5-5 | not stated |
 | `INVESTIGATION-jwt-jwks-transient-2026-11-02.md` | 4118 | 2026-11-02 | claude-sonnet-5-5 | not stated |
@@ -161,6 +168,9 @@ AS-OF 2026-11-01. Pointer-only. Handover: `HANDOVER-2026-11-01-code-free-proxy-w
 | `a0ec7eea314444da3` | Sonnet 5.5 | rewrite of PermissionSets.filePath, differential test, rounds 1 to 3 | done (committed 7ab89decc) |
 | `a3caf5ea1ade68dd0` | Opus 5.5 | normaliser review, round 1 | done (report docs/REVIEW-normaliser-opus-2026-11-06.md, committed c9da0bd84) |
 | `a6d89a04d5a2071f6` | Opus 5.5 | normaliser delta review, round 2 | done (report docs/REVIEW-normaliser-r2-opus-2026-11-07.md, committed c9da0bd84; round 3 has no second-model review) |
+| `a680d64d7103d3d7d` | Sonnet 5.5 | OS aliases (Documents and Settings, <letter>$ shares) and the flag-set wiring | done (committed 073333b04) |
+| `a8e78784940ff888a` | Opus 5.5 | review of the alias and flag-set work | done (report docs/REVIEW-aliases-opus-2026-11-07.md, committed 073333b04; its guard-test follow-up has no second-model review) |
+| `a0c0709c4b1b0c0a9` | Opus 5.5 | review of the 8.3 short-name rule, Local Settings fold and PolicyScope aliasing | done (report docs/REVIEW-shortnames-opus-2026-11-07.md, committed 44505725f; the DOCUME~1/LOCALS~1 fold 9c14ea866 and the Q2 home-tree change 8800a7a69 have no second-model review) |
 | `a3275b656fe7360a8` | Sonnet 5.5 | own privileged NewDaemonThread, no jgdms-collections grants | done (committed 3cf1f31d9) |
 | `a064594fbd783fecf` | Sonnet 5.5 | JWT: close queue bounded, HttpClient closed, root cause, caller policy | done (committed ca58e7430) |
 | `a0ef1a9b0068ca15c` | Sonnet 5.5 | lint: whole-tree reads HIGH, HOLD doAs, per-permission rule, rows 39 to 13 | done (committed 7652bc63f) |

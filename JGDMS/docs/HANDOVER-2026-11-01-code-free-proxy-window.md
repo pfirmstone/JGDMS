@@ -341,3 +341,47 @@ Default every dispatch to Sonnet. Reviews are two-stage: a Sonnet agent runs the
 
 ### 4. Not verified
 Linux; the lint gate end to end on the new spellings; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window).
+
+## REVISION 4q, AS-OF 2026-11-08 00:40 +1000 (newest block; it overrides 4p where they differ)
+
+**Reader and purpose.** The next session of the same assistant. 4q records the operator rulings of 2026-11-07 on the path-rating aliases, the commits that carry them, the review status per commit, and what is still open. 4p section 3 item 1 (rulings owed) is answered below.
+
+### 1. State (VERIFIED 2026-11-08 00:36 +1000)
+- JGDMS HEAD `8800a7a69` (`git log`). `git rev-list --left-right --count origin/trunk...trunk` = `0 7`: seven commits unpushed (`7ab89decc`, `c9da0bd84`, `685e1e541`, `073333b04`, `44505725f`, `9c14ea866`, `8800a7a69`). The operator pushes; the assistant commits only (transcript line 6283). `git worktree list | wc -l` = 30 (three of them from this window: `JGDMS-shortnames-20261107`, `JGDMS-aliases-20261107`, `JGDMS-normaliser-20261106`, all uncommitted copies of what is now on trunk).
+- Commits since 4p and what each holds:
+  - `073333b04`: `Documents and Settings` is `Users`; a `<letter>$` share is that drive on any host; the flag set (`flagReason`) uses the same whole-tree decision as `danger`; fixtures n126, n127 (n128 added here, removed below); `docs/REVIEW-aliases-opus-2026-11-07.md`.
+  - `44505725f`: a recursive absolute name with an 8.3-shaped segment (`[^~]{1,6}~[0-9]+(\.[^.~]{0,3})?`) among its first two names is HIGH on every host (`PermissionSets.mayBeShortName`); `Local Settings` as the third name under `Users\<name>` folds to `AppData\Local`; `PolicyScope.file` reads the same aliases; `aliased()` is now public; fixture n128 dropped; `docs/REVIEW-shortnames-opus-2026-11-07.md`.
+  - `9c14ea866`: `DOCUME~1` folds like `Documents and Settings` and `LOCALS~1` like `Local Settings`; `PolicyScope` tests the short-name shape before the fold.
+  - `8800a7a69`: `PermissionSets.homeTreeReason` is the one definition of the home trees (directory holding every home, one home, the root user's home), used by `fileReach` and by `PolicyScope.file`, so those codeBases are writable on every lint host; `classify()` reads `user.home`, `java.io.tmpdir` and `user.dir` from `env` (`--define`) before the host.
+- Tests, run by me on the FRESH DirtyChai JDK (`build/windows-x86_64-server-release/images/jdk`, 27-internal, not installed) from the worktree reactor root with `mvn -o -pl jgdms-platform,tools/policy-condenser clean test -Dmaven.test.failure.ignore=true`, on the final bytes of `8800a7a69` (log `verify-q2.log` in the session scratchpad): platform 583 run, 1 failure (`CombinerDebugRecursionTest`, StackOverflowError in the JDK's `Subject.toString`, known, unrelated, not re-run by me on base); condenser 222 run, 0 failed, 2 skipped. Scoring rule: a number counts only from the final bytes, md5-checked before and after each mutant.
+- Mutants (my runs; the test must fail when the rule is disabled): Local Settings fold, `mayBeShortName`, `DOCUME~1` fold, `LOCALS~1` fold, short-name shape before the fold in `PolicyScope`, `PolicyScope` `homeTreeReason` call, `PolicyScope` `env` read, the one-user's-home rule in `homeTreeReason`, short name in second place: 9 of 9 killed after two test repairs (one mutant first survived because the host's `tmpdir` and `user.dir` also sit under `Users`; the test now moves them).
+
+### 2. Operator rulings of 2026-11-07, answered
+1. OS aliases, flag set, relative `..` stays MEDIUM, `lib/-` write stays clean: "I accept your recommendations." (073333b04).
+2. 8.3 short names and the `Local Settings` junction: rate them conservatively by shape (first two names, `-` only), fold `Local Settings`: "I agree with your recommendations, go." (44505725f).
+3. `PolicyScope` follows the same aliases; drop fixture n128: same message (44505725f).
+4. Q1 (fold `LOCALS~1` and `DOCUME~1` too): "Q1 yes" (9c14ea866). A profile moved off `Users` and the `Application Data` self-junction were NOT folded: not recommended, not ruled.
+5. Q3 (a way to clear a real short-name directory such as `C:\PROGRA~1\MyApp\-`): "Q3 none" (no allow-list row exists or is added; the javadoc says so).
+6. Q2 (`PolicyScope` home trees host-blind): "Yes, do Q2" (8800a7a69).
+7. The assistant's own calls, confirmed by the operator's "I agree with your recommendations": device wildcard names HIGH at any depth; UNC floor withdrawn; `\\?\unc\` case-insensitive.
+8. Linux: "We'll verify Linux later" then "We can do it this afternoon" (2026-11-07). NOT done: it needs a Linux DirtyChai JDK reachable from this shell.
+
+### 3. Review status per commit
+- `073333b04`: Opus `a8e78784940ff888a` (`REVIEW-aliases-opus-2026-11-07.md`). Its guard-test follow-up has no second-model review.
+- `44505725f`: Opus `a0c0709c4b1b0c0a9` (`REVIEW-shortnames-opus-2026-11-07.md`). No false negative among 18 hand-chosen spellings inside the ruled scope (a hunt, not a census; one host).
+- NOT reviewed by any second model: `9c14ea866`, `8800a7a69` (verified by my build and mutants only), and the earlier gaps listed in 4p section 2.3.
+- The corpus and deploy tests are inert for this change: 0 of 580 tracked policy files contain an 8.3 token or `Local Settings` (Opus `git grep`, review section (b)). The new unit tests are the only gates.
+
+### 4. Open items in order
+1. **Linux pass** (promised for the afternoon of 2026-11-07): `PermissionSetsTest` and the condenser suite on a Linux DirtyChai JDK. Needs the image and a way to run it from here (WSL or a host).
+2. **F1 (Opus review of shortnames, CONFIRMED mechanism):** `fileReach` compares the JDK-home and temp directory lexically against `java.home` and `java.io.tmpdir`; a JVM launched through an 8.3 path reports them in 8.3 form, so the long spelling of `conf\security\java.security` write then rates 0. Not caused by this work (the base has the same comparison). The operator can check whether any deployment host reports 8.3: `java -XshowSettings:properties -version` launched as the lint is launched there. No ruling yet.
+3. **F5:** `C:\DOCUME~1\peter\*` rates 0/0 while `C:\Users\peter\*` rates M/H, a consequence of the ruling that `*` over Users or a home is unrated (Q2 of the earlier review). Unruled.
+4. **F2 residue:** a profile moved off `Users`, and the `Application Data` self-junction (`AppData\Local\Application Data\Temp\-` rates 0/0 and is the same directory). Unruled.
+5. 4p items still open: FLAG ignores the action, so write-only HIGH names such as `..\..\-` write are unflagged (pre-existing, not decided); `\\?\unc\` pinned test; the owed second-model reviews; F6 to F8 of the first Opus review; J2 and J3; the verify-before-release in the three signers; `char[]` secrets; memo O19 to O22, O24, O25, O30, O31, O33 to O35.
+6. Housekeeping: 30 worktrees; `~/.m2` SNAPSHOT jars.
+
+### 5. Not verified
+Linux; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window); whether any real host reports an 8.3 `java.home` or `java.io.tmpdir` (F1); `fsutil 8dot3name query C:` (access denied without admin, so whether 8.3 generation is on for the volume is unknown).
+
+### 6. Agents of this block (all delivered)
+Sonnet `a680d64d7103d3d7d` (aliases and flag set, producer); Opus `a8e78784940ff888a` (alias review); Opus `a0c0709c4b1b0c0a9` (short-name review, model `claude-opus-5-5` self-reported). The 9c14ea866 and 8800a7a69 changes were written by the main session (Sonnet 5.5), not by an agent.
