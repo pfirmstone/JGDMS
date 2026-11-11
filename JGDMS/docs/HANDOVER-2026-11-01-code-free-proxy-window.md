@@ -385,3 +385,30 @@ Linux; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no on
 
 ### 6. Agents of this block (all delivered)
 Sonnet `a680d64d7103d3d7d` (aliases and flag set, producer); Opus `a8e78784940ff888a` (alias review); Opus `a0c0709c4b1b0c0a9` (short-name review, model `claude-opus-5-5` self-reported). The 9c14ea866 and 8800a7a69 changes were written by the main session (Sonnet 5.5), not by an agent.
+
+## REVISION 4r, AS-OF 2026-11-11 19:50 +1000 (newest block; it adds to 4q and overrides it only on Linux)
+
+**Reader and purpose.** The next session of the same assistant. 4r records the Linux pass that 4q section 4 item 1 left open, and the access to the Linux host. Nothing else changed since 4q.
+
+### 1. State (VERIFIED 2026-11-11 19:50 +1000)
+- JGDMS HEAD `34fa219c2` (`git log`); `git rev-list --left-right --count origin/trunk...trunk` = `0 8`: eight commits unpushed (the seven of 4q plus `34fa219c2`); working tree clean (`git status --short | wc -l` = 0).
+
+### 2. The Linux pass (2026-11-11)
+- **Host:** Ubuntu 24.04 (`uname -a`: Linux 7.0.0-28-generic x86_64), 8 cores, 15 GB RAM, address `10.1.1.22`, login `user`. SSH key login works from this Windows machine (the operator installed sshd and authorised this machine's `id_ed25519` on 2026-11-11). Maven 3.8.7 there; Windows used 3.9.15.
+- **JDK:** `~/GitHub/DirtyChai/build/linux-x86_64-server-release/images/jdk` on that host, `openjdk version "27-internal" 2026-09-15`, image directory dated 2026-10-28. That DirtyChai checkout is at `33b748f90b5` and does NOT contain `4c71278f1c5` (issue 236, 2026-11-01 21:18): `git merge-base --is-ancestor 4c71278f1c5 HEAD` there printed `236-NOT-in-HEAD`.
+- **Code under test:** committed HEAD `34fa219c2`, copied with `git archive HEAD | ssh ... tar -x` into `~/GitHub/JGDMS-linux-verify-20261111` on that host (255 MB archive, 12.6 s). The operator's own checkouts there were not touched. The copy and the log `~/verify-linux-20261111.log` are still there.
+- **Command:** `mvn -o -B -pl jgdms-platform,tools/policy-condenser clean test -Dmaven.test.failure.ignore=true` from `JGDMS-linux-verify-20261111/JGDMS` with `JAVA_HOME` set to the Linux image.
+- **Results (surefire totals, that log):**
+  - platform 583 run, 3 failures, 4 skipped. Failures: `CombinerDebugRecursionTest` (known, unrelated, same as Windows) and `UnresolvedPrincipalImpliesTest.classWildcardImpliesNothing` and `.classWildcardWithNameImpliesNothing`. The 4 skips: `PermissionSetsFilePermissionDifferentialTest` 3 (Windows-gated by design) and `DigestDomainGrantTest` 1 (also skipped on Windows).
+  - condenser 222 run, 6 failures, 0 skipped. Failures: `PolicyLintCorpusTest` 3 (`cleanFilesGrantNoStrangerAHighPermission`, `corpusExitCodesAndKinds`, `theLoadedProviderAndParserAreDirtyChais`, each saying "wrong or stale JDK"), `PolicyLintGateTest.wildcardPrincipalsOfIssuedClassesFail` (expected `1/1 P1 D2`, got `1/1 D2`), `PolicyLintTest.providersAgreeOnFixtures` (`f06-principal-wild.policy [dirtychai]`) and `PolicyLintTest.s3WildcardPrincipals`.
+  - **Passes on Linux:** `PermissionSetsTest` 34 run, 0 failed, 0 skipped (the host-blind ratings: the 8.3 shape rule, the `Local Settings`, `DOCUME~1` and `LOCALS~1` folds, the `Documents and Settings` alias, `<letter>$` shares, `//host/-` HIGH, the home trees); `PolicyLintGateTest` 32 run, 1 failure (the wildcard-principal one above), so the new `junctionAndShortNamesOfAHomeAreWritable` and `homeTreesAreWritableWhateverTheLintHost` pass.
+- **Reading of the 8 non-known failures (PLAUSIBLE, not proved):** every one concerns a wildcard principal class, the subject of issue 236, and the Linux JDK predates it. The corpus tests name the cause themselves. The Windows image (mtime 22:52 on 2026-11-01, after 21:18) passes all of them (222/0 in 4q section 1). I read the failure text of `UnresolvedPrincipalImpliesTest.classWildcardImpliesNothing` only as far as its stack trace, and did not run the suite against a Linux JDK that contains 236.
+- **Scoring rule:** a Linux result counts as clean only when the only failure is `CombinerDebugRecursionTest`. That has NOT been reached: it needs a Linux DirtyChai image built from a commit at or after `4c71278f1c5`.
+
+### 3. Open items in order
+1. **Clean Linux run:** pull DirtyChai trunk on `10.1.1.22`, `make images` (30 to 60 minutes per the DirtyChai CLAUDE.md), rerun the command in section 2, expect only `CombinerDebugRecursionTest` to fail. DirtyChai is human-authored: the operator does the pull and the build.
+2. The differential test (`PermissionSetsFilePermissionDifferentialTest`) is Windows-gated and skips on Linux by design; Linux has no JDK-versus-catalogue differential for file names.
+3. Everything in 4q section 4 items 2 to 6 is unchanged: F1 (8.3 `java.home` or `java.io.tmpdir`), F5, the F2 residue, the 4p leftovers, and the housekeeping.
+
+### 4. Not verified
+A Linux run on a DirtyChai image that contains issue 236; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window); whether any deployment host reports an 8.3 `java.home` or `java.io.tmpdir`.
