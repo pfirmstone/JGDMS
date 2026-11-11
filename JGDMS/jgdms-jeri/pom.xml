@@ -52,8 +52,8 @@
             <artifactId>jgdms-der</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The provider's ServerIdentityPin is tested here, against real SSL endpoints. -->
         <dependency>
-            <!-- The provider's ServerIdentityPin is tested here, against real SSL endpoints. -->
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-pref-class-loader</artifactId>
             <version>${project.version}</version>

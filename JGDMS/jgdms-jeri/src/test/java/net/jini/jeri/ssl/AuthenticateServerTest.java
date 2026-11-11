@@ -77,6 +77,7 @@ public class AuthenticateServerTest {
                                    Integrity.YES, Confidentiality.YES}, null);
 
     private static final Collection<Object> KEEP = new ArrayList<Object>();
+    private static String[] previousTrustStore;
     private static Svid server, sameDn, twoUri, client, other;
     private static Echo reggie, impostor, twoUris, tcp;
     private static CodebaseAccessor accessor, otherAccessor, tcpAccessor;
@@ -92,7 +93,9 @@ public class AuthenticateServerTest {
             "spiffe://example.org/alpha,uri:spiffe://example.org/beta");
         client = SslEngineSvidFactory.generate(dir, "client", "CN=Tester", "spiffe://example.org/tester");
         other = SslEngineSvidFactory.generate(dir, "other", "CN=Other", "spiffe://example.org/other");
-        SslEngineSvidFactory.installTrustStore(dir, server.leaf, sameDn.leaf, twoUri.leaf, client.leaf, other.leaf);
+        previousTrustStore = SslEngineSvidFactory.installTrustStore(dir,
+            server.leaf, sameDn.leaf, twoUri.leaf, client.leaf, other.leaf);
+        resetSslTrustManagerCache();
         reggie = export(server);
         impostor = export(sameDn);
         twoUris = export(twoUri);
@@ -131,10 +134,23 @@ public class AuthenticateServerTest {
     }
 
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws Exception {
         for (Object o : KEEP) {
             if (o instanceof Exporter) ((Exporter) o).unexport(true);
         }
+        if (previousTrustStore != null) SslEngineSvidFactory.restoreTrustStore(previousTrustStore);
+        resetSslTrustManagerCache();
+    }
+
+    /**
+     * FilterX509TrustManager caches its trust manager per JVM, built from the
+     * trust store installed first; other SSL test classes in the same JVM install
+     * their own.  Reset at set-up and tear-down (as MarshallingFormatDeferralTest).
+     */
+    private static void resetSslTrustManagerCache() throws Exception {
+        java.lang.reflect.Field tm = FilterX509TrustManager.class.getDeclaredField("tm");
+        tm.setAccessible(true);
+        tm.set(null, null);
     }
 
     private static Echo export(Svid s) throws Exception {
