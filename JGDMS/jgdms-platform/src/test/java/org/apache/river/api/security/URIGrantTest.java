@@ -121,16 +121,13 @@ public class URIGrantTest {
      * prefix that is compared has to keep the trailing slash, as
      * {@code CodeSource.implies} does. DirtyChai's {@code Uri.implies} compared
      * the prefix without the slash until its commit 0071db760 (2026-10-26, "fix
-     * Uri.implies bug"); this module's {@code org.apache.river.api.net.Uri}
-     * still has that defect (non-conformance J8, open), so the test skips itself
-     * on this module's copy; remove that {@code Assume} when J8 is fixed.
+     * Uri.implies bug"); this module's {@code org.apache.river.api.net.Uri} had
+     * the same defect (non-conformance J8, fixed), so the test runs on both
+     * copies.
      */
     @Test
     public void directoryWildcardStopsAtTheDirectoryBoundary() throws Exception {
         tests.support.SecurityCopy.assumeCurrentCopy("the Uri.implies prefix fix of DirtyChai 0071db760");
-        org.junit.Assume.assumeFalse("Skipped: J8, this module's Uri.implies compares the prefix without its "
-                + "trailing slash (docs/NON-CONFORMANCES-api-security-dirtychai-2026-10-23.md)",
-                tests.support.SecurityCopy.isJgdmsCopy());
         org.junit.Assert.assertFalse(grantImplies("file:/opt/app/-", "file:/opt/application/x.jar"));
         org.junit.Assert.assertFalse(grantImplies("http://h/foo/-", "http://h/foobar/x"));
         org.junit.Assert.assertFalse(grantImplies("http://h/foo/*", "http://h/foobar"));

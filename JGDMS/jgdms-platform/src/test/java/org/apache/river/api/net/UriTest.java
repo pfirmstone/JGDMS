@@ -1739,6 +1739,152 @@ public class UriTest extends TestCase {
         Assert.assertTrue(grant.implies(implied));
     }
     
+    private static boolean implies(String grant, String implied) throws Exception {
+        return Uri.parseAndCreate(grant).implies(Uri.parseAndCreate(implied));
+    }
+
+    /**
+     * J8: the prefix that is compared for "/-", "/*" and ";-" keeps the
+     * separator before the wildcard, as java.security.CodeSource.implies
+     * does, so that a sibling that only shares the leading characters of the
+     * directory name is not implied.
+     */
+    public void test_impliesRecursiveWildcardStopsAtTheDirectoryBoundary() throws Exception {
+        // below the directory: implied
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/x.jar"));
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/lib/y.jar"));
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/lib/deeper/z.jar"));
+        Assert.assertTrue(implies("http://h/foo/-", "http://h/foo/x/y?q=1#f"));
+        // the sibling that shares the name prefix: not implied
+        Assert.assertFalse(implies("file:/opt/app/-", "file:/opt/application/x.jar"));
+        Assert.assertFalse(implies("file:/opt/app/-", "file:/opt/app2/x.jar"));
+        Assert.assertFalse(implies("http://h/foo/-", "http://h/foobar/x"));
+        Assert.assertFalse(implies("http://h/foo/-", "http://h/foobar"));
+        Assert.assertFalse(implies("file:/opt/app/-", "file:/opt/other/x.jar"));
+        // the directory itself: with its trailing slash it is implied, without
+        // it it is not (CodeSource.implies does the same)
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/"));
+        Assert.assertFalse(implies("file:/opt/app/-", "file:/opt/app"));
+        Assert.assertFalse(implies("http://h/foo/-", "http://h/foo"));
+        // the pattern itself, and the pattern is not widened by a query or a fragment
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/-"));
+        Assert.assertTrue(implies("file:/opt/app/-", "file:/opt/app/x.jar?q=1#f"));
+        Assert.assertFalse(implies("file:/opt/app/-", "file:/opt/application/x.jar?q=1#f"));
+        // a pattern in another host or scheme never matches
+        Assert.assertFalse(implies("http://h/foo/-", "http://other/foo/x"));
+        Assert.assertFalse(implies("http://h/foo/-", "https://h/foo/x"));
+    }
+
+    /** The root: "/-" is every path, "/*" the entries of the root only. */
+    public void test_impliesWildcardAtTheRoot() throws Exception {
+        Assert.assertTrue(implies("file:/-", "file:/opt/x.jar"));
+        Assert.assertTrue(implies("file:/-", "file:/x"));
+        Assert.assertTrue(implies("file:/-", "file:/"));
+        Assert.assertTrue(implies("http://h/-", "http://h/x/y"));
+        Assert.assertTrue(implies("http://h/-", "http://h/"));
+        Assert.assertFalse("empty path is not the root", implies("http://h/-", "http://h"));
+        Assert.assertTrue(implies("file:/*", "file:/x"));
+        Assert.assertTrue(implies("file:/*", "file:/"));
+        Assert.assertFalse(implies("file:/*", "file:/a/b"));
+        Assert.assertTrue(implies("http://h/*", "http://h/x"));
+        Assert.assertFalse(implies("http://h/*", "http://h/x/y"));
+    }
+
+    /** "/*" is one level, "/-" is recursive. */
+    public void test_impliesOneLevelWildcardStopsAtTheDirectoryBoundary() throws Exception {
+        Assert.assertTrue(implies("file:/opt/app/*", "file:/opt/app/x.jar"));
+        Assert.assertTrue(implies("http://h/foo/*", "http://h/foo/x?q=1#f"));
+        Assert.assertTrue("the directory with its slash has no further separator", 
+                implies("file:/opt/app/*", "file:/opt/app/"));
+        // one level only
+        Assert.assertFalse(implies("file:/opt/app/*", "file:/opt/app/lib/y.jar"));
+        Assert.assertFalse(implies("file:/opt/app/*", "file:/opt/app/lib/"));
+        Assert.assertFalse(implies("http://h/foo/*", "http://h/foo/x/y"));
+        // siblings that share the name prefix
+        Assert.assertFalse(implies("file:/opt/app/*", "file:/opt/application"));
+        Assert.assertFalse(implies("file:/opt/app/*", "file:/opt/application/x.jar"));
+        Assert.assertFalse(implies("http://h/foo/*", "http://h/foobar"));
+        Assert.assertFalse(implies("http://h/foo/*", "http://h/foobar/x"));
+        // the directory without its slash
+        Assert.assertFalse(implies("file:/opt/app/*", "file:/opt/app"));
+        Assert.assertFalse(implies("http://h/foo/*", "http://h/foo"));
+        // the same position, "/-" takes the second level and "/*" does not
+        Assert.assertTrue(implies("http://h/foo/-", "http://h/foo/x/y"));
+        Assert.assertFalse(implies("http://h/foo/*", "http://h/foo/x/y"));
+    }
+
+    /**
+     * The exact forms: a path without a trailing slash implies itself and
+     * itself with the slash, a path with a slash only itself.
+     */
+    public void test_impliesPlainPath() throws Exception {
+        Assert.assertTrue(implies("http://h/foo", "http://h/foo"));
+        Assert.assertTrue(implies("http://h/foo", "http://h/foo/"));
+        Assert.assertFalse(implies("http://h/foo/", "http://h/foo"));
+        Assert.assertTrue(implies("http://h/foo/", "http://h/foo/"));
+        Assert.assertFalse(implies("http://h/foo", "http://h/foo/x"));
+        Assert.assertFalse(implies("http://h/foo", "http://h/foobar"));
+        Assert.assertTrue(implies("http://h", "http://h"));
+        Assert.assertFalse(implies("http://h", "http://h/x"));
+    }
+
+    /**
+     * httpmd: ";-" is the path up to and including the ';', whatever follows
+     * (the digest) is implied, a different file name that merely starts with
+     * the same characters is not.
+     */
+    public void test_impliesSemicolonWildcard() throws Exception {
+        Assert.assertTrue(implies("httpmd://h/a.jar;-", "httpmd://h/a.jar;sha-256=ab"));
+        Assert.assertTrue(implies("httpmd://h/a.jar;-", "httpmd://h/a.jar;md5=1"));
+        Assert.assertTrue(implies("httpmd://h/a.jar;-", "httpmd://h/a.jar;"));
+        Assert.assertTrue(implies("httpmd://h/a.jar;-", "httpmd://h/a.jar;-"));
+        Assert.assertFalse("another file that starts with the same name", 
+                implies("httpmd://h/a.jar;-", "httpmd://h/a.jarx;md5=1"));
+        Assert.assertFalse(implies("httpmd://h/a.jar;-", "httpmd://h/b.jar;md5=1"));
+        Assert.assertFalse("no digest, so not the ';' form", 
+                implies("httpmd://h/a.jar;-", "httpmd://h/a.jar"));
+    }
+
+    /** J9: user info must not corrupt the URL or make it malformed. */
+    public void test_toURLWithUserInfo() throws Exception {
+        java.net.URL url = new Uri("http://user@host/path/x").toURL();
+        Assert.assertEquals("http", url.getProtocol());
+        Assert.assertEquals("user", url.getUserInfo());
+        Assert.assertEquals("host", url.getHost());
+        Assert.assertEquals(-1, url.getPort());
+        Assert.assertEquals("/path/x", url.getFile());
+        Assert.assertNull(url.getRef());
+        Assert.assertEquals("http://user@host/path/x", url.toExternalForm());
+
+        url = new Uri("http://user:pw@host:8080/p?q#f").toURL();
+        Assert.assertEquals("user:pw", url.getUserInfo());
+        Assert.assertEquals("host", url.getHost());
+        Assert.assertEquals(8080, url.getPort());
+        Assert.assertEquals("/p?q", url.getFile());
+        Assert.assertEquals("/p", url.getPath());
+        Assert.assertEquals("q", url.getQuery());
+        Assert.assertEquals("f", url.getRef());
+        Assert.assertEquals("http://user:pw@host:8080/p?q#f", url.toExternalForm());
+    }
+
+    /** J9: the URL without user info is unchanged by the user info fix. */
+    public void test_toURLWithoutUserInfo() throws Exception {
+        java.net.URL url = new Uri("http://host/path/x").toURL();
+        Assert.assertNull(url.getUserInfo());
+        Assert.assertEquals("host", url.getHost());
+        Assert.assertEquals(-1, url.getPort());
+        Assert.assertEquals("/path/x", url.getFile());
+        Assert.assertEquals("http://host/path/x", url.toExternalForm());
+
+        url = new Uri("http://host:8080/p?q#f").toURL();
+        Assert.assertNull(url.getUserInfo());
+        Assert.assertEquals("host", url.getHost());
+        Assert.assertEquals(8080, url.getPort());
+        Assert.assertEquals("/p?q", url.getFile());
+        Assert.assertEquals("f", url.getRef());
+        Assert.assertEquals("http://host:8080/p?q#f", url.toExternalForm());
+    }
+
     public void testCaseStringEquals() throws Exception {
         String a = "zabckel%5f%20klw";
         String b = "ZABCKEL%5F%20KLW";
