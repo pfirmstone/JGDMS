@@ -111,6 +111,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       exploratory count). The in-front half of P6 had held (0 mismatches of 30 values over 15 records) under the old
  *       camera; the figures reported are from the run at the final commit.</li>
  * </ul>
+ *
+ * <h2>ADDED AFTER THE OPUS REVIEW (committed BEFORE the run that scores P11 and P12; the seal and D1-D3 above are not edited)</h2>
+ * Review: J:/std011-speed-2026-11-11/REVIEW_OPUS_STAGE1.md (claude-opus-5-5), fixes brief BRIEF_STAGE1_FIXES.md.
+ * <ul>
+ *   <li>P11 (review F3, a one-record forward shift of the reader). Predicted: {@code geo:sx12ReturnsDelivered} equals the record
+ *       count (8,261,030, the value the first run's README quoted and the reviewer did not read), so records minus returns
+ *       delivered is 0 and {@code rangeZero} is 0; the slack after the last record is 260 bytes
+ *       (453,547 pages x 1,020 - 8,261,030 x 56) and none of them is non-zero (the reviewer read the same bytes with {@code od};
+ *       this prediction is therefore not independent of that reading). ELSE: print the values and fail; a nonzero
+ *       {@code rangeZero} with zero returns-missing means the reader is late. SCOPE: it detects a forward shift of 1-4
+ *       records (the slack holds 4 whole records); a larger shift would read past the record pages into the appended sections,
+ *       which this check does not analyse (UNVALIDATED).</li>
+ *   <li>P12 (review F7). Predicted: all 4,096 timed records give finite native E2 (StrictMath) outputs and finite 3-element E1
+ *       results under both providers; the negative control (a NaN range) makes the check throw.</li>
+ *   <li>D4 (review F4). The correctly-rounded E2 comparison counts DISTINCT records (the evenly spread 12 repeated two named
+ *       records, so the first run compared 13 distinct records, not 15). The sealed P6 text stands.</li>
+ * </ul>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Stage1CorrectnessTest {
@@ -161,6 +178,43 @@ class Stage1CorrectnessTest {
         assertEquals(0L, c.elevationOutOfBounds(), "stored elevation outside +-(float)(pi/2)");
         assertEquals(0L, c.rangeNegativeOrNaN(), "stored range negative or NaN");
         assertTrue(front.validReturns() > c.recordCount() / 2, "most records are returns, so the sample is not vacuous");
+
+        // P11 (review F3): a reader that begins k records late still decodes n records and passes the CRC, bound and count
+        // checks above; its last k records come from the zero padding after the last record, so they read range 0.
+        say(new StringBuilder("P11: geo:sx12ReturnsDelivered=").append(c.sx12ReturnsDelivered()).append("; records minus returns delivered=")
+                .append(c.recordCount() - c.sx12ReturnsDelivered()).append("; range == 0 records=").append(c.rangeZero())
+                .append("; slack after the last record=").append(c.slackBytes()).append(" bytes, non-zero=")
+                .append(c.slackNonZeroBytes()).toString());
+        assertTrue(c.sx12ReturnsDelivered() >= 0, "the file must state its returns delivered for this check");
+        assertEquals(c.recordCount() - c.sx12ReturnsDelivered(), c.rangeZero(),
+                "range == 0 records must equal records minus the converter's returns delivered (a forward shift reads the padding)");
+        assertEquals(c.recordPages() * PAYLOAD - c.recordCount() * RECORD, c.slackBytes(), "slack after the last record");
+        assertEquals(0L, c.slackNonZeroBytes(), "the padding after the last record must be zero");
+    }
+
+    private static final long PAYLOAD = RawScanColumns.PAYLOAD_BYTES;
+    private static final long RECORD = RawScanColumns.RECORD_BYTES;
+
+    /** P12 (review F7): every one of the 4,096 timed records is finite and well-formed under both providers, and the check can fail. */
+    @Test
+    void p12_theTimedSampleIsFiniteAndWellFormedAndTheCheckCanFail() throws CelParseException {
+        int[] sample = front.evenly(CelEvalBenchmark.SAMPLE);
+        CelEvalBenchmark.Data.verifyTimedSample(cols.range, cols.azimuth, cols.elevation, sample);
+        say(new StringBuilder("P12: the ").append(sample.length).append(" timed records are finite for native E2 (StrictMath) and for E1 under the")
+                .append(" correctly-rounded and the placeholder providers").toString());
+        // negative control: a NaN range must make the check fail, naming the record
+        float[] r = {5.0f, Float.NaN};
+        float[] a = {0.5f, 0.5f};
+        float[] e = {0.2f, 0.2f};
+        assertThrows(IllegalStateException.class, () -> CelEvalBenchmark.Data.verifyTimedSample(r, a, e, new int[] {0, 1}));
+        float[] okR = {5.0f, 6.0f};
+        CelEvalBenchmark.Data.verifyTimedSample(okR, a, e, new int[] {0, 1});
+        // the sample is what the stride cursor assumes: SAMPLE distinct records, strictly increasing
+        for (int k = 1; k < sample.length; k++) {
+            assertTrue(sample[k] > sample[k - 1], "the sample must be strictly increasing");
+        }
+        assertEquals(1, java.math.BigInteger.valueOf(CelEvalBenchmark.STRIDE).gcd(java.math.BigInteger.valueOf(CelEvalBenchmark.SAMPLE)).intValue(),
+                "the cursor stride must be coprime with the sample size");
     }
 
     @Test
@@ -213,7 +267,10 @@ class Stage1CorrectnessTest {
         for (String name : x.pieces().keySet()) {
             long len = x.inlinedLength(name);
             if (len > 900_000L) {
-                sb.append("  ").append(name).append(": inlined text ").append(len).append(" chars, over the parser's 1,000,000 cap\n");
+                // Review F5: the threshold is this test's own (900,000), below the parser's cap of 1,000,000 characters:
+                // th2 and rpx (about 984,000 chars) are under the cap and would be refused by the node ceiling instead.
+                sb.append("  ").append(name).append(": inlined text ").append(len)
+                        .append(" chars, skipped by this test's 900,000-char threshold (the parser's own cap is 1,000,000)\n");
                 continue;
             }
             ExprNode whole;
@@ -352,13 +409,25 @@ class Stage1CorrectnessTest {
     void p6_e2CelEqualsBCrOnNamedExtraInFrontAndBehindRecords() throws Exception {
         int[] named = {front.first(), front.middle(), front.last()};
         int[] extra = front.evenly(E2_CR_EXTRA + 3);
-        int[] all = new int[named.length + extra.length];
-        System.arraycopy(named, 0, all, 0, named.length);
-        System.arraycopy(extra, 0, all, named.length, extra.length);
+        // Review F4 (Opus 2026-11-11): the evenly spread records include the first and the middle in-front record, which are
+        // already named, so the earlier "15 records" were 13 distinct; count distinct records, named ones first.
+        java.util.LinkedHashSet<Integer> distinct = new java.util.LinkedHashSet<>();
+        for (int i : named) {
+            distinct.add(i);
+        }
+        for (int i : extra) {
+            distinct.add(i);
+        }
+        int[] all = new int[distinct.size()];
+        int at = 0;
+        for (int i : distinct) {
+            all[at++] = i;
+        }
         Outcome o = compare(all, 2, () -> celInto(e2, correctlyRounded()), () -> natInto(nativeCr, 2));
         say(namedLine("E2", "B-CR", named, o));
-        say(new StringBuilder("E2 vs B-CR over ").append(all.length).append(" in-front records (3 named + ").append(extra.length)
-                .append(" evenly spread of ").append(front.indices().length).append(" in front): bit mismatches ")
+        say(new StringBuilder("E2 vs B-CR over ").append(all.length).append(" DISTINCT in-front records (3 named + ")
+                .append(extra.length).append(" evenly spread, ").append(named.length + extra.length - all.length)
+                .append(" of which repeat a named record; of ").append(front.indices().length).append(" in front): bit mismatches ")
                 .append(o.bitMismatches).append(" of ").append(o.values).append(" values, max |d| ").append(o.maxAbs).toString());
         assertEquals(0L, o.bitMismatches, () -> o.firstDifference);
         assertTrue(o.minValue < o.maxValue);

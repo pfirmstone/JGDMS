@@ -35,3 +35,9 @@ Run Maven from `JGDMS/` and name the benchmarks pom with `-f`: from inside `jgdm
 
 See the stage-1 READY file for the exact command. `-prof gc` reports bytes per record. `celE2` (the written-out camera
 projection under correct rounding) is orders of magnitude slower per record than the rest; budget for it.
+
+Which records are timed: every cursor steps by 1031 (odd, coprime with the 4,096-record sample); `startOffset` is a JMH
+parameter (0, 1365, 2731), so `-f 1` gives one fork per offset. `celE2` (single shot, one record per iteration) and
+`nativeE2CrMatched` cycle the same 4-record ring, so `celE2 / nativeE2CrMatched` is over one population. Do not pass
+`-wi`/`-i` for `celE2` (the annotation's 8 measured iterations time each ring record twice). The records actually timed are
+printed as `TIMED-RECORDS ...` lines on stdout: keep the console log beside the JSON.

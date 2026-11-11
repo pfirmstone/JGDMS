@@ -93,11 +93,16 @@ public final class RawScanColumns {
      * @param rangeNegativeOrNaN     records whose stored range is negative or NaN (the writer's convention refusal)
      * @param rangeZero              records with range == 0 (no return)
      * @param xmlCartesianBounds     {xMin, xMax, yMin, yMax, zMin, zMax} from the XML {@code cartesianBounds}
+     * @param sx12ReturnsDelivered   {@code geo:sx12ReturnsDelivered} from the XML, or -1 when the file has none (an SX12 element:
+     *                               the converter's own count of returns it wrote, so a record that is not one is a blank)
+     * @param slackBytes             bytes between the last record and the end of the last record page's payload
+     * @param slackNonZeroBytes      how many of those are not zero (the converter pads with zeros: a reader that starts
+     *                               late, or ends early, finds records' bytes here or leaves them out of its count)
      */
     public record Census(long recordCount, long geoConversionPoints, long pagesInFile, long recordPages,
                          long pagesVerified, long crcFailuresPage0, long crcFailuresRecords, long crcFailuresOther,
                          long azimuthOutOfBounds, long elevationOutOfBounds, long rangeNegativeOrNaN, long rangeZero,
-                         double[] xmlCartesianBounds) {
+                         double[] xmlCartesianBounds, long sx12ReturnsDelivered, long slackBytes, long slackNonZeroBytes) {
 
         /** One report line per count, each with its denominator. */
         public String describe() {
@@ -116,6 +121,10 @@ public final class RawScanColumns {
             sb.append("range negative or NaN: ").append(rangeNegativeOrNaN).append(" of ").append(recordCount)
                     .append(" records\n");
             sb.append("range == 0 (no return): ").append(rangeZero).append(" of ").append(recordCount).append(" records\n");
+            sb.append("geo:sx12ReturnsDelivered=").append(sx12ReturnsDelivered).append(" (-1 = absent); records minus returns delivered=")
+                    .append(sx12ReturnsDelivered < 0 ? "n/a" : Long.toString(recordCount - sx12ReturnsDelivered)).append('\n');
+            sb.append("slack after the last record: ").append(slackBytes).append(" bytes, ").append(slackNonZeroBytes)
+                    .append(" of them non-zero\n");
             return sb.toString();
         }
     }
@@ -167,7 +176,7 @@ public final class RawScanColumns {
             long crcFailuresPage0 = pageCrcOk(page0.array(), 0) ? 0L : 1L;
 
             byte[] xml = readXml(ch, xmlPhysicalOffset, xmlLogicalLength);
-            long[] counts = new long[2];
+            long[] counts = new long[3];
             double[] bounds = new double[6];
             long fileOffset = parseXml(xml, counts, bounds);
             long recordCount = counts[0];
@@ -194,6 +203,8 @@ public final class RawScanColumns {
             long elBad = 0;
             long rngBad = 0;
             long rngZero = 0;
+            long slackBytes = 0;
+            long slackNonZero = 0;
 
             ByteBuffer raw = ByteBuffer.allocate(PAGES_PER_READ * PAGE_BYTES);
             byte[] logical = new byte[PAGES_PER_READ * PAYLOAD_BYTES + RECORD_BYTES];
@@ -239,6 +250,17 @@ public final class RawScanColumns {
                 }
                 decoded += whole;
                 carry = total - whole * RECORD_BYTES;
+                if (decoded == n) {
+                    // Review F3 (Opus, 2026-11-11): a reader that begins k records late still decodes n records and passes
+                    // every CRC and bound; its last k records come from this zero padding. Counting the padding makes that
+                    // visible (it is also asserted through rangeZero against the converter's own returns-delivered count).
+                    slackBytes = carry;
+                    for (int s = 0; s < carry; s++) {
+                        if (logical[whole * RECORD_BYTES + s] != 0) {
+                            slackNonZero++;
+                        }
+                    }
+                }
                 if (carry > 0 && decoded < n) {
                     System.arraycopy(logical, whole * RECORD_BYTES, logical, 0, carry);
                 } else {
@@ -264,7 +286,7 @@ public final class RawScanColumns {
             }
             Census census = new Census(recordCount, counts[1], pagesInFile, recordPages,
                     1L + recordPages + laterPages, crcFailuresPage0, crcFailuresRecords, crcFailuresOther,
-                    azBad, elBad, rngBad, rngZero, bounds);
+                    azBad, elBad, rngBad, rngZero, bounds, counts[2], slackBytes, slackNonZero);
             return new RawScanColumns(range, azimuth, elevation, census);
         }
     }
@@ -310,7 +332,10 @@ public final class RawScanColumns {
         return out;
     }
 
-    /** Fills counts[0] = points/@recordCount, counts[1] = geo:conversionPointsWritten and bounds; returns points/@fileOffset. */
+    /**
+     * Fills counts[0] = points/@recordCount, counts[1] = geo:conversionPointsWritten, counts[2] = geo:sx12ReturnsDelivered
+     * (-1 when absent) and bounds; returns points/@fileOffset.
+     */
     private static long parseXml(byte[] xml, long[] counts, double[] bounds) throws IOException {
         try {
             DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
@@ -327,6 +352,8 @@ public final class RawScanColumns {
             counts[0] = Long.parseLong(p.getAttribute("recordCount"));
             long fileOffset = Long.parseLong(p.getAttribute("fileOffset"));
             counts[1] = Long.parseLong(text(d, "geo:conversionPointsWritten"));
+            NodeList delivered = d.getElementsByTagName("geo:sx12ReturnsDelivered");
+            counts[2] = delivered.getLength() == 1 ? Long.parseLong(delivered.item(0).getTextContent().trim()) : -1L;
             String[] names = {"xMinimum", "xMaximum", "yMinimum", "yMaximum", "zMinimum", "zMaximum"};
             for (int i = 0; i < names.length; i++) {
                 bounds[i] = Double.parseDouble(text(d, names[i]));

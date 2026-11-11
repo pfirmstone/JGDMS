@@ -62,7 +62,10 @@ import java.util.Optional;
  * data fields and earlier intermediates, parsed with the production parser (each is inside the ceilings), and the
  * placeholders are replaced by the already-built subtree INSTANCES. The result is the full tree the §5.4 author
  * would have to write, held as a DAG so that it fits in memory. The evaluator is a tree walker with no memoisation, so
- * evaluating the DAG does exactly the work evaluating the tree does. Never call {@code equals}, {@code hashCode} or
+ * evaluating the DAG does exactly the same OPERATIONS and allocations the tree does (review F6, Opus 2026-11-11: not the same
+ * memory locality: the DAG is a few hundred cache-hot node objects where a materialised tree of this size would be tens of
+ * megabytes, so tree-walking cost measured on the DAG is a lower bound for a tree that large; HYPOTHESIS, unmeasured).
+ * Never call {@code equals}, {@code hashCode} or
  * {@code toString} on an E2 node: the records recurse over every path.
  * <p>
  * The substitution is checked, not trusted: for E1 and for the intermediates small enough to parse whole, the
@@ -433,6 +436,15 @@ public final class Stage1Expressions {
     private record Counted(long nodes, int depth, long trig) {
     }
 
+    /**
+     * WHY this is a third copy of the decoder's counting rule (after {@code CelDecoder} and
+     * {@code CelAstValidator.visitExpr}; review F9, Opus 2026-11-11): the production counter is package-private
+     * ({@code CelAstValidator} is a package-private final class in {@code jgdms-cel-authoring}), so no code in this module
+     * can call it, and stage 1 may not edit that module. The copy is kept honest by the correctness test
+     * {@code ourNodeAndDepthCountsAgreeWithTheProductionCeilingsAtTheirBoundaries}, which checks it against the production
+     * parser at 1,023 and 1,024 nodes and at depth 32 and 33. When the production side exposes its counter, delete this one.
+     * It is also a counter over a DAG: it memoises by instance identity, which the production counter (a tree walker) never needs.
+     */
     private static Counted count(ExprNode n, IdentityHashMap<ExprNode, Counted> memo) {
         Counted hit = memo.get(n);
         if (hit != null) {
