@@ -119,7 +119,8 @@ final class CoreMathTestSupport {
 
     /**
      * Reads a {@code .wc} file: {@code #} lines are comments, any other line is one value (a
-     * hexadecimal float, optionally followed by a {@code # ...} remark). Lines that name a NaN or an
+     * hexadecimal float or a decimal such as {@code +0}, optionally followed by a {@code # ...} remark or by
+     * whitespace and a number, which are ignored). Lines that name a NaN or an
      * infinity are counted and skipped (they are never passed to a provider). {@code limit > 0}
      * stops after that many finite values.
      */
@@ -141,6 +142,11 @@ final class CoreMathTestSupport {
             if (hash >= 0) {
                 s = s.substring(0, hash).trim();
             }
+            int blank = 0;
+            while (blank < s.length() && !Character.isWhitespace(s.charAt(blank))) {
+                blank++;
+            }
+            s = s.substring(0, blank);                     // sin.wc has 3 lines like "0x1.4f1d73be27a31p+1 44": the value is the first token
             String lower = s.toLowerCase(java.util.Locale.ROOT);
             if (lower.contains("nan") || lower.contains("inf")) {
                 nonFinite++;
