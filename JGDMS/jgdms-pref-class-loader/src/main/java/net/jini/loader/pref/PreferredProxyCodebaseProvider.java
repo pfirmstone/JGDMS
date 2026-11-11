@@ -1838,12 +1838,78 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         return (file.length() > 0 && file.charAt(file.length() - 1) == '/');
     }
 
+    /** A copy of {@code context} whose only ServerSubject holds {@code pinned}. */
+    private static Collection contextWithPinnedIdentity(Collection context,
+                                                        Principal[] pinned) {
+        java.util.List<Object> routed = new java.util.ArrayList<Object>();
+        for (Object o : context) {
+            if (!(o instanceof net.jini.io.context.ServerSubject)) {
+                routed.add(o);
+            }
+        }
+        final javax.security.auth.Subject subject = new javax.security.auth.Subject(true,
+                new java.util.LinkedHashSet<Principal>(Arrays.asList(pinned)),
+                java.util.Collections.emptySet(), java.util.Collections.emptySet());
+        routed.add(new net.jini.io.context.ServerSubject() {
+            @Override
+            public javax.security.auth.Subject getServerSubject() {
+                return subject;
+            }
+        });
+        return routed;
+    }
+
     @Override
     public Object resolve(CodebaseAccessor bootstrapProxy,
 			MarshalledInstance serviceProxy,
 			final ClassLoader parent,
 			ClassLoader verifier,
 			Collection context) 
+	    throws IOException, ClassNotFoundException
+    {
+        return resolve(bootstrapProxy, serviceProxy, parent, verifier, context, null);
+    }
+
+    /**
+     * As {@link #resolve(CodebaseAccessor, MarshalledInstance, ClassLoader,
+     * ClassLoader, Collection)}, for a caller that has already authenticated
+     * the server and holds the pinned bootstrap proxy: the identity is
+     * asserted instead of probed, and the proxy is pinned to it again.  Used by
+     * the sub-process reconstruction server, which has no stream and acts for
+     * the parent process that authenticated the server.
+     *
+     * @param pinnedIdentity the single SPIFFE or Kerberos principal the
+     *        server authenticated as
+     * @throws SecurityException if the caller lacks
+     *         {@link PinnedIdentityPermission}
+     * @throws IOException if {@code pinnedIdentity} is not a SPIFFE or
+     *         Kerberos principal
+     */
+    public Object resolvePinned(CodebaseAccessor bootstrapProxy,
+			MarshalledInstance serviceProxy,
+			ClassLoader parent,
+			ClassLoader verifier,
+			Collection context,
+			Principal pinnedIdentity)
+	    throws IOException, ClassNotFoundException
+    {
+        if (pinnedIdentity == null) {
+            throw new NullPointerException("pinnedIdentity cannot be null");
+        }
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new PinnedIdentityPermission());
+        }
+        return resolve(bootstrapProxy, serviceProxy, parent, verifier, context,
+                pinnedIdentity);
+    }
+
+    private Object resolve(CodebaseAccessor bootstrapProxy,
+			MarshalledInstance serviceProxy,
+			final ClassLoader parent,
+			ClassLoader verifier,
+			Collection context,
+			Principal assertedIdentity)
 	    throws IOException, ClassNotFoundException
     {
 	if (context == null) throw new NullPointerException(
@@ -1874,7 +1940,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         // identity (null) leaves the proxy unpinned and takes the unverified
         // path; a failed or ambiguous probe refuses (IOException).
         final InvocationHandler exportedHandler = Proxy.getInvocationHandler(bootstrapProxy);
-        final Principal pinned = ServerIdentityPin.probe(bootstrapProxy);
+        final Principal pinned;
+        if (assertedIdentity != null) {
+            // The caller has authenticated the server already: only a SPIFFE or
+            // Kerberos principal is an identity, as when probing.
+            if (ServerIdentityPin.select(java.util.Collections.singleton(assertedIdentity))
+                    != assertedIdentity) {
+                throw new IOException("the asserted identity is not a SPIFFE or Kerberos"
+                        + " principal: " + assertedIdentity);
+            }
+            pinned = assertedIdentity;
+        } else {
+            pinned = ServerIdentityPin.probe(bootstrapProxy);
+        }
         final Principal[] serverPrincipals;
         if (pinned != null) {
             bootstrapProxy = ServerIdentityPin.pin(bootstrapProxy, pinned);
@@ -1979,9 +2057,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // the subprocess spawn/pool/track implementation and T4 the
             // Unix-Domain-Socket wire-protocol handoff; the real router is
             // installed via setIsolationRouter(SmartProxyIsolationRouter).
+            // The hand-off reads the identity from a ServerSubject in the context it
+            // is given.  The one in this stream's context is the delivering server's,
+            // not this proxy's, so it is replaced by the pinned identity.
             return isolationRouter.route(
                     serverPrincipals, bootstrapProxy, serviceProxy,
-                    codebase, path, parent, verifier, context);
+                    codebase, path, parent, verifier,
+                    contextWithPinnedIdentity(context, serverPrincipals));
         }
 
         if (loader == null){

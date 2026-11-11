@@ -138,6 +138,40 @@ public class PreferredProxyServerIdentityTest {
         assertFalse("no shared pool key from the stream", probe.invoked);
     }
 
+    // ---- resolvePinned: the caller has already authenticated the server ------
+
+    @Test
+    public void anAssertedIdentityIsPinnedAndRoutedNotTheStreams() throws Exception {
+        Probe probe = new Probe();
+        PreferredProxyCodebaseProvider.setIsolationRouter(probe);
+        Principal asserted = new javax.security.auth.kerberos.KerberosPrincipal("svc/b@EXAMPLE.COM");
+        new PreferredProxyCodebaseProvider().resolvePinned(accessor(PATH_B), null, loader(), null,
+                context(subject("spiffe://example/A")), asserted);
+        assertTrue(probe.invoked);
+        assertEquals(1, probe.principals.length);
+        assertSame("the asserted identity, not the stream's", asserted, probe.principals[0]);
+    }
+
+    @Test
+    public void anAssertedIdentityThatIsNotSpiffeOrKerberosIsRefused() throws Exception {
+        Probe probe = new Probe();
+        PreferredProxyCodebaseProvider.setIsolationRouter(probe);
+        try {
+            new PreferredProxyCodebaseProvider().resolvePinned(accessor(PATH_B), null, loader(), null,
+                    context(), new javax.security.auth.x500.X500Principal("CN=b"));
+            fail("a DN names no workload");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("SPIFFE or Kerberos"));
+        }
+        assertFalse(probe.invoked);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void anAssertedIdentityMustBeGiven() throws Exception {
+        new PreferredProxyCodebaseProvider().resolvePinned(accessor(PATH_B), null, loader(), null,
+                context(), null);
+    }
+
     // ---- helpers (as in PreferredProxyCodebaseProviderIsolationTest) ----------
 
     private static ClassLoader loader() {
