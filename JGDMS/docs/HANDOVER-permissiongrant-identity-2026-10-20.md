@@ -44,7 +44,7 @@ STATUS (as of the end of the transcript): the user has NOT answered either decis
 1. Run the Maven test above; fix if red.
 2. In `PreferredProxyCodebaseProvider.resolve`: check handler class, call `authenticateServer` with the `CodebaseAccessor.getClassAnnotation` Method, require exactly one SpiffePrincipal or the single KerberosPrincipal, pin via `ServerMinPrincipal` + `ServerAuthentication.YES` before any further call, delete the stream-context `ServerSubject` read. A failed probe takes an explicit refuse/unverified branch. Negative tests required.
 3. Then: loader expected-hash map, directory/Class-Path gating, provider-private registry with read-only SPI + `VerifiedCodebaseProxyPreparer`, remote-attested tier.
-4. DirtyChai (human-authored): `issued(pd)` first, narrowed R1, write-once `readExternal`, permission-gated verified factory, principal-merge gate.
+4. DirtyChai (human-authored): `issued(pd)` first, narrowed R1, write-once `readExternal`, permission-gated verified factory, principal-merge gate. The `DigestDomainGrant`/`ClassLoaderGrant` review rounds are section 17 (all findings fixed by trunk `4c71278f1` as read; not built by me).
 5. Board-requested items on the accessor NOT yet done (source: Opus/Sonnet/Fable reports, relayed): the provider must require exactly ONE SPIFFE principal (zero = no identity, no fallback to X500; two = refuse) and pick it by class, not set order; the trust manager (`FilterX509TrustManager.check`) should enforce a single SPIFFE URI SAN when the pin is SPIFFE (Opus ran a cert with SANs a+b: passes a pin on a and a pin on b); the three-case pin test must use the a+b certificate; a replaced `bootstrapProxy` (the pinned proxy returned by `setConstraints`) must be the one used for `getClassAnnotation`, `Key`, routing and subprocess hand-off; a SPIFFE-pinned call never reuses a connection (`useFor`, Opus), a full handshake per call: measure before accepting.
 6. Items recorded in the SOW/design but not implemented (section 14 has detail): endpoint-based shortcut hygiene in `resolve`; digests on cache miss only; loader receives an expected URL to SHA-256 map; directory URLs and manifest `Class-Path` gating; provider-private registry with read-only SPI and `VerifiedCodebaseProxyPreparer`; legacy-lookup migration to codebase-free reflective proxies; `substitute()` refusing proxies not exported by this process; union (not eviction) of retained INCONCLUSIVE grants; void/evict on a DANGEROUS verdict; remote-attested tier.
 
@@ -175,3 +175,33 @@ Each item: what it rests on, split PHYSICS (laws; not revised by a new sample, o
 ## 16. Deliberately excluded (currency check, second pass)
 
 Not repeated here because recoverable from the repo: the per-finding lists with file:line citations of every board (they are in `DESIGN-dynamic-grant-solutions-2026-10-18.md` and the SOW sections 7-8; line numbers drift); the P1-P7 detail; the full DirtyChai R1-R7 text (in `DirtyChai-Required-Changes-PermissionGrant-SOW.md`); the screenshot of numbered `.json`/`.key` files the user attached when asking for the session id (I could not interpret it; origin UNVERIFIED). Currency check method: keywords from each decision, ruling, correction, term and open item in the 128-turn text were grepped in this file; every keyword had at least one hit. This verifies presence, not that each statement is right.
+
+## 17. DirtyChai `DigestDomainGrant` / `ClassLoaderGrant` review rounds (added 2026-11-11)
+
+AS-OF DirtyChai trunk `4c71278f1` (source: `git fetch origin trunk` in `/home/user/dirtychai`, then reading the files with `git show origin/trunk:...`). RELAYED/VERIFIED: every statement below is from READING the source or from test output the user pasted. I never built DirtyChai and never ran the tests; "fixed" means "the code I read no longer has the defect". DirtyChai's own `CLAUDE.md` forbids AI-written contributions: I wrote analysis only, the user wrote every change.
+
+Population: the user's pushes `4d498b2fc` ... `dca6a83b9` on `trunk`, six review rounds, files `DigestDomainGrant.java`, `ClassLoaderGrant.java`, `PermissionGrantBuilder.java`, `PermissionGrantBuilderImp.java` under `src/java.base/share/classes/org/apache/river/api/security/`.
+
+Findings in order, each with its outcome:
+1. Draft did not compile (field `digestCodeSource` vs `digestCodeSources`), had no `implies`, builder stopped at `DIGEST = 6`. Fixed in later pushes; `DIGEST_DOMAIN = 7` now matches JGDMS.
+2. `build()` for `DIGEST_DOMAIN` had no refusals. Now refuses a null/collected loader, null/empty code sources, a non-`DigestCodeSource`, and (commit after `841105767`) a digest algorithm other than SHA-256.
+3. `readResolve` for context 7: now always returns the null grant.
+4. SCORING RULE for the proxy-class failures (my `DigestDomainGrantTest` lines 240 and 396, against DirtyChai's `java.base`): a dynamic proxy class has a SHARED `ProtectionDomain` with a null loader, so any loader taken from `pd.getClassLoader()` is null and the grant is void. `proxyClass.getClassLoader()` is correct (the user confirmed). Fix: both grants hold `WeakReference<ClassLoader>` taken from `granted.getClassLoader()`; both now extend `PrincipalGrant`, not `ProtectionDomainGrant`.
+5. `ProtectionDomainGrant.equals/hashCode/impliesEquivalent` depend on the `WeakReference<ProtectionDomain>` wrapper (identity, `WeakReference` has no `equals`) and on the shared domain; re-parenting onto `PrincipalGrant` removed that. `equals` now compares loader identity, code sources (digest grant) and, via `super.equals`, principals and permissions.
+6. `impliesEquivalent` NPE on the now-null `domain`; null-safe `loaderRef` access. Fixed.
+7. `isDyanamic()` regressed to false on re-parenting; both grants now override it to true. No caller of `isDyanamic()` exists in either tree except forwarders in `LeasedPermissionGrant` and `ExternallyVoidablePermissionGrant` (command: `grep -rn "isDyanamic()"`).
+8. Builder kept a stale loader: `reset()` now clears `loader`, and `clazz()` now clears `domain`, `loader` and `hasDomain` at its top (read at `4c71278f1`). My message of 2026-11-11 that said I could not see this done was WRONG: it was done; I had not re-fetched.
+9. Open, unreviewed: whether `ClassLoaderGrant` with no loader should be refused like `DIGEST_DOMAIN` (it builds a void grant: safe, inconsistent); `getBuilderTemplate()` drops the loader, so `getBuilderTemplate().build()` on a `DigestDomainGrant` throws `IllegalArgumentException`.
+
+Cross-tree facts that explain test failures, not defects:
+- DirtyChai's `Permission` is NOT `java.io.Serializable`, so a grant with a permission cannot be Java-serialized there. My `voidAfterSerialization` test now skips itself where `Permission` is not `Serializable`.
+- DirtyChai's `DigestCodeSource` records the first digest per location and throws `SecurityException` on a later different one, so "same location, different content" cannot be built with a computed digest there.
+- `DigestDomainGrant` is package-private and lives in `java.base`, so a test in the same package name (unnamed module) cannot reference it; compare by class name.
+- `DigestGrant` refuses an unverified `DigestCodeSource` (the four-argument constructor); `SubProcessLocalPolicyAdminTest` had built its domain that way. Fixed in `7b168a0e8`.
+
+JGDMS-side test fixes made while running the user's Windows Maven runs (all in trunk, none re-run by me): `e9fce5aaa` (`getPlatformClassLoader()` is Java 9+, the module compiles with `--release 8`), `942769cd6` (javac classpath from `Path.of(URI)`; whether this fixed `ClassEvolutionTest` is UNVERIFIED, `8a38d2dcf` makes the failure print the classpath and module), `f44703c7c` (`walkFileTree`, because Visual Studio's `.vs` journal vanished mid-walk), `f90fae68e` (`MuxChannelBatchingTest` held replies so it cannot race; the user suspects a race from other work).
+
+Triggers from this stretch:
+- BEFORE SAYING "NOT DONE" ABOUT SOMEONE ELSE'S REPOSITORY, FETCH IT AGAIN (item 8).
+- BEFORE BLAMING A TEST FOR A STALE RESULT, COMPARE THE LINE NUMBERS AND STACK FRAMES WITH THE CURRENT FILE: three pasted failures were the old code, not my fixes.
+- WHEN A GRANT'S IDENTITY IS A LOADER, TAKE IT FROM `Class.getClassLoader()`, NEVER FROM THE CLASS'S `ProtectionDomain` (shared and null for proxy classes).
