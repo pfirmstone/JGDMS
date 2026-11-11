@@ -40,6 +40,9 @@
 
     <properties>
         <junit.jupiter.version>5.10.2</junit.jupiter.version>
+        <!-- JUnit tags excluded from the default test run. "slow" is the full CORE-MATH worst-case tier
+             (STD-011 stage 2a): run it with  -Dgroups=slow -Djgdms.cel.excludedGroups=none-such  -->
+        <jgdms.cel.excludedGroups>slow</jgdms.cel.excludedGroups>
     </properties>
 
     <dependencies>
@@ -63,6 +66,12 @@
 
     <build>
         <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${jgdms.cel.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
