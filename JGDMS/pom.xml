@@ -75,6 +75,7 @@
     <module>jgdms-rmi-tls</module>
     <module>jgdms-lib</module>
     <module>jgdms-lib-dl</module>
+    <module>jgdms-identity-it</module>
     <module>jgdms-ui-factory</module>
     <module>jini-2.1-compat</module>
     <module>services/outrigger</module>

@@ -42,9 +42,6 @@ import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.Exporter;
 import net.jini.io.UnsupportedConstraintException;
-import net.jini.loader.pref.ServerIdentityPinAccess;
-import net.jini.export.CodebaseAccessor;
-import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.BasicJeriExporter;
@@ -78,9 +75,8 @@ public class AuthenticateServerTest {
 
     private static final Collection<Object> KEEP = new ArrayList<Object>();
     private static String[] previousTrustStore;
-    private static Svid server, sameDn, twoUri, client, other;
+    private static Svid server, sameDn, twoUri, client;
     private static Echo reggie, impostor, twoUris, tcp;
-    private static CodebaseAccessor accessor, otherAccessor, tcpAccessor;
     private static Method echo;
 
     @BeforeClass
@@ -92,9 +88,8 @@ public class AuthenticateServerTest {
         twoUri = SslEngineSvidFactory.generate(dir, "twouri", "CN=Reggie",
             "spiffe://example.org/alpha,uri:spiffe://example.org/beta");
         client = SslEngineSvidFactory.generate(dir, "client", "CN=Tester", "spiffe://example.org/tester");
-        other = SslEngineSvidFactory.generate(dir, "other", "CN=Other", "spiffe://example.org/other");
         previousTrustStore = SslEngineSvidFactory.installTrustStore(dir,
-            server.leaf, sameDn.leaf, twoUri.leaf, client.leaf, other.leaf);
+            server.leaf, sameDn.leaf, twoUri.leaf, client.leaf);
         resetSslTrustManagerCache();
         reggie = export(server);
         impostor = export(sameDn);
@@ -105,32 +100,6 @@ public class AuthenticateServerTest {
         KEEP.add(ti);
         KEEP.add(tex);
         tcp = (Echo) tex.export(ti);
-        accessor = exportAccessor(server);
-        otherAccessor = exportAccessor(other);
-        Exporter tax = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-            new AtomicILFactory(null, null, AuthenticateServerTest.class.getClassLoader()), false, true);
-        Accessor ta = new Accessor();
-        KEEP.add(ta);
-        KEEP.add(tax);
-        tcpAccessor = (CodebaseAccessor) tax.export(ta);
-    }
-
-    /** A bootstrap proxy's server side, for the identity pin of the codebase provider. */
-    public static final class Accessor implements CodebaseAccessor {
-        public String getClassAnnotation() { return "http://localhost/probe.jar"; }
-        public String getCertFactoryType() { return null; }
-        public String getCertPathEncoding() { return null; }
-        public byte[] getEncodedCerts() { return null; }
-    }
-
-    private static CodebaseAccessor exportAccessor(Svid s) throws Exception {
-        ServerEndpoint se = SslServerEndpoint.getInstance(s.subject, new X500Principal[]{s.x500}, "localhost", 0);
-        Exporter ex = new BasicJeriExporter(se, new AtomicILFactory(new BasicMethodConstraints(MUTUAL), null,
-            AuthenticateServerTest.class.getClassLoader()), false, true);
-        Accessor impl = new Accessor();
-        KEEP.add(impl);
-        KEEP.add(ex);
-        return (CodebaseAccessor) Subject.callAs(s.subject, (Callable<Object>) () -> ex.export(impl));
     }
 
     @AfterClass
@@ -307,57 +276,5 @@ public class AuthenticateServerTest {
                     asClient(() -> handler(reggie).authenticateServer(echo)), "/reggie")).echo("x"));
             fail("an absent URI must fail");
         } catch (Exception expected) { }
-    }
-
-    // ---- ServerIdentityPin, the codebase provider's use of authenticateServer ----
-
-    @Test
-    public void thePinProbeReturnsTheAuthenticatedIdentity() throws Exception {
-        Principal p = asClient(() -> ServerIdentityPinAccess.probe(accessor));
-        if (spiffeAvailable()) {
-            assertEquals("spiffe://example.org/reggie", p.getName());
-        } else {
-            assertEquals("without the SPIFFE class the identity is the X.500 name", server.x500, p);
-        }
-    }
-
-    @Test
-    public void thePinProbeRefusesAClientThatIsNotLoggedOnInsteadOfTreatingItAsAnonymous() throws Exception {
-        try {
-            ServerIdentityPinAccess.probe(accessor);
-            fail("an authenticating transport whose handshake cannot be made must refuse");
-        } catch (UnsupportedConstraintException expected) {
-        }
-    }
-
-    @Test
-    public void thePinProbeGivesNoIdentityForATransportThatCannotAuthenticate() throws Exception {
-        assertNull(asClient(() -> ServerIdentityPinAccess.probe(tcpAccessor)));
-    }
-
-    @Test
-    public void aPinnedProxyStillWorksAndAnotherServerCannotAnswerForIt() throws Exception {
-        Principal p = asClient(() -> ServerIdentityPinAccess.probe(accessor));
-        CodebaseAccessor pinned = ServerIdentityPinAccess.pin(accessor, p);
-        assertEquals("http://localhost/probe.jar", asClient(() -> pinned.getClassAnnotation()));
-        CodebaseAccessor wrong = ServerIdentityPinAccess.pin(otherAccessor, p);
-        try {
-            asClient(() -> wrong.getClassAnnotation());
-            fail("a server other than the pinned one must not answer");
-        } catch (IOException expected) {
-        }
-    }
-
-    @Test
-    public void aProxyThatAlreadyRequiresTheServerPrincipalCanBeProbedAndPinned() throws Exception {
-        CodebaseAccessor constrained = (CodebaseAccessor) ((RemoteMethodControl) accessor).setConstraints(
-            new BasicMethodConstraints(new InvocationConstraints(
-                new InvocationConstraint[]{ClientAuthentication.YES, ServerAuthentication.YES,
-                    Integrity.YES, Confidentiality.YES, new ServerMinPrincipal(server.x500)}, null)));
-        Principal p = asClient(() -> ServerIdentityPinAccess.probe(constrained));
-        CodebaseAccessor pinned = ServerIdentityPinAccess.pin(constrained, p);
-        // The conflicting case, an existing X.500 requirement and a SPIFFE pin, needs the SPIFFE
-        // class and is asserted on the constraints themselves in ServerIdentityPinTest.
-        assertEquals("http://localhost/probe.jar", asClient(() -> pinned.getClassAnnotation()));
     }
 }
