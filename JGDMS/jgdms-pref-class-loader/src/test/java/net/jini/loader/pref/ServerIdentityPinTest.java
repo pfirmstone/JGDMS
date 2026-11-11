@@ -73,7 +73,7 @@ public class ServerIdentityPinTest {
                 + "  public String toString() { return name; }\n"
                 + "}\n").getBytes("UTF-8"));
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
-        assertEquals(0, javac.run(null, null, null, "-d", dir.toString(), src.toString()));
+        assertEquals(0, javac.run(null, null, null, "-proc:none", "-d", dir.toString(), src.toString()));
         spiffeClass = new URLClassLoader(new URL[]{dir.toUri().toURL()},
                 ServerIdentityPinTest.class.getClassLoader())
                 .loadClass("au.net.zeus.jgdms.spiffe.SpiffePrincipal");
@@ -136,10 +136,31 @@ public class ServerIdentityPinTest {
     }
 
     @Test
-    public void aDistinguishedNameAloneIsNoIdentity() throws Exception {
-        // A DN pin admits any certificate with the same DN; it names no workload.
-        assertNull(ServerIdentityPin.select(set(new X500Principal("CN=reggie"))));
-        assertNull(ServerIdentityPin.select(set()));
+    public void aDistinguishedNameAloneIsPinnedWhenNothingBetterExists() throws Exception {
+        // A DN names no workload (another certificate may carry it), but it is what the stream's
+        // subject carried before, so such servers keep principal-scoped grants.
+        X500Principal dn = new X500Principal("CN=reggie");
+        assertSame(dn, ServerIdentityPin.select(set(dn)));
+    }
+
+    @Test
+    public void twoDistinguishedNamesAreRefused() {
+        try {
+            ServerIdentityPin.select(set(new X500Principal("CN=a"), new X500Principal("CN=b")));
+            fail("ambiguous");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("more than one X.500"));
+        }
+    }
+
+    @Test
+    public void nothingRecognisableIsRefusedNotTreatedAsAnonymous() {
+        try {
+            ServerIdentityPin.select(set());
+            fail("an authenticated server with no recognisable principal");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("no SPIFFE, Kerberos or X.500"));
+        }
     }
 
     @Test
@@ -147,7 +168,11 @@ public class ServerIdentityPinTest {
         Principal imitation = new Principal() {
             @Override public String getName() { return "spiffe://example/a"; }
         };
-        assertNull("recognised by class, not by name", ServerIdentityPin.select(set(imitation)));
+        try {
+            ServerIdentityPin.select(set(imitation));
+            fail("recognised by class, not by name");
+        } catch (IOException expected) {
+        }
     }
 
     // ---- which handlers are asked ------------------------------------------
@@ -207,6 +232,60 @@ public class ServerIdentityPinTest {
         // A method the table does not name still requires the pin.
         Set<?> other = r.set.getConstraints(Object.class.getMethod("toString")).requirements();
         assertTrue(other.containsAll(expected));
+    }
+
+    @Test
+    public void aServerMinPrincipalTheProxyAlreadyCarriesIsReplacedByThePin() throws Exception {
+        // Two different ServerMinPrincipal requirements cannot both be met on one connection.
+        MethodConstraints existing = new BasicMethodConstraints(new InvocationConstraints(
+                new InvocationConstraint[]{Integrity.YES,
+                    new ServerMinPrincipal(new X500Principal("CN=reggie"))}, null));
+        Recorder r = new Recorder(existing);
+        Principal pin = spiffe("spiffe://example/reggie");
+        ServerIdentityPin.pin(r.proxy(), pin);
+        for (Method m : CodebaseAccessor.class.getMethods()) {
+            int count = 0;
+            for (Object c : r.set.getConstraints(m).requirements()) {
+                if (c instanceof ServerMinPrincipal) {
+                    count++;
+                    assertEquals(new ServerMinPrincipal(pin), c);
+                }
+            }
+            assertEquals(m.getName() + ": exactly one ServerMinPrincipal", 1, count);
+            assertTrue(r.set.getConstraints(m).requirements().contains(Integrity.YES));
+        }
+    }
+
+    @Test
+    public void theRouterContextCarriesThePinnedIdentityNotTheStreams() throws Exception {
+        // A ServerSubject in the unmarshalling stream is the delivering server's.
+        final javax.security.auth.Subject streams = new javax.security.auth.Subject(true,
+                Collections.<Principal>singleton(spiffe("spiffe://example/delivering-server")),
+                Collections.emptySet(), Collections.emptySet());
+        net.jini.io.context.IntegrityEnforcement integrity = new net.jini.io.context.IntegrityEnforcement() {
+            public boolean integrityEnforced() { return true; }
+        };
+        java.util.List<Object> context = new java.util.ArrayList<Object>();
+        context.add(integrity);
+        context.add(new net.jini.io.context.ServerSubject() {
+            public javax.security.auth.Subject getServerSubject() { return streams; }
+        });
+        Principal pin = spiffe("spiffe://example/the-proxys-server");
+
+        java.util.Collection routed = PreferredProxyCodebaseProvider.contextWithPinnedIdentity(
+                context, new Principal[]{pin});
+
+        assertTrue("other elements are kept", routed.contains(integrity));
+        int subjects = 0;
+        for (Object o : routed) {
+            if (o instanceof net.jini.io.context.ServerSubject) {
+                subjects++;
+                assertEquals(Collections.singleton(pin),
+                        ((net.jini.io.context.ServerSubject) o).getServerSubject().getPrincipals());
+            }
+        }
+        assertEquals("exactly one ServerSubject, the pinned one", 1, subjects);
+        assertEquals("the stream's own context is untouched", 2, context.size());
     }
 
     @Test

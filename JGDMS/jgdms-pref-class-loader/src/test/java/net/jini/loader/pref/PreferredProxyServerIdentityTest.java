@@ -141,27 +141,16 @@ public class PreferredProxyServerIdentityTest {
     // ---- resolvePinned: the caller has already authenticated the server ------
 
     @Test
-    public void anAssertedIdentityIsPinnedAndRoutedNotTheStreams() throws Exception {
+    public void anAssertedIdentityIsNotAcceptedForAProxyWhoseHandlerIsNotAPlatformHandler() throws Exception {
         Probe probe = new Probe();
         PreferredProxyCodebaseProvider.setIsolationRouter(probe);
         Principal asserted = new javax.security.auth.kerberos.KerberosPrincipal("svc/b@EXAMPLE.COM");
-        new PreferredProxyCodebaseProvider().resolvePinned(accessor(PATH_B), null, loader(), null,
-                context(subject("spiffe://example/A")), asserted);
-        assertTrue(probe.invoked);
-        assertEquals(1, probe.principals.length);
-        assertSame("the asserted identity, not the stream's", asserted, probe.principals[0]);
-    }
-
-    @Test
-    public void anAssertedIdentityThatIsNotSpiffeOrKerberosIsRefused() throws Exception {
-        Probe probe = new Probe();
-        PreferredProxyCodebaseProvider.setIsolationRouter(probe);
         try {
             new PreferredProxyCodebaseProvider().resolvePinned(accessor(PATH_B), null, loader(), null,
-                    context(), new javax.security.auth.x500.X500Principal("CN=b"));
-            fail("a DN names no workload");
+                    context(subject("spiffe://example/A")), asserted);
+            fail("a handler that may ignore constraints would make the pin enforce nothing");
         } catch (IOException expected) {
-            assertTrue(expected.getMessage().contains("SPIFFE or Kerberos"));
+            assertTrue(expected.getMessage().contains("not a platform JERI handler class"));
         }
         assertFalse(probe.invoked);
     }

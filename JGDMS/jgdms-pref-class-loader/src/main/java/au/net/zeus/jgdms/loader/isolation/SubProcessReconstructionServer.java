@@ -23,19 +23,16 @@ import java.lang.reflect.Modifier;
 import java.nio.channels.ByteChannel;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
-import net.jini.io.context.ServerSubject;
 import net.jini.loader.pref.PreferredProxyCodebaseProvider;
 
 /**
@@ -316,6 +313,23 @@ final class SubProcessReconstructionServer {
         }
         final boolean pinned = req.serverPrincipals != null
                 && req.serverPrincipals.length == 1;
+        if (pinned) {
+            // The pooling key was derived from the principals the parent routed on:
+            // the identity asserted here must be the one this process serves.
+            final String derived;
+            try {
+                derived = IsolationPoolingKey.derive(req.serverPrincipals).value();
+            } catch (IOException e) {
+                throw new RejectedHandoffException("KEY_MISMATCH",
+                        "The asserted server principal derives no pooling key: "
+                        + safeMessage(e), e);
+            }
+            if (!derived.equals(ownKey.value())) {
+                throw new RejectedHandoffException("KEY_MISMATCH",
+                        "The asserted server principal does not derive this subprocess'"
+                        + " pooling key; refusing (fail-closed).");
+            }
+        }
 
         Object sp;
         try {

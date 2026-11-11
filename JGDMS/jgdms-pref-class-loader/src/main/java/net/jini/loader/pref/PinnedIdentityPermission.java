@@ -24,11 +24,16 @@ import java.security.BasicPermission;
  * resulting pinned proxy, may assert the identity: today that is the
  * sub-process reconstruction server, acting for the parent process that did.
  * Anything that can assert an identity can choose which principal the digest
- * grants and the bootstrap check are issued for, so this must not be granted
- * to code that loads mobile code.
+ * grants and the bootstrap check are issued for.  The check runs over the whole
+ * call stack, so every protection domain on it needs the grant.  Grant it in
+ * the sub-process's own policy only, never in a client policy that also loads
+ * proxies, and never to code that loads mobile code.  A policy that also
+ * lets the provider probe a server needs
+ * {@code ContextPermission "net.jini.io.context.ServerSubject.getServerSubject"}
+ * for the same stack.
  *
  * <pre>
- * grant codeBase "file:/path/to/jgdms-pref-class-loader.jar" {
+ * grant codeBase "file:/path/to/subprocess/jgdms-pref-class-loader.jar" {
  *     permission net.jini.loader.pref.PinnedIdentityPermission "assertPinnedIdentity";
  * };
  * </pre>

@@ -1839,7 +1839,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
 
     /** A copy of {@code context} whose only ServerSubject holds {@code pinned}. */
-    private static Collection contextWithPinnedIdentity(Collection context,
+    static Collection contextWithPinnedIdentity(Collection context,
                                                         Principal[] pinned) {
         java.util.List<Object> routed = new java.util.ArrayList<Object>();
         for (Object o : context) {
@@ -1942,11 +1942,16 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         final InvocationHandler exportedHandler = Proxy.getInvocationHandler(bootstrapProxy);
         final Principal pinned;
         if (assertedIdentity != null) {
-            // The caller has authenticated the server already: only a SPIFFE or
-            // Kerberos principal is an identity, as when probing.
+            // The caller has authenticated the server already: a recognised
+            // principal, as when probing, and a proxy whose handler enforces
+            // constraints, or the pin would enforce nothing.
+            if (!ServerIdentityPin.hasTrustedHandler(bootstrapProxy)) {
+                throw new IOException("cannot pin a bootstrap proxy whose invocation handler"
+                        + " is not a platform JERI handler class");
+            }
             if (ServerIdentityPin.select(java.util.Collections.singleton(assertedIdentity))
                     != assertedIdentity) {
-                throw new IOException("the asserted identity is not a SPIFFE or Kerberos"
+                throw new IOException("the asserted identity is not a recognised"
                         + " principal: " + assertedIdentity);
             }
             pinned = assertedIdentity;
@@ -1965,8 +1970,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
 
-        // The first-party shortcut is keyed by the handler as exported here,
-        // so it is looked up with that handler, not the pinned one.
+        // The first-party shortcut is keyed by the handler as exported here.
+        // Handler equality ignores client constraints, so the pinned handler would
+        // equal it: the keys here and in CACHE do not tell identities apart.
         Key loaderKey = new Key(exportedHandler, Arrays.asList(codebases), null);
         loader = SERVICES_EXP.get(loaderKey); // Was it exported from here?
         String loaderPath = PreferredClassProvider.getLoaderAnnotation(parent, false, null);
@@ -2041,6 +2047,14 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // in CACHE on ANY code path (normal return or exception).  The
             // SERVICES_EXP / self-unmarshal fast paths above have already
             // been given precedence (loader is still null to reach here).
+            if (serverPrincipals != null && serverPrincipals.length == 1
+                    && !ServerIdentityPin.isSpiffe(serverPrincipals[0])) {
+                // Pools are per SPIFFE principal, and only a SPIFFE principal can cross the
+                // Atomic wire to the sub-process (Kerberos and X.500 principals cannot).
+                throw new IOException("Smart-proxy isolation needs a SPIFFE server identity;"
+                    + " the server authenticated as " + serverPrincipals[0]
+                    + " (fail-closed). Codebase: " + path);
+            }
             if (serverPrincipals == null || serverPrincipals.length == 0) {
                 throw new IOException(
                     "Smart-proxy isolation is enabled ("
