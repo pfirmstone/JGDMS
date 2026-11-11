@@ -107,7 +107,7 @@ public class PreferredProxyRelayStreamTest {
     public interface ServiceBApi { }
 
     @Test
-    public void aForeignProxyHeldByServiceAIsInlinedAndAttributedToTheDeliveringStream() throws Exception {
+    public void aForeignProxyHeldByServiceAIsInlinedButNotAttributedToTheDeliveringStream() throws Exception {
         Probe probe = new Probe();
         PreferredProxyCodebaseProvider.setIsolationRouter(probe);
 
@@ -132,12 +132,16 @@ public class PreferredProxyRelayStreamTest {
         ctx.add(subject("spiffe://example/service-A"));
         ObjectInputStream in = AtomicMarshalInputStream.create(
                 new ByteArrayInputStream(wire), loader(), false, loader(), ctx, false);
-        Object result = in.readObject();
-
-        assertTrue("resolve ran inside the read of A's stream", probe.invoked);
-        assertEquals("service B's proxy was keyed by the stream's server, A", 
-                "spiffe://example/service-A", probe.principals[0].getName());
-        assertSame(probe.result, result);
+        try {
+            in.readObject();
+            fail("service B's proxy must not be given service A's identity");
+        } catch (java.io.IOException expected) {
+            // resolve ran inside the read of A's stream; B's own connection
+            // cannot be probed (test handler), so B has no identity.
+            assertTrue(String.valueOf(expected.getMessage()), 
+                    expected.getMessage() != null && expected.getMessage().contains("fail-closed"));
+        }
+        assertFalse("A's identity is not B's: the router is not reached", probe.invoked);
     }
 
     private static ClassLoader loader() {

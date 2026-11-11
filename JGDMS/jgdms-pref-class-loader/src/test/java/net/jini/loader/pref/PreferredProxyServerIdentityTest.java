@@ -43,9 +43,10 @@ import static org.junit.Assert.*;
  * server identity from, which keys the isolation pool and (with a verified
  * digest) the grants.
  * <p>
- * Finding under test: the identity is the {@link ServerSubject} found in the
- * <em>unmarshalling stream's context</em>, not something learned from the
- * bootstrap proxy's own connection.  That stream context is populated by the
+ * Rule under test: the identity is learned from the bootstrap proxy's OWN
+ * connection ({@link ServerIdentityPin}), never from the {@link ServerSubject}
+ * in the <em>unmarshalling stream's context</em>.  Until that rule was made, the
+ * identity was the stream's, which is the finding described next.  That stream context is populated by the
  * transport that delivered the bytes ({@code AtomicInvocationHandler} calls
  * {@code request.populateContext(context)} on the response, and
  * {@code SslConnection} adds the delivering server's {@code ServerSubject}).
@@ -56,7 +57,7 @@ import static org.junit.Assert.*;
  * <p>
  * The nested case does occur on Atomic JOSS streams, see
  * {@link PreferredProxyRelayStreamTest}.
- * These tests record the behaviour as it is; they are not an endorsement.
+ * These tests record that the stream's identity is no longer used.
  */
 public class PreferredProxyServerIdentityTest {
 
@@ -83,18 +84,22 @@ public class PreferredProxyServerIdentityTest {
     }
 
     @Test
-    public void identityIsTheDeliveringStreamsNotTheBootstrapProxysOwn() throws Exception {
+    public void theDeliveringStreamsServerSubjectIsNotTheBootstrapProxysIdentity() throws Exception {
         Probe probe = new Probe();
         PreferredProxyCodebaseProvider.setIsolationRouter(probe);
 
         // Service B's bootstrap proxy, found inside a response delivered by
-        // service A: the stream context carries A's ServerSubject.
-        new PreferredProxyCodebaseProvider().resolve(accessor(PATH_B), null, 
-                loader(), null, context(subject("spiffe://example/A")));
-
-        assertTrue(probe.invoked);
-        assertEquals("service B's proxy is attributed to the delivering server",
-                "spiffe://example/A", probe.principals[0].getName());
+        // service A: the stream context carries A's ServerSubject.  It is not
+        // B's identity, and B's own connection cannot be probed (the proxy's
+        // handler is not a trusted JERI handler class), so B has no identity.
+        try {
+            new PreferredProxyCodebaseProvider().resolve(accessor(PATH_B), null,
+                    loader(), null, context(subject("spiffe://example/A")));
+            fail("A's identity must not be attributed to B's proxy");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("fail-closed"));
+        }
+        assertFalse(probe.invoked);
     }
 
     @Test
@@ -118,15 +123,19 @@ public class PreferredProxyServerIdentityTest {
     }
 
     @Test
-    public void sameStreamSameIdentityForDifferentServers() throws Exception {
+    public void twoServersInOneStreamAreNeverGivenTheStreamsIdentity() throws Exception {
         Probe probe = new Probe();
         PreferredProxyCodebaseProvider.setIsolationRouter(probe);
         Collection ctx = context(subject("spiffe://example/A"));
-        new PreferredProxyCodebaseProvider().resolve(accessor(PATH_A), null, loader(), null, ctx);
-        Principal first = probe.principals[0];
-        new PreferredProxyCodebaseProvider().resolve(accessor(PATH_B), null, loader(), null, ctx);
-        assertEquals("two different servers' proxies, one pool key", 
-                first.getName(), probe.principals[0].getName());
+        for (String path : new String[]{PATH_A, PATH_B}) {
+            try {
+                new PreferredProxyCodebaseProvider().resolve(accessor(path), null, loader(), null, ctx);
+                fail("refused: " + path);
+            } catch (IOException expected) {
+                assertTrue(expected.getMessage().contains("fail-closed"));
+            }
+        }
+        assertFalse("no shared pool key from the stream", probe.invoked);
     }
 
     // ---- helpers (as in PreferredProxyCodebaseProviderIsolationTest) ----------
