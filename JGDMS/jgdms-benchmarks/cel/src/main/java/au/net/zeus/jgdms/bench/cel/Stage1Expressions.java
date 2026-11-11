@@ -107,8 +107,8 @@ public final class Stage1Expressions {
 
         /** The synthetic camera used by every stage-1 run. Deterministic. */
         public static Camera synthetic() {
-            double az0 = 0.7;
-            double el0 = 0.45;
+            double az0 = -0.8;
+            double el0 = 0.1;
             double[] yT = {StrictMath.cos(el0) * StrictMath.cos(az0), StrictMath.cos(el0) * StrictMath.sin(az0),
                 StrictMath.sin(el0)};
             double[] xT = unit(new double[] {yT[1], -yT[0], 0.0});

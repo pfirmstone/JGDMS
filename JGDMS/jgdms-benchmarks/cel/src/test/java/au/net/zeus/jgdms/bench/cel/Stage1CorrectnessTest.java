@@ -91,6 +91,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  * AC3 stands UNVALIDATED regardless: both sides come from one idea (the same camera/angle convention written once), so
  * bit-identity says the evaluator computes what was written, not that it is what {@code PerImageCamera} computes.
+ *
+ * <h2>DECLARED DEVIATIONS (added after the first run at commit c18348171; the seal above is NOT edited)</h2>
+ * First run, MEASURED 2026-11-11 (log J:/std011-speed-2026-11-11/logs/step7_test_run1.log): P1-P3 held, P7 held, P8 held, P9 held
+ * (156,553 exactly), the P10 E2 control rejected 240 of 240; P4's SEALED reading FAILED; P5 and P6 could not be scored for the
+ * three reasons below. None of this run's P5/P6 numbers is used in any report.
+ * <ul>
+ *   <li>D1 (P4). Every one of the six bounds differs from the file's by exactly 0.1 m (max |d| = 0.10000000000000009 m against
+ *       the sealed 0.05 m): the converter pads each bound by 0.1 m (E57RawWriter.java:1088-1097, READ in the
+ *       Observations_to_Salsa clone at 827cb9ce) and computes the bounds from the stored float32 values with the very formula
+ *       E1 uses (E57RawWriter.java:483-505). The sealed reading therefore stands FAILED; the assertion is now the declared
+ *       reading (residual after removing the 0.1 m pad under 1e-9 m). The agreement is the converter's own formula applied to
+ *       the same stored floats: it checks the field offsets and the arithmetic, and is NOT independent of the converter's
+ *       angle convention.</li>
+ *   <li>D2 (P5). A test-harness defect of mine: the E1 comparison was wired to the native E2 (width argument 1 instead of 3);
+ *       the 9 mismatches at the named records were that wiring, caught by the assertion. Corrected, then run.</li>
+ *   <li>D3 (P6). The synthetic camera pointed (azimuth 0.7, elevation 0.45) put all 8,261,030 records in front, so the sealed
+ *       BEHIND branch had no records to test. The synthetic pointing is now azimuth -0.8, elevation 0.1 (54% in front by an
+ *       exploratory count). The in-front half of P6 had held (0 mismatches of 30 values over 15 records) under the old
+ *       camera; the figures reported are from the run at the final commit.</li>
+ * </ul>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Stage1CorrectnessTest {
@@ -99,6 +119,9 @@ class Stage1CorrectnessTest {
     private static final int E2_CR_EXTRA = 9;
     private static final int E2_BEHIND = 2_000;
     private static final int E2_STRICT = 240;
+
+    /** E57RawWriter.java:1094 (READ 2026-11-11): each cartesianBounds value is the data bound moved outward by this much. */
+    private static final double WRITER_BOUNDS_PAD_M = 0.1;
 
     private RawScanColumns cols;
     private Stage1Expressions x;
@@ -163,15 +186,21 @@ class Stage1CorrectnessTest {
         StringBuilder sb = new StringBuilder(512);
         sb.append("E1 bounds over ").append(used).append(" valid returns (StrictMath, B-STRICT E1) vs the file XML cartesianBounds:\n");
         double worst = 0.0;
+        double worstAfterPad = 0.0;
         for (int k = 0; k < 6; k++) {
             double d = mine[k] - xml[k];
+            double padded = (k % 2 == 0) ? xml[k] + WRITER_BOUNDS_PAD_M : xml[k] - WRITER_BOUNDS_PAD_M;
             worst = Math.max(worst, Math.abs(d));
+            worstAfterPad = Math.max(worstAfterPad, Math.abs(mine[k] - padded));
             sb.append("  ").append(names[k]).append(": mine=").append(mine[k]).append(" xml=").append(xml[k])
                     .append(" d=").append(d).append('\n');
         }
-        sb.append("  max |d| = ").append(worst).append(" m");
+        sb.append("  SEALED P4 reading (max |d| < 0.05 m): max |d| = ").append(worst).append(" m, ")
+                .append(worst < 0.05 ? "HELD" : "FAILED").append('\n');
+        sb.append("  DECLARED D1 reading (XML bound = mine -+ 0.1 m, the writer's padding): max residual = ")
+                .append(worstAfterPad).append(" m");
         say(sb.toString());
-        assertTrue(worst < 0.05, "E1's convention disagrees grossly with the file's own Cartesian bounds");
+        assertTrue(worstAfterPad < 1e-9, "E1 differs from the file's own bounds beyond the writer's 0.1 m padding");
     }
 
     // ----------------------------------------------------------------------------------------- the expressions
@@ -257,16 +286,32 @@ class Stage1CorrectnessTest {
         assertEquals(156_553L, c2.total());
     }
 
+    /** EXPLORATORY, no prediction: how much of the timed in-front population would land inside the synthetic 4096 x 3072 image. */
+    @Test
+    void diagnostic_imageWindowShareOfTheInFrontRecords() {
+        double[] out = new double[2];
+        long inImage = 0;
+        for (int i : front.indices()) {
+            nativeStrict.e2(cols.range[i], cols.azimuth[i], cols.elevation[i], out);
+            if (out[0] >= 0.0 && out[0] < 4096.0 && out[1] >= 0.0 && out[1] < 3072.0) {
+                inImage++;
+            }
+        }
+        say(new StringBuilder("EXPLORATORY: ").append(inImage).append(" of ").append(front.indices().length)
+                .append(" in-front valid returns project inside the synthetic 4096 x 3072 image (StrictMath E2); the timed sample is")
+                .append(" NOT restricted to them").toString());
+    }
+
     // ----------------------------------------------------------------------------------------- bit-identity
 
     @Test
     void p5_e1CelEqualsBCrOnTheNamedRecordsAndOverTheWholeFileSample() throws Exception {
         int[] named = {front.first(), front.middle(), front.last()};
-        Outcome n = compare(named, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 1));
+        Outcome n = compare(named, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 3));
         say(namedLine("E1", "B-CR", named, n));
 
         int[] sample = Sampling.evenlyOverFile(cols.count(), E1_SAMPLE);
-        Outcome s = compare(sample, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 1));
+        Outcome s = compare(sample, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 3));
         long valid = 0;
         long inFront = 0;
         for (int i : sample) {
