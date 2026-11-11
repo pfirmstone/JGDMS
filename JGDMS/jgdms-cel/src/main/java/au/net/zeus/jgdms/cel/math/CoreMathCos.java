@@ -88,18 +88,21 @@ final class CoreMathCos {
     }
 
     /**
-     * The accurate path alone, for {@code z = |x| >= 2^-27}: C {@code cos_large_accurate}
-     * ({@code cos.c:765-825}). The C passes {@code |x|}; so must the caller.
+     * The accurate path alone, for finite {@code |x| >= 2^-27}: C {@code cos_large_accurate}
+     * ({@code cos.c:765-825}). The C passes it {@code |x|}; the sign is removed here so a caller
+     * passes the same {@code x} as to {@link #cos}.
      */
-    static double accurate(double z) {
-        return cosLargeAccurate(z);
+    static double accurate(double x) {
+        return cosLargeAccurate(Math.abs(x));
     }
 
     /**
-     * The fast path alone for finite {@code z = |x| >= 2^-27}: the correctly rounded result, or
-     * {@code NaN} if its error bound cannot decide the rounding.
+     * The fast path alone for finite {@code |x| >= 2^-27}: the correctly rounded result, or
+     * {@code NaN} if its error bound cannot decide the rounding. The sign is removed here (the C
+     * fast paths take {@code |x|}), so a caller passes the same {@code x} as to {@link #cos}.
      */
-    static double fast(double z) {
+    static double fast(double x) {
+        double z = Math.abs(x);
         int e = (int) (Double.doubleToRawLongBits(z) >>> 52);
         return (e < 0x3ff + 31) ? fastModerate(z) : fastLarge(z);
     }
