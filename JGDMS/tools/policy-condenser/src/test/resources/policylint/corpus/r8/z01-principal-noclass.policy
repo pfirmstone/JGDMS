@@ -1,0 +1,3 @@
+grant principal "CN=x" {
+  permission java.security.AllPermission;
+};

@@ -31,9 +31,11 @@ import java.util.List;
 import java.util.Set;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
+import net.jini.security.jwt.JwtPrincipal;
 import net.jini.security.jwt.JwtRawToken;
 import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
+import net.jini.security.jwt.VerifiedJwt;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -83,9 +85,9 @@ public class MultiSubjectWireProtocolTest {
     @SuppressWarnings("unchecked")
     private static List<Subject> invokeReadUserSubjects(byte[] bytes) throws Exception {
         Method m = BasicInvocationDispatcher.class
-            .getDeclaredMethod("readUserSubjects", java.io.InputStream.class);
+            .getDeclaredMethod("readUserSubjects", java.io.InputStream.class, Subject.class);
         m.setAccessible(true);
-        return (List<Subject>) m.invoke(null, new ByteArrayInputStream(bytes));
+        return (List<Subject>) m.invoke(null, new ByteArrayInputStream(bytes), null);
     }
 
     /** Builds a minimal valid JWT payload Base64url-encoded string with given exp epoch. */
@@ -362,8 +364,8 @@ public class MultiSubjectWireProtocolTest {
     }
 
     /**
-     * A round-trip (write + read) of a Subject carrying a {@link JwtRawToken}
-     * should successfully deserialise when no verifier is registered.
+     * A Subject carrying a {@link JwtRawToken} is refused when no verifier is
+     * registered: a token nothing verified must not be accepted on its claims.
      */
     @Test
     public void testJwtRoundTripNoVerifier() throws Exception {
@@ -378,11 +380,13 @@ public class MultiSubjectWireProtocolTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BasicInvocationHandler.writeUserSubjects(baos, new Subject[]{s});
 
-        // Read back — no verifier registered, so JWT bytes are silently discarded.
-        List<Subject> decoded = invokeReadUserSubjects(baos.toByteArray());
-        Assert.assertEquals(1, decoded.size());
-        Assert.assertTrue(decoded.get(0).getPrincipals().stream()
-            .anyMatch(pr -> pr.getName().contains("alice")));
+        try {
+            invokeReadUserSubjects(baos.toByteArray());
+            Assert.fail("a JWT with no verifier installed must be refused");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Assert.assertTrue(String.valueOf(ite.getCause()),
+                ite.getCause() instanceof IOException);
+        }
     }
 
     /**
@@ -395,9 +399,12 @@ public class MultiSubjectWireProtocolTest {
         String rawJwt = buildJwt(futureExp, "bob-passing-verifier");
 
         final boolean[] called = {false};
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { called[0] = true; });
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> {
+            called[0] = true;
+            return new VerifiedJwt("bob", "https://issuer", null, null, null, null);
+        });
 
-        X500Principal p = new X500Principal("CN=bob");
+        Principal p = new JwtPrincipal("sub:bob");
         Set<Object> pubCreds = Collections.singleton((Object) new JwtRawToken(rawJwt));
         Subject s = new Subject(true,
             Collections.singleton((Principal) p), pubCreds, Collections.emptySet());
@@ -452,9 +459,13 @@ public class MultiSubjectWireProtocolTest {
         String rawJwt = buildJwt(futureExp, "dave-cache-test-unique-" + System.nanoTime());
 
         final int[] callCount = {0};
-        BasicInvocationDispatcher.setJwtVerifier(jwt -> { callCount[0]++; });
+        BasicInvocationDispatcher.setJwtVerifier(jwt -> {
+            callCount[0]++;
+            return new VerifiedJwt("dave", "https://issuer", null,
+                    java.time.Instant.now().plusSeconds(3600), null, null);
+        });
 
-        X500Principal p = new X500Principal("CN=dave");
+        Principal p = new JwtPrincipal("sub:dave");
         Set<Object> pubCreds = Collections.singleton((Object) new JwtRawToken(rawJwt));
         Subject s = new Subject(true,
             Collections.singleton((Principal) p), pubCreds, Collections.emptySet());

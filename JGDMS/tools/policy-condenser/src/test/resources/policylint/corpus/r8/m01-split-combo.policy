@@ -1,0 +1,9 @@
+grant {
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+grant {
+  permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
+};
+grant {
+  permission java.io.FilePermission "${java.home}${/}-", "write";
+};

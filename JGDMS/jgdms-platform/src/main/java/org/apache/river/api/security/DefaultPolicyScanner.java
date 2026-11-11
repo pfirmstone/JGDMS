@@ -268,8 +268,9 @@ public class DefaultPolicyScanner {
      *  
      * </pre>
      * 
-     * Both class and name may be wildcards, wildcard names should not
-     * surrounded by quotes.
+     * The name may be a wildcard, which should not be surrounded by quotes.
+     * A wildcard class is refused: it matched every principal, and polpAudit
+     * records the actual class.
      * 
      * @return successfully parsed PrincipalEntry
      * @throws IOException
@@ -284,8 +285,9 @@ public class DefaultPolicyScanner {
             classname = st.sval;
             st.nextToken();
         } else if (st.ttype == '*') {
-            classname = PrincipalEntry.WILDCARD;
-            st.nextToken();
+            // A class wildcard grants to every principal, including principals
+            // asserted by a peer: refuse the line instead of accepting it.
+            handleUnexpectedToken(st, Messages.getString("security.JG1")); //$NON-NLS-1$
         }
         if (st.ttype == '"') {
             name = st.sval;

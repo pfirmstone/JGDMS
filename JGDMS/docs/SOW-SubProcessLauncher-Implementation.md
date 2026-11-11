@@ -115,6 +115,38 @@ DirtyChai/JGDMS classes — never a downloaded proxy's classes. CDS's own mechan
 production run may only append to the training-run classpath, not substitute into it), but verify the
 build/training-run configuration doesn't accidentally capture anything proxy-specific.
 
+**Cross-uid sharing works, and the gate is file permission, not uid** (MEASURED 2026-10-27,
+DirtyChai 27-internal). CDS/AOT sharing is file-backed through the OS page cache: the archive shows
+up in `/proc/<pid>/maps` as mapped regions of `classes.jsa`, so N JVMs mapping the same file get one
+physical copy whatever uid each runs as. This is what makes the ruled two-uid model (one local uid,
+one shared by all proxy JVMs) workable without per-principal uids — every proxy JVM need only be able
+to *read* the archive.
+
+**Hard constraint — archive file ownership and mode.** The archive is mapped into every proxy JVM,
+and into the local JVM if it shares one. That makes it a **shared TCB element spanning the uid
+boundary whose entire purpose is to protect the local JVM**. If a proxy uid can write the archive, a
+proxy can poison class metadata for every sibling proxy *and* for the local JVM, straight through
+that boundary. Therefore:
+  - archive owned by a trusted deployment uid, **never** the proxy uid;
+  - mode `0444` — not writable by the proxy uid nor by any group the proxy uid belongs to;
+  - ⚠ the archives shipped in a DirtyChai build are `-rw-rw-r-- user:user` (MEASURED). That is fine
+    for a dev JDK and **wrong for this deployment** — the launcher must not simply point at
+    `$JAVA_HOME/lib/server/classes.jsa` and inherit those permissions.
+  - Note the mapped regions are `rw-p` (private / copy-on-write), not `r--s`, so a JVM can dirty
+    pages locally without affecting siblings. Tampering therefore has to go through the *file*, which
+    is precisely why the file mode carries the security weight here.
+
+**Hard constraint — launch with `-Xshare:on`, so a broken archive fails loudly.** MEASURED on
+DirtyChai 27-internal with a missing archive, exit codes taken without a pipe:
+  - `-Xshare:auto` (the DEFAULT): logs a cds error to stderr, **starts anyway, exits 0**, no sharing;
+  - `-Xshare:on`: **exits 1** and the program does not run (confirmed with a real main class, not
+    just `-version`).
+⇒ Under the default, "the subprocess started" is indistinguishable from "sharing is working", so a
+misconfigured, unreadable or permission-corrected archive silently costs the launch-latency benefit
+this whole task exists to deliver — with a success exit code. Pass `-Xshare:on` (or `AOTMode`'s
+equivalent strict setting) and let a bad archive fail the spawn. Same family as the project's
+standing rule on gates that read green over an empty population.
+
 **Explicit non-goal:** do not use CRaC checkpoint/restore as a faster alternative. A CRaC checkpoint
 captures live JVM memory — heap, open file descriptors, in-flight state — and restoring a checkpoint
 taken from a subprocess that already served one principal would carry that principal's runtime state

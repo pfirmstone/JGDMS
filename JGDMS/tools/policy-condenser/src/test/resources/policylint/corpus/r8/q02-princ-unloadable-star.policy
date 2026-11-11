@@ -1,0 +1,3 @@
+grant principal com.example.NoSuchPrincipal * {
+  permission java.security.AllPermission;
+};

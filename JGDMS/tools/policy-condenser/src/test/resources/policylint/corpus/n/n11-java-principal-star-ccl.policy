@@ -1,0 +1,3 @@
+grant principal java.security.Principal * {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

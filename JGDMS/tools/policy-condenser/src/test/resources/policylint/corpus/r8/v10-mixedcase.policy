@@ -1,0 +1,3 @@
+Grant {
+  Permission java.lang.RuntimePermission "createClassLoader";
+};

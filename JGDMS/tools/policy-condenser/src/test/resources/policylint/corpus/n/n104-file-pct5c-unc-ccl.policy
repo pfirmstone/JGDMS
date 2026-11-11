@@ -1,0 +1,3 @@
+grant codeBase "file:/%5C%5Cfileserver.example/share/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

@@ -1,0 +1,3 @@
+grant codeBase "jar:jar:https://*.example.com/a.jar!/b.jar!/" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

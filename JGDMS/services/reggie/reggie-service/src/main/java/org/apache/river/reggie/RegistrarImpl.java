@@ -129,7 +129,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.JoinManager;
@@ -5219,7 +5219,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         this.activationID,
                         new BasicJeriExporter(
                             TcpServerEndpoint.getInstance(0),
-                            new AtomicILFactory(null, null, Registrar.class.getClassLoader()))),
+                            new AtomicDerILFactory(null, null, Registrar.class.getClassLoader()))),
                     this.activationID);
             } else {
                 this.activationID = null;
@@ -5229,7 +5229,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     config, COMPONENT, "serverExporter", Exporter.class,
                     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-                        new AtomicILFactory(null, null, Registrar.class.getClassLoader())));
+                        new AtomicDerILFactory(null, null, Registrar.class.getClassLoader())));
             }
 
             /* fetch "initial*" config entries, first time starting up */

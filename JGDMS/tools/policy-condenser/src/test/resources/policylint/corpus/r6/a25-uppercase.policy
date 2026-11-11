@@ -1,0 +1,3 @@
+GRANT {
+  PERMISSION java.security.AllPermission;
+};

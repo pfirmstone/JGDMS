@@ -1,0 +1,3 @@
+grant principal javax.security.auth.kerberos.KerberosPrincipal * {
+  permission java.security.AllPermission;
+};

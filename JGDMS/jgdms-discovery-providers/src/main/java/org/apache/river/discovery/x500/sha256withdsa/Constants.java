@@ -35,8 +35,19 @@ class Constants {
     /* defined in Appendix A of the Java Cryptography Architecture spec */
     static final String KEY_ALGORITHM = "DSA";
 
-    /* OID for DSA keys, as specified in RFC 5758 */
-    static final String KEY_ALGORITHM_OID = "2.16.840.1.101.3.4.3.2";
+    /*
+     * OID for DSA public keys (id-dsa), as specified in RFC 3279.
+     *
+     * This must be the SubjectPublicKeyInfo *key* OID, not a signature OID:
+     * X500Provider.getCertificate0() passes it to
+     * X509CertSelector.setSubjectPublicKeyAlgID(), which matches against the
+     * certificate's SubjectPublicKeyInfo algorithm.  This previously held
+     * 2.16.840.1.101.3.4.3.2 (id-dsa-with-sha256, a signature OID from RFC 5758),
+     * which no certificate carries in that field, so the selector never matched
+     * and the cert lookup silently returned null.  Matches sha1withdsa, which
+     * has always carried the correct value.
+     */
+    static final String KEY_ALGORITHM_OID = "1.2.840.10040.4.1";
 
     private Constants() {
     }

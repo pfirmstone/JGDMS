@@ -1,0 +1,3 @@
+grant signedBy "," {
+    permission java.security.AllPermission;
+};

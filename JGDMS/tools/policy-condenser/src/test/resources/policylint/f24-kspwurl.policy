@@ -1,0 +1,4 @@
+keystorePasswordURL "file:/x.pw";
+grant {
+    permission java.security.AllPermission;
+};

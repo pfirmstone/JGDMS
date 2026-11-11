@@ -1,0 +1,3 @@
+grant codeBase "jrt:/java.base" {
+    permission java.security.AllPermission;
+};

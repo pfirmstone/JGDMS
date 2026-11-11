@@ -1,0 +1,3 @@
+grant codeBase "file:${lint.undefined}/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

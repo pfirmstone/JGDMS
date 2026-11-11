@@ -17,6 +17,7 @@
  */
 /*  */
 
+import java.io.IOException;
 import org.apache.river.api.io.AtomicRuntimeException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -41,7 +42,7 @@ public class TestFailedException extends AtomicRuntimeException {
 	super(s, ex);
     }
     
-    public TestFailedException(GetArg arg){
+    public TestFailedException(GetArg arg) throws IOException, ClassNotFoundException {
         super(arg);
     }
 

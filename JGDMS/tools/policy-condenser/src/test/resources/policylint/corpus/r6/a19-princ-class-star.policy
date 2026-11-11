@@ -1,0 +1,3 @@
+grant principal javax.security.auth.x500.X500Principal * {
+  permission java.security.AllPermission;
+};

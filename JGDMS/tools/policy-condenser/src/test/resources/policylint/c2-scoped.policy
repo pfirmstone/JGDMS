@@ -1,0 +1,3 @@
+grant codeBase "http://good.example.com/ok.jar" {
+    permission java.security.AllPermission;
+};

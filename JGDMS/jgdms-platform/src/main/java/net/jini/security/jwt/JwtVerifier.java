@@ -24,29 +24,34 @@ package net.jini.security.jwt;
  * When a client sends user {@link javax.security.auth.Subject} data over JERI
  * protocol version {@code 0x02}, each Subject that was authenticated via JWT
  * also transmits the raw JWT compact-serialization string.  On the server
- * side, {@code BasicInvocationDispatcher} calls the configured
- * {@code JwtVerifier} (if any) to cryptographically or structurally verify
- * the token before the Subject's principals are accepted.
+ * side, {@code BasicInvocationDispatcher} calls the installed
+ * {@code JwtVerifier} to verify the token.  A successful verification returns
+ * a {@link VerifiedJwt}; the user principals of the call are the principals
+ * derived from that value, not the principals the sender wrote on the wire.
+ *
+ * <h2>Contract change</h2>
+ * Earlier versions declared {@code void verify(String)}.  A void verifier
+ * cannot say whose token it accepted, so the dispatcher could not bind the
+ * principals to it.  Implementations must now return the claims they
+ * verified.  There is deliberately no adapter for a void verifier: one would
+ * have to be treated as "accepts no identity", which is what a compile error
+ * in the deployer's own code expresses more honestly.
  *
  * <h2>Caching</h2>
- * The dispatcher maintains a bounded, expiry-aware cache keyed on the raw JWT
- * string.  A verifier implementation is therefore called <em>at most once</em>
- * per unique token per its validity window, not once per JERI call.  Expensive
- * operations such as JWKS HTTP lookups are amortised over the full lifetime of
- * the token.
+ * The dispatcher maintains a bounded, expiry-aware cache keyed on the SHA-256
+ * of the raw JWT string and valued with the {@link VerifiedJwt}.  A verifier
+ * implementation is therefore called <em>at most once</em> per unique token per
+ * its validity window.  A cache hit yields the principals the verifier
+ * derived, never wire principals.
  *
  * <h2>Opt-in</h2>
- * JWT verification is disabled by default (no verifier registered).  A
- * deployment that accepts JWT-bearing principals on trust of the SPIFFE SVID
- * alone can continue to do so without any change.  Register a verifier via
- * {@code BasicInvocationDispatcher.setJwtVerifier(JwtVerifier)} to enable
- * independent verification.
+ * With no verifier installed a call that carries a JWT is refused.  Install a
+ * verifier via {@code BasicInvocationDispatcher.setJwtVerifier(JwtVerifier)}.
  *
- * <h2>Minimum viable implementation</h2>
- * {@code DefaultJwtVerifier} (in {@code jgdms-security-jwt}) checks the
- * {@code exp}, {@code iat}, {@code iss}, and {@code aud} claims without any
- * JWKS call, adding zero network dependency.  Full OIDC JWKS signature
- * verification is opt-in via a subclass or custom implementation.
+ * <h2>Provided implementation</h2>
+ * {@link DefaultJwtVerifier} checks the JWS signature (RS256 or ES256, pinned
+ * algorithm and keys) and the {@code exp}, {@code nbf}, {@code iat},
+ * {@code iss}, {@code aud} and {@code typ} claims.
  *
  * <h2>Thread safety</h2>
  * Implementations must be safe for concurrent use by multiple threads.
@@ -60,21 +65,16 @@ public interface JwtVerifier {
     /**
      * Verifies the supplied raw JWT compact-serialization string.
      *
-     * <p>The implementation may perform any combination of:
-     * <ul>
-     *   <li>structural / claims validation ({@code exp}, {@code iat},
-     *       {@code iss}, {@code aud})</li>
-     *   <li>JWKS public-key signature verification</li>
-     *   <li>custom business rules (token revocation list, etc.)</li>
-     * </ul>
-     *
-     * <p>If verification succeeds the method returns normally.  If
+     * <p>If verification succeeds the method returns the verified claims.  If
      * verification fails the method throws {@link JwtVerificationException};
-     * the dispatcher will then abort the request with an
-     * {@link java.io.IOException} logged at {@code Level.WARNING}.
+     * the dispatcher then aborts the request with an
+     * {@link java.io.IOException}.  A result must not be built from a token
+     * whose signature was not checked, unless it is created with
+     * {@link VerifiedJwt#unauthenticated}, which carries no principals.
      *
      * @param rawJwt the JWT compact serialization ({@code header.payload.sig})
+     * @return the verified claims; never {@code null}
      * @throws JwtVerificationException if the token is invalid or rejected
      */
-    void verify(String rawJwt) throws JwtVerificationException;
+    VerifiedJwt verify(String rawJwt) throws JwtVerificationException;
 }

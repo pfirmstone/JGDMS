@@ -1,0 +1,3 @@
+grant codeBase "file:/opt/app/lib/-" {
+  permission java.util.PropertyPermission "app.name", "read";
+};

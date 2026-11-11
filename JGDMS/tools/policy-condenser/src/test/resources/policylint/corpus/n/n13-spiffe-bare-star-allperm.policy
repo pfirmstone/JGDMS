@@ -1,0 +1,3 @@
+grant principal au.zeus.jdk.authorization.spire.SpiffePrincipal * {
+  permission java.security.AllPermission;
+};

@@ -1,0 +1,3 @@
+grant codeBase "file:/opt/app/-" {
+  permission com.example.NoSuchPermission "x";
+};

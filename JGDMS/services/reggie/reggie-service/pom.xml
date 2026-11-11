@@ -73,7 +73,7 @@
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-der</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <!-- compile scope: RegistrarImpl's default AtomicDerILFactory needs DerInputLimits at compile time -->
         </dependency>
 
     </dependencies>

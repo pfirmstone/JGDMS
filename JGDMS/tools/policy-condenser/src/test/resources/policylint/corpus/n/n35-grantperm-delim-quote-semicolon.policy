@@ -1,0 +1,3 @@
+grant {
+  permission net.jini.security.GrantPermission "delim=' java.io.FilePermission '/foo/-', 'write'; java.lang.RuntimePermission 'setSecurityManager'";
+};

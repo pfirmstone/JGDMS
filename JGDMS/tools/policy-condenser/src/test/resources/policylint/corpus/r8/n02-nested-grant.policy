@@ -1,0 +1,5 @@
+grant {
+  grant {
+    permission java.lang.RuntimePermission "setSecurityManager";
+  };
+};

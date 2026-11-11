@@ -1,0 +1,3 @@
+grant principal * "CN=lint-stranger" {
+  permission java.security.AllPermission;
+};

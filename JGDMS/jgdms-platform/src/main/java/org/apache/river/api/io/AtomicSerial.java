@@ -307,6 +307,21 @@ public @interface AtomicSerial {
 	}
 
 	/**
+	 * The {@code payloadFormat} that every {@link net.jini.io.MarshalledInstance} decoded in
+	 * this stream must carry, or {@code null} if the stream requires none.
+	 * <p>
+	 * The format a {@code MarshalledInstance} names is written by the sender, so a
+	 * receiver that has fixed its own format (a DER invocation layer, for example) states
+	 * it here and {@code MarshalledInstance(GetArg)} refuses a mismatch when it is built,
+	 * before any later {@code get} can select a codec. The default is {@code null}.
+	 *
+	 * @return the required payload format, or {@code null}
+	 */
+	public String requiredPayloadFormat() {
+	    return null;
+	}
+
+	/**
 	 * StackWalker used to resolve the {@code @AtomicSerial} caller class for
 	 * field dispatch. {@code RETAIN_CLASS_REFERENCE} is required to read
 	 * declaring classes; it is the same caller-introspection API the JDK itself

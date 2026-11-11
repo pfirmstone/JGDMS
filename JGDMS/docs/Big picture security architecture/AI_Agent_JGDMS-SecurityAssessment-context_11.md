@@ -25,9 +25,9 @@
   `doAsPrivileged` call sites migrated to `Subject.callAs` via reflective probe
   (`SUBJECT_CALL_AS`; falls back to `doAsPrivileged` on Java < 18).  §4 and §5
   tables updated accordingly.
-- **v4 (2026-05-26):** §2.3 marked ✅ Resolved (`DefaultJwtVerifier`
+- **v4 (2026-05-26):** §2.3 marked ✅ Resolved (~~`DefaultJwtVerifier`
   auto-registered as fallback in `BasicInvocationDispatcher` when no explicit
-  verifier is set; `jgdms-security-jwt` promoted to compile scope in jgdms-jeri
+  verifier is set;~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** there is no default or fallback verifier; `BasicInvocationDispatcher.verifyJwtWithCache()` (jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java) throws IOException "no JwtVerifier is installed; refusing" when a JWT arrives and none is installed, and `DefaultJwtVerifier` is signature mode only (issuer, audience, algorithm RS256 or ES256 and a kid-to-PublicKey map are required; default maximum token lifetime 1 hour). `jgdms-security-jwt` promoted to compile scope in jgdms-jeri
   pom).  §2.5 updated with structural partial fix (DigestCodeSource +
   `BootstrapPermission` now enforced reflectively for non-SPIFFE boot-window
   loads when DirtyChai is present).  §2.6 updated: WI48 ✅ Completed (v2),
@@ -170,14 +170,16 @@ The server accepts these principals solely on the vouching authority of the
 peer's SPIFFE SVID.  The `JwtVerifier` SPI (Work Item 44, ✅ complete) enables
 cryptographic JWT verification.
 
-**Fix (v4):** `BasicInvocationDispatcher` now holds a `DEFAULT_JWT_VERIFIER`
+~~**Fix (v4):** `BasicInvocationDispatcher` now holds a `DEFAULT_JWT_VERIFIER`
 constant (`new DefaultJwtVerifier()`).  `verifyJwtWithCache()` falls back to
 `DEFAULT_JWT_VERIFIER` when no operator-configured verifier is set.  The
 `exp`/`iat`/`iss`/`aud` check is performed automatically on every `JwtRawToken`
 present on the wire, at zero additional operational cost.  An operator-supplied
 `JwtVerifier` (e.g. with JWKS validation) overrides the default.  The
 `jgdms-security-jwt` dependency was promoted from `test` to `compile` scope in
-the jgdms-jeri POM to make `DefaultJwtVerifier` available at runtime.
+the jgdms-jeri POM to make `DefaultJwtVerifier` available at runtime.~~
+
+**Corrected 2026-11-02 (commit 7cd3f0a24):** there is no default or fallback verifier; `BasicInvocationDispatcher.verifyJwtWithCache()` (jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java) throws IOException "no JwtVerifier is installed; refusing" when a JWT arrives and none is installed, and `DefaultJwtVerifier` is signature mode only (issuer, audience, algorithm RS256 or ES256 and a kid-to-PublicKey map are required; default maximum token lifetime 1 hour).
 
 ---
 
@@ -423,7 +425,7 @@ Listed by impact-per-effort ratio.  All items are well-specified in context_10.
 | 4 | **WI51 — `INCONCLUSIVEPermit`** | Structural fix for fresh INCONCLUSIVE loads after policy change; closes the primary residual gap from WI46 | ✅ Completed (v6) |
 | 5 | **WI50 — `SubjectAwareExecutor`** | Prevents silent identity loss in executor tasks; small, self-contained | ✅ Completed (v2); enhanced multi-Subject (v5) |
 | 6 | **WI52 — `doAsPrivileged` scan + migration** | Closes residual POLP gaps in `RegistrarImpl` / `AbstractActivationGroup` | 🟡 Partial (v5) — `AbstractActivationGroup` migrated; `RegistrarImpl` already uses `callAs` |
-| 7 | **Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost | ✅ Completed (v4) |
+| 7 | ~~**Make `DefaultJwtVerifier` the default** | Closes Weakness 2 default-path gap with zero operational cost~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** there is no default or fallback verifier; `BasicInvocationDispatcher.verifyJwtWithCache()` (jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java) throws IOException "no JwtVerifier is installed; refusing" when a JWT arrives and none is installed, and `DefaultJwtVerifier` is signature mode only (issuer, audience, algorithm RS256 or ES256 and a kid-to-PublicKey map are required; default maximum token lifetime 1 hour). | ✅ Completed (v4) |
 | 8 | **WI53 — Negative grants in `DynamicPolicyProvider`** | Enables policy deny; blocks privilege re-grant after revocation | 🚫 Won't Implement — POLP + SecurePolicyWriter address this |
 | 9 | **WI57 — Event-sourced read replicas** | Eliminates VerdictRegistry as availability bottleneck | ✅ Completed (v4) |
 

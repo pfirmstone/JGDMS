@@ -1,0 +1,4 @@
+grant {
+  permission java.io.FilePermission "C:\\data\\app\\-", "read";
+  permission java.io.FilePermission "/opt/app/conf/-", "read";
+};

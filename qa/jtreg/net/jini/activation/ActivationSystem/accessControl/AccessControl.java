@@ -37,6 +37,9 @@ import net.jini.activation.arg.ActivationDesc;
 import net.jini.activation.arg.ActivationGroupDesc.CommandEnvironment;
 import net.jini.activation.arg.ActivationGroupDesc;
 import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.ActivationDescImpl;
+import net.jini.activation.ActivationGroupDescImpl;
+import net.jini.activation.ActivationGroupDescImpl.CommandEnvironmentImpl;
 import net.jini.activation.arg.ActivationID;
 import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.UID;
@@ -155,7 +158,7 @@ public class AccessControl {
 		      testsrc + "group.security.policy");
 	    props.put("java.security.auth.login.config", testsrc + "login");
 	    // can call registerGroup
-	    gid = sys.registerGroup(new ActivationGroupDesc(props, null));
+	    gid = sys.registerGroup(new ActivationGroupDescImpl(props, null));
 	    // can call getActivationGroupDesc
 	    ActivationGroupDesc gdesc = sys.getActivationGroupDesc(gid);
 	    // cannot call setActivationGroupDesc
@@ -167,7 +170,7 @@ public class AccessControl {
 	    }
 	    // can call registerObject
 	    ActivationID aid =
-		sys.registerObject(new ActivationDesc(gid,
+		sys.registerObject(new ActivationDescImpl(gid,
 						      Impl.class.getName(),
 						      null, null));
 	    // cannot call getProxyVerifier
@@ -229,7 +232,7 @@ public class AccessControl {
 	    Security.verifyObjectTrust(sys, null, trustCtx);
 	    // cannot call registerGroup
 	    try {
-		sys.registerGroup(new ActivationGroupDesc(null, null));
+		sys.registerGroup(new ActivationGroupDescImpl(null, null));
 		throw new RuntimeException("client2 able to registerGroup");
 	    } catch (SecurityException e) {
 	    }
@@ -241,35 +244,35 @@ public class AccessControl {
 	    } catch (SecurityException e) {
 	    }
 	    CommandEnvironment env =
-		new CommandEnvironment("foobar", new String[]{"-baz"});
+		new CommandEnvironmentImpl("foobar", new String[]{"-baz"});
 	    // can set java program to "foobar" and option "-baz"
 	    sys.setActivationGroupDesc(gid,
-				       new ActivationGroupDesc(null, env));
-	    env = new CommandEnvironment("baz", null);
+				       new ActivationGroupDescImpl(null, env));
+	    env = new CommandEnvironmentImpl("baz", null);
 	    // cannot set java program to "baz"
 	    try {
 		sys.setActivationGroupDesc(gid,
-					   new ActivationGroupDesc(null,
+					   new ActivationGroupDescImpl(null,
 								   env));
 		throw new RuntimeException(
 		   "client2 able to setActivationGroupDesc with program baz");
 	    } catch (SecurityException e) {
 	    }
 	    // cannot set java program to "foobar" and option "-foobar"
-	    env = new CommandEnvironment("foobar", new String[]{"-foobar"});
+	    env = new CommandEnvironmentImpl("foobar", new String[]{"-foobar"});
 	    try {
 		sys.setActivationGroupDesc(gid,
-					   new ActivationGroupDesc(null, env));
+					   new ActivationGroupDescImpl(null, env));
 		throw new RuntimeException(
 		 "client2 able to setActivationGroupDesc with option -foobar");
 	    } catch (SecurityException e) {
 	    }
 	    // can call setActivationGroupDesc to set to default
 	    sys.setActivationGroupDesc(gid,
-				       new ActivationGroupDesc(null, null));
+				       new ActivationGroupDescImpl(null, null));
 	    // can call registerObject
 	    ActivationID aid =
-		sys.registerObject(new ActivationDesc(gid, "Foo", null, null));
+		sys.registerObject(new ActivationDescImpl(gid, "Foo", null, null));
 	    // cannot call activate
 	    try {
 		aid.activate(false);
@@ -317,7 +320,7 @@ public class AccessControl {
 	    } catch (ConnectIOException e) {
 	    }
 	    try {
-		sys.registerGroup(new ActivationGroupDesc(null, null));
+		sys.registerGroup(new ActivationGroupDescImpl(null, null));
 		throw new RuntimeException("nobody able to registerGroup");
 	    } catch (ConnectIOException e) {
 	    }
@@ -328,14 +331,14 @@ public class AccessControl {
 	    } catch (ConnectIOException e) {
 	    }
 	    try {
-		sys.setActivationGroupDesc(gid, new ActivationGroupDesc(null,
+		sys.setActivationGroupDesc(gid, new ActivationGroupDescImpl(null,
 									null));
 		throw new RuntimeException(
 				   "nobody able to setActivationGroupDesc");
 	    } catch (ConnectIOException e) {
 	    }
 	    try {
-		sys.registerObject(new ActivationDesc(gid, "Foo", null, null));
+		sys.registerObject(new ActivationDescImpl(gid, "Foo", null, null));
 		throw new RuntimeException("nobody able to registerObject");
 	    } catch (ConnectIOException e) {
 	    }
@@ -377,7 +380,7 @@ public class AccessControl {
 	public Object run() throws Exception {
 	    Security.verifyObjectTrust(sys, null, trustCtx);
 	    try {
-		sys.registerGroup(new ActivationGroupDesc(null, null));
+		sys.registerGroup(new ActivationGroupDescImpl(null, null));
 		throw new RuntimeException("server able to registerGroup");
 	    } catch (SecurityException e) {
 	    }
@@ -388,14 +391,14 @@ public class AccessControl {
 	    } catch (SecurityException e) {
 	    }
 	    try {
-		sys.setActivationGroupDesc(gid, new ActivationGroupDesc(null,
+		sys.setActivationGroupDesc(gid, new ActivationGroupDescImpl(null,
 									null));
 		throw new RuntimeException(
 				   "server able to setActivationGroupDesc");
 	    } catch (SecurityException e) {
 	    }
 	    try {
-		sys.registerObject(new ActivationDesc(gid, "Foo", null, null));
+		sys.registerObject(new ActivationDescImpl(gid, "Foo", null, null));
 		throw new RuntimeException("server able to registerObject");
 	    } catch (SecurityException e) {
 	    }

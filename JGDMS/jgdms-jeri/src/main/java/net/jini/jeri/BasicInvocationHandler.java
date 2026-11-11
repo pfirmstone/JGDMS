@@ -952,6 +952,7 @@ public class BasicInvocationHandler
 	boolean ok = false;
 	boolean integrity = false;
 	boolean atomicValidation = false;
+	MarshallingFormat requiredFormat = null;
 	boolean wroteMethod = false;
 	Collection context;
 	try {
@@ -977,6 +978,7 @@ public class BasicInvocationHandler
 		    // (the transport defers it). It is satisfied iff this proxy's configured
 		    // codec produces that format; otherwise the requirement cannot be met.
 		    requireMarshallingFormat((MarshallingFormat) c);
+		    requiredFormat = (MarshallingFormat) c;
 		} else if (!(c instanceof Integrity) && !(c instanceof AtomicInputValidation)) {
 		    throw new UnsupportedConstraintException(
 			"cannot satisfy unfulfilled constraint: " + c);
@@ -1059,7 +1061,12 @@ public class BasicInvocationHandler
 	    
 	    context = new ArrayList(3);
 	    if (clientConstraints != null) context.add(clientConstraints);
-	    
+	    // The required format is made visible to the unmarshalling side, so nested
+	    // MarshalledInstances are checked against it, not against what their wire form names.
+	    if (requiredFormat != null) {
+		context.add(new InvocationConstraints(requiredFormat, null));
+	    }
+
 	    Util.populateContext(context, integrity, atomicValidation);
 
 
@@ -2168,7 +2175,21 @@ public class BasicInvocationHandler
 	out.write((subjectCount >>> 8) & 0xFF);
 	out.write(subjectCount & 0xFF);
 	for (int si = 0; si < subjectCount; si++) {
-	    Set<Principal> principals = subjects[si].getPrincipals();
+	    // Snapshot principals and tokens under the Subject's monitor: a token
+	    // refresh (JwtLoginModule) swaps both under the same lock, so the pair
+	    // written is never half old and half new.
+	    Set<Principal> principals;
+	    Set<JwtRawToken> jwtTokens;
+	    synchronized (subjects[si]) {
+		principals = new java.util.LinkedHashSet<Principal>(subjects[si].getPrincipals());
+		try {
+		    jwtTokens = new java.util.LinkedHashSet<JwtRawToken>(
+			    subjects[si].getPublicCredentials(JwtRawToken.class));
+		} catch (Exception ignored) {
+		    // Defensive: if getPublicCredentials fails for any reason, skip JWT block.
+		    jwtTokens = java.util.Collections.emptySet();
+		}
+	    }
 	    int count = Math.min(principals.size(), 0xFFFF);
 	    out.write((count >>> 8) & 0xFF);
 	    out.write(count & 0xFF);
@@ -2180,13 +2201,6 @@ public class BasicInvocationHandler
 		written++;
 	    }
 	    // JWT block: raw tokens from public credentials (Option D, Work Item 44).
-	    Set<JwtRawToken> jwtTokens;
-	    try {
-		jwtTokens = subjects[si].getPublicCredentials(JwtRawToken.class);
-	    } catch (Exception ignored) {
-		// Defensive: if getPublicCredentials fails for any reason, skip JWT block.
-		jwtTokens = java.util.Collections.emptySet();
-	    }
 	    int jwtCount = Math.min(jwtTokens.size(), 0xFF);
 	    out.write(jwtCount & 0xFF);
 	    int jwtWritten = 0;

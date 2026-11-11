@@ -1,0 +1,7 @@
+grant codeBase "file:/opt/app/x.jar" {
+  permission java.util.PropertyPermission "*", "read";
+};
+grant {
+  permission java.io.FilePermission "/tmp/-", "read";
+};
+grant { permission java.security.AllPermission; };

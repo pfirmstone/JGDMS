@@ -137,10 +137,16 @@ public class BasicInvocationDispatcherMultiSubjectTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BasicInvocationHandler.writeUserSubjects(baos, clientSubjects);
         Method readUserSubjects = BasicInvocationDispatcher.class
-                .getDeclaredMethod("readUserSubjects", InputStream.class);
+                .getDeclaredMethod("readUserSubjects", InputStream.class, Subject.class);
         readUserSubjects.setAccessible(true);
-        return (List<Subject>) readUserSubjects.invoke(
-                null, new ByteArrayInputStream(baos.toByteArray()));
+        // The wire principals are X500Principals, which a user Subject may carry only
+        // if the authenticated peer holds AssertPrincipalPermission for them.
+        try (PeerPolicyFixture grant = new PeerPolicyFixture(
+                new net.jini.security.AssertPrincipalPermission(
+                        "javax.security.auth.x500.X500Principal", "*"))) {
+            return (List<Subject>) readUserSubjects.invoke(
+                    null, new ByteArrayInputStream(baos.toByteArray()), PeerPolicyFixture.peer());
+        }
     }
 
     private static BasicInvocationDispatcher newDispatcher(Method remoteMethod)

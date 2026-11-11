@@ -1,0 +1,3 @@
+grant {
+  permission net.jini.security.AssertPrincipalPermission "javax.security.auth.x500.X500Principal", "CN=*";
+};

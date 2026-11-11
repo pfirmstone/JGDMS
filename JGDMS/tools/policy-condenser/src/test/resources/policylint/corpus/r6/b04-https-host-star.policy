@@ -1,0 +1,3 @@
+grant codeBase "https://*.com/-" {
+  permission java.security.AllPermission;
+};

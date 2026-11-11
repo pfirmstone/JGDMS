@@ -48,6 +48,8 @@ import java.security.cert.CertStore;
 import java.security.cert.CertStoreParameters;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.LDAPCertStoreParameters;
 import java.security.cert.PKIXBuilderParameters;
 import java.security.cert.PKIXCertPathBuilderResult;
@@ -179,6 +181,36 @@ class X500Provider extends BaseProvider {
     }
 
     /**
+     * Returns the {@link Subject} whose credentials should be used to sign, or
+     * {@code null} if none is available.
+     *
+     * <p>The default resolves the caller's subject in the conventional way, which
+     * covers both a stock JDK (where the subject genuinely rides in the
+     * {@link AccessControlContext}) and a JAAS {@code LoginContext} deployment on
+     * a JDK where {@code Subject.getSubject(acc)} delegates to the thread-bound
+     * subject.
+     *
+     * <p>It deliberately does <em>not</em> fall back to a process-wide workload
+     * identity.  Doing so in this shared base would silently prefer the process
+     * identity over an authenticated user in a conventional deployment.
+     * Subclasses whose identity model <em>is</em> process-wide -- notably the
+     * SPIFFE formats, where the credentials belong to the node rather than to any
+     * caller -- override this.
+     *
+     * <p>Called from within a {@code doPrivileged} block.  The {@code acc} is
+     * captured on the real stack by the caller, before that block, so that the
+     * {@code SubjectDomainCombiner} chain installed by any enclosing
+     * {@code Subject.doAsPrivileged} is preserved; implementations must not
+     * re-capture it.
+     *
+     * @param acc the access control context captured by the caller
+     * @return the signing subject, or {@code null} if none
+     */
+    protected Subject getSubject(AccessControlContext acc) {
+	return Subject.getSubject(acc);
+    }
+
+    /**
      * Returns non-null array containing the usable X.500 private credentials
      * of the current subject (if any).  This method does not check that the
      * caller has AuthenticationPermission to use the credentials.
@@ -188,7 +220,7 @@ class X500Provider extends BaseProvider {
 	Collection[] subjInfo = (Collection[]) AccessController.doPrivileged(
 	    new PrivilegedAction() {
 		public Object run() {
-		    Subject s = Subject.getSubject(acc);
+		    Subject s = getSubject(acc);
 		    // filter principals & credentials manually, due to 4892841
 		    return (s != null) ?
 			new Collection[]{
@@ -211,6 +243,15 @@ class X500Provider extends BaseProvider {
 	    X509Certificate cert = cred.getCertificate();
 	    try {
 		checkCertificate(cert);
+	    } catch (ClockSkewCertificateException e) {
+		// Not logged at HANDLED: this is our OWN signing credential
+		// being unusable, which silences discovery entirely, and the
+		// usual cause is a wrong local clock rather than a bad
+		// certificate.  It must be visible by default.
+		logger.log(Level.WARNING,
+			   "cannot sign with local credential -- {0}",
+			   new Object[]{ e.getMessage() });
+		continue;
 	    } catch (CertificateException e) {
 		logger.log(Levels.HANDLED, "invalid certificate", e);
 		continue;
@@ -219,6 +260,70 @@ class X500Provider extends BaseProvider {
 		ppals.contains(cert.getSubjectX500Principal()))
 	    {
 		l.add(cred);
+	    }
+	}
+	if (l.isEmpty()) {
+	    // Distinguish the routine case from the faulty one.  A provider
+	    // holding no credentials of its own key algorithm is EXPECTED:
+	    // DiscoveryV2 offers every registered format in turn, so a node
+	    // with a single key legitimately has nothing to sign with in the
+	    // other five.  Logging that at WARNING buries real faults -- it
+	    // fired 114 times in one test run and masked the fault it was
+	    // added to expose.
+	    boolean algorithmMatched = false;
+	    for (Iterator i = creds.iterator(); i.hasNext(); ) {
+		X500PrivateCredential cred = (X500PrivateCredential) i.next();
+		if (keyAlgorithm.equals(cred.getPrivateKey().getAlgorithm())) {
+		    algorithmMatched = true;
+		    break;
+		}
+	    }
+	    if (algorithmMatched) {
+		// A key of the right algorithm exists but was rejected: either
+		// its certificate failed validation, or its subject DN is
+		// absent from the subject's principals.  That is a real
+		// misconfiguration of a format this node was meant to use.
+		if (logger.isLoggable(Level.WARNING)) {
+		    logger.log(Level.WARNING,
+			"no usable {0} credentials for discovery: the subject "
+			+ "supplied {1} principal(s) and {2} private "
+			+ "credential(s), at least one of which is a {0} key, "
+			+ "but none survived filtering.  This node will send no "
+			+ "{0}-signed discovery packets.  Check that the "
+			+ "certificate subject DN appears in the subject's "
+			+ "principals, that the certificate permits digital "
+			+ "signature, and that this machine's clock is "
+			+ "synchronised.",
+			new Object[]{ keyAlgorithm,
+				      Integer.valueOf(ppals.size()),
+				      Integer.valueOf(creds.size()) });
+		}
+	    } else if (creds.isEmpty()) {
+		// Nothing at all to sign with, in any format.  This is not
+		// specific to this provider, so it silences discovery
+		// completely rather than dropping one format.
+		if (logger.isLoggable(Level.WARNING)) {
+		    logger.log(Level.WARNING,
+			"no X.500 private credentials at all: the subject "
+			+ "supplied {0} principal(s) and no private "
+			+ "credentials, so nothing can be signed in any "
+			+ "discovery format and this node will appear silent.  "
+			+ "Check that discovery is running inside a live "
+			+ "Subject.callAs scope on the thread performing discovery -- "
+			+ "platform threads capture no subject at creation time, so "
+			+ "the subject must be established by an enclosing "
+			+ "Subject.callAs on the thread actually doing discovery, not "
+			+ "by the thread that created it.",
+			new Object[]{ Integer.valueOf(ppals.size()) });
+		}
+	    } else if (logger.isLoggable(Level.FINE)) {
+		// Routine.  Recorded at FINE only so that a full-format sweep
+		// can still be reconstructed from a debug log.
+		logger.log(Level.FINE,
+		    "no {0} credentials among the subject''s {1} private "
+		    + "credential(s); this format will be skipped, which is "
+		    + "expected unless {0} is the algorithm this node signs with.",
+		    new Object[]{ keyAlgorithm, Integer.valueOf(creds.size()) });
 	    }
 	}
 	if (logger.isLoggable(Level.FINEST)) {
@@ -446,12 +551,64 @@ class X500Provider extends BaseProvider {
     private static void checkCertificate(X509Certificate cert)
 	throws CertificateException
     {
-	cert.checkValidity();
+	try {
+	    cert.checkValidity();
+	} catch (CertificateExpiredException e) {
+	    throw new ClockSkewCertificateException(cert, e);
+	} catch (CertificateNotYetValidException e) {
+	    throw new ClockSkewCertificateException(cert, e);
+	}
 	boolean[] keyUsage = cert.getKeyUsage();
 	// element 0 of keyUsage array is for digital signatures
 	if (keyUsage != null && keyUsage.length > 0 && !keyUsage[0]) {
 	    throw new CertificateException(
 		"certificate not permitted for digital signatures: " + cert);
+	}
+    }
+
+    /**
+     * Signals that a certificate was rejected solely because it falls outside
+     * its validity window <em>as measured by this machine's clock</em>.
+     *
+     * <p>Distinguished from other certificate faults because the cause is very
+     * often a wrong local clock rather than a bad certificate, and the two are
+     * indistinguishable to an operator from the generic message.  Short-lived
+     * credentials such as SPIFFE SVIDs make this acute: an unsynchronised clock
+     * silently rejects every peer, presenting exactly like a node that cannot
+     * hear anyone.  Devices with no battery-backed clock at all (a bare
+     * Raspberry Pi) fail this way from the moment they boot.
+     */
+    private static class ClockSkewCertificateException
+	extends CertificateException
+    {
+	private static final long serialVersionUID = 1L;
+
+	ClockSkewCertificateException(X509Certificate cert, Throwable cause) {
+	    super(buildMessage(cert), cause);
+	}
+
+	private static String buildMessage(X509Certificate cert) {
+	    Date now = new Date();
+	    Date notBefore = cert.getNotBefore();
+	    Date notAfter = cert.getNotAfter();
+	    long offBy;
+	    String sense;
+	    if (now.before(notBefore)) {
+		offBy = notBefore.getTime() - now.getTime();
+		sense = "this clock is BEHIND the issuer's by at least";
+	    } else {
+		offBy = now.getTime() - notAfter.getTime();
+		sense = "this clock is AHEAD of the issuer's, or the " +
+			"certificate was not renewed, by at least";
+	    }
+	    return "certificate outside its validity window: subject=" +
+		cert.getSubjectX500Principal() +
+		", notBefore=" + notBefore + ", notAfter=" + notAfter +
+		", this machine's current time=" + now +
+		" -- " + sense + " " + (offBy / 1000L) + "s." +
+		"  If discovery is otherwise silent, check time synchronisation" +
+		" before anything else: an unsynchronised clock rejects every" +
+		" peer and looks identical to a network fault.";
 	}
     }
 

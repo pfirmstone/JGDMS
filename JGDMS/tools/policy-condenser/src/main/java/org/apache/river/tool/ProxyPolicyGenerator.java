@@ -18,29 +18,41 @@
 
 package org.apache.river.tool;
 
-import java.io.BufferedReader;
+import au.net.zeus.jgdms.api.policy.PermissionSets;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.Permission;
+import java.security.UnresolvedPermission;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.security.AdvisoryPermissionParser;
@@ -100,12 +112,57 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
  * target string, and the emitted grant block parses back via
  * {@code DefaultPolicyParser}.
  *
+ * <h2>PERMISSIONS.LIST safety</h2>
+ * A generated list is a <i>request</i> made by the proxy jar, so it is held to
+ * what a reviewer can promote:
+ * <ul>
+ *   <li>admission-gate permissions ({@code LoadClassPermission},
+ *       {@code URLPermission}, {@code DownloadPermission}) are never emitted:
+ *       the proxy provider grants them after verifying the codebase, and a jar
+ *       must not request its own admission.  They stay in the ceiling.</li>
+ *   <li>entries tied to the audit host or run (absolute paths, {@code file:}
+ *       URLs, {@code jdk.proxyN.$ProxyM} class names, unexpanded {@code ${...}}
+ *       placeholders) are written commented out with a reason, or fail the run
+ *       under {@code --fail-on-held}.</li>
+ *   <li>a group left with no live entry gets no list: an empty list requests
+ *       the same as none, so it is skipped and reported ({@code --fail-on-empty}
+ *       makes it a failure).</li>
+ *   <li>the header records the source policy and its SHA-256, generator version
+ *       and date, and the grant digest; a directory holding a list this run
+ *       does not replace and that came from a different source policy, or
+ *       from the same file name with different content, is refused unless
+ *       {@code --clean}, which deletes only lists carrying that header.</li>
+ *   <li>a control character in any value that reaches the header or an entry
+ *       fails the run: a newline there would start a live line.</li>
+ *   <li>every written line is parsed back with
+ *       {@link AdvisoryPermissionParser#parse}; the loader drops a jar's whole
+ *       list silently on one bad line, so a bad line fails generation here.</li>
+ *   <li>lists are staged and validated in a temporary directory beside
+ *       {@code --out} and moved into place only when all of them validated.</li>
+ * </ul>
+ *
+ * <h2>Promotion</h2>
+ * {@code --promote-plan} and {@code --promote-apply} (see {@link ListPromotion})
+ * move reviewed generated lists into the {@code -dl} modules' source trees in
+ * two steps, the first of which changes nothing.  Apply re-derives the plan
+ * from the same roots and the generated lists and trusts nothing in the plan
+ * file; {@code --promote-plan-check} is the CI gate and writes nothing.  The gate fails on a
+ * live entry of the HOLD set; {@code --allow-held <artefact>[,...]} is the reviewed
+ * allow-list that excuses those entries (only) of the named artefacts.
+ *
  * <h2>Usage</h2>
  * <pre>
  *   java -cp policy-condenser.jar:jgdms-platform.jar \
  *        org.apache.river.tool.ProxyPolicyGenerator \
- *        [--out &lt;dir&gt;] [--proxy-regex &lt;regex&gt;] [--strict] \
+ *        [--out &lt;dir&gt;] [--proxy-regex &lt;regex&gt;] [--strict] [--clean] \
+ *        [--fail-on-held] [--fail-on-empty] [--diff-against &lt;dir&gt;] \
  *        [--properties &lt;file&gt;] &lt;policy-file&gt; [&lt;policy-file&gt; ...]
+ *
+ *   ProxyPolicyGenerator --out &lt;dir&gt; [--plan-file &lt;file&gt;] [--artefact-map &lt;file&gt;] --promote-plan &lt;module-root&gt;...
+ *   ProxyPolicyGenerator --out &lt;dir&gt; [--artefact-map &lt;file&gt;] [--allow-held &lt;artefact&gt;[,...]] --promote-plan-check &lt;module-root&gt;...
+ *   ProxyPolicyGenerator --promote-apply &lt;plan-file&gt; --approve-plan-sha &lt;sha&gt; --out &lt;dir&gt; \
+ *        [--artefact-map &lt;file&gt;] --module-roots &lt;module-root&gt;... \
+ *        --approve &lt;artefact&gt;[,...] [--allow-removals] [--allow-held]
  * </pre>
  * For each {@code &lt;policy-file&gt;} it writes:
  * <ul>
@@ -136,16 +193,41 @@ public class ProxyPolicyGenerator {
     public static final String DEFAULT_PROXY_REGEX =
             "(?i)^httpmd:.*|.*/[^/]*-dl(?:-[^/]*)?\\.jar(?:[;?#].*)?$";
 
-    /** Permission classes that are policy-grant meta-capabilities, never a
-     *  proxy's declared needs, so excluded from {@code PERMISSIONS.LIST}. */
-    private static final java.util.Set<String> META_PERMISSION_CLASSES;
-    static {
-        java.util.Set<String> s = new java.util.HashSet<String>();
-        s.add("net.jini.security.GrantPermission");
-        s.add("net.jini.security.policy.UmbrellaGrantPermission");
-        s.add("java.security.AllPermission");
-        META_PERMISSION_CLASSES = Collections.unmodifiableSet(s);
-    }
+    private static final String FILE_PERMISSION = "java.io.FilePermission";
+
+    /** Absolute Windows drive or UNC path, optionally as a {@code file:} URL. */
+    private static final Pattern WINDOWS_ABSOLUTE = Pattern.compile(
+            "(?i)(?:file:/{0,3})?(?:[a-z]:[/\\\\]|\\\\\\\\)");
+
+    private static final Pattern FILE_URL = Pattern.compile("(?i)file:");
+
+    /** {@code ${name.jar}}: a property named after the jar it holds. */
+    private static final Pattern JAR_PROPERTY = Pattern.compile("\\$\\{([^${}/]+)\\.jar\\}");
+
+    /** A JDK-generated proxy class name; the number depends on load order. */
+    private static final Pattern GENERATED_PROXY_CLASS =
+            Pattern.compile("jdk\\.proxy\\d+\\.\\$Proxy\\d+");
+
+    /** First words of the comment that marks a ceiling fragment as this tool's. */
+    private static final String CEILING_MARKER =
+            "// GrantPermission ceilings synthesised by ProxyPolicyGenerator";
+
+    /** Header line recording the policy a list was generated from. */
+    private static final String SOURCE_POLICY_PREFIX = "# Source policy: ";
+
+    /**
+     * First words of the header line that lists carry from before provenance
+     * existed: such a list was written by this tool, from an unrecorded policy.
+     */
+    private static final String OLD_HEADER_PREFIX = "# Generated by ProxyPolicyGenerator";
+
+    /** Header line recording the SHA-256 of that policy file's bytes. */
+    private static final String SOURCE_SHA_PREFIX = "# Source policy SHA-256: ";
+
+    /** Version of the header/entry layout; lists without a provenance line are 1. */
+    static final String LIST_FORMAT = "3";
+
+    private static final Charset UTF8 = Charset.forName("UTF-8");
 
     /** Permission classes whose presence corroborates a proxy classification. */
     private static final String[] PROXY_SHAPE_HINTS = {
@@ -160,6 +242,11 @@ public class ProxyPolicyGenerator {
     private final boolean strict;
     /** Ordered value -> ${property} replacements (longest value first). */
     private final Map<String, String> pathReplacements;
+    private boolean clean;
+    private boolean failOnHeld;
+    private boolean failOnEmpty;
+    private File diffAgainst;
+    private Clock clock = Clock.systemDefaultZone();
 
     /**
      * Creates a generator with the default proxy pattern, no extra property
@@ -186,6 +273,52 @@ public class ProxyPolicyGenerator {
         this.pathReplacements = orderByValueLengthDescending(pathReplacements);
     }
 
+    /**
+     * Whether to delete every list already under the output directory before
+     * writing, instead of refusing a directory that holds a list from a
+     * different (or unrecorded) source policy.  Applied only when something is
+     * to be written.
+     */
+    public ProxyPolicyGenerator clean(boolean clean) {
+        this.clean = clean;
+        return this;
+    }
+
+    /**
+     * Whether a host- or run-specific entry (one that would be written as
+     * {@code # HELD}) fails the run.  Independent of {@code strict}, which only
+     * decides what counts as a proxy.
+     */
+    public ProxyPolicyGenerator failOnHeld(boolean failOnHeld) {
+        this.failOnHeld = failOnHeld;
+        return this;
+    }
+
+    /**
+     * Whether a proxy group left with no live entry fails the run.  Off, such a
+     * group gets no list and a {@code NO LIST WRITTEN} note.
+     */
+    public ProxyPolicyGenerator failOnEmpty(boolean failOnEmpty) {
+        this.failOnEmpty = failOnEmpty;
+        return this;
+    }
+
+    /**
+     * Compares each generated list with the checked-in list of the same
+     * artefact under {@code checkedInDir} and reports the added and removed
+     * entries in {@link Result#diff()}.  The directory is only read.
+     */
+    public ProxyPolicyGenerator diffAgainst(File checkedInDir) {
+        this.diffAgainst = checkedInDir;
+        return this;
+    }
+
+    /** Test seam: the date written into the list header. */
+    ProxyPolicyGenerator clock(Clock clock) {
+        this.clock = clock;
+        return this;
+    }
+
     private static Pattern defaultProxyPattern() {
         String re = System.getProperty(PROXY_REGEX_PROPERTY, DEFAULT_PROXY_REGEX);
         return Pattern.compile(re);
@@ -194,8 +327,52 @@ public class ProxyPolicyGenerator {
     // ----------------------------------------------------------------- CLI
 
     public static void main(String[] args) throws Exception {
+        int rc = run(args, System.out, System.err);
+        if (rc != 0) System.exit(rc);
+    }
+
+    /**
+     * Runs the command line.
+     *
+     * @return 0 on success, 1 if generation, planning or promotion was refused
+     *         or failed, 2 on a usage error
+     */
+    static int run(String[] args, PrintStream out, PrintStream err) throws IOException {
+        try {
+            return runChecked(args, out, err);
+        } catch (java.nio.file.InvalidPathException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: a path argument is malformed: "
+                    + escaped(e.getMessage()));
+            return 1;
+        } catch (java.nio.file.NoSuchFileException | java.io.FileNotFoundException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: a file does not exist or cannot be opened: "
+                    + escaped(e.getMessage()));
+            return 1;
+        } catch (java.nio.charset.CharacterCodingException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: a file is not valid UTF-8: " + escaped(e.toString()));
+            return 1;
+        }
+    }
+
+    private static int runChecked(String[] args, PrintStream out, PrintStream err)
+            throws IOException {
         File outDir = null;
+        File diffDir = null;
+        File planFile = null;
+        File applyPlan = null;
+        File artefactMap = null;
+        String approvePlanSha = null;
         boolean strict = false;
+        boolean clean = false;
+        boolean failOnHeld = false;
+        boolean failOnEmpty = false;
+        boolean allowRemovals = false;
+        boolean allowHeld = false;
+        Set<String> allowHeldNames = new TreeSet<String>();
+        boolean promotePlan = false;
+        boolean promoteCheck = false;
+        List<String> approve = new ArrayList<String>();
+        List<File> moduleRoots = new ArrayList<File>();
         Pattern proxyPattern = defaultProxyPattern();
         Map<String, String> replacements = Collections.emptyMap();
         List<String> policyFiles = new ArrayList<String>();
@@ -208,43 +385,202 @@ public class ProxyPolicyGenerator {
                 proxyPattern = Pattern.compile(args[++i]);
             } else if ("--strict".equals(a)) {
                 strict = true;
+            } else if ("--clean".equals(a)) {
+                clean = true;
+            } else if ("--fail-on-held".equals(a)) {
+                failOnHeld = true;
+            } else if ("--fail-on-empty".equals(a)) {
+                failOnEmpty = true;
+            } else if ("--diff-against".equals(a) && i + 1 < args.length) {
+                diffDir = new File(args[++i]);
             } else if ("--properties".equals(a) && i + 1 < args.length) {
                 replacements = loadReplacements(new File(args[++i]));
+            } else if ("--plan-file".equals(a) && i + 1 < args.length) {
+                planFile = new File(args[++i]);
+            } else if ("--promote-plan".equals(a) || "--promote-plan-check".equals(a)
+                    || "--module-roots".equals(a)) {
+                if ("--promote-plan".equals(a)) promotePlan = true;
+                if ("--promote-plan-check".equals(a)) promoteCheck = true;
+                while (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+                    for (String root : args[++i].split(Pattern.quote(File.pathSeparator))) {
+                        if (!root.isEmpty()) moduleRoots.add(new File(root));
+                    }
+                }
+            } else if ("--promote-apply".equals(a) && i + 1 < args.length) {
+                applyPlan = new File(args[++i]);
+            } else if ("--approve-plan-sha".equals(a) && i + 1 < args.length) {
+                approvePlanSha = args[++i];
+            } else if ("--artefact-map".equals(a) && i + 1 < args.length) {
+                artefactMap = new File(args[++i]);
+            } else if ("--allow-held".equals(a)) {
+                allowHeld = true;
+                if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+                    for (String name : args[++i].split(",")) {
+                        if (!name.trim().isEmpty()) allowHeldNames.add(name.trim());
+                    }
+                }
+            } else if ("--approve".equals(a) && i + 1 < args.length) {
+                for (String name : args[++i].split(",")) {
+                    if (!name.trim().isEmpty()) approve.add(name.trim());
+                }
+            } else if ("--allow-removals".equals(a)) {
+                allowRemovals = true;
             } else if (a.startsWith("--")) {
-                System.err.println("Unknown option: " + a);
-                printUsage();
-                System.exit(2);
+                err.println("Unknown option: " + a);
+                printUsage(err);
+                return 2;
             } else {
                 policyFiles.add(a);
             }
         }
 
+        if (promotePlan || promoteCheck || applyPlan != null) {
+            Promotion p = new Promotion();
+            p.plan = promotePlan;
+            p.check = promoteCheck;
+            p.roots = moduleRoots;
+            p.outDir = outDir;
+            p.planFile = planFile;
+            p.applyPlan = applyPlan;
+            p.approvePlanSha = approvePlanSha;
+            p.artefactMap = artefactMap;
+            p.approve = approve;
+            p.allowRemovals = allowRemovals;
+            p.allowHeld = allowHeld;
+            p.allowHeldNames = allowHeldNames;
+            p.policyFiles = policyFiles;
+            return runPromotion(p, out, err);
+        }
         if (policyFiles.isEmpty()) {
-            printUsage();
-            System.exit(2);
+            printUsage(err);
+            return 2;
         }
 
         ProxyPolicyGenerator gen =
-                new ProxyPolicyGenerator(proxyPattern, strict, replacements);
+                new ProxyPolicyGenerator(proxyPattern, strict, replacements)
+                        .clean(clean).diffAgainst(diffDir)
+                        .failOnHeld(failOnHeld).failOnEmpty(failOnEmpty);
+        int rc = 0;
         int totalProxies = 0;
+        // Read every policy before the first run: a run on a policy with no proxy grant deletes
+        // its own .grantperm, and that file may be one of the later inputs.  An input that cannot
+        // be read refuses the whole invocation before anything is written.
+        List<byte[]> contents = new ArrayList<byte[]>();
         for (String pf : policyFiles) {
-            File policy = new File(pf);
-            File out = (outDir != null) ? outDir
-                    : new File(policy.getAbsolutePath() + ".proxy-permissions");
-            Result r = gen.generate(policy, out);
-            totalProxies += r.proxyCount();
-            System.out.println(r.describe());
+            try {
+                contents.add(Files.readAllBytes(new File(pf).toPath()));
+            } catch (IOException e) {
+                err.println("ProxyPolicyGenerator: REFUSED: cannot read the policy file "
+                        + escaped(pf) + " (" + (e instanceof java.nio.file.NoSuchFileException
+                            ? "it does not exist" : escaped(e.toString())) + "); nothing was written");
+                return 1;
+            }
         }
-        if (totalProxies == 0) {
-            System.out.println(
+        for (int k = 0; k < policyFiles.size(); k++) {
+            File policy = new File(policyFiles.get(k));
+            File dir = (outDir != null) ? outDir
+                    : new File(policy.getAbsolutePath() + ".proxy-permissions");
+            try {
+                Result r = gen.generate(policy, dir, contents.get(k));
+                totalProxies += r.proxyCount();
+                out.println(r.describe());
+                for (String note : r.notes()) err.println(note);
+                out.print(r.diff());
+            } catch (GenerationException e) {
+                err.println("ProxyPolicyGenerator: " + policy.getName()
+                        + ": REFUSED: " + e.getMessage());
+                rc = 1;
+            }
+        }
+        if (totalProxies == 0 && rc == 0) {
+            out.println(
                 "ProxyPolicyGenerator: no proxy-targeted grants found (nothing written).");
+        }
+        return rc;
+    }
+
+    /** The arguments of the promotion modes. */
+    private static final class Promotion {
+        boolean plan;
+        boolean check;
+        List<File> roots;
+        File outDir;
+        File planFile;
+        File applyPlan;
+        String approvePlanSha;
+        File artefactMap;
+        List<String> approve;
+        boolean allowRemovals;
+        boolean allowHeld;
+        Set<String> allowHeldNames;
+        List<String> policyFiles;
+    }
+
+    private static int runPromotion(Promotion p, PrintStream out, PrintStream err)
+            throws IOException {
+        boolean apply = p.applyPlan != null;
+        int modes = (p.plan ? 1 : 0) + (p.check ? 1 : 0) + (apply ? 1 : 0);
+        boolean usage = modes != 1 || !p.policyFiles.isEmpty() || p.outDir == null
+                || p.roots.isEmpty()
+                || (apply && (p.approve.isEmpty() || p.planFile != null
+                    || !p.allowHeldNames.isEmpty()))
+                || (p.check && p.allowHeld && p.allowHeldNames.isEmpty())
+                || (!apply && (!p.approve.isEmpty() || p.approvePlanSha != null
+                    || p.allowRemovals || (p.allowHeld && !p.check)))
+                || (p.check && p.planFile != null);
+        if (usage) {
+            printUsage(err);
+            return 2;
+        }
+        if (apply && p.approvePlanSha == null) {
+            err.println("ProxyPolicyGenerator: --approve-plan-sha is required: the SHA-256 that"
+                    + " --promote-plan printed for the plan you read.");
+            printUsage(err);
+            return 2;
+        }
+        try {
+            Map<String, String> map = p.artefactMap == null
+                    ? Collections.<String, String>emptyMap()
+                    : ListPromotion.loadArtefactMap(p.artefactMap);
+            if (p.plan) {
+                File target = p.planFile != null ? p.planFile : new File(p.outDir, "promote.plan");
+                ListPromotion.Plan plan = ListPromotion.plan(p.outDir, p.roots, map, target);
+                out.print(escaped(plan.summary()));
+                out.println("ProxyPolicyGenerator: plan written to " + target
+                        + "; nothing under the module roots was changed.");
+                out.println("plan sha256: " + sha256Hex(target)
+                        + "  (pass as --approve-plan-sha to --promote-apply)");
+            } else if (p.check) {
+                ListPromotion.CheckResult r = ListPromotion.check(p.outDir, p.roots, map, p.allowHeldNames);
+                out.print(escaped(r.report));
+                return r.failed ? 1 : 0;
+            } else {
+                out.print(escaped(ListPromotion.apply(p.applyPlan, p.approvePlanSha, p.outDir,
+                        p.roots, map, p.approve, p.allowRemovals, p.allowHeld)));
+            }
+            return 0;
+        } catch (GenerationException e) {
+            err.println("ProxyPolicyGenerator: REFUSED: " + escaped(e.getMessage()));
+            return 1;
         }
     }
 
-    private static void printUsage() {
-        System.err.println(
+    private static void printUsage(PrintStream err) {
+        err.println(
             "Usage: ProxyPolicyGenerator [--out <dir>] [--proxy-regex <regex>] "
-            + "[--strict] [--properties <file>] <policy-file> [<policy-file> ...]");
+            + "[--strict] [--clean] [--fail-on-held] [--fail-on-empty] "
+            + "[--diff-against <dir>] [--properties <file>] "
+            + "<policy-file> [<policy-file> ...]");
+        err.println(
+            "       ProxyPolicyGenerator --out <dir> [--plan-file <file>] "
+            + "[--artefact-map <file>] --promote-plan <module-root>...");
+        err.println(
+            "       ProxyPolicyGenerator --out <dir> [--artefact-map <file>] "
+            + "[--allow-held <artefact>[,<artefact>...]] --promote-plan-check <module-root>...");
+        err.println(
+            "       ProxyPolicyGenerator --promote-apply <plan-file> --approve-plan-sha <sha> "
+            + "--out <dir> [--artefact-map <file>] --module-roots <module-root>... "
+            + "--approve <artefact>[,<artefact>...] [--allow-removals] [--allow-held]");
     }
 
     // ------------------------------------------------------------- core API
@@ -253,15 +589,33 @@ public class ProxyPolicyGenerator {
      * Generates the proxy ceiling fragment and per-codebase
      * {@code PERMISSIONS.LIST} manifests for one policy file.
      *
+     * <p>Everything is decided and validated before {@code outDir} or the
+     * ceiling file is touched: the lists are staged in a temporary directory
+     * beside {@code outDir} and moved in only once all of them validated.  A
+     * refusal therefore leaves {@code outDir} and the ceiling exactly as they
+     * were.  The final moves are not atomic as a group: an {@link IOException}
+     * from one of them can leave some lists moved.
+     *
      * @param policyFile the least-privilege (audited / condensed) policy file
      * @param outDir     root directory under which
      *                   {@code <artefact>/META-INF/PERMISSIONS.LIST} trees are
      *                   written; created if absent
      * @return a {@link Result} describing what was written
+     * @throws GenerationException if nothing was written because the run was
+     *         refused: {@code --fail-on-held} and a host- or run-specific
+     *         entry, {@code --fail-on-empty} and a group with no live entry,
+     *         a control character in a value, a directory holding lists from
+     *         another source policy, an output that would overwrite a
+     *         checked-in list, or a written line that does not parse
      * @throws IOException if reading the policy or writing output fails
      */
     public Result generate(File policyFile, File outDir) throws IOException {
-        String text = readText(policyFile);
+        return generate(policyFile, outDir, Files.readAllBytes(policyFile.toPath()));
+    }
+
+    /** As {@link #generate(File, File)}, for a policy whose bytes the caller has already read. */
+    Result generate(File policyFile, File outDir, byte[] policyBytes) throws IOException {
+        String text = decode(policyBytes);
         List<GrantBlock> grants = parseGrants(text);
 
         // Group proxy grants by codebase identity, merging permission sets so a
@@ -287,19 +641,252 @@ public class ProxyPolicyGenerator {
 
         File ceilingFile = new File(policyFile.getAbsolutePath() + ".grantperm");
         List<String> manifests = new ArrayList<String>();
+        ListSource source = new ListSource(policyFile.getName(), sha256Hex(policyBytes));
+        requireNoControl("policy file name", source.policy);
 
         if (proxies.isEmpty()) {
-            // Fail-closed: produce nothing (and clean any stale fragment).
-            if (ceilingFile.exists()) ceilingFile.delete();
-            return new Result(policyFile, 0, ceilingFile, manifests);
+            // Fail-closed: produce nothing (and clean any stale fragment).  Lists
+            // already under outDir are reported, not refused: nothing is written.
+            List<String> notes = new ArrayList<String>();
+            if (ceilingFile.exists()) {
+                if (isOurCeiling(ceilingFile)) {
+                    ceilingFile.delete();
+                } else {
+                    notes.add("KEPT " + ceilingFile.getName() + ": it was not written by"
+                            + " ProxyPolicyGenerator, so it is not deleted");
+                }
+            }
+            if (clean) {
+                removeLists(outDir, notes, null);
+            }
+            for (Map.Entry<String, ListSource> e : existingLists(outDir).entrySet()) {
+                notes.add(staleNote(e.getKey(), e.getValue(), source));
+            }
+            return new Result(policyFile, 0, ceilingFile, manifests, notes, "", 0, 0, 0);
         }
 
-        writeCeilingFragment(ceilingFile, policyFile, proxies);
-        for (ProxyGroup grp : proxies) {
-            File listFile = writePermissionsList(outDir, grp);
-            manifests.add(listFile.getAbsolutePath());
+        // Decide every list before writing anything, so a refusal leaves the
+        // output directory as it was.
+        List<ListPlan> plans = new ArrayList<ListPlan>();
+        for (ProxyGroup grp : proxies) plans.add(plan(grp, outDir));
+        // One artefact name is one list: two codebases that sanitise to the same name would be
+        // staged to one path (the second move fails part-way), and merging them would widen a list.
+        // The key ignores case, as a Windows or macOS file system does.
+        Map<String, ListPlan> byName = new LinkedHashMap<String, ListPlan>();
+        for (ListPlan plan : plans) {
+            ListPlan first = byName.put(plan.artefact.toLowerCase(java.util.Locale.ROOT), plan);
+            if (first != null) {
+                throw new GenerationException("two codebases map to the one artefact name '"
+                        + first.artefact + "'"
+                        + (first.artefact.equals(plan.artefact) ? "" : " / '" + plan.artefact + "'")
+                        + ": " + nullToAny(first.group.template.codebase) + " and "
+                        + nullToAny(plan.group.template.codebase)
+                        + "; they are never merged (a union would widen a list). Nothing was written;"
+                        + " give the policy distinct jar names, or generate them from separate policies");
+            }
         }
-        return new Result(policyFile, proxies.size(), ceilingFile, manifests);
+        List<String> notes = new ArrayList<String>();
+        for (ListPlan plan : plans) plan.addNotes(notes);
+
+        // An empty list requests the same as no list (AdvisoryDynamicPermissions
+        // .DEFAULT_PERMISSIONS is empty), so promoting one would silently remove
+        // the reviewed entries of the list it replaces.  Write none.
+        List<ListPlan> writable = new ArrayList<ListPlan>();
+        List<ListPlan> empty = new ArrayList<ListPlan>();
+        for (ListPlan plan : plans) {
+            if (plan.emit.isEmpty()) {
+                empty.add(plan);
+                notes.add("NO LIST WRITTEN: all " + (plan.dropped.size() + plan.held.size())
+                        + " entries dropped or held for " + plan.artefact);
+            } else {
+                writable.add(plan);
+            }
+        }
+
+        if (failOnHeld) {
+            for (ListPlan plan : plans) {
+                if (!plan.held.isEmpty()) {
+                    throw new GenerationException("--fail-on-held: " + plan.artefact + " has "
+                            + plan.held.size() + " host- or run-specific entr"
+                            + (plan.held.size() == 1 ? "y" : "ies") + ": "
+                            + plan.held.keySet());
+                }
+            }
+        }
+        if (failOnEmpty && !empty.isEmpty()) {
+            List<String> names = new ArrayList<String>();
+            for (ListPlan plan : empty) names.add(plan.artefact);
+            throw new GenerationException("--fail-on-empty: no live entry left for " + names);
+        }
+
+        if (ceilingFile.exists() && !isOurCeiling(ceilingFile)) {
+            throw new GenerationException(ceilingFile + " exists and was not written by"
+                    + " ProxyPolicyGenerator; it is never overwritten, move it away first");
+        }
+
+        Map<String, ListSource> existing = existingLists(outDir);
+        // A list with neither marker is somebody's hand-written file: this tool never replaces or
+        // deletes one.  Without --clean the foreign-list check below already refuses it.
+        List<String> handWritten = new ArrayList<String>();
+        for (Map.Entry<String, ListSource> e : existing.entrySet()) {
+            if (e.getValue().handWritten() && planned(writable, e.getKey())) {
+                handWritten.add(e.getKey());
+            }
+        }
+        if (clean && !handWritten.isEmpty()) {
+            throw new GenerationException(outDir + " holds " + handWritten + ", which this run"
+                    + " would replace but which carries neither a '" + SOURCE_POLICY_PREFIX.trim()
+                    + "' line nor a '" + OLD_HEADER_PREFIX + "' line, so this tool did not write"
+                    + " it; it never replaces or deletes such a file, with or without --clean."
+                    + " Move it away first");
+        }
+        if (!clean) {
+            List<String> foreign = new ArrayList<String>();
+            for (Map.Entry<String, ListSource> e : existing.entrySet()) {
+                ListSource found = e.getValue();
+                if (found.policy == null && found.oldHeader && planned(writable, e.getKey())) {
+                    notes.add("REPLACED pre-provenance list " + e.getKey() + ": it carries the old '"
+                            + OLD_HEADER_PREFIX + "' line, so this tool wrote it");
+                } else if (found.policy == null) {
+                    foreign.add(e.getKey() + (found.oldHeader
+                            ? " (pre-provenance list written by this tool)" : " (no provenance line)"));
+                } else if (planned(writable, e.getKey())) {
+                    // This run replaces it, whatever it was made from: only a list
+                    // that survives the run unreplaced can be mixed with the new ones.
+                    continue;
+                } else if (!found.policy.equals(source.policy)) {
+                    foreign.add(e.getKey() + " (from " + found.policy + ")");
+                } else if (!source.sha256.equals(found.sha256)) {
+                    foreign.add(e.getKey() + " (from " + found.policy + " with different content: "
+                            + shortSha(found.sha256) + " there, " + shortSha(source.sha256) + " here)");
+                } else {
+                    notes.add(staleNote(e.getKey(), found, source));
+                }
+            }
+            if (!foreign.isEmpty()) {
+                throw new GenerationException(outDir + " already holds lists not generated"
+                        + " from " + source.policy + " as it is now and not replaced by this run: "
+                        + foreign + "; remove them by hand or pass --clean (which removes only"
+                        + " lists this tool wrote)");
+            }
+        }
+
+        String diff = "";
+        if (diffAgainst != null) diff = diff(plans, diffAgainst);
+
+        // Stage beside outDir (same file system, so the moves are renames),
+        // validate, and only then touch outDir or the ceiling.
+        File parent = outDir.getAbsoluteFile().getParentFile();
+        long stamp = System.nanoTime();
+        File staging = new File(parent, "." + outDir.getName() + ".staging-" + stamp);
+        File stagedCeiling = new File(ceilingFile.getAbsolutePath() + ".staging-" + stamp);
+        try {
+            if (!staging.mkdirs()) throw new IOException("Unable to create directory: " + staging);
+            writeCeilingFragment(stagedCeiling, policyFile, proxies);
+            Map<ListPlan, File> staged = new LinkedHashMap<ListPlan, File>();
+            for (ListPlan plan : writable) {
+                File stagedList = new File(new File(new File(staging, plan.artefact),
+                        "META-INF"), "PERMISSIONS.LIST");
+                writePermissionsList(plan, stagedList, source);
+                validateList(stagedList);
+                staged.put(plan, stagedList);
+            }
+            if (clean) removeLists(outDir, notes, writable);
+            for (Map.Entry<ListPlan, File> e : staged.entrySet()) {
+                moveInto(e.getValue(), e.getKey().file);
+                manifests.add(e.getKey().file.getAbsolutePath());
+            }
+            moveInto(stagedCeiling, ceilingFile);
+        } finally {
+            deleteTree(staging);
+            stagedCeiling.delete();
+        }
+        return new Result(policyFile, proxies.size(), ceilingFile, manifests, notes, diff,
+                countEntries(plans, false), countEntries(plans, true), empty.size());
+    }
+
+    private static void moveInto(File from, File to) throws IOException {
+        File dir = to.getAbsoluteFile().getParentFile();
+        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
+            throw new IOException("Unable to create directory: " + dir);
+        }
+        Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    static void deleteTree(File f) {
+        File[] kids = f.listFiles();
+        if (kids != null) {
+            for (File k : kids) deleteTree(k);
+        }
+        f.delete();
+    }
+
+    private static String staleNote(String artefact, ListSource found, ListSource current) {
+        if (found.policy != null && found.policy.equals(current.policy)
+                && current.sha256.equals(found.sha256)) {
+            return "STALE " + artefact + ": a list from " + current.policy
+                    + " that this run did not regenerate";
+        }
+        return "STALE " + artefact + ": a list "
+                + (found.policy == null ? "with no provenance line" : "from " + found.policy
+                    + " (" + shortSha(found.sha256) + ")")
+                + ", not from " + current.policy + " (" + shortSha(current.sha256)
+                + "); this run did not regenerate it";
+    }
+
+    private static String shortSha(String sha) {
+        return sha == null ? "no SHA-256" : "sha256 " + sha.substring(0, Math.min(12, sha.length()));
+    }
+
+    private static boolean planned(List<ListPlan> plans, String artefact) {
+        // As the collision check does, ignore case: on a case-insensitive file system a
+        // directory that differs from the artefact only in case is the artefact's directory.
+        for (ListPlan plan : plans) {
+            if (plan.artefact.toLowerCase(java.util.Locale.ROOT)
+                    .equals(artefact.toLowerCase(java.util.Locale.ROOT))) return true;
+        }
+        return false;
+    }
+
+    private static int countEntries(List<ListPlan> plans, boolean held) {
+        int n = 0;
+        for (ListPlan plan : plans) n += held ? plan.held.size() : plan.dropped.size();
+        return n;
+    }
+
+    /** Lower-case hex SHA-256 of a file's bytes. */
+    static String sha256Hex(File f) throws IOException {
+        return sha256Hex(Files.readAllBytes(f.toPath()));
+    }
+
+    static String sha256Hex(byte[] bytes) {
+        try {
+            byte[] d = MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder sb = new StringBuilder(d.length * 2);
+            for (byte b : d) sb.append(String.format("%02x", b & 0xff));
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is required of every Java platform", e);
+        }
+    }
+
+    /**
+     * Rejects a control character in a value that reaches a list header or an
+     * entry: a newline there would end the comment line and start a live one.
+     */
+    static void requireNoControl(String what, String value) throws GenerationException {
+        if (value == null) return;
+        for (int i = 0; i < value.length(); ) {
+            int c = value.codePointAt(i);
+            if (Character.isISOControl(c) || c == 0x2028 || c == 0x2029
+                    || Character.getType(c) == Character.FORMAT) {
+                throw new GenerationException("control or format character U+"
+                        + String.format("%04X", c) + " at index " + i + " of the " + what
+                        + "; it could start a live line in PERMISSIONS.LIST or reorder what a"
+                        + " reviewer reads");
+            }
+            i += Character.charCount(c);
+        }
     }
 
     // ------------------------------------------------------ classification
@@ -328,14 +915,13 @@ public class ProxyPolicyGenerator {
 
     private void writeCeilingFragment(File ceilingFile, File policyFile,
             List<ProxyGroup> proxies) throws IOException {
-        PrintWriter pw = new PrintWriter(new BufferedWriter(
-                Files.newBufferedWriter(ceilingFile.toPath(), Charset.forName("UTF-8"))));
+        PrintWriter pw = lfWriter(ceilingFile);
         try {
             // Policy-file comments are '//' / '/* */' (NOT '#'), so the
             // fragment round-trips through DefaultPolicyParser.
             writeApacheHeader(pw, "// ");
             pw.println("//");
-            pw.println("// GrantPermission ceilings synthesised by ProxyPolicyGenerator from");
+            pw.println(CEILING_MARKER + " from");
             pw.println("//   " + policyFile.getName());
             pw.println("//");
             pw.println("// Each block below is the MINIMAL GrantPermission that admits exactly the");
@@ -420,30 +1006,110 @@ public class ProxyPolicyGenerator {
 
     // -------------------------------------------------- PERMISSIONS.LIST out
 
-    private File writePermissionsList(File outDir, ProxyGroup grp) throws IOException {
-        String artefact = artefactName(grp);
-        File dir = new File(new File(outDir, artefact), "META-INF");
-        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
-            throw new IOException("Unable to create directory: " + dir);
+    /**
+     * Sorts a proxy group's declared needs into the entries to emit, the gate
+     * permissions to drop and the host- or run-specific entries to hold back.
+     * The name goes through {@link #applyReplacements} first, as it always did,
+     * so a host value the operator mapped with {@code --properties} is judged
+     * as the placeholder it becomes.
+     */
+    ListPlan plan(ProxyGroup grp, File outDir) throws GenerationException {
+        requireNoControl("codebase", grp.template.codebase);
+        requireNoControl("digest", grp.template.digest);
+        for (GrantBlock g : grp.members) {
+            requireNoControl("signedBy of the grant for " + grp.template.codebase, g.signedBy);
+            for (String[] pal : g.principals) {
+                requireNoControl("principal class of the grant for " + grp.template.codebase, pal[0]);
+                requireNoControl("principal name of the grant for " + grp.template.codebase, pal[1]);
+            }
         }
-        File listFile = new File(dir, "PERMISSIONS.LIST");
-
-        // Encode + de-duplicate + sort for deterministic, round-trippable output.
-        TreeSet<String> encoded = new TreeSet<String>();
+        for (Perm p : grp.declaredNeeds()) {
+            requireNoControl("signedBy of permission " + p.type, p.signedBy);
+            requireNoControl("permission type " + p.type, p.type);
+            requireNoControl("name of permission " + p.type, p.name);
+            requireNoControl("actions of permission " + p.type, p.actions);
+        }
+        String artefact = artefactName(grp);
+        ListPlan plan = new ListPlan(grp, artefact, new File(
+                new File(new File(outDir, artefact), "META-INF"), "PERMISSIONS.LIST"));
         for (Perm p : grp.declaredNeeds()) {
             String name = p.name == null ? null : applyReplacements(p.name);
             String actions = (p.actions == null || p.actions.length() == 0) ? null : p.actions;
-            encoded.add(AdvisoryPermissionParser.getEncoded(p.type, name, actions));
+            String entry = encodeEntry(p.type, name, actions);
+            String hostSpecific = hostSpecificReason(p.type, name);
+            String hold = PermissionSets.holdReason(p.type, name, actions);
+            if (PermissionSets.GATE.contains(p.type)) {
+                plan.dropped.put(entry, PermissionSets.GATE_REASON);
+            } else if (hold != null) {
+                plan.held.put(entry, hold);
+            } else if (hostSpecific != null) {
+                plan.held.put(entry, hostSpecific);
+            } else {
+                plan.emit.add(entry);
+            }
         }
+        return plan;
+    }
 
-        PrintWriter pw = new PrintWriter(new BufferedWriter(
-                Files.newBufferedWriter(listFile.toPath(), Charset.forName("UTF-8"))));
+    /** Encodes one entry; the single place a line of the list is formed. */
+    String encodeEntry(String type, String name, String actions) {
+        return AdvisoryPermissionParser.getEncoded(type, name, actions);
+    }
+
+    /**
+     * @return why an entry with this name belongs to the audit host or run
+     *         rather than to the proxy, or {@code null} if it does not
+     */
+    static String hostSpecificReason(String type, String name) {
+        if (name == null) return null;
+        if (name.contains("${")) {
+            return "unexpanded ${...} placeholder; the loader does not expand placeholders"
+                    + " in PERMISSIONS.LIST";
+        }
+        if (FILE_URL.matcher(name).lookingAt()) {
+            return "file: URL naming a location on the audit host";
+        }
+        if (WINDOWS_ABSOLUTE.matcher(name).lookingAt()
+                || (FILE_PERMISSION.equals(type) && name.startsWith("/"))) {
+            return "absolute path on the audit host";
+        }
+        if (GENERATED_PROXY_CLASS.matcher(name).find()) {
+            return "generated proxy class name; the number depends on class-load order";
+        }
+        return null;
+    }
+
+    private File writePermissionsList(ListPlan plan, File listFile, ListSource source)
+            throws IOException {
+        File dir = listFile.getParentFile();
+        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
+            throw new IOException("Unable to create directory: " + dir);
+        }
+        ProxyGroup grp = plan.group;
+
+        PrintWriter pw = lfWriter(listFile);
         try {
             writeApacheHeader(pw, "# ");
             pw.println("# Declared-needs manifest for proxy codebase:");
             pw.println("#   " + nullToAny(grp.template.codebase));
+            if (grp.template.digest != null) {
+                pw.println("# Proxy codebase digest: " + grp.template.digest);
+            }
             pw.println("# Generated by ProxyPolicyGenerator (do not edit by hand).");
-            for (Iterator<String> it = encoded.iterator(); it.hasNext();) {
+            pw.println(SOURCE_POLICY_PREFIX + source.policy);
+            pw.println(SOURCE_SHA_PREFIX + source.sha256);
+            pw.println("# Generator: ProxyPolicyGenerator " + version()
+                    + ", list format " + LIST_FORMAT);
+            pw.println("# Generated: " + LocalDate.now(clock));
+            pw.println("# Entries: " + plan.emit.size() + " live, " + plan.dropped.size()
+                    + " dropped, " + plan.held.size() + " held back");
+            for (Map.Entry<String, String> e : plan.dropped.entrySet()) {
+                pw.println("# DROPPED (" + e.getValue() + "): " + e.getKey());
+            }
+            for (Map.Entry<String, String> e : plan.held.entrySet()) {
+                pw.println("# HELD (" + e.getValue() + "): " + e.getKey());
+            }
+            for (Iterator<String> it = plan.emit.iterator(); it.hasNext();) {
                 pw.println(it.next());
             }
         } finally {
@@ -451,6 +1117,386 @@ public class ProxyPolicyGenerator {
             pw.close();
         }
         return listFile;
+    }
+
+    /** A UTF-8 writer whose lines end in LF on every platform, as the licence header's do. */
+    private static PrintWriter lfWriter(File f) throws IOException {
+        return new PrintWriter(new BufferedWriter(Files.newBufferedWriter(f.toPath(), UTF8))) {
+            @Override
+            public void println() {
+                write('\n');
+            }
+        };
+    }
+
+    private static String version() {
+        Package p = ProxyPolicyGenerator.class.getPackage();
+        String v = p == null ? null : p.getImplementationVersion();
+        return v == null ? "(unpackaged build)" : v;
+    }
+
+    /**
+     * Parses each entry line of a written list as the loader does
+     * ({@code PreferredClassLoader}: blank, {@code #} and {@code //} lines are
+     * skipped).  The loader catches one bad line, logs it at CONFIG and drops
+     * the jar's whole list, so a bad line must stop generation here.  A class
+     * the generator's JVM cannot load parses to an {@code UnresolvedPermission}
+     * and is accepted, as it is by the loader.
+     */
+    static void validateList(File listFile) throws IOException {
+        ClassLoader loader = ProxyPolicyGenerator.class.getClassLoader();
+        int n = 0;
+        for (String line : readLines(listFile)) {
+            n++;
+            String t = line.trim();
+            if (t.isEmpty() || t.startsWith("#") || t.startsWith("//")) continue;
+            try {
+                AdvisoryPermissionParser.parse(line, loader);
+            } catch (RuntimeException | LinkageError e) {
+                throw new GenerationException(listFile + ":" + n + ": the loader would drop"
+                        + " the whole list, entry does not parse (" + e.getMessage() + "): " + line);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ provenance
+
+    /** Where a list came from: the policy file name and the SHA-256 of its bytes. */
+    static final class ListSource {
+        /** {@code null} for a list with no provenance line. */
+        final String policy;
+        /** {@code null} for a list with no SHA-256 line. */
+        final String sha256;
+
+        /** The list carries the header line of lists written before provenance existed. */
+        final boolean oldHeader;
+
+        ListSource(String policy, String sha256) {
+            this(policy, sha256, false);
+        }
+
+        ListSource(String policy, String sha256, boolean oldHeader) {
+            this.policy = policy;
+            this.sha256 = sha256;
+            this.oldHeader = oldHeader;
+        }
+
+        /** Neither marker of this tool's own lists: somebody's file. */
+        boolean handWritten() {
+            return policy == null && !oldHeader;
+        }
+    }
+
+    /**
+     * The generated list file of each artefact directory directly under
+     * {@code dir}, by directory name.
+     */
+    static Map<String, File> generatedLists(File dir) {
+        Map<String, File> found = new TreeMap<String, File>();
+        File[] children = dir.listFiles();
+        if (children == null) return found;
+        for (File child : children) {
+            File list = new File(new File(child, "META-INF"), "PERMISSIONS.LIST");
+            if (list.isFile()) found.put(child.getName(), list);
+        }
+        return found;
+    }
+
+    /**
+     * The generated lists already under {@code outDir}, by artefact directory
+     * name, each with the source its header records; a list that records none
+     * (from before provenance) has a {@link ListSource} with {@code null} fields.
+     */
+    static Map<String, ListSource> existingLists(File outDir) throws IOException {
+        Map<String, ListSource> found = new TreeMap<String, ListSource>();
+        for (Map.Entry<String, File> e : generatedLists(outDir).entrySet()) {
+            found.put(e.getKey(), listSource(e.getValue()));
+        }
+        return found;
+    }
+
+    /**
+     * Deletes the lists {@link #existingLists} finds that this tool wrote (they
+     * carry the provenance header), and the directories that empties.  A list
+     * without it is somebody's hand-written file: it is kept and noted.
+     */
+    private static void removeLists(File outDir, List<String> notes, List<ListPlan> replaced)
+            throws IOException {
+        for (Map.Entry<String, File> e : generatedLists(outDir).entrySet()) {
+            File list = e.getValue();
+            ListSource src = listSource(list);
+            if (src.handWritten()) {
+                // generate() has already refused a run that replaces such a list, so this is true
+                notes.add("KEPT " + e.getKey() + ": a list with neither a '"
+                        + SOURCE_POLICY_PREFIX.trim() + "' line nor a '" + OLD_HEADER_PREFIX
+                        + "' line was not written by this tool, so --clean does not delete it");
+                continue;
+            }
+            File meta = list.getParentFile();
+            if (list.delete()) {
+                meta.delete();
+                meta.getParentFile().delete();
+                if (src.policy == null) {
+                    notes.add((replaced != null && planned(replaced, e.getKey())
+                            ? "REPLACED" : "REMOVED") + " pre-provenance list " + e.getKey()
+                            + ": it carries the old '" + OLD_HEADER_PREFIX
+                            + "' line, so this tool wrote it");
+                } else if (replaced == null || !planned(replaced, e.getKey())) {
+                    notes.add("REMOVED " + e.getKey() + ": a list from " + src.policy + " (--clean)");
+                }
+            }
+        }
+    }
+
+    /** The source a single list records; {@code null} fields where it records none. */
+    static ListSource listSource(File list) throws IOException {
+        String policy = null;
+        String sha = null;
+        boolean oldHeader = false;
+        for (String line : readLines(list)) {
+            if (line.startsWith(OLD_HEADER_PREFIX)) oldHeader = true;
+            if (policy == null && line.startsWith(SOURCE_POLICY_PREFIX)) {
+                policy = line.substring(SOURCE_POLICY_PREFIX.length()).trim();
+            } else if (sha == null && line.startsWith(SOURCE_SHA_PREFIX)) {
+                sha = line.substring(SOURCE_SHA_PREFIX.length()).trim();
+            }
+        }
+        return new ListSource(policy, sha, oldHeader);
+    }
+
+    /**
+     * @return why the generator never emits a permission of this class, so a list
+     *         that holds one has been edited; {@code null} if it may appear
+     */
+    static String excludedReason(String type) {
+        return PermissionSets.excludedReason(type);
+    }
+
+    /**
+     * The type of an entry line, read as the loader reads it; {@code null} if
+     * the line has none.
+     */
+    static String entryType(String entry) {
+        int n = entry.length();
+        int pos = 0;
+        while (pos < n && Character.isWhitespace(entry.charAt(pos))) pos++;
+        if (pos >= n || entry.charAt(pos) != '(') return null;
+        pos++;
+        while (pos < n && Character.isWhitespace(entry.charAt(pos))) pos++;
+        int begin = pos;
+        while (pos < n && !Character.isWhitespace(entry.charAt(pos)) && entry.charAt(pos) != ')') pos++;
+        return pos == begin ? null : entry.substring(begin, pos);
+    }
+
+    /**
+     * {@code s} with every control and format character, other than a newline,
+     * shown as a backslash-u escape: output that can carry a name read from a
+     * file must not carry the terminal controls or bidirectional marks in it.
+     */
+    static String escaped(String s) {
+        if (s == null) return null;
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); ) {
+            int c = s.codePointAt(i);
+            i += Character.charCount(c);
+            if (c != '\n' && (Character.isISOControl(c) || c == 0x2028 || c == 0x2029
+                    || Character.getType(c) == Character.FORMAT)) {
+                sb.append(String.format("\\u%04X", c));
+            } else {
+                sb.appendCodePoint(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Whether {@code f} is a ceiling fragment this tool wrote. */
+    private static boolean isOurCeiling(File f) throws IOException {
+        for (String line : readLines(f)) {
+            if (line.startsWith(CEILING_MARKER)) return true;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------------ diff
+
+    /** Strips a trailing {@code -<version>} such as {@code -4.0.0-SNAPSHOT}. */
+    private static final Pattern VERSION_SUFFIX =
+            Pattern.compile("-\\d+(?:\\.\\d+)*(?:-[A-Za-z0-9]+)*$");
+
+    /**
+     * Prints, per planned artefact, the live entries added to and removed from
+     * the checked-in list of the same name.  Entries are compared as parsed
+     * (type, name, actions), so {@code (X "n")} equals {@code (X "n" "")}.
+     * Reads {@code checkedInDir} only, and refuses a plan whose output file is
+     * one of the checked-in lists.
+     */
+    String diff(List<ListPlan> plans, File checkedInDir) throws IOException {
+        Map<String, List<File>> checkedIn = new TreeMap<String, List<File>>();
+        collectLists(checkedInDir, checkedIn);
+        Set<String> targets = new HashSet<String>();
+        for (List<File> files : checkedIn.values()) {
+            for (File f : files) targets.add(f.getCanonicalPath());
+        }
+        for (ListPlan plan : plans) {
+            if (targets.contains(plan.file.getCanonicalPath())) {
+                throw new GenerationException(plan.file + " is a checked-in list under "
+                        + checkedInDir + "; --out must not point into the lists being compared");
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        Set<String> matched = new HashSet<String>();
+        for (ListPlan plan : plans) {
+            String key = moduleKey(checkedIn.keySet(), plan.artefact);
+            List<File> files = checkedIn.get(key);
+            if (files == null) {
+                sb.append("diff ").append(plan.artefact).append(": no checked-in list under ")
+                  .append(checkedInDir).append("; all ").append(plan.emit.size())
+                  .append(" live entries are additions\n");
+                for (String e : plan.emit) sb.append("  + ").append(e).append('\n');
+                continue;
+            }
+            if (files.size() > 1) {
+                sb.append("diff ").append(plan.artefact).append(": ambiguous, ")
+                  .append(files.size()).append(" checked-in lists named ").append(key)
+                  .append(": ").append(files).append('\n');
+                continue;
+            }
+            matched.add(key);
+            EntryDiff d = compare(plan.emit, files.get(0));
+            sb.append("diff ").append(plan.artefact).append(" vs ")
+              .append(relative(checkedInDir, files.get(0))).append(": +").append(d.added.size())
+              .append(" -").append(d.removed.size()).append(" =").append(d.common).append('\n');
+            for (String e : d.added.values()) sb.append("  + ").append(e).append('\n');
+            for (String e : d.removed.values()) sb.append("  - ").append(e).append('\n');
+        }
+        List<String> unmatched = new ArrayList<String>();
+        for (String key : checkedIn.keySet()) {
+            if (!matched.contains(key)) unmatched.add(key);
+        }
+        if (!unmatched.isEmpty()) {
+            sb.append("diff: checked-in lists with no generated counterpart: ")
+              .append(unmatched).append('\n');
+        }
+        return sb.toString();
+    }
+
+    /** The entries a list gains and loses against a checked-in list. */
+    static final class EntryDiff {
+        /** Canonical key to entry text. */
+        final Map<String, String> added = new TreeMap<String, String>();
+        /** Canonical key to the checked-in line, marked where it does not parse. */
+        final Map<String, String> removed = new TreeMap<String, String>();
+        int common;
+    }
+
+    /**
+     * Compares live entries with those of a checked-in list, as parsed: an
+     * entry with an empty actions string equals one with none.
+     */
+    static EntryDiff compare(Collection<String> liveEntries, File checkedInList)
+            throws IOException {
+        EntryDiff d = new EntryDiff();
+        for (String e : liveEntries) d.added.put(canonicalKey(e), e);
+        for (String t : liveEntries(checkedInList)) {
+            String k = canonicalKey(t);
+            if (d.added.remove(k) != null) {
+                d.common++;
+            } else {
+                d.removed.put(k, k.startsWith("!") ? t + "   [does not parse]" : t);
+            }
+        }
+        return d;
+    }
+
+    /** The entry lines of a list as the loader sees them: trimmed, not blank, not a comment. */
+    static List<String> liveEntries(File list) throws IOException {
+        List<String> live = new ArrayList<String>();
+        for (String line : readLines(list)) {
+            String t = line.trim();
+            if (t.isEmpty() || t.startsWith("#") || t.startsWith("//")) continue;
+            live.add(t);
+        }
+        return live;
+    }
+
+    /**
+     * The key under which a generated artefact is looked up among module
+     * names: its own name, else the name without a trailing {@code -<version>}.
+     */
+    static String moduleKey(Collection<String> moduleNames, String artefact) {
+        return moduleNames.contains(artefact) ? artefact
+                : VERSION_SUFFIX.matcher(artefact).replaceFirst("");
+    }
+
+    /**
+     * A key equal for entries that parse to the same type, name and actions;
+     * {@code "!"}-prefixed raw text where the entry does not parse.
+     */
+    static String canonicalKey(String entry) {
+        try {
+            Permission p = AdvisoryPermissionParser.parse(entry,
+                    ProxyPolicyGenerator.class.getClassLoader());
+            if (p instanceof UnresolvedPermission) {
+                UnresolvedPermission u = (UnresolvedPermission) p;
+                return u.getUnresolvedType() + "|" + nz(u.getUnresolvedName())
+                        + "|" + nz(u.getUnresolvedActions());
+            }
+            return p.getClass().getName() + "|" + nz(p.getName()) + "|" + nz(p.getActions());
+        } catch (RuntimeException e) {
+            return "!" + entry;
+        }
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+
+    /**
+     * Finds every {@code META-INF/PERMISSIONS.LIST} under {@code dir}, keyed by
+     * artefact: the module directory of {@code <module>/src/main/resources},
+     * else the directory holding {@code META-INF}.  Build output ({@code target},
+     * {@code build}), {@code .git} and generated {@code *.proxy-permissions}
+     * trees are not checked-in lists and are skipped.
+     */
+    private static void collectLists(File dir, Map<String, List<File>> found) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        Arrays.sort(children);
+        for (File c : children) {
+            String n = c.getName();
+            if (c.isDirectory()) {
+                if (n.equals("target") || n.equals("build") || n.equals(".git")
+                        || n.endsWith(".proxy-permissions")) continue;
+                collectLists(c, found);
+            } else if (n.equals("PERMISSIONS.LIST")
+                    && "META-INF".equals(c.getParentFile().getName())) {
+                String artefact = artefactDirName(c.getParentFile().getParentFile());
+                List<File> files = found.get(artefact);
+                if (files == null) {
+                    files = new ArrayList<File>();
+                    found.put(artefact, files);
+                }
+                files.add(c);
+            }
+        }
+    }
+
+    private static String artefactDirName(File holder) {
+        if (holder != null && "resources".equals(holder.getName())) {
+            File main = holder.getParentFile();
+            File src = main == null ? null : main.getParentFile();
+            File module = src == null ? null : src.getParentFile();
+            if (main != null && "main".equals(main.getName()) && src != null
+                    && "src".equals(src.getName()) && module != null) {
+                return module.getName();
+            }
+        }
+        return holder == null ? "" : holder.getName();
+    }
+
+    private static String relative(File root, File f) {
+        return root.toPath().relativize(f.toPath()).toString().replace('\\', '/');
     }
 
     /** Derives a filesystem-safe artefact directory name from the codebase. */
@@ -469,9 +1515,17 @@ public class ProxyPolicyGenerator {
         if (q >= 0) s = s.substring(0, q);
         int hash = s.indexOf('#');
         if (hash >= 0) s = s.substring(0, hash);
+        // ${/} is the file separator property: it hides the last path segment
+        s = s.replace("${/}", "/");
         // last path segment
         int slash = s.lastIndexOf('/');
         if (slash >= 0 && slash < s.length() - 1) s = s.substring(slash + 1);
+        // a segment such as ${reggie-dl.jar} or ${HOST}:${jsk-dl.jar} names the jar by the
+        // property that holds it: the last ${name.jar} group is the jar
+        Matcher jar = JAR_PROPERTY.matcher(s);
+        String unwrapped = null;
+        while (jar.find()) unwrapped = jar.group(1);
+        if (unwrapped != null) s = unwrapped;
         if (s.toLowerCase().endsWith(".jar")) s = s.substring(0, s.length() - 4);
         s = sanitize(s);
         return s.isEmpty() ? "proxy" : s;
@@ -649,16 +1703,40 @@ public class ProxyPolicyGenerator {
      * {@code /* *}{@code /} comments are honoured, values are double-quoted).
      */
     static List<GrantBlock> parseGrants(String text) throws IOException {
+        return parseGrants(text, null);
+    }
+
+    /**
+     * As {@link #parseGrants(String)}, and when {@code problems} is not null
+     * also records each place the grammar was not met (an unterminated grant,
+     * a {@code permission} with no class, a stray top-level word) instead of
+     * skipping it silently.  The grants returned are the same either way.
+     * Each {@link GrantBlock} and {@link Perm} carries its 1-based line.
+     */
+    static List<GrantBlock> parseGrants(String text, List<Problem> problems) throws IOException {
         StreamTokenizer st = policyTokenizer(text);
         List<GrantBlock> grants = new ArrayList<GrantBlock>();
         int tok;
+        boolean stray = false;
         while ((tok = st.nextToken()) != StreamTokenizer.TT_EOF) {
             if (tok == StreamTokenizer.TT_WORD) {
                 if ("grant".equalsIgnoreCase(st.sval)) {
-                    GrantBlock g = parseGrantBody(st);
-                    if (g != null) grants.add(g);
+                    stray = false;
+                    int line = st.lineno();
+                    GrantBlock g = parseGrantBody(st, problems, line);
+                    if (g != null) {
+                        grants.add(g);
+                    } else if (problems != null) {
+                        problems.add(new Problem(line, "grant header is not closed by '{'"));
+                    }
                 } else if ("keystore".equalsIgnoreCase(st.sval)) {
+                    skipKeystore(st, problems);
+                } else if ("keystorePasswordURL".equalsIgnoreCase(st.sval)) {
                     skipToSemicolon(st);
+                } else if (problems != null && !stray) {
+                    stray = true; // one report per run of stray words, not one per word
+                    problems.add(new Problem(st.lineno(),
+                            "unexpected top-level word outside a grant block"));
                 }
             }
         }
@@ -677,10 +1755,29 @@ public class ProxyPolicyGenerator {
         st.wordChars(160, 255);
         st.whitespaceChars(0, ' ');
         st.quoteChar('"');
-        st.ordinaryChar('/');
+        // As the production scanner (a default StreamTokenizer): a '/' that opens neither "//" nor
+        // "/*" still comments out the rest of the line.
+        st.commentChar('/');
         st.slashSlashComments(true);
         st.slashStarComments(true);
         return st;
+    }
+
+    /**
+     * Reads a {@code keystore} clause the way the production scanner does: one quoted URL, then at
+     * most one quoted type with an optional comma; a ';' is not required, so the next token may
+     * already start the following clause and is left for the caller.
+     */
+    private static void skipKeystore(StreamTokenizer st, List<Problem> problems) throws IOException {
+        int line = st.lineno();
+        if (st.nextToken() == '"') {
+            int t = st.nextToken();
+            if (t == ',') t = st.nextToken();
+            if (t != '"') st.pushBack();
+        } else {
+            st.pushBack();
+            if (problems != null) problems.add(new Problem(line, "keystore has no quoted URL"));
+        }
     }
 
     private static void skipToSemicolon(StreamTokenizer st) throws IOException {
@@ -690,8 +1787,10 @@ public class ProxyPolicyGenerator {
         }
     }
 
-    private static GrantBlock parseGrantBody(StreamTokenizer st) throws IOException {
+    private static GrantBlock parseGrantBody(StreamTokenizer st, List<Problem> problems, int line)
+            throws IOException {
         GrantBlock g = new GrantBlock();
+        g.line = line;
         int tok;
         // header: clauses up to '{'
         header:
@@ -718,6 +1817,9 @@ public class ProxyPolicyGenerator {
                         if (tok == StreamTokenizer.TT_WORD) {
                             className = st.sval;
                             tok = st.nextToken();
+                        } else if (tok == '*') {
+                            className = "*";
+                            tok = st.nextToken();
                         }
                         if (tok == '"') {
                             name = st.sval;
@@ -734,17 +1836,27 @@ public class ProxyPolicyGenerator {
             }
         }
         // body: permission entries up to '}'
+        boolean strayInBody = false;
         body:
         while (true) {
             tok = st.nextToken();
             switch (tok) {
                 case StreamTokenizer.TT_EOF:
+                    if (problems != null) {
+                        problems.add(new Problem(g.line, "grant block is not closed by '}'"));
+                    }
+                    break body;
                 case '}':
                     break body;
                 case StreamTokenizer.TT_WORD:
                     if ("permission".equalsIgnoreCase(st.sval)) {
-                        Perm p = readPermission(st);
+                        Perm p = readPermission(st, problems);
                         if (p != null) g.permissions.add(p);
+                        strayInBody = false;
+                    } else if (problems != null && !strayInBody) {
+                        strayInBody = true; // one report per run of stray words
+                        problems.add(new Problem(st.lineno(),
+                                "unexpected word in a grant body (expected 'permission')"));
                     }
                     break;
                 default:
@@ -757,8 +1869,10 @@ public class ProxyPolicyGenerator {
         return g;
     }
 
-    private static Perm readPermission(StreamTokenizer st) throws IOException {
+    private static Perm readPermission(StreamTokenizer st, List<Problem> problems) throws IOException {
+        int permLine = st.lineno();
         if (st.nextToken() != StreamTokenizer.TT_WORD) {
+            if (problems != null) problems.add(new Problem(permLine, "permission has no class name"));
             st.pushBack();
             return null;
         }
@@ -780,22 +1894,35 @@ public class ProxyPolicyGenerator {
         } else {
             st.pushBack();
         }
-        return new Perm(type, name, actions, signedBy);
+        Perm p = new Perm(type, name, actions, signedBy);
+        p.line = permLine;
+        return p;
     }
 
     // -------------------------------------------------------------- I/O
 
-    private static String readText(File f) throws IOException {
-        StringBuilder sb = new StringBuilder((int) Math.min(Math.max(f.length(), 64), Integer.MAX_VALUE));
-        BufferedReader br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(f), Charset.forName("UTF-8")));
+    static String readText(File f) throws IOException {
+        return decode(Files.readAllBytes(f.toPath()));
+    }
+
+    /**
+     * The lines of a UTF-8 list; a byte that is not UTF-8 refuses instead of throwing.  The loader
+     * decodes with replacement characters, so such a list loads, but no gate here reads it as the
+     * loader does.
+     */
+    static List<String> readLines(File f) throws IOException {
         try {
-            char[] buf = new char[4096];
-            int n;
-            while ((n = br.read(buf)) != -1) sb.append(buf, 0, n);
-        } finally {
-            br.close();
+            return Files.readAllLines(f.toPath(), UTF8);
+        } catch (java.nio.charset.CharacterCodingException e) {
+            throw new GenerationException(escaped(f.toString()) + " is not valid UTF-8 ("
+                    + e.getClass().getSimpleName() + "): it holds a byte that is not UTF-8, so no"
+                    + " reader here can judge it; rewrite it as UTF-8");
         }
+    }
+
+    /** Policy text from its bytes: UTF-8 with replacement characters, without a leading BOM. */
+    static String decode(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(new String(bytes, UTF8));
         // Strip a leading UTF-8 BOM: StreamTokenizer treats every char >= 256
         // (including U+FEFF) as a word char, which would otherwise fuse the BOM
         // onto the first 'grant'/'keystore' keyword and defeat parsing.
@@ -836,6 +1963,8 @@ public class ProxyPolicyGenerator {
 
     /** Parsed scope + permissions of one {@code grant} block. */
     static final class GrantBlock {
+        /** 1-based line of the {@code grant} keyword. */
+        int line;
         String signedBy;
         String codebase;
         String digest;
@@ -849,6 +1978,8 @@ public class ProxyPolicyGenerator {
         final String name;
         final String actions;
         final String signedBy;
+        /** 1-based line of the {@code permission} keyword. */
+        int line;
 
         Perm(String type, String name, String actions, String signedBy) {
             this.type = type;
@@ -861,6 +1992,17 @@ public class ProxyPolicyGenerator {
         String key() {
             return type + " " + (name == null ? "" : name)
                     + " " + (actions == null ? "" : actions);
+        }
+    }
+
+    /** A place where a policy file did not meet the grammar, with its 1-based line. */
+    static final class Problem {
+        final int line;
+        final String reason;
+
+        Problem(int line, String reason) {
+            this.line = line;
+            this.reason = reason;
         }
     }
 
@@ -878,7 +2020,7 @@ public class ProxyPolicyGenerator {
         void add(GrantBlock g) {
             members.add(g);
             for (Perm p : g.permissions) {
-                if (META_PERMISSION_CLASSES.contains(p.type)) continue;
+                if (PermissionSets.META.contains(p.type)) continue;
                 merged.put(p.key(), p);
             }
             declaredNeeds = null;
@@ -899,19 +2041,71 @@ public class ProxyPolicyGenerator {
         }
     }
 
+    /** What one proxy's {@code PERMISSIONS.LIST} will hold, decided before it is written. */
+    static final class ListPlan {
+        final ProxyGroup group;
+        final String artefact;
+        final File file;
+        /** Live entries, sorted. */
+        final TreeSet<String> emit = new TreeSet<String>();
+        /** Gate permissions left out: entry to reason. */
+        final TreeMap<String, String> dropped = new TreeMap<String, String>();
+        /** Host- or run-specific entries written commented out: entry to reason. */
+        final TreeMap<String, String> held = new TreeMap<String, String>();
+
+        ListPlan(ProxyGroup group, String artefact, File file) {
+            this.group = group;
+            this.artefact = artefact;
+            this.file = file;
+        }
+
+        void addNotes(List<String> notes) {
+            for (Map.Entry<String, String> e : dropped.entrySet()) {
+                notes.add("DROPPED " + artefact + ": " + e.getKey() + " -- " + e.getValue());
+            }
+            for (Map.Entry<String, String> e : held.entrySet()) {
+                notes.add("HELD " + artefact + ": " + e.getKey() + " -- " + e.getValue());
+            }
+        }
+    }
+
+    /**
+     * Generation, planning or promotion was refused: see the message.  For
+     * {@link #generate} the output directory and the ceiling are as they were.
+     * Distinct from an {@link IOException} on reading or writing a file.
+     */
+    public static final class GenerationException extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        GenerationException(String message) {
+            super(message);
+        }
+    }
+
     /** Summary of one {@link #generate} invocation. */
     public static final class Result {
         private final File policyFile;
         private final int proxyCount;
         private final File ceilingFile;
         private final List<String> permissionListFiles;
+        private final List<String> notes;
+        private final String diff;
+        private final int droppedCount;
+        private final int heldCount;
+        private final int noListCount;
 
         Result(File policyFile, int proxyCount, File ceilingFile,
-                List<String> permissionListFiles) {
+                List<String> permissionListFiles, List<String> notes, String diff,
+                int droppedCount, int heldCount, int noListCount) {
             this.policyFile = policyFile;
             this.proxyCount = proxyCount;
             this.ceilingFile = ceilingFile;
             this.permissionListFiles = permissionListFiles;
+            this.notes = notes;
+            this.diff = diff;
+            this.droppedCount = droppedCount;
+            this.heldCount = heldCount;
+            this.noListCount = noListCount;
         }
 
         public int proxyCount() {
@@ -926,6 +2120,29 @@ public class ProxyPolicyGenerator {
             return permissionListFiles;
         }
 
+        /** One line per gate permission dropped, entry held back, group left without a list, or stale list. */
+        public List<String> notes() {
+            return notes;
+        }
+
+        /** The {@code --diff-against} report; empty when not requested. */
+        public String diff() {
+            return diff;
+        }
+
+        public int droppedCount() {
+            return droppedCount;
+        }
+
+        public int heldCount() {
+            return heldCount;
+        }
+
+        /** Proxy groups left with no live entry, for which no list was written. */
+        public int noListCount() {
+            return noListCount;
+        }
+
         String describe() {
             if (proxyCount == 0) {
                 return "ProxyPolicyGenerator: " + policyFile.getName()
@@ -933,7 +2150,9 @@ public class ProxyPolicyGenerator {
             }
             return "ProxyPolicyGenerator: " + policyFile.getName() + " -> "
                     + proxyCount + " proxy codebase(s); ceiling="
-                    + ceilingFile.getName() + ", manifests=" + permissionListFiles.size();
+                    + ceilingFile.getName() + ", manifests=" + permissionListFiles.size()
+                    + ", dropped=" + droppedCount + ", held=" + heldCount
+                    + ", no-list=" + noListCount;
         }
     }
 }

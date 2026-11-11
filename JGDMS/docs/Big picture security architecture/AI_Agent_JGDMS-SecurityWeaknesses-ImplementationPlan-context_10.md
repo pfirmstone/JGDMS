@@ -239,10 +239,10 @@ Implemented in this version:
    list; `getVerdictByHashWithRetry()` iterates all configured registries before
    falling back to TTL cache.
 
-2. **§2.3 DefaultJwtVerifier default** — `BasicInvocationDispatcher` now holds a
+2. ~~**§2.3 DefaultJwtVerifier default** — `BasicInvocationDispatcher` now holds a
    `DEFAULT_JWT_VERIFIER` constant; `verifyJwtWithCache()` uses it as fallback when
    no operator verifier is configured.  `jgdms-security-jwt` promoted to compile
-   scope in jgdms-jeri POM.
+   scope in jgdms-jeri POM.~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** there is no default or fallback verifier; `BasicInvocationDispatcher.verifyJwtWithCache()` (jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java) throws IOException "no JwtVerifier is installed; refusing" when a JWT arrives and none is installed, and `DefaultJwtVerifier` is signature mode only (issuer, audience, algorithm RS256 or ES256 and a kid-to-PublicKey map are required; default maximum token lifetime 1 hour).
 
 3. **§2.5 DigestCodeSource boot guard** — `PreferredProxyCodebaseProvider` probes for
    `java.security.DigestCodeSource` (DirtyChai) at class-load time; on DirtyChai
@@ -260,7 +260,7 @@ Implemented in this version:
 - `docs/.../AI_Agent_JGDMS-SecurityAssessment-context_11.md` — §2.3, §2.5, §2.6,
   §2.7, §2.8, §2.10, §2.11, §4 priority table, §5 status table updated; v3 → v4
 - `jgdms-jeri/pom.xml` — `jgdms-security-jwt` test → compile scope
-- `jgdms-jeri/.../BasicInvocationDispatcher.java` — `DEFAULT_JWT_VERIFIER` constant + fallback
+- `jgdms-jeri/.../BasicInvocationDispatcher.java` — ~~`DEFAULT_JWT_VERIFIER` constant + fallback~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** removed; no fallback, a JWT with no verifier installed is refused.
 - `jgdms-pref-class-loader/.../PreferredProxyCodebaseProvider.java` — DigestCodeSource boot guard + WI57 client fallback
 - `jgdms-pref-class-loader/.../VerdictRegistryHolder.java` — `setInstances()` / `getAll()`
 - `jgdms-platform/.../VerdictRegistry.java` — `registerGlobalVerdictListener()` API
@@ -803,7 +803,7 @@ After verifying the latest `pfirmstone/DirtyChai` `SecureClassLoader.java`
 **Checked off completed items — no logic changes**
 
 - §3 Weakness 2 "Mitigated?" updated from `Partially (strict policy required)` to
-  `Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS
+  `Partially (JwtVerifier SPI opt-in; ~~DefaultJwtVerifier exp/iat/iss/aud~~ (**Corrected 2026-11-02 (commit 7cd3f0a24):** `DefaultJwtVerifier` is signature mode only (no claims-only constructors; issuer, audience, RS256/ES256 and trusted keys required; default maximum lifetime 1 hour), and with no verifier installed the dispatcher refuses the JWT.); OIDC JWKS
   opt-in)` to reflect Work Item 44 completion.
 - §5 Phase 3.1 priority changed from `🟡 Sprint 4` to `✅ Completed` to match the
   ✅ already present on Work Item 44 in §6.
@@ -894,10 +894,10 @@ Option D was chosen over A/B/C for the following reasons:
   when `jwtCount = 0`.
 
 - **Option D** (pluggable `JwtVerifier` SPI) is chosen because:
-  - Zero network dependency in the default path (no verifier registered = accept
+  - ~~Zero network dependency in the default path (no verifier registered = accept
     on SPIFFE SVID trust alone — backward compatible).
   - `DefaultJwtVerifier` in `jgdms-security-jwt` checks `exp`/`iat`/`iss`/`aud`
-    locally (Base64url decode + JSON scan, no JWKS call) for negligible cost.
+    locally (Base64url decode + JSON scan, no JWKS call) for negligible cost.~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** there is no default or fallback verifier; `BasicInvocationDispatcher.verifyJwtWithCache()` (jgdms-jeri/src/main/java/net/jini/jeri/BasicInvocationDispatcher.java) throws IOException "no JwtVerifier is installed; refusing" when a JWT arrives and none is installed, and `DefaultJwtVerifier` is signature mode only (issuer, audience, algorithm RS256 or ES256 and a kid-to-PublicKey map are required; default maximum token lifetime 1 hour).
   - Full OIDC JWKS signature verification is opt-in by supplying a custom
     `JwtVerifier` backed by `JwtValidator` + `JwksKeyCache`.
   - Connection-level cache (`ConcurrentHashMap<String, Instant>`, max 1024
@@ -912,7 +912,7 @@ Option D was chosen over A/B/C for the following reasons:
 | `jgdms-platform/.../jwt/JwtVerificationException.java` | NEW — checked exception |
 | `jgdms-platform/.../jwt/JwtRawToken.java` | NEW — public credential carrying raw JWT for wire transport |
 | `jgdms-platform/bnd.bnd` | Added `net.jini.security.jwt` to OSGi export list |
-| `jgdms-security-jwt/.../DefaultJwtVerifier.java` | NEW — claims-only verifier (exp/iat/iss/aud, no JWKS) |
+| `jgdms-security-jwt/.../DefaultJwtVerifier.java` | ~~NEW — claims-only verifier (exp/iat/iss/aud, no JWKS)~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** `DefaultJwtVerifier` is signature mode only (no claims-only constructors; issuer, audience, RS256/ES256 and trusted keys required; default maximum lifetime 1 hour), and with no verifier installed the dispatcher refuses the JWT. |
 | `jgdms-security-jwt/.../JwtLoginModule.java` | Stores `JwtRawToken` in public credentials on `commit()` |
 | `jgdms-jeri/.../BasicInvocationHandler.java` | Extended `writeUserSubjects()` to write `jwtCount:u8` + JWT bytes; added `writeJwtBytes()` helper |
 | `jgdms-jeri/.../BasicInvocationDispatcher.java` | Fixed `PRINCIPAL_CTORS` class names (were `net.jini.security.principal.*`, correct names are `net.jini.jeri.ssl.SpiffePrincipal` and `net.jini.security.jwt.JwtPrincipal`); added `jwtVerifier` volatile field + `setJwtVerifier()`; added `JWT_VERIFICATION_CACHE` + eviction logic; extended `readUserSubjects()` to read JWT block; added `readJwtBytes()`, `verifyJwtWithCache()`, `extractJwtExp()` helpers |
@@ -1086,7 +1086,7 @@ subsequent uses skip all of the above.
 | # | Weakness | Severity | Mitigated? |
 |---|---|---|---|
 | 1 | Full security requires DirtyChai (non-standard JDK) | 🔴 Critical | **By design — no fix** |
-| 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; DefaultJwtVerifier exp/iat/iss/aud; OIDC JWKS opt-in) |
+| 2 | Wire-asserted user principals are unverified | 🔴 Critical | Partially (JwtVerifier SPI opt-in; ~~DefaultJwtVerifier exp/iat/iss/aud~~ **Corrected 2026-11-02 (commit 7cd3f0a24):** `DefaultJwtVerifier` is signature mode only (no claims-only constructors; issuer, audience, RS256/ES256 and trusted keys required; default maximum lifetime 1 hour), and with no verifier installed the dispatcher refuses the JWT.; OIDC JWKS opt-in) |
 | 3 | INCONCLUSIVE verdict allows loading; no re-audit on permission change | 🟠 High | Partially (retained, externally-voidable loader-scoped grants for INCONCLUSIVE loaders — WI46 Option 4; structural fix via INCONCLUSIVEPermit completed — WI51 ✅) |
 | 4 | VerdictRegistry boot permissive window | 🟠 High | Acknowledged; no fix |
 | 5 | VerdictRegistry outage blocks all new proxy loads | 🟠 High | No (fail-secure, but availability impact) |

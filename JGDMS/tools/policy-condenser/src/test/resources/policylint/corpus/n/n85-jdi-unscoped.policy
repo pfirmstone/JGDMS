@@ -1,0 +1,3 @@
+grant {
+  permission com.sun.jdi.JDIPermission "virtualMachineManager";
+};

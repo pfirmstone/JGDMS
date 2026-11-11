@@ -27,6 +27,7 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Principal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -73,6 +74,10 @@ import net.jini.security.jwt.JwtPrincipal;
  *       <td>OAuth2 client identifier</td></tr>
  *   <tr><td>{@code clientSecret}</td><td>no</td>
  *       <td>OAuth2 client secret</td></tr>
+ *   <tr><td>{@code responseBodyTimeoutMs}</td><td>no</td>
+ *       <td>Total time allowed for reading one response body from the token endpoint or the
+ *           JWKS endpoint, 100 to 120000, default 10000.  A server that sends its body more
+ *           slowly is a transient failure (a failed login at first login).</td></tr>
  *   <tr><td>{@code additionalClaims}</td><td>no</td>
  *       <td>Comma-separated list of additional claim names to extract into
  *           {@link ParsedJwt#allClaims()}</td></tr>
@@ -81,8 +86,13 @@ import net.jini.security.jwt.JwtPrincipal;
  * <h2>Subject population</h2>
  * On successful commit, the following are added to the {@link Subject}:
  * <ul>
- *   <li>One {@link JwtPrincipal} per claim: {@code sub}, {@code email}, and
- *       each element of the {@code groups} array.</li>
+ *   <li>The {@link JwtPrincipal}s the server derives from the same token
+ *       (see {@code VerifiedJwt#derivePrincipals}): {@code sub:}, {@code email:}
+ *       <em>only if</em> the token has {@code email_verified} equal to JSON
+ *       {@code true}, and one {@code group:} per element of {@code groups}.  A
+ *       token the server would refuse (empty {@code sub}, {@code email} or
+ *       group, a non-string group, or more than 64 principals) fails the
+ *       login.</li>
  *   <li>One {@link JwtExpiryClaim} public credential recording the token
  *       expiry instant.</li>
  * </ul>
@@ -90,11 +100,75 @@ import net.jini.security.jwt.JwtPrincipal;
  * <h2>Background refresh</h2>
  * If {@code refreshTokenUri} and {@code refreshToken} are configured, a daemon
  * thread proactively fetches a new access token at 80% of the token lifetime
- * (i.e. when 20% of the lifetime remains).  On failure the thread retries with
- * exponential back-off (starting at 5 s, doubling up to 5 min).  If the
- * identity provider returns a fatal error (HTTP 400 with
- * {@code "error":"invalid_grant"}) the thread logs at SEVERE level and stops,
- * effectively marking the module as logged-out.
+ * (i.e. when 20% of the lifetime remains).
+ *
+ * <p><b>Security manager.</b>  {@code commit} creates and starts the thread in a
+ * privileged block ({@link NewDaemonThread}), so a policy grants the thread
+ * permissions to this module's codebase and not to the code that calls the
+ * module.  The thread does not inherit the caller's context: it carries only the
+ * protection domain of this module (and the platform base), so the refresh (the
+ * HTTP calls to the token endpoint and the JWKS, and the update of the Subject) needs
+ * its permissions from this module's codebase alone.  The context class loader is the system
+ * class loader.  If the thread cannot be started, {@code commit} undoes itself and
+ * throws a {@link LoginException}.
+ *
+ * <p><b>Policy for the module's codebase.</b>  The refresh thread contacts the URIs
+ * it is given in the login options ({@code refreshTokenUri}, {@code jwksUri}), and
+ * it does so with this module's permissions, not the caller's.  Code that may choose
+ * the login configuration (for example one holding {@code createLoginContext} with its
+ * own {@code Configuration}) thereby chooses those URIs.  A deployment policy must
+ * therefore grant this module's codebase {@code URLPermission} for only the exact token
+ * endpoint URL with method {@code POST} and the exact JWKS URL with method {@code GET},
+ * never a wildcard such as {@code https://idp/-}, {@code https://*} or {@code *:*}.
+ * Callers need no token endpoint permission.  The jgdms-collections jar needs none of
+ * the thread, HTTP or Subject permissions of this module (it is not on the thread's
+ * context since {@link NewDaemonThread} creates the threads).
+ *
+ * <p><b>Permanent failures</b> log at SEVERE level, stop the thread and remove
+ * the token, expiry claim and principals this module installed, so the Subject
+ * fails closed at once:
+ * <ul>
+ *   <li>HTTP 400 (with {@code "error":"invalid_grant"} or without), HTTP 401
+ *       and HTTP 403 from the token endpoint (the refresh token or the client
+ *       credentials are rejected);</li>
+ *   <li>an HTTP 200 whose body is not one JSON object, or has no
+ *       {@code access_token} (the identity provider is malfunctioning);</li>
+ *   <li>a refreshed token that fails validation: a bad signature, a
+ *       {@code kid} that the reachable JWKS does not list (the JWKS is fetched
+ *       again once before this is decided), another {@code iss}, a wrong
+ *       {@code aud}, expired, missing {@code exp}, malformed claims, or not a
+ *       JWT at all;</li>
+ *   <li>a refreshed token with another {@code sub}, or either token without a
+ *       {@code sub} (see below);</li>
+ *   <li>an {@code Error} in the thread (an {@code OutOfMemoryError} excepted).</li>
+ * </ul>
+ * <p><b>Transient failures</b> keep the token, log at WARNING level and retry
+ * with exponential back-off (starting at 5 s, doubling up to 5 min): a network
+ * error or timeout, a response over the size limit, and any other HTTP status
+ * (including 5xx, 408 and 429), and a JWKS endpoint that cannot be read (a
+ * connection error or timeout, an HTTP status other than 200, a response over
+ * the size limit, or a body that is not a JWKS).  The old token is still valid
+ * until it expires, so it stays; {@code lastRefreshFailure} holds the class name
+ * {@code JwksUnavailableException} only.  A first login with the JWKS unreadable
+ * fails with a {@link LoginException}: there is no old token to keep.
+ *
+ * <p>A refresh replaces the {@link JwtPrincipal}s, the {@link JwtRawToken} and
+ * the {@link JwtExpiryClaim} in one step under the Subject's monitor.  A
+ * refreshed token is refused when its {@code sub} or {@code iss} differs from
+ * the login token, or when either token has no {@code sub}.  A token already
+ * past its expiry, inside the validator's clock skew, is refreshed once and
+ * then no more often than every 5 s.
+ *
+ * <p>The client does not enforce the server's maximum token lifetime (default
+ * 1 hour in {@code DefaultJwtVerifier}).  A deployment whose identity provider
+ * issues longer-lived tokens must raise {@code maxLifetime} on the server
+ * verifier, or the server refuses a token this module accepted.
+ *
+ * <p>The module removes only what it actually added to the Subject: a
+ * principal or credential that was already present (installed by another
+ * module) is never removed.  A second {@code commit} and an {@code abort}
+ * after a {@code commit} first undo the previous commit.  Logout removes
+ * whatever is installed at that time.
  *
  * @since 3.1.1
  */
@@ -108,19 +182,60 @@ public final class JwtLoginModule implements LoginModule {
      */
     private static final int MAX_ADDITIONAL_CLAIMS = 50;
 
+    /**
+     * The first {@link ExceptionInInitializerError} (or, if the class was already unusable
+     * when this module first looked, the {@link NoClassDefFoundError}) from starting the
+     * body-deadline watchdog, or null.  Holds the permission failure that explains it; no
+     * token text can be in it.
+     */
+    private static volatile Throwable watchdogFailure;
+
     // ---- JAAS state --------------------------------------------------------
 
     private Subject subject;
     private CallbackHandler callbackHandler;
     private Map<String, ?> options;
 
-    /** Principals added to the Subject on commit. */
+    /**
+     * Principals this module added to the Subject (Set.add returned true),
+     * refreshed values included.  Guarded by the monitor of {@link #installedOn}.
+     */
     private final List<JwtPrincipal> addedPrincipals = new ArrayList<>();
-    /** Public credentials added to the Subject on commit. */
+    /** Public credentials this module added, same rule. */
     private final List<Object> addedCredentials = new ArrayList<>();
+
+    /**
+     * The Subject the last commit installed into; undo and logout lock and
+     * clean this one even if {@link #initialize} has since been given another.
+     */
+    private volatile Subject installedOn;
+
+    /** Claim names the {@code additionalClaims} option asks for; the refresh reads tokens with the same set. */
+    private Set<String> additionalClaims = Collections.emptySet();
+    /** Total time allowed for reading one response body (token endpoint or JWKS). */
+    private long bodyDeadlineMs = BoundedBody.DEFAULT_DEADLINE_MS;
 
     private boolean loginSucceeded = false;
     private boolean commitSucceeded = false;
+
+    /**
+     * {@code sub} and {@code iss} of the token the Subject was populated from.
+     * A refreshed token must carry the same pair.  Guarded by the Subject's monitor.
+     */
+    private String installedSub;
+    private String installedIss;
+
+    /**
+     * Why the last refresh was refused or failed (no token text), or null.
+     * Package-private for tests.
+     */
+    volatile String lastRefreshFailure;
+
+    /**
+     * The validated result of the last refresh that was installed, or null.  Package-private
+     * for tests, which read {@link ParsedJwt#allClaims()}; nothing in the module reads it.
+     */
+    volatile ParsedJwt lastRefreshed;
 
     // ---- Validated token result --------------------------------------------
 
@@ -132,6 +247,16 @@ public final class JwtLoginModule implements LoginModule {
     // ---- Background refresh ------------------------------------------------
 
     private volatile RefreshThread refreshThread;
+
+    /** Test hook: how commit creates and starts the refresh thread (privileged, see {@link BoundedBody#startThread}). */
+    static volatile java.util.function.BiFunction<Runnable, String, Thread> threadStarter =
+            new java.util.function.BiFunction<Runnable, String, Thread>() {
+                // Not a lambda: loading this class must not need the lambda (DefineClass) grant.
+                @Override
+                public Thread apply(Runnable r, String name) {
+                    return BoundedBody.startThread(r, name);
+                }
+            };
 
     // -----------------------------------------------------------------------
     // LoginModule interface
@@ -154,6 +279,29 @@ public final class JwtLoginModule implements LoginModule {
         String audience = (String) options.get("audience");
         String additionalClaimsOpt = (String) options.get("additionalClaims");
 
+        try {
+            bodyDeadlineMs = BoundedBody.parseDeadline(options.get("responseBodyTimeoutMs"));
+        } catch (IllegalArgumentException e) {
+            throw new LoginException(e.getMessage());
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // The body-deadline watchdog thread could not be started (under a SecurityManager:
+            // the module's codebase lacks RuntimePermission createPlatformThread or
+            // setContextClassLoader).  Reading bodies without a deadline is not an option, so fail.
+            // BoundedBody fails to initialise once; every later use only throws NoClassDefFoundError,
+            // which names nothing.  So the first failure is kept and is the cause of every login that follows.
+            Throwable first = watchdogFailure;
+            if (first == null) {
+                synchronized (JwtLoginModule.class) {
+                    if (watchdogFailure == null) watchdogFailure = e;
+                    first = watchdogFailure;
+                }
+            }
+            LoginException le = new LoginException("JWT login unavailable: the response-body deadline "
+                    + "watchdog could not be started (" + (first.getCause() != null ? first.getCause() : first) + ")");
+            le.initCause(first);
+            throw le;
+        }
+
         Set<String> additionalClaims = Collections.emptySet();
         if (additionalClaimsOpt != null && !additionalClaimsOpt.isBlank()) {
             String[] claimNames = additionalClaimsOpt.split(",\\s*");
@@ -162,6 +310,7 @@ public final class JwtLoginModule implements LoginModule {
                         + MAX_ADDITIONAL_CLAIMS + " claim names");
             additionalClaims = new HashSet<>(Arrays.asList(claimNames));
         }
+        this.additionalClaims = additionalClaims;
 
         // Obtain the JWT access token
         String token = (String) options.get("token");
@@ -179,12 +328,19 @@ public final class JwtLoginModule implements LoginModule {
             throw new LoginException("Invalid jwksUri: " + jwksUri);
         }
 
-        JwksKeyCache cache = new JwksKeyCache(jwksUriParsed);
+        JwksKeyCache cache = new JwksKeyCache(jwksUriParsed, bodyDeadlineMs);
         JwtValidator validator = new JwtValidator(cache, issuer, audience, additionalClaims);
         try {
             parsedJwt = validator.validate(token);
+        } catch (JwksUnavailableException e) {
+            // No old token to keep at first login: fail, and say it is the keys, not the token.
+            throw new LoginException("JWT validation failed: the JWKS endpoint could not be read ("
+                    + e.getMessage() + ")");
         } catch (JwtValidationException e) {
             throw new LoginException("JWT validation failed: " + e.getMessage());
+        } finally {
+            // The cache served this one validation; its HTTP client must not outlive it.
+            cache.close();
         }
 
         // Extract expiry instant from allClaims
@@ -205,90 +361,237 @@ public final class JwtLoginModule implements LoginModule {
     @Override
     public boolean commit() throws LoginException {
         if (!loginSucceeded) {
-            clearState();
+            clearLoginState();
             return false;
         }
 
-        // --- Build principals ---
-        addedPrincipals.clear();
-        addedCredentials.clear();
+        // A second commit on this instance (a LoginContext reuses its modules)
+        // first undoes the previous one: its thread and what it installed.
+        Subject previous = installedOn;
+        if (previous != null) {
+            synchronized (previous) {
+                uninstallLocked();
+            }
+        }
 
-        if (parsedJwt.subject() != null)
-            addedPrincipals.add(new JwtPrincipal("sub:" + parsedJwt.subject()));
-        if (parsedJwt.email() != null)
-            addedPrincipals.add(new JwtPrincipal("email:" + parsedJwt.email()));
-        for (String group : parsedJwt.groups())
-            addedPrincipals.add(new JwtPrincipal("group:" + group));
+        // --- Build principals ---
+        List<JwtPrincipal> principals = new ArrayList<>();
+        addJwtPrincipals(principals, parsedJwt);
 
         // --- Public credentials ---
         Instant expiry = tokenExpiry != null ? tokenExpiry : Instant.now().plusSeconds(3600);
-        JwtExpiryClaim expiryClaim = new JwtExpiryClaim(expiry);
-        addedCredentials.add(expiryClaim);
+        List<Object> credentials = new ArrayList<>();
+        credentials.add(new JwtExpiryClaim(expiry));
         // JwtRawToken carries the compact-serialization for JERI wire transmission
         // (BasicInvocationHandler.writeUserSubjects) so the server-side JwtVerifier
         // can independently verify the token.  It is stored as a public credential
         // because writeUserSubjects executes outside a Subject.doAs context.
         if (rawToken != null) {
-            addedCredentials.add(new JwtRawToken(rawToken));
+            credentials.add(new JwtRawToken(rawToken));
         }
 
-        // --- Populate Subject ---
-        subject.getPrincipals().addAll(addedPrincipals);
-        subject.getPublicCredentials().addAll(addedCredentials);
-
-        // --- Start background refresh thread if configured ---
         String refreshTokenUri = (String) options.get("refreshTokenUri");
         String refreshToken    = (String) options.get("refreshToken");
-        if (refreshTokenUri != null && !refreshTokenUri.isBlank()
-                && refreshToken != null && !refreshToken.isBlank()) {
-            Object clientIdObj     = options.get("clientId");
-            Object clientSecretObj = options.get("clientSecret");
-            String clientId        = clientIdObj     != null ? clientIdObj.toString()     : "";
-            String clientSecret    = clientSecretObj != null ? clientSecretObj.toString() : "";
-            RefreshThread rt = new RefreshThread(
-                    subject, refreshTokenUri, refreshToken,
-                    clientId, clientSecret, expiry,
-                    (String) options.get("jwksUri"),
-                    (String) options.get("issuer"),
-                    (String) options.get("audience"));
-            rt.setDaemon(true);
-            rt.setName("JwtLoginModule-refresh");
-            rt.start();
-            refreshThread = rt;
-        }
+        boolean refresh = refreshTokenUri != null && !refreshTokenUri.isBlank()
+                && refreshToken != null && !refreshToken.isBlank();
 
-        commitSucceeded = true;
+        // --- Populate Subject ---
+        // Under the Subject's monitor, the same lock a refresh swaps under, so
+        // a reader that locks the Subject sees principals and token together.
+        // Only what Set.add reports as added is ours to remove later.
+        Subject target = subject;
+        synchronized (target) {
+            installedOn = target;
+            for (JwtPrincipal p : principals)
+                if (target.getPrincipals().add(p)) addedPrincipals.add(p);
+            for (Object c : credentials)
+                if (target.getPublicCredentials().add(c)) addedCredentials.add(c);
+            installedSub = parsedJwt.subject();
+            installedIss = parsedJwt.allClaims().get("iss");
+            commitSucceeded = true;
+
+            // --- Start background refresh thread if configured ---
+            if (refresh) {
+                Object clientIdObj     = options.get("clientId");
+                Object clientSecretObj = options.get("clientSecret");
+                String clientId        = clientIdObj     != null ? clientIdObj.toString()     : "";
+                String clientSecret    = clientSecretObj != null ? clientSecretObj.toString() : "";
+                RefreshThread rt = new RefreshThread(
+                        this, target, refreshTokenUri, refreshToken,
+                        clientId, clientSecret, expiry,
+                        (String) options.get("jwksUri"),
+                        (String) options.get("issuer"),
+                        (String) options.get("audience"),
+                        additionalClaims, bodyDeadlineMs);
+                refreshThread = rt;
+                try {
+                    // Privileged: the thread permissions are the module's, not the caller's.
+                    rt.thread = threadStarter.apply(rt, "JwtLoginModule-refresh");
+                } catch (RuntimeException | Error e) {
+                    // No refresh thread means a token nobody refreshes: undo the commit and say so.
+                    uninstallLocked();
+                    LoginException le = new LoginException(
+                            "JWT refresh thread could not be started: " + e.getClass().getName());
+                    le.initCause(e);
+                    throw le;
+                }
+            }
+        }
         return true;
     }
 
     @Override
     public boolean abort() throws LoginException {
         if (!loginSucceeded) return false;
-        clearState();
+        Subject target = installedOn;
+        if (target != null) {
+            // abort after a successful commit: undo it
+            synchronized (target) {
+                uninstallLocked();
+            }
+        }
+        clearLoginState();
         return true;
     }
 
     @Override
     public boolean logout() throws LoginException {
-        // Stop refresh thread
-        RefreshThread rt = refreshThread;
-        if (rt != null) {
-            rt.shutdown();
-            refreshThread = null;
+        // Stop the refresh thread and remove what is installed, under one lock:
+        // a refresh in flight checks 'running' under the same lock, so it cannot
+        // install a token after this point.  addedPrincipals / addedCredentials
+        // always hold what is installed now, refreshed values included.
+        Subject target = installedOn != null ? installedOn : subject;
+        synchronized (target) {
+            uninstallLocked();
+            clearLoginState();
         }
-
-        // Remove principals and credentials from Subject
-        if (commitSucceeded) {
-            subject.getPrincipals().removeAll(addedPrincipals);
-            subject.getPublicCredentials().removeAll(addedCredentials);
-        }
-        clearState();
         return true;
+    }
+
+    /**
+     * Stops the refresh thread and removes what this module added.  The caller
+     * holds the monitor of {@link #installedOn}.
+     */
+    private void uninstallLocked() {
+        RefreshThread rt = refreshThread;
+        refreshThread = null;
+        try {
+            // Remove first: nothing after this point may leave the token on the Subject.
+            removeInstalledLocked();
+        } finally {
+            // reset before shutdown(): nothing it does may leave the module reporting a commit
+            installedSub = null;
+            installedIss = null;
+            commitSucceeded = false;
+            if (rt != null) rt.shutdown();
+        }
+    }
+
+    /** Removes exactly what this module added; the caller holds the Subject's monitor. */
+    private void removeInstalledLocked() {
+        Subject target = installedOn;
+        if (target == null) return;
+        target.getPrincipals().removeAll(addedPrincipals);
+        target.getPublicCredentials().removeAll(addedCredentials);
+        addedPrincipals.clear();
+        addedCredentials.clear();
+    }
+
+    /**
+     * Fails closed: stops the thread and removes the token, the expiry claim
+     * and the principals this module installed.  The caller holds the Subject's
+     * monitor.  Does nothing if the thread was already stopped (logout, undo).
+     */
+    private void failClosedLocked(RefreshThread caller) {
+        if (!caller.running) return;
+        // Remove first: nothing after this point may leave the token on the Subject.
+        commitSucceeded = false;
+        try {
+            removeInstalledLocked();
+        } finally {
+            caller.shutdown();
+        }
+    }
+
+    /** {@link #failClosedLocked} for the thread's own failure path; records {@code why}. */
+    private void failClosed(RefreshThread caller, String why) {
+        synchronized (caller.subject) {
+            lastRefreshFailure = why;
+            try {
+                failClosedLocked(caller);
+            } catch (RuntimeException e) {
+                // A read-only Subject, a SecurityManager refusing the removal, or the thread's shutdown
+                // failing: the token may not have been taken out; say so, without token text.
+                LOG.log(Level.SEVERE, "JWT refresh stopped but the token could not be removed: "
+                        + e.getClass().getName());
+            }
+        }
+    }
+
+    /**
+     * Test hook: performs one refresh now, on the calling thread.
+     *
+     * @return false if the identity provider rejected the refresh token
+     * @throws IllegalStateException if no refresh is configured
+     */
+    boolean refreshNow() throws Exception {
+        RefreshThread rt = refreshThread;
+        if (rt == null) throw new IllegalStateException("no refresh configured");
+        return rt.refreshOnce();
+    }
+
+    /**
+     * Replaces the Subject's principals, {@link JwtRawToken} and expiry claim
+     * with those of a refreshed token, in one step under the Subject's monitor.
+     * A token with another {@code sub} or {@code iss}, or a login or refreshed
+     * token without {@code sub}, is refused and the module fails closed (see
+     * {@link #failClosedLocked}).
+     */
+    private void installRefreshed(RefreshThread caller, ParsedJwt newParsed,
+                                  String newToken, Instant newExpiry)
+            throws FatalRefreshException {
+        Subject target = caller.subject;
+        synchronized (target) {
+            if (!caller.running || !commitSucceeded)
+                throw new FatalRefreshException("login module is logged out", true);
+            String newSub = newParsed.subject();
+            if (installedSub == null || installedSub.isEmpty() || newSub == null || newSub.isEmpty()) {
+                failClosedLocked(caller);
+                throw new FatalRefreshException(
+                        "refresh refused: the login token or the refreshed token has no sub", false);
+            }
+            if (!installedSub.equals(newSub)
+                    || !java.util.Objects.equals(installedIss, newParsed.allClaims().get("iss"))) {
+                failClosedLocked(caller);
+                throw new FatalRefreshException(
+                        "refreshed token has a different sub or iss; refused", false);
+            }
+            if (target.isReadOnly())
+                throw new FatalRefreshException("Subject is read-only; refresh not installed", false);
+
+            List<JwtPrincipal> newPrincipals = new ArrayList<>();
+            addJwtPrincipals(newPrincipals, newParsed);
+            List<Object> newCredentials = new ArrayList<>();
+            newCredentials.add(new JwtExpiryClaim(newExpiry));
+            newCredentials.add(new JwtRawToken(newToken));
+
+            // Only what this module added is removed, not principals other
+            // login modules installed (including equal ones).
+            removeInstalledLocked();
+            for (JwtPrincipal p : newPrincipals)
+                if (target.getPrincipals().add(p)) addedPrincipals.add(p);
+            for (Object c : newCredentials)
+                if (target.getPublicCredentials().add(c)) addedCredentials.add(c);
+        }
     }
 
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    private static void addJwtPrincipals(List<JwtPrincipal> out, ParsedJwt parsed) {
+        for (Principal p : parsed.principals()) out.add((JwtPrincipal) p);
+    }
 
     private String requireOption(String name) throws LoginException {
         Object val = options.get(name);
@@ -312,14 +615,12 @@ public final class JwtLoginModule implements LoginModule {
         return token;
     }
 
-    private void clearState() {
+    /** Forgets the login-time values; what a commit installed is {@link #uninstallLocked}'s. */
+    private void clearLoginState() {
         parsedJwt     = null;
         tokenExpiry   = null;
         rawToken      = null;
         loginSucceeded = false;
-        commitSucceeded = false;
-        addedPrincipals.clear();
-        addedCredentials.clear();
     }
 
     // -----------------------------------------------------------------------
@@ -333,7 +634,7 @@ public final class JwtLoginModule implements LoginModule {
      * calls the token endpoint with the refresh token, validates the new
      * access token, and updates the Subject.
      */
-    private static final class RefreshThread extends Thread {
+    private static final class RefreshThread implements Runnable {
 
         private static final long MIN_BACKOFF_MS  =  5_000L;
         private static final long MAX_BACKOFF_MS  = 300_000L; // 5 minutes
@@ -352,6 +653,7 @@ public final class JwtLoginModule implements LoginModule {
          */
         private static final double REFRESH_LIFETIME_FRACTION = 0.8;
 
+        private final JwtLoginModule owner;
         private final Subject  subject;
         private final String   refreshTokenUri;
         private volatile String refreshToken;
@@ -361,16 +663,21 @@ public final class JwtLoginModule implements LoginModule {
         private final String   jwksUri;
         private final String   issuer;
         private final String   audience;
+        private final Set<String> additionalClaims;
+        private final long     bodyDeadlineMs;
 
-        private volatile boolean running = true;
+        volatile boolean running = true;
 
-        private final HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        /** The thread running this; set once by commit, which holds the Subject's monitor. */
+        volatile Thread thread;
 
-        RefreshThread(Subject subject, String refreshTokenUri, String refreshToken,
+        private final HttpClient httpClient = JwksKeyCache.newHttpClient();
+
+        RefreshThread(JwtLoginModule owner, Subject subject, String refreshTokenUri, String refreshToken,
                       String clientId, String clientSecret, Instant currentExpiry,
-                      String jwksUri, String issuer, String audience) {
+                      String jwksUri, String issuer, String audience,
+                      Set<String> additionalClaims, long bodyDeadlineMs) {
+            this.owner          = owner;
             this.subject        = subject;
             this.refreshTokenUri = refreshTokenUri;
             this.refreshToken   = refreshToken;
@@ -380,18 +687,58 @@ public final class JwtLoginModule implements LoginModule {
             this.jwksUri        = jwksUri;
             this.issuer         = issuer;
             this.audience       = audience;
+            this.additionalClaims = additionalClaims;
+            this.bodyDeadlineMs = bodyDeadlineMs;
         }
 
         void shutdown() {
             running = false;
-            interrupt();
+            Thread t = thread;
+            try {
+                if (t != null) t.interrupt();
+            } catch (RuntimeException e) {
+                // a SecurityManager may refuse the interrupt; running is false, so the loop ends by itself
+                LOG.log(Level.WARNING, "JWT refresh thread could not be interrupted: " + e.getClass().getName());
+            }
+            // Closes the client without waiting (BoundedBody.closeAsync): logout must not block on it.
+            // The close needs a pooled thread, which can fail to start (native threads exhausted, thread
+            // grant revoked); that must never stop the caller from removing the token, so it is only logged.
+            try {
+                JwksKeyCache.closeClient(httpClient);
+            } catch (Throwable e) {
+                LOG.log(Level.WARNING, "JWT refresh client could not be closed: " + e.getClass().getName());
+            }
         }
 
         @Override
         public void run() {
+            try {
+                loop();
+            } catch (OutOfMemoryError oom) {
+                throw oom;
+            } catch (Throwable t) {
+                // An Error (or other non-Exception Throwable) must not leave the
+                // Subject holding a token nobody refreshes: record the class
+                // name only (no message, no token text), log, fail closed.
+                String name = t.getClass().getName();
+                if (running)
+                    LOG.log(Level.SEVERE, "JWT refresh thread died with " + name
+                            + "; removing the token and principals");
+                owner.failClosed(this, name);
+            } finally {
+                // However the thread ends (logout, a permanent failure, an Error) its client goes too.
+                JwksKeyCache.closeClient(httpClient);
+            }
+        }
+
+        private void loop() {
+            boolean attempted = false;
             while (running) {
                 // Determine when to wake up: at 80% of lifetime elapsed
                 long sleepMs = computeSleepMs();
+                // A token already past its expiry (inside the clock skew) gives 0;
+                // never attempt again sooner than the first back-off step.
+                if (attempted) sleepMs = Math.max(sleepMs, MIN_BACKOFF_MS);
                 if (sleepMs > 0) {
                     try {
                         Thread.sleep(sleepMs);
@@ -407,20 +754,32 @@ public final class JwtLoginModule implements LoginModule {
                 boolean refreshed = false;
                 while (running && !refreshed) {
                     try {
-                        refreshed = doRefresh();
+                        refreshed = refreshOnce();
                         if (!refreshed) {
                             // Fatal failure (invalid_grant etc.)
+                            // failClosed (in refreshOnce) already stopped the thread and removed
+                            // our token; say so once, without token text.
                             LOG.severe("JWT refresh token has been revoked or is invalid; "
                                     + "marking session as logged-out");
                             running = false;
                             return;
                         }
+                        attempted = true;
                     } catch (FatalRefreshException e) {
-                        LOG.severe("JWT refresh permanently failed: " + e.getMessage()
-                                + "; marking session as logged-out");
+                        // loggedOut: logout or an undo won the race; nothing to report.
+                        if (!e.loggedOut) {
+                            LOG.severe("JWT refresh permanently failed: " + e.getMessage()
+                                    + "; marking session as logged-out");
+                            // A permanent failure (HTTP 400 other than invalid_grant, or a refusal)
+                            // also takes our token out: a stopped thread must not leave a token behind.
+                            owner.failClosed(this, "FatalRefreshException: " + e.getMessage());
+                        }
                         running = false;
                         return;
                     } catch (Exception e) {
+                        // A logout interrupts an in-flight send: not a failure.
+                        if (!running) return;
+                        attempted = true;
                         LOG.log(Level.WARNING,
                                 "JWT refresh failed (will retry in " + backoffMs + "ms)", e);
                         try {
@@ -432,6 +791,25 @@ public final class JwtLoginModule implements LoginModule {
                         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
                     }
                 }
+            }
+        }
+
+        /** {@link #doRefresh()}, recording any failure on the module (no token text). */
+        boolean refreshOnce() throws Exception {
+            try {
+                boolean ok = doRefresh();
+                // invalid_grant: the identity provider revoked or expired the refresh token, so the
+                // session is over.  Fail closed now (take our token and principals out) instead of
+                // serving an identity that nobody can refresh until the access token expires.
+                if (!ok) owner.failClosed(this, "invalid_grant: the refresh token was rejected");
+                return ok;
+            } catch (JwksUnavailableException e) {
+                // Class name only: the message is for the log, the record is for callers.
+                owner.lastRefreshFailure = e.getClass().getSimpleName();
+                throw e;
+            } catch (Exception e) {
+                owner.lastRefreshFailure = e.getClass().getSimpleName() + ": " + e.getMessage();
+                throw e;
             }
         }
 
@@ -474,33 +852,42 @@ public final class JwtLoginModule implements LoginModule {
             HttpResponse<InputStream> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
             int status = response.statusCode();
-            String responseBody;
-            try (InputStream is = response.body()) {
-                byte[] bytes = is.readNBytes(MAX_TOKEN_RESPONSE_BYTES + 1);
-                if (bytes.length > MAX_TOKEN_RESPONSE_BYTES) {
-                    throw new Exception("Token endpoint response exceeds size limit of "
-                            + MAX_TOKEN_RESPONSE_BYTES + " bytes");
-                }
-                responseBody = new String(bytes, StandardCharsets.UTF_8);
+            // One total time limit for the whole body (a SocketTimeoutException is transient):
+            // the request timeout above covers only the headers.
+            byte[] bytes = BoundedBody.read(response.body(), MAX_TOKEN_RESPONSE_BYTES, bodyDeadlineMs);
+            if (bytes.length > MAX_TOKEN_RESPONSE_BYTES) {
+                throw new Exception("Token endpoint response exceeds size limit of "
+                        + MAX_TOKEN_RESPONSE_BYTES + " bytes");
             }
+            String responseBody = new String(bytes, StandardCharsets.UTF_8);
 
             if (status == 400) {
                 // Check for invalid_grant error (permanent failure)
                 if (responseBody.contains("\"invalid_grant\""))
                     return false; // fatal — refresh token revoked
-                throw new FatalRefreshException(
-                        "Token endpoint returned HTTP 400: " + responseBody);
+                throw new FatalRefreshException("Token endpoint returned HTTP 400", false);
+            }
+            if (status == 401 || status == 403) {
+                // The client credentials are rejected (RFC 6749 5.2, invalid_client); retrying
+                // cannot succeed.
+                throw new FatalRefreshException("Token endpoint returned HTTP " + status, false);
             }
             if (status != 200) {
-                throw new Exception("Token endpoint returned HTTP " + status
-                        + ": " + responseBody);
+                throw new Exception("Token endpoint returned HTTP " + status);
             }
 
             // Parse response JSON for access_token, refresh_token, expires_in
-            Map<String, String> tokenResponse = JwtValidator.parseClaimsJson(responseBody);
+            Map<String, String> tokenResponse;
+            try {
+                tokenResponse = JwtValidator.parseTokenResponse(responseBody);
+            } catch (IllegalArgumentException e) {
+                // The body holds the new tokens; say nothing about its content.  A 200 that is
+                // not a token response is an identity-provider malfunction, not a passing outage.
+                throw new FatalRefreshException("Token endpoint response is not a valid JSON object", false);
+            }
             String newAccessToken = tokenResponse.get("access_token");
             if (newAccessToken == null || newAccessToken.isBlank())
-                throw new Exception("Token endpoint response missing 'access_token'");
+                throw new FatalRefreshException("Token endpoint response missing 'access_token'", false);
 
             // Update refresh_token if a new one was provided (token rotation)
             String newRefreshToken = tokenResponse.get("refresh_token");
@@ -508,9 +895,25 @@ public final class JwtLoginModule implements LoginModule {
                 this.refreshToken = newRefreshToken;
 
             // Validate and install the new token
-            JwksKeyCache cache = new JwksKeyCache(URI.create(jwksUri));
-            JwtValidator validator = new JwtValidator(cache, issuer, audience);
-            ParsedJwt newParsed = validator.validate(newAccessToken);
+            // The same rules as login, additionalClaims included: a refreshed token is held to
+            // what the first token was.
+            JwksKeyCache cache = new JwksKeyCache(URI.create(jwksUri), bodyDeadlineMs);
+            JwtValidator validator = new JwtValidator(cache, issuer, audience, additionalClaims);
+            ParsedJwt newParsed;
+            try {
+                newParsed = validator.validate(newAccessToken);
+            } catch (JwksUnavailableException e) {
+                // Transient: the keys could not be read, which says nothing about the token.  The
+                // old token is still valid until it expires; keep it and let the loop back off.
+                // The new refresh_token (rotation) is already held, so the retry uses it.
+                throw e;
+            } catch (JwtValidationException e) {
+                // A new token that fails validation is permanent: keeping the old one would serve
+                // an identity the provider no longer vouches for.  The message names a claim, never a value.
+                throw new FatalRefreshException("refreshed token failed validation: " + e.getMessage(), false);
+            } finally {
+                cache.close();
+            }
 
             // Compute new expiry
             String expStr = newParsed.allClaims().get("exp");
@@ -518,27 +921,13 @@ public final class JwtLoginModule implements LoginModule {
                     ? Instant.ofEpochSecond(Long.parseLong(expStr))
                     : Instant.now().plusSeconds(3600);
 
-            // Update Subject: remove old expiry claim, add new principals + expiry
-            updateSubject(newParsed, newExpiry);
+            // Replace principals, token and expiry together; refuses another identity.
+            owner.installRefreshed(this, newParsed, newAccessToken, newExpiry);
+            owner.lastRefreshed = newParsed;
             currentExpiry = newExpiry;
 
             LOG.fine("JWT access token refreshed; new expiry: " + newExpiry);
             return true;
-        }
-
-        private void updateSubject(ParsedJwt newParsed, Instant newExpiry) {
-            // Remove old JwtExpiryClaim
-            subject.getPublicCredentials().removeIf(c -> c instanceof JwtExpiryClaim);
-            subject.getPublicCredentials().add(new JwtExpiryClaim(newExpiry));
-
-            // Replace JwtPrincipals
-            subject.getPrincipals().removeIf(p -> p instanceof JwtPrincipal);
-            if (newParsed.subject() != null)
-                subject.getPrincipals().add(new JwtPrincipal("sub:" + newParsed.subject()));
-            if (newParsed.email() != null)
-                subject.getPrincipals().add(new JwtPrincipal("email:" + newParsed.email()));
-            for (String group : newParsed.groups())
-                subject.getPrincipals().add(new JwtPrincipal("group:" + group));
         }
 
         private static String urlEncode(String value) {
@@ -549,6 +938,11 @@ public final class JwtLoginModule implements LoginModule {
 
     /** Thrown to signal a permanent refresh failure that should stop the refresh thread. */
     private static final class FatalRefreshException extends Exception {
-        FatalRefreshException(String message) { super(message); }
+        /** True when logout or an undo stopped the thread first: not worth a log line. */
+        final boolean loggedOut;
+        FatalRefreshException(String message, boolean loggedOut) {
+            super(message);
+            this.loggedOut = loggedOut;
+        }
     }
 }

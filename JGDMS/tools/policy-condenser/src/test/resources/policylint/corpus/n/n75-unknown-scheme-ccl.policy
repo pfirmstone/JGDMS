@@ -1,0 +1,3 @@
+grant codeBase "netdoc:/opt/app/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

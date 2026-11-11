@@ -92,4 +92,18 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- PolicyLintTest.providersAgreeOnFixtures reaches the DirtyChai policy provider, whose
+                 package java.base does not export; a JDK without that package only warns. -->
+            <id>dirtychai-policy-export</id>
+            <activation>
+                <jdk>[9,)</jdk>
+            </activation>
+            <properties>
+                <argLine>--add-exports java.base/au.zeus.jdk.authorization.policy=ALL-UNNAMED</argLine>
+            </properties>
+        </profile>
+    </profiles>
 </project>

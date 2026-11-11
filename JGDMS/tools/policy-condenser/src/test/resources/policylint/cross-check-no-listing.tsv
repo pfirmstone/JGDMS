@@ -1,0 +1,31 @@
+# Corpus files that pass the default lint run and for which the provider lists NOTHING to any of the
+# stranger subjects of PolicyLintCorpusTest (remote hosts, a file share, a local directory elsewhere,
+# every principal kind).  Tab separated: file, why.  The cross-check requires every other clean file to
+# list at least one permission, and these to list none: a provider that lists nothing at all, or one that
+# starts to list something here, fails the test.
+n/n05-https-pinned-narrow.policy	codeBase pins one https host and path; none of the stranger subjects is served from it
+n/n06-https-pinned-getclassloader.policy	codeBase pins one https host; no stranger subject is served from it
+n/n107-file-pct-decoded-local-ccl-clean.policy	file:/opt/%61pp/- decodes to the local directory /opt/app; no stranger subject is loaded from it
+n/n12-spiffe-prefix-namespace-ccl.policy	principal in one SPIFFE trust-domain namespace; the stranger principals are not in it
+n/n51-unknown-class-pinned.policy	grant pinned to a local directory (file:/opt/app/-) that no stranger subject is loaded from
+n/n54-throws-pinned.policy	grant pinned to a local directory (file:/opt/app/-) that no stranger subject is loaded from
+n/n63-file-opt-app-ccl-clean.policy	grant pinned to a local directory (file:/opt/app/lib/-) that no stranger subject is loaded from
+n/n73-file-localhost-ccl-clean.policy	file://localhost codeBase is the local directory /opt/app; no stranger subject is loaded from it
+n/n74-file-empty-host-ccl-clean.policy	file:/// codeBase is the local directory /opt/app; no stranger subject is loaded from it
+n/n90-defineclass-pinned-https.policy	codeBase pins one https host; no stranger subject is served from it
+n/n93-file-1slash-ccl-clean.policy	file:/opt/app/- is the local directory /opt/app; no stranger subject is loaded from it
+r6/a03-signedby-noalias.policy	signedBy an alias that has no keystore entry: no subject can match a signer
+r6/a21-signedby-undef.policy	signedBy a property that is undefined here: no subject can match a signer
+r6/a27-codebase-dash.policy	a bare - codeBase names no location the provider matches
+r6/a29-keystore-bad.policy	signedBy with an unreadable keystore: no subject can match a signer
+r6/b01-princ-undef.policy	principal name is an undefined property: no stranger principal has that name
+r6/b03-digest-undef.policy	digest is an undefined property: no subject matches it
+r6/b06-princ-x500-anyname-unquoted.policy	one named X500 principal (CN=admin); the stranger principals have other names
+r8/h06-https-specific.policy	codeBase pins one https host and path; no stranger subject is served from it
+r8/k01-signedby-absent.policy	signedBy an alias that has no keystore entry: no subject can match a signer
+r8/k02-keystore-absent.policy	signedBy with a keystore that does not exist: no subject can match a signer
+r8/ok1-jrt-javabase.policy	jrt:/java.base is the platform module; the stranger subjects are not jrt: code
+r8/q01-princ-unloadable.policy	principal of a class that cannot be loaded and a fixed name: no stranger principal has that class
+r8/v07-perm-signedby.policy	the permission itself carries signedBy a missing alias: the provider does not list it
+r8/v08-name-undefprop.policy	the permission name is an undefined property: the provider drops the permission
+r8/z01-principal-noclass.policy	a principal entry without a class, which the provider does not match for any subject

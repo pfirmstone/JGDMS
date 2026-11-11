@@ -1,0 +1,3 @@
+grant /* c */
+  // x
+{ /* y */ permission /* z */ java.security.AllPermission /* w */ ; } ;

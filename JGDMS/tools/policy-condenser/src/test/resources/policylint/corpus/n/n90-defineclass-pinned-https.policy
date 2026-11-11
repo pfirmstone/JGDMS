@@ -1,0 +1,3 @@
+grant codeBase "https://repo.example.com/app.jar" {
+  permission au.zeus.jdk.authorization.guards.DefineClassPermission;
+};

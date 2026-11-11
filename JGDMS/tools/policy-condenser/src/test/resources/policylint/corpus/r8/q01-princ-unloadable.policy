@@ -1,0 +1,3 @@
+grant principal com.example.NoSuchPrincipal "x" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

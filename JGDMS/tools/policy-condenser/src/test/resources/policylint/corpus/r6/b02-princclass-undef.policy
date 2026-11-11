@@ -1,0 +1,3 @@
+grant principal ${no.such.cls} "CN=a" {
+  permission java.security.AllPermission;
+};

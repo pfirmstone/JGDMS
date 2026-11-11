@@ -555,6 +555,12 @@
            per-codebase META-INF/PERMISSIONS.LIST manifest (under
            <policy>.proxy-permissions/) using ProxyPolicyGenerator.  This step
            is best-effort; disable with -Dpolicy.update.generate.proxy=false.
+           A list is recorded with the SHA-256 of the policy it came from, so a
+           re-audit (new policy content) is refused over the earlier lists
+           and logged at WARNING; add -Dpolicy.update.proxy.clean=true to
+           replace them.  Dropped, held and stale entries are logged too, and
+           so is any <policy>.proxy-permissions directory no policy regenerates.
+           To move reviewed lists into the modules see policy-promote-plan.
 
       Usage:
         ant -Dpolicy.update=true policy-update
@@ -571,6 +577,10 @@
             <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
                   fork="yes"
                   failonerror="true">
+                <syspropertyset>
+                    <propertyref name="policy.update.proxy.clean"/>
+                    <propertyref name="policy.update.generate.proxy"/>
+                </syspropertyset>
                 <arg value="--qa-dir"/>
                 <arg file="${basedir}"/>
                 <classpath>
@@ -647,6 +657,254 @@
     <target name="policy-update-tests" depends="policy-update-run-tests"
             description="Run specific test(s) with polpAudit to update policy files. Usage: ant -Drun.tests=org/apache/river/test/impl/mahalo/LeaseTest.td policy-update-tests">
         <policy-post-process/>
+    </target>
+
+    <!--
+      policy-promote-plan / policy-promote-apply / policy-promote-check targets
+      =========================================================================
+      Move the META-INF/PERMISSIONS.LIST files that policy-update generated
+      (under <policy>.proxy-permissions/) into the -dl modules' source trees.
+      A jar's own PERMISSIONS.LIST is its REQUEST for permissions, so this is
+      two steps with a human review between them, never one command:
+
+        1. ant -Dpromote.out=<generated dir> policy-promote-plan
+           Writes ${promote.plan} and changes nothing under the module roots.
+           Prints the plan's SHA-256.  Read the plan: per artefact the target,
+           the entries ADDED and REMOVED against the checked-in list (or NEW
+           FILE), the held and dropped counts, the kind of policy it came from
+           and the DROPPED/HELD notes.
+        2. ant -Dpromote.out=<generated dir> -Dpromote.plan.sha=<sha> \
+               -Dpromote.approve=mahalo-dl-4.0.0-SNAPSHOT policy-promote-apply
+           Writes only the artefacts named in promote.approve (comma
+           separated).  The plan file is a record of what you read, not an
+           instruction: apply re-derives every approved artefact from the
+           generated lists and promote.module.roots and refuses one that
+           differs from the plan, whose target is not a
+           src/main/resources/META-INF/PERMISSIONS.LIST under a module root,
+           or when the plan file is not the one with SHA-256 promote.plan.sha.
+           An artefact with REMOVED entries also needs
+           -Dpromote.allow.removals=true, one with held entries
+           -Dpromote.allow.held=true.  A plan older than the generated list, a
+           target changed since the plan, and a list with no live entry are
+           refused; nothing is written if any approved artefact is refused.
+
+      CI gate (plan only; apply stays manual):
+        ant -Dpromote.out=<generated dir> policy-promote-check
+           Writes no file.  Prints the ADDED entries and fails if any artefact
+           has REMOVED entries (the checked-in jar requests more than the audit
+           observed), a live HOLD entry or a list that does not parse.  A HOLD
+           entry a reviewer has approved is excused by naming its artefact in
+           -Dpromote.check.allow.held=a,b (exact names; a name that matches no
+           artefact fails the gate; nothing else of that artefact is excused).
+
+      Properties:
+        promote.out           directory holding <artefact>/META-INF/PERMISSIONS.LIST
+                              (required), e.g. qa/harness/policy/x.policy.proxy-permissions
+        promote.module.roots  path of directories searched for *-dl modules
+                              (default: ${root}/JGDMS); give the same value to
+                              plan and apply
+        promote.plan          the plan file (default: ${promote.out}/promote.plan);
+                              must not lie under a module root
+        promote.plan.sha      SHA-256 printed by policy-promote-plan (required for apply)
+        promote.approve       artefacts to write (required for apply)
+        promote.allow.removals  true to accept REMOVED entries
+        promote.allow.held      true to accept held (host- or run-specific) entries
+        promote.check.allow.held  comma-separated artefacts whose live HOLD entries the
+                              gate (policy-promote-check) accepts; default none
+        promote.artefact.map  optional file of 'sanitised-name = module-dir-name'
+                              lines, reviewed and checked in by a human, for
+                              generated names that cannot be guessed; give the
+                              same file to plan, check and apply
+    -->
+    <property name="promote.module.roots" location="${root}/JGDMS"/>
+
+    <path id="policy.promote.classpath">
+        <pathelement location="${policy.condenser.jar}"/>
+        <fileset dir="${lib-ext.dir}">
+            <include name="jgdms-platform-${jgdms.version}.jar"/>
+        </fileset>
+        <fileset dir="${river.lib.dir}">
+            <include name="jgdms-platform-${jgdms.version}.jar"/>
+            <include name="jgdms-collections-${jgdms.version}.jar"/>
+        </fileset>
+    </path>
+
+    <target name="policy-promote-check-out">
+        <fail message="use ant -Dpromote.out=/path/to/x.policy.proxy-permissions policy-promote-plan" unless="promote.out"/>
+        <property name="promote.plan" location="${promote.out}/promote.plan"/>
+        <condition property="promote.artefact.map.args" value="--artefact-map &quot;${promote.artefact.map}&quot;" else="">
+            <isset property="promote.artefact.map"/>
+        </condition>
+    </target>
+
+    <target name="policy-promote-plan" depends="policy-promote-check-out"
+            description="Plan the promotion of generated PERMISSIONS.LIST files into the -dl modules; changes nothing in the source tree. Usage: ant -Dpromote.out=DIR policy-promote-plan">
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg value="--plan-file"/>
+            <arg file="${promote.plan}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg value="--promote-plan"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
+    <target name="policy-promote-check" depends="policy-promote-check-out"
+            description="CI gate: writes no file, prints ADDED entries, fails on REMOVED entries, held entries or a list that does not parse. Usage: ant -Dpromote.out=DIR [-Dpromote.check.allow.held=a,b] policy-promote-check">
+        <condition property="promote.check.allow.held.args" value="--allow-held &quot;${promote.check.allow.held}&quot;" else="">
+            <isset property="promote.check.allow.held"/>
+        </condition>
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg line="${promote.check.allow.held.args}"/>
+            <arg value="--promote-plan-check"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
+    <target name="policy-promote-apply" depends="policy-promote-check-out"
+            description="Write the reviewed artefacts of a promotion plan into the -dl modules. Usage: ant -Dpromote.out=DIR -Dpromote.plan.sha=SHA -Dpromote.approve=a,b [-Dpromote.allow.removals=true] [-Dpromote.allow.held=true] policy-promote-apply">
+        <fail message="name the reviewed artefacts: ant -Dpromote.approve=mahalo-dl-4.0.0-SNAPSHOT policy-promote-apply" unless="promote.approve"/>
+        <fail message="give the SHA-256 policy-promote-plan printed for the plan you read: ant -Dpromote.plan.sha=SHA policy-promote-apply" unless="promote.plan.sha"/>
+        <condition property="promote.allow.removals.arg" value="--allow-removals" else="">
+            <istrue value="${promote.allow.removals}"/>
+        </condition>
+        <condition property="promote.allow.held.arg" value="--allow-held" else="">
+            <istrue value="${promote.allow.held}"/>
+        </condition>
+        <java classname="org.apache.river.tool.ProxyPolicyGenerator"
+              fork="yes"
+              failonerror="true">
+            <arg value="--promote-apply"/>
+            <arg file="${promote.plan}"/>
+            <arg value="--approve-plan-sha"/>
+            <arg value="${promote.plan.sha}"/>
+            <arg value="--out"/>
+            <arg file="${promote.out}"/>
+            <arg line="${promote.artefact.map.args}"/>
+            <arg value="--approve"/>
+            <arg value="${promote.approve}"/>
+            <arg line="${promote.allow.removals.arg}"/>
+            <arg line="${promote.allow.held.arg}"/>
+            <arg value="--module-roots"/>
+            <arg path="${promote.module.roots}"/>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
+    </target>
+
+    <!--
+      policy-lint target
+      ==================
+      Dangerous-policy gate for java.policy files (org.apache.river.tool.PolicyLint):
+      unscoped and weakly scoped java.security.AllPermission grants, and grants of
+      other dangerous permissions (FilePermission "<<ALL FILES>>" write/delete/execute,
+      setSecurityManager, SecurityPermission "*", ...) to code the policy does not
+      scope tightly.  polpAudit only
+      ADDS missing permissions, so an unscoped AllPermission grant in the
+      starting or deployed policy masks everything and defeats least privilege.
+      Reads policy text only; writes nothing.
+
+        ant -Dpolicy.lint.paths=<files-or-dirs> policy-lint
+
+      Two checks, either of which raises a finding: a symbolic one that reads each
+      grant's codeBase pattern (wildcard hosts and ports, user-writable file: paths,
+      jrt:/-), signedBy and principal list and applies the catalogue, and the production
+      policy provider's verdict (DirtyChai's ConcurrentPolicyFile if java.base exports it
+      to the tool's JVM, else jgdms-platform's) for a set of probe subjects; the printed
+      PROVIDER line says which.
+
+      Exit status: fails the build on UNSCOPED_ALLPERMISSION (U1),
+      UNSCOPED_META_GRANT (U2), REAL_VERDICT_UNSCOPED (U3),
+      PROPERTY_DEPENDENT_SCOPE (U4), UNPARSEABLE (P1), WILDCARD_PRINCIPAL (S3), D1 (a
+      dangerous permission reaches a stranger's codebase, wildcard hosts included), D2
+      (a dangerous permission reaches any principal of a class), D3 (file:/- and
+      user-writable file: codeBases) and D4 (jrt:/-), P2 (a file in a walked directory
+      that reads like a policy, whatever its name or extension) and P3 (a link loop);
+      also on S1, S4 (CODEBASE_SCOPED_META_GRANT), D5 (broad permission), D6 (a
+      permission the lint cannot judge) and W1/W2 (empty or unreadable directory, odd
+      file) with -Dpolicy.lint.strict=true.
+      The STARTING policy of a polpAudit run must be linted with
+      -Dpolicy.lint.audit.input=true, which fails on ANY AllPermission grant.
+
+      Properties:
+        policy.lint.paths        files and directories, separated by the path
+                                 separator (required); a directory is walked and
+                                 every regular file in it is read, including
+                                 *.proxy-permissions directories and *.grantperm
+                                 files, except README*, *.md, *.log, *.jar, *.class,
+                                 *.png and a *.txt without the words grant,
+                                 permission or keystore; a file larger than 16 MiB
+                                 is a P1 failure
+        policy.lint.strict       true to fail on the medium kinds (S1 S4 D5 D6 W1 W2)
+        policy.lint.require.defined  true to fail (U4) on any codeBase ${property}
+                                 not given with policy.lint.define.NAME
+        policy.lint.audit.input  true to fail on any AllPermission (S1, S2 too)
+        policy.lint.format       text (default) or tsv
+        policy.lint.glob         optional extra file-name glob to include
+        policy.lint.define.NAME  VALUE for ${NAME} in a codeBase, as the runtime
+                                 defines it (repeatable, one -D per property); an
+                                 undefined property in the codeBase of an
+                                 AllPermission grant is U4 and fails the build
+        policy.lint.provider     auto (default), dirtychai or platform
+        policy.lint.jvmargs      extra JVM arguments; on the DirtyChai JDK export
+                                 au.zeus.jdk.authorization.policy from java.base
+                                 to ALL-UNNAMED (the add-exports option) to use
+                                 DirtyChai's own policy provider
+    -->
+    <target name="policy-lint-args">
+        <fail message="use ant -Dpolicy.lint.paths=/path/to/x.policy[:/dir] policy-lint" unless="policy.lint.paths"/>
+        <path id="policy.lint.pathset">
+            <pathelement path="${policy.lint.paths}"/>
+        </path>
+        <pathconvert property="policy.lint.paths.args" refid="policy.lint.pathset" pathsep="&quot; &quot;"/>
+        <property name="policy.lint.format" value="text"/>
+        <condition property="policy.lint.strict.arg" value="--strict" else="">
+            <istrue value="${policy.lint.strict}"/>
+        </condition>
+        <condition property="policy.lint.audit.arg" value="--audit-input" else="">
+            <istrue value="${policy.lint.audit.input}"/>
+        </condition>
+        <condition property="policy.lint.require.arg" value="--require-defined" else="">
+            <istrue value="${policy.lint.require.defined}"/>
+        </condition>
+        <condition property="policy.lint.glob.arg" value="--glob=${policy.lint.glob}" else="">
+            <isset property="policy.lint.glob"/>
+        </condition>
+        <property name="policy.lint.provider" value="auto"/>
+        <property name="policy.lint.jvmargs" value=""/>
+    </target>
+
+    <target name="policy-lint" depends="policy-lint-args"
+            description="Fail on unscoped AllPermission and other dangerous grants in policy files. Usage: ant -Dpolicy.lint.paths=FILES-OR-DIRS [-Dpolicy.lint.strict=true] [-Dpolicy.lint.audit.input=true] [-Dpolicy.lint.require.defined=true] [-Dpolicy.lint.define.NAME=VALUE] policy-lint">
+        <java classname="org.apache.river.tool.PolicyLint"
+              fork="yes"
+              failonerror="true">
+            <arg line="${policy.lint.strict.arg}"/>
+            <arg line="${policy.lint.audit.arg}"/>
+            <arg line="${policy.lint.require.arg}"/>
+            <arg line="${policy.lint.glob.arg}"/>
+            <arg value="--format=${policy.lint.format}"/>
+            <arg value="--provider=${policy.lint.provider}"/>
+            <arg value="--"/>
+            <arg line="&quot;${policy.lint.paths.args}&quot;"/>
+            <jvmarg line="${policy.lint.jvmargs}"/>
+            <syspropertyset>
+                <propertyset>
+                    <propertyref prefix="policy.lint.define."/>
+                    <mapper type="glob" from="policy.lint.define.*" to="*"/>
+                </propertyset>
+            </syspropertyset>
+            <classpath refid="policy.promote.classpath"/>
+        </java>
     </target>
 
     <target name="run-arm" depends="river-runtime,jars-arm">

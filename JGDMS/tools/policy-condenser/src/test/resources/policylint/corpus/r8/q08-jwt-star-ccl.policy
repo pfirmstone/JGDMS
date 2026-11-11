@@ -1,0 +1,3 @@
+grant principal net.jini.security.jwt.JwtPrincipal * {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

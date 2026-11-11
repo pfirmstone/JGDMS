@@ -1,0 +1,3 @@
+grant codeBase "file:${user.home}/x.jar" {
+    permission java.security.AllPermission;
+};

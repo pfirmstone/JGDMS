@@ -25,11 +25,22 @@ The run scripts set `policy.provider` to `ConcurrentPolicyFile` explicitly,
 because DirtyChai's shipped `java.security` still names
 `sun.security.provider.PolicyFile`.
 
-Two benchmarks run in each configuration:
+Four benchmarks run in each configuration:
 
 - **`guardedRead`**: one `System.getProperty` call from the workload. With a
   SecurityManager that is one `PropertyPermission` check; without one it is a
   plain map lookup. *SM on minus SM off is the cost of one permission check.*
+- **`guardedReadPrivileged`** and **`guardedReadPrivilegedContext`**: the same
+  guarded read made inside `AccessController.doPrivileged(action)` and
+  `doPrivileged(action, context)`, called from the workload class. They measure
+  what `doPrivileged` adds to a check. The privileged block ends the stack walk
+  at the caller, so on its own it makes the read cheaper than `guardedRead`; on
+  DirtyChai, where each `doPrivileged` is also bounded by a per-class limiting
+  domain, the difference between this and a build without it is the cost of that
+  limiting domain. Comparing the two needs two JDKs (or the same JDK with and
+  without the limiting domain, for example by loading a modified `AccessController`
+  with `--patch-module java.base=...`). The audit step records the extra grants
+  the privileged calls need.
 - **`request`**: a small request handler (parse 16 query parameters, CRC32 a
   512-byte body, format a response) making `guardedReadsPerRequest` checked
   calls, for 0, 1 and 4. *(SM on − SM off) / SM off is the policy overhead for

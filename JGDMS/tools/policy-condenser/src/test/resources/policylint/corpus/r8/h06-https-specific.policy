@@ -1,0 +1,3 @@
+grant codeBase "https://cdn.example.org/-" {
+  permission java.security.AllPermission;
+};

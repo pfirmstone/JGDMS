@@ -236,6 +236,18 @@ public abstract class PolicyOverhead {
         return worker.handler.readGuarded(worker.next++);
     }
 
+    /** One permission check made inside doPrivileged(action). */
+    @Benchmark
+    public String guardedReadPrivileged(Worker worker) {
+        return worker.handler.readGuardedPrivileged(worker.next++);
+    }
+
+    /** One permission check made inside doPrivileged(action, context). */
+    @Benchmark
+    public String guardedReadPrivilegedContext(Worker worker) {
+        return worker.handler.readGuardedPrivilegedContext(worker.next++);
+    }
+
     /** One small request containing {@code guardedReadsPerRequest} permission checks. */
     @Benchmark
     public long request(Worker worker, Request request) {

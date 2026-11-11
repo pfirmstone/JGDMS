@@ -1,0 +1,3 @@
+grant codeBase "file:${user.home}/-" {
+  permission java.security.AllPermission;
+};

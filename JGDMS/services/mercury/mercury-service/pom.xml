@@ -81,7 +81,8 @@
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-der</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <!-- compile scope: MailboxImplInit's AtomicDerILFactory needs DerInputLimits at
+                 compile time (the default exporter is DER; the same trap as outrigger-service) -->
         </dependency>
     </dependencies>
 

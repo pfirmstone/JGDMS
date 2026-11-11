@@ -1,0 +1,3 @@
+grant codeBase "file:${java.io.tmpdir}/-" {
+  permission java.security.AllPermission;
+};

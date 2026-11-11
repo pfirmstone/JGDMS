@@ -1,0 +1,29 @@
+# Permissions the provider may list for a stranger from a corpus file that passes the default lint run
+# (exit 0), by an explicit row.  One line per entry, tab separated: class, name regex, actions regex,
+# files, reason.  The regexes match the whole name and the whole actions string.  ${user.home} and
+# ${java.io.tmpdir} in a name regex stand for the property value, quoted.
+# files: the corpus files that may grant it, as exact paths relative to the corpus directory, ; separated.
+# No globs (operator ruling 2026-11-02): each must be the path of an existing fixture.  An entry covers
+# only those files: another file that is listed the same permission fails the test, and so does a name
+# no file grants (a stale reference).
+# reason: its own sentence, at least 25 characters, different from every other entry, citing EVERY fixture the entry
+# names by its stem as a whole word (r8/f14-rel-sub-write.policy is cited as f14-rel-sub-write; a stem inside a longer
+# word, or one stem repeated for several files, does not count), and giving a reason beyond the catalogue rating.
+# Every entry must also be matched by a listed permission (no dead entries) and none may rate HIGH in the catalogue.
+# Not listed here: a permission the catalogue rates MEDIUM is accepted without a row where a D5 finding of the lint for
+# the same file NAMES THIS permission (operator decisions 2026-11-02 and 2026-11-03: per permission, not per file; the
+# rows that only repeated a D5 rating were dropped, getDomainCombiner and shutdownHooks are rated MEDIUM and need none).
+# A listed permission that is neither here, nor accepted so, nor implies one of the cross-check questions fails.
+au.zeus.jdk.authorization.guards.SerialObjectPermission	net\.jini\.io\.MarshalledInstance		n/n42-serialobject-named-clean.policy	SerialObjectPermission for the one class net.jini.io.MarshalledInstance: it names a single class with no wildcard, so it opens no further class to deserialisation for a stranger (n42-serialobject-named-clean).
+java.io.FilePermission	(/opt/app/conf/-|[A-Za-z]:[\\/]opt[\\/]app[\\/]conf[\\/]-)	read	r8/ok2-fileread-dir.policy	Read-only below the fixed directory /opt/app/conf, or its drive-letter form: no write and no root or home wildcard, so a stranger reads only the files under that one directory (ok2-fileread-dir).
+java.io.FilePermission	[A-Za-z]:[\\/]data[\\/]app[\\/]-	read	r8/ok2-fileread-dir.policy	Read-only below the fixed directory data/app on any drive letter: the narrow fixed path keeps it outside the drive-root and home rules, and it carries no write (ok2-fileread-dir).
+java.io.FilePermission	${user.home}[\\/]\.myapp[\\/]-	write	n/n23-home-subdir-write-clean.policy	Write only below the hidden application directory .myapp in the user home, so a stranger can change the application own files and nothing else in the home; clean in both runs (n23-home-subdir-write-clean).
+java.io.FilePermission	lib/-	write	r8/f14-rel-sub-write.policy	Write below the relative directory lib: where that is depends on the working directory of whoever starts the service, which the lint rules clean in both runs; a stranger could write to that tree (f14-rel-sub-write).
+java.lang.RuntimePermission	Oracle Corporation		r8/v09-name-prop.policy	The name is a property expansion that yields Oracle Corporation, a string that is no RuntimePermission name of the platform, so the grant implies nothing a check ever asks for (v09-name-prop).
+java.lang.RuntimePermission	define\*		r8/r21-rt-defineS.policy	define* is not a BasicPermission wildcard (only * and .* are), so it matches the single name define*, which no check ever asks for; clean in both runs (r21-rt-defineS).
+java.lang.RuntimePermission	setu0053ecurityManager		r8/v02-unicode-name.policy	The name is the literal text setu0053ecurityManager, not a unicode escape for setSecurityManager, so it implies only that name; clean in both runs (v02-unicode-name).
+java.lang.RuntimePermission	setSecurity\nManager		r8/v04-continuation.policy	The name contains a line break, so it is not setSecurityManager and implies only that literal string, which no check asks for; clean in both runs (v04-continuation).
+java.security.SecurityPermission	set\*		r8/c16-sec-setS.policy	set* is not a BasicPermission wildcard (only * and .* are), so it implies only the literal name set*, which no check asks for; clean in both runs (c16-sec-setS).
+net.jini.security.AssertPrincipalPermission	javax\.security\.auth\.x500\.X500Principal	CN=gateway,O=Example	n/n47-assertprincipal-exact-clean.policy	AssertPrincipalPermission for one exact X500Principal, CN=gateway,O=Example: a stranger may assert only that identity, no wildcard principal; clean in both runs (n47-assertprincipal-exact-clean).
+net.jini.security.GrantPermission	java\.net\.SocketPermission "localhost:1024-", "accept,listen"		n/n34-grantperm-narrow-clean.policy	GrantPermission ceiling of localhost listen and accept on ports 1024 and up: it limits what may be granted onward to unprivileged local ports; clean in both runs (n34-grantperm-narrow-clean).
+java.io.FilePermission	([A-Za-z]:)?[\\/]etc[\\/]hosts	read	n/n125-specific-file-read-clean.policy	Read of the one file /etc/hosts, or its drive-letter form: a single named file, no wildcard, so a stranger reads that file and nothing around it; clean in both runs (n125-specific-file-read-clean).

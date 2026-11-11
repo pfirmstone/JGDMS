@@ -44,7 +44,7 @@ import net.jini.core.entry.Entry;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -135,7 +135,7 @@ class MailboxImplInit {
 			    activationID, 
 			    new BasicJeriExporter(
 				    TcpServerEndpoint.getInstance(0),
-				    new AtomicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+				    new AtomicDerILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
 				    false,
 				    true
 			    )
@@ -154,7 +154,7 @@ class MailboxImplInit {
 		    Exporter.class,
 		    new BasicJeriExporter(
 			    TcpServerEndpoint.getInstance(0),
-			    new AtomicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+			    new AtomicDerILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
 			    false,
 			    true
 		    )

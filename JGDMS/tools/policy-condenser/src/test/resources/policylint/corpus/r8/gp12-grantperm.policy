@@ -1,0 +1,3 @@
+grant {
+  permission net.jini.security.GrantPermission "javax.security.auth.AuthPermission \"*\"";
+};

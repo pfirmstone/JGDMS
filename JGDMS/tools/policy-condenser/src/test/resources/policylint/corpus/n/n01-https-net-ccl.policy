@@ -1,0 +1,3 @@
+grant codeBase "https://*.net/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

@@ -1,0 +1,3 @@
+grant {
+  permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"*\"";
+};

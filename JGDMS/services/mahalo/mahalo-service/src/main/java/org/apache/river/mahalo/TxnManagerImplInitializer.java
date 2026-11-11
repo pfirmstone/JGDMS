@@ -46,7 +46,7 @@ import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -127,7 +127,7 @@ class TxnManagerImplInitializer {
                     Exporter.class, 
                     new ActivationExporter(activationID, 
                         new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-                            new AtomicILFactory(null, null, TxnManager.class, true), 
+                            new AtomicDerILFactory(null, null, TxnManager.class), 
                             false, 
                             true)
                         ), 
@@ -143,7 +143,7 @@ class TxnManagerImplInitializer {
 		    Exporter.class,
 		    new BasicJeriExporter(
 			    TcpServerEndpoint.getInstance(0),
-			    new AtomicILFactory(null, null, TxnManager.class, true),
+			    new AtomicDerILFactory(null, null, TxnManager.class),
 			    false,
 			    true
 		    )

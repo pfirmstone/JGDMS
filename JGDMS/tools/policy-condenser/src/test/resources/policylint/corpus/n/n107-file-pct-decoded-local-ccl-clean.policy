@@ -1,0 +1,3 @@
+grant codeBase "file:/opt/%61pp/-" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};

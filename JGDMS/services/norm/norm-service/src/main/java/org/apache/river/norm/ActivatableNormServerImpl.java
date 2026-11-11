@@ -31,7 +31,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
-import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -158,7 +158,7 @@ public class ActivatableNormServerImpl extends NormServerBaseImpl
                     activationID,
                     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-			new AtomicILFactory(null, null, ActivatableNormServerImpl.class.getClassLoader())
+			new AtomicDerILFactory(null, null, ActivatableNormServerImpl.class.getClassLoader())
 		    )
 		),
                 activationID);

@@ -77,9 +77,9 @@ import net.jini.security.Security;
  * URI + algorithm + digest (self-verifying); other domains carry their URL and any
  * signing certificates.  No anonymous placeholder domains and no principals are
  * written.  The one domain that is <em>not</em> transmitted (nor reconstructed if a
- * peer sends it) is the platform {@code jrt:/java.base} module: always fully
- * privileged ({@link java.security.AllPermission}), native, and unstamped, it is not
- * a reducer (see {@link #isJavaBaseModule}).
+ * peer sends it) is the platform {@code jrt:/java.base} module: privileged only while it
+ * is alone on the stack and makes no {@code doPrivileged} call, native, and unstamped, so
+ * it is not a reducer (see {@link #isJavaBaseModule}).
  */
 final class RemoteContextCodec {
 
@@ -180,8 +180,8 @@ final class RemoteContextCodec {
      * {@link CodeSource} is {@code null} (a dynamic proxy, lambda, or bootstrap
      * domain): it is a genuine reducer and dropping it would <em>elevate</em>
      * authority.  The sole exception is the platform {@code jrt:/java.base} module
-     * domain, which is dropped precisely because it is <em>not</em> a reducer (always
-     * {@link java.security.AllPermission}, native, unstamped); see
+     * domain, which is dropped precisely because it is <em>not</em> a reducer (privileged
+     * while alone on the stack and not calling {@code doPrivileged}, native, unstamped); see
      * {@link #isJavaBaseModule}.  Such a null-codebase domain is reconstructed on the receiver as a
      * codebase-less, principal-bearing domain, so it reduces to whatever the
      * authenticated worker principals are granted (a principal-only grant) and
@@ -191,8 +191,8 @@ final class RemoteContextCodec {
     static void marshal(ObjectOutput out, AccessControlContext acc) throws IOException {
         ProtectionDomain[] extracted =
                 (acc == null) ? new ProtectionDomain[0] : extractDomains(acc);
-        // Drop the platform jrt:/java.base domain before counting: it is always fully
-        // privileged, native, and unstamped, so it is not a reducer and must never be
+        // Drop the platform jrt:/java.base domain before counting: it is privileged while
+        // alone on the stack, native, and unstamped, so it is not a reducer and must never be
         // reconstructed with the remote principals (see isJavaBaseModule).
         List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>(extracted.length);
         for (ProtectionDomain pd : extracted) {
@@ -235,12 +235,19 @@ final class RemoteContextCodec {
 
     /**
      * True for the platform {@code jrt:/java.base} module codebase.  That domain is
-     * always fully privileged (it holds {@link java.security.AllPermission}), carries
-     * native code, and is unstamped (no content digest), so it is never a genuine
-     * reducer.  It is therefore neither transmitted nor reconstructed: stamping the
-     * remote worker principals onto a domain that the receiver's policy
-     * unconditionally grants would elevate authority, not reduce it.  Other {@code jrt:}
-     * module domains are retained -- they are not necessarily fully privileged.
+     * privileged only while it is alone on the stack and makes no {@code doPrivileged}
+     * call; a {@code doPrivileged} call by platform code is limited to the permissions the
+     * audit recorded.  The privilege while alone is deliberate: it lets bootstrap run
+     * without recording permissions, so by the time application code is loaded none have
+     * been granted for it, and an attacker who repeats a bootstrap action cannot find a
+     * privileged context that allows it.  While alone it narrows nothing, so it is never a
+     * genuine reducer; it also carries native code and is unstamped (no content digest).
+     * It is therefore neither transmitted nor reconstructed: stamping the remote worker
+     * principals onto it would elevate authority, not reduce it.  Other {@code jrt:}
+     * module domains are retained -- they are not necessarily privileged.
+     * <p>Assumption: a remote invocation does not originate from platform code that itself
+     * called {@code doPrivileged} (such a frame would be limited, hence a reducer, and is
+     * dropped here).
      */
     private static boolean isJavaBaseModule(URL loc) {
         if (loc == null || !"jrt".equals(loc.getProtocol())) return false;
@@ -320,10 +327,10 @@ final class RemoteContextCodec {
                     throw new IOException("unknown remote domain kind: " + kind);
             }
             if (cs != null && isJavaBaseModule(cs.getLocation())) {
-                // Defence in depth: never reconstruct the trusted platform domain from
-                // the wire (a malicious or pre-fix peer may still send it).  Stamping
-                // the remote principals onto jrt:/java.base would inherit the server's
-                // unconditional platform grant -- escalation, not reduction.
+                // Defence in depth: never reconstruct the platform domain from the wire
+                // (a malicious or pre-fix peer may still send it).  Stamping the remote
+                // principals onto jrt:/java.base would give it a principal-bearing identity
+                // it is not meant to have -- escalation, not reduction (see isJavaBaseModule).
                 continue;
             }
             domains.add(reconstructDomain(cs, principals));

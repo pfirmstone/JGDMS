@@ -119,6 +119,15 @@ public class PolicyUpdatePostProcessor {
     private final boolean generateProxy =
             !"false".equalsIgnoreCase(System.getProperty("policy.update.generate.proxy", "true"));
 
+    /**
+     * Whether {@link ProxyPolicyGenerator} may delete the lists already in a
+     * policy's {@code .proxy-permissions} directory.  Off by default: a list
+     * from another policy, or one written before provenance headers, makes the
+     * generator refuse (logged, never fatal).  Enable with
+     * {@code -Dpolicy.update.proxy.clean=true} to regenerate such a directory.
+     */
+    private final boolean cleanProxyOutput = Boolean.getBoolean("policy.update.proxy.clean");
+
     PolicyUpdatePostProcessor(File qaDir) {
         this.qaDir = qaDir;
     }
@@ -156,6 +165,10 @@ public class PolicyUpdatePostProcessor {
                     proxyCodebases += generateProxyArtifacts(pf);
                 }
             }
+        }
+
+        if (generateProxy) {
+            reportOrphanedLists(allPolicyFiles, excludedBasenames);
         }
 
         LOG.log(Level.INFO,
@@ -327,18 +340,68 @@ public class PolicyUpdatePostProcessor {
     private int generateProxyArtifacts(File policyFile) {
         try {
             File outDir = new File(policyFile.getAbsolutePath() + ".proxy-permissions");
-            ProxyPolicyGenerator.Result r =
-                    new ProxyPolicyGenerator().generate(policyFile, outDir);
+            ProxyPolicyGenerator.Result r = new ProxyPolicyGenerator()
+                    .clean(cleanProxyOutput).generate(policyFile, outDir);
+            for (String note : r.notes()) {
+                LOG.log(Level.WARNING, "{0}: {1}", new Object[]{policyFile.getName(), note});
+            }
             if (r.proxyCount() > 0) {
                 LOG.log(Level.FINE,
                         "Proxy artefacts generated for {0}: {1} codebase(s)",
                         new Object[]{policyFile.getAbsolutePath(), r.proxyCount()});
             }
             return r.proxyCount();
-        } catch (Throwable t) {
-            LOG.log(Level.WARNING,
-                    "ProxyPolicyGenerator failed for " + policyFile.getAbsolutePath(), t);
+        } catch (ProxyPolicyGenerator.GenerationException e) {
+            // A refusal leaves the earlier lists as they were; say so and why.
+            LOG.log(Level.WARNING, "ProxyPolicyGenerator refused {0}, its earlier lists are"
+                    + " unchanged: {1}", new Object[]{policyFile.getAbsolutePath(), e.getMessage()});
             return 0;
+        } catch (Exception | LinkageError e) {
+            LOG.log(Level.WARNING,
+                    "ProxyPolicyGenerator failed for " + policyFile.getAbsolutePath(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * Warns of every {@code <policy>.proxy-permissions} directory under the qa
+     * tree that holds lists although no policy file processed in this run
+     * regenerates it: the policy was removed or excluded, or was never
+     * processed.  Such lists are never refreshed and are not checked by the
+     * generator.
+     */
+    private void reportOrphanedLists(List<File> allPolicyFiles, Set<String> excludedBasenames) {
+        Set<String> regenerated = new HashSet<String>();
+        for (File pf : allPolicyFiles) {
+            if (!excludedBasenames.contains(pf.getName())) {
+                regenerated.add(new File(pf.getAbsolutePath() + ".proxy-permissions").getAbsolutePath());
+            }
+        }
+        List<File> dirs = new ArrayList<File>();
+        collectDirs(qaDir, ".proxy-permissions", dirs);
+        for (File dir : dirs) {
+            if (regenerated.contains(dir.getAbsolutePath())) continue;
+            Set<String> lists = ProxyPolicyGenerator.generatedLists(dir).keySet();
+            if (!lists.isEmpty()) {
+                LOG.log(Level.WARNING, "ORPHAN {0}: lists that no current policy regenerates: {1}",
+                        new Object[]{dir.getAbsolutePath(), lists});
+            }
+        }
+    }
+
+    private static void collectDirs(File dir, String suffix, List<File> result) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                if (child.getName().endsWith(suffix)) {
+                    result.add(child);
+                } else {
+                    collectDirs(child, suffix, result);
+                }
+            }
         }
     }
 

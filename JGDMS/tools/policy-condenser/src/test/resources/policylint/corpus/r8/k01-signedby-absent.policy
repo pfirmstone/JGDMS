@@ -1,0 +1,3 @@
+grant signedBy "nosuchalias" {
+  permission java.lang.RuntimePermission "createClassLoader";
+};
