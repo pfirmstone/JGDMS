@@ -46,9 +46,11 @@
  *       {@link au.net.zeus.jgdms.cel.eval.CandidateProjection} interface a
  *       consumer (Outrigger, the bytecode-analysis-engine, etc.) binds to.</li>
  *   <li>{@link au.net.zeus.jgdms.cel.math} -- the correctly-rounded
- *       transcendental seam (STD-011 §7.5): a conformant provider is T3
- *       phase 2; this module ships only an explicitly non-conformant,
- *       opt-in-only placeholder and a fail-closed default.</li>
+ *       transcendental seam (STD-011 §7.5): the conformant provider
+ *       {@link au.net.zeus.jgdms.cel.math.MathProviders#correctlyRounded()}
+ *       (CORE-MATH ports of sin and cos, with a BigDecimal CrMath for the
+ *       functions not yet ported), an explicitly non-conformant, opt-in-only
+ *       placeholder, and a fail-closed default.</li>
  * </ul>
  */
 package au.net.zeus.jgdms.cel;

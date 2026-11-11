@@ -30,3 +30,13 @@ This product includes the animal-sniffer library from codehaus.org.
 The original software is available from http://mojo.codehaus.org/animal-sniffer/
 Licensed under the MIT license.
 
+This product includes Java ports of the binary64 sine and cosine functions of
+the CORE-MATH project (https://core-math.gitlabpages.inria.fr/), in the
+jgdms-cel module (package au.net.zeus.jgdms.cel.math), ported from
+src/binary64/sin/sin.c and src/binary64/cos/cos.c at commit
+018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov (sin)
+Copyright (c) 2026 Paul Zimmermann (cos)
+The original software is available from https://gitlab.inria.fr/core-math/core-math
+Licensed under the MIT license.
+

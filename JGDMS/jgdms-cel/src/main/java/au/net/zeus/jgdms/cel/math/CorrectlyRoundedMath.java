@@ -22,18 +22,22 @@ package au.net.zeus.jgdms.cel.math;
  * ratifies as REQUIRED (option (a): "the binary64 value nearest the exact
  * mathematical result, ties to even" -- §2's "Correctly rounded" definition).
  * <p>
- * <b>This interface has no conformant implementation in this module.</b>
- * §7.5's honest cost statement is explicit: {@code StrictMath} is
- * reproducible-but-not-correctly-rounded fdlibm and does <em>not</em>
- * qualify; a real implementation means porting or binding a correctly-
- * rounded binary64 library (the CORE-MATH-class lineage §7.5 names). That
- * port is out of this module's scope -- it is **T3 phase 2**, a separate,
- * subsequent task. What this module ships is the seam and a fail-closed
- * default ({@link MathProvider}), plus an explicitly non-conformant,
- * opt-in-only placeholder ({@link StrictMathPlaceholder}) so callers can
- * exercise the calling convention and error-mapping machinery in tests
- * without silently mistaking placeholder output for spec-conformant
- * results.
+ * <b>Implementations in this module</b> (both package-private; callers take
+ * {@link MathProviders#correctlyRounded()}):
+ * <ul>
+ *   <li>{@link CoreMath}: conformant for all seven. {@code sin} and {@code cos} are Java ports of
+ *       CORE-MATH's correctly-rounded binary64 routines ({@code sin.c}, {@code cos.c} at CORE-MATH
+ *       commit 018fa97c, MIT licence, see the NOTICE file); the other five delegate to {@link CrMath}
+ *       until they are ported. This is what {@code MathProviders.correctlyRounded()} returns.</li>
+ *   <li>{@link CrMath}: conformant for all seven, by arbitrary-precision arithmetic with Ziv
+ *       escalation (slow). It is kept as the delegate of {@code CoreMath} and as the independent
+ *       oracle that the tests of the CORE-MATH ports compare against.</li>
+ *   <li>{@link StrictMathPlaceholder}: explicitly NOT conformant ({@code StrictMath} is
+ *       reproducible fdlibm, not correctly rounded: §7.5's honest cost statement), reachable only
+ *       through {@link MathProvider#nonConformantForTestingOnly()}.</li>
+ * </ul>
+ * {@link MathProvider} is the fail-closed gate: with no provider installed a transcendental
+ * {@code CALL} fails.
  * <p>
  * Every method's domain is finite-only per STD-011 §7.2: implementations are
  * never asked to handle NaN or ±Inf arguments (the evaluator maps those to
