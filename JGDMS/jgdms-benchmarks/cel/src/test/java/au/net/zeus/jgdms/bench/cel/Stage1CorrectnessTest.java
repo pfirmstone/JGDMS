@@ -323,8 +323,8 @@ class Stage1CorrectnessTest {
             }
         }
         say(sampleLine("E1", "B-CR", sample.length, cols.count(), s, valid, inFront));
-        assertEquals(0L, n.bitMismatches, "named records");
-        assertEquals(0L, s.bitMismatches, "100,000-record sample");
+        assertEquals(0L, n.bitMismatches, () -> n.firstDifference);
+        assertEquals(0L, s.bitMismatches, () -> s.firstDifference);
         assertTrue(valid > 1000 && s.minValue < s.maxValue, "the sample must hold real, varying returns");
 
         // P10 control: the comparison must be able to fail. Swap azimuth and elevation in the native E1.
@@ -360,7 +360,7 @@ class Stage1CorrectnessTest {
         say(new StringBuilder("E2 vs B-CR over ").append(all.length).append(" in-front records (3 named + ").append(extra.length)
                 .append(" evenly spread of ").append(front.indices().length).append(" in front): bit mismatches ")
                 .append(o.bitMismatches).append(" of ").append(o.values).append(" values, max |d| ").append(o.maxAbs).toString());
-        assertEquals(0L, o.bitMismatches);
+        assertEquals(0L, o.bitMismatches, () -> o.firstDifference);
         assertTrue(o.minValue < o.maxValue);
 
         int[] behind = behindRecords(E2_BEHIND);
@@ -369,7 +369,7 @@ class Stage1CorrectnessTest {
                 .append(front.validReturns() - front.indices().length).append(" valid returns not in front): bit mismatches ")
                 .append(b.bitMismatches).append(" of ").append(b.values).append(" values; every output is [-1.0, -1.0]: ")
                 .append(b.minValue == -1.0 && b.maxValue == -1.0).toString());
-        assertEquals(0L, b.bitMismatches);
+        assertEquals(0L, b.bitMismatches, () -> b.firstDifference);
         assertTrue(b.minValue == -1.0 && b.maxValue == -1.0, "behind records must take the [-1.0, -1.0] branch");
     }
 
@@ -383,7 +383,7 @@ class Stage1CorrectnessTest {
         say(new StringBuilder("E2 (StrictMath placeholder) vs B-STRICT over ").append(spread.length)
                 .append(" evenly spread in-front records of ").append(front.indices().length).append(": bit mismatches ")
                 .append(o.bitMismatches).append(" of ").append(o.values).append(" values, max |d| ").append(o.maxAbs).toString());
-        assertEquals(0L, o.bitMismatches);
+        assertEquals(0L, o.bitMismatches, () -> o.firstDifference);
         assertTrue(o.minValue < o.maxValue);
 
         // control: the fifth-order term of the radial scale loses one factor of theta squared
@@ -461,6 +461,8 @@ class Stage1CorrectnessTest {
         double maxValue = Double.NEGATIVE_INFINITY;
         double[][] cel;
         double[][] nat;
+        /** Reported through the assertion message of a check that expects none; a CONTROL expects some and prints nothing. */
+        String firstDifference = "no difference";
     }
 
     /** Runs CEL and native on every index, in parallel slices, each slice with its OWN evaluator, projection and baseline. */
@@ -508,9 +510,9 @@ class Stage1CorrectnessTest {
             if (differs) {
                 o.recordsDiffering++;
                 if (o.recordsDiffering == 1) {
-                    say(new StringBuilder("FIRST MISMATCH at record ").append(indices[k]).append(": cel ")
+                    o.firstDifference = new StringBuilder("first differing record ").append(indices[k]).append(": cel ")
                             .append(java.util.Arrays.toString(o.cel[k])).append(" native ")
-                            .append(java.util.Arrays.toString(o.nat[k])).toString());
+                            .append(java.util.Arrays.toString(o.nat[k])).toString();
                 }
             }
         }

@@ -33,9 +33,9 @@ import au.net.zeus.jgdms.cel.math.CorrectlyRoundedMath;
  * is {@link Math#sqrt} in both baselines because it is IEEE-exact and so the same in either.
  * <p>
  * CALL COUNTS differ from the CEL text, by design and disclosed: with locals, E1 makes 4 transcendental calls (the text
- * writes {@code cos(elevation)} twice, so 5) and E2 makes 6 (the written-out text makes 156,553 per in-front record; see the
- * correctness test's count). Repeated pure calls return identical bits, so the results are unaffected; the timing
- * difference is the cost of having no variables.
+ * writes {@code cos(elevation)} twice, so 5) and E2 makes 6 (the written-out text makes 156,553 per in-front record,
+ * MEASURED by the counting provider in the correctness test, prediction P9). Repeated pure calls return identical bits, so
+ * the results are unaffected; the timing difference is the cost of having no variables.
  * <p>
  * Not thread-safe (the instance owns no state but the caller's output array); one instance per thread is cheap.
  */
