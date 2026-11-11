@@ -111,6 +111,33 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <!-- Installs a SecurityManager and a Policy: runs in the
+                             execution below, in its own JVM. -->
+                        <exclude>**/ResolvePinnedPermissionTest.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>security-manager-fork</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludes combine.self="override">
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes combine.self="override">
+                                <include>**/ResolvePinnedPermissionTest.java</include>
+                            </includes>
+                            <forkCount>1</forkCount>
+                            <reuseForks>false</reuseForks>
+                            <argLine>-Djava.security.manager=allow</argLine>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

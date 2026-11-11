@@ -38,7 +38,9 @@ import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.ServerSubject;
+import net.jini.jeri.AtomicDerILFactory;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.ssl.SslEngineSvidFactory.Svid;
@@ -72,9 +74,9 @@ import static org.junit.Assert.*;
  * module, so it is absent from this module's own test classpath.  Without it
  * the identity is the X.500 name, which isolation refuses; the tests that need
  * a SPIFFE identity are then skipped (they run when jgdms-lib-dl's classes are
- * on the classpath).  Exports use {@link BasicILFactory}: an
- * {@code AtomicILFactory} export registers with the provider as first party,
- * and resolve would never reach the router.
+ * on the classpath).  Exports use {@link BasicILFactory} and
+ * {@link AtomicDerILFactory}: an {@code AtomicILFactory} export registers with
+ * the provider as first party, and resolve would never reach the router.
  */
 public class ResolvePinsTheProbedIdentityTest {
 
@@ -83,7 +85,7 @@ public class ResolvePinsTheProbedIdentityTest {
 
     private static final Collection<Object> KEEP = new ArrayList<Object>();
     private static Svid server, impostor, twoUri, client;
-    private static CodebaseAccessor reggie, sameDn, twoUris, tcp;
+    private static CodebaseAccessor reggie, reggieDer, sameDn, twoUris, tcp;
     private static String[] previousTrustStore;
 
     private final List<Route> routes = Collections.synchronizedList(new ArrayList<Route>());
@@ -110,6 +112,8 @@ public class ResolvePinsTheProbedIdentityTest {
             server.leaf, impostor.leaf, twoUri.leaf, client.leaf);
         resetSslTrustManagerCache();
         reggie = exportSsl(server);
+        reggieDer = exportSsl(server,
+            new AtomicDerILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER));
         sameDn = exportSsl(impostor);
         twoUris = exportSsl(twoUri);
         Exporter tex = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
@@ -121,10 +125,13 @@ public class ResolvePinsTheProbedIdentityTest {
     }
 
     private static CodebaseAccessor exportSsl(Svid s) throws Exception {
+        return exportSsl(s,
+            new BasicILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER));
+    }
+
+    private static CodebaseAccessor exportSsl(Svid s, InvocationLayerFactory ilf) throws Exception {
         ServerEndpoint se = SslServerEndpoint.getInstance(s.subject, new X500Principal[]{s.x500}, "localhost", 0);
-        Exporter ex = new BasicJeriExporter(se,
-            new BasicILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER),
-            false, true);
+        Exporter ex = new BasicJeriExporter(se, ilf, false, true);
         Accessor impl = new Accessor();
         KEEP.add(impl);
         KEEP.add(ex);
@@ -160,11 +167,14 @@ public class ResolvePinsTheProbedIdentityTest {
 
     @After
     public void restore() throws Exception {
-        router.close();
-        if (previousIsolation == null) {
-            System.clearProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY);
-        } else {
-            System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, previousIsolation);
+        try {
+            if (router != null) router.close();
+        } finally {
+            if (previousIsolation == null) {
+                System.clearProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY);
+            } else {
+                System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, previousIsolation);
+            }
         }
     }
 
@@ -214,8 +224,21 @@ public class ResolvePinsTheProbedIdentityTest {
     }
 
     private static Object resolveAsClient(final CodebaseAccessor proxy) throws Exception {
-        final List<Object> context = deliveringStreamContext();
+        return resolveAsClient(proxy, deliveringStreamContext());
+    }
+
+    private static Object resolveAsClient(final CodebaseAccessor proxy, final List<Object> context)
+            throws Exception {
         return asClient(() -> new PreferredProxyCodebaseProvider().resolve(proxy, null, LOADER, LOADER, context));
+    }
+
+    private static void assertPinnedTo(CodebaseAccessor proxy, Principal pin) {
+        MethodConstraints mc = ((RemoteMethodControl) proxy).getConstraints();
+        for (Method m : CodebaseAccessor.class.getMethods()) {
+            Set<?> required = mc.getConstraints(m).requirements();
+            assertTrue(m.getName() + " requires server authentication", required.contains(ServerAuthentication.YES));
+            assertTrue(m.getName() + " requires the pinned server", required.contains(new ServerMinPrincipal(pin)));
+        }
     }
 
     private Route onlyRoute() {
@@ -267,14 +290,14 @@ public class ResolvePinsTheProbedIdentityTest {
         resolveAsClient(reggie);
         Route route = onlyRoute();
         Principal pin = route.serverPrincipals[0];
+        assertPinnedTo(route.bootstrapProxy, pin);
         MethodConstraints mc = ((RemoteMethodControl) route.bootstrapProxy).getConstraints();
-        for (Method m : CodebaseAccessor.class.getMethods()) {
-            Set<?> required = mc.getConstraints(m).requirements();
-            assertTrue(m.getName() + " requires server authentication", required.contains(ServerAuthentication.YES));
-            assertTrue(m.getName() + " requires the pinned server", required.contains(new ServerMinPrincipal(pin)));
-        }
         assertEquals("the pinned proxy still answers", "http://localhost/resolve-pin.jar",
             asClient(() -> route.bootstrapProxy.getClassAnnotation()));
+        CodebaseAccessor unpinnedOther = (CodebaseAccessor) ((RemoteMethodControl) sameDn).setConstraints(
+            new BasicMethodConstraints(AuthenticateServerTest.MUTUAL));
+        assertEquals("without the pin the other server answers (control)", "http://localhost/resolve-pin.jar",
+            asClient(() -> unpinnedOther.getClassAnnotation()));
         CodebaseAccessor otherServer = (CodebaseAccessor) ((RemoteMethodControl) sameDn).setConstraints(mc);
         try {
             asClient(() -> otherServer.getClassAnnotation());
@@ -297,7 +320,62 @@ public class ResolvePinsTheProbedIdentityTest {
         assertTrue("nothing routed", routes.isEmpty());
         assertEquals("routed", asClient(() -> new PreferredProxyCodebaseProvider().resolvePinned(
             reggie, null, LOADER, LOADER, deliveringStreamContext(), reggieId)));
-        assertEquals(reggieId, onlyRoute().serverPrincipals[0]);
+        Route route = onlyRoute();
+        assertEquals(reggieId, route.serverPrincipals[0]);
+        assertPinnedTo(route.bootstrapProxy, reggieId);
+    }
+
+    @Test
+    public void anAssertedIdentityMustBeARecognisedPrincipal() throws Exception {
+        final Principal custom = new Principal() {
+            public String getName() { return "spiffe://example.org/reggie"; }
+        };
+        final List<Object> context = deliveringStreamContext();
+        try {
+            asClient(() -> new PreferredProxyCodebaseProvider().resolvePinned(
+                reggie, null, LOADER, LOADER, context, custom));
+            fail("a principal of an unrecognised class names nothing the pin can enforce");
+        } catch (IOException expected) {
+            // Refused by ServerIdentityPin.select, whose message speaks of an authenticated server.
+            assertTrue(expected.getMessage(),
+                expected.getMessage().contains("no SPIFFE, Kerberos or X.500 principal")
+                || expected.getMessage().contains("not a recognised principal"));
+        }
+        assertTrue(routes.isEmpty());
+    }
+
+    // ---- the AtomicDer handler, and the DER path's empty stream context -----
+
+    @Test
+    public void anAtomicDerBootstrapProxyIsProbedAndPinnedLikeTheOthers() throws Exception {
+        Assume.assumeTrue("needs " + SPIFFE_CLASS + " (jgdms-lib-dl) on the classpath", spiffeAvailable());
+        resolveAsClient(reggieDer);
+        Route route = onlyRoute();
+        assertEquals(spiffe("spiffe://example.org/reggie"), route.serverPrincipals[0]);
+        assertPinnedTo(route.bootstrapProxy, route.serverPrincipals[0]);
+    }
+
+    /**
+     * The DER stream's context carries no method constraints and no
+     * ServerSubject: the identity must still come from the proxy's own server.
+     */
+    @Test
+    public void anEmptyStreamContextStillTakesTheIdentityFromTheProxysOwnServer() throws Exception {
+        final List<Object> empty = new ArrayList<Object>();
+        if (spiffeAvailable()) {
+            resolveAsClient(reggieDer, empty);
+            Route route = onlyRoute();
+            assertEquals(spiffe("spiffe://example.org/reggie"), route.serverPrincipals[0]);
+            assertPinnedTo(route.bootstrapProxy, route.serverPrincipals[0]);
+        } else {
+            try {
+                resolveAsClient(reggieDer, empty);
+                fail("isolation needs a SPIFFE identity");
+            } catch (IOException expected) {
+                assertTrue(expected.getMessage(), expected.getMessage().contains("CN=Reggie"));
+            }
+            assertTrue(routes.isEmpty());
+        }
     }
 
     // ---- 4: fail closed ------------------------------------------------------
@@ -310,6 +388,16 @@ public class ResolvePinsTheProbedIdentityTest {
         } catch (UnsupportedConstraintException expected) {
         }
         assertTrue(routes.isEmpty());
+    }
+
+    @Test
+    public void aFailedProbeRefusesAlsoWhenNotIsolating() throws Exception {
+        System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, "false");
+        try {
+            new PreferredProxyCodebaseProvider().resolve(reggie, null, LOADER, LOADER, deliveringStreamContext());
+            fail("a probe that cannot be made is an error, never \"no identity\" and the unverified path");
+        } catch (UnsupportedConstraintException expected) {
+        }
     }
 
     @Test

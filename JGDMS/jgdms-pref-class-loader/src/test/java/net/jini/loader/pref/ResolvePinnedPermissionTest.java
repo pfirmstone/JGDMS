@@ -17,7 +17,17 @@ import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.AllPermission;
+import java.security.CodeSource;
 import java.security.Permission;
+import java.security.PermissionCollection;
+import java.security.Permissions;
+import java.security.Policy;
+import java.security.PrivilegedExceptionAction;
+import java.security.PrivilegedActionException;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,14 +42,19 @@ import static org.junit.Assert.*;
 
 /**
  * Invariant: an identity can be asserted to
- * {@link PreferredProxyCodebaseProvider#resolvePinned} only by a caller holding
- * {@link PinnedIdentityPermission}, and the check is made before the bootstrap
- * proxy is touched.  An asserted identity decides which principal
- * {@code BootstrapPermission} and the digest grants are issued for, so a caller
- * without the grant must not get that far.
+ * {@link PreferredProxyCodebaseProvider#resolvePinned} only when every caller on
+ * the stack holds {@link PinnedIdentityPermission}, and the check is made
+ * before the bootstrap proxy is touched.  An asserted identity decides which
+ * principal {@code BootstrapPermission} and the digest grants are issued for,
+ * so a caller without the grant must not get that far, and the provider must
+ * not vouch for its caller by checking in a privileged block of its own.
  * <p>
- * Needs a SecurityManager: on Java 18 to 23 run with
- * {@code -Djava.security.manager=allow}, otherwise the tests are skipped.
+ * The policy grants everything to every code source; the caller is confined
+ * to a domain whose permissions are fixed (it never consults the policy), and
+ * the SecurityManager checks the permission against the real access control
+ * context.  A SecurityManager must be installable: this class runs in its own
+ * JVM (see the module's pom) with {@code -Djava.security.manager=allow}; it is
+ * skipped where one cannot be installed.
  */
 public class ResolvePinnedPermissionTest {
 
@@ -47,44 +62,56 @@ public class ResolvePinnedPermissionTest {
 
     @Test
     public void aCallerWithoutThePermissionIsRefusedBeforeTheProxyIsTouched() throws Exception {
-        final PinSecurityManager sm = new PinSecurityManager(true);
-        final Recorder recorder = new Recorder();
-        withSecurityManager(sm, new Body() {
-            public void run() throws Exception {
-                try {
-                    new PreferredProxyCodebaseProvider().resolvePinned(recorder.proxy(), null,
-                            LOADER, LOADER, streamContext(), new X500Principal("CN=asserted"));
-                    fail("an identity asserted without PinnedIdentityPermission must be refused");
-                } catch (SecurityException expected) {
-                    assertTrue(expected.getMessage(), expected.getMessage().contains("denied by test SM"));
-                }
-            }
-        });
-        assertEquals("the gate checked exactly the pinned-identity permission",
-                Collections.singletonList(new PinnedIdentityPermission()), sm.pinChecks);
+        Recorder recorder = new Recorder();
+        Throwable outcome = resolvePinnedAs(new Permissions(), recorder);
+        assertTrue("an identity asserted by a caller without PinnedIdentityPermission must be refused, got "
+                + outcome, outcome instanceof SecurityException);
         assertEquals("the bootstrap proxy was never called", Collections.emptyList(), recorder.calls);
     }
 
     /** The control: the refusal above is the gate's, not an incidental denial further on. */
     @Test
     public void aCallerWithThePermissionGetsPastTheGate() throws Exception {
-        final PinSecurityManager sm = new PinSecurityManager(false);
-        final Recorder recorder = new Recorder();
-        withSecurityManager(sm, new Body() {
-            public void run() throws Exception {
+        Permissions granted = new Permissions();
+        granted.add(new PinnedIdentityPermission());
+        Recorder recorder = new Recorder();
+        Throwable outcome = resolvePinnedAs(granted, recorder);
+        assertTrue("past the gate, a proxy whose handler is not a platform JERI handler is refused, got "
+                + outcome, outcome instanceof IOException
+                && outcome.getMessage().contains("not a platform JERI handler"));
+        assertEquals("past the gate the stream's constraints are applied",
+                Collections.singletonList("setConstraints"), recorder.calls);
+    }
+
+    /**
+     * Calls resolvePinned from a caller confined to a domain holding exactly
+     * {@code callerPermissions}, under a SecurityManager and a policy granting
+     * everything to every code source.  Returns what it threw.
+     */
+    private static Throwable resolvePinnedAs(PermissionCollection callerPermissions, final Recorder recorder)
+            throws Exception {
+        final AccessControlContext caller = new AccessControlContext(new ProtectionDomain[]{
+            new ProtectionDomain(new CodeSource(null, (java.security.cert.Certificate[]) null),
+                    callerPermissions)});
+        final Throwable[] thrown = new Throwable[1];
+        withSecurityManager(new Body() {
+            public void run() {
                 try {
-                    new PreferredProxyCodebaseProvider().resolvePinned(recorder.proxy(), null,
-                            LOADER, LOADER, streamContext(), new X500Principal("CN=asserted"));
-                    fail("a proxy whose handler is not a platform JERI handler cannot be pinned");
-                } catch (IOException expected) {
-                    assertTrue(expected.getMessage(),
-                            expected.getMessage().contains("not a platform JERI handler"));
+                    AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+                        public Object run() throws Exception {
+                            return new PreferredProxyCodebaseProvider().resolvePinned(recorder.proxy(), null,
+                                    LOADER, LOADER, streamContext(), new X500Principal("CN=asserted"));
+                        }
+                    }, caller);
+                } catch (PrivilegedActionException e) {
+                    thrown[0] = e.getException();
+                } catch (Throwable t) {
+                    thrown[0] = t;
                 }
             }
         });
-        assertEquals(Collections.singletonList(new PinnedIdentityPermission()), sm.pinChecks);
-        assertEquals("past the gate the stream's constraints are applied",
-                Collections.singletonList("setConstraints"), recorder.calls);
+        assertNotNull("resolvePinned cannot succeed with a proxy of this handler", thrown[0]);
+        return thrown[0];
     }
 
     /** A stream context with method constraints, which resolve applies to the proxy first. */
@@ -94,30 +121,55 @@ public class ResolvePinnedPermissionTest {
         return context;
     }
 
-    /** Denies, or only records, PinnedIdentityPermission; allows everything else. */
-    private static final class PinSecurityManager extends SecurityManager {
-        private final boolean deny;
-        final List<Permission> pinChecks = Collections.synchronizedList(new ArrayList<Permission>());
+    /** Grants everything to every domain that consults the policy. */
+    private static final class AllowAllPolicy extends Policy {
+        @Override
+        public PermissionCollection getPermissions(CodeSource codesource) {
+            Permissions p = new Permissions();
+            p.add(new AllPermission());
+            return p;
+        }
 
-        PinSecurityManager(boolean deny) {
-            this.deny = deny;
-            // Loaded now: loading it inside checkPermission would check a read and recurse.
+        @Override
+        public PermissionCollection getPermissions(ProtectionDomain domain) {
+            return getPermissions((CodeSource) null);
+        }
+
+        @Override
+        public boolean implies(ProtectionDomain domain, Permission permission) {
+            return true;
+        }
+    }
+
+    /**
+     * Checks PinnedIdentityPermission against the access control context;
+     * allows everything else, and everything once disarmed.
+     */
+    private static final class PinSecurityManager extends SecurityManager {
+        private volatile boolean armed = true;
+
+        PinSecurityManager() {
+            // Loaded now: loading a class inside checkPermission checks a read and recurses.
             new PinnedIdentityPermission().implies(new PinnedIdentityPermission());
+            AccessController.getContext();
         }
 
         @Override
         public void checkPermission(Permission perm) {
-            if (perm instanceof PinnedIdentityPermission) {
-                pinChecks.add(perm);
-                if (deny) {
-                    throw new SecurityException("denied by test SM: " + perm);
-                }
+            if (armed && perm instanceof PinnedIdentityPermission) {
+                AccessController.checkPermission(perm);
             }
         }
 
         @Override
         public void checkPermission(Permission perm, Object context) {
-            checkPermission(perm);
+            if (armed && perm instanceof PinnedIdentityPermission) {
+                ((AccessControlContext) context).checkPermission(perm);
+            }
+        }
+
+        void disarm() {
+            armed = false;
         }
     }
 
@@ -147,21 +199,35 @@ public class ResolvePinnedPermissionTest {
     }
 
     private interface Body {
-        void run() throws Exception;
+        void run();
     }
 
-    private static void withSecurityManager(SecurityManager sm, Body body) throws Exception {
+    private static void withSecurityManager(Body body) {
+        Policy previousPolicy = Policy.getPolicy();
         SecurityManager previous = System.getSecurityManager();
+        Assume.assumeTrue("another SecurityManager is installed", previous == null);
+        PinSecurityManager sm = new PinSecurityManager();
+        Policy.setPolicy(new AllowAllPolicy());
         try {
-            System.setSecurityManager(sm);
-        } catch (UnsupportedOperationException noAllowFlag) {
-            Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
-            return;
-        }
-        try {
-            body.run();
+            try {
+                System.setSecurityManager(sm);
+            } catch (UnsupportedOperationException noAllowFlag) {
+                Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
+                return;
+            }
+            try {
+                body.run();
+            } finally {
+                sm.disarm();
+                try {
+                    System.setSecurityManager(null);
+                } catch (RuntimeException cannotRemove) {
+                    // A JDK may refuse to remove a SecurityManager; the disarmed one allows
+                    // everything, and this class runs in its own JVM.
+                }
+            }
         } finally {
-            System.setSecurityManager(previous);
+            Policy.setPolicy(previousPolicy);
         }
     }
 }
