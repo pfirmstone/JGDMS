@@ -1,0 +1,519 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package au.net.zeus.jgdms.bench.cel;
+
+import au.net.zeus.jgdms.cel.ast.ExprNode;
+import au.net.zeus.jgdms.cel.authoring.CelParseException;
+import au.net.zeus.jgdms.cel.authoring.CelTextParser;
+import au.net.zeus.jgdms.cel.math.MathProvider;
+import au.net.zeus.jgdms.cel.math.MathProviders;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Supplier;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * STD-011 stage-1 correctness: the CEL trees the benchmarks time must compute the SAME bits as native code doing the same
+ * arithmetic, on the real scan, or the timings compare unlike things. RUNTIME TIER: slow-ish (reads a 466 MB scan, CRC
+ * checks every page, runs a correctly-rounded evaluator over 100,000 records); it is in the module's default run because the
+ * brief asks for it to run with the build, and it reads its input from {@link Sampling#rawscanPath()} (a READ-ONLY file; the
+ * test FAILS, it does not skip, when the file is absent).
+ *
+ * <h2>SEALED PREDICTIONS (written and committed BEFORE the first run of this class; 2026-11-11, producer seat Sonnet)</h2>
+ * Witness: the dispatcher (Chisel) reads these in the commit that introduces this file; no mailbox was used (the brief forbids
+ * it). Scoring path: {@code mvn -f jgdms-benchmarks/pom.xml -pl cel test} (the only path that scores them); the scratch
+ * programs run before this seal (a de-paging XML dump and a rough timing loop of the correctly-rounded functions) were
+ * EXPLORATORY and are not scored. Pinned statistic is stated per prediction; no tolerance is ever widened to pass.
+ * <ol>
+ *   <li>P1 (AC1) every page of the file CRC32C-verifies, big-endian trailer: CRC failures on page 0, on the record pages and
+ *       on the later pages are each 0. ELSE: print the counts and fail; the fixture then refuses to time.</li>
+ *   <li>P2 (AC2) stored azimuth in [-(float)pi, (float)pi], elevation in [-(float)(pi/2), (float)(pi/2)], range not negative
+ *       or NaN: out-of-bound counts are 0 (the writer enforces this convention). ELSE: the count is printed with its
+ *       denominator and booked as a finding about the FILE; the assertion then becomes "under 0.1% of records" and the
+ *       change is DECLARED in the READY file, the 0 prediction standing as sealed and failed.</li>
+ *   <li>P3 the record count of {@code points/@recordCount} equals {@code geo:conversionPointsWritten}.</li>
+ *   <li>P4 (partial independent witness for the angle convention) E1's Cartesian bounds over the valid returns agree with the
+ *       file XML's own {@code cartesianBounds} within 0.05 m on each of the six bounds; EXPECTED within 2 mm (the EDM zero-point
+ *       and scale if the XML bounds predate the correction). A gross failure (over 0.05 m) fails the test and leaves E1 and E2
+ *       unvalidated for convention. SCOPE: the file's own bounds, same bed, a second statement by the converter; it does not
+ *       establish independence from the converter's own spherical convention.</li>
+ *   <li>P5 CEL E1 (correctly-rounded provider) is bit-identical to B-CR at the three named in-front records and over 100,000
+ *       records spread evenly over the whole file: 0 bit mismatches of 300,000 values. ELSE: print the count, the first
+ *       mismatching record and both values; fail.</li>
+ *   <li>P6 CEL E2 (correctly-rounded provider) is bit-identical to B-CR at the three named in-front records and a further 9
+ *       evenly spread in-front records (12 in all: each is about a hundred and fifty thousand correctly-rounded calls, so the
+ *       100,000-record sample the brief asked for is infeasible for E2, a DECLARED deviation), and over up to 2,000 evenly
+ *       spread BEHIND records (the {@code ?:} behind branch, 5 calls each).</li>
+ *   <li>P7 (DIAGNOSTIC: tests the tree's arithmetic and structure, not correct rounding) CEL E2 under the production
+ *       StrictMath placeholder provider is bit-identical to B-STRICT over the 3 named and 240 evenly spread in-front
+ *       records.</li>
+ *   <li>P8 admission: E1 is ACCEPTED by {@code CelVerifier} with and without a schema; E2 has more than 1,024 nodes and depth
+ *       over 32, is refused by the encoder, and its static cost exceeds 1,000,000 (CostModel refusal). ELSE the "REJECTED by
+ *       v0.1 ceilings" finding is void and is reported as such.</li>
+ *   <li>P9 evaluated transcendental calls for one in-front record: E1 5; E2 156,553 (derived by hand from the templates before
+ *       any run: 5 per camera-frame coordinate, 20 in rho, 26 in theta, 71 in each raw a and b, 598 in s, 669 in each a1 and b1,
+ *       6021 in each a2 and b2, 24,084 in th2, 54,189 in each u, 78,274 in each of col and row, plus 5 in the behind test).</li>
+ *   <li>P10 (anti-vacuous controls, the gate's discrimination) a native E1 with azimuth and elevation swapped differs from CEL
+ *       E1 on at least 90% of the sampled valid returns; E2 with the radial-scale template altered (the fifth-order term using
+ *       one factor of theta squared too few) differs from B-STRICT on at least 1 of the 240 records. If either shows 0 the
+ *       comparison is not discriminating on this sample and the test fails.</li>
+ *   <li>NOT predicted: any timing. JMH numbers are Chisel's to take under both build slots.</li>
+ * </ol>
+ * AC3 stands UNVALIDATED regardless: both sides come from one idea (the same camera/angle convention written once), so
+ * bit-identity says the evaluator computes what was written, not that it is what {@code PerImageCamera} computes.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class Stage1CorrectnessTest {
+
+    private static final int E1_SAMPLE = 100_000;
+    private static final int E2_CR_EXTRA = 9;
+    private static final int E2_BEHIND = 2_000;
+    private static final int E2_STRICT = 240;
+
+    private RawScanColumns cols;
+    private Stage1Expressions x;
+    private Sampling.Front front;
+    private ExprNode e1;
+    private ExprNode e2;
+    private NativeBaselines nativeCr;
+    private NativeBaselines nativeStrict;
+
+    @BeforeAll
+    void load() throws IOException, CelParseException {
+        cols = RawScanColumns.load(Sampling.rawscanPath());
+        x = Stage1Expressions.synthetic();
+        e1 = x.e1();
+        e2 = x.e2();
+        nativeCr = new NativeBaselines(MathProviders.correctlyRounded().get(), x.camera());
+        nativeStrict = new NativeBaselines(new Trig.Strict(), x.camera());
+        front = Sampling.inFront(cols, nativeStrict);
+        say(x.camera().describe());
+        say(cols.census.describe());
+        say(new StringBuilder("in-front valid returns (StrictMath camera z < 0): ").append(front.indices().length)
+                .append(" of ").append(front.validReturns()).append(" valid returns (range > 0) of ").append(front.records())
+                .append(" records").toString());
+    }
+
+    // ----------------------------------------------------------------------------------------- the file
+
+    @Test
+    void p1p2p3_everyPageVerifiesAndTheStoredAnglesAreInBounds() {
+        RawScanColumns.Census c = cols.census;
+        assertEquals(0L, c.crcFailuresPage0(), "page 0 CRC");
+        assertEquals(0L, c.crcFailuresRecords(), "record pages CRC");
+        assertEquals(0L, c.crcFailuresOther(), "later pages (appended sections, XML) CRC");
+        assertEquals(c.recordCount(), c.geoConversionPoints(), "points/@recordCount vs geo:conversionPointsWritten");
+        assertEquals(c.pagesInFile(), c.pagesVerified(), "every page of the file was CRC-checked");
+        assertEquals(0L, c.azimuthOutOfBounds(), "stored azimuth outside [-(float)pi, (float)pi]");
+        assertEquals(0L, c.elevationOutOfBounds(), "stored elevation outside +-(float)(pi/2)");
+        assertEquals(0L, c.rangeNegativeOrNaN(), "stored range negative or NaN");
+        assertTrue(front.validReturns() > c.recordCount() / 2, "most records are returns, so the sample is not vacuous");
+    }
+
+    @Test
+    void p4_e1CartesianBoundsAgreeWithTheFilesOwnBounds() {
+        double[] lo = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY};
+        double[] hi = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        double[] out = new double[3];
+        long used = 0;
+        for (int i = 0; i < cols.count(); i++) {
+            if (!(cols.range[i] > 0f)) {
+                continue;
+            }
+            nativeStrict.e1(cols.range[i], cols.azimuth[i], cols.elevation[i], out);
+            used++;
+            for (int k = 0; k < 3; k++) {
+                lo[k] = Math.min(lo[k], out[k]);
+                hi[k] = Math.max(hi[k], out[k]);
+            }
+        }
+        double[] xml = cols.census.xmlCartesianBounds();
+        double[] mine = {lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]};
+        String[] names = {"xMin", "xMax", "yMin", "yMax", "zMin", "zMax"};
+        StringBuilder sb = new StringBuilder(512);
+        sb.append("E1 bounds over ").append(used).append(" valid returns (StrictMath, B-STRICT E1) vs the file XML cartesianBounds:\n");
+        double worst = 0.0;
+        for (int k = 0; k < 6; k++) {
+            double d = mine[k] - xml[k];
+            worst = Math.max(worst, Math.abs(d));
+            sb.append("  ").append(names[k]).append(": mine=").append(mine[k]).append(" xml=").append(xml[k])
+                    .append(" d=").append(d).append('\n');
+        }
+        sb.append("  max |d| = ").append(worst).append(" m");
+        say(sb.toString());
+        assertTrue(worst < 0.05, "E1's convention disagrees grossly with the file's own Cartesian bounds");
+    }
+
+    // ----------------------------------------------------------------------------------------- the expressions
+
+    @Test
+    void substitutedTreesEqualTheParseOfTheInlinedText() throws CelParseException {
+        StringBuilder sb = new StringBuilder(1024);
+        sb.append("substituted tree vs CelTextParser.parse(fully inlined text), per piece:\n");
+        int compared = 0;
+        for (String name : x.pieces().keySet()) {
+            long len = x.inlinedLength(name);
+            if (len > 900_000L) {
+                sb.append("  ").append(name).append(": inlined text ").append(len).append(" chars, over the parser's 1,000,000 cap\n");
+                continue;
+            }
+            ExprNode whole;
+            try {
+                whole = CelTextParser.parse(x.inlinedText(name, 900_000));
+            } catch (CelParseException e) {
+                sb.append("  ").append(name).append(": inlined text ").append(len).append(" chars, REFUSED by the parser: ")
+                        .append(e.getMessage()).append('\n');
+                continue;
+            }
+            assertEquals(whole, x.expand(name), new StringBuilder("substitution differs from inlining for ").append(name).toString());
+            compared++;
+            sb.append("  ").append(name).append(": inlined text ").append(len).append(" chars, trees equal\n");
+        }
+        say(sb.toString());
+        assertTrue(compared >= 8, "the equality check must cover E1 and several E2 intermediates");
+    }
+
+    @Test
+    void ourNodeAndDepthCountsAgreeWithTheProductionCeilingsAtTheirBoundaries() throws CelParseException {
+        // nodes: a list literal of n double literals is 1 + n nodes at depth 2
+        String ok = listText(1023);
+        String over = listText(1024);
+        assertEquals(1024L, Stage1Expressions.measure(CelTextParser.parse(ok)).nodes());
+        assertThrows(CelParseException.class, () -> CelTextParser.parse(over));
+        // depth: n negations over a literal are n+1 nodes at depth n+1
+        ExprNode d32 = CelTextParser.parse(negText(31));
+        assertEquals(32, Stage1Expressions.measure(d32).depth());
+        assertThrows(CelParseException.class, () -> CelTextParser.parse(negText(32)));
+        // a field reference counts itself and its step
+        assertEquals(2L, Stage1Expressions.measure(CelTextParser.parse("range")).nodes());
+    }
+
+    @Test
+    void p8p9_admissionAndCallCounts() {
+        Stage1Expressions.Measure m1 = Stage1Expressions.measure(e1);
+        Stage1Expressions.Measure m2 = Stage1Expressions.measure(e2);
+        StringBuilder sb = new StringBuilder(2048);
+        sb.append("E1: ").append(m1.nodes()).append(" nodes, depth ").append(m1.depth()).append(", ").append(m1.trigCallsSyntactic())
+                .append(" transcendental calls (syntactic), text ").append(x.inlinedLength("e1")).append(" chars\n");
+        sb.append("    ").append(Stage1Expressions.staticCost(e1)).append('\n');
+        String v1 = Stage1Expressions.admissionVerdict(e1, null);
+        String v1s = Stage1Expressions.admissionVerdict(e1, new Stage1Expressions.Schema());
+        sb.append("    ").append(v1).append('\n').append("    ").append(v1s).append('\n');
+        sb.append("E2: ").append(m2.nodes()).append(" nodes, depth ").append(m2.depth()).append(", ").append(m2.trigCallsSyntactic())
+                .append(" transcendental calls (syntactic, both ?: branches), text ").append(x.inlinedLength("e2"))
+                .append(" chars (parser input cap 1,000,000)\n");
+        sb.append("    ").append(Stage1Expressions.staticCost(e2)).append('\n');
+        String v2 = Stage1Expressions.admissionVerdict(e2, null);
+        sb.append("    ").append(v2).append('\n');
+        assertTrue(v1.contains("ACCEPTED") && v1s.contains("ACCEPTED"), v1.concat(" / ").concat(v1s));
+        assertTrue(m1.nodes() <= 1024 && m1.depth() <= 32);
+        assertTrue(m2.nodes() > 1024 && m2.depth() > 32, "E2 must exceed the v0.1 ceilings for the REJECTED finding to stand");
+        assertTrue(v2.startsWith("REFUSED"), v2);
+        assertTrue(Stage1Expressions.staticCost(e2).startsWith("CostModel refused"), "E2 static cost must exceed maxExprCost");
+
+        int probe = front.first();
+        Trig.Counting c1 = new Trig.Counting(new Trig.Strict());
+        new CelRunner(e1, MathProvider.conformant(c1), new RecordProjection(cols.range, cols.azimuth, cols.elevation))
+                .evaluateInto(probe, new double[3]);
+        Trig.Counting c2 = new Trig.Counting(new Trig.Strict());
+        new CelRunner(e2, MathProvider.conformant(c2), new RecordProjection(cols.range, cols.azimuth, cols.elevation))
+                .evaluateInto(probe, new double[2]);
+        sb.append("evaluated transcendental calls, record ").append(probe).append(" (in front): E1 ").append(c1.total())
+                .append(" [cos ").append(c1.cos).append(", sin ").append(c1.sin).append("]; E2 ").append(c2.total())
+                .append(" [cos ").append(c2.cos).append(", sin ").append(c2.sin).append(", atan2 ").append(c2.atan2)
+                .append(", tan ").append(c2.tan).append("]");
+        say(sb.toString());
+        assertEquals(5L, c1.total());
+        assertEquals(156_553L, c2.total());
+    }
+
+    // ----------------------------------------------------------------------------------------- bit-identity
+
+    @Test
+    void p5_e1CelEqualsBCrOnTheNamedRecordsAndOverTheWholeFileSample() throws Exception {
+        int[] named = {front.first(), front.middle(), front.last()};
+        Outcome n = compare(named, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 1));
+        say(namedLine("E1", "B-CR", named, n));
+
+        int[] sample = Sampling.evenlyOverFile(cols.count(), E1_SAMPLE);
+        Outcome s = compare(sample, 3, () -> celInto(e1, correctlyRounded()), () -> natInto(nativeCr, 1));
+        long valid = 0;
+        long inFront = 0;
+        for (int i : sample) {
+            if (cols.range[i] > 0f) {
+                valid++;
+                if (nativeStrict.inFront(cols.range[i], cols.azimuth[i], cols.elevation[i])) {
+                    inFront++;
+                }
+            }
+        }
+        say(sampleLine("E1", "B-CR", sample.length, cols.count(), s, valid, inFront));
+        assertEquals(0L, n.bitMismatches, "named records");
+        assertEquals(0L, s.bitMismatches, "100,000-record sample");
+        assertTrue(valid > 1000 && s.minValue < s.maxValue, "the sample must hold real, varying returns");
+
+        // P10 control: the comparison must be able to fail. Swap azimuth and elevation in the native E1.
+        long differs = 0;
+        double[] swapped = new double[3];
+        for (int k = 0; k < sample.length; k++) {
+            int i = sample[k];
+            if (!(cols.range[i] > 0f)) {
+                continue;
+            }
+            nativeStrict.e1(cols.range[i], cols.elevation[i], cols.azimuth[i], swapped);
+            if (Double.doubleToRawLongBits(swapped[0]) != Double.doubleToRawLongBits(s.cel[k][0])
+                    || Double.doubleToRawLongBits(swapped[1]) != Double.doubleToRawLongBits(s.cel[k][1])
+                    || Double.doubleToRawLongBits(swapped[2]) != Double.doubleToRawLongBits(s.cel[k][2])) {
+                differs++;
+            }
+        }
+        say(new StringBuilder("CONTROL (azimuth and elevation swapped in the native E1): differs from CEL E1 on ").append(differs)
+                .append(" of ").append(valid).append(" sampled valid returns (").append(String.format("%.2f", 100.0 * differs / valid))
+                .append("%)").toString());
+        assertTrue(differs * 10 >= valid * 9, "the control must reject at least 90% of the valid returns");
+    }
+
+    @Test
+    void p6_e2CelEqualsBCrOnNamedExtraInFrontAndBehindRecords() throws Exception {
+        int[] named = {front.first(), front.middle(), front.last()};
+        int[] extra = front.evenly(E2_CR_EXTRA + 3);
+        int[] all = new int[named.length + extra.length];
+        System.arraycopy(named, 0, all, 0, named.length);
+        System.arraycopy(extra, 0, all, named.length, extra.length);
+        Outcome o = compare(all, 2, () -> celInto(e2, correctlyRounded()), () -> natInto(nativeCr, 2));
+        say(namedLine("E2", "B-CR", named, o));
+        say(new StringBuilder("E2 vs B-CR over ").append(all.length).append(" in-front records (3 named + ").append(extra.length)
+                .append(" evenly spread of ").append(front.indices().length).append(" in front): bit mismatches ")
+                .append(o.bitMismatches).append(" of ").append(o.values).append(" values, max |d| ").append(o.maxAbs).toString());
+        assertEquals(0L, o.bitMismatches);
+        assertTrue(o.minValue < o.maxValue);
+
+        int[] behind = behindRecords(E2_BEHIND);
+        Outcome b = compare(behind, 2, () -> celInto(e2, correctlyRounded()), () -> natInto(nativeCr, 2));
+        say(new StringBuilder("E2 vs B-CR over ").append(behind.length).append(" BEHIND records (evenly spread of ")
+                .append(front.validReturns() - front.indices().length).append(" valid returns not in front): bit mismatches ")
+                .append(b.bitMismatches).append(" of ").append(b.values).append(" values; every output is [-1.0, -1.0]: ")
+                .append(b.minValue == -1.0 && b.maxValue == -1.0).toString());
+        assertEquals(0L, b.bitMismatches);
+        assertTrue(b.minValue == -1.0 && b.maxValue == -1.0, "behind records must take the [-1.0, -1.0] branch");
+    }
+
+    @Test
+    void p7p10_e2UnderTheStrictPlaceholderEqualsBStrictAndTheControlDiffers() throws Exception {
+        int[] named = {front.first(), front.middle(), front.last()};
+        int[] spread = front.evenly(E2_STRICT);
+        Outcome o = compare(spread, 2, () -> celInto(e2, MathProvider.nonConformantForTestingOnly()), () -> natInto(nativeStrict, 2));
+        say(namedLine("E2 DIAGNOSTIC (StrictMath placeholder provider)", "B-STRICT", named,
+                compare(named, 2, () -> celInto(e2, MathProvider.nonConformantForTestingOnly()), () -> natInto(nativeStrict, 2))));
+        say(new StringBuilder("E2 (StrictMath placeholder) vs B-STRICT over ").append(spread.length)
+                .append(" evenly spread in-front records of ").append(front.indices().length).append(": bit mismatches ")
+                .append(o.bitMismatches).append(" of ").append(o.values).append(" values, max |d| ").append(o.maxAbs).toString());
+        assertEquals(0L, o.bitMismatches);
+        assertTrue(o.minValue < o.maxValue);
+
+        // control: the fifth-order term of the radial scale loses one factor of theta squared
+        String altered = x.pieces().get("rs").replace(
+                " * (theta * theta) * (theta * theta) * (theta * theta) * (theta * theta)",
+                " * (theta * theta) * (theta * theta) * (theta * theta)");
+        assertFalse(altered.equals(x.pieces().get("rs")), "the control must actually alter the template");
+        ExprNode wrong = x.withPiece("rs", altered).e2();
+        Outcome c = compare(spread, 2, () -> celInto(wrong, MathProvider.nonConformantForTestingOnly()), () -> natInto(nativeStrict, 2));
+        say(new StringBuilder("CONTROL (E2 with the fifth-order radial term one factor of theta^2 short) vs B-STRICT: ")
+                .append(c.recordsDiffering).append(" of ").append(spread.length).append(" records differ (")
+                .append(c.bitMismatches).append(" of ").append(c.values).append(" values)").toString());
+        assertTrue(c.recordsDiffering >= 1, "the E2 comparison must be able to fail");
+    }
+
+    @Test
+    void theProjectionHonoursTheReferenceStabilityContract() {
+        RecordProjection p = new RecordProjection(cols.range, cols.azimuth, cols.elevation);
+        p.set(front.first());
+        assertSame(p.fieldValue(RecordProjection.CLASS_NAME, "range"), p.fieldValue(RecordProjection.CLASS_NAME, "range"));
+        assertTrue(p.declaresField(RecordProjection.CLASS_NAME, "azimuth"));
+        assertFalse(p.declaresField(RecordProjection.CLASS_NAME, "intensity"));
+        assertFalse(p.isUndecodable());
+        assertNotNull(p.namespaceChain());
+    }
+
+    // ----------------------------------------------------------------------------------------- machinery
+
+    private interface Into {
+        void run(int record, double[] out);
+    }
+
+    private MathProvider correctlyRounded() {
+        return MathProviders.correctlyRounded();
+    }
+
+    private Into celInto(ExprNode root, MathProvider math) {
+        CelRunner r = new CelRunner(root, math, new RecordProjection(cols.range, cols.azimuth, cols.elevation));
+        return r::evaluateInto;
+    }
+
+    private Into natInto(NativeBaselines nb, int width) {
+        return (i, out) -> {
+            if (width == 3) {
+                nb.e1(cols.range[i], cols.azimuth[i], cols.elevation[i], out);
+            } else {
+                nb.e2(cols.range[i], cols.azimuth[i], cols.elevation[i], out);
+            }
+        };
+    }
+
+    private int[] behindRecords(int want) {
+        List<Integer> all = new ArrayList<>();
+        int stride = 997;
+        for (int i = 0; i < cols.count() && all.size() < want * 4; i += stride) {
+            if (cols.range[i] > 0f && !nativeStrict.inFront(cols.range[i], cols.azimuth[i], cols.elevation[i])) {
+                all.add(i);
+            }
+        }
+        assertTrue(all.size() >= want, "not enough behind records found");
+        int[] out = new int[want];
+        for (int k = 0; k < want; k++) {
+            out[k] = all.get((int) ((long) k * all.size() / want));
+        }
+        return out;
+    }
+
+    /** What a comparison found; the stashed per-record outputs feed the controls. */
+    private static final class Outcome {
+        long values;
+        long bitMismatches;
+        long recordsDiffering;
+        double maxAbs;
+        double minValue = Double.POSITIVE_INFINITY;
+        double maxValue = Double.NEGATIVE_INFINITY;
+        double[][] cel;
+        double[][] nat;
+    }
+
+    /** Runs CEL and native on every index, in parallel slices, each slice with its OWN evaluator, projection and baseline. */
+    private Outcome compare(int[] indices, int width, Supplier<Into> celFactory, Supplier<Into> natFactory)
+            throws InterruptedException, ExecutionException {
+        Outcome o = new Outcome();
+        o.cel = new double[indices.length][width];
+        o.nat = new double[indices.length][width];
+        int threads = Math.max(1, Math.min(10, Runtime.getRuntime().availableProcessors() - 1));
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                final int from = (int) ((long) t * indices.length / threads);
+                final int to = (int) ((long) (t + 1) * indices.length / threads);
+                futures.add(pool.submit(() -> {
+                    Into cel = celFactory.get();
+                    Into nat = natFactory.get();
+                    for (int k = from; k < to; k++) {
+                        cel.run(indices[k], o.cel[k]);
+                        nat.run(indices[k], o.nat[k]);
+                    }
+                }));
+            }
+            for (Future<?> f : futures) {
+                f.get();
+            }
+        } finally {
+            pool.shutdown();
+        }
+        for (int k = 0; k < indices.length; k++) {
+            boolean differs = false;
+            for (int j = 0; j < width; j++) {
+                o.values++;
+                double a = o.cel[k][j];
+                double b = o.nat[k][j];
+                if (Double.doubleToRawLongBits(a) != Double.doubleToRawLongBits(b)) {
+                    o.bitMismatches++;
+                    differs = true;
+                }
+                o.maxAbs = Math.max(o.maxAbs, Math.abs(a - b));
+                o.minValue = Math.min(o.minValue, a);
+                o.maxValue = Math.max(o.maxValue, a);
+            }
+            if (differs) {
+                o.recordsDiffering++;
+                if (o.recordsDiffering == 1) {
+                    say(new StringBuilder("FIRST MISMATCH at record ").append(indices[k]).append(": cel ")
+                            .append(java.util.Arrays.toString(o.cel[k])).append(" native ")
+                            .append(java.util.Arrays.toString(o.nat[k])).toString());
+                }
+            }
+        }
+        return o;
+    }
+
+    private String namedLine(String what, String against, int[] named, Outcome o) {
+        // the named outcome may come from a larger comparison; the stash is indexed like `named` only for the named call
+        StringBuilder sb = new StringBuilder(256);
+        sb.append("cel vs native (").append(what).append(" vs ").append(against).append(") at {").append(named[0]).append(',')
+                .append(named[1]).append(',').append(named[2]).append("}: d={");
+        for (int k = 0; k < 3 && k < o.cel.length; k++) {
+            sb.append(k == 0 ? "" : ",").append('[');
+            for (int j = 0; j < o.cel[k].length; j++) {
+                sb.append(j == 0 ? "" : ",").append(o.cel[k][j] - o.nat[k][j]);
+            }
+            sb.append(']');
+        }
+        sb.append("} (first, middle, last in-front valid return; each d is cel minus native per output component)");
+        return sb.toString();
+    }
+
+    private String sampleLine(String what, String against, int sample, int records, Outcome o, long valid, long inFront) {
+        return new StringBuilder(what).append(" vs ").append(against).append(" over ").append(sample)
+                .append(" records spread evenly over the file (of ").append(records).append("; ").append(valid)
+                .append(" valid returns, ").append(inFront).append(" of them in front): bit mismatches ").append(o.bitMismatches)
+                .append(" of ").append(o.values).append(" values (").append(o.cel[0].length).append(" x ").append(sample)
+                .append("), max |d| = ").append(o.maxAbs).toString();
+    }
+
+    private static String listText(int n) {
+        StringBuilder sb = new StringBuilder(n * 5 + 2);
+        sb.append('[');
+        for (int i = 0; i < n; i++) {
+            sb.append(i == 0 ? "" : ",").append("1.0");
+        }
+        return sb.append(']').toString();
+    }
+
+    private static String negText(int negations) {
+        StringBuilder sb = new StringBuilder(negations + 4);
+        for (int i = 0; i < negations; i++) {
+            sb.append('-');
+        }
+        return sb.append("1.0").toString();
+    }
+
+    private static void say(String s) {
+        System.out.println(s);
+    }
+}
