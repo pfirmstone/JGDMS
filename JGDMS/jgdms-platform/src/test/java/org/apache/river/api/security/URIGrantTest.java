@@ -94,4 +94,45 @@ public class URIGrantTest {
         Assert.assertTrue(instance.implies(pd));
         Assert.assertTrue(instance1.implies(pd1));
     }
+    private static boolean grantImplies(String grantUri, String codeSourceUrl) throws Exception {
+        PermissionGrant g = PermissionGrantBuilder.newBuilder()
+                .context(PermissionGrantBuilder.URI)
+                .uri(grantUri)
+                .permissions(new Permission[]{new RuntimePermission("uriGrantTest")})
+                .build();
+        return g.implies(new CodeSource(new URL(codeSourceUrl), (Certificate[]) null), null);
+    }
+
+    /**
+     * Positive control for {@link #directoryWildcardStopsAtTheDirectoryBoundary()}:
+     * "/-" covers the directory and everything below it, "/*" the directory's
+     * own entries only. Holds in both copies.
+     */
+    @Test
+    public void directoryWildcardsStillCoverTheirOwnDirectory() throws Exception {
+        org.junit.Assert.assertTrue(grantImplies("file:/opt/app/-", "file:/opt/app/x.jar"));
+        org.junit.Assert.assertTrue(grantImplies("file:/opt/app/-", "file:/opt/app/lib/y.jar"));
+        org.junit.Assert.assertTrue(grantImplies("file:/opt/app/*", "file:/opt/app/x.jar"));
+        org.junit.Assert.assertFalse(grantImplies("file:/opt/app/*", "file:/opt/app/lib/y.jar"));
+    }
+
+    /**
+     * "file:/opt/app/-" must not reach "file:/opt/application/x.jar": the
+     * prefix that is compared has to keep the trailing slash, as
+     * {@code CodeSource.implies} does. DirtyChai's {@code Uri.implies} compared
+     * the prefix without the slash until its commit 0071db760 (2026-10-26, "fix
+     * Uri.implies bug"); this module's {@code org.apache.river.api.net.Uri}
+     * still has that defect (non-conformance J8, open), so the test skips itself
+     * on this module's copy; remove that {@code Assume} when J8 is fixed.
+     */
+    @Test
+    public void directoryWildcardStopsAtTheDirectoryBoundary() throws Exception {
+        tests.support.SecurityCopy.assumeCurrentCopy("the Uri.implies prefix fix of DirtyChai 0071db760");
+        org.junit.Assume.assumeFalse("Skipped: J8, this module's Uri.implies compares the prefix without its "
+                + "trailing slash (docs/NON-CONFORMANCES-api-security-dirtychai-2026-10-23.md)",
+                tests.support.SecurityCopy.isJgdmsCopy());
+        org.junit.Assert.assertFalse(grantImplies("file:/opt/app/-", "file:/opt/application/x.jar"));
+        org.junit.Assert.assertFalse(grantImplies("http://h/foo/-", "http://h/foobar/x"));
+        org.junit.Assert.assertFalse(grantImplies("http://h/foo/*", "http://h/foobar"));
+    }
 }
