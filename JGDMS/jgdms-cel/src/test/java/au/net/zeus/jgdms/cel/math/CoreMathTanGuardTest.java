@@ -129,6 +129,11 @@ import org.junit.jupiter.api.Test;
  *       reference on all, the other predictions as before.</li>
  * </ol>
  * The entry-point pins (B2F3-E) are sealed in {@code CoreMathTanEntryPointTest}; the mutation predictions (PG, PG0, PK, PC and the fold-flag mutants) are in the message of the seal commit of this pass.
+ *
+ * <h3>SCORING of B2F3-* (appended 2026-11-12 after the first runs, at ac25cfbbe; the sealed text above is unchanged): ALL HELD</h3>
+ * K test: the code's fold flag equals the exact reference's on all 6,015 undecided inputs (0 mismatches), 0 mismatches with the model, NaN 5,382, undecided and unfolded 632 of which NaN 0; G5 on 1,410
+ * inputs (folded 1,224, unfolded 186), flag equal on all. MUTANTS (DIAGNOSTIC, 55 tests; every prediction held): FA 5 failing methods, FB 5, FC 3 (was 2), FD 1 (was 0), FH 3 (was 2), FK 1, N2 4, FG 1,
+ * RA 2, RI 2, MR5 2, PG 1, PG0 1, PK 1, PC 1.
  */
 class CoreMathTanGuardTest {
 

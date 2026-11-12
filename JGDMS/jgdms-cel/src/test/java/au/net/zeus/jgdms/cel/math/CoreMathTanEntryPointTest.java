@@ -47,6 +47,10 @@ import org.junit.jupiter.api.Test;
  * </ol>
  * Mutants (sealed in the message of the seal commit): PK, PG0 and PC are each killed by this class alone, one failing method; PG (the flag flipped inside {@code tanWithK}) by the K test of
  * {@code CoreMathTanGuardTest} alone.
+ *
+ * <h2>SCORING (appended 2026-11-12 after the first runs and the mutation runs of fix pass 3, at ac25cfbbe; the sealed text above is unchanged): ALL HELD</h2>
+ * The three methods passed at the first run (0 mismatches of 2,012). Mutants, 55 tests of the 10-class guard set: PG exactly 1 failing method (the K test; the slow {@code wcEveryFiniteEntry}
+ * passes: the slow tier does not see it), PG0 exactly 1 and PK exactly 1 (the first method of this class), PC exactly 1 (the second); before this pass PG and PK failed 0 of 52 fast tests.
  */
 class CoreMathTanEntryPointTest {
 
