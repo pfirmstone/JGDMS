@@ -495,6 +495,10 @@ final class CoreMathInverseTrigTestSupport {
      */
     static PairsReport checkPairs(String population, double[] ys, double[] xs, double[] expected) {
         BiPredicate<Double, Double> all = (y, x) -> true;
+        // DEVIATION D1 (phase B1): the accurate and fast paths are defined for non-zero arguments only (atan2.wc begins with the special rows,
+        // zeros among them); the first run called them on the zero rows and reported 14 false mismatches and 2 false failures. The provider path
+        // still runs every pair, zero rows included.
+        BiPredicate<Double, Double> nonZero = (y, x) -> y != 0.0 && x != 0.0;
         CoreMath prov = (CoreMath) CoreMathTestSupport.PROVIDER;
         long failuresBefore = prov.atan2CorrectRoundingFailures();
         CoreMathTestSupport.Diff dc = CoreMathTestSupport.compare2(label("atan2", population, "provider path"), ys, xs, expected, prov::atan2, all, false, true);
@@ -507,14 +511,15 @@ final class CoreMathInverseTrigTestSupport {
             }
             return r;
         };
-        CoreMathTestSupport.Diff da = CoreMathTestSupport.compare2(label("atan2", population, "accurate path alone"), ys, xs, expected, countingAccurate, all, false, true);
-        CoreMathTestSupport.Diff df = CoreMathTestSupport.compare2(label("atan2", population, "fast path alone (both stages)"), ys, xs, expected, CoreMathAtan2::fast, all, true, true);
-        CoreMathTestSupport.Diff d1 = CoreMathTestSupport.compare2(label("atan2", population, "first stage alone"), ys, xs, expected, (y, x) -> CoreMathAtan2.fast(y, x, false), all, true, true);
+        CoreMathTestSupport.Diff da = CoreMathTestSupport.compare2(label("atan2", population, "accurate path alone"), ys, xs, expected, countingAccurate, nonZero, false, true);
+        CoreMathTestSupport.Diff df = CoreMathTestSupport.compare2(label("atan2", population, "fast path alone (both stages)"), ys, xs, expected, CoreMathAtan2::fast, nonZero, true, true);
+        CoreMathTestSupport.Diff d1 = CoreMathTestSupport.compare2(label("atan2", population, "first stage alone"), ys, xs, expected, (y, x) -> CoreMathAtan2.fast(y, x, false), nonZero, true, true);
         System.out.println(dc.line());
         System.out.println(da.line());
         System.out.println(df.line());
         System.out.println(d1.line());
         PairsReport rep = new PairsReport();
+        long inDomain = da.applicable;
         rep.stage1Decided = d1.applicable;
         rep.stage2Decided = df.applicable - d1.applicable;
         rep.accurateNeeded = df.undecided;
@@ -522,8 +527,8 @@ final class CoreMathInverseTrigTestSupport {
         rep.providerFailures = providerFailures;
         StringBuilder census = new StringBuilder(260);
         census.append("path census {atan2, ").append(population).append("}: first stage decided ").append(rep.stage1Decided).append(" of ")
-                .append(ys.length).append("; second stage decided a further ").append(rep.stage2Decided).append("; accurate path needed for ")
-                .append(rep.accurateNeeded).append(" (").append(String.format(Locale.ROOT, "%.3f", 100.0 * rep.accurateNeeded / Math.max(1, ys.length)))
+                .append(inDomain).append(" non-zero pairs; second stage decided a further ").append(rep.stage2Decided).append("; accurate path needed for ")
+                .append(rep.accurateNeeded).append(" (").append(String.format(Locale.ROOT, "%.3f", 100.0 * rep.accurateNeeded / Math.max(1, inDomain)))
                 .append("%); correct-rounding failures (NaN from the accurate path alone): ").append(rep.accurateFailures)
                 .append("; routed to CrMath by the provider: ").append(providerFailures);
         System.out.println(census);
