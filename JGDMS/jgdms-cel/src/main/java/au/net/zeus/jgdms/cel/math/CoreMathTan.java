@@ -109,8 +109,10 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * absorbed by the margin and by the {@code +1}); if {@code K/R >= 2^74} the window reaches the spacing of the boundaries and the guard fires unconditionally.
  * <p>
  * <b>What it costs.</b> A call reaches the guard only when the fast path is undecided (about 0.02% of random inputs, 30% of inputs within 8 ulps of a multiple of pi/2) and
- * delegates with probability about {@code 2*(86 + 8/R)/2^75}: 0 of the populations of the phase B2 fix pass (see READY); for the inputs it was written for ({@code R} below 2^-30) the
- * chance per input is about 2^-40 to 2^-15.
+ * delegates with probability about {@code 2*(86 + 8/R)/2^75} for a result spread evenly over the spacing of the doubles. MEASURED (phase B2 fix pass, 2026-11-12, READY section 0.5):
+ * 0 of 6,500,000 random and 0 of 500,000 near-pole inputs; but hard cases are not spread evenly: 1,571 of the 1,098,254 {@code tan.wc} entries (0.14%, every one with exponent -27..-17,
+ * where R = |x|/(2 pi) is small and the window wide) and the two inputs just above the tiny threshold ({@code +-0x1.d12ed0af1a27fp-27}) are delegated, each answered by {@link CrMath}
+ * with the same value (0 mismatches).
  *
  * <h2>Which constants the tests can see by behaviour (phase B2 mutation runs, 2026-11-12; DIAGNOSTIC)</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C
