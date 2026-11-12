@@ -18,8 +18,10 @@
 package au.net.zeus.jgdms.bench.cel;
 
 import au.net.zeus.jgdms.cel.math.CorrectlyRoundedMath;
+import au.net.zeus.jgdms.cel.math.MathProvider;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
@@ -27,6 +29,8 @@ import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.DoubleBinaryOperator;
+import java.util.function.DoubleUnaryOperator;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -280,28 +284,110 @@ class TrigPopulationsTest {
         assertFalse(Arrays.equals(pair[0], a), "atan2's y is not atan's population");
     }
 
+    @Test
+    void balancedAtan2PairsHaveComparableExponentsAndDifferFromPairs() {
+        double[][] b = pops("atan2", TrigPopulations.BALANCED);
+        double[][] p = pops("atan2", TrigPopulations.PAIRS);
+        assertEquals(2, b.length);
+        assertEquals(TrigPopulations.SIZE, b[0].length);
+        int minEy = Integer.MAX_VALUE;
+        int maxEy = Integer.MIN_VALUE;
+        int maxGap = 0;
+        long gap0 = 0;
+        for (int i = 0; i < TrigPopulations.SIZE; i++) {
+            int ey = exponent(b[0][i]);
+            int ex = exponent(b[1][i]);
+            assertTrue(ey >= -30 && ey <= 60 && ex >= -30 && ex <= 60, "both exponents stay in [-30, 60]");
+            minEy = Math.min(minEy, ey);
+            maxEy = Math.max(maxEy, ey);
+            maxGap = Math.max(maxGap, Math.abs(ey - ex));
+            if (ey == ex) {
+                gap0++;
+            }
+        }
+        assertEquals(-30, minEy);
+        assertEquals(60, maxEy);
+        assertEquals(2, maxGap, "|ey - ex| reaches 2 and never exceeds it");
+        // about 1/5 of the pairs have equal exponents (a gap uniform over -2..2 away from the edges)
+        final long equalExponents = gap0;
+        assertTrue(gap0 > 0.15 * TrigPopulations.SIZE && gap0 < 0.27 * TrigPopulations.SIZE,
+                () -> new StringBuilder("equal exponents: ").append(equalExponents).toString());
+        long neg = negatives(b[0]);
+        assertTrue(neg > 0.45 * TrigPopulations.SIZE && neg < 0.55 * TrigPopulations.SIZE);
+        assertFalse(Arrays.equals(b[0], p[0]), "balanced is not pairs");
+        assertFalse(Arrays.equals(b[1], p[1]), "balanced is not pairs");
+        // the failure the reviewer found in pairs: independent exponents over 91 binades are 53 or more apart about 18% of the time
+        long pairsGap = 0;
+        for (int i = 0; i < TrigPopulations.SIZE; i++) {
+            if (Math.abs(exponent(p[0][i]) - exponent(p[1][i])) >= 53) {
+                pairsGap++;
+            }
+        }
+        assertTrue(pairsGap > 0.15 * TrigPopulations.SIZE, "the control: pairs does have the wide gaps that balanced removes");
+    }
+
+    // ---------------------------------------------------------------------------------------- the path census (review L1)
+
+    private static void expectCensus(String f, String p, long declined, long early) {
+        TrigProviders.Census c = TrigProviders.census(f, pops(f, p));
+        System.out.println(new StringBuilder("CENSUS ").append(f).append('/').append(p).append(' ').append(c.describe(f)).toString());
+        assertEquals(TrigPopulations.SIZE, c.inputs());
+        assertEquals(declined, c.declined(), () -> new StringBuilder(f).append('/').append(p).append(" accurate-path inputs").toString());
+        assertEquals(early, c.earlyExit(), () -> new StringBuilder(f).append('/').append(p).append(" early-exit inputs").toString());
+    }
+
+    /** A1: the census reproduces the reviewer's accurate-path counts (REVIEW_OPUS_STAGE2C.md path table), a second instrument over the same bed. */
+    @Test
+    void theCensusReproducesTheReviewersPathTable() {
+        int all = TrigPopulations.SIZE;
+        expectCensus("sin", TrigPopulations.UNIFORM, 452, 0);
+        expectCensus("sin", TrigPopulations.LARGE, 528, 0);
+        expectCensus("sin", TrigPopulations.SMALL, all, 0);
+        expectCensus("sin", TrigPopulations.TINY, 0, all);
+        expectCensus("cos", TrigPopulations.UNIFORM, 458, 0);
+        expectCensus("cos", TrigPopulations.LARGE, 518, 0);
+        expectCensus("cos", TrigPopulations.SMALL, 130, 0);
+        expectCensus("cos", TrigPopulations.TINY, 0, all);
+        expectCensus("tan", TrigPopulations.UNIFORM, 12, 0);
+        expectCensus("tan", TrigPopulations.LARGE, 9, 0);
+        expectCensus("tan", TrigPopulations.NEAR_POLE, 19953, 0);
+        expectCensus("asin", TrigPopulations.UNIFORM, 540, 0);
+        expectCensus("asin", TrigPopulations.NEAR_ONE, 50, 0);
+        expectCensus("acos", TrigPopulations.UNIFORM, 223, 0);
+        expectCensus("acos", TrigPopulations.NEAR_ONE, 358, 0);
+        expectCensus("atan", TrigPopulations.WIDE, 2613, 0);
+        expectCensus("atan2", TrigPopulations.PAIRS, 12651, 0);
+        TrigProviders.Census pairs = TrigProviders.census("atan2", pops("atan2", TrigPopulations.PAIRS));
+        assertEquals(11787L, pairs.gap53(), "pairs whose exponents are 53 or more apart (refused by rule)");
+        // A2: balanced has no wide gaps and a small accurate-path share
+        TrigProviders.Census balanced = TrigProviders.census("atan2", pops("atan2", TrigPopulations.BALANCED));
+        System.out.println(new StringBuilder("CENSUS atan2/balanced ").append(balanced.describe("atan2")).toString());
+        assertEquals(0L, balanced.gap53());
+        assertTrue(balanced.declined() * 100 < 15L * all, "balanced accurate-path share is below 15%");
+        assertTrue(balanced.declined() < pairs.declined(), "and below pairs' 19.30%");
+        // the tan split: the parts add up, and the below-2^31 band is about 58% of the near-pole population (the reviewer: 38,036 inputs)
+        TrigProviders.Census tan = TrigProviders.census("tan", pops("tan", TrigPopulations.NEAR_POLE));
+        assertEquals(tan.declined(), tan.declinedBelow31() + tan.declinedAtOrAbove31());
+        assertEquals(TrigPopulations.SIZE, tan.below31() + tan.atOrAbove31());
+        assertTrue(tan.below31() > 37_000 && tan.below31() < 39_000,
+                () -> new StringBuilder("tan near-pole below 2^31: ").append(tan.below31()).toString());
+    }
+
     // ---------------------------------------------------------------------------------------- the gate
 
-    /** A provider that is the production one except that sin is one ulp up on one input: the gate must refuse it. */
-    private static final class OneUlpWrong implements CorrectlyRoundedMath {
-        private final CorrectlyRoundedMath delegate = TrigProviders.coreMath();
-        private final double wrongAt;
-
-        OneUlpWrong(double wrongAt) {
-            this.wrongAt = wrongAt;
-        }
-
-        @Override public double sin(double x) { return x == wrongAt ? Math.nextUp(delegate.sin(x)) : delegate.sin(x); }
-        @Override public double cos(double x) { return delegate.cos(x); }
-        @Override public double tan(double x) { return delegate.tan(x); }
-        @Override public double asin(double x) { return delegate.asin(x); }
-        @Override public double acos(double x) { return delegate.acos(x); }
-        @Override public double atan(double x) { return delegate.atan(x); }
-        @Override public double atan2(double y, double x) { return delegate.atan2(y, x); }
+    /** A real CoreMath (so it passes the identity check) whose tan is one ulp up on one input: the value check must refuse it there. */
+    private static CorrectlyRoundedMath coreWithTanWrongAt(double wrongAt) throws ReflectiveOperationException {
+        CorrectlyRoundedMath real = TrigProviders.coreMath();
+        Constructor<?> c = Class.forName(TrigProviders.CORE_MATH_CLASS)
+                .getDeclaredConstructor(CorrectlyRoundedMath.class, DoubleBinaryOperator.class, DoubleUnaryOperator.class);
+        c.setAccessible(true);
+        DoubleUnaryOperator tanPort = x -> x == wrongAt ? Math.nextUp(real.tan(x)) : real.tan(x);
+        DoubleBinaryOperator atan2Port = real::atan2;
+        return (CorrectlyRoundedMath) c.newInstance(TrigProviders.crMath(), atan2Port, tanPort);
     }
 
     @Test
-    void everyPopulationPassesTheGateAndTheGateCanFail() {
+    void everyPopulationPassesTheGateAndTheGateCanFail() throws ReflectiveOperationException {
         CorrectlyRoundedMath core = TrigProviders.coreMath();
         CorrectlyRoundedMath cr = TrigProviders.crMath();
         int gates = 0;
@@ -315,16 +401,57 @@ class TrigPopulationsTest {
                 gates++;
             }
         }
-        assertEquals(17, gates, "seven functions: sin 4, cos 4, tan 3, asin 2, acos 2, atan 1, atan2 1 populations");
+        assertEquals(18, gates, "seven functions: sin 4, cos 4, tan 3, asin 2, acos 2, atan 1, atan2 2 populations");
 
-        // the control: a sin that is one ulp wrong on the 3rd gate input must be refused, naming the input
-        double[] uniform = pops("sin", TrigPopulations.UNIFORM)[0];
+        // the control: a CoreMath whose tan is one ulp wrong on the 3rd gate input must be refused, naming the input
+        double[] uniform = pops("tan", TrigPopulations.UNIFORM)[0];
         int gatePosition = 3 * (TrigPopulations.SIZE / TrigProviders.GATE_SAMPLES);
+        CorrectlyRoundedMath wrongAtGate = coreWithTanWrongAt(uniform[gatePosition]);
         IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> TrigProviders.gate("sin", TrigPopulations.UNIFORM, pops("sin", TrigPopulations.UNIFORM), new OneUlpWrong(uniform[gatePosition]), cr));
-        assertTrue(e.getMessage().startsWith("GATE FAILED"), e.getMessage());
+                () -> TrigProviders.gate("tan", TrigPopulations.UNIFORM, pops("tan", TrigPopulations.UNIFORM), wrongAtGate, cr));
+        assertTrue(e.getMessage().startsWith("GATE FAILED: tan"), e.getMessage());
         // and a wrong input OUTSIDE the gate's sample is, by design, not seen: the gate is a sample, not a proof
         int unsampled = gatePosition + 1;
-        TrigProviders.gate("sin", TrigPopulations.UNIFORM, pops("sin", TrigPopulations.UNIFORM), new OneUlpWrong(uniform[unsampled]), cr);
+        TrigProviders.gate("tan", TrigPopulations.UNIFORM, pops("tan", TrigPopulations.UNIFORM), coreWithTanWrongAt(uniform[unsampled]), cr);
+    }
+
+    /** A3 (review M1): a provider that is not CoreMath is refused, including on the populations where it agrees with CrMath on every sampled input. */
+    @Test
+    void theGateRefusesAProviderThatIsNotCoreMath() {
+        CorrectlyRoundedMath cr = TrigProviders.crMath();
+        CorrectlyRoundedMath[] impostors = {MathProvider.nonConformantForTestingOnly().get(), new Trig.Strict()};
+        for (CorrectlyRoundedMath impostor : impostors) {
+            for (String population : new String[] {TrigPopulations.SMALL, TrigPopulations.TINY, TrigPopulations.UNIFORM}) {
+                IllegalStateException e = assertThrows(IllegalStateException.class,
+                        () -> TrigProviders.gate("sin", population, pops("sin", population), impostor, cr),
+                        () -> new StringBuilder(impostor.getClass().getName()).append(" on sin/").append(population).toString());
+                assertTrue(e.getMessage().startsWith("GATE FAILED: the provider labelled core is "), e.getMessage());
+                assertTrue(e.getMessage().contains("not au.net.zeus.jgdms.cel.math.CoreMath"), e.getMessage());
+            }
+        }
+        // the reviewer's measurement: StrictMath agrees with CrMath on every one of the 1,024 gate inputs of sin/small, so the VALUE check alone passes it
+        double[] xs = pops("sin", TrigPopulations.SMALL)[0];
+        int step = TrigPopulations.SIZE / TrigProviders.GATE_SAMPLES;
+        for (int i = 0; i < TrigProviders.GATE_SAMPLES; i++) {
+            double x = xs[i * step];
+            assertEquals(Double.doubleToRawLongBits(cr.sin(x)), Double.doubleToRawLongBits(StrictMath.sin(x)),
+                    "the value check cannot tell StrictMath from CrMath on sin/small");
+        }
+        // the production provider is accepted
+        TrigProviders.requireCoreMath(TrigProviders.coreMath());
+    }
+
+    /** A4 (review L2): the checksum of a population whose every result is 1.0 is not zero, and is deterministic. */
+    @Test
+    void theChecksumOfAnAllOnesPopulationIsNotZero() {
+        CorrectlyRoundedMath core = TrigProviders.coreMath();
+        CorrectlyRoundedMath cr = TrigProviders.crMath();
+        double[][] tinyCos = pops("cos", TrigPopulations.TINY);
+        TrigProviders.GateResult a = TrigProviders.gate("cos", TrigPopulations.TINY, tinyCos, core, cr);
+        TrigProviders.GateResult b = TrigProviders.gate("cos", TrigPopulations.TINY, tinyCos, core, cr);
+        System.out.println(new StringBuilder("CHECKSUM cos/tiny ").append(Long.toHexString(a.passChecksum())).toString());
+        assertTrue(a.passChecksum() != 0L, "cos below 2^-27 is all 1.0; the old checksums read 0");
+        assertEquals(a.passChecksum(), b.passChecksum());
+        assertEquals(TrigPopulations.SIZE, a.census().earlyExit());
     }
 }

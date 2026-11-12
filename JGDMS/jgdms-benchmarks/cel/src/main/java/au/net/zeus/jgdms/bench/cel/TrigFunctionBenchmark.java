@@ -96,6 +96,28 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  * Not predicted: absolute ns per call (Chisel's run), and the {@code celE1}/{@code celE2} re-timing (that is the unchanged
  * {@link CelEvalBenchmark}).
+ *
+ * <h2>PREDICTIONS APPENDED after the Opus review (2026-11-12; the block above is NOT edited; committed BEFORE the smoke of this change)</h2>
+ * Review: REVIEW_OPUS_STAGE2C.md (claude-opus-5-5, RUN WITH FIXES). The reviewer measured the share of each timed population that
+ * takes the accurate path (his table); these predictions are about THIS harness and are scored by the unit test and the smoke, not
+ * by timing, except the last.
+ * <ul>
+ *   <li><b>A1, the path census (L1)</b>: the {@code PATH-CENSUS} of the GATE line reproduces the reviewer's accurate-path counts EXACTLY on
+ *       the fifteen populations he tabled: sin uniform 452, large 528, small 65,536; cos uniform 458, large 518, small 130; tan uniform
+ *       12, large 9, nearpole 19,953; asin uniform 540, nearone 50; acos uniform 223, nearone 358; atan wide 2,613; atan2 pairs 12,651
+ *       (11,787 of them by the exponent-gap rule), and sin/tiny, cos/tiny are 100% early exit. SCOPE: his loop and mine both call the
+ *       port's own {@code fast(...)} by reflection, so agreement validates my loop, not the port.</li>
+ *   <li><b>A2, atan2/balanced (M2)</b>: all 65,536 pairs have |ey - ex| at most 2, both exponents stay in [-30, 60], the exponent-gap
+ *       count is 0, and the accurate-path share is BELOW 15% and below pairs' 19.30%. Allocation 0 B. Timing (Chisel's run, HYPOTHESIS):
+ *       {@code balanced} is faster per call than {@code pairs}, and within 0.7x to 2x of {@code atan/wide}.</li>
+ *   <li><b>A3, the identity check (M1)</b>: a provider that is not {@code CoreMath} (the StrictMath placeholder, {@link Trig.Strict})
+ *       makes {@code TrigProviders.gate} throw "GATE FAILED ... not ...CoreMath" on {@code sin/small}, which passed before; the reviewer's
+ *       mutant M1 (core routed to {@code MathProvider.nonConformantForTestingOnly().get()}) run as a JMH smoke on {@code sin/small}
+ *       now ends with a nonzero exit status. A {@code CoreMath} whose tan is one ulp wrong on a sampled input still fails the value
+ *       check, and on an unsampled input still passes (the gate is a sample).</li>
+ *   <li><b>A4, the checksum (L2)</b>: with {@code c = rotl(c, 5) ^ bits; c *= 0x9E3779B97F4A7C15} the full-pass checksum of
+ *       {@code cos/tiny} is not 0 and is the same in every fork of one population.</li>
+ * </ul>
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -230,7 +252,7 @@ public class TrigFunctionBenchmark {
 
     @State(Scope.Thread)
     public static class Atan2State extends Base {
-        @Param({TrigPopulations.PAIRS})
+        @Param({TrigPopulations.PAIRS, TrigPopulations.BALANCED})
         public String population;
 
         @Override String function() { return "atan2"; }

@@ -53,6 +53,12 @@ final class TrigPopulations {
     static final String NEAR_ONE = "nearone";
     static final String WIDE = "wide";
     static final String PAIRS = "pairs";
+    /**
+     * atan2 pairs whose exponents differ by at most 2 (review M2, Opus 2026-11-12): {@code pairs} sends 18.0% of its inputs to a
+     * rule-based refusal of the fast path (exponents 53 or more apart), which no realistic workload produces; this population has
+     * comparable magnitudes, as the E2 expression's {@code atan2(rho, -zc)} does.
+     */
+    static final String BALANCED = "balanced";
 
     /** The tan near-pole seed and bit length of the slow tier's 52-bit population ({@code CoreMathTanSlowTest.java:159}). */
     static final long NEAR_POLE_SEED = 20261451L;
@@ -68,7 +74,7 @@ final class TrigPopulations {
             case "tan" -> new String[] {UNIFORM, LARGE, NEAR_POLE};
             case "asin", "acos" -> new String[] {UNIFORM, NEAR_ONE};
             case "atan" -> new String[] {WIDE};
-            case "atan2" -> new String[] {PAIRS};
+            case "atan2" -> new String[] {PAIRS, BALANCED};
             default -> throw new IllegalArgumentException(new StringBuilder("unknown function ").append(function).toString());
         };
     }
@@ -90,8 +96,29 @@ final class TrigPopulations {
             case "sin", "cos", "tan" -> new double[][] {angles(function, population)};
             case "asin", "acos" -> new double[][] {unitInterval(population)};
             case "atan" -> new double[][] {exponentRange(20261207L, SIZE, -30, 60)};
-            default -> new double[][] {exponentRange(20261208L, SIZE, -30, 60), exponentRange(20261209L, SIZE, -30, 60)};
+            default -> population.equals(BALANCED) ? balancedPairs(20261210L, SIZE, -30, 60, 2)
+                    : new double[][] {exponentRange(20261208L, SIZE, -30, 60), exponentRange(20261209L, SIZE, -30, 60)};
         };
+    }
+
+    /**
+     * {@code {ys, xs}}: y has an unbiased exponent uniform in [{@code eLo}, {@code eHi}]; x's exponent is uniform in
+     * [ey - {@code maxGap}, ey + {@code maxGap}] CUT to [{@code eLo}, {@code eHi}] (the draw is from the cut interval, not
+     * clamped, so the edges are not over-weighted). Random signs and fractions. So {@code |ey - ex| <= maxGap} for every pair.
+     */
+    static double[][] balancedPairs(long seed, int n, int eLo, int eHi, int maxGap) {
+        SplittableRandom r = new SplittableRandom(seed);
+        double[] ys = new double[n];
+        double[] xs = new double[n];
+        for (int i = 0; i < n; i++) {
+            int ey = eLo + r.nextInt(eHi - eLo + 1);
+            int lo = Math.max(eLo, ey - maxGap);
+            int hi = Math.min(eHi, ey + maxGap);
+            int ex = lo + r.nextInt(hi - lo + 1);
+            ys[i] = Double.longBitsToDouble((r.nextBoolean() ? Long.MIN_VALUE : 0L) | ((0x3ffL + ey) << 52) | (r.nextLong() & 0xfffffffffffffL));
+            xs[i] = Double.longBitsToDouble((r.nextBoolean() ? Long.MIN_VALUE : 0L) | ((0x3ffL + ex) << 52) | (r.nextLong() & 0xfffffffffffffL));
+        }
+        return new double[][] {ys, xs};
     }
 
     private static double[] angles(String function, String population) {
