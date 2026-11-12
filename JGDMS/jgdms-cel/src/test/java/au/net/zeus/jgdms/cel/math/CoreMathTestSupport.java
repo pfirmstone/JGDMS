@@ -76,6 +76,28 @@ final class CoreMathTestSupport {
     // ----------------------------------------------------------------------------------------
 
     /** A double as its hexadecimal literal plus its raw bits, so a report can be pasted into a test. */
+    /**
+     * The directory of the jgdms-cel module, found from {@code user.dir} (the module itself, or the directory above it); FAILS, it does not skip, when the sources are not there: a source-reading
+     * test that skips reads as green.
+     */
+    static java.nio.file.Path moduleDir() {
+        java.nio.file.Path cwd = java.nio.file.Path.of(System.getProperty("user.dir"));
+        for (java.nio.file.Path c : new java.nio.file.Path[] {cwd, cwd.resolve("jgdms-cel"), cwd.resolve("JGDMS").resolve("jgdms-cel")}) {
+            if (java.nio.file.Files.isDirectory(c.resolve("src/main/java/au/net/zeus/jgdms/cel/math"))) {
+                return c;
+            }
+        }
+        return org.junit.jupiter.api.Assertions.fail(msg("run this test from the jgdms-cel module or the JGDMS directory: user.dir = ", cwd));
+    }
+
+    /** The text of a file with LF line ends; FAILS if it cannot be read. */
+    static String readText(java.nio.file.Path file) throws java.io.IOException {
+        if (!java.nio.file.Files.isReadable(file)) {
+            org.junit.jupiter.api.Assertions.fail(msg("cannot read ", file));
+        }
+        return java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8).replace("\r\n", "\n");
+    }
+
     /** A message from its parts without {@code +} concatenation (the project's Java rule: StringBuilder). */
     static String msg(Object... parts) {
         StringBuilder sb = new StringBuilder(64);

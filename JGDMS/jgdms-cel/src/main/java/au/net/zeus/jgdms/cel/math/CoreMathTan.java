@@ -113,8 +113,9 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * {@code 1.682 * 2 * (pi/2) * F/R = 5.284 * F/R} ulps, so the error of {@code U} is at most about {@code 88 + 5.29 * F/R} ulps. AFTER A FOLD {@code F <= 1}, so the fold term is at most
  * {@code 5.29/R} and the window {@code 86 + K/R} has slack {@code (8 - 5.29)/R >= 21.7} ulps over it (R &lt; 1/8) against the 2 ulps of premise (3). WITHOUT A FOLD {@code F = R}: the fold
  * term does not exist, the C's own 86 (88 for {@code ex <= 1}) applies, and even adding the whole reduction term on top, {@code 88 + 5.29 = 93.3}, stays below the window
- * {@code 86 + K + 1 = 95} of the code. The measurement: 2.58/R (Fable, {@code tan.wc}), 2.70/R (Fable, random) and 1.608/R ({@code CoreMathTanGuardTest}, 1,409
- * inputs) after a fold, at most 14.4 ulps without one (Fable); K = 8 is 1.51 times the derived constant and 3.0 times the largest measured one. The division {@code K/R} is done in
+ * {@code 86 + K + 1 = 95} of the code. The measurement: 2.58/R (Fable, {@code tan.wc}), 2.70/R (Fable, random), 3.17/R (Fable's
+ * re-check 2, 1,064,716 folded inputs; the {@code ex <= 1} branch allows up to 3.35) and 1.608/R ({@code CoreMathTanGuardTest}, 1,409 inputs) after a fold, at most 16.03 ulps without one
+ * (Fable's re-check 2, 96,888 small arguments; 14.4 on {@code tan.wc}); K = 8 is 1.51 times the derived constant and about 2.5 times the largest measured one (3.17). The division {@code K/R} is done in
  * {@link CoreMathDint} arithmetic (relative error 2^-123.67, absorbed by the margin and by the {@code +1}); if the window term reaches 2^74 the window reaches the spacing of the
  * boundaries and the guard fires unconditionally.
  * <p>
@@ -179,15 +180,18 @@ final class CoreMathTan {
     /**
      * C {@code cr_tan} ({@code tan.c:2245-2297}) PLUS THE GUARD (not in the C): returns {@code NaN} (never a valid tangent of a finite argument) when the accurate path's 128-bit
      * result is within the guard's window of a rounding boundary ({@code 86 + K/R} ulps after a fold, {@code 86 + K} when nothing was folded) and the argument is not one of the
-     * C's two exceptions; {@link CoreMath} then answers by delegating to {@link CrMath} and counts the event. See the class javadoc.
+     * C's two exceptions; {@link CoreMath} then answers by delegating to {@link CrMath} and counts the event. See the class javadoc. This IS {@link #tanWithK} with
+     * {@link CoreMathTanTables#GUARD_K}: there is one production path, and the tests that drive {@code tanWithK} drive it (re-check 2, Fable M-1). The only thing no behavioural test can see
+     * is the constant written at this one call, because no real input is delegated by the production path at K = 8 (0 of 7 million populated inputs; about one expected over all of binary64,
+     * HYPOTHESIS): {@code CoreMathTanEntryPointTest} pins the text of this method and of the {@link CoreMath} wiring instead.
      */
     static double tan(double x) {
-        return run(x, CoreMathSupport.MODE_NORMAL, null, true, CoreMathTanTables.GUARD_K);
+        return tanWithK(x, CoreMathTanTables.GUARD_K);
     }
 
     /**
-     * {@link #tan(double)} with the guard's factor {@code K} given. TEST SEAM: with a large {@code K} the guard fires on many real folded inputs, so that the production wiring (the
-     * guard applied on the production path, fed the FOLDED argument) can be tested against {@link #guardFires} on the folded pair; production calls {@link #tan(double)}.
+     * The production path with the guard's factor {@code K} given: {@link #tan(double)} is {@code tanWithK(x, GUARD_K)}. With a large {@code K} the guard fires on many real folded inputs, so that
+     * the production path (the guard applied, fed the FOLDED argument and the fold flag) can be tested against {@link #guardFires} on the folded pair.
      */
     static double tanWithK(double x, double k) {
         return run(x, CoreMathSupport.MODE_NORMAL, null, true, k);

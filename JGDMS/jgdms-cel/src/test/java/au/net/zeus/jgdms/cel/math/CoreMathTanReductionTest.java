@@ -351,7 +351,7 @@ class CoreMathTanReductionTest {
             } else {
                 // Found at the first run (DEVIATION from the sealed B2-R3 text): in the c1 = 0 branch the C writes the exponent field of l as f - 64 - g where the c1 != 0 branch
                 // (and the exact value) has f - 53 - g, so l comes out 2^-11 times the exact truncation. The branch is unreachable from tan (it needs frac(x/(2 pi)) < 2^-64; the
-                // smallest possible is about 2^-62). The port reproduces the C, which this test checks: h is exact and l equals the exact value times 2^-11.
+                // smallest possible is about 2^-62). The port transcribes the C text (f - 64 - g), which this test checks against a model written from that text (the C was not run): h is exact and l equals the exact value times 2^-11.
                 zeroC1++;
                 if (!hEq) {
                     zeroC1Mismatches++;

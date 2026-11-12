@@ -119,6 +119,16 @@ import org.junit.jupiter.api.Test;
  *   <li>MUTANTS (DIAGNOSTIC, the 9-class set of 52 tests, then the slow wcEveryFiniteEntry): RA, RI, MR5, RV each exactly 2 failing methods (M1, K) and the slow count pin (1 -> 0); RW exactly 3
  *       (p6, the golden count, K) and the slow pin (0 -> 1,571); RC exactly 1 (G1b, 15,115 violations). All as predicted.</li>
  * </ul>
+ * <h2>SEALED PREDICTIONS (B2F3-*, fix pass 3, 2026-11-12; written in the commit that precedes the first run of the tests below)</h2>
+ * Re-check 2 of 69639bd15 (Fable M-1, L-1, L-2; Opus LOW-2). {@code tan(x)} is now {@code tanWithK(x, GUARD_K)}.
+ * <ol>
+ *   <li><b>B2F3-K (the K test with an independent flag).</b> {@code folded} is taken from {@code CoreMathTanExactReference.isUnfolded}: the code's fold flag equals it on every undecided input of the
+ *       20,000 (0 mismatches), the production path's NaN equals the model on that flag (0 mismatches), and the counts are those of fix pass 2 (HYPOTHESIS: the flag is exact, so nothing changes): undecided 6,015,
+ *       NaN 5,382, undecided and unfolded 632 of which NaN 0.</li>
+ *   <li><b>B2F3-G5 (L-1).</b> With {@code Math.nextUp(0x1.921fb54442d18p-1)} (just above pi/4, grid index 256) added, G5 runs on 1,410 inputs (folded 1,224, unfolded 186), the fold flag equals the exact
+ *       reference on all, the other predictions as before.</li>
+ * </ol>
+ * The entry-point pins (B2F3-E) are sealed in {@code CoreMathTanEntryPointTest}; the mutation predictions (PG, PG0, PK, PC and the fold-flag mutants) are in the message of the seal commit of this pass.
  */
 class CoreMathTanGuardTest {
 
@@ -411,6 +421,7 @@ class CoreMathTanGuardTest {
         for (double d : realInputs()) {
             xs.add(d);
         }
+        xs.add(Math.nextUp(0x1.921fb54442d18p-1));            // just above pi/4: frac(x/(2 pi)) = 1/8 + 1.3e-17, grid index 256, the first folded cell (Fable L-1)
         for (int k = 1; k <= 60; k++) {
             double m = CoreMathTanTestSupport.nearestToMultipleOfHalfPi(BigInteger.valueOf(k));
             for (int j : new int[] {-3, -9, -21, -45}) {
@@ -577,6 +588,7 @@ class CoreMathTanGuardTest {
         int undecided = 0;
         int undecidedUnfolded = 0;
         int undecidedUnfoldedNan = 0;
+        int flagMismatches = 0;
         for (double x : xs) {
             if (!CoreMathTanTestSupport.PATH_DOMAIN.test(x)) {
                 continue;
@@ -590,7 +602,10 @@ class CoreMathTanGuardTest {
                 CoreMathDint xd = new CoreMathDint();
                 int[] ig = new int[2];
                 CoreMathDint u = CoreMathTan.accurateU(x, xd, ig);
-                folded = ig[1] != 0;
+                folded = !CoreMathTanExactReference.isUnfolded(CoreMathTanExactReference.tan(x));   // from the exact reference, NOT from the code under test (Opus LOW-2, Fable L-2)
+                if (folded != (ig[1] != 0)) {
+                    flagMismatches++;
+                }
                 boolean exception = Math.abs(x) == CoreMathTanTables.exceptions(0) || Math.abs(x) == CoreMathTanTables.exceptions(3);
                 expectNaN = !exception && CoreMathTan.guardFires(u, ig[0], xd, folded, kBig);
                 if (!folded) {
@@ -608,7 +623,9 @@ class CoreMathTanGuardTest {
             }
         }
         System.out.println(new StringBuilder(220).append("B2F2-K K = 2^54 on ").append(inputs).append(" inputs near multiples of pi/2: fast path undecided on ").append(undecided).append(", NaN ").append(nan)
-                .append(", mismatches with the model on the folded pair ").append(mismatches).append("; undecided and unfolded ").append(undecidedUnfolded).append(" of which NaN ").append(undecidedUnfoldedNan));
+                .append(", mismatches with the model on the folded pair ").append(mismatches).append("; undecided and unfolded ").append(undecidedUnfolded).append(" of which NaN ").append(undecidedUnfoldedNan)
+                .append("; the code's fold flag against the exact reference's on the undecided inputs: ").append(flagMismatches).append(" mismatches"));
+        assertEquals(0, flagMismatches);
         assertEquals(0, mismatches);
         assertTrue(nan >= 3_500 && nan <= 6_200, CoreMathTestSupport.msg("NaN ", nan));
         assertTrue(undecidedUnfolded >= 300, CoreMathTestSupport.msg("undecided and unfolded ", undecidedUnfolded));

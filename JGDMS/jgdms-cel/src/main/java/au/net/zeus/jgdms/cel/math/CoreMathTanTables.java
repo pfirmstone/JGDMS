@@ -1713,7 +1713,7 @@ final class CoreMathTanTables {
     /**
      * NOT IN THE C. The factor K of the port's guard: after the C's own tests, the accurate path answers "undecided" (and {@code CoreMath} delegates to
      * {@code CrMath}) when the 128-bit result is within {@code ACCURATE_ERR + GUARD_K / R} ulps after a fold ({@code ACCURATE_ERR + GUARD_K} when nothing was folded) of a rounding
-     * boundary, R being the folded argument in turns ({@code i/2^11 + X}). The derivation (derived bound 5.29, measured at most 2.7, K = 8) is in the javadoc of {@link CoreMathTan}. This constant is guarded by the committed
+     * boundary, R being the folded argument in turns ({@code i/2^11 + X}). The derivation (derived bound 5.29, measured at most 3.17 after a fold, K = 8) is in the javadoc of {@link CoreMathTan}. This constant is guarded by the committed
      * digest only; there is no C text to compare it with.
      */
     static final double GUARD_K = 8.0;

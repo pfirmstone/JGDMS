@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -68,23 +67,6 @@ class CoreMathLicenceHeadersTest {
     private static final String ASF = "Licensed to the Apache Software Foundation";
     private static final String PKG = "au/net/zeus/jgdms/cel/math";
 
-    private static Path moduleDir() {
-        Path cwd = Path.of(System.getProperty("user.dir"));
-        for (Path c : new Path[] {cwd, cwd.resolve("jgdms-cel"), cwd.resolve("JGDMS").resolve("jgdms-cel")}) {
-            if (Files.isDirectory(c.resolve("src/main/java").resolve(PKG))) {
-                return c;
-            }
-        }
-        return fail(CoreMathTestSupport.msg("run this test from the jgdms-cel module or the JGDMS directory: user.dir = ", cwd));
-    }
-
-    private static String read(Path file) throws IOException {
-        if (!Files.isReadable(file)) {
-            fail(CoreMathTestSupport.msg("cannot read ", file));
-        }
-        return Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
-    }
-
     /** The leading comment of a source file (up to the first end of comment). */
     private static String header(String text) {
         int i = text.indexOf("*/");
@@ -104,11 +86,11 @@ class CoreMathLicenceHeadersTest {
 
     @Test
     void everyFileOfThePackageHasExactlyOneHeaderKindAndThePortedFilesAreTheFourteen() throws IOException {
-        Path dir = moduleDir().resolve("src/main/java").resolve(PKG);
+        Path dir = CoreMathTestSupport.moduleDir().resolve("src/main/java").resolve(PKG);
         TreeSet<String> mit = new TreeSet<>();
         TreeSet<String> asf = new TreeSet<>();
         for (Path f : javaFiles(dir)) {
-            String s = read(f);
+            String s = CoreMathTestSupport.readText(f);
             String h = header(s);
             boolean isMit = h.contains(PERMISSION);
             boolean isAsf = h.contains(ASF);
@@ -131,8 +113,8 @@ class CoreMathLicenceHeadersTest {
     @Test
     void inTheTestTreeOnlyTheCopyOfAPortedFileCarriesTheMitNotice() throws IOException {
         TreeSet<String> mit = new TreeSet<>();
-        for (Path f : javaFiles(moduleDir().resolve("src/test/java").resolve(PKG))) {
-            if (header(read(f)).contains(PERMISSION)) {
+        for (Path f : javaFiles(CoreMathTestSupport.moduleDir().resolve("src/test/java").resolve(PKG))) {
+            if (header(CoreMathTestSupport.readText(f)).contains(PERMISSION)) {
                 mit.add(stem(f));
             }
         }
@@ -141,7 +123,7 @@ class CoreMathLicenceHeadersTest {
 
     @Test
     void theLicenceEntryListsExactlyTheFilesThatCarryTheNoticeAndTheOnesThatDoNot() throws IOException {
-        String lic = read(moduleDir().getParent().resolve("LICENSE")).replaceAll("\\s+", " ");
+        String lic = CoreMathTestSupport.readText(CoreMathTestSupport.moduleDir().getParent().resolve("LICENSE")).replaceAll("\\s+", " ");
         int a = lic.indexOf("The ported files are in jgdms-cel");
         int b = lic.indexOf("The other files of the package");
         int c = lic.indexOf("are this project's own code", b);
@@ -173,13 +155,13 @@ class CoreMathLicenceHeadersTest {
 
     @Test
     void theCopyrightLinesAreVerbatimWhereTheyAreCarriedAndTheRemovedLineIsGone() throws IOException {
-        Path root = moduleDir().getParent();
-        String lic = read(root.resolve("LICENSE"));
-        String notice = read(root.resolve("NOTICE"));
-        Path main = moduleDir().resolve("src/main/java").resolve(PKG);
-        String dint = read(main.resolve("CoreMathDint.java"));
-        String u128 = read(main.resolve("U128.java"));
-        String tintCopy = read(moduleDir().resolve("src/test/java").resolve(PKG).resolve("CoreMathTintTestCopies.java"));
+        Path root = CoreMathTestSupport.moduleDir().getParent();
+        String lic = CoreMathTestSupport.readText(root.resolve("LICENSE"));
+        String notice = CoreMathTestSupport.readText(root.resolve("NOTICE"));
+        Path main = CoreMathTestSupport.moduleDir().resolve("src/main/java").resolve(PKG);
+        String dint = CoreMathTestSupport.readText(main.resolve("CoreMathDint.java"));
+        String u128 = CoreMathTestSupport.readText(main.resolve("U128.java"));
+        String tintCopy = CoreMathTestSupport.readText(CoreMathTestSupport.moduleDir().resolve("src/test/java").resolve(PKG).resolve("CoreMathTintTestCopies.java"));
         String powDint = "Copyright (c) 2022, 2023 CERN and Inria";
         String powPow = "Copyright (c) 2022-2025 CERN and Inria";
         String logDint = "Copyright (c) 2022 CERN.";
