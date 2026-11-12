@@ -214,6 +214,21 @@
   </repositories>
 
   <build>
+    <resources>
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>${project.build.directory}/maven-shared-archive-resources</directory>
+      </resource>
+    </resources>
+    <!-- The two resource directories above: the default one, plus
+         target/maven-shared-archive-resources.  maven-source-plugin adds a directory
+         to the -sources.jar only when it is a project resource whose path ends in that
+         name (the ASF remote-resources convention).  The copy-license-notice-sources
+         execution below fills it with LICENSE and NOTICE, so the -sources.jar carries
+         them too.  No module declares its own build resources, so every module
+         inherits this list. -->
     <pluginManagement>
       <plugins>
         <plugin>
@@ -405,6 +420,97 @@
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.3.1</version>
+        <executions>
+          <!-- Every module's jar, and its -sources.jar, carries the project's LICENSE
+               and NOTICE in META-INF/, so that the licence notices travel with copies.
+               One declaration, inherited by every module.  The files are read from the
+               reactor root (maven.multiModuleProjectDirectory, the directory that holds
+               .mvn/), not from each module, and are copied unfiltered and with overwrite
+               (a replacement file with an older mtime would otherwise be skipped), so
+               that the bytes in the jar are the bytes of the source files.  If the
+               reactor root is not found the copy is a silent no-op, or copies another
+               directory's files, and Maven still reports success: the
+               require-license-notice guard below turns that into a build failure.
+               2026-11-12. -->
+          <execution>
+            <id>copy-license-notice</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${maven.multiModuleProjectDirectory}</directory>
+                  <includes>
+                    <include>LICENSE</include>
+                    <include>NOTICE</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <!-- Same two files for the -sources.jar (see <resources> above); generate-resources
+               runs before the default resources copy, which also carries this directory
+               into target/classes. -->
+          <execution>
+            <id>copy-license-notice-sources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/maven-shared-archive-resources/META-INF</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${maven.multiModuleProjectDirectory}</directory>
+                  <includes>
+                    <include>LICENSE</include>
+                    <include>NOTICE</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <!-- Loud guard for the copy above: the reactor root must hold LICENSE, NOTICE
+               and pom.xml.  The pom.xml term rejects the git repo root, which holds
+               other LICENSE and NOTICE files but no pom.  Keep the three paths on the
+               same expression as the copy's <directory>; ${project.rootDirectory} is
+               null on Maven 3.9 and must not be substituted. -->
+          <execution>
+            <id>require-license-notice</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <fail message="maven.multiModuleProjectDirectory=${maven.multiModuleProjectDirectory} is not the JGDMS reactor root (needs LICENSE, NOTICE and pom.xml): jars would ship without the licence files, or with the wrong ones.">
+                  <condition>
+                    <not>
+                      <and>
+                        <available file="${maven.multiModuleProjectDirectory}/LICENSE"/>
+                        <available file="${maven.multiModuleProjectDirectory}/NOTICE"/>
+                        <available file="${maven.multiModuleProjectDirectory}/pom.xml"/>
+                      </and>
+                    </not>
+                  </condition>
+                </fail>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
