@@ -34,7 +34,8 @@ import org.junit.jupiter.api.Test;
  * mantissa) of tan(x). {@code reduce} bounds its error relative to {@code F = frac(x/(2 pi))}; the accurate path folds F by exact quarter turns to a smaller {@code R} and divides the
  * error by R. Where the fold subtracts, the error is about {@code 2.6/R} ulps: up to 4e18 ulps (about 66 correct bits instead of 121) at {@code x = 0x1.6ac5b262ca1ffp+849}. No wrong
  * rounding results for these inputs (the true tangent is far from a rounding midpoint), which the test also shows; the guard of this port nevertheless widens the window to
- * {@code 86 + 8/R}. The lines printed with the prefix {@code UPSTREAM} are the data of {@code UPSTREAM_TAN_TESTCASE_INPUTS.md}. The C was not compiled or run to produce them.
+ * {@code 86 + 8/R}. The lines printed with the prefix {@code UPSTREAM} are the data of {@code UPSTREAM_TAN_TESTCASE_INPUTS.md} (the field {@code U} is the 128-bit result of the accurate path
+ * before rounding, in the layout of the C's {@code dint64_t}, so that the C's value can be compared with it bit for bit). The C was not compiled or run to produce them.
  * Runtime tier: FAST (default suite), about one second.
  *
  * <h2>SEALED PREDICTIONS (B2F-U1..U5, the fix pass; written before the first run of this class)</h2>
@@ -50,6 +51,11 @@ import org.junit.jupiter.api.Test;
  *       9 of 9. The production provider ({@code MathProviders.correctlyRounded()}) returns {@code CrMath}'s value for all 11.</li>
  *   <li><b>B2F-U5.</b> The guard window {@code 86 + 8/R} contains the measured error for all 11: 11 of 11.</li>
  * </ol>
+ * SCORING (appended 2026-11-12 after the first run; the sealed text above is unchanged): U1 HELD (9 of 9 above 86 ulps; the smallest error is 175.5 ulps at 3.15, the largest 4.06e18 at
+ * 0x1.6ac5b262ca1ffp+849); U2 HELD (largest error x R of the nine 0.39, the controls' errors 3.25 and 6.06 ulps); U3 HELD (11 of 11 equal); U4 HELD, by its first branch only: for all nine the
+ * true tangent is at least 2.8e21 ulps from a midpoint (the largest possible is 2^74 = 1.9e22), 1.3e3 to 6.5e19 times the error, so the guard fires on none of them (guardFires=false for the nine; the guard's firing is shown by
+ * {@code CoreMathTanGuardTest} on constructed results); U5 HELD (11 of 11). The population carries no input on which the C's 86-ulp test or the guard fires: a wrong rounding needs the true
+ * tangent within the error of a midpoint, and none of these is.
  */
 class CoreMathTanFoldErrorReproducerTest {
 
@@ -86,7 +92,8 @@ class CoreMathTanFoldErrorReproducerTest {
             System.out.println(new StringBuilder(400).append("UPSTREAM x=").append(Double.toHexString(x)).append(" tan=").append(t.negative ? "-" : "+").append(t.absTan(40).round(new java.math.MathContext(40)).toString())
                     .append(" errorUlps=").append(String.format(Locale.ROOT, "%.6g", ulps)).append(" R=").append(String.format(Locale.ROOT, "%.6g", r)).append(" errorTimesR=").append(String.format(Locale.ROOT, "%.4f", ulps * r))
                     .append(" distanceToMidpointUlps=").append(String.format(Locale.ROOT, "%.6g", dist)).append(" folded=").append(folded).append(" c86Fires=").append(cFires)
-                    .append(" guardFires=").append(guard).append(" window=").append(String.format(Locale.ROOT, "%.6g", 86 + 8 / r)).append(" correctlyRounded=").append(Double.toHexString(exact)));
+                    .append(" guardFires=").append(guard).append(" window=").append(String.format(Locale.ROOT, "%.6g", 86 + 8 / r)).append(" correctlyRounded=").append(Double.toHexString(exact))
+                    .append(" U=(hi 0x").append(Long.toHexString(u.hi)).append(" lo 0x").append(Long.toHexString(u.lo)).append(" ex ").append(u.ex).append(", |tan x| = (hi/2^64 + lo/2^128) 2^ex)"));
             // B2F-U3, U4 (second half)
             assertEquals(Double.doubleToRawLongBits(exact), Double.doubleToRawLongBits(accurate), "accurate path at " + Double.toHexString(x));
             assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(accurate), "accurate path against CrMath at " + Double.toHexString(x));

@@ -70,6 +70,21 @@ import org.junit.jupiter.api.Test;
  * x + x^3/3 crosses the half-ulp above x, and one step of the input moves x^3/3 by about x^2, 2^-53.6, of an ulp of x, which is 2^21.4 of the 2^75 128-bit ulps in it), so the window 86 + 8/R of R about 2^-28.8 reaches it. The sealed estimate counted only random positions of the result and missed hard cases built
  * into the C's own threshold. Each delegated value equals {@code CrMath}'s (0 mismatches of 70,512); {@code CoreMathTanDifferentialTest#p6EveryFiniteInputIsHandledByThePortNeverByTheDelegate}
  * now asserts exactly these two (deviation D8).
+ *
+ * <h3>Mutation runs of the guard (DIAGNOSTIC; population: the fast set of 8 classes, 43 tests, {@code CoreMathTanGuardTest, CoreMathTanFoldErrorReproducerTest, CoreMathTanDifferentialTest,
+ * CoreMathTanWorstCaseGoldenTest, CoreMathTanTablesDigestTest, CoreMathTanReductionTest, CoreMathDintTest, CoreMathTanPathCensusTest}; one mutant applied to the working tree at a time, tree restored after each;
+ * run 2026-11-12 16:02-16:06 at the tree of commit ac2da0c58; predictions sealed in the message of 1bac8f5dc; scoring rule: the failing test methods named against the prediction)</h3>
+ * <ul>
+ *   <li>Mg1 (guardFires returns false): predicted G1, G2 and G3 fail (at least 3 methods) HELD; predicted that no differential, golden or slow result changes FAILED: 4 methods failed, the
+ *       fourth is {@code CoreMathTanDifferentialTest#p6...} (expected 2 delegations, was 0), the consequence of D8 (the guard does fire on the two tiny-threshold neighbours). G1 86,899 violations of
+ *       200,148; G2 fired 0 of 40,000; G3 in-band 0 of 858.</li>
+ *   <li>Mg2 (GUARD_K 8 to 1): predicted detected by G3 and the digest only, not by G1 and G5: G3 and the digest detected it and G1 and G5 did not (HELD), but G2 detected it too (fired 34,950 of
+ *       40,000), so the word "only" FAILED: at R = 2^-72 the window must reach 2^74, which needs K of at least 4, a dependence on K that the prediction overlooked.</li>
+ *   <li>Mg3 (GUARD_K 8 to 16): predicted G3 (beyond-band results fire) and the digest: HELD exactly (G3 beyond-band 858 of 858; nothing else failed).</li>
+ *   <li>Mg4 (R = X only, the grid index ignored): predicted G1 and G3: HELD exactly (G1 42,809 violations; G3 beyond-band 4).</li>
+ *   <li>Mg5 (the +1 dropped from the window): predicted to SURVIVE; FAILED: killed by G1, 13 violations of 200,148 (the cases placed within one ulp inside the exact window, where
+ *       floor(K/R) falls short of K/R by up to 1). The tests are sharper than sealed: the +1 is what makes the window at least 86 + K/R.</li>
+ * </ul>
  */
 class CoreMathTanGuardTest {
 
