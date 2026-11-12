@@ -149,7 +149,16 @@ class CoreMathTanDifferentialTest {
     @Test
     void p6EveryFiniteInputIsHandledByThePortNeverByTheDelegate() {
         CountingDelegate delegate = new CountingDelegate();
-        CoreMath provider = new CoreMath(delegate);
+        // fix pass (B2F-G6): the guard's delegations are collected with their inputs (a delegation is the guard doing its job, not a failure; the result is compared with CrMath below)
+        java.util.List<Double> guarded = java.util.Collections.synchronizedList(new ArrayList<>());
+        CoreMath provider = new CoreMath(delegate, CoreMathAtan2::atan2, x -> {
+            double r = CoreMathTan.tan(x);
+            if (r != r) {
+                guarded.add(x);
+                System.out.println(new StringBuilder(80).append("B2F-G6 the guard delegated tan(").append(CoreMathTestSupport.hex(x)).append(')'));
+            }
+            return r;
+        });
         long calls = 0;
         long mismatches = 0;
         for (Pop p : populations()) {
@@ -164,7 +173,13 @@ class CoreMathTanDifferentialTest {
         assertEquals(0L, mismatches);
         // fix pass (B2F-G6): the guard may delegate a call; every delegate call must be a counted guard delegation, and the prediction is that there are none in these populations
         assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
-        assertEquals(0L, provider.tanGuardDelegations());
+        // FOUND AT THE FIRST RUN (B2F-G6 predicted 0 and FAILED, 2 delegations): the two inputs just above the tiny-argument threshold, x = +-0x1.d12ed0af1a27fp-27 (the neighbours of
+        // TINY_BITS). That threshold is where tan(x) = x + x^3/3 crosses the half-ulp above x, so tan of its neighbours is within about 2^22 ulps of a rounding midpoint BY CONSTRUCTION,
+        // inside the window 86 + 8/R (R = 2^-28.8 turns, window about 2^31.8): hard cases of the C's own threshold, delegated, and equal to CrMath (compared below). No other input of
+        // the 70,512 was delegated. They are real inputs on which the guard fires, an end-to-end control of the routing (CoreMathTanGuardTest.g6).
+        java.util.List<Double> expectedGuarded = java.util.Arrays.asList(Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)), -Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)));
+        assertEquals(2L, provider.tanGuardDelegations());
+        assertTrue(guarded.containsAll(expectedGuarded) && guarded.size() == 2, "the guard's delegations: " + guarded);
         // control: a provider that delegates everything
         CountingDelegate delegate2 = new CountingDelegate();
         CorrectlyRoundedMath everything = new CorrectlyRoundedMath() {
@@ -190,7 +205,8 @@ class CoreMathTanDifferentialTest {
         for (double x : bad) {
             assertThrows(IllegalArgumentException.class, () -> provider.tan(x));
         }
-        assertEquals(bad.length, delegate.tan.sum());
+        // the delegate saw the two guard delegations above and the three non-finite arguments (a test defect of the first edit of this fix pass: it expected only the three)
+        assertEquals(bad.length + provider.tanGuardDelegations(), delegate.tan.sum());
     }
 
     @Test
