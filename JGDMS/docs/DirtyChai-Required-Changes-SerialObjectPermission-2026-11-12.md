@@ -2,7 +2,8 @@
 
 **Status:** the required change is done, in DirtyChai `trunk` `31fef43207e` ("proxy
 deserialization gap: SerialObjectPermission #213"), written by the project lead. It was verified
-against that commit on 2026-11-12 (section 4). One decision is open (section 5).
+against that commit on 2026-11-12 (section 4). Section 5's follow-up, exempting array classes, is
+decided and is still to be made in DirtyChai.
 Analysis written with AI assistance (Claude). It contains no DirtyChai code: DirtyChai's
 `CLAUDE.md` and the OpenJDK interim AI policy require contributions there to be human-written.
 
@@ -101,7 +102,7 @@ Same experiment, DirtyChai built from `31fef43207e`:
 | no `SerialObjectPermission "Payload"` (and `"[B"` granted, see section 5) | refused: `SerialObjectPermission "Payload"` | **0** (1 before the fix) |
 | control: `SerialObjectPermission "Payload"` granted | resolved, `Payload` in `PreferredClassLoader[httpmd://…/payload.jar…]` | 1 |
 
-## 5. Open: array class descriptors now need a grant
+## 5. Decided, to be made: array class descriptors are exempt
 
 Array classes are described in the stream by a class descriptor (`[B`, `[Ljava.lang.String;`), so
 they also pass through `readNonProxyDesc`. Arrays are read by `readArray`, not
@@ -127,6 +128,19 @@ The decision for the project lead:
 Recommendation: (a). The check exists to stop initialisers running and objects being created
 before the permission is checked. An array descriptor does neither, and the elements stay
 individually checked.
+
+**Decision (project lead, 2026-11-12): (a), arrays are exempt.** The change is in
+`readNonProxyDesc` only: the new check's condition becomes `cl != null && !cl.isArray()`.
+
+- `isArray()` also covers nested arrays (`[[B`).
+- `readProxyDesc` never sees an array class, and `readOrdinaryObject` never reads arrays.
+- For an object array (`[Lcom.example.X;`), resolving the descriptor loads `X` without
+  initialising it. Each element is read by `readOrdinaryObject` and checked there under its own
+  class name. An element's own descriptor also passes the new `readNonProxyDesc` check, unless it
+  was already read earlier in the stream.
+
+To verify once it is pushed: rerun section 4 without the `"[B"` grant. Expected: refused at
+`SerialObjectPermission "Payload"` with no client-side initialiser run, and the control resolves.
 
 ## 6. Related observations (not part of this change)
 
