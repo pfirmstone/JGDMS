@@ -257,8 +257,9 @@ class CoreMathTanDifferentialTest {
         double big = CoreMathTestSupport.PROVIDER.tan(x0);
         double small = CoreMathTestSupport.PROVIDER.tan(2 * x0);
         System.out.println(new StringBuilder(160).append("B2-P9: tan(x0) = ").append(CoreMathTestSupport.hex(big)).append(", tan(2*x0) = ").append(CoreMathTestSupport.hex(small)));
-        assertEquals(Double.doubleToRawLongBits(0x1.d9ba9a7975636p+60), Double.doubleToRawLongBits(big));
-        assertEquals(Double.doubleToRawLongBits(0x1.14ae72e6ba22fp-60), Double.doubleToRawLongBits(small));
+        // the C's comment names the MAXIMAL |tan(x)| and the minimal |tan(x)|: the sign of tan at x0 is not stated (found at the first run: tan(x0) is negative)
+        assertEquals(Double.doubleToRawLongBits(0x1.d9ba9a7975636p+60), Double.doubleToRawLongBits(Math.abs(big)));
+        assertEquals(Double.doubleToRawLongBits(0x1.14ae72e6ba22fp-60), Double.doubleToRawLongBits(Math.abs(small)));
         assertEquals(Double.doubleToRawLongBits(CoreMathTestSupport.ORACLE.tan(x0)), Double.doubleToRawLongBits(big));
         assertEquals(Double.doubleToRawLongBits(CoreMathTestSupport.ORACLE.tan(2 * x0)), Double.doubleToRawLongBits(small));
     }

@@ -350,6 +350,7 @@ class CoreMathDintTest {
         int sterbenzNotExact = 0;
         int borrows = 0;
         int controlRejected = 0;
+        int controlVisible = 0;
         int[] bo = new int[1];
         for (int i = 0; i < n; i++) {
             CoreMathDint a = random(r, false);
@@ -371,6 +372,9 @@ class CoreMathDintTest {
             }
             if (!same(got, dropped[0], dropped[1], dropped[2], dropped[3])) {
                 controlRejected++;
+            }
+            if (!java.util.Arrays.equals(want, dropped)) {
+                controlVisible++;                                     // the borrow matters to the model's own result (not when the Sterbenz branch recomputes the difference exactly)
             }
             CoreMathDint ra = copyOf(a);
             CoreMathDint rb = copyOf(b);
@@ -399,14 +403,17 @@ class CoreMathDintTest {
                 .append("; error-bound violations ").append(boundViolations).append("; same-sign k=0 diff-sign inexact ").append(sterbenzNotExact).append("; branches: same ").append(br.same).append(" (carry out ").append(br.sameCarry)
                 .append("), different signs ").append(br.diff).append(" (cancelling ").append(br.diffCancel).append(", Sterbenz k=1 ").append(br.sterbenz).append("), k=0 ").append(br.kZero).append(", k>=128 ")
                 .append(br.kBig).append(", equal magnitudes ").append(br.equalAbs).append(" (cancelling ").append(br.equalAbsCancel).append("), zero operand ").append(br.zeroOperand)
-                .append("; model borrows ").append(borrows).append(", control (borrow dropped) rejected on ").append(controlRejected));
+                .append("; model borrows ").append(borrows).append(", dropping the borrow changes the model's own result on ").append(controlVisible).append(", control (borrow dropped) rejected on ").append(controlRejected));
         assertEquals(0, mismatches);
         assertEquals(0, overlapDiffs);
         assertEquals(0, boundViolations);
         assertEquals(0, sterbenzNotExact);
         assertTrue(br.sameCarry >= 1000 && br.diffCancel >= 1000 && br.sterbenz >= 1000 && br.kZero >= 1000 && br.kBig >= 1000, "a branch is not exercised");
         assertTrue(br.equalAbs >= 100 && br.equalAbsCancel >= 50 && br.zeroOperand >= 100, "an edge branch is not exercised");
-        assertEquals(borrows, controlRejected, "the dropped-borrow control must differ on exactly the inputs where the model has a borrow");
+        // found at the first run: the identity borrows == rejected is false by construction (the Sterbenz branch k == 1 recomputes the difference from the untruncated operands,
+        // so the borrow of the first difference does not reach its result); the exact statement is rejected == (inputs where dropping changes the model's own result)
+        assertEquals(controlVisible, controlRejected, "the dropped-borrow control must differ on exactly the inputs where dropping the borrow changes the model's result");
+        assertTrue(controlVisible >= 1000, "the population does not exercise the borrow");
     }
 
     private static BigInteger scaled128(CoreMathDint d, long base) {
@@ -611,6 +618,9 @@ class CoreMathDintTest {
             }
             if (i % 11 == 0) {
                 hi = 0L;
+            }
+            if (hi == 0L && lo == 0L) {
+                lo = 1L;                                              // (found at the first run: zero has nothing to normalise; the population produced it by the hi = 0 forcing)
             }
             long ex = r.nextInt(300) - 150;
             CoreMathDint d = new CoreMathDint(hi, lo, ex, 0L);

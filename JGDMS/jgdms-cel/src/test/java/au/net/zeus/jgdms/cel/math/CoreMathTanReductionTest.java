@@ -208,11 +208,19 @@ class CoreMathTanReductionTest {
         SplittableRandom r = new SplittableRandom(20261311L);
         BigDecimal twoPiInv = BigDecimal.ONE.divide(CoreMathTanTestSupport.halfPi().multiply(BigDecimal.valueOf(4), MC), MC);
         BigDecimal bound = new BigDecimal("1.2570").divide(new BigDecimal(BigInteger.ONE.shiftLeft(127)), MC);       // 2^-126.67 < 1.2570 * 2^-127 (stricter)
-        int violations = 0;
+        // Found at the first run (DEVIATION from the sealed B2-R2 text): for ex <= 1 the C's own analysis (tan.c:1570-1574) takes the approximation error of the multiplier,
+        // |T0/2^64 + T1/2^128 - 1/(2 pi)| < 2^-130.22, as if it were RELATIVE; it is absolute, so relative to 1/(2 pi) = 2^-2.65 it is 2^-127.57. The provable bound for that
+        // branch is (1 + 2^-127.57)(1 + 2^-127) - 1 < 1.675 * 2^-127 = 2^-126.26; the sealed claim 2^-126.67 (tan.c:1540) holds for ex >= 2 only.
+        BigDecimal boundSmall = new BigDecimal("1.6760").divide(new BigDecimal(BigInteger.ONE.shiftLeft(127)), MC);
+        int violationsLarge = 0;
+        int violationsSmallOwn = 0;
+        int exceedCommentSmall = 0;
         int notNormalised = 0;
         int n = 0;
+        int nSmall = 0;
         long minEx = 0;
-        for (int e = -30; e <= 1024; e += 7) {
+        double worstSmall = Double.NEGATIVE_INFINITY;
+        for (int e = -30; e <= 1024; e += (e <= 1 ? 1 : 7)) {
             for (int s = 0; s < 3; s++) {
                 long hi = r.nextLong() | Long.MIN_VALUE;
                 CoreMathDint x = new CoreMathDint(hi, 0L, e, 0L);
@@ -225,17 +233,29 @@ class CoreMathTanReductionTest {
                     notNormalised++;
                 }
                 BigDecimal out = new BigDecimal(CoreMathDintTest.mant(x)).multiply(pow2(x.ex - 128), MC);
-                if (frac.subtract(out).abs().compareTo(out.multiply(bound, MC)) >= 0) {
-                    violations++;
+                BigDecimal err = frac.subtract(out).abs();
+                if (e <= 1) {
+                    nSmall++;
+                    worstSmall = Math.max(worstSmall, Math.log(err.divide(out, MC).doubleValue()) / Math.log(2));
+                    if (err.compareTo(out.multiply(bound, MC)) >= 0) {
+                        exceedCommentSmall++;
+                    }
+                    if (err.compareTo(out.multiply(boundSmall, MC)) >= 0) {
+                        violationsSmallOwn++;
+                    }
+                } else if (err.compareTo(out.multiply(bound, MC)) >= 0) {
+                    violationsLarge++;
                 }
                 if (e >= 26) {
                     minEx = Math.min(minEx, x.ex);
                 }
             }
         }
-        System.out.println(new StringBuilder(120).append("B2-R2 reduce error bound 2^-126.67 violated on ").append(violations).append(" of ").append(n).append(" inputs; not normalised ").append(notNormalised)
-                .append("; smallest output exponent for x >= 2^25: ").append(minEx));
-        assertEquals(0, violations);
+        System.out.println(new StringBuilder(260).append("B2-R2 reduce: for ex >= 2 the error bound 2^-126.67 is violated on ").append(violationsLarge).append(" of ").append(n - nSmall).append(" inputs; for ex <= 1 (")
+                .append(nSmall).append(" inputs) the C's stated bound 2^-126.67 is exceeded on ").append(exceedCommentSmall).append(", the provable bound 2^-126.26 on ").append(violationsSmallOwn).append(", worst observed 2^")
+                .append(worstSmall).append("; not normalised ").append(notNormalised).append("; smallest output exponent for x >= 2^25: ").append(minEx));
+        assertEquals(0, violationsLarge);
+        assertEquals(0, violationsSmallOwn);
         assertEquals(0, notNormalised);
         assertTrue(minEx >= -61, "the C claims ex >= -61 for 2^25 <= x");
     }
@@ -301,6 +321,9 @@ class CoreMathTanReductionTest {
         SplittableRandom r = new SplittableRandom(20261312L);
         int n = 300_000;
         int mismatches = 0;
+        int zeroC1 = 0;
+        int zeroC1Mismatches = 0;
+        int zeroC1ScaleMismatches = 0;
         double[] out = new double[2];
         for (int i = 0; i < n; i++) {
             long c1;
@@ -319,13 +342,31 @@ class CoreMathTanReductionTest {
             }
             CoreMathTan.setDd(out, c1, c0);
             double[] want = modelSetDd(c1, c0);
-            if (Double.doubleToRawLongBits(out[0]) != Double.doubleToRawLongBits(want[0]) || Double.doubleToRawLongBits(out[1]) != Double.doubleToRawLongBits(want[1])) {
-                mismatches++;
+            boolean hEq = Double.doubleToRawLongBits(out[0]) == Double.doubleToRawLongBits(want[0]);
+            boolean lEq = Double.doubleToRawLongBits(out[1]) == Double.doubleToRawLongBits(want[1]);
+            if (c1 != 0L) {
+                if (!hEq || !lEq) {
+                    mismatches++;
+                }
+            } else {
+                // Found at the first run (DEVIATION from the sealed B2-R3 text): in the c1 = 0 branch the C writes the exponent field of l as f - 64 - g where the c1 != 0 branch
+                // (and the exact value) has f - 53 - g, so l comes out 2^-11 times the exact truncation. The branch is unreachable from tan (it needs frac(x/(2 pi)) < 2^-64; the
+                // smallest possible is about 2^-62). The port reproduces the C, which this test checks: h is exact and l equals the exact value times 2^-11.
+                zeroC1++;
+                if (!hEq) {
+                    zeroC1Mismatches++;
+                }
+                if (Double.doubleToRawLongBits(out[1]) != Double.doubleToRawLongBits(Math.scalb(want[1], -11))) {
+                    zeroC1ScaleMismatches++;
+                }
             }
         }
         CoreMathTan.setDd(out, 0L, 0L);
-        System.out.println(new StringBuilder(80).append("B2-R3 set_dd: ").append(mismatches).append(" mismatches of ").append(n).append(" pairs; (0, 0) gives (").append(out[0]).append(", ").append(out[1]).append(')'));
+        System.out.println(new StringBuilder(220).append("B2-R3 set_dd: c1 != 0: ").append(mismatches).append(" mismatches of ").append(n - zeroC1).append(" pairs; c1 = 0: h differs on ").append(zeroC1Mismatches)
+                .append(" of ").append(zeroC1).append(", l differs from (exact value x 2^-11) on ").append(zeroC1ScaleMismatches).append("; (0, 0) gives (").append(out[0]).append(", ").append(out[1]).append(')'));
         assertEquals(0, mismatches);
+        assertEquals(0, zeroC1Mismatches);
+        assertEquals(0, zeroC1ScaleMismatches);
         assertEquals(0.0, out[0]);
         assertEquals(0.0, out[1]);
     }
@@ -390,28 +431,89 @@ class CoreMathTanReductionTest {
         return fm.i == i && Double.doubleToRawLongBits(fm.h) == Double.doubleToRawLongBits(hl[0]) && Double.doubleToRawLongBits(fm.l) == Double.doubleToRawLongBits(hl[1]);
     }
 
+    /**
+     * A 52-bit fraction whose mantissa makes the C's carry {@code which} (1 = the one into c[1], 2 = the one into c[2]) happen for exponent field {@code e}, found by random search with
+     * the same unsigned 64-bit arithmetic as the C (the carries occur with probability 2^-11 only, because m has 53 bits and so hi(m*T) is below 2^53); -1 if none is found.
+     */
+    private static long forcedCarryFraction(SplittableRandom r, int e, int which) {
+        int ia;
+        int ib;
+        int ic;
+        if (e <= 1074) {
+            ia = 1;
+            ib = 2;
+            ic = 0;
+        } else {
+            int i = (e - 1138 + 63) / 64;
+            ia = i + 2;
+            ib = i + 3;
+            ic = i + 1;
+        }
+        long ta = CoreMathTanTables.t(ia);
+        long tb = CoreMathTanTables.t(ib);
+        long tc = CoreMathTanTables.t(ic);
+        for (int trial = 0; trial < 400_000; trial++) {
+            long frac = r.nextLong() & 0xfffffffffffffL;
+            long m = (1L << 52) | frac;
+            long uLow = m * ta;
+            long c0 = uLow + Math.unsignedMultiplyHigh(m, tb);
+            boolean carry1 = Long.compareUnsigned(c0, uLow) < 0;
+            if (which == 1 && carry1) {
+                return frac;
+            }
+            long c1 = Math.unsignedMultiplyHigh(m, ta) + (carry1 ? 1L : 0L);
+            long lowC = m * tc;
+            c1 += lowC;
+            if (which == 2 && Long.compareUnsigned(c1, lowC) < 0) {
+                return frac;
+            }
+        }
+        return -1L;
+    }
+
     @Test
     void reduceFastEqualsTheBigIntegerModelAndTheCarryControlsAreExact() {
         SplittableRandom r = new SplittableRandom(20261313L);
         int n = 0;
+        int skippedBelowTwoPi = 0;
         int mismatches = 0;
+        int forcedFound = 0;
+        int forcedWanted = 0;
         int[] visible = new int[3];
         int[] rejected = new int[3];
         for (int e = 1025; e <= 2046; e++) {
-            for (int s = 0; s < 40; s++) {
-                long bits = ((long) e << 52) | (r.nextLong() & 0xfffffffffffffL);
-                if (s == 0) {
-                    bits = ((long) e << 52);
-                } else if (s == 1) {
-                    bits = ((long) e << 52) | 0xfffffffffffffL;
+            for (int s = 0; s < 56; s++) {
+                long frac;
+                if (s < 40) {
+                    frac = r.nextLong() & 0xfffffffffffffL;
+                    if (s == 0) {
+                        frac = 0L;
+                    } else if (s == 1) {
+                        frac = 0xfffffffffffffL;
+                    }
+                } else {
+                    forcedWanted++;
+                    frac = forcedCarryFraction(r, e, s < 48 ? 1 : 2);
+                    if (frac < 0) {
+                        continue;
+                    }
+                    forcedFound++;
                 }
-                double x = Double.longBitsToDouble(bits);
+                double x = Double.longBitsToDouble(((long) e << 52) | frac);
+                if (x <= CoreMathTanTables.TWO_PI_LIMIT) {
+                    skippedBelowTwoPi++;                              // found at the first run: [4, 2 pi] is the single-product branch, which the large-branch model does not describe
+                    continue;
+                }
                 n++;
                 double[] hl = new double[2];
                 int i = CoreMathTan.reduceFast(hl, x);
                 FastModel want = modelReduceFast(x, -1);
                 if (!sameFast(want, i, hl)) {
                     mismatches++;
+                    if (mismatches <= 5) {
+                        System.out.println(new StringBuilder(260).append("  B2-R4 mismatch: x=").append(CoreMathTestSupport.hex(x)).append(" port i=").append(i).append(" h=").append(CoreMathTestSupport.hex(hl[0]))
+                                .append(" l=").append(CoreMathTestSupport.hex(hl[1])).append(" model i=").append(want.i).append(" h=").append(CoreMathTestSupport.hex(want.h)).append(" l=").append(CoreMathTestSupport.hex(want.l)));
+                    }
                 }
                 for (int d = 1; d <= 2; d++) {
                     FastModel dropped = modelReduceFast(x, d);
@@ -425,7 +527,8 @@ class CoreMathTanReductionTest {
                 }
             }
         }
-        System.out.println(new StringBuilder(220).append("B2-R4 reduce_fast (x > 2 pi, large branch): ").append(mismatches).append(" mismatches of ").append(n).append(" inputs; dropping the carry into c[1] or c[2] changes the model's output on ")
+        System.out.println(new StringBuilder(260).append("B2-R4 reduce_fast (x > 2 pi, large branch): ").append(mismatches).append(" mismatches of ").append(n).append(" inputs (").append(skippedBelowTwoPi)
+                .append(" skipped: x in [4, 2 pi]); forced-carry mantissas found ").append(forcedFound).append(" of ").append(forcedWanted).append("; dropping the carry into c[1] or c[2] changes the model's output on ")
                 .append(visible[1]).append(" and ").append(visible[2]).append(", production differs from the dropped model on ").append(rejected[1]).append(" and ").append(rejected[2]));
         assertEquals(0, mismatches);
         assertEquals(visible[1], rejected[1]);
