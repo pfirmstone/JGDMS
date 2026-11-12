@@ -1,0 +1,5 @@
+# SHA-256 of the canonical rendering (v1, see CoreMathInverseTrigTestSupport.canonical) of every table of CoreMathInverseTrigTables.
+# source: CORE-MATH src/binary64/{atan/atan.c, asin/asin.c, acos/acos.c, atan2/atan2.c, atan2/tint.h} at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+# generator: CoreMathGoldenGeneratorB1.generateTablesDigest, 2026-11-12 (system clock); the Java tables equalled the tables parsed from every C file that carries them
+# (30 table-file pairs) when this file was written.
+c3acb29cdc553170f77d2e9c3b7db9acb2b3c313c9622b56093bf054b6e82fae
