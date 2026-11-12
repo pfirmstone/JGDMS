@@ -35,6 +35,7 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
+        <spire.agent.socket>${project.build.directory}/spire/agent.sock</spire.agent.socket>
     </properties>
 
     <dependencies>
@@ -79,6 +80,69 @@
                     <release>21</release>
                     <encoding>UTF-8</encoding>
                 </configuration>
+            </plugin>
+            <!-- The ambient-identity tests need a SPIRE agent listening before their JVM
+                 starts (DirtyChai reads the Workload API socket when a JVM starts): a mock
+                 agent is spawned here, and stops when the test JVM exits or after 30 min. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>mock-spire-agent</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipTests}</skip>
+                            <target>
+                                <java classname="net.jini.jeri.ssl.MockSpireAgentLauncher" classpathref="maven.test.classpath" fork="true" spawn="true">
+                                    <arg value="${spire.agent.socket}"/>
+                                    <arg value="1800"/>
+                                </java>
+                                <waitfor maxwait="60" maxwaitunit="second" timeoutproperty="mock.spire.agent.absent">
+                                    <available file="${spire.agent.socket}"/>
+                                </waitfor>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <!-- Their client identity is the ambient SPIFFE worker: they run in the
+                             execution below, in a JVM given the mock agent's socket. -->
+                        <exclude>**/ServerIdentityPinProbeTest.java</exclude>
+                        <exclude>**/ResolvePinsTheProbedIdentityTest.java</exclude>
+                        <exclude>**/CodebaseFreeProxyIdentityTest.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>ambient-worker-fork</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludes combine.self="override">
+                                <exclude>none</exclude>
+                            </excludes>
+                            <includes combine.self="override">
+                                <include>**/ServerIdentityPinProbeTest.java</include>
+                                <include>**/ResolvePinsTheProbedIdentityTest.java</include>
+                                <include>**/CodebaseFreeProxyIdentityTest.java</include>
+                            </includes>
+                            <forkCount>1</forkCount>
+                            <reuseForks>true</reuseForks>
+                            <argLine>-Dspiffe.workload.socket=${spire.agent.socket}</argLine>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

@@ -16,35 +16,24 @@ package net.jini.jeri.ssl;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionException;
 import javax.security.auth.Subject;
-import javax.security.auth.x500.X500Principal;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
-import net.jini.export.Exporter;
 import net.jini.io.MarshalledInstance;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.ServerEndpoint;
-import net.jini.jeri.ssl.SslEngineSvidFactory.Svid;
-import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.loader.pref.PreferredProxyCodebaseProvider;
 import net.jini.loader.pref.ServerIdentityPinAccess;
 import net.jini.loader.pref.ServerIdentityPinAccess.Route;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -63,76 +52,30 @@ import static org.junit.Assert.*;
  *     refused while isolating, returned unpinned otherwise.</li>
  * <li>Nothing is routed to a sub-process: there is no downloaded code.</li>
  * </ol>
+ * The client's identity is the ambient SPIFFE worker, as deployed, with no
+ * Subject in scope ({@link AmbientIdentityFixture}); the servers run in their own
+ * JVM ({@link IdentityServers}).
  */
 public class CodebaseFreeProxyIdentityTest {
 
     private static final ClassLoader LOADER = CodebaseFreeProxyIdentityTest.class.getClassLoader();
-    private static final Collection<Object> KEEP = new ArrayList<Object>();
-    private static Svid server, impostor, client;
     private static CodebaseAccessor reggie, sameDn, tcp;
-    private static String[] previousTrustStore;
 
     private final List<Route> routes = Collections.synchronizedList(new ArrayList<Route>());
     private AutoCloseable router;
     private String previousIsolation;
 
-    /** A codebase-free service; getCertFactoryType says which server answered. */
-    public static final class Service implements CodebaseAccessor {
-        private final String who;
-        Service(String who) { this.who = who; }
-        public String getClassAnnotation() { return null; }
-        public String getCertFactoryType() { return who; }
-        public String getCertPathEncoding() { return null; }
-        public byte[] getEncodedCerts() { return null; }
-    }
-
     @BeforeClass
     public static void setUp() throws Exception {
-        Path dir = Files.createTempDirectory("codebase-free");
-        server = SslEngineSvidFactory.generate(dir, "server", "CN=Reggie", "spiffe://example.org/reggie");
-        impostor = SslEngineSvidFactory.generate(dir, "impostor", "CN=Reggie", "spiffe://example.org/impostor");
-        client = SslEngineSvidFactory.generate(dir, "client", "CN=Tester", "spiffe://example.org/tester");
-        previousTrustStore = SslEngineSvidFactory.installTrustStore(dir, server.leaf, impostor.leaf, client.leaf);
-        resetSslTrustManagerCache();
-        reggie = exportSsl(server, "reggie");
-        sameDn = exportSsl(impostor, "impostor");
-        Exporter tex = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-            new BasicILFactory(null, null, LOADER), false, true);
-        Service ts = new Service("tcp");
-        KEEP.add(ts);
-        KEEP.add(tex);
-        tcp = (CodebaseAccessor) tex.export(ts);
-    }
-
-    private static CodebaseAccessor exportSsl(Svid s, String who) throws Exception {
-        ServerEndpoint se = SslServerEndpoint.getInstance(s.subject, new X500Principal[]{s.x500}, "localhost", 0);
-        Exporter ex = new BasicJeriExporter(se,
-            new BasicILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER),
-            false, true);
-        Service impl = new Service(who);
-        KEEP.add(impl);
-        KEEP.add(ex);
-        return (CodebaseAccessor) Subject.callAs(s.subject, (Callable<Object>) () -> ex.export(impl));
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        for (Object o : KEEP) {
-            if (o instanceof Exporter) ((Exporter) o).unexport(true);
-        }
-        if (previousTrustStore != null) SslEngineSvidFactory.restoreTrustStore(previousTrustStore);
-        resetSslTrustManagerCache();
-    }
-
-    /** FilterX509TrustManager caches its trust manager per JVM: reset at set-up and tear-down. */
-    private static void resetSslTrustManagerCache() throws Exception {
-        java.lang.reflect.Field tm = FilterX509TrustManager.class.getDeclaredField("tm");
-        tm.setAccessible(true);
-        tm.set(null, null);
+        AmbientIdentityFixture.start();
+        reggie = (CodebaseAccessor) AmbientIdentityFixture.proxy("freeReggie");
+        sameDn = (CodebaseAccessor) AmbientIdentityFixture.proxy("freeImpostor");
+        tcp = (CodebaseAccessor) AmbientIdentityFixture.proxy("freeTcp");
     }
 
     @Before
     public void captureRoutes() {
+        assertNull("the workload identity is ambient: no Subject is in scope", Subject.current());
         previousIsolation = System.getProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY);
         router = ServerIdentityPinAccess.captureRoutes(routes, "routed");
     }
@@ -154,14 +97,9 @@ public class CodebaseFreeProxyIdentityTest {
         System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, Boolean.toString(on));
     }
 
+    /** A plain call: the client's identity is ambient, no Subject is bound. */
     private static <T> T asClient(Callable<T> c) throws Exception {
-        try {
-            return Subject.callAs(client.subject, c);
-        } catch (CompletionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) throw (Exception) cause;
-            throw e;
-        }
+        return c.call();
     }
 
     /** Resolves {@code service} delivered with the bootstrap proxy {@code bootstrap}, as the client. */

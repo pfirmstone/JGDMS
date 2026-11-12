@@ -16,40 +16,29 @@ package net.jini.jeri.ssl;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionException;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.ClientMinPrincipal;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
-import net.jini.export.Exporter;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.ServerSubject;
-import net.jini.jeri.AtomicDerILFactory;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.InvocationLayerFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.ServerEndpoint;
-import net.jini.jeri.ssl.SslEngineSvidFactory.Svid;
-import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.loader.pref.PreferredProxyCodebaseProvider;
 import net.jini.loader.pref.ServerIdentityPinAccess;
 import net.jini.loader.pref.ServerIdentityPinAccess.Route;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -70,96 +59,37 @@ import static org.junit.Assert.*;
  * <li>Fail closed: a probe that fails, an ambiguous identity, or a transport that
  *     cannot authenticate is refused, and nothing is routed.</li>
  * </ol>
- * The SPIFFE principal class lives in jgdms-lib-dl, which depends on this
- * module, so it is absent from this module's own test classpath.  Without it
- * the identity is the X.500 name, which isolation refuses; the tests that need
- * a SPIFFE identity are then skipped (they run when jgdms-lib-dl's classes are
- * on the classpath).  Exports use {@link BasicILFactory} and
- * {@link AtomicDerILFactory}: an {@code AtomicILFactory} export registers with
- * the provider as first party, and resolve would never reach the router.
+ * The client's identity is the ambient SPIFFE worker, as deployed, with no
+ * Subject in scope ({@link AmbientIdentityFixture}); the servers run in their own
+ * JVM ({@link IdentityServers}).  Without the SPIFFE principal class the identity
+ * is the X.500 name, which isolation refuses; the tests that need a SPIFFE
+ * identity are then skipped.  The bootstrap proxies are BasicILFactory and
+ * AtomicDerILFactory exports.
  */
 public class ResolvePinsTheProbedIdentityTest {
 
     private static final String SPIFFE_CLASS = "au.net.zeus.jgdms.spiffe.SpiffePrincipal";
     private static final ClassLoader LOADER = ResolvePinsTheProbedIdentityTest.class.getClassLoader();
 
-    private static final Collection<Object> KEEP = new ArrayList<Object>();
-    private static Svid server, impostor, twoUri, client;
     private static CodebaseAccessor reggie, reggieDer, sameDn, twoUris, tcp;
-    private static String[] previousTrustStore;
 
     private final List<Route> routes = Collections.synchronizedList(new ArrayList<Route>());
     private AutoCloseable router;
     private String previousIsolation;
 
-    /** A bootstrap proxy's server side. */
-    public static final class Accessor implements CodebaseAccessor {
-        public String getClassAnnotation() { return "http://localhost/resolve-pin.jar"; }
-        public String getCertFactoryType() { return null; }
-        public String getCertPathEncoding() { return null; }
-        public byte[] getEncodedCerts() { return null; }
-    }
-
     @BeforeClass
     public static void setUp() throws Exception {
-        Path dir = Files.createTempDirectory("resolve-pin");
-        server = SslEngineSvidFactory.generate(dir, "server", "CN=Reggie", "spiffe://example.org/reggie");
-        impostor = SslEngineSvidFactory.generate(dir, "impostor", "CN=Reggie", "spiffe://example.org/impostor");
-        twoUri = SslEngineSvidFactory.generate(dir, "twouri", "CN=Reggie",
-            "spiffe://example.org/alpha,uri:spiffe://example.org/beta");
-        client = SslEngineSvidFactory.generate(dir, "client", "CN=Tester", "spiffe://example.org/tester");
-        previousTrustStore = SslEngineSvidFactory.installTrustStore(dir,
-            server.leaf, impostor.leaf, twoUri.leaf, client.leaf);
-        resetSslTrustManagerCache();
-        reggie = exportSsl(server);
-        reggieDer = exportSsl(server,
-            new AtomicDerILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER));
-        sameDn = exportSsl(impostor);
-        twoUris = exportSsl(twoUri);
-        Exporter tex = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-            new BasicILFactory(null, null, LOADER), false, true);
-        Accessor ti = new Accessor();
-        KEEP.add(ti);
-        KEEP.add(tex);
-        tcp = (CodebaseAccessor) tex.export(ti);
-    }
-
-    private static CodebaseAccessor exportSsl(Svid s) throws Exception {
-        return exportSsl(s,
-            new BasicILFactory(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL), null, LOADER));
-    }
-
-    private static CodebaseAccessor exportSsl(Svid s, InvocationLayerFactory ilf) throws Exception {
-        ServerEndpoint se = SslServerEndpoint.getInstance(s.subject, new X500Principal[]{s.x500}, "localhost", 0);
-        Exporter ex = new BasicJeriExporter(se, ilf, false, true);
-        Accessor impl = new Accessor();
-        KEEP.add(impl);
-        KEEP.add(ex);
-        return (CodebaseAccessor) Subject.callAs(s.subject, (Callable<Object>) () -> ex.export(impl));
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        for (Object o : KEEP) {
-            if (o instanceof Exporter) ((Exporter) o).unexport(true);
-        }
-        if (previousTrustStore != null) SslEngineSvidFactory.restoreTrustStore(previousTrustStore);
-        resetSslTrustManagerCache();
-    }
-
-    /**
-     * FilterX509TrustManager caches its trust manager per JVM, built from the
-     * trust store installed first; other SSL test classes in the same JVM install
-     * their own.  Reset at set-up and tear-down (as MarshallingFormatDeferralTest).
-     */
-    private static void resetSslTrustManagerCache() throws Exception {
-        java.lang.reflect.Field tm = FilterX509TrustManager.class.getDeclaredField("tm");
-        tm.setAccessible(true);
-        tm.set(null, null);
+        AmbientIdentityFixture.start();
+        reggie = (CodebaseAccessor) AmbientIdentityFixture.proxy("reggie");
+        reggieDer = (CodebaseAccessor) AmbientIdentityFixture.proxy("reggieDer");
+        sameDn = (CodebaseAccessor) AmbientIdentityFixture.proxy("sameDn");
+        twoUris = (CodebaseAccessor) AmbientIdentityFixture.proxy("twoUris");
+        tcp = (CodebaseAccessor) AmbientIdentityFixture.proxy("tcp");
     }
 
     @Before
     public void isolate() {
+        assertNull("the workload identity is ambient: no Subject is in scope", Subject.current());
         previousIsolation = System.getProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY);
         System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, "true");
         router = ServerIdentityPinAccess.captureRoutes(routes, "routed");
@@ -201,26 +131,31 @@ public class ResolvePinsTheProbedIdentityTest {
     }
 
     private static List<Object> deliveringStreamContext(boolean mutualAuth) throws Exception {
+        return deliveringStreamContext(mutualAuth ? AuthenticateServerTest.MUTUAL : null);
+    }
+
+    /** As above, with a constraint the client cannot meet: a client principal the ambient worker does not hold. */
+    private static List<Object> demandingStreamContext() throws Exception {
+        return deliveringStreamContext(InvocationConstraints.combine(AuthenticateServerTest.MUTUAL,
+            new InvocationConstraints(new ClientMinPrincipal(new X500Principal("CN=Nobody")), null)));
+    }
+
+    private static List<Object> deliveringStreamContext(InvocationConstraints constraints) throws Exception {
         final Set<Principal> delivering = new LinkedHashSet<Principal>();
         delivering.add(new X500Principal("CN=Delivering"));
         if (spiffeAvailable()) delivering.add(spiffe("spiffe://example.org/delivering"));
         final Subject subject = new Subject(true, delivering, Collections.emptySet(), Collections.emptySet());
         List<Object> context = new ArrayList<Object>();
-        if (mutualAuth) context.add(new BasicMethodConstraints(AuthenticateServerTest.MUTUAL));
+        if (constraints != null) context.add(new BasicMethodConstraints(constraints));
         context.add(new ServerSubject() {
             public Subject getServerSubject() { return subject; }
         });
         return context;
     }
 
+    /** A plain call: the client's identity is ambient, no Subject is bound. */
     private static <T> T asClient(Callable<T> c) throws Exception {
-        try {
-            return Subject.callAs(client.subject, c);
-        } catch (CompletionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) throw (Exception) cause;
-            throw e;
-        }
+        return c.call();
     }
 
     private static Object resolveAsClient(final CodebaseAccessor proxy) throws Exception {
@@ -292,11 +227,11 @@ public class ResolvePinsTheProbedIdentityTest {
         Principal pin = route.serverPrincipals[0];
         assertPinnedTo(route.bootstrapProxy, pin);
         MethodConstraints mc = ((RemoteMethodControl) route.bootstrapProxy).getConstraints();
-        assertEquals("the pinned proxy still answers", "http://localhost/resolve-pin.jar",
+        assertEquals("the pinned proxy still answers", IdentityServers.RESOLVE_CODEBASE,
             asClient(() -> route.bootstrapProxy.getClassAnnotation()));
         CodebaseAccessor unpinnedOther = (CodebaseAccessor) ((RemoteMethodControl) sameDn).setConstraints(
             new BasicMethodConstraints(AuthenticateServerTest.MUTUAL));
-        assertEquals("without the pin the other server answers (control)", "http://localhost/resolve-pin.jar",
+        assertEquals("without the pin the other server answers (control)", IdentityServers.RESOLVE_CODEBASE,
             asClient(() -> unpinnedOther.getClassAnnotation()));
         CodebaseAccessor otherServer = (CodebaseAccessor) ((RemoteMethodControl) sameDn).setConstraints(mc);
         try {
@@ -381,9 +316,9 @@ public class ResolvePinsTheProbedIdentityTest {
     // ---- 4: fail closed ------------------------------------------------------
 
     @Test
-    public void aClientThatIsNotLoggedOnIsRefusedAndNothingIsRouted() throws Exception {
+    public void aConstraintTheClientCannotMeetIsRefusedAndNothingIsRouted() throws Exception {
         try {
-            new PreferredProxyCodebaseProvider().resolve(reggie, null, LOADER, LOADER, deliveringStreamContext());
+            new PreferredProxyCodebaseProvider().resolve(reggie, null, LOADER, LOADER, demandingStreamContext());
             fail("the handshake cannot be made; the stream's subject must not stand in for it");
         } catch (UnsupportedConstraintException expected) {
         }
@@ -391,10 +326,10 @@ public class ResolvePinsTheProbedIdentityTest {
     }
 
     @Test
-    public void aFailedProbeRefusesAlsoWhenNotIsolating() throws Exception {
+    public void aProbeThatCannotBeMadeRefusesAlsoWhenNotIsolating() throws Exception {
         System.setProperty(ServerIdentityPinAccess.ISOLATION_PROPERTY, "false");
         try {
-            new PreferredProxyCodebaseProvider().resolve(reggie, null, LOADER, LOADER, deliveringStreamContext());
+            new PreferredProxyCodebaseProvider().resolve(reggie, null, LOADER, LOADER, demandingStreamContext());
             fail("a probe that cannot be made is an error, never \"no identity\" and the unverified path");
         } catch (UnsupportedConstraintException expected) {
         }
