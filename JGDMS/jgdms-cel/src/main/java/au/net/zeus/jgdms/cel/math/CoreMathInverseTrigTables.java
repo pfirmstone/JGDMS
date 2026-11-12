@@ -50,11 +50,13 @@ import java.util.Map;
  * <p>
  * <b>Bit-exact.</b> Every value is a literal copy of the C source's: a {@code double} as the same
  * hexadecimal floating-point literal, a 64-bit word as the same hexadecimal digits. A rounded decimal
- * would change a table entry and, silently, a result. Two checks guard them. {@code CoreMathInverseTrigConstantsTest}
- * re-reads the C files and compares every entry here to them, bit for bit; it needs the CORE-MATH clone, so it is
- * skipped without it (and FAILS if the full tier is requested with {@code -Dcore.math.full=true}).
- * {@code CoreMathInverseTrigTablesDigestTest} needs nothing: it hashes a canonical rendering of {@link #snapshot()}
- * (SHA-256) and compares the digest, committed as a test resource, so a changed bit fails on every machine.
+ * would change a table entry and, silently, a result. Two checks guard the tables and the named constants below, both in
+ * {@code CoreMathInverseTrigTablesDigestTest}. {@code everyTableEqualsTheCText} and {@code everyNamedConstantEqualsTheCText} re-read the C
+ * files and compare every table entry and every place where the C writes one of the constants to the Java value, bit for bit; they need
+ * the CORE-MATH clone, so they are skipped without it (and FAIL if the full tier is requested with {@code -Dcore.math.full=true}).
+ * The digest tests need nothing: they hash a canonical rendering of {@link #snapshot()} (SHA-256) and compare it with the digests
+ * committed as test resources (one for the 26 tables, one for the tables and the 31 constants), so a changed bit fails on every machine.
+ * (An earlier version of this comment named a test class {@code CoreMathInverseTrigConstantsTest} that was never written.)
  * <p>
  * <b>Layout.</b> A C two-dimensional table is flattened row-major (see each field). The arrays are private:
  * they are Java arrays, so a package-visible array could be written by any class in this package and every
@@ -481,6 +483,110 @@ final class CoreMathInverseTrigTables {
     private static final long[] TINT_PI2 = {0xc90fdaa22168c234L, 0xc4c6628b80dc1cd1L, 0x29024e088a67cc74L, 1L, 0L};
 
     // ------------------------------------------------------------------------------------------
+    // Named scalar constants (phase B1 fix pass). The error bounds that decide when a fast path may answer,
+    // the "err" bounds of the 192-bit conversion, and the scalars that more than one port uses. They were
+    // inline literals; Fable's review (2026-11-12) measured that most of them could be halved without one
+    // mismatch on the full .wc files, so no behavioural test guards them: they are guarded here instead, by
+    // the committed digest of snapshot() and by the comparison with the C text
+    // (CoreMathInverseTrigTablesDigestTest). Each is a compile-time constant, so the ports pay nothing for
+    // reading them here. One definition per value: a port that needs the same number uses the same name.
+    // The snapshot keys are "K_" + the field name.
+    // ------------------------------------------------------------------------------------------
+
+    /** C: atan.c:253 {@code epsp = f*0x1.6p-50}: error bound of the Taylor branch, upper side. */
+    static final double ATAN_EPS_P = 0x1.6p-50;
+
+    /** C: atan.c:253 {@code epsm = f*0x1.6p-51}: error bound of the Taylor branch, lower side. */
+    static final double ATAN_EPS_M = 0x1.6p-51;
+
+    /** C: atan.c:282 {@code e = h*0x3.fp-52}: error bound of the table branch. */
+    static final double ATAN_E = 0x3.fp-52;
+
+    /** C: atan.c:275 {@code 0x1.8469898cc517p-55*id}: the fast path's low word of pi/256 per table step (the refinement's is {@link #ATAN_PI128_L}, which differs in the last digit). */
+    static final double ATAN_AL_FAST = 0x1.8469898cc517p-55;
+
+    /** C: atan.c:277 and :194 {@code 0x1.921fb54442dp-7}: high word of pi/256 per table step. */
+    static final double ATAN_PI128_H = 0x1.921fb54442dp-7;
+
+    /** C: atan.c:194 {@code 0x1.8469898cc518p-55}: middle word of pi/256 per table step (refinement). */
+    static final double ATAN_PI128_L = 0x1.8469898cc518p-55;
+
+    /** C: atan.c:194 {@code -0x1.fc8f8cbb5bf8p-104}: low word of pi/256 per table step (refinement). */
+    static final double ATAN_PI128_S = -0x1.fc8f8cbb5bf8p-104;
+
+    /** C: atan.c:166 {@code 0x1.45f306dc9c883p6}: 256/pi scaled, the table index of the refinement. */
+    static final double ATAN_RCP = 0x1.45f306dc9c883p6;
+
+    /** C: asin.c:218 {@code eps = |z*t|*0x1.99p-52}: error bound of the fast path for {@code |x| > 0.5}. */
+    static final double ASIN_EPS_HI = 0x1.99p-52;
+
+    /** C: asin.c:235 {@code eps = |z*t|*0x1.77p-52}: error bound of the fast path for {@code |x| <= 0.5}. The proof commit 3ba8f60 has 0x1.0ep-52 here (see {@code CoreMathAsin}). */
+    static final double ASIN_EPS_LO = 0x1.77p-52;
+
+    /** C: acos.c:241 {@code eps = |z*t|*0x1.8cp-52 + 0x1p-105}: multiplicative part for {@code |x| > 0.5}. */
+    static final double ACOS_EPS_HI = 0x1.8cp-52;
+
+    /** C: acos.c:241: additive part of the same bound. */
+    static final double ACOS_EPS_HI_ADD = 0x1p-105;
+
+    /** C: acos.c:255 {@code eps1}: absolute error bound of the {@code |x| < 2^-15} branch. */
+    static final double ACOS_EPS1 = 0x1.34p-79;
+
+    /** C: acos.c:274 {@code eps = (z*t)*0x1.81p-52}: error bound of the fast path for {@code 2^-15 <= |x| <= 0.5}. */
+    static final double ACOS_EPS_LO = 0x1.81p-52;
+
+    /** C: atan2.c:546 {@code eps = |z|*0x1.051p-51 + 0x1p-90}: multiplicative part of the first stage's bound (empirical: atan2.c:544-545). */
+    static final double ATAN2_EPS1 = 0x1.051p-51;
+
+    /** C: atan2.c:546: additive part of the first stage's bound. */
+    static final double ATAN2_EPS1_ADD = 0x1p-90;
+
+    /** C: atan2.c:578 {@code eps = 0x1.4p-50*(|zh|*z2 + 0x1p-51)}: multiplicative part of the second stage's bound. */
+    static final double ATAN2_EPS2 = 0x1.4p-50;
+
+    /** C: atan2.c:578: the absolute floor inside the second stage's bound (why that stage cannot decide a result below about 2^-46). */
+    static final double ATAN2_EPS2_ADD = 0x1p-51;
+
+    /** C: atan2.c:286 {@code tint_tod(z, 1, y, x)}: error bound in units of the last word for the small-quotient exit. */
+    static final long ATAN2_ERR_SMALL = 1L;
+
+    /** C: atan2.c:332 {@code err = 662}: error bound (units of the last word) when {@code inv = 0} and {@code x > 0}. */
+    static final long ATAN2_ERR_DIV = 662L;
+
+    /** C: atan2.c:357 {@code err = 524}: the bound when {@code inv = 1}. */
+    static final long ATAN2_ERR_INV = 524L;
+
+    /** C: atan2.c:381 {@code err = 266}: the bound when {@code x < 0}. */
+    static final long ATAN2_ERR_NEG = 266L;
+
+    /** C: asin.c:268 and acos.c:315 {@code 0x1.45f306dc9c883p+4}: 64/pi, the table index {@code jf} of both refinements. */
+    static final double RCP_PI64 = 0x1.45f306dc9c883p+4;
+
+    /** C: asin.c:299 and acos.c:364 {@code MAGIC 0x1.8p-4}: the rounding constant that makes {@code Cs - Sc} exact. */
+    static final double MAGIC = 0x1.8p-4;
+
+    /** C: asin.c:322 {@code pih} and acos.c:403: high word of pi/64. */
+    static final double PI64_H = 0x1.921fb54442dp-5;
+
+    /** C: asin.c:323 {@code pil} and acos.c:403: middle word of pi/64. */
+    static final double PI64_L = 0x1.8469898cc518p-53;
+
+    /** C: asin.c:324 {@code pis} and acos.c:403: low word of pi/64 (pi/64 = H + L + S with error bounded by 2^-155). */
+    static final double PI64_S = -0x1.fc8f8cbb5bf6cp-102;
+
+    /** C: atan2.c:55 {@code PI_OVER2_H} (also atan.c:261, acos.c:243): high word of pi/2. */
+    static final double PI2_H = 0x1.921fb54442d18p+0;
+
+    /** C: atan2.c:56 {@code PI_OVER2_L} (also atan.c:262, acos.c:244): low word of pi/2. */
+    static final double PI2_L = 0x1.1a62633145c07p-54;
+
+    /** C: atan2.c:52 {@code PI_H}: high word of pi. */
+    static final double PI_H = 0x1.921fb54442d18p+1;
+
+    /** C: atan2.c:53 {@code PI_L}: low word of pi. */
+    static final double PI_L = 0x1.1a62633145c07p-53;
+
+    // ------------------------------------------------------------------------------------------
     // Read access
     // ------------------------------------------------------------------------------------------
 
@@ -682,6 +788,42 @@ final class CoreMathInverseTrigTables {
         m.put("TINT_ONE", TINT_ONE.clone());
         m.put("TINT_PI", TINT_PI.clone());
         m.put("TINT_PI2", TINT_PI2.clone());
+        // the named scalar constants, appended after the tables so that the digest of the 26 tables alone is still reproducible from the leading entries
+        m.put("K_ATAN_EPS_P", one(ATAN_EPS_P));
+        m.put("K_ATAN_EPS_M", one(ATAN_EPS_M));
+        m.put("K_ATAN_E", one(ATAN_E));
+        m.put("K_ATAN_AL_FAST", one(ATAN_AL_FAST));
+        m.put("K_ATAN_PI128_H", one(ATAN_PI128_H));
+        m.put("K_ATAN_PI128_L", one(ATAN_PI128_L));
+        m.put("K_ATAN_PI128_S", one(ATAN_PI128_S));
+        m.put("K_ATAN_RCP", one(ATAN_RCP));
+        m.put("K_ASIN_EPS_HI", one(ASIN_EPS_HI));
+        m.put("K_ASIN_EPS_LO", one(ASIN_EPS_LO));
+        m.put("K_ACOS_EPS_HI", one(ACOS_EPS_HI));
+        m.put("K_ACOS_EPS_HI_ADD", one(ACOS_EPS_HI_ADD));
+        m.put("K_ACOS_EPS1", one(ACOS_EPS1));
+        m.put("K_ACOS_EPS_LO", one(ACOS_EPS_LO));
+        m.put("K_ATAN2_EPS1", one(ATAN2_EPS1));
+        m.put("K_ATAN2_EPS1_ADD", one(ATAN2_EPS1_ADD));
+        m.put("K_ATAN2_EPS2", one(ATAN2_EPS2));
+        m.put("K_ATAN2_EPS2_ADD", one(ATAN2_EPS2_ADD));
+        m.put("K_ATAN2_ERR_SMALL", new long[] {ATAN2_ERR_SMALL});
+        m.put("K_ATAN2_ERR_DIV", new long[] {ATAN2_ERR_DIV});
+        m.put("K_ATAN2_ERR_INV", new long[] {ATAN2_ERR_INV});
+        m.put("K_ATAN2_ERR_NEG", new long[] {ATAN2_ERR_NEG});
+        m.put("K_RCP_PI64", one(RCP_PI64));
+        m.put("K_MAGIC", one(MAGIC));
+        m.put("K_PI64_H", one(PI64_H));
+        m.put("K_PI64_L", one(PI64_L));
+        m.put("K_PI64_S", one(PI64_S));
+        m.put("K_PI2_H", one(PI2_H));
+        m.put("K_PI2_L", one(PI2_L));
+        m.put("K_PI_H", one(PI_H));
+        m.put("K_PI_L", one(PI_L));
         return m;
+    }
+
+    private static long[] one(double v) {
+        return new long[] {Double.doubleToRawLongBits(v)};
     }
 }

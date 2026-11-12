@@ -116,7 +116,7 @@ final class CoreMathSupport {
     // Added in phase B1 for the inverse-trigonometric ports (asin.c, acos.c, atan2.c, atan.c). The
     // primitives below are the same C text in asin.c:84-111, acos.c:88-136 and atan2.c:399-409; one
     // definition here, as for the sine primitives above. Licence: the notice at the top of this file
-    // covers them as a derived work; the added copyright lines are in CoreMathInverseTrigTables.
+    // covers them as a derived work, and the header carries the added copyright lines (asin.c, acos.c, atan2.c).
     // ------------------------------------------------------------------------------------------
 
     /**
@@ -144,6 +144,15 @@ final class CoreMathSupport {
     static boolean ltu(long a, long b) {
         return Long.compareUnsigned(a, b) < 0;
     }
+
+    /**
+     * The three ways the phase B1 ports' private {@code run(x, mode)} leaves the C's control flow at the single place where the C
+     * decides between its fast result and its accurate path: the C's behaviour, the fast path alone (a result, or NaN if
+     * undecided), the accurate path forced. One definition for {@code CoreMathAtan}, {@code CoreMathAsin}, {@code CoreMathAcos}.
+     */
+    static final int MODE_NORMAL = 0;
+    static final int MODE_FAST = 1;
+    static final int MODE_ACCURATE = 2;
 
     /**
      * C {@code polydd(xh, xl, 5, c, &l)} of asin.c:102-111 and acos.c:127-136 (identical text), with the table

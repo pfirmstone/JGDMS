@@ -60,16 +60,35 @@ package au.net.zeus.jgdms.cel.math;
  * {@link CoreMath#atan2} sees the {@code NaN} (never a valid result for finite arguments), counts the event in
  * {@link CoreMath#atan2CorrectRoundingFailures()} and answers by delegating to {@code CrMath}, which is correctly
  * rounded by construction. The tests report the count for every population they run.
+ * <p>
+ * <b>What the count shows (Opus LOW-4 and Fable Q4, 2026-11-12).</b> It was 0 in 6,571,515 accurate-path runs of phase B1's tests. That is the
+ * detector's false-positive rate on genuine inputs, not evidence that failures cannot occur: the condition needs about 128 identical bits after
+ * the round bit (about 2^-127.6 per run if the low bits are uniform, a HYPOTHESIS), so a population of any feasible size has essentially no input
+ * where it could act. The live evidence is the forced population of {@code CoreMathTintTest} (NaN exactly where a BigInteger model says the C fails),
+ * the hand-made values of {@code p7TintToDoubleReturnsNaNWhereTheCPrintsAndExits} and the routing control. A real failure would be answered correctly
+ * and silently: the counter is package-private and nothing logs it (the operator may want it exposed, since CORE-MATH asks to be told of such an input).
  *
  * <h2>Proof status, and what the evidence is (read 2026-11-12)</h2>
  * CORE-MATH publishes <b>no correctness proof for atan2</b>: its homepage says of bivariate functions that they are
  * "checked only with respect to known hard-to-round cases", and its worst-case page that "for atan2(y,x), only a
  * restricted set of worst cases has been computed" (Chisel's web check of 2026-11-12). The fast path's absolute error
  * constant (atan2.c:544-546) is empirical: "obtained with 1.1e10 random argument pairs in the roundup mode ... increased
- * by 2.5% for safety". This port's correctness rests on {@code atan2.wc} (28,123 hard cases, every one run by
- * {@code CoreMathInverseTrigSlowTest}), on at least 5,000,000 seeded random argument pairs against {@link CrMath},
+ * by 2.5% for safety". This port's correctness rests on {@code atan2.wc} (27,943 finite pairs, every one run by
+ * {@code CoreMathInverseTrigSlowTest}; the file has 28,123 data lines, 180 of which name a NaN or an infinity and are delegated, and it opens with
+ * special-value rows that are not hard cases), on at least 5,000,000 seeded random argument pairs against {@link CrMath},
  * and on the fidelity of the port. That is weaker than a proof, and it is NOT validated on any input that the C
  * authors' tests do not also cover.
+ *
+ * <h2>Which error constants the tests can and cannot see by behaviour (Fable review of phase B1, 2026-11-12; DIAGNOSTIC)</h2>
+ * Fable (claude-fable-5-2) compiled copies of the port with one constant scaled and compared their bits with the production class (which equals
+ * {@code CrMath} on the same entries in the slow tier). Population: every finite in-domain entry of the function's {@code .wc} file and, for atan and
+ * atan2, 2,000,000 seeded random inputs. Result ("x 0.5" = the constant halved): 
+ * first stage {@code ATAN2_EPS1} (0x1.051p-51): x 0.5 gives 0 of 27,638 non-zero {@code .wc} pairs and 0 of 2,000,000, x 0.40 gives 5 of 27,638, x 0.25
+ * gives 494 of 27,638 and 59 of 2,000,000; second stage {@code ATAN2_EPS2} (0x1.4p-50): x 0.5 gives 0 of 27,638 and 0 of 2,000,000, x 0.25 gives 23 of 27,638
+ * and 0 of 2,000,000. Not scaled by Fable: the additive terms {@code ATAN2_EPS1_ADD}, {@code ATAN2_EPS2_ADD} and the {@code err} bounds. A halved constant is
+ * invisible to the whole {@code atan2.wc} file and to 2,000,000 random pairs (phase B1's own mutation runs: also to 5,000,000 near-exponent pairs), so the constants
+ * are guarded by {@link CoreMathInverseTrigTables} (named constants, digest, comparison with the C text), not by results. For atan2 this matters most: the first-stage
+ * constant is empirical ("1.1e10 random argument pairs in the roundup mode") and no proof exists. A plausible cause of the margin (HYPOTHESIS): sized for directed rounding.
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>
@@ -82,8 +101,11 @@ package au.net.zeus.jgdms.cel.math;
  *       when it cannot decide and {@link #atan2} then calls {@link #accurate}; the arithmetic is the same.</li>
  *   <li>{@code z->l -= 2; z->m -= (z->l < 2); z->h -= (z->m < 1);} (atan2.c:283-285) is ported exactly. Its borrow
  *       tests look at the already-updated words, so they are not a correct 192-bit subtraction when {@code l} is 0..3
- *       or {@code m} is 0; the case needs an inexact quotient whose low word is that small (about 2^-62) and
- *       {@code |y/x| < 2^-96}. It is a property of the C, left as it is, and the tests show no mismatch from it.</li>
+ *       or {@code m} is 0. That is reached routinely, not rarely: a quotient {@code z} with {@code m = l = 0} (a power of two, or a quotient below
+ *       the subnormal grid, for example {@code atan2(3*2^-1074, 2)}, where the double quotient was inexact but the 192-bit one is exact) makes {@code l}
+ *       wrap without a borrow and {@code h -= (m < 1)} fire because {@code m} is 0; the net is a small decrease and the rounding is right (Fable's
+ *       probe of 2026-11-12 through the provider: 0 mismatches of 19,200 such pairs and of 200,000 quotients in the subnormal range). Inexact
+ *       quotients whose low word is 0..3 are the improbable case (about 2^-62). It is a property of the C, left as it is.</li>
  *   <li>{@code Math.fma} is {@code __builtin_fma}; Java never contracts {@code a*b+c}, the C compiler may.</li>
  * </ul>
  */
@@ -92,10 +114,11 @@ final class CoreMathAtan2 {
     private CoreMathAtan2() {}
 
     // PI_H + PI_L approximates pi with error bounded by 2^-108.041; PI_OVER2_*: 2^-109.041; (atan2.c:51-59)
-    private static final double PI_H = 0x1.921fb54442d18p+1;
-    private static final double PI_L = 0x1.1a62633145c07p-53;
-    private static final double PI_OVER2_H = 0x1.921fb54442d18p+0;
-    private static final double PI_OVER2_L = 0x1.1a62633145c07p-54;
+    // (one definition each, in CoreMathInverseTrigTables; the names here are the C's)
+    private static final double PI_H = CoreMathInverseTrigTables.PI_H;
+    private static final double PI_L = CoreMathInverseTrigTables.PI_L;
+    private static final double PI_OVER2_H = CoreMathInverseTrigTables.PI2_H;
+    private static final double PI_OVER2_L = CoreMathInverseTrigTables.PI2_L;
 
     private static final long MASK = 0x7fffffffffffffffL;              // 2^63-1 (mask the sign bit)
 
@@ -175,7 +198,7 @@ final class CoreMathAtan2 {
                 + z2 * (CoreMathInverseTrigTables.atan2B(1) + z2 * CoreMathInverseTrigTables.atan2B(2)));
         // this bound is obtained with 1.1e10 random argument pairs in the roundup mode; the obtained maximal
         // difference is increased by 2.5% for safety (C comment)
-        double eps = Math.abs(z) * 0x1.051p-51 + 0x1p-90;
+        double eps = Math.abs(z) * CoreMathInverseTrigTables.ATAN2_EPS1 + CoreMathInverseTrigTables.ATAN2_EPS1_ADD;
         double rh = fh + z;                                             // rh = fasttwosum(fh, z, &z)
         z = CoreMathSupport.fastTwoSumLow(fh, z, rh);
         double rl = (fl + dz) + z;
@@ -215,7 +238,7 @@ final class CoreMathAtan2 {
                     + (z2 * z2) * (CoreMathInverseTrigTables.atan2B2(2) + z2 * CoreMathInverseTrigTables.atan2B2(3)));
             zh *= sgn;
             zl *= sgn;
-            eps = 0x1.4p-50 * (Math.abs(zh) * z2 + 0x1p-51);
+            eps = CoreMathInverseTrigTables.ATAN2_EPS2 * (Math.abs(zh) * z2 + CoreMathInverseTrigTables.ATAN2_EPS2_ADD);
             double fh2 = fh + zh;                                       // fh = fastsum(fh, fl, zh, zl, &fl)
             fl = CoreMathSupport.fastSumLow(fh, fl, zh, zl, fh2);
             fh = fh2;
@@ -278,7 +301,7 @@ final class CoreMathAtan2 {
             z.l -= 2;
             z.m -= CoreMathSupport.ltu(z.l, 2L) ? 1L : 0L;
             z.h -= CoreMathSupport.ltu(z.m, 1L) ? 1L : 0L;
-            return CoreMathTint.toD(z, 1L);
+            return CoreMathTint.toD(z, CoreMathInverseTrigTables.ATAN2_ERR_SMALL);
         }
 
         // below when we write y/x it should be read x/y when |x/y| < 1;
@@ -301,7 +324,7 @@ final class CoreMathAtan2 {
         // The relative error of div_tint() is <= 2^-185.53; the error analysis of the C (atan2.c:306-331) gives a
         // maximal error of 2^-182.63*2^192 <= 662 ulps for inv = 0 and x > 0.
         CoreMathTint.div(z, p, q);
-        long err = 662L;
+        long err = CoreMathInverseTrigTables.ATAN2_ERR_DIV;
         z.sgn = sz;                                                     // restore sign
         // Now z approximates atan(y/x) for inv = 0, and atan(x/y) for inv = 1, with -pi/4 < z < pi/4.
         if (inv) {
@@ -315,7 +338,7 @@ final class CoreMathAtan2 {
                 z.sgn = 1L;
                 // Now -pi/2 < z < -pi/4: the same bound of 524 ulps
             }
-            err = 524L;
+            err = CoreMathInverseTrigTables.ATAN2_ERR_INV;
         }
         // now -pi/2 < z < pi/2; if x is negative we go to the opposite quadrant
         if (x < 0) {
@@ -328,7 +351,7 @@ final class CoreMathAtan2 {
                 CoreMathTint.addPi(z);
                 // If inv = 0 we had -pi/4 < z < 0 thus now 3pi/4 < z < pi; if inv = 1, pi/2 < z < 3pi/4: 266 ulps again
             }
-            err = 266L;
+            err = CoreMathInverseTrigTables.ATAN2_ERR_NEG;
         }
         return CoreMathTint.toD(z, err);
     }

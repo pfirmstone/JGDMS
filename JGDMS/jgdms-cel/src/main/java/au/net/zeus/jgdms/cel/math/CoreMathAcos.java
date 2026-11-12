@@ -32,6 +32,10 @@
 
 package au.net.zeus.jgdms.cel.math;
 
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_ACCURATE;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_NORMAL;
+
 /**
  * Correctly-rounded binary64 arc cosine, a port of CORE-MATH's {@code cr_acos} ({@code acos.c:140-290}) with its
  * fast path and its accurate path {@code as_acos_refine} ({@code acos.c:292-431}), which carries five hard-coded
@@ -48,9 +52,26 @@ package au.net.zeus.jgdms.cel.math;
  *   <li>{@code 2^-15 <= |x| <= 0.5}: {@code acos(x) = pi/2 - asin(x)} with the same polynomial.</li>
  * </ul>
  *
- * <h2>Proof status (read 2026-11-12)</h2>
- * The CORE-MATH homepage lists a published proof for acos (Chisel's web check of 2026-11-12). The proof's commit and
- * its difference from the ported commit {@code 018fa97c} are recorded in {@code STAGE2B1_READY.md} (section on proofs).
+ * <h2>Proof status (recorded 2026-11-12; read, not run)</h2>
+ * CORE-MATH publishes a proof: {@code acos.pdf} (Paul Zimmermann, dated 2026-05-29, pages 1 to 3 read on 2026-11-12 by the port's author and by two
+ * reviewers): "We consider the CORE-MATH acos.c file from commit 7457819" (2026-04-20). CONFIRMED to apply to the ported code:
+ * {@code git diff 7457819 018fa97c -- src/binary64/acos/acos.c} (56 lines, read in full) is a References comment block, comment rewrites, and the fix of
+ * the generic {@code roundeven_finite} fallback ({@code ac1993d}, the {@code #else} branch; the Java uses {@link Math#rint}): no change to the compiled
+ * path. The proof's constants equal the ported ones: Algorithm 1 has {@code eps = 0x1.34p-79} ({@link CoreMathInverseTrigTables#ACOS_EPS1}) and
+ * {@code x0 = 0x1.cb3b3869747f4p-55}, Algorithm 3 line 11 has {@code 0x1.81p-52} ({@link CoreMathInverseTrigTables#ACOS_EPS_LO}). Its accurate path is the
+ * one proved in {@code asin.pdf} section IV (see {@link CoreMathAsin}: above 2^-4 that proof's accurate-path cover is an exhaustive search of the
+ * searched constants, so do not change the constants without redoing it).
+ *
+ * <h2>Which error constants the tests can and cannot see by behaviour (Fable review of phase B1, 2026-11-12; DIAGNOSTIC)</h2>
+ * Fable (claude-fable-5-2) compiled copies of the port with one constant scaled and compared their bits with the production class (which equals
+ * {@code CrMath} on the same entries in the slow tier). Population: every finite in-domain entry of the function's {@code .wc} file and, for atan and
+ * atan2, 2,000,000 seeded random inputs. Result ("x 0.5" = the constant halved): 
+ * {@code ACOS_EPS_HI} (0x1.8cp-52) and {@code ACOS_EPS_LO} (0x1.81p-52): x 0.5 gives 0 of 264,090 for each; x 0.25 gives 7 and 20 of 264,090. Not scaled by
+ * Fable: {@code ACOS_EPS1} (0x1.34p-79) and the additive {@code ACOS_EPS_HI_ADD}. A constant halved is invisible to every {@code .wc} entry, so the constants are guarded
+ * by {@link CoreMathInverseTrigTables} (named constants, digest, comparison with the C text), not by results. Fable also measured (2026-11-12) that the
+ * six inputs the C comments and the proofs name as "fails with a smaller constant" (three for asin, three for acos) are hard cases for directed rounding
+ * only, none near a midpoint, which is why round-to-nearest shows the margin; and that of the five hard-coded exceptions of {@code as_acos_refine} one
+ * matters in round-to-nearest (x = 0x1.53ea6c7255e88p-4: 58 identical bits after the mantissa), the other four are no-ops in this arithmetic.
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>
@@ -72,9 +93,6 @@ final class CoreMathAcos {
 
     private CoreMathAcos() {}
 
-    private static final int MODE_NORMAL = 0;
-    private static final int MODE_FAST = 1;
-    private static final int MODE_ACCURATE = 2;
 
     /** C {@code cr_acos} ({@code acos.c:140-290}). */
     static double acos(double x) {
@@ -129,10 +147,10 @@ final class CoreMathAcos {
             zl = Math.fma(z, z, -t) * ((-0.5 / t) * z);
             t = 0.25 * t - jd * 0x1p-7;
             // C: "fails with 0x1.8bp-52 for x=-0x1.3e827a2cd6d51p-1 (no FMA)"
-            eps = Math.abs(z * t) * 0x1.8cp-52 + 0x1p-105;
+            eps = Math.abs(z * t) * CoreMathInverseTrigTables.ACOS_EPS_HI + CoreMathInverseTrigTables.ACOS_EPS_HI_ADD;
         } else {                                                            // |x| <= 0.5
-            f0h = 0x1.921fb54442d18p+0;
-            f0l = 0x1.1a62633145c07p-54;
+            f0h = CoreMathInverseTrigTables.PI2_H;
+            f0l = CoreMathInverseTrigTables.PI2_L;
             if (!CoreMathSupport.ltu(0x7e00000000000000L, ax)) {            // |x| < 2^-15 (ax <= 0x7e00000000000000)
                 // Avoids a spurious underflow for |x| <= x0 := 0x1.cb3b3869747f4p-55; for |x| <= x0 lb = ub always.
                 double c = -0x1.5555555555555p-3;
@@ -140,7 +158,7 @@ final class CoreMathAcos {
                 double h = f0h + (-x);                                      // h = fasttwosum(f0h, -x, &w)
                 double w = CoreMathSupport.fastTwoSumLow(f0h, -x, h);
                 double l = v + (w + f0l);
-                final double eps1 = 0x1.34p-79;
+                final double eps1 = CoreMathInverseTrigTables.ACOS_EPS1;
                 double lb = h + (l - eps1);
                 double ub = h + (l + eps1);
                 return finish(x, lb, ub, mode);
@@ -155,7 +173,7 @@ final class CoreMathAcos {
             // "eps < 0 for x > 0, but the rounding test is still correct" (C comment)
             // C: "for |x| < 2^-4 (case j=0), fails with 0x1.d3p-53 and x=0x1.7cb54339263fbp-12; for 2^-4 <= |x| < 0.5,
             // fails with 0x1.80p-52 and x=-0x1.fda6fee396f8p-2 (no FMA, rndz)"
-            eps = (z * t) * 0x1.81p-52;
+            eps = (z * t) * CoreMathInverseTrigTables.ACOS_EPS_LO;
         }
         // asin(xh+xl) = (xh + xl)*(cc[j][0] + (cc[j][1] + t*Poly(t, cc[j]+2))) where t = xh^2 - j/128, j = round(128*xh^2)
         int j8 = 8 * (int) jd;
@@ -205,7 +223,7 @@ final class CoreMathAcos {
         // let eps = ch^2 - c2h, then sqrt(c2h + c2l) ~ ch + (c2l - eps)/ch/2
         double cl = (c2l - Math.fma(ch, ch, -c2h)) * (0.5 / ch);            // now ch + cl approximates sqrt(1 - x^2)
 
-        int jf = (int) Math.rint(Math.abs(phi - 0x1.921fb54442d18p+0) * 0x1.45f306dc9c883p+4);   // round(|phi - pi/2|*64/pi)
+        int jf = (int) Math.rint(Math.abs(phi - CoreMathInverseTrigTables.PI2_H) * CoreMathInverseTrigTables.RCP_PI64);   // round(|phi - pi/2|*64/pi)
         // sin(pi/64*j) in the double-double format (smallest term first); the same table as in asin.c
         // 0 <= jf <= 32
         double chh = CoreMathInverseTrigTables.asinAcosS(2 * (32 - jf) + 1);
@@ -219,7 +237,7 @@ final class CoreMathAcos {
         double dch = ch - chh;
         double dcl = cl - chl;
 
-        final double magic = 0x1.8p-4;
+        final double magic = CoreMathInverseTrigTables.MAGIC;
         double sc = Math.fma(sh, dch, magic) - magic;
         double dSc = Math.fma(sh, dch, -sc);                                // Sc + dSc approximates Sh*dch, Sc a multiple of 2^-56, |Sc| < 2^-5
 
@@ -248,9 +266,9 @@ final class CoreMathAcos {
 
         // h + l + s with h = 0x1.921fb54442dp-5, l = 0x1.8469898cc518p-53, s = -0x1.fc8f8cbb5bf6cp-102 approximates pi/64
         // with error bounded by 2^-155; since 0 <= jt <= 64, ph and pl are exact
-        double ph = jt * 0x1.921fb54442dp-5;
-        double pl = 0x1.8469898cc518p-53 * jt;
-        double ps = -0x1.fc8f8cbb5bf6cp-102 * jt;
+        double ph = jt * CoreMathInverseTrigTables.PI64_H;
+        double pl = CoreMathInverseTrigTables.PI64_L * jt;
+        double ps = CoreMathInverseTrigTables.PI64_S * jt;
         double plNew = fh + pl;                                             // pl = sum(fh, fl, pl, ps, &ps): twosum high word first
         double psNew = (fl + ps) + CoreMathSupport.twoSumLow(fh, pl, plNew);
         pl = plNew;

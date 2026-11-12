@@ -32,6 +32,10 @@
 
 package au.net.zeus.jgdms.cel.math;
 
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_ACCURATE;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_NORMAL;
+
 /**
  * Correctly-rounded binary64 arcsine, a port of CORE-MATH's {@code cr_asin} ({@code asin.c:116-248}) with its
  * fast path, its accurate path {@code as_asin_refine} ({@code asin.c:250-345}) and its table of exceptional inputs
@@ -53,11 +57,45 @@ package au.net.zeus.jgdms.cel.math;
  *       "hard" results to the exceptional-input table.</li>
  * </ul>
  *
- * <h2>Proof status (read 2026-11-12)</h2>
- * The CORE-MATH homepage lists a published proof for asin (Chisel's web check of 2026-11-12). The proof's commit and
- * its difference from the ported commit {@code 018fa97c} are recorded in {@code STAGE2B1_READY.md} (section on proofs);
- * the C file's history shows {@code 7f09878} ("[asin] patch proposed by Eric Hennenhoefer using AI (slightly
- * modified)") among the latest commits, which is why that difference matters.
+ * <h2>Proof status (recorded 2026-11-12; read, not run)</h2>
+ * CORE-MATH publishes a proof: {@code asin.pdf} (Paul Zimmermann, dated 2026-09-21, read on 2026-11-12 by the port's author and by two
+ * reviewers). Three facts a maintainer needs, none of which is visible from the code:
+ * <ol>
+ *   <li><b>The commit its front page names is not the code its text proves.</b> The front page says "We consider the CORE-MATH asin.c file
+ *       from commit 3ba8f60" (2026-04-27). That commit has {@code eps = |z*t|*0x1.0ep-52} for {@code |x| <= 0.5}. The text cites the later
+ *       constants: section II.B records that with the factor {@code 0x1.76p-52} the input {@code x = 0x1.e4bf4521f41acp-2} "is not correctly
+ *       rounded for rounding toward zero and no FMA contraction", so the validated constant is the ported {@code 0x1.77p-52}
+ *       ({@link CoreMathInverseTrigTables#ASIN_EPS_LO}); section III says the search for {@code |x| > 0.5} "works with ... 0x1.99p-52"
+ *       ({@link CoreMathInverseTrigTables#ASIN_EPS_HI}), also the ported value. Algorithm 1 line 10 prints {@code 0x1.10p-52}, which matches neither
+ *       commit. Read the proof as a proof of the ported constants, not of {@code 3ba8f60}: under rounding toward zero the named commit returns the
+ *       wrong value the text describes.</li>
+ *   <li><b>How each range is covered.</b> {@code [0x1.7137449123ef6p-26, 2^-4]}: analytically (Sollya and Gappa for the fast path, its Theorem 1
+ *       for the accurate path, for every x). {@code (2^-4, 0.5]} and {@code (0.5, 1)}: by exhaustive search in four rounding modes, with and
+ *       without FMA contraction. Section IV: "for 2^-4 &lt; x &lt; 1 we performed an exhaustive search, which checks the accurate path is correct
+ *       when it is called". So above 2^-4 the accurate path is covered only for the inputs that the SEARCHED fast path sends to it; with the searched
+ *       (ported) constants that is every input this port sends. A wider constant is safe for what the fast path returns (rounding is monotone: a
+ *       wider interval decides a subset of inputs with the same value) but NOT for the accurate path above 2^-4: it would send inputs the search never
+ *       checked. Do not change {@code ASIN_EPS_HI} or {@code ASIN_EPS_LO} without redoing the search.</li>
+ *   <li><b>Commits later than the proof.</b> {@code git diff 3ba8f60 018fa97c -- src/binary64/asin/asin.c} (128 lines, read in full on 2026-11-12;
+ *       12 commits in between) has exactly one compiled-path semantic difference, the {@code eps} constant above. The rest is cosmetic or the generic
+ *       fallback: the "hard" test rewritten from signed {@code dn, de} to an unsigned {@code gap} (the same predicate: {@code -2 <= dn <= 0} iff
+ *       {@code gap} is 0, 1 or 2; {@code de > 47} iff {@code gap >> 52 > 47}), {@code jf} split into a double and an {@code int64}, {@code pih},
+ *       {@code pil}, {@code pis} as names with {@code jt * pil} for {@code pil * jt} (multiplication commutes exactly), and the generic
+ *       {@code roundeven_finite} fallback (the Java uses {@link Math#rint}). Three of those commits are later than the proof's date:
+ *       {@code 0ce0cbc} (2026-10-20), {@code e168ea1} (2026-10-27) and {@code 7f09878} (2026-11-10, "patch proposed by Eric Hennenhoefer using AI
+ *       (slightly modified)"); their net effect is inside that diff, read, not run. The proof's acknowledgements say the exhaustive search was once
+ *       found incomplete, so re-record this section when {@code asin.c} changes upstream.</li>
+ * </ol>
+ * Evidence in this port, beyond the proof: every finite in-domain entry of {@code asin.wc} (249,126), 3,000,000 seeded random inputs, the goldens,
+ * with the accurate path alone also run on every input (0 mismatches).
+ *
+ * <h2>Which error constants the tests can and cannot see by behaviour (Fable review of phase B1, 2026-11-12; DIAGNOSTIC)</h2>
+ * Fable (claude-fable-5-2) compiled copies of the port with one constant scaled and compared their bits with the production class (which equals
+ * {@code CrMath} on the same entries in the slow tier). Population: every finite in-domain entry of the function's {@code .wc} file and, for atan and
+ * atan2, 2,000,000 seeded random inputs. Result ("x 0.5" = the constant halved): 
+ * {@code ASIN_EPS_HI} (0x1.99p-52) and {@code ASIN_EPS_LO} (0x1.77p-52): x 0.5 gives 0 of 249,126 for each; x 0.25 gives 2 and 5 of 249,126. A constant
+ * halved is invisible to every {@code .wc} entry, so the constants are guarded by {@link CoreMathInverseTrigTables} (named constants, digest, comparison
+ * with the C text), not by results. A plausible cause of the margin (HYPOTHESIS): the constants were sized for directed rounding without FMA.
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>
@@ -79,9 +117,6 @@ final class CoreMathAsin {
 
     private CoreMathAsin() {}
 
-    private static final int MODE_NORMAL = 0;
-    private static final int MODE_FAST = 1;
-    private static final int MODE_ACCURATE = 2;
 
     /** C {@code cr_asin} ({@code asin.c:116-248}). */
     static double asin(double x) {
@@ -136,7 +171,7 @@ final class CoreMathAsin {
             zl = Math.fma(z, z, -t) * ((-0.5 / t) * z);
             t = 0.25 * t - jd * 0x1p-7;
             // C: "fails with 0x1.98p-52 and x=0x1.3f47056fc030ap-1 (rndz, no fma)"
-            eps = Math.abs(z * t) * 0x1.99p-52;
+            eps = Math.abs(z * t) * CoreMathInverseTrigTables.ASIN_EPS_HI;
         } else {                                                            // |x| <= 0.5
             // for |x| < 0x1.7137449123ef6p-26 |asin(x) - x| is less than half of ulp of asin(x)
             if (CoreMathSupport.ltu(ax, 0x7cae26e892247decL)) {
@@ -151,7 +186,7 @@ final class CoreMathAsin {
             z = x;
             zl = 0;
             // C: "fails for 0x1.76p-52 with x=0x1.e4bf4521f41acp-2 (rndz, no FMA)"
-            eps = Math.abs(z * t) * 0x1.77p-52;
+            eps = Math.abs(z * t) * CoreMathInverseTrigTables.ASIN_EPS_LO;
         }
         // asin(xh+xl) = (xh + xl)*(cc[j][0] + (cc[j][1] + t*Poly(t, cc[j]+2))) where t = xh^2 - j/128, j = round(128*xh^2)
         int j8 = 8 * (int) jd;
@@ -195,7 +230,7 @@ final class CoreMathAsin {
         // let eps = ch^2 - c2h, then sqrt(c2h + c2l) ~ ch + (c2l - eps)/ch/2
         double cl = (c2l - Math.fma(ch, ch, -c2h)) * (0.5 / ch);            // now ch + cl approximates sqrt(1 - x^2)
 
-        double jf = Math.rint(Math.abs(phi) * 0x1.45f306dc9c883p+4);
+        double jf = Math.rint(Math.abs(phi) * CoreMathInverseTrigTables.RCP_PI64);
         int j = (int) jf;                                                  // jf = round(|phi|*64/pi), 0 <= j <= 32
         // sin(pi/64*j) in the double-double format (smallest term first); the same table as in acos.c
         double chh = CoreMathInverseTrigTables.asinAcosS(2 * (32 - j) + 1);
@@ -209,7 +244,7 @@ final class CoreMathAsin {
         double dch = ch - chh;
         double dcl = cl - chl;
 
-        final double magic = 0x1.8p-4;
+        final double magic = CoreMathInverseTrigTables.MAGIC;
         double sc = Math.fma(sh, dch, magic) - magic;
         double dSc = Math.fma(sh, dch, -sc);
 
@@ -237,9 +272,9 @@ final class CoreMathAsin {
         fh = ahhh;
 
         // pih + pil + pis approximates pi/2^6; for every integer jt the initial ph and pl products are exact
-        double ph = jt * 0x1.921fb54442dp-5;
-        double pl = jt * 0x1.8469898cc518p-53;
-        double ps = jt * -0x1.fc8f8cbb5bf6cp-102;
+        double ph = jt * CoreMathInverseTrigTables.PI64_H;
+        double pl = jt * CoreMathInverseTrigTables.PI64_L;
+        double ps = jt * CoreMathInverseTrigTables.PI64_S;
 
         double plNew = fh + pl;                                             // pl = fastsum(fh, fl, pl, ps, &ps): high word first
         ps = CoreMathSupport.fastSumLow(fh, fl, pl, ps, plNew);

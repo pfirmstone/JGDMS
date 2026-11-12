@@ -31,6 +31,8 @@
 
 package au.net.zeus.jgdms.cel.math;
 
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.ltu;
+
 /**
  * The 192-bit floating-point arithmetic of CORE-MATH's {@code tint.h} that its binary64 {@code atan2}
  * uses for its accurate path: multiply, add, divide (by Newton and Karp-Markstein steps), and the
@@ -92,10 +94,6 @@ final class CoreMathTint {
     private static final Tint PI = of(CoreMathInverseTrigTables.tintPi());
     /** C: tint.h:74 {@code PI2}, pi/2, error < 2^-197.96. */
     private static final Tint PI2 = of(CoreMathInverseTrigTables.tintPi2());
-
-    private static boolean ltu(long a, long b) {
-        return Long.compareUnsigned(a, b) < 0;
-    }
 
     /** C {@code cp_tint} (tint.h:84-89). */
     static void cp(Tint r, Tint a) {

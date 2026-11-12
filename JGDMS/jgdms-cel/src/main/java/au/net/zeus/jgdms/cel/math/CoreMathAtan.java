@@ -32,6 +32,10 @@
 
 package au.net.zeus.jgdms.cel.math;
 
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_ACCURATE;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
+import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_NORMAL;
+
 /**
  * Correctly-rounded binary64 arctangent, a port of CORE-MATH's {@code cr_atan} ({@code atan.c:231-286})
  * with its fast path and its accurate path {@code as_atan_refine2} ({@code atan.c:160-229}).
@@ -59,6 +63,19 @@ package au.net.zeus.jgdms.cel.math;
  * {@link CrMath} on at least 5,000,000 seeded random inputs, and (c) the fidelity of the port to the C.
  * That is weaker evidence than a proof, and it is the reason the random population of this function is larger than
  * sine's.
+ *
+ * <h2>Which error constants the tests can and cannot see by behaviour (Fable review of phase B1, 2026-11-12; DIAGNOSTIC)</h2>
+ * Fable (claude-fable-5-2) compiled copies of the port with one constant scaled and compared their bits with the production class (which equals
+ * {@code CrMath} on the same entries in the slow tier). Population: every finite in-domain entry of the function's {@code .wc} file and, for atan and
+ * atan2, 2,000,000 seeded random inputs. Result ("x 0.5" = the constant halved): 
+ * table branch {@code ATAN_E} (0x3.fp-52): x 0.5 gives 0 of 55,764 and 0 of 2,000,000, the first scale with a mismatch is x 0.40 (2 of 55,764),
+ * x 0.25 gives 540 of 55,764 and 447 of 2,000,000; Taylor branch {@code ATAN_EPS_P}/{@code ATAN_EPS_M} (0x1.6p-50, 0x1.6p-51): x 0.5 gives 7 of
+ * 55,764 (the first detecting entry, 0x1.2926e52e5d5c7p-11, is line 6,390 of {@code atan.wc}, beyond the committed golden) and 0 of 2,000,000,
+ * x 0.25 gives 209 of 55,764 and 0 of 2,000,000. So the tests see a halved table-branch constant not at all and a halved Taylor-branch constant only
+ * through the full {@code .wc} run; a constant between about x 0.5 and x 1 is invisible to behaviour. The constants are therefore guarded by
+ * {@link CoreMathInverseTrigTables} (named constants, committed digest, comparison with the C text), not by results. A plausible cause of the
+ * margin (HYPOTHESIS): CORE-MATH sized its constants for directed rounding without FMA, where per-operation errors are up to twice those of
+ * round-to-nearest.
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>
@@ -88,9 +105,6 @@ final class CoreMathAtan {
     private CoreMathAtan() {}
 
     /** The three ways to leave {@link #run}: the C's behaviour, the fast path alone, the accurate path forced. */
-    private static final int MODE_NORMAL = 0;
-    private static final int MODE_FAST = 1;
-    private static final int MODE_ACCURATE = 2;
 
     /** C {@code cr_atan} ({@code atan.c:231-286}). */
     static double atan(double x) {
@@ -134,8 +148,8 @@ final class CoreMathAtan {
             double x4 = x2 * x2;
             double f = x3 * ((CoreMathInverseTrigTables.atanCh2(0) + x2 * CoreMathInverseTrigTables.atanCh2(1))
                     + x4 * (CoreMathInverseTrigTables.atanCh2(2) + x2 * CoreMathInverseTrigTables.atanCh2(3)));
-            double epsp = f * 0x1.6p-50;
-            double epsm = f * 0x1.6p-51;
+            double epsp = f * CoreMathInverseTrigTables.ATAN_EPS_P;
+            double epsm = f * CoreMathInverseTrigTables.ATAN_EPS_M;
             double ub = (f + epsp) + x;
             double lb = (f - epsm) + x;
             return finish(x, lb, ub, mode);
@@ -145,8 +159,8 @@ final class CoreMathAtan {
         double al;
         if (at > 0x4062ded8e34a9035L) {
             // |x| > 0x1.2ded8e34a9035p+7
-            ah = Math.copySign(0x1.921fb54442d18p+0, x);
-            al = Math.copySign(0x1.1a62633145c07p-54, x);
+            ah = Math.copySign(CoreMathInverseTrigTables.PI2_H, x);
+            al = Math.copySign(CoreMathInverseTrigTables.PI2_L, x);
             if (at >= 0x434d02967c31cdb5L) {
                 // |x| >= 0x1.d02967c31cdb5p+53
                 if (at > (0x7ffL << 52)) {
@@ -168,16 +182,16 @@ final class CoreMathAtan {
             int ai = (int) i;
             double ta = sg * CoreMathInverseTrigTables.atanA(2 * ai);
             double id = sg * (double) i;
-            al = sg * CoreMathInverseTrigTables.atanA(2 * ai + 1) + 0x1.8469898cc517p-55 * id;
+            al = sg * CoreMathInverseTrigTables.atanA(2 * ai + 1) + CoreMathInverseTrigTables.ATAN_AL_FAST * id;
             h = (x - ta) / (1 + x * ta);
-            ah = 0x1.921fb54442dp-7 * id;
+            ah = CoreMathInverseTrigTables.ATAN_PI128_H * id;
         }
         double h2 = h * h;
         double h4 = h2 * h2;
         double f = (CoreMathInverseTrigTables.atanCh(0) + h2 * CoreMathInverseTrigTables.atanCh(1))
                 + h4 * (CoreMathInverseTrigTables.atanCh(2) + h2 * CoreMathInverseTrigTables.atanCh(3));
         al = Math.fma(h, f, al);
-        double e = h * 0x3.fp-52;
+        double e = h * CoreMathInverseTrigTables.ATAN_E;
         double ub = (al + e) + ah;
         double lb = (al - e) + ah;
         return finish(x, lb, ub, mode);
@@ -243,7 +257,7 @@ final class CoreMathAtan {
 
     /** C {@code as_atan_refine2} ({@code atan.c:160-229}): {@code a} is the fast path's approximation of {@code atan(x)}. */
     private static double refine2(double x, double a) {
-        double phi = Math.abs(a) * 0x1.45f306dc9c883p6 + 256.5;     // 256.5 < phi < 384.5
+        double phi = Math.abs(a) * CoreMathInverseTrigTables.ATAN_RCP + 256.5;     // 256.5 < phi < 384.5
         long i = (Double.doubleToRawLongBits(phi) >>> (52 - 8)) & 0xffL;   // 0 <= i <= 128
         double h;
         double hl;
@@ -289,9 +303,9 @@ final class CoreMathAtan {
                 df = Math.copySign(1.0, x) * CoreMathInverseTrigTables.atanA(2 * (int) i + 1);
             }
             double id = Math.copySign((double) i, x);
-            ah = 0x1.921fb54442dp-7 * id;
-            al = 0x1.8469898cc518p-55 * id;
-            at = -0x1.fc8f8cbb5bf8p-104 * id;
+            ah = CoreMathInverseTrigTables.ATAN_PI128_H * id;
+            al = CoreMathInverseTrigTables.ATAN_PI128_L * id;
+            at = CoreMathInverseTrigTables.ATAN_PI128_S * id;
             al = adddd(al, at, df, 0, lo);
             at = lo[0];
             al = adddd(al, at, h, hl, lo);
@@ -308,6 +322,11 @@ final class CoreMathAtan {
         long t1 = Double.doubleToRawLongBits(v1);
         if (((t1 + 1) & (-1L >>> 12)) <= 2L
                 || Long.compareUnsigned(((t0 >>> 52) & 0x7ffL) - ((t1 >>> 52) & 0x7ffL), 103L) > 0) {
+            // The unsigned spelling is the C's (atan.c:202, u64 arithmetic). It cannot be told from a signed one by any input of the domain
+            // (Opus LOW-3 and Fable Q2, 2026-11-12; an equivalent mutant, not a test gap): the two differ only when the exponent field of v1
+            // exceeds that of v0, but v1 = RN(v2 + at) with v2 the rounding residue of v0 = RN(ah + al) (at most half an ulp of v0, since
+            // |al| < |ah| on every branch) and at a third-order tail, so |v1| < 2^-50 |v0|. Fable measured the smallest e(v0) - e(v1) = 52 over
+            // 6,216,144 calls of this routine, 0 negative (a DIAGNOSTIC probe copy). Keep the unsigned compare: it is what the C does.
             for (int j = 0; j < CoreMathInverseTrigTables.atanDbRows(); j++) {
                 if (ax == CoreMathInverseTrigTables.atanDb(3 * j)) {
                     return Math.copySign(CoreMathInverseTrigTables.atanDb(3 * j + 1), x)
