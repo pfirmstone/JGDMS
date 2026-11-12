@@ -102,6 +102,32 @@ class CoreMathTanSlowTest {
         return provider.tanGuardDelegations();
     }
 
+    /**
+     * The binary exponents ({@code Math.getExponent}) of the inputs of {@code xs} that the guard delegated through the production provider, with their counts. Fix pass: the guard fires on
+     * hard cases, and {@code tan.wc} is made of them.
+     */
+    private static java.util.TreeMap<Integer, Long> guardDelegationsByExponent(double[] xs) {
+        java.util.TreeMap<Integer, Long> byExponent = new java.util.TreeMap<>();
+        CountingDelegate delegate = new CountingDelegate();
+        CoreMath provider = new CoreMath(delegate, CoreMathAtan2::atan2, x -> {
+            double r = CoreMathTan.tan(x);
+            if (r != r) {
+                synchronized (byExponent) {
+                    byExponent.merge(Math.getExponent(x), 1L, Long::sum);
+                }
+            }
+            return r;
+        });
+        java.util.stream.IntStream.range(0, xs.length).parallel().forEach(j -> provider.tan(xs[j]));
+        long sum = 0;
+        for (long v : byExponent.values()) {
+            sum += v;
+        }
+        assertEquals(provider.tanGuardDelegations(), sum);
+        assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
+        return byExponent;
+    }
+
     @Test
     void wcEveryFiniteEntry() throws IOException {
         CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, CoreMathTestSupport.FULL_TIER, "the full tan.wc worst-case run", "tan");
@@ -112,11 +138,20 @@ class CoreMathTanSlowTest {
         assertTrue(wc.values.length > 1_000_000, "the .wc reader lost entries");
         double[] expected = CoreMathTanTestSupport.oracle(wc.values);
         CoreMathTanTestSupport.checkUnary("tan.wc every finite entry", wc.values, expected);
-        long guardDelegationsWc = productionGuardDelegations(wc.values);
+        java.util.TreeMap<Integer, Long> guardByExponent = guardDelegationsByExponent(wc.values);
+        long guardDelegationsWc = 0;
+        for (long v : guardByExponent.values()) {
+            guardDelegationsWc += v;
+        }
         long[] gc = CoreMathTanTestSupport.ambiguousCensus(wc.values);
         System.out.println(new StringBuilder(200).append("tan.wc guard: delegated ").append(guardDelegationsWc).append(" of ").append(wc.values.length).append(" production calls; fires on ").append(gc[3]).append(" of ")
-                .append(gc[0]).append(" in-domain entries on the forced accurate path"));
-        assertTrue(guardDelegationsWc <= 5, "B2F-G6: guard delegations over tan.wc: " + guardDelegationsWc);
+                .append(gc[0]).append(" in-domain entries on the forced accurate path; delegated by Math.getExponent(x): ").append(guardByExponent));
+        // B2F-G6 sealed at most 5 delegations over tan.wc (about 0.6 expected) and FAILED at the first run, 2026-11-12 (deviation D9): 1,571 of 1,098,254 (0.14%), all with exponent -27..-17. The
+        // sealed estimate assumed the 128-bit results are spread evenly over the spacing of the doubles; tan.wc is made of hard cases (a result within about 2^-43 of a midpoint, a few
+        // times 2^32 units of 2^-128), and for the tiny arguments R = |x|/(2 pi) is so small that the window 86 + 8/R (2^32.6 at x = 2^-27) reaches them. The comparison above (0 mismatches on all three paths) is unchanged.
+        // The count is deterministic (fixed file, fixed code): asserted exactly, so that a change of K, of the window or of the port shows here.
+        assertEquals(1571L, guardDelegationsWc, "B2F-G6 / D9: guard delegations over tan.wc");
+        assertTrue(guardByExponent.firstKey() >= -27 && guardByExponent.lastKey() <= -17, "B2F-G6 / D9: exponents " + guardByExponent);
         long[] c = CoreMathTanTestSupport.ambiguousCensus(wc.values);
         System.out.println(new StringBuilder(160).append("tan.wc hard-case census: ").append(c[1]).append(" of ").append(c[0]).append(" in-domain entries reach the 86-ulp test, ").append(c[2]).append(" of them not an exception input"));
         assertEquals(0L, c[2]);

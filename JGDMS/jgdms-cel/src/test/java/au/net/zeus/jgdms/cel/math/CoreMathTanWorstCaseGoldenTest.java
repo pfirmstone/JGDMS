@@ -51,6 +51,13 @@ import org.junit.jupiter.api.Test;
  *       ELSE-BRANCH: the exception inputs are in the slow tier's every-entry run; their absence from the golden is a selection fact, not a defect.</li>
  * </ol>
  * ELSE-BRANCH (G1): a mismatch is a defect of the port or of the oracle; reported with the input and both outputs; the comparison is not loosened.
+ *
+ * <h2>SEALED PREDICTION B2F-G6b (fix pass; written 2026-11-12 before the first run of {@code guardDelegationsOverTheGolden}, after the slow tier showed that {@code tan.wc} makes the guard delegate)</h2>
+ * Population: the golden entries (4,260; the first 2,000 of {@code tan.wc}, 2,160 at the extreme exponents, 100 of the pole block). Scoring rule: the production provider's guard delegations
+ * ({@link CoreMath#tanGuardDelegations}) counted with the {@code Math.getExponent} of each delegated input. The slow tier found, on all 1,098,254 entries of {@code tan.wc}, 1,571 delegations
+ * (0.14%), all with exponent -27..-17 (the tiny arguments, where R = |x|/(2 pi) is small, so the window 86 + 8/R is wide, and the entries are hard cases by selection). The golden holds
+ * the first 2,000 entries, which are the entries at the smallest arguments: PREDICTED, between 900 and 1,571 delegations (at most the file's total), every one with exponent in [-27, -17], and
+ * the provider's value equal to the golden for all 4,260 (0 mismatches). ELSE: a count outside the band, or an exponent outside the range, is reported as measured; the comparison is not loosened.
  */
 class CoreMathTanWorstCaseGoldenTest {
 
@@ -117,6 +124,33 @@ class CoreMathTanWorstCaseGoldenTest {
         System.out.println(new StringBuilder(120).append("golden worst cases: tan ").append(g.xs.length).append(" entries (").append(g.first).append(" first + ").append(g.extreme)
                 .append(" at extreme exponents + ").append(g.pole).append(" pole-block)"));
         CoreMathTanTestSupport.checkUnary("golden worst cases (committed)", g.xs, g.expected);
+    }
+
+    @Test
+    void guardDelegationsOverTheGolden() throws IOException {
+        Golden g = load();
+        java.util.TreeMap<Integer, Long> byExponent = new java.util.TreeMap<>();
+        CountingDelegate delegate = new CountingDelegate();
+        CoreMath provider = new CoreMath(delegate, CoreMathAtan2::atan2, x -> {
+            double r = CoreMathTan.tan(x);
+            if (r != r) {
+                byExponent.merge(Math.getExponent(x), 1L, Long::sum);
+            }
+            return r;
+        });
+        long mismatches = 0;
+        for (int i = 0; i < g.xs.length; i++) {
+            if (Double.doubleToRawLongBits(provider.tan(g.xs[i])) != Double.doubleToRawLongBits(g.expected[i])) {
+                mismatches++;
+            }
+        }
+        long delegated = provider.tanGuardDelegations();
+        System.out.println(new StringBuilder(200).append("B2F-G6b golden: the guard delegated ").append(delegated).append(" of ").append(g.xs.length).append(" production calls, ").append(mismatches)
+                .append(" mismatches; by Math.getExponent(x): ").append(byExponent));
+        assertEquals(0L, mismatches);
+        assertEquals(delegated, delegate.tan.sum());
+        assertTrue(delegated >= 900 && delegated <= 1571, "B2F-G6b: the guard's delegations over the golden: " + delegated);
+        assertTrue(byExponent.firstKey() >= -27 && byExponent.lastKey() <= -17, "B2F-G6b: exponents " + byExponent);
     }
 
     @Test
