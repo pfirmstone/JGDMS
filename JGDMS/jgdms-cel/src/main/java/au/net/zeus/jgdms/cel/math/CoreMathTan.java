@@ -63,6 +63,20 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * boundary that is not one of the two {@code exceptions} would be rounded without a guarantee. {@code CoreMathTanDifferentialTest} counts such
  * inputs ({@link #accurateAmbiguous}); the slow tier counts them over every population.
  *
+ * <h2>Properties of the C found while porting (MEASURED 2026-11-12 by the phase B2 tests; the port reproduces the C, these are not port defects)</h2>
+ * <ul>
+ *   <li>{@code reduce} for {@code ex <= 1} (|x| below 2): the C's comment (tan.c:1570-1574) bounds the reduction's relative error by 2^-126.852 by treating the multiplier's approximation error
+ *       2^-130.22 as relative; it is absolute, and relative to 1/(2 pi) it is 2^-127.57, so the provable bound for that branch is (1 + 2^-127.57)(1 + 2^-127) - 1 &lt; 2^-126.26. {@code CoreMathTanReductionTest}
+ *       measured 24 of 96 inputs above the C's stated 2^-126.67 (worst 2^-126.34) and none above 2^-126.26; for {@code ex >= 2} the stated 2^-126.67 held (0 of 441). The accurate path's final bound of
+ *       86 ulps (tan.c:2206-2212) was derived from the stated bound; redone by hand from the C's own component bounds with 2^-126.26 it comes to about 88 ulps (UNVALIDATED hand arithmetic), so
+ *       for |x| below 2 the 86-ulp window is not proved by the C's analysis. No input of any tested population is affected (the window matters only within 86 to 88 ulps of a rounding boundary,
+ *       and the hard cases the C authors list lie within a few ulps).</li>
+ *   <li>{@code set_dd} with {@code c1 = 0}: the C writes the exponent field of {@code l} as {@code f - 64 - g} where the {@code c1 != 0} branch has {@code f - 53 - g}, so {@code l} is 2^-11 times the
+ *       exact truncation. The branch needs {@code frac(x/(2 pi)) < 2^-64}; the smallest possible is about 2^-62, so tan never reaches it. The Java reproduces the C (tested).</li>
+ *   <li>{@code CoreMathDint#toD}: in the overflow branch for {@code ex > 1025} the C assigns a positive {@code MAX_VALUE} to {@code r.f}, so a negative value overflows to +Infinity; the
+ *       subnormal and overflow branches are unreachable from tan (|tan(x)| lies in [2^-27, 2^61]). Ported verbatim, driven by hand cases only (UNVALIDATED beyond those).</li>
+ * </ul>
+ *
  * <h2>Which constants the tests can see by behaviour</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C
  * text, so none depends on a behavioural test to be guarded. The margin of the fast path's {@code FAST_ERR} (0x1.1ap-66) and of the accurate
