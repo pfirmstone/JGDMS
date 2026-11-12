@@ -1967,6 +1967,10 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         }
 	ClassLoader loader;
 	final String path = bootstrapProxy.getClassAnnotation();
+        if (path == null) {
+            return resolveCodebaseFree(exportedHandler, pinned, serviceProxy,
+                    parent, verifier, context, mc);
+        }
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
 
@@ -2400,14 +2404,90 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         }
 	
 	Object sp = serviceProxy.get(loader, true, verifier, context);
-	/**
-	 * The following exists because a trusted proxy might be using a third
-	 * party service and whish to apply it's own constraints to the third
-	 * party proxy, however the client is also applying constraints to the
-	 * trusted proxy that's de-serializing the third party proxy,
-	 * so we must ensure that all constraints are applied
-	 * to the third party proxy.
-	 */
+	return applyStreamConstraints(sp, mc);
+    }
+
+    /**
+     * Resolves the service proxy of a bootstrap proxy that has no codebase
+     * annotation.  Nothing is downloaded, so no class loader is created, no
+     * codebase is checked and nothing is routed to a sub-process: the service
+     * proxy is unmarshalled in {@code parent} and must be local, a dynamic
+     * proxy whose handler is a platform JERI handler and whose interfaces
+     * {@code parent} sees, or a class {@code parent} resolves.
+     * <p>
+     * Permissions have nothing to attach to (no code of the service runs here),
+     * so the service is represented by its identity: a platform-handler proxy
+     * for the bootstrap proxy's own server (equal handlers) is pinned to the
+     * principal the bootstrap proxy's server authenticated as.  A proxy for
+     * another server cannot be pinned to it; it is refused while isolating and
+     * otherwise returned unpinned, for the client's preparer to constrain.
+     *
+     * @param exportedHandler the bootstrap proxy's handler as delivered
+     * @param pinned the bootstrap proxy's server identity, or {@code null}
+     */
+    private static Object resolveCodebaseFree(InvocationHandler exportedHandler,
+            Principal pinned, MarshalledInstance serviceProxy, ClassLoader parent,
+            ClassLoader verifier, Collection context, MethodConstraints mc)
+            throws IOException, ClassNotFoundException
+    {
+        Object sp = applyStreamConstraints(
+                serviceProxy.get(parent, true, verifier, context), mc);
+        if (sp == null) {
+            return null;
+        }
+        Class<?> c = sp.getClass();
+        boolean platformProxy = Proxy.isProxyClass(c) && ServerIdentityPin.hasTrustedHandler(sp);
+        if (platformProxy) {
+            for (Class<?> i : c.getInterfaces()) {
+                if (!visibleFrom(i, parent)) {
+                    throw new IOException("a bootstrap proxy without a codebase delivered a"
+                            + " service proxy with an interface that is not local: " + i.getName());
+                }
+            }
+        } else if (!visibleFrom(c, parent)) {
+            throw new IOException("a bootstrap proxy without a codebase delivered a service"
+                    + " proxy whose class is not local: " + c.getName());
+        }
+        if (pinned == null) {
+            return sp;
+        }
+        if (platformProxy && Proxy.getInvocationHandler(sp).equals(exportedHandler)) {
+            return ServerIdentityPin.pinAll(sp, pinned);
+        }
+        if (isolationRoutingEnabled()) {
+            throw new IOException("the service proxy of a bootstrap proxy without a codebase"
+                    + " is not a platform JERI proxy for the authenticated server " + pinned
+                    + " and cannot be pinned to it (fail-closed while isolating): " + c.getName());
+        }
+        logger.log(Level.WARNING,
+                "The service proxy of a bootstrap proxy without a codebase is not a platform"
+                + " JERI proxy for the authenticated server {0}; it is returned unpinned: {1}",
+                new Object[]{pinned, c.getName()});
+        return sp;
+    }
+
+    /** Whether {@code parent} resolves {@code c} to the same class. */
+    private static boolean visibleFrom(Class<?> c, ClassLoader parent) {
+        try {
+            return Class.forName(c.getName(), false, parent) == c;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Applies the stream's method constraints to the service proxy.
+     * <p>
+     * The following exists because a trusted proxy might be using a third
+     * party service and whish to apply it's own constraints to the third
+     * party proxy, however the client is also applying constraints to the
+     * trusted proxy that's de-serializing the third party proxy,
+     * so we must ensure that all constraints are applied
+     * to the third party proxy.
+     */
+    private static Object applyStreamConstraints(Object sp, MethodConstraints mc)
+            throws InvalidObjectException
+    {
 	if (mc != null){
 	    if (sp instanceof RemoteMethodControl){
 		RemoteMethodControl rmc = (RemoteMethodControl) sp;

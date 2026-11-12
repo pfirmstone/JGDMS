@@ -341,4 +341,46 @@ final class ServerIdentityPin {
                 descs.toArray(new BasicMethodConstraints.MethodDesc[0]));
         return (CodebaseAccessor) ((RemoteMethodControl) proxy).setConstraints(pinned);
     }
+
+    /**
+     * Returns the dynamic proxy with every method of every interface it
+     * implements additionally requiring server authentication as
+     * {@code principal}, keeping the constraints each method already has (an
+     * existing {@link ServerMinPrincipal} is replaced, as in {@link #pin}).
+     * Methods are matched by name and parameter types; any other method still
+     * requires the pin.
+     *
+     * @throws IOException if the proxy cannot carry constraints
+     */
+    static Object pinAll(Object proxy, Principal principal) throws IOException {
+        if (!(proxy instanceof RemoteMethodControl) || !Proxy.isProxyClass(proxy.getClass())) {
+            throw new IOException("only a dynamic proxy that is a RemoteMethodControl can be"
+                    + " pinned to the authenticated server: " + proxy.getClass().getName());
+        }
+        InvocationConstraints pinReq = new InvocationConstraints(
+                new InvocationConstraint[]{
+                    ServerAuthentication.YES, new ServerMinPrincipal(principal)},
+                (InvocationConstraint[]) null);
+        MethodConstraints existing = ((RemoteMethodControl) proxy).getConstraints();
+        java.util.Map<String, net.jini.constraint.StringMethodConstraints.StringMethodDesc> descs =
+                new java.util.LinkedHashMap<String, net.jini.constraint.StringMethodConstraints.StringMethodDesc>();
+        for (Class<?> i : proxy.getClass().getInterfaces()) {
+            for (Method m : i.getMethods()) {
+                String key = m.getName() + java.util.Arrays.toString(m.getParameterTypes());
+                if (descs.containsKey(key)) {
+                    continue;
+                }
+                InvocationConstraints current = existing == null
+                        ? InvocationConstraints.EMPTY : existing.getConstraints(m);
+                descs.put(key, new net.jini.constraint.StringMethodConstraints.StringMethodDesc(
+                        m.getName(), m.getParameterTypes(),
+                        InvocationConstraints.combine(withoutServerMinPrincipal(current), pinReq)));
+            }
+        }
+        List<net.jini.constraint.StringMethodConstraints.StringMethodDesc> all =
+                new ArrayList<net.jini.constraint.StringMethodConstraints.StringMethodDesc>(descs.values());
+        all.add(new net.jini.constraint.StringMethodConstraints.StringMethodDesc(pinReq));
+        return ((RemoteMethodControl) proxy).setConstraints(new net.jini.constraint.StringMethodConstraints(
+                all.toArray(new net.jini.constraint.StringMethodConstraints.StringMethodDesc[0])));
+    }
 }
