@@ -49,16 +49,21 @@ import static org.junit.Assert.*;
  * so a caller without the grant must not get that far, and the provider must
  * not vouch for its caller by checking in a privileged block of its own.
  * <p>
- * The policy grants everything to every code source; the caller is confined
- * to a domain whose permissions are fixed (it never consults the policy), and
- * the SecurityManager checks the permission against the real access control
- * context.  A SecurityManager must be installable: this class runs in its own
- * JVM (see the module's pom) with {@code -Djava.security.manager=allow}; it is
- * skipped where one cannot be installed.
+ * The caller runs in a domain of its own code source, to which the test policy
+ * grants exactly what the test intends (the same permissions are also given to
+ * the domain directly: on DirtyChai a domain always consults the policy, on
+ * other JDKs one built with fixed permissions never does); every other code
+ * source is granted everything.  The SecurityManager checks the permission
+ * against the real access control context.  One SecurityManager is installed for the class and armed only
+ * while a test runs: DirtyChai does not let a SecurityManager be removed, so
+ * this class runs in its own JVM (see the module's pom) with
+ * {@code -Djava.security.manager=allow}.  It is skipped only where a
+ * SecurityManager cannot be installed at all.
  */
 public class ResolvePinnedPermissionTest {
 
     private static final ClassLoader LOADER = ResolvePinnedPermissionTest.class.getClassLoader();
+    private static final PinSecurityManager SM = new PinSecurityManager();
 
     @Test
     public void aCallerWithoutThePermissionIsRefusedBeforeTheProxyIsTouched() throws Exception {
@@ -91,10 +96,9 @@ public class ResolvePinnedPermissionTest {
     private static Throwable resolvePinnedAs(PermissionCollection callerPermissions, final Recorder recorder)
             throws Exception {
         final AccessControlContext caller = new AccessControlContext(new ProtectionDomain[]{
-            new ProtectionDomain(new CodeSource(null, (java.security.cert.Certificate[]) null),
-                    callerPermissions)});
+            new ProtectionDomain(CALLER, callerPermissions)});
         final Throwable[] thrown = new Throwable[1];
-        withSecurityManager(new Body() {
+        withSecurityManager(callerPermissions, new Body() {
             public void run() {
                 try {
                     AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
@@ -121,23 +125,50 @@ public class ResolvePinnedPermissionTest {
         return context;
     }
 
-    /** Grants everything to every domain that consults the policy. */
-    private static final class AllowAllPolicy extends Policy {
+    /** The confined caller's code source. */
+    private static final CodeSource CALLER;
+    static {
+        try {
+            CALLER = new CodeSource(new java.net.URL("http://confined-caller.invalid/caller.jar"),
+                    (java.security.cert.Certificate[]) null);
+        } catch (java.net.MalformedURLException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    /** Grants the confined caller exactly {@code callerPermissions}, everyone else everything. */
+    private static final class TestPolicy extends Policy {
+        private final PermissionCollection callerPermissions;
+
+        TestPolicy(PermissionCollection callerPermissions) {
+            this.callerPermissions = callerPermissions;
+        }
+
+        private static boolean isCaller(CodeSource cs) {
+            return cs != null && CALLER.getLocation().equals(cs.getLocation());
+        }
+
         @Override
         public PermissionCollection getPermissions(CodeSource codesource) {
             Permissions p = new Permissions();
-            p.add(new AllPermission());
+            if (isCaller(codesource)) {
+                for (java.util.Enumeration<Permission> e = callerPermissions.elements(); e.hasMoreElements();) {
+                    p.add(e.nextElement());
+                }
+            } else {
+                p.add(new AllPermission());
+            }
             return p;
         }
 
         @Override
         public PermissionCollection getPermissions(ProtectionDomain domain) {
-            return getPermissions((CodeSource) null);
+            return getPermissions(domain.getCodeSource());
         }
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            return true;
+            return isCaller(domain.getCodeSource()) ? callerPermissions.implies(permission) : true;
         }
     }
 
@@ -146,11 +177,13 @@ public class ResolvePinnedPermissionTest {
      * allows everything else, and everything once disarmed.
      */
     private static final class PinSecurityManager extends SecurityManager {
-        private volatile boolean armed = true;
+        private volatile boolean armed;
 
         PinSecurityManager() {
             // Loaded now: loading a class inside checkPermission checks a read and recurses.
             new PinnedIdentityPermission().implies(new PinnedIdentityPermission());
+            new TestPolicy(new Permissions()).implies(new ProtectionDomain(CALLER, new Permissions()),
+                    new PinnedIdentityPermission());
             AccessController.getContext();
         }
 
@@ -166,6 +199,10 @@ public class ResolvePinnedPermissionTest {
             if (armed && perm instanceof PinnedIdentityPermission) {
                 ((AccessControlContext) context).checkPermission(perm);
             }
+        }
+
+        void arm() {
+            armed = true;
         }
 
         void disarm() {
@@ -202,31 +239,26 @@ public class ResolvePinnedPermissionTest {
         void run();
     }
 
-    private static void withSecurityManager(Body body) {
-        Policy previousPolicy = Policy.getPolicy();
-        SecurityManager previous = System.getSecurityManager();
-        Assume.assumeTrue("another SecurityManager is installed", previous == null);
-        PinSecurityManager sm = new PinSecurityManager();
-        Policy.setPolicy(new AllowAllPolicy());
-        try {
+    private static void withSecurityManager(PermissionCollection callerPermissions, Body body) {
+        SecurityManager current = System.getSecurityManager();
+        if (current == null) {
             try {
-                System.setSecurityManager(sm);
+                System.setSecurityManager(SM);
             } catch (UnsupportedOperationException noAllowFlag) {
                 Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
                 return;
             }
-            try {
-                body.run();
-            } finally {
-                sm.disarm();
-                try {
-                    System.setSecurityManager(null);
-                } catch (RuntimeException cannotRemove) {
-                    // A JDK may refuse to remove a SecurityManager; the disarmed one allows
-                    // everything, and this class runs in its own JVM.
-                }
-            }
+        } else {
+            assertSame("another SecurityManager is installed; this class needs its own JVM", SM, current);
+        }
+        Policy previousPolicy = Policy.getPolicy();
+        Policy.setPolicy(new TestPolicy(callerPermissions));
+        SM.arm();
+        try {
+            body.run();
         } finally {
+            // Left installed but disarmed: it then allows everything.
+            SM.disarm();
             Policy.setPolicy(previousPolicy);
         }
     }
