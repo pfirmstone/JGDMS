@@ -34,7 +34,6 @@ import java.util.function.DoubleUnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -109,10 +108,6 @@ import org.junit.jupiter.api.Test;
  */
 class CoreMathSinCosDifferentialTest {
 
-    /** sin's fast and accurate paths are defined from 2^-26 up; below that the C returns x. */
-    private static final DoublePredicate SIN_DOMAIN = x -> Math.abs(x) >= 0x1p-26;
-    /** cos's fast and accurate paths are defined from 2^-27 up; below that the C returns 1. */
-    private static final DoublePredicate COS_DOMAIN = x -> Math.abs(x) >= 0x1p-27;
     private static final DoublePredicate ALL = x -> true;
 
     /** One input population with the oracle's answers, computed once and shared. */
@@ -170,31 +165,9 @@ class CoreMathSinCosDifferentialTest {
         return sb.toString();
     }
 
-    /** Runs the combined, accurate-alone and fast-alone comparisons of one function on one population and asserts none mismatches. */
+    /** The shared three-comparison check (provider path, accurate alone, fast alone) of one function on one population. */
     private static void checkPopulation(String function, Pop p) {
-        boolean isSin = function.equals("sin");
-        DoubleUnaryOperator combined = isSin ? CoreMathSin::sin : CoreMathCos::cos;
-        DoubleUnaryOperator accurate = isSin ? CoreMathSin::accurate : CoreMathCos::accurate;
-        DoubleUnaryOperator fast = isSin ? CoreMathSin::fast : CoreMathCos::fast;
-        DoublePredicate domain = isSin ? SIN_DOMAIN : COS_DOMAIN;
-        double[] expected = isSin ? p.sinExpected : p.cosExpected;
-
-        CoreMathTestSupport.Diff dc = CoreMathTestSupport.compare(label(function, p.name, "provider path"), p.xs, expected, combined, ALL, false, true);
-        CoreMathTestSupport.Diff da = CoreMathTestSupport.compare(label(function, p.name, "accurate path alone"), p.xs, expected, accurate, domain, false, true);
-        CoreMathTestSupport.Diff df = CoreMathTestSupport.compare(label(function, p.name, "fast path alone"), p.xs, expected, fast, domain, true, true);
-        System.out.println(dc.line());
-        System.out.println(da.line());
-        System.out.println(df.line());
-        StringBuilder census = new StringBuilder(120);
-        census.append("path census {").append(function).append(", ").append(p.name).append("}: fast path decided ")
-                .append(df.applicable).append(" of ").append(df.applicable + df.undecided).append(" in-domain inputs; accurate path needed for ")
-                .append(df.undecided);
-        System.out.println(census);
-        long bad = dc.mismatches + da.mismatches + df.mismatches;
-        StringBuilder all = new StringBuilder(512);
-        all.append(dc.details()).append('\n').append(da.details()).append('\n').append(df.details());
-        assertEquals(0L, bad, all.toString());
-        assertTrue(dc.applicable == p.xs.length, "the provider-path comparison skipped inputs");
+        CoreMathTestSupport.checkPopulation(function, p.name, p.xs, function.equals("sin") ? p.sinExpected : p.cosExpected);
     }
 
     private static void checkBoth(String population) throws IOException {
@@ -214,8 +187,7 @@ class CoreMathSinCosDifferentialTest {
 
     @Test
     void t1bWorstCasesFirst2000() throws IOException {
-        Assumptions.assumeTrue(CoreMathTestSupport.wcAvailable("sin") && CoreMathTestSupport.wcAvailable("cos"),
-                new StringBuilder(96).append("SKIPPED: the .wc worst-case files are not under ").append(CoreMathTestSupport.CORE_MATH_DIR).toString());
+        CoreMathTestSupport.requireClone("t1bWorstCasesFirst2000");
         checkPopulation("sin", pop("sin.wc first 2000"));
         checkPopulation("cos", pop("cos.wc first 2000"));
         // the wc entries of the other function are also worth running: both files list hard cases of their own function only
@@ -250,9 +222,9 @@ class CoreMathSinCosDifferentialTest {
     void t3ControlOneUlpEveryThousandthOutputIsRejected() throws IOException {
         Pop p = pop("random exponent 0..2046, seed 20261112, 10000");
         CoreMathTestSupport.Diff ds = CoreMathTestSupport.compare(label("sin", "control", "port + 1 ulp every 1000th"), p.xs, p.sinExpected,
-                perturbEvery1000th(CoreMathSin::sin), ALL, false, false);
+                perturbEvery1000th(CoreMathTestSupport.PROVIDER::sin), ALL, false, false);
         CoreMathTestSupport.Diff dc = CoreMathTestSupport.compare(label("cos", "control", "port + 1 ulp every 1000th"), p.xs, p.cosExpected,
-                perturbEvery1000th(CoreMathCos::cos), ALL, false, false);
+                perturbEvery1000th(CoreMathTestSupport.PROVIDER::cos), ALL, false, false);
         System.out.println(new StringBuilder(160).append("control: the comparison rejected ").append(ds.mismatches).append(" of ")
                 .append(ds.applicable).append(" (sin) and ").append(dc.mismatches).append(" of ").append(dc.applicable)
                 .append(" (cos) inputs with the output moved one ulp on every 1000th call"));
@@ -347,6 +319,9 @@ class CoreMathSinCosDifferentialTest {
 
     @Test
     void t5EveryFiniteInputIsHandledByThePortNeverByTheDelegate() throws IOException {
+        if (CoreMathTestSupport.FULL_TIER) {
+            CoreMathTestSupport.requireClone("t5 (the .wc entries)");
+        }
         boolean wc = CoreMathTestSupport.wcAvailable("sin") && CoreMathTestSupport.wcAvailable("cos");
         CountingDelegate delegate = new CountingDelegate();
         CoreMath provider = new CoreMath(delegate);

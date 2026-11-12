@@ -30,14 +30,15 @@ package au.net.zeus.jgdms.cel.math;
  * the C routines return correctly rounded results for them, and the differential tests
  * ({@code CoreMathSinCosDifferentialTest}) compare them bit for bit with {@link CrMath}. NaN and
  * infinities are <em>delegated</em>: the evaluator never passes them (it maps them to
- * {@code DOMAIN} first, {@code Evaluator.java:806, :813, :838}), the C routines would return a
+ * {@code DOMAIN} first, in {@code Evaluator.callTranscendental}), the C routines would return a
  * NaN for them, and {@code CrMath} throws {@link IllegalArgumentException}. Delegating keeps this
  * provider's failure on a contract violation identical to {@code CrMath}'s instead of returning a
  * NaN that would read as a value.
  * <p>
- * <b>Thread safety.</b> Stateless apart from the delegate, which is {@link CrMath}: its mutable
- * statics are a lock-guarded, single-reference constant cache and two diagnostic fields
- * ({@code CrMath.java:263-264, :343-384}, read 2026-11-12). The ported code keeps no state.
+ * <b>Thread safety.</b> Stateless apart from the delegate, which is {@link CrMath}: its mutable statics
+ * are the lock-guarded pi cache ({@code piCache}, {@code cachedPiDouble}, {@code cachedPiOver2Double}) and two
+ * diagnostic counters ({@code lastAttempts}, {@code lastResolvedDigits}), read 2026-11-12. The ported code keeps
+ * no state and the constant tables are private to {@code CoreMathTables}.
  * Package-private like {@code CrMath}; the sanctioned entry point is
  * {@link MathProviders#correctlyRounded()}.
  */

@@ -5,6 +5,11 @@
  * its header; every table's text was compared between the two files and is identical), so
  * this one class serves both ports and carries both files' copyright lines.
  *
+ * DERIVATION: this file is a Java port, that is a modified and derived work, of the constant tables of
+ * src/binary64/sin/sin.c (repeated in src/binary64/cos/cos.c) of the CORE-MATH project at commit
+ * 018fa97cbdacf59924b899a9dfa422d532cb2bb7. It is not part of CORE-MATH and is not endorsed by
+ * its authors. The copyright and permission notice below are the upstream's, reproduced without change.
+ *
  * Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov
  * Copyright (c) 2026 Paul Zimmermann
  *
@@ -40,12 +45,15 @@ package au.net.zeus.jgdms.cel.math;
  * <p>
  * <b>Bit-exact.</b> Every value is a literal copy of the C source's: a {@code double} as the same
  * hexadecimal floating-point literal, a 64-bit word as the same hexadecimal digits. A rounded
- * decimal would change a table entry and, silently, a result. {@code CoreMathConstantsTest}
- * re-reads {@code sin.c} and compares every entry here to it, bit for bit; the check is skipped
- * (and reported as skipped) on a machine without the CORE-MATH clone.
+ * decimal would change a table entry and, silently, a result. Two checks guard them. {@code CoreMathConstantsTest}
+ * re-reads {@code sin.c} and {@code cos.c} and compares every entry here to them, bit for bit; it needs the
+ * CORE-MATH clone, so it is skipped without it (and FAILS if the full tier is requested with
+ * {@code -Dcore.math.full=true}). {@code CoreMathTablesDigestTest} needs nothing: it hashes a canonical
+ * rendering of every table (SHA-256) and compares the digest, committed as a test resource, so a changed
+ * bit fails on every machine.
  * <p>
  * <b>Layout.</b> The C {@code double U1[128][4]} is flattened row-major: {@code U1[4*j + c]}.
- * A C {@code u128} table is an array of {@link U128}.
+ * A C {@code u128} table is an array of {@link U128}. The arrays are private; see the accessors at the end.
  */
 final class CoreMathTables {
 
@@ -58,7 +66,7 @@ final class CoreMathTables {
     static final double PIL = -0x1.1a62633145c07p-67;
 
     /** C: sin.c:127-149 `_T[20]`: 1/(2*pi) ~ T[0]/2^0 + T[1]/2^64 + ... (T[0] = 0, entry 20 unused in the C). */
-    static final long[] T = {
+    private static final long[] T = {
         0L,
         0x28be60db9391054aL,
         0x7f09d5f47d4d3770L,
@@ -82,7 +90,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:297-426 `U1[128][4]`, flattened row-major: U1[4*j+0..3] = sh, sl, ch, cl of sin/cos(j*pi/2^7). */
-    static final double[] U1 = {
+    private static final double[] U1 = {
         0x0p+0, 0x0p+0, 0x1p+0, 0x0p+0,
         0x1.92155f7a3667ep-6, -0x1.b1d63091a013p-64, 0x1.ffd886084cd0dp-1, -0x1.1354d4556e4cbp-55,
         0x1.91f65f10dd814p-5, -0x1.912bd0d569a9p-61, 0x1.ff621e3796d7ep-1, -0x1.c57bc2e24aa15p-57,
@@ -214,7 +222,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:432-561 `U2[128][4]`, flattened row-major: U2[4*j+0..3] = sh, sl, ch, cl of sin/cos(j*pi/2^14). */
-    static final double[] U2 = {
+    private static final double[] U2 = {
         0x0p+0, 0x0p+0, 0x1p+0, 0x0p+0,
         0x1.921fb51aeb57cp-13, -0x1.a6e1d4916c435p-67, 0x1.ffffff621619cp-1, -0x1.7507dbbbd8fe6p-55,
         0x1.921fb49ee4ea6p-12, 0x1.e894d744a453ep-66, 0x1.fffffd8858675p-1, -0x1.79f0e54748eabp-55,
@@ -346,7 +354,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:158-164 `PS[]` (U128(l,h) little-endian macro order kept by U128.lh). */
-    static final U128[] PS = {
+    private static final U128[] PS = {
         U128.lh(0xc4c6628b80dbed80L,0xc90fdaa22168c234L), // degree 1
         U128.lh(0xabb8e5506ca45b03L,0x14abbce625be52beL), // degree 3, implicit - sign
         U128.lh(0x44c54995bb97635L,0xa335e33bad570eL),    // degree 5
@@ -354,7 +362,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:171-177 `PC[]`. */
-    static final U128[] PC = {
+    private static final U128[] PC = {
         U128.lh(0xffffffffffffffffL,0xffffffffffffffffL), // degree 0
         U128.lh(0x2b71366cbcf0b096L,0x4ef4f326f9177969L), // degree 2, implicit - sign
         U128.lh(0xd4c9076e3db78fedL,0x40f07c206d6b0ecL),  // degree 4
@@ -363,7 +371,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:618-652 `S1u[33]`. */
-    static final U128[] S1U = {
+    private static final U128[] S1U = {
         U128.lh(0x0L,0x0L),
         U128.lh(0x76a17954b2b7c517L,0xc8fb2f886ec09f3L),
         U128.lh(0xd8e72d912977ee71L,0x1917a6bc29b42be1L),
@@ -400,7 +408,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:657-722 `S2u[64]`. */
-    static final U128[] S2U = {
+    private static final U128[] S2U = {
         U128.lh(0x0L,0x0L),
         U128.lh(0xc3b0abf2b35a62f8L,0x3243f655d966c0L),
         U128.lh(0x11ad1d7b5620834aL,0x6487eabb991cb6L),
@@ -468,7 +476,7 @@ final class CoreMathTables {
     };
 
     /** C: sin.c:732-797 `C2u[64]`. */
-    static final U128[] C2U = {
+    private static final U128[] C2U = {
         U128.lh(0xffffffffffffffffL,0xffffffffffffffffL),
         U128.lh(0x491a703231e0a12eL,0xfffffb10b0d19f76L),
         U128.lh(0xec9e2e75cb525f2cL,0xffffec42c3773235L),
@@ -535,4 +543,91 @@ final class CoreMathTables {
         U128.lh(0xbadfe70a1ef51116L,0xffb38194a87a3097L),
     };
 
+    // ------------------------------------------------------------------------------------------
+    // Read access. The arrays are private: they are Java arrays, so a package-visible array could
+    // be written by any class in this package (or a class put into it on the classpath; the module
+    // has no module-info) and every later result would change silently. Element accessors are what
+    // the ports call (small static methods the JIT inlines); the *Copy methods give the tests and
+    // the digest check a snapshot that cannot write back.
+    // ------------------------------------------------------------------------------------------
+
+    /** {@code _T[i]}, 0 <= i < 20. */
+    static long t(int i) {
+        return T[i];
+    }
+
+    /** {@code U1[4*j + c]}: element {@code c} of row {@code j} (sh, sl, ch, cl), as the C's {@code U1[j][c]}. */
+    static double u1(int flatIndex) {
+        return U1[flatIndex];
+    }
+
+    /** {@code U2[4*j + c]}, as {@link #u1}. */
+    static double u2(int flatIndex) {
+        return U2[flatIndex];
+    }
+
+    /** {@code PS[i]}, 0 <= i < 4. */
+    static U128 ps(int i) {
+        return PS[i];
+    }
+
+    /** {@code PC[i]}, 0 <= i < 5. */
+    static U128 pc(int i) {
+        return PC[i];
+    }
+
+    /** {@code S1u[i]}, 0 <= i < 33. */
+    static U128 s1u(int i) {
+        return S1U[i];
+    }
+
+    /** {@code S2u[i]}, 0 <= i < 64. */
+    static U128 s2u(int i) {
+        return S2U[i];
+    }
+
+    /** {@code C2u[i]}, 0 <= i < 64. */
+    static U128 c2u(int i) {
+        return C2U[i];
+    }
+
+    /** A copy of {@code _T}. */
+    static long[] tCopy() {
+        return T.clone();
+    }
+
+    /** A copy of the flattened {@code U1}. */
+    static double[] u1Copy() {
+        return U1.clone();
+    }
+
+    /** A copy of the flattened {@code U2}. */
+    static double[] u2Copy() {
+        return U2.clone();
+    }
+
+    /** A copy of {@code PS} ({@link U128} is immutable). */
+    static U128[] psCopy() {
+        return PS.clone();
+    }
+
+    /** A copy of {@code PC}. */
+    static U128[] pcCopy() {
+        return PC.clone();
+    }
+
+    /** A copy of {@code S1u}. */
+    static U128[] s1uCopy() {
+        return S1U.clone();
+    }
+
+    /** A copy of {@code S2u}. */
+    static U128[] s2uCopy() {
+        return S2U.clone();
+    }
+
+    /** A copy of {@code C2u}. */
+    static U128[] c2uCopy() {
+        return C2U.clone();
+    }
 }

@@ -2,6 +2,11 @@
  * CoreMathCos: Java port of CORE-MATH's binary64 cosine, src/binary64/cos/cos.c at commit
  * 018fa97cbdacf59924b899a9dfa422d532cb2bb7, round-to-nearest path only.
  *
+ * DERIVATION: this file is a Java port, that is a modified and derived work, of
+ * src/binary64/cos/cos.c of the CORE-MATH project at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+ * It is not part of CORE-MATH and is not endorsed by its authors. The copyright and
+ * permission notice below are the upstream's, reproduced without change.
+ *
  * Copyright (c) 2026 Paul Zimmermann
  *
  * This file is part of the CORE-MATH project
@@ -45,6 +50,30 @@ package au.net.zeus.jgdms.cel.math;
  *       by a call. The arithmetic is the same; the split lets a test call each path on its own.</li>
  * </ul>
  *
+ * <h2>Error bounds</h2>
+ * The fast paths decide only when an ABSOLUTE bound cannot change the rounding: {@code eps = 0x1.dep-64}
+ * (moderate; about 2^-63.1) or {@code 0x1.01p-63} (large), both in {@link CoreMathSupport}. Near 1 an ulp
+ * of the cosine is 2^-53, so the fast path decides almost every input. {@code CoreMathPathCensusTest}
+ * measured 1-9 undecided of 2,000 per binade below 2^0 and 2-46 of 2,000 from 2^0 up (the reason for the
+ * higher counts, results near the zeros of the cosine having a smaller ulp, is a HYPOTHESIS).
+ *
+ * <h2>Proofs, and the commit they apply to</h2>
+ * CORE-MATH publishes a correctness proof of this routine: {@code cos.pdf} (Zimmermann, dated
+ * 2026-11-09), which considers {@code cos.c} at commit {@code 9b821fc}. {@code cos.c} is BYTE-IDENTICAL
+ * between that commit and the ported commit {@code 018fa97c} (the same blob,
+ * {@code c521b3fa5e0202cb02a0401315133f661c1e836f}, and an empty {@code git diff}; verified by Chisel,
+ * 2026-11-12, not by the author of this port), so the proof applies to the ported code. The proof
+ * ends with an empirical step, running the worst-case file through the code, which for this Java
+ * port is {@code CoreMathSinCosSlowTest} plus the committed golden of
+ * {@code CoreMathWorstCaseGoldenTest}. The tables and helpers are those of {@code sin.c}, whose own
+ * proof commit is recorded in {@link CoreMathSin}.
+ *
+ * <h2>Why the method bodies mirror the C one for one</h2>
+ * Shared constants live in {@link CoreMathSupport}, but {@link #fastModerate}, {@link #fastLarge} and
+ * {@link #cosLargeAccurate} each mirror one C function, with the C line numbers beside them, so a
+ * reviewer can lay the Java next to {@code cos.c} line by line. {@link #combine} merges the table
+ * recombination the C repeats in two functions and keeps the C's operation order.
+ *
  * <h2>What differs from the C, and why</h2>
  * <ul>
  *   <li>{@code FE_INVALID} and {@code errno} statements are dropped (Java has neither). The C reads
@@ -63,15 +92,6 @@ package au.net.zeus.jgdms.cel.math;
 final class CoreMathCos {
 
     private CoreMathCos() {}
-
-    /** C: cos.c:834: |invpi/2^14 - 1/pi| < 2^-55.496. */
-    private static final double INVPI = 0x1.45f306dc9c883p+12;
-    /** C: cos.c:863 and cos.c:932 {@code Sgn[]}. */
-    private static final double[] SGN = {1.0, -1.0};
-    /** C: cos.c:866: error bound of the moderate fast path. */
-    private static final double EPS_MODERATE = 0x1.dep-64;
-    /** C: cos.c:936: error bound of the large fast path. */
-    private static final double EPS_LARGE = 0x1.01p-63;
 
     /** C {@code cr_cos} ({@code cos.c:942-971}). */
     static double cos(double x) {
@@ -113,24 +133,31 @@ final class CoreMathCos {
      * {@code 4*i1} and {@code 4*i2}.
      */
     private static double combine(int a, int b, double sh, double ch, int sbit, double eps) {
-        double[] u1 = CoreMathTables.U1;
-        double[] u2 = CoreMathTables.U2;
+        // u1x = U1[i1][x], u2x = U2[i2][x]
+        double u10 = CoreMathTables.u1(a);
+        double u11 = CoreMathTables.u1(a + 1);
+        double u12 = CoreMathTables.u1(a + 2);
+        double u13 = CoreMathTables.u1(a + 3);
+        double u20 = CoreMathTables.u2(b);
+        double u21 = CoreMathTables.u2(b + 1);
+        double u22 = CoreMathTables.u2(b + 2);
+        double u23 = CoreMathTables.u2(b + 3);
         // c1h = muldd (U1[i1][2], U1[i1][3], U2[i2][2], U2[i2][3], &c1l): ~ cos(t1)*cos(t2)
-        double c1h = u1[a + 2] * u2[b + 2];
-        double c1l = CoreMathSupport.mulddLow(u1[a + 2], u1[a + 3], u2[b + 2], u2[b + 3], c1h);
+        double c1h = u12 * u22;
+        double c1l = CoreMathSupport.mulddLow(u12, u13, u22, u23, c1h);
         // c2h = muldd (U2[i2][0], U2[i2][1], U1[i1][0], U1[i1][1], &c2l): ~ sin(t1)*sin(t2)
-        double c2h = u2[b] * u1[a];
-        double c2l = CoreMathSupport.mulddLow(u2[b], u2[b + 1], u1[a], u1[a + 1], c2h);
+        double c2h = u20 * u10;
+        double c2l = CoreMathSupport.mulddLow(u20, u21, u10, u11, c2h);
         // Ch = fastsum (c1h, c1l, -c2h, -c2l, &Cl): ~ cos(t1+t2)
         double yh = -c2h;
         double Ch = c1h + yh;
         double Cl = (c1l + (-c2l)) + CoreMathSupport.fastTwoSumLow(c1h, yh, Ch);
         // Sh ~ sin(t1+t2) = sin(t1)*cos(t2)+cos(t1)*sin(t2)
-        double Sh = u1[a] * u2[b + 2] + u1[a + 2] * u2[b];
+        double Sh = u10 * u22 + u12 * u20;
         double fh = Ch;
         double fl = Cl + Ch * ch - Sh * sh;
-        fh = SGN[sbit] * fh;
-        fl = SGN[sbit] * fl;
+        fh = CoreMathSupport.signMultiplier(sbit) * fh;
+        fl = CoreMathSupport.signMultiplier(sbit) * fl;
         double lb = fh + (fl - eps);
         double ub = fh + (fl + eps);
         return (ub == lb) ? lb : Double.NaN;
@@ -138,7 +165,7 @@ final class CoreMathCos {
 
     /** C {@code cr_cos_moderate} up to its fall-through to the accurate path ({@code cos.c:830-870}); {@code x >= 0}. */
     private static double fastModerate(double x) {
-        double k = Math.rint(INVPI * x);               // roundeven_finite
+        double k = Math.rint(CoreMathSupport.INVPI * x);               // roundeven_finite
         double rh = Math.fma(k, CoreMathTables.PIH, x);    // rh is exact
         double rl = k * CoreMathTables.PIL;
         double r = rh + rl;                            // |r| < 2^-13.339 (see sin.pdf)
@@ -149,7 +176,7 @@ final class CoreMathCos {
         int b = 4 * (int) (j & 0x7f);
         double sh = r * (1.0 - 0x1.55555553068fp-3 * r2);
         double ch = r2 * (-0.5 + 0x1.55555553bfd3p-5 * r2);
-        return combine(a, b, sh, ch, sbit, EPS_MODERATE);
+        return combine(a, b, sh, ch, sbit, CoreMathSupport.EPS_MODERATE);
     }
 
     /** C {@code cr_cos_large} up to its fall-through to the accurate path ({@code cos.c:912-940}); {@code x >= 2^31}. */
@@ -163,7 +190,7 @@ final class CoreMathCos {
         int b = 4 * (int) (j & 0x7f);
         double sh = r * (0x1.921fb54442d18p2 - 0x1.4abbcdb6b26d1p5 * r2);
         double ch = r2 * (-0x1.3bd3cc9be45dep4 + 0x1.03c1eee483083p6 * r2);
-        return combine(a, b, sh, ch, sbit, EPS_LARGE);
+        return combine(a, b, sh, ch, sbit, CoreMathSupport.EPS_LARGE);
     }
 
     /** C {@code exceptions} ({@code cos.c:749-762}). */
@@ -200,15 +227,14 @@ final class CoreMathCos {
         int i1 = (int) ((k >> 6) & 0x3f);
         int i2 = (int) (k & 0x3f);
 
-        U128[] s1t = CoreMathTables.S1U;
-        U128 s1 = (i1 <= 32) ? s1t[i1] : s1t[64 - i1];        // use sin(pi-x) = sin(x)
-        U128 c1 = (i1 <= 32) ? s1t[32 - i1] : s1t[i1 - 32];   // |C1u[i1]| = |S1u[(i1+32) mod 64]|
-        U128 s1u = s1.mhUU(CoreMathTables.C2U[i2]);
-        U128 t = c1.mhUU(CoreMathTables.S2U[i2]);
+        U128 s1 = (i1 <= 32) ? CoreMathTables.s1u(i1) : CoreMathTables.s1u(64 - i1);        // use sin(pi-x) = sin(x)
+        U128 c1 = (i1 <= 32) ? CoreMathTables.s1u(32 - i1) : CoreMathTables.s1u(i1 - 32);   // |C1u[i1]| = |S1u[(i1+32) mod 64]|
+        U128 s1u = s1.mhUU(CoreMathTables.c2u(i2));
+        U128 t = c1.mhUU(CoreMathTables.s2u(i2));
         s1u = (i1 < 32) ? s1u.add(t) : s1u.sub(t);            // sin(z) >= 0 for 0 <= z < pi
 
-        U128 c1u = c1.mhUU(CoreMathTables.C2U[i2]);
-        t = s1.mhUU(CoreMathTables.S2U[i2]);
+        U128 c1u = c1.mhUU(CoreMathTables.c2u(i2));
+        t = s1.mhUU(CoreMathTables.s2u(i2));
         c1u = (i1 < 32) ? c1u.sub(t) : c1u.add(t);
 
         U128 sr = CoreMathSupport.evalPS(r, u2, u2h, u4);     // ~ |sin(2*pi*r)|

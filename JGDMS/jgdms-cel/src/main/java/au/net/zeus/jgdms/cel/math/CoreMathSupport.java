@@ -4,6 +4,12 @@
  * routines appear, with the same text, in src/binary64/cos/cos.c, which says it is adapted from
  * sin.c; both files' copyright lines are therefore carried).
  *
+ * DERIVATION: this file is a Java port, that is a modified and derived work, of routines in
+ * src/binary64/sin/sin.c (repeated in src/binary64/cos/cos.c) of the CORE-MATH project at commit
+ * 018fa97cbdacf59924b899a9dfa422d532cb2bb7, plus the small Java helpers that stand in for C
+ * features Java lacks. It is not part of CORE-MATH and is not endorsed by its authors. The
+ * copyright and permission notice below are the upstream's, reproduced without change.
+ *
  * Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov
  * Copyright (c) 2026 Paul Zimmermann
  *
@@ -53,6 +59,31 @@ final class CoreMathSupport {
     private CoreMathSupport() {}
 
     // ------------------------------------------------------------------------------------------
+    // Constants both ports use (C: declared separately in cr_sin_moderate/cr_sin_large and in
+    // cr_cos_moderate/cr_cos_large). One definition here: an edit of an error bound in one port
+    // alone would otherwise diverge silently. The per-C-file method bodies stay in CoreMathSin and
+    // CoreMathCos, one Java method per C function, so a reviewer can lay each beside its C text.
+    // ------------------------------------------------------------------------------------------
+
+    /** C: sin.c:886 and cos.c:834 {@code invpi}: |invpi/2^14 - 1/pi| < 2^-55.496. */
+    static final double INVPI = 0x1.45f306dc9c883p+12;
+
+    /**
+     * C: sin.c:914 and cos.c:866 {@code eps}: the ABSOLUTE error bound of the moderate fast path,
+     * 0x1.dep-64 = 1.867 * 2^-64, about 2^-63.1. Because it is absolute, the fast path cannot decide
+     * a result whose ulp is smaller than about twice this (small {@code sin(x)}).
+     */
+    static final double EPS_MODERATE = 0x1.dep-64;
+
+    /** C: sin.c:948 and cos.c:936 {@code eps}: the absolute error bound of the large fast path, 0x1.01p-63. */
+    static final double EPS_LARGE = 0x1.01p-63;
+
+    /** C: {@code Sgn[] = {1.0, -1.0}} (sin.c:911, :944; cos.c:863, :932): the factor {@code Sgn[sbit]}. */
+    static double signMultiplier(int sbit) {
+        return (sbit == 0) ? 1.0 : -1.0;
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Double-double primitives (C: sin.c:264-288)
     // ------------------------------------------------------------------------------------------
 
@@ -99,11 +130,11 @@ final class CoreMathSupport {
         long v0;
         long v1;
         if (f == 0) {
-            v0 = CoreMathTables.T[i];
-            v1 = CoreMathTables.T[i + 1];
+            v0 = CoreMathTables.t(i);
+            v1 = CoreMathTables.t(i + 1);
         } else {
-            v0 = (CoreMathTables.T[i] << f) | (CoreMathTables.T[i + 1] >>> (64 - f));
-            v1 = (CoreMathTables.T[i + 1] << f) | (CoreMathTables.T[i + 2] >>> (64 - f));
+            v0 = (CoreMathTables.t(i) << f) | (CoreMathTables.t(i + 1) >>> (64 - f));
+            v1 = (CoreMathTables.t(i + 1) << f) | (CoreMathTables.t(i + 2) >>> (64 - f));
         }
         // u = (u128) V1 | ((u128) V0 << 64);  u = (u128) m * u;   (mod 2^128)
         long lo = m * v1;
@@ -163,14 +194,13 @@ final class CoreMathSupport {
         long m = (1L << 52) | (bits & 0xfffffffffffffL);
         int i = -1 + (e - 947) / 64;                             // C: i = ceil((e-1074)/64), -1 <= i <= 16
         int f = (e - 1011) & 0x3f;
-        long[] t = CoreMathTables.T;
-        long v0 = (i >= 0) ? t[i] : 0L;
-        long v1 = t[i + 1];
-        long v2 = t[i + 2];
+        long v0 = (i >= 0) ? CoreMathTables.t(i) : 0L;
+        long v1 = CoreMathTables.t(i + 1);
+        long v2 = CoreMathTables.t(i + 2);
         if (f != 0) {
             v0 = (v0 << f) | (v1 >>> (64 - f));
             v1 = (v1 << f) | (v2 >>> (64 - f));
-            v2 = (v2 << f) | (t[i + 3] >>> (64 - f));
+            v2 = (v2 << f) | (CoreMathTables.t(i + 3) >>> (64 - f));
         }
         // u = (u128) V1 | ((u128) V0 << 64);  u = (u128) m * u;   (mod 2^128)
         long lo = m * v1;
@@ -203,22 +233,20 @@ final class CoreMathSupport {
      * {@code u4/2^128 ~ r'^4}, {@code u2h = floor(u2/2^64)}.
      */
     static U128 evalPS(U128 u, U128 u2, U128 u2h, U128 u4) {
-        U128[] ps = CoreMathTables.PS;
-        U128 sh = ps[2].sub(ps[3].mul(u2h));
+        U128 sh = CoreMathTables.ps(2).sub(CoreMathTables.ps(3).mul(u2h));
         sh = sh.mhUU(u4);
-        U128 s = ps[1].mhUU(u2);
-        s = ps[0].sub(s);
+        U128 s = CoreMathTables.ps(1).mhUU(u2);
+        s = CoreMathTables.ps(0).sub(s);
         s = s.add(sh);
         return s.mhUU(u);
     }
 
     /** C {@code evalPC} (sin.c:214-223, identical in cos.c:164-173): {@code Cr/2^128 ~ cos2pi(r)}. */
     static U128 evalPC(U128 u2, U128 u2h, U128 u4) {
-        U128[] pc = CoreMathTables.PC;
-        U128 sh = pc[3].sub(u2h.mul(pc[4]));
-        sh = pc[2].sub(sh.mhUU(u2));
-        U128 s = pc[1].mhUU(u2);
-        s = pc[0].sub(s);
+        U128 sh = CoreMathTables.pc(3).sub(u2h.mul(CoreMathTables.pc(4)));
+        sh = CoreMathTables.pc(2).sub(sh.mhUU(u2));
+        U128 s = CoreMathTables.pc(1).mhUU(u2);
+        s = CoreMathTables.pc(0).sub(s);
         return s.add(sh.mhUU(u4));
     }
 
@@ -238,6 +266,17 @@ final class CoreMathSupport {
      * {@code __builtin_clzll(0)}, which is undefined; its comment proves the case cannot occur
      * (the closest a binary64 comes to a multiple of pi/2 is 2^-60.888). If that proof were wrong
      * the Java would otherwise return a plausible wrong number silently.
+     * <p>
+     * <b>What the exception does downstream (read 2026-11-12).</b> It propagates out of
+     * {@code CoreMath.sin}/{@code cos} through {@code Evaluator.callTranscendental}, which has no
+     * {@code catch}, and out of {@code Evaluator.evaluate}: loud, not a value and not one of the closed
+     * eight errors ({@code evaluate}'s javadoc promises no escaping exception for well-formed input,
+     * except the missing-provider {@code IllegalStateException}). The Outrigger caller
+     * {@code FilterEval.matches} catches every {@code Throwable} but {@code VirtualMachineError} and
+     * answers a fail-closed no-match, counted in {@code FilterAdmission.FAIL_CLOSED_EXCLUSIONS}; it builds
+     * {@code new Evaluator()}, which per {@code docs/SURVEY-lazy-statics-untrusted-input-2026-10-31.md}
+     * uses {@code MathProvider.none()}, so that service reaches no transcendental provider today.
+     * {@code CoreMathSupportGuardTest} drives this branch.
      */
     static double u128ToDouble(U128 r, int s) {
         if (r.hi == 0L) {

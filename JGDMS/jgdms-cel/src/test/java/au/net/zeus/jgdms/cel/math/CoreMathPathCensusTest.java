@@ -29,14 +29,32 @@ import org.junit.jupiter.api.Test;
  * How often the fast path of the CORE-MATH sin and cos cannot decide the rounding, by binade of
  * {@code |x|}, and therefore which inputs run the accurate path. This is a MEASUREMENT added after
  * the first run of the sealed tests (declared deviation D2 in the READY file, not part of the
- * sealed predictions): the first run showed sin's fast path undecided for 29.9% of 10,000 inputs
- * with exponent 2^-30..2^33, against 0.6% for cos on the same inputs, and the sealed prediction P8
- * (at most 2%) failed for sin. The explanation the C source suggests (HYPOTHESIS until this
- * table): the fast path's error bound is ABSOLUTE ({@code eps = 0x1.dep-64}), so for small
- * {@code |x|}, where an ulp of {@code sin(x)} is below that bound, it can never decide and CORE-MATH
- * sends such inputs to its cheap {@code sin_small_accurate} (a relative-error polynomial), which
- * is the designed behaviour and not a defect of the port. MEASURED by this test on 2026-11-12 (first
- * run, 2,000 inputs per binade): sin undecided for every input in the binades 2^-26..2^-11, 1820 of
+ * sealed predictions). At commit {@code 919eb3005} the first run showed sin's fast path undecided for 2,784 of
+ * 9,318 in-domain inputs (29.9%; 27.8% of all 10,000) of the population with exponent 2^-30..2^33 (seed
+ * 20261113), against 59 of 9,486 (0.62%) for cos at that commit (50 of 9,486, 0.53%, after deviation D1), and
+ * the sealed prediction P8 (at most 2% of the 10,000) failed for sin.
+ * <p>
+ * <b>Cause, MEASURED (2026-11-12; the derivation is the reviewers', Opus and Fable, who each computed it from the
+ * C constant).</b> The fast path's error bound is ABSOLUTE ({@code eps = 0x1.dep-64}, sin.c:914-916), so the fast
+ * path is undecided whenever a rounding boundary lies within +-eps of the result: a fraction of about
+ * {@code min(1, 2*eps/ulp(sin x)) = min(1, 1.867 * 2^(-11-e))} in binade 2^e. The measured counts below follow that
+ * curve: predicted 2000, 1867, 934, 467, 233, 117, 58, 29, 15, 7 against measured 2000, 1820, 894, 466, 226, 107, 60,
+ * 23, 13, 5 (of 2,000) for the binades 2^-11 .. 2^-2. The curve uses no table value, so a table error could not
+ * produce the agreement.
+ * <p>
+ * <b>Which accurate path serves them.</b> {@code CoreMathSin.accurate} (and {@code sin.c:917-918}) sends
+ * {@code |x| < 2^-16} to {@code sin_small_accurate} (double-double arithmetic) and {@code |x| >= 2^-16} to
+ * {@code sin_large_accurate} (128-bit fixed point, which allocates {@code U128} objects). So the cheap path serves
+ * only 2^-26 <= |x| < 2^-16; every sin input of the binades 2^-16 .. 2^-11, and 91%, 45%, 23% and 11% of the next
+ * four binades, run the 128-bit path.
+ * <p>
+ * <s>STRUCK 2026-11-12, kept visible: "CORE-MATH sends such inputs to its cheap {@code sin_small_accurate} (a
+ * relative-error polynomial), which is the designed behaviour and not a defect of the port." The cheap path is
+ * used only below 2^-16; this sentence, and the READY section 6 and Phase B handover sentences that repeated it for
+ * "the tiny-argument binades", were false for 2^-16 <= |x| < about 2^-10. The cause was labelled HYPOTHESIS there.</s>
+ * <p>
+ * Counts MEASURED by this test on 2026-11-12 (2,000 inputs per binade, seed 20261115; identical on the uncommitted tree
+ * after D1 and at commit {@code 235b782c7}): sin undecided for every input in the binades 2^-26..2^-11, 1820 of
  * 2000 at 2^-10, then roughly halving per binade (894, 466, 226, 107, 60, 23, 13, 5, 5 at
  * 2^-9..2^-1) and 2-26 of 2000 per binade from 2^0 to 2^32; cos undecided for 1-9 of 2000 in every
  * binade of 2^-27..2^-1 and 2-46 of 2000 from 2^0 up (HYPOTHESIS for the highest counts, at 2^0 and 2^2: cos(x)

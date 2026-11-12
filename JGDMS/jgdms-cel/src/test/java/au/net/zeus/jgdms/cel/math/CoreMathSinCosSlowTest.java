@@ -21,10 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.function.DoublePredicate;
-import java.util.function.DoubleUnaryOperator;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -42,50 +39,34 @@ import org.junit.jupiter.api.Test;
  * on the inputs on which the fast path happens to give up. The comparison, the populations and the
  * control are the code of the fast tier ({@link CoreMathTestSupport}), so the control of
  * {@code CoreMathSinCosDifferentialTest} (T3) applies to these checks too.
+ * <p>
+ * <b>This tier is part of the correctness argument, not an optional extra.</b> CORE-MATH's proofs
+ * (sin.pdf Theorems 3 and 4, cos.pdf Theorem 3, as read by the Fable reviewer of this port) end with an
+ * empirical step: inputs whose result has 43 or more identical bits after the round bit (48 or more on
+ * the small-argument sine path) are not covered by the error analysis, and are covered by running the
+ * worst-case file through the code and seeing no failure. For this Java port that step is this class (all
+ * of {@code sin.wc} and {@code cos.wc}). Re-run it after ANY change to the port, to the tables, to the
+ * arithmetic helpers, or to the JDK it runs on (the result so far is for one JDK, the DirtyChai 27-internal
+ * build), and keep the result with the commit. The hermetic fast-tier subset of the same inputs is
+ * {@code CoreMathWorstCaseGoldenTest}. Without the CORE-MATH clone the tests here are skipped, and FAIL
+ * when the full tier is requested with {@code -Dcore.math.full=true}.
  */
 @Tag("slow")
 class CoreMathSinCosSlowTest {
-
-    private static final DoublePredicate SIN_DOMAIN = x -> Math.abs(x) >= 0x1p-26;
-    private static final DoublePredicate COS_DOMAIN = x -> Math.abs(x) >= 0x1p-27;
-    private static final DoublePredicate ALL = x -> true;
-
-    private static String label(String function, String population, String path) {
-        return new StringBuilder(96).append(function).append(", ").append(population).append(", ").append(path).toString();
-    }
 
     private static void check(String function, String population, double[] xs) {
         boolean isSin = function.equals("sin");
         long t0 = System.nanoTime();
         double[] expected = CoreMathTestSupport.oracleValues(xs, isSin ? CoreMathTestSupport.ORACLE::sin : CoreMathTestSupport.ORACLE::cos);
         long t1 = System.nanoTime();
-        DoubleUnaryOperator combined = isSin ? CoreMathSin::sin : CoreMathCos::cos;
-        DoubleUnaryOperator accurate = isSin ? CoreMathSin::accurate : CoreMathCos::accurate;
-        DoubleUnaryOperator fast = isSin ? CoreMathSin::fast : CoreMathCos::fast;
-        DoublePredicate domain = isSin ? SIN_DOMAIN : COS_DOMAIN;
-
-        CoreMathTestSupport.Diff dc = CoreMathTestSupport.compare(label(function, population, "provider path"), xs, expected, combined, ALL, false, true);
-        CoreMathTestSupport.Diff da = CoreMathTestSupport.compare(label(function, population, "accurate path alone"), xs, expected, accurate, domain, false, true);
-        CoreMathTestSupport.Diff df = CoreMathTestSupport.compare(label(function, population, "fast path alone"), xs, expected, fast, domain, true, true);
+        CoreMathTestSupport.checkPopulation(function, population, xs, expected);
         long t2 = System.nanoTime();
-        System.out.println(dc.line());
-        System.out.println(da.line());
-        System.out.println(df.line());
-        StringBuilder census = new StringBuilder(160);
-        census.append("path census {").append(function).append(", ").append(population).append("}: fast path decided ")
-                .append(df.applicable).append(" of ").append(df.applicable + df.undecided).append(" in-domain inputs; accurate path needed for ")
-                .append(df.undecided).append("; oracle ").append((t1 - t0) / 1_000_000L).append(" ms, ports ")
-                .append((t2 - t1) / 1_000_000L).append(" ms");
-        System.out.println(census);
-        StringBuilder all = new StringBuilder(512);
-        all.append(dc.details()).append('\n').append(da.details()).append('\n').append(df.details());
-        assertEquals(0L, dc.mismatches + da.mismatches + df.mismatches, all.toString());
-        assertEquals(xs.length, dc.applicable, "the provider-path comparison skipped inputs");
+        System.out.println(new StringBuilder(96).append("timing {").append(function).append(", ").append(population).append("}: oracle ")
+                .append((t1 - t0) / 1_000_000L).append(" ms, ports ").append((t2 - t1) / 1_000_000L).append(" ms"));
     }
 
     private static void wcCheck(String function) throws IOException {
-        Assumptions.assumeTrue(CoreMathTestSupport.wcAvailable(function),
-                new StringBuilder(96).append("SKIPPED: no .wc file under ").append(CoreMathTestSupport.CORE_MATH_DIR).toString());
+        CoreMathTestSupport.requireClone("the full .wc worst-case run");
         CoreMathTestSupport.WcData wc = CoreMathTestSupport.readWc(CoreMathTestSupport.wcFile(function), 0);
         System.out.println(new StringBuilder(160).append(function).append(".wc: ").append(wc.totalLines).append(" lines, ")
                 .append(wc.commentLines).append(" comment lines, ").append(wc.nonFinite).append(" NaN/Inf lines skipped, ")

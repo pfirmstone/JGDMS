@@ -2,6 +2,11 @@
  * CoreMathSin: Java port of CORE-MATH's binary64 sine, src/binary64/sin/sin.c at commit
  * 018fa97cbdacf59924b899a9dfa422d532cb2bb7, round-to-nearest path only.
  *
+ * DERIVATION: this file is a Java port, that is a modified and derived work, of
+ * src/binary64/sin/sin.c of the CORE-MATH project at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+ * It is not part of CORE-MATH and is not endorsed by its authors. The copyright and
+ * permission notice below are the upstream's, reproduced without change.
+ *
  * Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov
  *
  * This file is part of the CORE-MATH project
@@ -40,10 +45,36 @@ package au.net.zeus.jgdms.cel.math;
  *       two-word constant ({@code cr_sin_moderate}, {@code sin.c:882-919}).</li>
  *   <li>{@code |x| >= 2^31}: {@link #fastLarge} reduces with the Payne-Hanek table
  *       ({@code cr_sin_large}, {@code sin.c:922-952}).</li>
- *   <li>Both fast paths return a result only when an error bound of 2^-64 (moderate) or
- *       2^-63 (large) cannot change the rounding; otherwise {@link #accurate} runs a
- *       128-bit fixed-point evaluation.</li>
+ *   <li>Both fast paths return a result only when an ABSOLUTE error bound cannot change the
+ *       rounding: {@code eps = 0x1.dep-64} (moderate; about 2^-63.1) or {@code 0x1.01p-63}
+ *       (large). Otherwise {@link #accurate} runs, and it has two forms: below 2^-16
+ *       {@code sin_small_accurate} (double-double arithmetic), from 2^-16 up
+ *       {@code sin_large_accurate} (128-bit fixed point, which allocates {@link U128} objects).
+ *       Because the bound is absolute, the moderate fast path is undecided for every input below
+ *       about 2^-11 (measured by {@code CoreMathPathCensusTest}); those inputs run the
+ *       double-double path below 2^-16 and the 128-bit path from 2^-16 up.</li>
  * </ul>
+ *
+ * <h2>Proofs, and the commit they apply to</h2>
+ * CORE-MATH publishes a correctness proof of this routine: {@code sin.pdf} (Melquiond and
+ * Zimmermann, dated 2026-10-26), which considers {@code sin.c} at commit {@code 049c9d5}. The
+ * port is of commit {@code 018fa97c}. The two {@code sin.c} blobs differ ({@code 3d9cb237} at the
+ * proof commit, {@code 773125ef} at the ported commit) by a 157-line diff that Chisel read in
+ * full on 2026-11-12: the copyright line, one {@code #include}, the {@code f64_u} typedef renamed
+ * and moved to {@code b64u64_u}, comments, an {@code #if 1 ... #else ... #endif} that keeps the
+ * identical {@code muldd} statement, {@code s1u = s1u - c1u} written {@code s1u -= c1u}, {@code eps}
+ * made {@code static const} with the same value, and one line break. No semantic change, so the
+ * proof applies to the ported code (verified by Chisel's diff, 2026-11-12; not by the author of
+ * this port). The proof ends with an empirical step, running the worst-case file through the code,
+ * which for this Java port is {@code CoreMathSinCosSlowTest} plus the committed golden of
+ * {@code CoreMathWorstCaseGoldenTest}.
+ *
+ * <h2>Why the method bodies mirror the C one for one</h2>
+ * Shared constants live in {@link CoreMathSupport}, but {@link #fastModerate}, {@link #fastLarge},
+ * {@link #sinLargeAccurate} and {@link #sinSmallAccurate} each mirror one C function, with the C
+ * line numbers beside them, so a reviewer can lay the Java next to {@code sin.c} line by line. The
+ * C repeats the table recombination in two functions; {@link #combine} is the one deliberate
+ * merge, and it keeps the C's operation order.
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>
@@ -69,14 +100,6 @@ final class CoreMathSin {
 
     private CoreMathSin() {}
 
-    /** C: sin.c:886: |invpi/2^14 - 1/pi| < 2^-55.496. */
-    private static final double INVPI = 0x1.45f306dc9c883p+12;
-    /** C: sin.c:911 and sin.c:944 {@code Sgn[]}. */
-    private static final double[] SGN = {1.0, -1.0};
-    /** C: sin.c:914: error bound of the moderate fast path. */
-    private static final double EPS_MODERATE = 0x1.dep-64;
-    /** C: sin.c:948: error bound of the large fast path. */
-    private static final double EPS_LARGE = 0x1.01p-63;
     /** C: sin.c:866-867: x + (c3h+c3l)*x^3 + c5*x^5, relative error < 2^-112.743 on [0, 2^-16]. */
     private static final double[] C_SMALL = {-0x1.5555555555555p-3, -0x1.55554b00de7e8p-57, 0x1.111111110848p-7};
 
@@ -88,7 +111,7 @@ final class CoreMathSin {
             if ((bits << 1) == 0L) {
                 return x;                              // sin(+-0) = +-0
             }
-            // Taylor x - x^3/6. Zero is returned above because fma(-0, -2^-54, -0) is +0 (C comment, sin.c:966).
+            // Taylor x - x^3/6. Zero is returned above because fma(-0, -2^-54, -0) is +0 (C comment, sin.c:965).
             return Math.fma(x, -0x1p-54, x);
         }
         if (e == 0x7ff) {                              // NaN, +Inf, -Inf (C: sin.c:978-988)
@@ -129,22 +152,29 @@ final class CoreMathSin {
      * row offsets into the flattened {@code U1} and {@code U2}.
      */
     private static double combine(int a, int b, double sh, double ch, int sbit, double eps) {
-        double[] u1 = CoreMathTables.U1;
-        double[] u2 = CoreMathTables.U2;
+        // u1x = U1[i1][x], u2x = U2[i2][x] (the C's names are the expressions on the right)
+        double u10 = CoreMathTables.u1(a);
+        double u11 = CoreMathTables.u1(a + 1);
+        double u12 = CoreMathTables.u1(a + 2);
+        double u13 = CoreMathTables.u1(a + 3);
+        double u20 = CoreMathTables.u2(b);
+        double u21 = CoreMathTables.u2(b + 1);
+        double u22 = CoreMathTables.u2(b + 2);
+        double u23 = CoreMathTables.u2(b + 3);
         // s1h = muldd (U1[i1][0], U1[i1][1], U2[i2][2], U2[i2][3], &s1l)
-        double s1h = u1[a] * u2[b + 2];
-        double s1l = CoreMathSupport.mulddLow(u1[a], u1[a + 1], u2[b + 2], u2[b + 3], s1h);
+        double s1h = u10 * u22;
+        double s1l = CoreMathSupport.mulddLow(u10, u11, u22, u23, s1h);
         // s2h = muldd (U2[i2][0], U2[i2][1], U1[i1][2], U1[i1][3], &s2l)
-        double s2h = u2[b] * u1[a + 2];
-        double s2l = CoreMathSupport.mulddLow(u2[b], u2[b + 1], u1[a + 2], u1[a + 3], s2h);
+        double s2h = u20 * u12;
+        double s2l = CoreMathSupport.mulddLow(u20, u21, u12, u13, s2h);
         // Sh = fastsum (s1h, s1l, s2h, s2l, &Sl)
         double Sh = s1h + s2h;
         double Sl = (s1l + s2l) + CoreMathSupport.fastTwoSumLow(s1h, s2h, Sh);
-        double Ch = u1[a + 2] * u2[b + 2] - u1[a] * u2[b];
+        double Ch = u12 * u22 - u10 * u20;
         double fh = Sh;
         double fl = Sl + Sh * ch + Ch * sh;
-        fh = SGN[sbit] * fh;
-        fl = SGN[sbit] * fl;
+        fh = CoreMathSupport.signMultiplier(sbit) * fh;
+        fl = CoreMathSupport.signMultiplier(sbit) * fl;
         double lb = fh + (fl - eps);
         double ub = fh + (fl + eps);
         return (ub == lb) ? lb : Double.NaN;
@@ -153,7 +183,7 @@ final class CoreMathSin {
     /** C {@code cr_sin_moderate} up to its fall-through to the accurate path ({@code sin.c:882-919}). */
     private static double fastModerate(double x, int sbit) {
         double ax = Math.abs(x);
-        double k = Math.rint(INVPI * ax);              // roundeven_finite
+        double k = Math.rint(CoreMathSupport.INVPI * ax);              // roundeven_finite
         // |2^14*(pih + pil) + pi| < 2^-108.041
         double rh = Math.fma(k, CoreMathTables.PIH, ax);   // rh is exact
         double rl = k * CoreMathTables.PIL;
@@ -168,7 +198,7 @@ final class CoreMathSin {
            absolute error < 2^-92.723 (sinmoderate.sollya, quoted from the C) */
         double sh = r * (1.0 - 0x1.55555553068fp-3 * r2);
         double ch = r2 * (-0.5 + 0x1.55555553bfd3p-5 * r2);
-        return combine(a, b, sh, ch, sbit, EPS_MODERATE);
+        return combine(a, b, sh, ch, sbit, CoreMathSupport.EPS_MODERATE);
     }
 
     /** C {@code cr_sin_large} up to its fall-through to the accurate path ({@code sin.c:922-952}). */
@@ -184,7 +214,7 @@ final class CoreMathSin {
         int b = 4 * (int) (j & 0x7f);
         double sh = r * (0x1.921fb54442d18p2 - 0x1.4abbcdb6b26d1p5 * r2);
         double ch = r2 * (-0x1.3bd3cc9be45dep4 + 0x1.03c1eee483083p6 * r2);
-        return combine(a, b, sh, ch, sbit, EPS_LARGE);
+        return combine(a, b, sh, ch, sbit, CoreMathSupport.EPS_LARGE);
     }
 
     /** C {@code sin_large_accurate} ({@code sin.c:800-857}), |x| >= 2^-16, signed x. */
@@ -204,15 +234,14 @@ final class CoreMathSin {
         int i1 = (int) ((k >> 6) & 0x3f);
         int i2 = (int) (k & 0x3f);
 
-        U128[] s1t = CoreMathTables.S1U;
-        U128 s1 = (i1 <= 32) ? s1t[i1] : s1t[64 - i1];        // use sin(pi-x) = sin(x)
-        U128 c1 = (i1 <= 32) ? s1t[32 - i1] : s1t[i1 - 32];   // |C1u[i1]| = |S1u[(i1+32) mod 64]|
-        U128 s1u = s1.mhUU(CoreMathTables.C2U[i2]);
-        U128 t = c1.mhUU(CoreMathTables.S2U[i2]);
+        U128 s1 = (i1 <= 32) ? CoreMathTables.s1u(i1) : CoreMathTables.s1u(64 - i1);        // use sin(pi-x) = sin(x)
+        U128 c1 = (i1 <= 32) ? CoreMathTables.s1u(32 - i1) : CoreMathTables.s1u(i1 - 32);   // |C1u[i1]| = |S1u[(i1+32) mod 64]|
+        U128 s1u = s1.mhUU(CoreMathTables.c2u(i2));
+        U128 t = c1.mhUU(CoreMathTables.s2u(i2));
         s1u = (i1 < 32) ? s1u.add(t) : s1u.sub(t);            // sin(z) >= 0 for 0 <= z < pi
 
-        U128 c1u = c1.mhUU(CoreMathTables.C2U[i2]);
-        t = s1.mhUU(CoreMathTables.S2U[i2]);
+        U128 c1u = c1.mhUU(CoreMathTables.c2u(i2));
+        t = s1.mhUU(CoreMathTables.s2u(i2));
         c1u = (i1 < 32) ? c1u.sub(t) : c1u.add(t);
 
         U128 sr = CoreMathSupport.evalPS(r, u2, u2h, u4);     // ~ |sin(2*pi*r)|
