@@ -352,8 +352,13 @@ class CoreMathSinCosDifferentialTest {
         assertTrue(delegated2 != 0L, "the T5 assertion cannot fail: an all-delegating provider made no delegate calls");
     }
 
+    /**
+     * Phase B1 (declared deviation of the phase A text, which said the five unported functions reach the delegate on every
+     * call): only tan is still delegated; asin, acos, atan and atan2 are ported, so for these finite in-domain inputs they must
+     * NOT reach the delegate (the phase B1 tests prove that over larger populations).
+     */
     @Test
-    void providerDelegatesTheFiveUnportedFunctionsAndNonFiniteInput() {
+    void providerDelegatesTanAndNonFiniteInputButNotThePortedInverseFunctions() {
         CountingDelegate delegate = new CountingDelegate();
         CoreMath provider = new CoreMath(delegate);
         CrMath oracle = CoreMathTestSupport.ORACLE;
@@ -366,10 +371,10 @@ class CoreMathSinCosDifferentialTest {
             assertEquals(Double.doubleToRawLongBits(oracle.atan2(x, 2.0)), Double.doubleToRawLongBits(provider.atan2(x, 2.0)));
         }
         assertEquals(xs.length, delegate.tan.sum());
-        assertEquals(xs.length, delegate.asin.sum());
-        assertEquals(xs.length, delegate.acos.sum());
-        assertEquals(xs.length, delegate.atan.sum());
-        assertEquals(xs.length, delegate.atan2.sum());
+        assertEquals(0L, delegate.asin.sum());
+        assertEquals(0L, delegate.acos.sum());
+        assertEquals(0L, delegate.atan.sum());
+        assertEquals(0L, delegate.atan2.sum());
 
         double[] bad = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
         for (double x : bad) {

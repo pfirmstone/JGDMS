@@ -28,8 +28,13 @@ import java.util.List;
 import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.BiPredicate;
+import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
+import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
+import java.util.function.IntToDoubleFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -298,22 +303,48 @@ final class CoreMathTestSupport {
         if (xs.length != expected.length) {
             throw new IllegalArgumentException("inputs and expected outputs differ in length");
         }
+        return compareCore(label, xs.length, expected,
+                i -> inDomain.test(xs[i]),
+                i -> candidate.applyAsDouble(xs[i]),
+                i -> new StringBuilder(32).append("x=").append(hex(xs[i])).toString(),
+                nanMeansUndecided, parallel);
+    }
+
+    /**
+     * {@link #compare} for a function of two arguments (atan2): input {@code i} is the pair
+     * {@code (ys[i], xs[i])}, in the order of {@code atan2(y, x)}. The same core runs, so the control that proves
+     * the unary comparison can fail proves this one too.
+     */
+    static Diff compare2(String label, double[] ys, double[] xs, double[] expected, DoubleBinaryOperator candidate,
+                         BiPredicate<Double, Double> inDomain, boolean nanMeansUndecided, boolean parallel) {
+        if (ys.length != expected.length || xs.length != expected.length) {
+            throw new IllegalArgumentException("inputs and expected outputs differ in length");
+        }
+        return compareCore(label, xs.length, expected,
+                i -> inDomain.test(ys[i], xs[i]),
+                i -> candidate.applyAsDouble(ys[i], xs[i]),
+                i -> new StringBuilder(80).append("y=").append(hex(ys[i])).append(" x=").append(hex(xs[i])).toString(),
+                nanMeansUndecided, parallel);
+    }
+
+    /** The one comparison loop: scoring is {@code doubleToRawLongBits(candidate(i)) == doubleToRawLongBits(expected[i])}, no tolerance. */
+    private static Diff compareCore(String label, int n, double[] expected, IntPredicate inDomain, IntToDoubleFunction candidate,
+                                    IntFunction<String> describe, boolean nanMeansUndecided, boolean parallel) {
         LongAdder applicable = new LongAdder();
         LongAdder notApplicable = new LongAdder();
         LongAdder undecided = new LongAdder();
         LongAdder mismatches = new LongAdder();
         ConcurrentLinkedQueue<String> examples = new ConcurrentLinkedQueue<>();
-        IntStream range = IntStream.range(0, xs.length);
+        IntStream range = IntStream.range(0, n);
         if (parallel) {
             range = range.parallel();
         }
         range.forEach(i -> {
-            double x = xs[i];
-            if (!inDomain.test(x)) {
+            if (!inDomain.test(i)) {
                 notApplicable.increment();
                 return;
             }
-            double got = candidate.applyAsDouble(x);
+            double got = candidate.applyAsDouble(i);
             if (nanMeansUndecided && Double.isNaN(got)) {
                 undecided.increment();
                 return;
@@ -323,7 +354,7 @@ final class CoreMathTestSupport {
                 mismatches.increment();
                 if (examples.size() < 10) {
                     StringBuilder sb = new StringBuilder(160);
-                    sb.append("x=").append(hex(x)).append("  port=").append(hex(got)).append("  CrMath=").append(hex(expected[i]));
+                    sb.append(describe.apply(i)).append("  port=").append(hex(got)).append("  CrMath=").append(hex(expected[i]));
                     examples.add(sb.toString());
                 }
             }
@@ -356,7 +387,16 @@ final class CoreMathTestSupport {
      * not a pass; otherwise it is aborted (reported as skipped). Present: returns.
      */
     static void requireClone(Path dir, boolean full, String what) {
-        if (Files.isReadable(cSource(dir, "sin")) && Files.isReadable(cSource(dir, "cos"))) {
+        requireClone(dir, full, what, "sin", "cos");
+    }
+
+    /** {@link #requireClone(Path, boolean, String)} for the C sources {@code functions} (phase B1: atan, asin, acos, atan2). */
+    static void requireClone(Path dir, boolean full, String what, String... functions) {
+        boolean present = true;
+        for (String f : functions) {
+            present &= Files.isReadable(cSource(dir, f));
+        }
+        if (present) {
             return;
         }
         StringBuilder msg = new StringBuilder(160);

@@ -25,10 +25,10 @@ package au.net.zeus.jgdms.cel.math;
  * <b>Implementations in this module</b> (both package-private; callers take
  * {@link MathProviders#correctlyRounded()}):
  * <ul>
- *   <li>{@link CoreMath}: conformant for all seven. {@code sin} and {@code cos} are Java ports of
- *       CORE-MATH's correctly-rounded binary64 routines ({@code sin.c}, {@code cos.c} at CORE-MATH
- *       commit 018fa97c, MIT licence, see the NOTICE file); the other five delegate to {@link CrMath}
- *       until they are ported. This is what {@code MathProviders.correctlyRounded()} returns.</li>
+ *   <li>{@link CoreMath}: conformant for all seven. {@code sin}, {@code cos}, {@code asin}, {@code acos}, {@code atan} and {@code atan2} are Java ports of
+ *       CORE-MATH's correctly-rounded binary64 routines ({@code src/binary64/<f>/<f>.c} at CORE-MATH
+ *       commit 018fa97c, MIT licence, see the NOTICE file); {@code tan} delegates to {@link CrMath}
+ *       until it is ported. This is what {@code MathProviders.correctlyRounded()} returns.</li>
  *   <li>{@link CrMath}: conformant for all seven, by arbitrary-precision arithmetic with Ziv
  *       escalation (slow). It is kept as the delegate of {@code CoreMath} and as the independent
  *       oracle that the tests of the CORE-MATH ports compare against.</li>

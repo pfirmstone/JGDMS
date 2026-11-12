@@ -7,11 +7,17 @@
  * DERIVATION: this file is a Java port, that is a modified and derived work, of routines in
  * src/binary64/sin/sin.c (repeated in src/binary64/cos/cos.c) of the CORE-MATH project at commit
  * 018fa97cbdacf59924b899a9dfa422d532cb2bb7, plus the small Java helpers that stand in for C
- * features Java lacks. It is not part of CORE-MATH and is not endorsed by its authors. The
- * copyright and permission notice below are the upstream's, reproduced without change.
+ * features Java lacks. Since phase B1 it also holds the double-double primitives and the five-term
+ * polynomial evaluator that src/binary64/asin/asin.c, src/binary64/acos/acos.c and
+ * src/binary64/atan2/atan2.c repeat (fastsum, twosum, polydd), ported from those files at the same
+ * commit; their copyright lines are carried too. It is not part of CORE-MATH and is not endorsed by
+ * its authors. The copyright and permission notice below are the upstream's, reproduced without change.
  *
  * Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov
  * Copyright (c) 2026 Paul Zimmermann
+ * Copyright (c) 2022-2026 Alexei Sibidanov <sibid@uvic.ca>.
+ * Copyright (c) 2024-2025 Alexei Sibidanov.
+ * Copyright (c) 2024-2025 Paul Zimmermann and Alexei Sibidanov
  *
  * This file is part of the CORE-MATH project
  * (https://core-math.gitlabpages.inria.fr/).
@@ -104,6 +110,67 @@ final class CoreMathSupport {
      */
     static double mulddLow(double xh, double xl, double ch, double cl, double ahhh) {
         return (xh * cl + xl * ch) + Math.fma(xh, ch, -ahhh);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Added in phase B1 for the inverse-trigonometric ports (asin.c, acos.c, atan2.c, atan.c). The
+    // primitives below are the same C text in asin.c:84-111, acos.c:88-136 and atan2.c:399-409; one
+    // definition here, as for the sine primitives above. Licence: the notice at the top of this file
+    // covers them as a derived work; the added copyright lines are in CoreMathInverseTrigTables.
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Low word of {@code fastsum(xh, xl, yh, yl, &e)} (asin.c:90-94, acos.c:109-113, atan2.c:405-409): given
+     * {@code sh = xh + yh} (the high word, which the caller computes), returns the C's
+     * {@code *e = (xl + yl) + sl} with {@code sl} the low word of {@code fasttwosum(xh, yh)}.
+     */
+    static double fastSumLow(double xh, double xl, double yh, double yl, double sh) {
+        return (xl + yl) + fastTwoSumLow(xh, yh, sh);
+    }
+
+    /**
+     * Low word of {@code twosum(a, b, &t)} (acos.c:99-107): given {@code s = a + b} (the high word, which the caller
+     * computes), returns the C's {@code *t = delta_a + delta_b}.
+     */
+    static double twoSumLow(double a, double b, double s) {
+        double aPrime = s - b;
+        double bPrime = s - aPrime;
+        double deltaA = a - aPrime;
+        double deltaB = b - bPrime;
+        return deltaA + deltaB;
+    }
+
+    /** Unsigned 64-bit {@code a < b} (the C's {@code u64} comparison). */
+    static boolean ltu(long a, long b) {
+        return Long.compareUnsigned(a, b) < 0;
+    }
+
+    /**
+     * C {@code polydd(xh, xl, 5, c, &l)} of asin.c:102-111 and acos.c:127-136 (identical text), with the table
+     * {@code c[][2]} that both files share ({@link CoreMathInverseTrigTables#asinAcosC}): a five-term double-double
+     * polynomial. {@code l[0]} is the C's {@code *l} on entry (the low word of the running value) and the low word of
+     * the result on exit; returns the high word. Cold path only (it allocates nothing itself, the caller's one-element
+     * array carries the second return value).
+     */
+    static double polyddAsinAcos(double xh, double xl, double[] l) {
+        int i = 4;                                                       // n - 1
+        double c0 = CoreMathInverseTrigTables.asinAcosC(2 * i);
+        double c1 = CoreMathInverseTrigTables.asinAcosC(2 * i + 1);
+        double ch = c0 + l[0];                                           // fasttwosum(c[i][0], *l, l)
+        double lw = fastTwoSumLow(c0, l[0], ch);
+        double cl = c1 + lw;
+        while (--i >= 0) {
+            double ahhh = ch * xh;                                       // ch = muldd(xh, xl, ch, cl, &cl)
+            cl = mulddLow(xh, xl, ch, cl, ahhh);
+            ch = ahhh;
+            double a0 = CoreMathInverseTrigTables.asinAcosC(2 * i);      // ch = fastsum(c[i][0], c[i][1], ch, cl, &cl)
+            double a1 = CoreMathInverseTrigTables.asinAcosC(2 * i + 1);
+            double sh = a0 + ch;
+            cl = fastSumLow(a0, a1, ch, cl, sh);
+            ch = sh;
+        }
+        l[0] = cl;
+        return ch;
     }
 
     // ------------------------------------------------------------------------------------------

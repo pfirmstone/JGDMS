@@ -36,12 +36,12 @@ public final class MathProviders {
      * round-to-nearest-ties-even of the exact mathematical result, over the
      * full finite {@code double} domain, for {@code sin}/{@code cos}/
      * {@code tan}/{@code asin}/{@code acos}/{@code atan}/{@code atan2}.
-     * Backed by {@link CoreMath}: {@code sin} and {@code cos} are ports of
-     * CORE-MATH's binary64 routines, checked bit for bit against {@link CrMath}
-     * by {@code CoreMathSinCosDifferentialTest}; {@code tan}, {@code asin},
-     * {@code acos}, {@code atan} and {@code atan2} are delegated to {@link CrMath}
+     * Backed by {@link CoreMath}: {@code sin}, {@code cos}, {@code asin}, {@code acos}, {@code atan}
+     * and {@code atan2} are ports of CORE-MATH's binary64 routines, checked bit for bit against {@link CrMath}
+     * by {@code CoreMathSinCosDifferentialTest} and {@code CoreMathInverseTrigDifferentialTest}; {@code tan}
+     * is delegated to {@link CrMath}
      * (arbitrary-precision {@code BigDecimal} arithmetic with Ziv-style escalating
-     * precision -- see its class javadoc) until they are ported.
+     * precision -- see its class javadoc) until it is ported.
      */
     public static MathProvider correctlyRounded() {
         return MathProvider.conformant(new CoreMath());
