@@ -1518,6 +1518,30 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      *                        {@code localPrincipals} so that the grant is bound
      *                        to the specific service that attested to the codebase
      */
+    /** DirtyChai's permission to define classes from a code source; absent on other JDKs. */
+    static final String LOAD_CLASS_PERMISSION =
+            "au.zeus.jdk.authorization.guards.LoadClassPermission";
+
+    /**
+     * The permissions a per-JAR digest grant gives the JAR's code: download,
+     * fetch from its URL (when known), and DirtyChai's {@value #LOAD_CLASS_PERMISSION},
+     * named through {@link UnresolvedPermission} so that the grant is recorded
+     * on any JDK and resolves where the class exists.
+     */
+    static List<Permission> digestGrantPermissions(URL jarUrl) {
+        List<Permission> perms = new ArrayList<Permission>();
+        perms.add(new DownloadPermission());
+        if (jarUrl != null) {
+            try {
+                perms.add(new URLPermission(jarUrl.toString()));
+            } catch (Exception ex) {
+                logger.log(Level.FINE, "Could not create URLPermission for {0}", jarUrl);
+            }
+        }
+        perms.add(new UnresolvedPermission(LOAD_CLASS_PERMISSION, "ALLOW", null, null));
+        return perms;
+    }
+
     private static void tryGrantPerUriDigestGrants(String algorithm,
                                                    byte[][] perJarDigests,
                                                    URL[] codebase,
@@ -1534,20 +1558,8 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         }
         for (int i = 0; i < perJarDigests.length; i++) {
             try {
-                List<Permission> perms = new ArrayList<Permission>();
-                perms.add(new DownloadPermission());
-                if (i < jarUrls.size()) {
-                    try {
-                        perms.add(new URLPermission(jarUrls.get(i).toString()));
-                    } catch (Exception ex) {
-                        logger.log(Level.FINE,
-                                "Could not create URLPermission for {0}", jarUrls.get(i));
-                    }
-                }
-                // LoadClassPermission lives in DirtyChai; use UnresolvedPermission
-                // so that the grant is recorded even on a standard JVM.
-                perms.add(new UnresolvedPermission(
-                        "net.jini.loader.LoadClassPermission", null, null, null));
+                List<Permission> perms = digestGrantPermissions(
+                        i < jarUrls.size() ? jarUrls.get(i) : null);
                 PermissionGrantBuilder builder = PermissionGrantBuilder.newBuilder()
                         .context(PermissionGrantBuilder.DIGEST)
                         .digest(algorithm, perJarDigests[i])
