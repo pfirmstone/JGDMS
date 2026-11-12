@@ -63,6 +63,13 @@ import org.junit.jupiter.api.Test;
  *       The slow tier counts it over {@code tan.wc} (1,098,254 entries, expected well below 1), 6.5 million random and 500,000 near-pole inputs (CoreMathTanSlowTest).</li>
  * </ol>
  * Mutation predictions (a mutant that removes the guard, one that changes K) are in the message of the seal commit that follows this class's own.
+ *
+ * <h2>SCORING of B2F-G1..G6 (appended 2026-11-12 after the first run; the sealed text above is unchanged)</h2>
+ * B2F-G1..G5 HELD at the first run (see the lines printed by this class). B2F-G6 FAILED as sealed: 2 delegations over the 70,512 calls of {@code CoreMathTanDifferentialTest}, not 0. They
+ * are x = +-0x1.d12ed0af1a27fp-27, the neighbours of the tiny-argument threshold, whose tangent lies within about 2^22 128-bit ulps of a rounding midpoint (DERIVED, not measured: the threshold is where
+ * x + x^3/3 crosses the half-ulp above x, and one step of the input moves x^3/3 by about x^2, 2^-53.6, of an ulp of x, which is 2^21.4 of the 2^75 128-bit ulps in it), so the window 86 + 8/R of R about 2^-28.8 reaches it. The sealed estimate counted only random positions of the result and missed hard cases built
+ * into the C's own threshold. Each delegated value equals {@code CrMath}'s (0 mismatches of 70,512); {@code CoreMathTanDifferentialTest#p6EveryFiniteInputIsHandledByThePortNeverByTheDelegate}
+ * now asserts exactly these two (deviation D8).
  */
 class CoreMathTanGuardTest {
 

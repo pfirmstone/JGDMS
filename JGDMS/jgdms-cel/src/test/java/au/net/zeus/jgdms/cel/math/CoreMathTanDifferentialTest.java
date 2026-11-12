@@ -174,9 +174,9 @@ class CoreMathTanDifferentialTest {
         // fix pass (B2F-G6): the guard may delegate a call; every delegate call must be a counted guard delegation, and the prediction is that there are none in these populations
         assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
         // FOUND AT THE FIRST RUN (B2F-G6 predicted 0 and FAILED, 2 delegations): the two inputs just above the tiny-argument threshold, x = +-0x1.d12ed0af1a27fp-27 (the neighbours of
-        // TINY_BITS). That threshold is where tan(x) = x + x^3/3 crosses the half-ulp above x, so tan of its neighbours is within about 2^22 ulps of a rounding midpoint BY CONSTRUCTION,
+        // TINY_BITS). That threshold is where tan(x) = x + x^3/3 crosses the half-ulp above x, so tan of its neighbours is within about 2^22 128-bit ulps of a rounding midpoint (derived, not measured: see the scoring note in CoreMathTanGuardTest),
         // inside the window 86 + 8/R (R = 2^-28.8 turns, window about 2^31.8): hard cases of the C's own threshold, delegated, and equal to CrMath (compared below). No other input of
-        // the 70,512 was delegated. They are real inputs on which the guard fires, an end-to-end control of the routing (CoreMathTanGuardTest.g6).
+        // the 70,512 was delegated. They are real inputs on which the guard fires, an end-to-end control of the routing (the sealed text of B2F-G6 is in the class comment of CoreMathTanGuardTest).
         java.util.List<Double> expectedGuarded = java.util.Arrays.asList(Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)), -Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)));
         assertEquals(2L, provider.tanGuardDelegations());
         assertTrue(guarded.containsAll(expectedGuarded) && guarded.size() == 2, "the guard's delegations: " + guarded);
