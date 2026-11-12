@@ -300,8 +300,10 @@ class CoreMathSinCosDifferentialTest {
 
     /**
      * Phase B1 (declared deviation of the phase A text, which said the five unported functions reach the delegate on every
-     * call): only tan is still delegated; asin, acos, atan and atan2 are ported, so for these finite in-domain inputs they must
-     * NOT reach the delegate (the phase B1 tests prove that over larger populations).
+     * call): asin, acos, atan and atan2 are ported, so for these finite in-domain inputs they must NOT reach the delegate (the
+     * phase B1 tests prove that over larger populations). Phase B2 (second declared deviation): tan is ported too, so it must
+     * not reach the delegate either; the method name is kept so that the sealed texts that cite it still resolve (it says "Tan"
+     * from the days when tan was the one function left on the delegate).
      */
     @Test
     void providerDelegatesTanAndNonFiniteInputButNotThePortedInverseFunctions() {
@@ -316,7 +318,7 @@ class CoreMathSinCosDifferentialTest {
             assertEquals(Double.doubleToRawLongBits(oracle.atan(x)), Double.doubleToRawLongBits(provider.atan(x)));
             assertEquals(Double.doubleToRawLongBits(oracle.atan2(x, 2.0)), Double.doubleToRawLongBits(provider.atan2(x, 2.0)));
         }
-        assertEquals(xs.length, delegate.tan.sum());
+        assertEquals(0L, delegate.tan.sum(), "phase B2: tan is ported, a finite argument must not reach the delegate");
         assertEquals(0L, delegate.asin.sum());
         assertEquals(0L, delegate.acos.sum());
         assertEquals(0L, delegate.atan.sum());

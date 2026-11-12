@@ -384,7 +384,9 @@ class CoreMathInverseTrigDifferentialTest {
         for (double x : xs) {
             assertEquals(Double.doubleToRawLongBits(oracle.tan(x)), Double.doubleToRawLongBits(provider.tan(x)));
         }
-        assertEquals(xs.length, delegate.tan.sum());
+        // phase B2 (declared deviation of the sealed B1-P6 text, which said tan reached the delegate on all 8 calls): tan is ported, so a finite
+        // argument must not reach the delegate; a non-finite one still does
+        assertEquals(0L, delegate.tan.sum(), "phase B2: tan is ported, a finite argument must not reach the delegate");
 
         double[] bad = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
         for (double x : bad) {
@@ -399,6 +401,10 @@ class CoreMathInverseTrigDifferentialTest {
         assertEquals(bad.length, delegate.asin.sum());
         assertEquals(bad.length, delegate.acos.sum());
         assertEquals(2 * bad.length, delegate.atan2.sum());
+        for (double x : bad) {
+            assertThrows(IllegalArgumentException.class, () -> provider.tan(x));
+        }
+        assertEquals(bad.length, delegate.tan.sum());
         for (double x : new double[] {1.0000000000000002, -1.0000000000000002, 2.0, -1e300}) {
             assertThrows(IllegalArgumentException.class, () -> provider.asin(x));
             assertThrows(IllegalArgumentException.class, () -> provider.acos(x));

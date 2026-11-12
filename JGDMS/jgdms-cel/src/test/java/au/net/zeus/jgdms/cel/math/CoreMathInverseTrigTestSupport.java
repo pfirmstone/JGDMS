@@ -557,8 +557,13 @@ final class CoreMathInverseTrigTestSupport {
      * Lines end with a line feed, the text is UTF-8.
      */
     static String canonical(Map<String, long[]> tables) {
+        return canonical("CORE-MATH atan.c asin.c acos.c atan2.c tint.h tables, canonical rendering v1", tables);
+    }
+
+    /** {@link #canonical(Map)} with the header line chosen by the caller (the tan tables use their own). */
+    static String canonical(String header, Map<String, long[]> tables) {
         StringBuilder sb = new StringBuilder(96 * 1024);
-        sb.append("CORE-MATH atan.c asin.c acos.c atan2.c tint.h tables, canonical rendering v1\n");
+        sb.append(header).append('\n');
         for (Map.Entry<String, long[]> e : tables.entrySet()) {
             long[] v = e.getValue();
             sb.append("LEN ").append(e.getKey()).append(' ').append(v.length).append('\n');
@@ -571,6 +576,11 @@ final class CoreMathInverseTrigTestSupport {
 
     static String sha256(Map<String, long[]> tables) {
         return CoreMathTestSupport.sha256Hex(canonical(tables).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** {@link #sha256(Map)} of {@link #canonical(String, Map)}: the tan tables hash under their own header line. */
+    static String sha256(String header, Map<String, long[]> tables) {
+        return CoreMathTestSupport.sha256Hex(canonical(header, tables).getBytes(StandardCharsets.UTF_8));
     }
 
     /** One table in a C source: the text that starts its declaration, and how its values read. */
@@ -644,7 +654,7 @@ final class CoreMathInverseTrigTestSupport {
         return out;
     }
 
-    private static String stripComments(String c) {
+    static String stripComments(String c) {
         return c.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("//[^\n]*", " ");
     }
 
@@ -730,7 +740,7 @@ final class CoreMathInverseTrigTestSupport {
         return out;
     }
 
-    private static final String HEX = "(-?0x[0-9a-fA-F]*\\.?[0-9a-fA-F]*p[-+]?[0-9]+)";
+    static final String HEX = "(-?0x[0-9a-fA-F]*\\.?[0-9a-fA-F]*p[-+]?[0-9]+)";
 
     /**
      * The named scalar constants parsed from the C text: for each place in the C source where one of them is written (the

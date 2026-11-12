@@ -48,8 +48,8 @@
  *   <li>{@link au.net.zeus.jgdms.cel.math} -- the correctly-rounded
  *       transcendental seam (STD-011 §7.5): the conformant provider
  *       {@link au.net.zeus.jgdms.cel.math.MathProviders#correctlyRounded()}
- *       (CORE-MATH ports of sin, cos, asin, acos, atan and atan2, with a BigDecimal CrMath
- *       for tan, which is not yet ported), an explicitly non-conformant, opt-in-only
+ *       (CORE-MATH ports of sin, cos, tan, asin, acos, atan and atan2, with a BigDecimal CrMath
+ *       as the oracle and the delegate for non-finite arguments), an explicitly non-conformant, opt-in-only
  *       placeholder, and a fail-closed default.</li>
  * </ul>
  */
