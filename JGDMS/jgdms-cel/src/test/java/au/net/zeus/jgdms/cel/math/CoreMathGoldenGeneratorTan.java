@@ -76,7 +76,7 @@ class CoreMathGoldenGeneratorTan {
     @Test
     void generateTablesAndConstantsDigest() throws IOException {
         CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, true, "CoreMathGoldenGeneratorTan.generateTablesAndConstantsDigest", "tan");
-        Map<String, long[]> all = CoreMathTanTables.snapshot();
+        Map<String, long[]> all = CoreMathTanTablesDigestTest.snapshotV1();
         Map<String, long[]> tablesC = CoreMathTanTestSupport.parseFromC(CoreMathTestSupport.CORE_MATH_DIR);
         for (Map.Entry<String, long[]> e : tablesC.entrySet()) {
             String name = e.getKey().substring(e.getKey().indexOf(':') + 1);
@@ -99,6 +99,38 @@ class CoreMathGoldenGeneratorTan {
         write(outDir().resolve(CoreMathTanTablesDigestTest.RESOURCE), sb.toString());
         System.out.println(new StringBuilder(120).append("digest ").append(digest).append(" over ").append(all.size()).append(" entries; ").append(tablesC.size()).append(" tables and ")
                 .append(constantsC.size()).append(" constant places compared with the C text"));
+    }
+
+    /**
+     * Fix pass: the digest of all 23 entries (the 22 of the phase B2 digest and the guard constant {@code K_GUARD_K}, which is not in the C) in a NEW resource; the phase B2 digest is an
+     * accepted artefact and is not regenerated. Written only if the Java tables and the 9 constants that have a C text equal the C text.
+     */
+    @Test
+    void generateTablesAndConstantsDigestV2() throws IOException {
+        CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, true, "CoreMathGoldenGeneratorTan.generateTablesAndConstantsDigestV2", "tan");
+        Map<String, long[]> all = CoreMathTanTables.snapshot();
+        Map<String, long[]> tablesC = CoreMathTanTestSupport.parseFromC(CoreMathTestSupport.CORE_MATH_DIR);
+        for (Map.Entry<String, long[]> e : tablesC.entrySet()) {
+            String name = e.getKey().substring(e.getKey().indexOf(':') + 1);
+            assertArrayEquals(all.get(name), e.getValue(), new StringBuilder(80).append("the Java table ").append(name).append(" differs from the C text of ").append(e.getKey()).append(": nothing written").toString());
+        }
+        Map<String, long[]> constantsC = CoreMathTanTestSupport.constantsFromC(CoreMathTestSupport.CORE_MATH_DIR);
+        for (Map.Entry<String, long[]> e : constantsC.entrySet()) {
+            String name = new StringBuilder(40).append(CoreMathInverseTrigTestSupport.CONSTANT_PREFIX).append(e.getKey().substring(e.getKey().indexOf(':') + 1, e.getKey().indexOf('@'))).toString();
+            assertArrayEquals(all.get(name), e.getValue(), new StringBuilder(80).append("the Java constant ").append(name).append(" differs from the C text at ").append(e.getKey()).append(": nothing written").toString());
+        }
+        String digest = CoreMathInverseTrigTestSupport.sha256(CoreMathTanTestSupport.CANONICAL_HEADER, all);
+        StringBuilder sb = new StringBuilder(800);
+        sb.append("# SHA-256 of the canonical rendering (v1, CoreMathInverseTrigTestSupport.canonical with the header \"").append(CoreMathTanTestSupport.CANONICAL_HEADER)
+                .append("\") of every entry of CoreMathTanTables.snapshot():\n");
+        sb.append("# the 13 tables of tan.c followed by the 10 named scalar constants (keys K_...): the 9 of core-math-tables-tan-2026-11-12.sha256 and K_GUARD_K (the factor of the port's guard, 8.0;\n");
+        sb.append("# NOT in tan.c, so it has no C text to compare with and is guarded by this digest only).\n");
+        sb.append("# source: CORE-MATH src/binary64/tan/tan.c at commit ").append(COMMIT).append(".\n");
+        sb.append("# generator: CoreMathGoldenGeneratorTan.generateTablesAndConstantsDigestV2, ").append(LocalDate.now()).append(" (system clock); the Java tables equalled the tables parsed from tan.c\n");
+        sb.append("# (").append(tablesC.size()).append(" tables) and every Java constant that the C writes equalled the C text at all ").append(constantsC.size()).append(" places, when this file was written.\n");
+        sb.append(digest).append('\n');
+        write(outDir().resolve(CoreMathTanTablesDigestTest.RESOURCE_V2), sb.toString());
+        System.out.println(new StringBuilder(120).append("v2 digest ").append(digest).append(" over ").append(all.size()).append(" entries"));
     }
 
     @Test

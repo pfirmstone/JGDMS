@@ -19,18 +19,19 @@ package au.net.zeus.jgdms.cel.math;
 
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.DoubleBinaryOperator;
+import java.util.function.DoubleUnaryOperator;
 
 /**
  * A correctly-rounded {@link CorrectlyRoundedMath} (JGDMS-STD-011 §7.5) whose {@code sin}, {@code cos}, {@code tan},
  * {@code asin}, {@code acos}, {@code atan} and {@code atan2} are ports of CORE-MATH's binary64 routines
  * ({@link CoreMathSin}, {@link CoreMathCos}, {@link CoreMathTan}, {@link CoreMathAsin}, {@link CoreMathAcos}, {@link CoreMathAtan},
  * {@link CoreMathAtan2}, ported from {@code src/binary64/<f>/<f>.c} at CORE-MATH
- * commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7, MIT licence; see the NOTICE file).
- * All seven functions are ported: a finite argument in a function's domain never reaches the {@link CrMath} delegate
- * (except the atan2 correct-rounding failure branch, below). {@link CrMath} is the oracle the differential tests compare the
+ * commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7, MIT licence; see the LICENSE and NOTICE files).
+ * All seven functions are ported: a finite argument in a function's domain reaches the {@link CrMath} delegate only through the two
+ * guarded branches below. {@link CrMath} is the oracle the differential tests compare the
  * ports with, and the delegate only where the ports do not answer: NaN and infinities (every function), {@code |x| > 1}
- * (asin, acos) and an atan2 call whose accurate path reports a correct-rounding failure. This provider is conformant
- * for all seven at every commit; the ports replaced the delegation one function at a time.
+ * (asin, acos), an atan2 call whose accurate path reports a correct-rounding failure, and a tan call whose accurate path falls inside the
+ * guard's window (below). This provider is conformant for all seven at every commit; the ports replaced the delegation one function at a time.
  * <p>
  * <b>Which inputs the ports handle.</b> Every finite {@code double}, zero and subnormals included, except where
  * noted: the C routines return correctly rounded results for them, and the differential tests
@@ -47,6 +48,11 @@ import java.util.function.DoubleBinaryOperator;
  * This provider never prints and never guesses: it counts the event ({@link #atan2CorrectRoundingFailures()}) and
  * answers that call by delegating to {@link CrMath}, which is correctly rounded by construction.
  * <p>
+ * <b>tan's guard.</b> {@link CoreMathTan#tan} returns a {@code NaN} (never a valid tangent of a finite argument) when the accurate path's 128-bit result is
+ * within {@code 86 + K/R} ulps of a rounding boundary, R being the folded argument (the phase B2 reviews found that the C's 86-ulp window is not the accurate
+ * path's error after a quarter-turn fold; see {@link CoreMathTan}). This provider then counts the event ({@link #tanGuardDelegations()}) and answers that call by
+ * delegating to {@link CrMath}, exactly as it does for atan2's failure branch.
+ * <p>
  * <b>Thread safety.</b> Stateless apart from the delegate, which is {@link CrMath}: its mutable statics
  * are the lock-guarded pi cache ({@code piCache}, {@code cachedPiDouble}, {@code cachedPiOver2Double}) and two
  * diagnostic counters ({@code lastAttempts}, {@code lastResolvedDigits}), read 2026-11-12; and one
@@ -59,7 +65,9 @@ final class CoreMath implements CorrectlyRoundedMath {
 
     private final CorrectlyRoundedMath delegate;
     private final DoubleBinaryOperator atan2Port;
+    private final DoubleUnaryOperator tanPort;
     private final LongAdder atan2Failures = new LongAdder();
+    private final LongAdder tanGuardDelegations = new LongAdder();
 
     /** The production provider: non-finite arguments (and {@code |x| > 1} for asin and acos) are delegated to a {@link CrMath}, as are the correct-rounding failures of atan2. */
     CoreMath() {
@@ -79,14 +87,31 @@ final class CoreMath implements CorrectlyRoundedMath {
      * that reports a correct-rounding failure on demand proves that the failure is counted and answered by the delegate.
      */
     CoreMath(CorrectlyRoundedMath delegate, DoubleBinaryOperator atan2Port) {
+        this(delegate, atan2Port, CoreMathTan::tan);
+    }
+
+    /**
+     * For the tests of the tan guard routing: {@code tanPort} stands in for {@link CoreMathTan#tan}, so a port that answers "undecided" (NaN) on demand proves that the
+     * event is counted and answered by the delegate.
+     */
+    CoreMath(CorrectlyRoundedMath delegate, DoubleBinaryOperator atan2Port, DoubleUnaryOperator tanPort) {
         if (delegate == null) {
             throw new NullPointerException("delegate");
         }
         if (atan2Port == null) {
             throw new NullPointerException("atan2Port");
         }
+        if (tanPort == null) {
+            throw new NullPointerException("tanPort");
+        }
         this.delegate = delegate;
         this.atan2Port = atan2Port;
+        this.tanPort = tanPort;
+    }
+
+    /** How many {@code tan} calls on this instance fell inside the guard's window ({@link CoreMathTan}) and were answered by the delegate. */
+    long tanGuardDelegations() {
+        return tanGuardDelegations.sum();
     }
 
     /** How many {@code atan2} calls on this instance reached the correct-rounding failure branch and were answered by the delegate. */
@@ -115,7 +140,12 @@ final class CoreMath implements CorrectlyRoundedMath {
         if (!Double.isFinite(x)) {
             return delegate.tan(x);
         }
-        return CoreMathTan.tan(x);
+        double r = tanPort.applyAsDouble(x);
+        if (r != r) {                                      // never a valid tan of a finite argument: the guard's "undecided"
+            tanGuardDelegations.increment();
+            return delegate.tan(x);
+        }
+        return r;
     }
 
     @Override

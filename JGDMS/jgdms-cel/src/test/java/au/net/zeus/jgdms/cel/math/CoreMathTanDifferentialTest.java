@@ -105,8 +105,8 @@ class CoreMathTanDifferentialTest {
             p.add(new Pop("P_mid unbiased exponents 5..52 (20261323)", CoreMathTanTestSupport.binades(20261323L, N, 5, 52)));
             p.add(new Pop("P_large unbiased exponents 52..1023 (20261324)", CoreMathTanTestSupport.binades(20261324L, N, 52, 1023)));
             p.add(new Pop("P_lin uniform [0, 8) (20261325)", CoreMathTanTestSupport.uniformZeroToEight(20261325L, N)));
-            p.add(new Pop("P_pole52 near multiples of pi/2, k of at most 52 bits (20261326)", CoreMathTanTestSupport.nearHalfPiMultiples(20261326L, N, 52)));
-            p.add(new Pop("P_pole1020 near multiples of pi/2, k of at most 1020 bits (20261327)", CoreMathTanTestSupport.nearHalfPiMultiples(20261327L, N, 1020)));
+            p.add(new Pop("P_pole52 the double nearest k pi/2 +-8 ulps, k of at most 52 bits (20261326)", CoreMathTanTestSupport.nearHalfPiMultiples(20261326L, N, 52)));
+            p.add(new Pop("P_pole1020 the double nearest k pi/2 +-8 ulps, k of at most 1020 bits (20261327; about 5% near a pole, the rest ordinary large arguments)", CoreMathTanTestSupport.nearHalfPiMultiples(20261327L, N, 1020)));
             populations = p;
         }
         return populations;
@@ -162,7 +162,9 @@ class CoreMathTanDifferentialTest {
         }
         System.out.println(new StringBuilder(160).append("T5 tan: provider ").append(calls).append(" finite calls, ").append(mismatches).append(" mismatches; delegate tan calls ").append(delegate.tan.sum()));
         assertEquals(0L, mismatches);
-        assertEquals(0L, delegate.tan.sum());
+        // fix pass (B2F-G6): the guard may delegate a call; every delegate call must be a counted guard delegation, and the prediction is that there are none in these populations
+        assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
+        assertEquals(0L, provider.tanGuardDelegations());
         // control: a provider that delegates everything
         CountingDelegate delegate2 = new CountingDelegate();
         CorrectlyRoundedMath everything = new CorrectlyRoundedMath() {

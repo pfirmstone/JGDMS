@@ -60,19 +60,26 @@ final class CoreMathTanTestSupport {
         return CoreMathTestSupport.oracleValues(xs, CoreMathTestSupport.ORACLE::tan);
     }
 
-    /** How many in-domain inputs the accurate path reports as ambiguous (the C's 86-ulp test fired), and how many of those are not one of the two exceptions. */
+    /**
+     * How many in-domain inputs the accurate path (forced) reports as ambiguous (the C's 86-ulp test fired), how many of those are not one of the two exceptions, and how many make the
+     * guard of {@link CoreMathTan#guardFires} fire: {@code {inDomain, ambiguous, notException, guard}}.
+     */
     static long[] ambiguousCensus(double[] xs) {
         LongAdder inDomain = new LongAdder();
         LongAdder ambiguous = new LongAdder();
         LongAdder notException = new LongAdder();
+        LongAdder guard = new LongAdder();
         IntStream.range(0, xs.length).parallel().forEach(i -> {
             double x = xs[i];
             if (!PATH_DOMAIN.test(x)) {
                 return;
             }
             inDomain.increment();
-            boolean[] amb = new boolean[1];
+            boolean[] amb = new boolean[2];
             CoreMathTan.accurateAmbiguous(x, amb);
+            if (amb[1]) {
+                guard.increment();
+            }
             if (amb[0]) {
                 ambiguous.increment();
                 double a = Math.abs(x);
@@ -81,7 +88,7 @@ final class CoreMathTanTestSupport {
                 }
             }
         });
-        return new long[] {inDomain.sum(), ambiguous.sum(), notException.sum()};
+        return new long[] {inDomain.sum(), ambiguous.sum(), notException.sum(), guard.sum()};
     }
 
     // ----------------------------------------------------------------------------------------
@@ -125,9 +132,11 @@ final class CoreMathTanTestSupport {
     }
 
     /**
-     * {@code n} inputs near multiples of pi/2: {@code k} has a bit length uniform in [1, {@code maxBits}], the input is the double nearest to
-     * {@code k*pi/2} moved by -8..+8 ulps, either sign. Here {@code |tan|} is largest (near odd multiples) or smallest (near even ones) and the argument reduction
-     * cancels the most.
+     * {@code n} inputs: {@code k} has a bit length uniform in [1, {@code maxBits}], the input is the double nearest to
+     * {@code k*pi/2} moved by -8..+8 ulps, either sign. For small {@code k} these are near multiples of pi/2, where {@code |tan|} is largest (near odd multiples) or smallest (near even
+     * ones) and the argument reduction cancels the most. For {@code k} above about 2^40 an ulp of the input exceeds the spacing of the poles, so those members are ordinary large
+     * arguments: of the 250,000 inputs of the 1,020-bit population only about 12,500 are below 2^52 (Opus review L2, 2026-11-12), so the population is about 5% near-pole,
+     * about 95% random large arguments; the 52-bit population is about 99% below 2^52.
      */
     static double[] nearHalfPiMultiples(long seed, int n, int maxBits) {
         SplittableRandom r = new SplittableRandom(seed);

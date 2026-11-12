@@ -50,7 +50,8 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  *       {@code i = 0, h < 2^-37} the fast path declines (it returns the error 1).</li>
  *   <li>When {@code h + (l - err)} and {@code h + (l + err)} differ, {@code tan_accurate}: a 128-bit reduction ({@code reduce}, {@code reduce2}),
  *       the {@code dint64_t} polynomials {@code PS}, {@code PC} and tables {@code S}, {@code C}, a 128-bit division, and a final check that
- *       the result is farther than 86 ulps (of the 128-bit mantissa) from a rounding boundary, with two hard-coded exceptions.</li>
+ *       the result is farther than 86 ulps (of the 128-bit mantissa) from a rounding boundary, with two hard-coded exceptions. NOT IN THE C: a GUARD widens that window
+ *       by K/R ulps (R the folded argument) and answers "undecided" inside it, so that {@link CoreMath} delegates to {@link CrMath} (section "The guard" below).</li>
  * </ul>
  *
  * <h2>Proof status, and what the evidence is (read 2026-11-12)</h2>
@@ -59,27 +60,61 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * {@code tan.wc} ({@code CoreMathTanSlowTest} runs every finite entry of it), (b) differential tests against {@link CrMath} on at least 5,000,000
  * seeded random inputs, and (c) the fidelity of the port to the C. That is weaker evidence than a proof, which is why the random population of this
  * function is larger than sine's. The C comment at {@code tan.c:2233-2235} ("a hard-to-round case, but since all hard-to-round cases are known and
- * pass all tests, we are ok") is the one place where the C's correctness argument is by search, not by bound: a result within 86 ulps of a rounding
- * boundary that is not one of the two {@code exceptions} would be rounded without a guarantee. {@code CoreMathTanDifferentialTest} counts such
- * inputs ({@link #accurateAmbiguous}); the slow tier counts them over every population.
+ * pass all tests, we are ok") is the one place where the C's correctness argument is by search, not by bound: a result within the window of a rounding
+ * boundary that is not one of the two {@code exceptions} would be rounded without a guarantee. The C's window is 86 ulps, which the next section shows is not the
+ * accurate path's error after a fold; this port widens it (the guard) and delegates what falls inside. {@link #accurateAmbiguous} reports whether the 86-ulp test fired;
+ * that is a WIRING CHECK on the two exception inputs, not a hard-case detector (an 86-ulp window is about 2^-68 of the spacing of the doubles: expected hits in 7.6 million
+ * random inputs about 2^-45), so its count of zero says nothing about a third hard case.
  *
  * <h2>Properties of the C found while porting (MEASURED 2026-11-12 by the phase B2 tests; the port reproduces the C, these are not port defects)</h2>
  * <ul>
+ *   <li><b>The 86-ulp claim is false after a fold</b> (found by the phase B2 reviews, Opus M1 and Fable F-1, independently, 2026-11-12; reproduced by
+ *       {@code CoreMathTanFoldErrorReproducerTest}). {@code reduce} bounds its error relative to {@code F = frac(x/(2 pi))} (tan.c:1538-1541). {@code tan_accurate} then
+ *       subtracts exact multiples of a quarter turn (the folds, tan.c:2101-2123), which leaves the ABSOLUTE error unchanged, and writes the bound as if it were relative to the
+ *       folded argument {@code R} (tan.c:2127-2131), which is smaller than F by the factor F/R, unbounded as x approaches a multiple of pi/2. The accurate path's error is
+ *       therefore about {@code 2.6/R} ulps (Fable: largest of error[ulps] x R[turns] 2.58 over the 938,104 folded {@code tan.wc} entries; 4.06e18 ulps, about 66 correct bits, at
+ *       {@code x = 0x1.6ac5b262ca1ffp+849}), not 86; without a fold (F below 1/8) the 86 held (0 above 86 ulps of 176,857, Fable). No wrong result was found in any population
+ *       (3.8% of the {@code tan.wc} entries are farther than 86 ulps from tan(x); every one still rounds correctly), but correct rounding is unproved for inputs with {@code |tan|}
+ *       or {@code 1/|tan|} between about 2^27 and 2^48 that {@code tan.wc} does not list; both reviewers estimate 0.02 to 0.06 misrounded doubles in all of binary64 (HYPOTHESIS,
+ *       uniform model). The fast path is not affected (it uses an absolute bound and declines {@code R < 2^-37}). The guard below closes the gap in this port.</li>
  *   <li>{@code reduce} for {@code ex <= 1} (|x| below 2): the C's comment (tan.c:1570-1574) bounds the reduction's relative error by 2^-126.852 by treating the multiplier's approximation error
  *       2^-130.22 as relative; it is absolute, and relative to 1/(2 pi) it is 2^-127.57, so the provable bound for that branch is (1 + 2^-127.57)(1 + 2^-127) - 1 &lt; 2^-126.26. {@code CoreMathTanReductionTest}
- *       measured 24 of 96 inputs above the C's stated 2^-126.67 (worst 2^-126.34) and none above 2^-126.26; for {@code ex >= 2} the stated 2^-126.67 held (0 of 441). The accurate path's final bound of
- *       86 ulps (tan.c:2206-2212) was derived from the stated bound; redone by hand from the C's own component bounds with 2^-126.26 it comes to about 88 ulps (UNVALIDATED hand arithmetic), so
- *       for |x| below 2 the 86-ulp window is not proved by the C's analysis. No input of any tested population is affected (the window matters only within 86 to 88 ulps of a rounding boundary,
- *       and the hard cases the C authors list lie within a few ulps).</li>
+ *       measured 24 of 96 inputs above the C's stated 2^-126.67 (worst 2^-126.34) and none above 2^-126.26; Fable 1,047 of 5,600 (largest 2^-126.277, 0 above 2^-126.26); for {@code ex >= 2} the stated
+ *       2^-126.67 held (0 of 441; 0 of 204,600, Fable). This is the smaller of the two gaps: carried through the C's chain it makes the window 88 ulps, negligible next to the fold.</li>
  *   <li>{@code set_dd} with {@code c1 = 0}: the C writes the exponent field of {@code l} as {@code f - 64 - g} where the {@code c1 != 0} branch has {@code f - 53 - g}, so {@code l} is 2^-11 times the
  *       exact truncation. The branch needs {@code frac(x/(2 pi)) < 2^-64}; the smallest possible is about 2^-62, so tan never reaches it. The Java reproduces the C (tested).</li>
  *   <li>{@code CoreMathDint#toD}: in the overflow branch for {@code ex > 1025} the C assigns a positive {@code MAX_VALUE} to {@code r.f}, so a negative value overflows to +Infinity; the
- *       subnormal and overflow branches are unreachable from tan (|tan(x)| lies in [2^-27, 2^61]). Ported verbatim, driven by hand cases only (UNVALIDATED beyond those).</li>
+ *       subnormal and overflow branches are unreachable from tan (|tan(x)| lies in [0x1.14ae72e6ba22fp-60, 0x1.d9ba9a7975636p+60] above the tiny exit). Ported verbatim, driven by hand cases only (UNVALIDATED beyond those).</li>
+ *   <li>{@code add_dint}: tan.c:157-158 says the Sterbenz case is exact; for both mantissas 2^128 - 1 and exponents one apart it is off by half an ulp (Fable C-4, 29 of 29 such pairs; unreachable
+ *       from tan, whose operands {@code MAGIC} and {@code ONE} have mantissa 2^127). For the upstream list only.</li>
  * </ul>
+ *
+ * <h2>The guard (not in the C; operator ruling 2026-11-12, "Yes to all four, add the guard")</h2>
+ * <b>What it does.</b> After the C's own 86-ulp test and exceptions, {@link #guardFires} tests whether the 128-bit result {@code U} is within {@code 86 + K/R} ulps (2^-128 of the
+ * mantissa) of a multiple of 2^74, the rounding boundaries and midpoints of the 53-bit result; {@code R = i/2^11 + X} is the folded argument in turns ({@code i} the grid index 0..255
+ * and {@code X} the remainder after {@code fold}: the variables {@code i} and {@code xd} of {@code tanAccurate}), {@code K = }{@link CoreMathTanTables#GUARD_K} {@code = 8}. When it fires
+ * {@link #tan} returns {@code NaN} and {@link CoreMath} delegates the call to {@link CrMath} (exact by construction) and counts it, the pattern it uses for atan2's failure branch.
+ * The seams {@link #accurate} and {@link #accurateAmbiguous} stay the C's accurate path (so they can be compared with {@code CrMath} on their own); {@code accurateAmbiguous}
+ * reports the guard in {@code flags[1]}.
+ * <p>
+ * <b>Derivation of K (rigorous, then compared with the measurement).</b> Let {@code F = frac(x/(2 pi))} (0 &lt;= F &lt; 1) and {@code R} the distance of F from the nearest quarter-turn
+ * multiple ({@code R <= F}, {@code R < 1/8}). {@code reduce} returns F with absolute error at most {@code delta*F}, {@code delta = 2^-126.25 = 1.682 * 2^-127} (the provable bound
+ * 2^-126.26 of the {@code ex <= 1} branch rounded up; the {@code ex >= 2} branch has 2^-126.67). The folds are exact, so the absolute error of R is at most {@code delta*F <= delta}.
+ * The result is {@code y = tan(2 pi R)} or {@code cot(2 pi R)}; {@code |d ln y / dR| = 4 pi / sin(4 pi R) <= (pi/2)/R} for {@code 0 < R <= 1/8} (as {@code sin t >= 2t/pi} on
+ * [0, pi/2]), so the relative error of y is at most {@code delta*F*(pi/2)/R}. In units of the last bit of the 128-bit mantissa (a mantissa below 1, so one relative unit is at
+ * most 2^128 ulps) this is at most {@code 1.682 * 2 * (pi/2) * F/R = 5.28 * F/R <= 5.28/R} ulps. The C's 86 already contains the reduction's own (flat) share, so
+ * {@code 86 + 5.28/R} bounds the whole error with the C's other terms as claimed. The measurement is 2.58/R (Fable, {@code tan.wc}) and 2.23/R (random): K = 8 is 1.51 times
+ * the rigorous constant and 3.1 times the measured one. This is a DERIVATION, with the margin stated; {@code CoreMathTanGuardTest} also measures the error of {@code U} against an
+ * exact tangent (800-bit fixed point) and asserts that it stays inside the window. The division {@code K/R} is done in {@link CoreMathDint} arithmetic (relative error 2^-123.67,
+ * absorbed by the margin and by the {@code +1}); if {@code K/R >= 2^74} the window reaches the spacing of the boundaries and the guard fires unconditionally.
+ * <p>
+ * <b>What it costs.</b> A call reaches the guard only when the fast path is undecided (about 0.02% of random inputs, 30% of inputs within 8 ulps of a multiple of pi/2) and
+ * delegates with probability about {@code 2*(86 + 8/R)/2^75}: 0 of the populations of the phase B2 fix pass (see READY); for the inputs it was written for ({@code R} below 2^-30) the
+ * chance per input is about 2^-40 to 2^-15.
  *
  * <h2>Which constants the tests can see by behaviour (phase B2 mutation runs, 2026-11-12; DIAGNOSTIC)</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C
- * text, so none depends on a behavioural test to be guarded. Each mutant below was applied to a copy of the working tree and run against the fast tier
+ * text, so none depends on a behavioural test to be guarded. Each mutant below was applied to the working tree (restored with {@code git checkout} after each run) and run against the fast tier
  * (named inputs, the first 2,000 entries and the committed golden of 4,260 entries of {@code tan.wc}, seven random populations of 10,000, the BigInteger
  * models) and, where stated, the slow tier (every one of the 1,098,254 finite {@code tan.wc} entries, 6,500,000 random inputs and 500,000 inputs near multiples of
  * pi/2), the digest and C-text tests apart, which every constant mutant fails by design. Scoring: bits against {@link CrMath}.
@@ -125,7 +160,11 @@ final class CoreMathTan {
 
     private CoreMathTan() {}
 
-    /** C {@code cr_tan} ({@code tan.c:2245-2297}). */
+    /**
+     * C {@code cr_tan} ({@code tan.c:2245-2297}) PLUS THE GUARD (not in the C): returns {@code NaN} (never a valid tangent of a finite argument) when the accurate path's 128-bit
+     * result is within {@code 86 + K/R} ulps of a rounding boundary and the argument is not one of the C's two exceptions; {@link CoreMath} then answers by delegating to
+     * {@link CrMath} and counts the event. See the class javadoc.
+     */
     static double tan(double x) {
         return run(x, CoreMathSupport.MODE_NORMAL, null);
     }
@@ -140,22 +179,25 @@ final class CoreMathTan {
 
     /**
      * The accurate path alone ({@code tan_accurate}) even when the fast path would have decided, for {@code |x| > 0x1.d12ed0af1a27ep-27}
-     * (the C's comment: "Assume x is a regular number, and |x| > 0x1.d12ed0af1a27ep-27"). Inside the tiny-argument exit the C answers.
+     * (the C's comment: "Assume x is a regular number, and |x| > 0x1.d12ed0af1a27ep-27"). Inside the tiny-argument exit the C answers. WITHOUT the guard: this is the
+     * C's accurate path as ported, so that the tests can compare it with {@code CrMath} on its own.
      */
     static double accurate(double x) {
         return run(x, MODE_ACCURATE, null);
     }
 
     /**
-     * {@link #accurate} that also reports, in {@code ambiguous[0]}, whether the 128-bit result lay within 86 ulps of a rounding boundary, the
-     * condition under which the C consults its {@code exceptions} table and otherwise proceeds on the argument that all hard cases are known
-     * (tan.c:2219-2235). Diagnostic: the production path never asks; the test census does.
+     * {@link #accurate} that also reports, in {@code flags[0]}, whether the 128-bit result lay within 86 ulps of a rounding boundary (the condition under which the C
+     * consults its {@code exceptions} table) and, if {@code flags} has a second element, in {@code flags[1]} whether the guard fires. WIRING CHECK, NOT A HARD-CASE DETECTOR: the
+     * first flag fires on the two exception inputs and on nothing else in any population tested, because a 86-ulp window is about 2^-68 of the spacing of the doubles
+     * (expected hits in 7.6 million random inputs: about 2^-45), so a count of zero says nothing about whether a third hard case exists; the second flag is the guard's decision.
+     * Diagnostic: the production path never asks; the test census does.
      */
-    static double accurateAmbiguous(double x, boolean[] ambiguous) {
-        return run(x, MODE_ACCURATE, ambiguous);
+    static double accurateAmbiguous(double x, boolean[] flags) {
+        return run(x, MODE_ACCURATE, flags);
     }
 
-    private static double run(double x, int mode, boolean[] ambiguous) {
+    private static double run(double x, int mode, boolean[] flags) {
         long t = Double.doubleToRawLongBits(x);
         int e = (int) ((t >>> 52) & 0x7ffL);
         if (e == 0x7ff) {                                           // NaN, +Inf and -Inf
@@ -186,7 +228,7 @@ final class CoreMathTan {
         } else if (mode == MODE_FAST) {
             return Double.NaN;
         }
-        return tanAccurate(x, ambiguous);
+        return tanAccurate(x, flags, mode == CoreMathSupport.MODE_NORMAL);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -334,11 +376,11 @@ final class CoreMathTan {
                 long uLow = m * t1;                                  // u = m * T[1]
                 long uHigh = Math.unsignedMultiplyHigh(m, t1);
                 c0 = uLow + vHigh;                                   // c[0] = u + (v >> 64)
-                c1 = uHigh + (Long.compareUnsigned(c0, uLow) < 0 ? 1L : 0L);
+                c1 = uHigh + (CoreMathSupport.ltu(c0, uLow) ? 1L : 0L);
                 uLow = m * t0;                                       // u = m * T[0]
                 uHigh = Math.unsignedMultiplyHigh(m, t0);
                 c1 += uLow;
-                c2 = uHigh + (Long.compareUnsigned(c1, uLow) < 0 ? 1L : 0L);
+                c2 = uHigh + (CoreMathSupport.ltu(c1, uLow) ? 1L : 0L);
                 e = 1075 - e;                                        // 1 <= e <= 50: the number of low bits of c[2] contributing to frac(x/(2pi))
             } else {                                                 // 1075 <= e <= 2046, 2^52 <= x < 2^1024
                 int i = (e - 1138 + 63) / 64;                        // i = ceil((e-1138)/64), 0 <= i <= 15
@@ -346,11 +388,11 @@ final class CoreMathTan {
                 long uLow = m * CoreMathTanTables.t(i + 2);
                 long uHigh = Math.unsignedMultiplyHigh(m, CoreMathTanTables.t(i + 2));
                 c0 = uLow + vHigh;
-                c1 = uHigh + (Long.compareUnsigned(c0, uLow) < 0 ? 1L : 0L);
+                c1 = uHigh + (CoreMathSupport.ltu(c0, uLow) ? 1L : 0L);
                 uLow = m * CoreMathTanTables.t(i + 1);
                 uHigh = Math.unsignedMultiplyHigh(m, CoreMathTanTables.t(i + 1));
                 c1 += uLow;
-                c2 = uHigh + (Long.compareUnsigned(c1, uLow) < 0 ? 1L : 0L);
+                c2 = uHigh + (CoreMathSupport.ltu(c1, uLow) ? 1L : 0L);
                 c2 += m * CoreMathTanTables.t(i);
                 e = 1139 + (i << 6) - e;                             // 1 <= e <= 64: the number of bits of c[2] to ignore
             }
@@ -470,7 +512,8 @@ final class CoreMathTan {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * C {@code reduce} (tan.c:1543-1666): approximates {@code X/(2 pi) mod 1}, {@code |Xout - (Xin/(2 pi) mod 1)| < 2^-126.67 * |Xout|}. {@code X}
+     * C {@code reduce} (tan.c:1543-1666): approximates {@code X/(2 pi) mod 1} (call it F). The C's stated bound is {@code |Xout - F| < 2^-126.67 * Xout}, RELATIVE TO F: it
+     * holds for {@code ex >= 2} and is 2^-126.26 for {@code ex <= 1} (class javadoc); it is not a bound relative to the folded argument the accurate path divides by. {@code X}
      * must be normalised at input and is normalised at output.
      */
     static void reduce(CoreMathDint x) {
@@ -484,7 +527,7 @@ final class CoreMathTan {
             long uLow = x.hi * t0;                                   // u = (u128) X->hi * T[0]
             long uHigh = Math.unsignedMultiplyHigh(x.hi, t0);
             x.lo += uLow;
-            x.hi = uHigh + (Long.compareUnsigned(x.lo, uLow) < 0 ? 1L : 0L);
+            x.hi = uHigh + (CoreMathSupport.ltu(x.lo, uLow) ? 1L : 0L);
             e = x.ex;
             normalize(x);
             e = e - x.ex;
@@ -504,15 +547,15 @@ final class CoreMathTan {
         uLow = xh * CoreMathTanTables.t(i + 2);
         long uHigh = Math.unsignedMultiplyHigh(xh, CoreMathTanTables.t(i + 2));
         c1 += uLow;
-        long c2 = uHigh + (Long.compareUnsigned(c1, uLow) < 0 ? 1L : 0L);
+        long c2 = uHigh + (CoreMathSupport.ltu(c1, uLow) ? 1L : 0L);
         uLow = xh * CoreMathTanTables.t(i + 1);
         uHigh = Math.unsignedMultiplyHigh(xh, CoreMathTanTables.t(i + 1));
         c2 += uLow;
-        long c3 = uHigh + (Long.compareUnsigned(c2, uLow) < 0 ? 1L : 0L);
+        long c3 = uHigh + (CoreMathSupport.ltu(c2, uLow) ? 1L : 0L);
         uLow = xh * CoreMathTanTables.t(i);
         uHigh = Math.unsignedMultiplyHigh(xh, CoreMathTanTables.t(i));
         c3 += uLow;
-        long c4 = uHigh + (Long.compareUnsigned(c3, uLow) < 0 ? 1L : 0L);
+        long c4 = uHigh + (CoreMathSupport.ltu(c3, uLow) ? 1L : 0L);
         // up to here, the ignored part hi*(T[i+4]+T[i+5]+...) can contribute by less than 2^64 in c[0], thus less than 1 in c[1]
         int f = (int) (e - 64L * i);                                 // hi*T[i]/2^128 is multiplied by 2^f
         // {c, 5} = hi*(T[i]+T[i+1]/2^64+T[i+2]/2^128+T[i+3]/2^192): now shift c[0..4] by f bits to the left
@@ -530,7 +573,7 @@ final class CoreMathTan {
             // we compute an extra term
             long u = Math.unsignedMultiplyHigh(xh, CoreMathTanTables.t(i + 4));      // u = (X->hi * T[i+4]) >> 64; i+4 <= 19
             c0 += u;
-            boolean carry = Long.compareUnsigned(c0, u) < 0;
+            boolean carry = CoreMathSupport.ltu(c0, u);
             c1 += carry ? 1L : 0L;
             c2 += (carry && c1 == 0L) ? 1L : 0L;
             c3 += (carry && c1 == 0L && c2 == 0L) ? 1L : 0L;
@@ -592,16 +635,17 @@ final class CoreMathTan {
     }
 
     /**
-     * C {@code tan_accurate} (tan.c:2083-2243): the correctly rounded tan(x) for a regular {@code x} with {@code |x| > 0x1.d12ed0af1a27ep-27}.
-     * {@code ambiguous}, if not null, receives in element 0 whether the 128-bit result lay within 86 ulps of a rounding boundary (tan.c:2219).
+     * The folds of {@code tan_accurate} (tan.c:2086-2123): reduces {@code |x|} to {@code frac(|x|/(2 pi))} ({@code reduce}), splits the grid index off ({@code reduce2}) and
+     * folds by tan(pi + x) = tan(x), tan(pi/2 + x) = -cot(x), tan(pi/2 - x) = cot(x). Returns the grid index {@code i} (0..255) and leaves in {@code xd} the remainder
+     * {@code X} (0 &lt;= X &lt; 2^-11), so that the FOLDED ARGUMENT, in turns, is {@code R = i/2^11 + X} (0 &lt;= R &lt; 1/8: the distance of frac(x/(2 pi)) from the nearest
+     * multiple of a quarter turn); {@code st[0]} is {@code is_tan} (1 for tan, 0 for cot) and {@code st[1]} the sign flag {@code neg}.
      */
-    private static double tanAccurate(double x, boolean[] ambiguous) {
+    static int fold(double x, CoreMathDint xd, int[] st) {
         double absx = (x > 0) ? x : -x;
-        CoreMathDint xd = new CoreMathDint();
         CoreMathDint.fromD(xd, absx);
         // reduce argument
         reduce(xd);
-        // now |X - x/(2pi) mod 1| < 2^-126.67*X, with 0 <= X < 1
+        // The C's comment here: "now |X - x/(2pi) mod 1| < 2^-126.67*X, with 0 <= X < 1" (relative to X = frac(x/(2 pi)); see the class javadoc for ex <= 1)
         int isTan = 1;
         int neg = x < 0 ? 1 : 0;
         // Write X = i/2^11 + r with 0 <= r < 2^11
@@ -619,7 +663,19 @@ final class CoreMathTan {
             CoreMathDint.add(xd, CoreMathTanTables.dintMagic(), xd); // X -> 2^-11 - X
             i = 0x1ff - i;                                           // 256 <= i <= 511 becomes 0 <= i < 256
         }
-        // now 0 <= i < 256 and 0 <= X < 2^-11: if is_tan=1, tan |x| = tan2pi (R * (1 + eps)), else cot2pi; R = i/2^11 + X, |eps| < 2^-126.67
+        st[0] = isTan;
+        st[1] = neg;
+        return i;
+    }
+
+    /**
+     * tan.c:2125-2210: the 128-bit quotient {@code S/C} (or {@code C/S}) of the sine and cosine of the folded argument {@code R = i/2^11 + X}, a positive dint {@code U}
+     * (the C's {@code U}). The C's comments at this place claim a relative error below 2^-121.578 ("less than 86 ulps"); THAT CLAIM IS THE C'S AND IS FALSE AFTER A FOLD (the
+     * error of {@code reduce} is bounded relative to frac(x/(2 pi)), the C divides it by the smaller R): see the class javadoc.
+     */
+    private static CoreMathDint accurateQuotient(CoreMathDint xd, int i, boolean isTan) {
+        // now 0 <= i < 256 and 0 <= X < 2^-11: if is_tan=1, tan |x| = tan2pi (R * (1 + eps)), else cot2pi; R = i/2^11 + X;
+        // the C says |eps| < 2^-126.67 (the C's claim, relative to frac(x/(2 pi)) rather than to R: false for R below frac)
         CoreMathDint u = new CoreMathDint();
         CoreMathDint v = new CoreMathDint();
         CoreMathDint x2 = new CoreMathDint();
@@ -640,21 +696,101 @@ final class CoreMathTan {
         v.sgn = 1L - v.sgn;                                          // negate V
         CoreMathDint.add(cos, u, v);
         // Now if is_tan=1 we compute S/C, otherwise we compute C/S.
-        if (isTan != 0) {
+        if (isTan) {
             CoreMathDint.div(u, sin, cos);
         } else {
             CoreMathDint.div(u, cos, sin);
         }
-        // total relative error < 2^-121.578, less than 86 ulps
+        return u;
+    }
+
+    /**
+     * The 128-bit magnitude {@code U} that {@code tan_accurate} rounds, for a test (the sign is not applied): returns {@code U}, leaves the remainder {@code X} in
+     * {@code xdOut} and the grid index in {@code iOut[0]}, so the folded argument is {@code R = iOut[0]/2^11 + X}. Diagnostic seam of the guard tests; production does not call it.
+     */
+    static CoreMathDint accurateU(double x, CoreMathDint xdOut, int[] iOut) {
+        int[] st = new int[2];
+        int i = fold(x, xdOut, st);
+        iOut[0] = i;
+        CoreMathDint copy = new CoreMathDint(xdOut.hi, xdOut.lo, xdOut.ex, xdOut.sgn);
+        return accurateQuotient(copy, i, st[0] != 0);
+    }
+
+    /**
+     * The C's 86-ulp test (tan.c:2212-2219): true if the upper 54 bits of {@code U - 86} and {@code U + 86} (ulps of the 128-bit mantissa) differ, i.e. {@code U} is within 86
+     * ulps of a multiple of 2^74 (a rounding boundary or midpoint of the 53-bit result).
+     */
+    static boolean c86TestFires(CoreMathDint u) {
         long err = CoreMathTanTables.ACCURATE_ERR;
         long lo0 = u.lo - err;
-        long hi0 = u.hi - (Long.compareUnsigned(lo0, u.lo) > 0 ? 1L : 0L);
+        long hi0 = u.hi - (CoreMathSupport.ltu(u.lo, lo0) ? 1L : 0L);
         long lo1 = u.lo + err;
-        long hi1 = u.hi + (Long.compareUnsigned(lo1, u.lo) < 0 ? 1L : 0L);
+        long hi1 = u.hi + (CoreMathSupport.ltu(lo1, u.lo) ? 1L : 0L);
         // check the upper 54 bits are equal
-        if ((hi0 >>> 10) != (hi1 >>> 10)) {
-            if (ambiguous != null) {
-                ambiguous[0] = true;
+        return (hi0 >>> 10) != (hi1 >>> 10);
+    }
+
+    /**
+     * THE GUARD (not in the C; operator ruling 2026-11-12 after the phase B2 reviews). True if the 128-bit result {@code u} is within {@code 86 + K/R} ulps of a multiple of 2^74
+     * (a rounding boundary or midpoint of the 53-bit result), with {@code K = }{@link CoreMathTanTables#GUARD_K} and {@code R = i/2^11 + x} the folded argument in turns; the
+     * caller then returns "undecided" and {@code CoreMath} answers by delegating to {@code CrMath}. It is the C's own test with the window widened by the term the C
+     * omits (see the class javadoc for the derivation of K). If {@code R} is zero, or the window reaches 2^74 (the spacing of the boundaries: it would always straddle one),
+     * the answer is true.
+     *
+     * @param u the 128-bit quotient (positive, normalised)
+     * @param i the grid index after the folds (0..255)
+     * @param x the remainder X after the folds (0 &lt;= X &lt; 2^-11)
+     */
+    static boolean guardFires(CoreMathDint u, int i, CoreMathDint x) {
+        CoreMathDint r = new CoreMathDint();
+        if (i == 0) {
+            if (x.hi == 0L) {
+                return true;                                         // R = 0: no finite input reaches it, but never answer from a division by zero
+            }
+            CoreMathDint.copy(r, x);
+        } else {
+            CoreMathDint ri = new CoreMathDint();
+            CoreMathDint.fromD(ri, i * 0x1p-11);                     // exact
+            if (x.hi == 0L) {
+                CoreMathDint.copy(r, ri);
+            } else {
+                CoreMathDint.add(r, ri, x);                          // R = i/2^11 + X, relative error 2^-127
+            }
+        }
+        CoreMathDint k = new CoreMathDint();
+        CoreMathDint.fromD(k, CoreMathTanTables.GUARD_K);
+        CoreMathDint q = new CoreMathDint();
+        CoreMathDint.div(q, k, r);                                   // K/R, relative error below 2^-123.67
+        if (q.ex >= 75) {
+            return true;                                             // K/R >= 2^74: the window reaches the spacing of the boundaries
+        }
+        int shift = (int) (128L - q.ex);                             // K/R = mantissa * 2^-shift; K/R >= 64 here, so shift <= 121
+        U128 floorQ = shift >= 128 ? U128.of(0L, 0L) : U128.of(q.hi, q.lo).shr(shift);
+        U128 window = floorQ.add(U128.ofU64(CoreMathTanTables.ACCURATE_ERR + 1L));   // 86 + floor(K/R) + 1 >= 86 + K/R
+        U128 uv = U128.of(u.hi, u.lo);
+        U128 low = uv.sub(window);                                   // U >= 2^127 and window < 2^75: no wrap
+        U128 high = uv.add(window);
+        if (high.ltU(uv)) {
+            return true;                                             // U + window carries out of 128 bits: straddles 2^128
+        }
+        return !low.shr(74).equals(high.shr(74));
+    }
+
+    /**
+     * C {@code tan_accurate} (tan.c:2083-2243), plus the guard. {@code flags}, if not null, receives in element 0 whether the C's 86-ulp test fired and, if it has a second
+     * element, in element 1 whether the guard fired. When the guard fires and {@code applyGuard} is true the result is {@code NaN} (never a valid tangent of a finite
+     * argument): "undecided".
+     */
+    private static double tanAccurate(double x, boolean[] flags, boolean applyGuard) {
+        CoreMathDint xd = new CoreMathDint();
+        int[] st = new int[2];
+        int i = fold(x, xd, st);
+        int neg = st[1];
+        CoreMathDint u = accurateQuotient(xd, i, st[0] != 0);
+        // total relative error: the C says < 2^-121.578, less than 86 ulps (the C's claim; false after a fold, see the class javadoc)
+        if (c86TestFires(u)) {
+            if (flags != null) {
+                flags[0] = true;
             }
             for (int j = 0; j < 2; j++) {
                 if (Math.abs(x) == CoreMathTanTables.exceptions(3 * j)) {
@@ -663,7 +799,16 @@ final class CoreMathTan {
                     return (x > 0) ? yh + yl : -yh - yl;
                 }
             }
-            // if we go here, we have a hard-to-round case, but since all hard-to-round cases are known and pass all tests, we are ok
+            // if we go here, we have a hard-to-round case, but since all hard-to-round cases are known and pass all tests, we are ok (the C's argument; see the guard below)
+        }
+        // NOT IN THE C: the guard. The C's window of 86 ulps is not the error of the accurate path after a fold; the guard widens it by K/R.
+        if (guardFires(u, i, xd)) {
+            if (flags != null && flags.length > 1) {
+                flags[1] = true;
+            }
+            if (applyGuard) {
+                return Double.NaN;
+            }
         }
         if (neg != 0) {
             u.sgn = 1L - u.sgn;

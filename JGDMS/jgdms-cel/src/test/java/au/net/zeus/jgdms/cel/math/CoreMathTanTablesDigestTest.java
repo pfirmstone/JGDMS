@@ -55,10 +55,32 @@ import org.junit.jupiter.api.Test;
  *   <li><b>B2-T4 C text of the constants</b> (clone present): 9 value comparisons covering all 9 constants, 0 mismatches; every constant of the snapshot has a C source; the control (one flipped
  *       bit in a copy of one constant) is rejected exactly once.</li>
  * </ol>
+ *
+ * <h2>SEALED PREDICTIONS (B2F-T1, B2F-T2, the fix pass; written before the first run of the tests that carry them)</h2>
+ * Population: the snapshot of {@link CoreMathTanTables} with the guard constant, 13 tables + 10 constants = 23 entries ({@code K_GUARD_K}, the factor of the guard, 8.0, not in the C).
+ * <ol>
+ *   <li><b>B2F-T1.</b> The digest of the 22-entry view {@link #snapshotV1()} still equals the committed phase B2 digest (the accepted artefact, unchanged), and the digest of the full 23-entry
+ *       snapshot equals the one committed in {@code core-math-tables-tan-v2-2026-11-12.sha256} (written by the generator after the first run, so that test fails by design until the generation
+ *       commit), which names the source commit; {@code K_GUARD_K} is the bits of 8.0.</li>
+ *   <li><b>B2F-T2 control.</b> A single flipped bit in each of the 23 entries changes the v2 digest: 23 of 23.</li>
+ * </ol>
+ * The tests of B2-T1..T4 above now run on the 22-entry view (their counts 22 and 9 unchanged); the C-text comparisons cover the 22 entries that have a C text.
  */
 class CoreMathTanTablesDigestTest {
 
     static final String RESOURCE = "core-math-tables-tan-2026-11-12.sha256";
+    static final String RESOURCE_V2 = "core-math-tables-tan-v2-2026-11-12.sha256";
+
+    /**
+     * The snapshot as it was when {@link #RESOURCE} was committed: 13 tables and 9 constants (22 entries). The fix pass added the guard constant {@code K_GUARD_K}, which is NOT in the C and
+     * so has no C text to compare with; the accepted artefact of the phase B2 digest is not regenerated and stays in use on this view (as phase B1's tables-only view), and
+     * {@link #RESOURCE_V2} covers all 23 entries.
+     */
+    static Map<String, long[]> snapshotV1() {
+        Map<String, long[]> m = CoreMathTanTables.snapshot();
+        m.remove("K_GUARD_K");
+        return m;
+    }
 
     private static String[] resourceLines(String resource) throws IOException {
         try (InputStream in = CoreMathTanTablesDigestTest.class.getResourceAsStream(resource)) {
@@ -77,7 +99,7 @@ class CoreMathTanTablesDigestTest {
         throw new AssertionError(new StringBuilder(64).append("no digest line in ").append(resource).toString());
     }
 
-    private static String digest(Map<String, long[]> m) {
+    static String digest(Map<String, long[]> m) {
         return CoreMathInverseTrigTestSupport.sha256(CoreMathTanTestSupport.CANONICAL_HEADER, m);
     }
 
@@ -92,7 +114,7 @@ class CoreMathTanTablesDigestTest {
             }
         }
         assertTrue(namesCommit, "the digest resource does not name the CORE-MATH source commit");
-        Map<String, long[]> all = CoreMathTanTables.snapshot();
+        Map<String, long[]> all = snapshotV1();
         assertEquals(22, all.size(), "the snapshot is not 13 tables + 9 constants");
         String actual = digest(all);
         System.out.println(new StringBuilder(160).append("tan tables + constants digest (22 entries): Java ").append(actual).append(", committed ").append(committed));
@@ -101,20 +123,20 @@ class CoreMathTanTablesDigestTest {
 
     @Test
     void controlOneFlippedBitInAnyEntryChangesTheDigest() {
-        String base = digest(CoreMathTanTables.snapshot());
+        String base = digest(snapshotV1());
         int entries = 0;
         int constants = 0;
         int rejectedFirst = 0;
         int rejectedLast = 0;
         int rejectedConstants = 0;
-        for (String name : CoreMathTanTables.snapshot().keySet()) {
+        for (String name : snapshotV1().keySet()) {
             entries++;
-            Map<String, long[]> first = CoreMathTanTables.snapshot();
+            Map<String, long[]> first = snapshotV1();
             first.get(name)[0] ^= 1L << 3;
             if (!base.equals(digest(first))) {
                 rejectedFirst++;
             }
-            Map<String, long[]> last = CoreMathTanTables.snapshot();
+            Map<String, long[]> last = snapshotV1();
             long[] v = last.get(name);
             v[v.length - 1] ^= 1L << 17;
             boolean differs = !base.equals(digest(last));
@@ -139,18 +161,18 @@ class CoreMathTanTablesDigestTest {
 
     @Test
     void theSnapshotIsACopyAndWritesToItAreNotVisible() {
-        String base = digest(CoreMathTanTables.snapshot());
+        String base = digest(snapshotV1());
         int entries = 0;
         int visible = 0;
-        for (String name : CoreMathTanTables.snapshot().keySet()) {
+        for (String name : snapshotV1().keySet()) {
             entries++;
-            Map<String, long[]> s = CoreMathTanTables.snapshot();
+            Map<String, long[]> s = snapshotV1();
             long[] v = s.get(name);
             for (int i = 0; i < v.length; i++) {
                 v[i] = ~v[i];
             }
             assertNotEquals(base, digest(s), "the control write changed nothing: the snapshot is not what is hashed");
-            if (!base.equals(digest(CoreMathTanTables.snapshot()))) {
+            if (!base.equals(digest(snapshotV1()))) {
                 visible++;
             }
         }
@@ -163,7 +185,7 @@ class CoreMathTanTablesDigestTest {
     void everyTableEqualsTheCText() throws IOException {
         CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, CoreMathTestSupport.FULL_TIER, "the tables-versus-C comparison", "tan");
         Path clone = CoreMathTestSupport.CORE_MATH_DIR;
-        Map<String, long[]> java = CoreMathInverseTrigTestSupport.tablesOnly(CoreMathTanTables.snapshot());
+        Map<String, long[]> java = CoreMathInverseTrigTestSupport.tablesOnly(snapshotV1());
         Map<String, long[]> c = CoreMathTanTestSupport.parseFromC(clone);
         long values = 0;
         long mismatches = 0;
@@ -208,7 +230,7 @@ class CoreMathTanTablesDigestTest {
     void everyNamedConstantEqualsTheCText() throws IOException {
         CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, CoreMathTestSupport.FULL_TIER, "the constants-versus-C comparison", "tan");
         Path clone = CoreMathTestSupport.CORE_MATH_DIR;
-        Map<String, long[]> java = CoreMathInverseTrigTestSupport.constantsOnly(CoreMathTanTables.snapshot());
+        Map<String, long[]> java = CoreMathInverseTrigTestSupport.constantsOnly(snapshotV1());
         Map<String, long[]> c = CoreMathTanTestSupport.constantsFromC(clone);
         long compared = 0;
         long mismatches = 0;
@@ -249,5 +271,43 @@ class CoreMathTanTablesDigestTest {
             }
         }
         assertEquals(1L, rejected);
+    }
+
+    @Test
+    void digestOfTheFullSnapshotWithTheGuardConstantEqualsTheCommittedV2Digest() throws IOException {
+        String committed = committedDigest(RESOURCE_V2);
+        assertEquals(64, committed.length(), "the committed digest is not 64 hex digits");
+        boolean namesCommit = false;
+        for (String l : resourceLines(RESOURCE_V2)) {
+            if (l.startsWith("#") && l.contains("018fa97cbdacf59924b899a9dfa422d532cb2bb7")) {
+                namesCommit = true;
+            }
+        }
+        assertTrue(namesCommit, "the v2 digest resource does not name the CORE-MATH source commit");
+        Map<String, long[]> all = CoreMathTanTables.snapshot();
+        assertEquals(23, all.size(), "the snapshot is not 13 tables + 10 constants");
+        assertEquals(Double.doubleToRawLongBits(8.0), all.get("K_GUARD_K")[0]);
+        String actual = digest(all);
+        System.out.println(new StringBuilder(160).append("tan tables + constants + guard digest (23 entries): Java ").append(actual).append(", committed ").append(committed));
+        assertEquals(committed, actual, "a table or a named constant of CoreMathTanTables differs from the committed v2 digest");
+    }
+
+    @Test
+    void controlOneFlippedBitInAnyEntryOfTheFullSnapshotChangesTheV2Digest() {
+        String base = digest(CoreMathTanTables.snapshot());
+        int entries = 0;
+        int rejected = 0;
+        for (String name : CoreMathTanTables.snapshot().keySet()) {
+            entries++;
+            Map<String, long[]> copy = CoreMathTanTables.snapshot();
+            long[] v = copy.get(name);
+            v[v.length - 1] ^= 1L << 5;
+            if (!base.equals(digest(copy))) {
+                rejected++;
+            }
+        }
+        System.out.println(new StringBuilder(100).append("tan v2 digest control: a flipped bit changed the digest for ").append(rejected).append(" of ").append(entries).append(" entries"));
+        assertEquals(23, entries);
+        assertEquals(entries, rejected);
     }
 }

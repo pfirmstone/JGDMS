@@ -1702,8 +1702,20 @@ final class CoreMathTanTables {
     /** C: tan.c:2079 {@code return *h * 0x1.1ap-66}: the fast path's relative error bound, 2^-65.864 &lt; 0x1.1ap-66, times the result. */
     static final double FAST_ERR = 0x1.1ap-66;
 
-    /** C: tan.c:2212 {@code uint64_t err = 86}: the accurate path's error bound in units of the last word of the 128-bit result (relative error 2^-121.578 &lt; 86 ulps). */
+    /**
+     * C: tan.c:2212 {@code uint64_t err = 86}: the C's claim for the accurate path's error, in units of the last word of the 128-bit result (relative error
+     * 2^-121.578 &lt; 86 ulps). THE C'S CLAIM, NOT A FACT: after a quarter-turn fold the error can exceed it by up to about 2.6/R ulps (R the folded argument in turns),
+     * see {@link CoreMathTan} (phase B2 reviews, 2026-11-12); this port keeps it as the C's window and adds {@link #GUARD_K}.
+     */
     static final long ACCURATE_ERR = 86L;
+
+    /**
+     * NOT IN THE C. The factor K of the port's guard: after the C's own tests, the accurate path answers "undecided" (and {@code CoreMath} delegates to
+     * {@code CrMath}) when the 128-bit result is within {@code ACCURATE_ERR + GUARD_K / R} ulps of a rounding boundary, R being the folded argument in turns
+     * ({@code i/2^11 + X}). The derivation (bound 5.28, measured 2.6, K = 8) is in the javadoc of {@link CoreMathTan}. This constant is guarded by the committed
+     * digest only; there is no C text to compare it with.
+     */
+    static final double GUARD_K = 8.0;
 
     // ------------------------------------------------------------------------------------------
     // Read access
@@ -1719,7 +1731,11 @@ final class CoreMathTanTables {
         return i < 19 ? CoreMathTables.t(i + 1) : T19;
     }
 
-    /** C: tan.c:564 {@code T[19]}, the word of the 1/(2 pi) table that {@code sin.c} leaves out. */
+    /**
+     * C: tan.c:564 {@code T[19]}, the word of the 1/(2 pi) table that {@code sin.c} leaves out. No reachable input reads it ({@code reduce} reads {@code t(i + 4)} only when
+     * {@code f > 64}, which excludes {@code i = 15}; {@code reduce_fast} reads at most {@code t(18)}): it is the C's own unused word, kept so that the table equals the C text and is
+     * covered by the digest (phase B2 review, Fable C-3: changing one bit fails only the digest and the C-text tests).
+     */
     private static final long T19 = 0xfc33ef0826bd0d87L;
 
     /** A fresh copy of row {@code i} (0..255) of {@code S}. */
@@ -1828,6 +1844,7 @@ final class CoreMathTanTables {
         m.put("K_ERR_UNDECIDED", one(ERR_UNDECIDED));
         m.put("K_FAST_ERR", one(FAST_ERR));
         m.put("K_ACCURATE_ERR", new long[] {ACCURATE_ERR});
+        m.put("K_GUARD_K", one(GUARD_K));
         return m;
     }
 }

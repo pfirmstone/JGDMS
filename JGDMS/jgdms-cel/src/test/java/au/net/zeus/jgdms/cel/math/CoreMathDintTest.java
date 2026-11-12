@@ -68,6 +68,12 @@ import org.junit.jupiter.api.Test;
  * </ol>
  * NOTE added after the seal (the sealed text above is unedited): B2-D7 says tan's results lie in [2^-27, 2^61]; the lower end is wrong. Near multiples of pi tan is tiny: the C's comment in tan.wc names
  * 0x1.14ae72e6ba22fp-60 as the smallest |tan(x)| (at 2*x0, x0 = 0x1.6ac5b262ca1ffp+849). The conclusion stands (no result is near the subnormal range 2^-1022).
+ *
+ * <h2>SEALED PREDICTION B2F-I1 (the fix pass; written before the first run of the test that carries it)</h2>
+ * Opus review L3: {@code inv_dint} and {@code div_dint} were checked only against the C's error bounds, so a slip that kept the accuracy inside the bound would pass. B2F-I1: {@code CoreMathDint.inv}
+ * equals, field for field, a BigInteger model of tan.c:333-425 (three Newton steps on the 64-bit inverse in 128-bit arithmetic, then {@code mul_dint_21}, {@code add_dint}, {@code mul_dint},
+ * {@code add_dint}, each by the models of this class) on 100,000 positive normalised inputs (a quarter with {@code lo = 0}, the extreme mantissas 2^63 and all ones included): 0 mismatches;
+ * and {@code div} equals the model's {@code mul_dint (inv (a), b)} on 100,000 pairs: 0 mismatches.
  */
 class CoreMathDintTest {
 
@@ -636,5 +642,65 @@ class CoreMathDintTest {
         }
         System.out.println(new StringBuilder(80).append("B2-D8 normalize: ").append(mismatches).append(" mismatches of ").append(n));
         assertEquals(0, mismatches);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // B2F-I1: inv and div bit for bit
+    // ------------------------------------------------------------------------------------------
+
+    /** BigInteger model of {@code inv_dint} (tan.c:333-425), field for field. */
+    private static long[] modelInv(CoreMathDint a) {
+        BigInteger h = u(a.hi);
+        BigInteger t = u(CoreMathTanTables.tinv((int) ((a.hi >>> 55) & 0xffL)));
+        BigInteger one127 = BigInteger.ONE.shiftLeft(127);
+        int[] s1 = {55, 47, 31};
+        int[] s2 = {72, 80, 96};
+        for (int k = 0; k < 3; k++) {
+            BigInteger e = one127.subtract(h.multiply(t)).and(M128);                  // exact, 0 < e < 2^119 (first step)
+            e = t.multiply(e.shiftRight(s1[k])).and(M128);
+            t = t.add(e.shiftRight(s2[k])).and(M64);
+        }
+        CoreMathDint r = new CoreMathDint(t.longValue(), 0L, 1L - a.ex, 1L);
+        long[] q = modelMul(a, r, false, new int[1], true);                          // mul_dint_21 (q, a, r)
+        r.sgn = 0L;                                                                  // restore sign
+        long[] q2 = modelAdd(new CoreMathDint(Long.MIN_VALUE, 0L, 1L, 0L), new CoreMathDint(q[0], q[1], q[2], q[3]), false, new int[1], null);   // add_dint (q, &ONE, q)
+        long[] q3 = modelMul(r, new CoreMathDint(q2[0], q2[1], q2[2], q2[3]), false, new int[1], false);                                         // mul_dint (q, r, q)
+        return modelAdd(r, new CoreMathDint(q3[0], q3[1], q3[2], q3[3]), false, new int[1], null);                                               // add_dint (r, r, q)
+    }
+
+    @Test
+    void invAndDivEqualTheBigIntegerModelsBitForBit() {
+        SplittableRandom r = new SplittableRandom(20261308L);
+        int n = 100_000;
+        int invMismatches = 0;
+        int divMismatches = 0;
+        for (int i = 0; i < n; i++) {
+            CoreMathDint a = random(r, i % 4 == 0);
+            a.sgn = 0L;
+            if (i == 0) {
+                a.hi = Long.MIN_VALUE;
+                a.lo = 0L;
+            } else if (i == 1) {
+                a.hi = -1L;
+                a.lo = -1L;
+            }
+            long[] want = modelInv(a);
+            CoreMathDint got = new CoreMathDint();
+            CoreMathDint.inv(got, a);
+            if (!same(got, want[0], want[1], want[2], want[3])) {
+                invMismatches++;
+            }
+            CoreMathDint b = random(r, false);
+            long[] wantDiv = modelMul(new CoreMathDint(want[0], want[1], want[2], want[3]), b, false, new int[1], false);
+            CoreMathDint q = new CoreMathDint();
+            CoreMathDint.div(q, b, a);
+            if (!same(q, wantDiv[0], wantDiv[1], wantDiv[2], wantDiv[3])) {
+                divMismatches++;
+            }
+        }
+        System.out.println(new StringBuilder(120).append("B2F-I1 inv_dint: ").append(invMismatches).append(" mismatches of ").append(n).append(" against the BigInteger model; div_dint: ")
+                .append(divMismatches).append(" of ").append(n));
+        assertEquals(0, invMismatches);
+        assertEquals(0, divMismatches);
     }
 }
