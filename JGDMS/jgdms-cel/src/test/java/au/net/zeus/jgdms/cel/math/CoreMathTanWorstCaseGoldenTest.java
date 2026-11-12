@@ -58,6 +58,11 @@ import org.junit.jupiter.api.Test;
  * (0.14%), all with exponent -27..-17 (the tiny arguments, where R = |x|/(2 pi) is small, so the window 86 + 8/R is wide, and the entries are hard cases by selection). The golden holds
  * the first 2,000 entries, which are the entries at the smallest arguments: PREDICTED, between 900 and 1,571 delegations (at most the file's total), every one with exponent in [-27, -17], and
  * the provider's value equal to the golden for all 4,260 (0 mismatches). ELSE: a count outside the band, or an exponent outside the range, is reported as measured; the comparison is not loosened.
+ * <p>
+ * SCORING (appended 2026-11-12 after the first run, deviation D10; the sealed text above is unchanged): the count FAILED as sealed: 554 delegations of 4,260, below the predicted 900. The exponent
+ * clause HELD (-27 (310, all the entries of tan.wc at that exponent), -25 (70), -24 (64), -23 (57), -22 (30), -21 (11), -20 (8), -19 (3), -17 (1)) and the 0 mismatches HELD. The premise was wrong: the
+ * first 2,000 entries of tan.wc are not the entries at the smallest arguments (the golden has no entry at exponent -26, where tan.wc has 677 delegations of its 1,571). The test now asserts the
+ * measured count exactly (deterministic: fixed file, fixed code).
  */
 class CoreMathTanWorstCaseGoldenTest {
 
@@ -149,7 +154,7 @@ class CoreMathTanWorstCaseGoldenTest {
                 .append(" mismatches; by Math.getExponent(x): ").append(byExponent));
         assertEquals(0L, mismatches);
         assertEquals(delegated, delegate.tan.sum());
-        assertTrue(delegated >= 900 && delegated <= 1571, "B2F-G6b: the guard's delegations over the golden: " + delegated);
+        assertEquals(554L, delegated, "B2F-G6b / D10: the guard's delegations over the golden");
         assertTrue(byExponent.firstKey() >= -27 && byExponent.lastKey() <= -17, "B2F-G6b: exponents " + byExponent);
     }
 
