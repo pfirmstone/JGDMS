@@ -1,18 +1,37 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * U128: a Java 128-bit unsigned integer for the ports of CORE-MATH's binary64 functions, including the Java spelling of {@code mhUU}
+ * and of the {@code U128(l,h)} macro of src/binary64/sin/sin.c (lines 179-186 and 151) at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * DERIVATION: this file is a Java port, that is a modified and derived work, of the 128-bit helper routines of
+ * src/binary64/sin/sin.c (repeated with the same text in src/binary64/cos/cos.c) of the CORE-MATH project at commit
+ * 018fa97cbdacf59924b899a9dfa422d532cb2bb7, plus the small Java operations that stand in for the C type {@code unsigned __int128}
+ * (add, subtract, multiply, shifts, comparisons). {@code mhUU} is also exactly the three-term high product of {@code mul_dint} in
+ * src/binary64/tan/tan.c, which {@code CoreMathDint} uses. It is not part of CORE-MATH and is not endorsed by its authors. The copyright and
+ * permission notice below are the upstream's, reproduced without change.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov
+ * Copyright (c) 2026 Paul Zimmermann
+ *
+ * This file is part of the CORE-MATH project
+ * (https://core-math.gitlabpages.inria.fr/).
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 package au.net.zeus.jgdms.cel.math;
