@@ -107,7 +107,18 @@ import org.junit.jupiter.api.Test;
  *   <li><b>B2F2-P (Fable L-4).</b> The 1/(2 pi) words of the exact reference equal {@code tan.c}'s {@code T[0..19]}: 20 of 20.</li>
  * </ol>
  * Delegation counts over the populations (B2F2-D) are sealed in {@code CoreMathTanSlowTest}, {@code CoreMathTanDifferentialTest} and {@code CoreMathTanWorstCaseGoldenTest}; the mutation
- * predictions (RA, RI, MR5 and three more) are in the message of the seal commit of this pass.
+ * predictions (RA, RI, MR5 and three more) are in the message of the seal commit of this pass. *
+ * <h3>SCORING of B2F2-* (appended 2026-11-12 after the first runs, at 9a5af5536; the sealed text above is unchanged): ALL HELD</h3>
+ * <ul>
+ *   <li>G1 0 violations of 200,148 (fired 98,515, did not fire 101,633); G2 50,000 of 50,000; G3 858 of 858 in band, 0 beyond, folded 381 and unfolded 48 real inputs; G5 0 above the window of
+ *       1,409, largest error x R 1.608, the fold flag equal to the exact reference's on 1,409 of 1,409; G1b 0 violations of 100,000 (fired 56,375).</li>
+ *   <li>M1: R = 1.5030e-8 turns, error of U 7.41e6 ulps, window 86 + 8/R = 5.32e8 ulps, forced path flagged, guard-applying path NaN, counted once, equal to CrMath, production 0.</li>
+ *   <li>K = 2^54: 20,000 inputs, fast path undecided on 6,015, NaN 5,382, 0 mismatches with the model on the folded pair, undecided and unfolded 632 of which NaN 0. P: 20 of 20.</li>
+ *   <li>B2F2-D (the slow tier, {@code logs/fp2_run2_slow.log}): production delegations 0 in every population including 0 of 1,098,254 {@code tan.wc}; forced-path firings 0 in every random and
+ *       near-pole population and 1 of 1,098,245 over {@code tan.wc}; golden 0 of 4,260; fast tier 0 of 70,512; 30 comparison lines 0 mismatches.</li>
+ *   <li>MUTANTS (DIAGNOSTIC, the 9-class set of 52 tests, then the slow wcEveryFiniteEntry): RA, RI, MR5, RV each exactly 2 failing methods (M1, K) and the slow count pin (1 -> 0); RW exactly 3
+ *       (p6, the golden count, K) and the slow pin (0 -> 1,571); RC exactly 1 (G1b, 15,115 violations). All as predicted.</li>
+ * </ul>
  */
 class CoreMathTanGuardTest {
 

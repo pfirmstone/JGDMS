@@ -122,7 +122,7 @@ final class CoreMathDint {
     /**
      * C {@code add_dint} (tan.c:155-257): {@code r = a + b}, error bounded by 2 ulps (1 ulp for equal signs), exact when Sterbenz applies (the C's claim, tan.c:157-158;
      * the one exception, MEASURED by the Fable review of 2026-11-12: |a| = 2|b| exactly with both mantissas 2^128 - 1 is off by half an ulp, 29 of 29 such pairs, 0 other inexact Sterbenz
-     * cases in 200,000; unreachable from tan, whose {@code MAGIC} and {@code ONE} have mantissa 2^127; the port reproduces the C). The
+     * cases in 200,000; unreachable from tan, whose {@code MAGIC} and {@code ONE} have mantissa 2^127; the port transcribes the C text). The
      * result may overlap {@code a} or {@code b} ({@code add_dint (q, &ONE, q)} and {@code add_dint (X, &MAGIC, X)} overlap {@code b}); every
      * operand word is read before {@code r} is written, except in the early returns, which copy one operand whole.
      */

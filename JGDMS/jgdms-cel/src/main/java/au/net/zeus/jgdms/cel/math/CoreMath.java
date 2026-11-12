@@ -49,7 +49,7 @@ import java.util.function.DoubleUnaryOperator;
  * answers that call by delegating to {@link CrMath}, which is correctly rounded by construction.
  * <p>
  * <b>tan's guard.</b> {@link CoreMathTan#tan} returns a {@code NaN} (never a valid tangent of a finite argument) when the accurate path's 128-bit result is
- * within {@code 86 + K/R} ulps of a rounding boundary, R being the folded argument (the phase B2 reviews found that the C's 86-ulp window is not the accurate
+ * within the guard's window of a rounding boundary ({@code 86 + K/R} ulps after a quarter-turn fold, R being the folded argument, {@code 86 + K} without a fold; the phase B2 reviews found that the C's 86-ulp window is not the accurate
  * path's error after a quarter-turn fold; see {@link CoreMathTan}). This provider then counts the event ({@link #tanGuardDelegations()}) and answers that call by
  * delegating to {@link CrMath}, exactly as it does for atan2's failure branch.
  * <p>

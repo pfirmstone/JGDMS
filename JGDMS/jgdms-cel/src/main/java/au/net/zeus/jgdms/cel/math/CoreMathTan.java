@@ -66,7 +66,7 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * that is a WIRING CHECK on the two exception inputs, not a hard-case detector (an 86-ulp window is about 2^-68 of the spacing of the doubles: expected hits in 7.6 million
  * random inputs about 2^-45), so its count of zero says nothing about a third hard case.
  *
- * <h2>Properties of the C found while porting (MEASURED 2026-11-12 by the phase B2 tests; the port reproduces the C, these are not port defects)</h2>
+ * <h2>Properties of the C found while porting (MEASURED 2026-11-12 by the phase B2 tests; the port transcribes the C text, these are not port defects)</h2>
  * <ul>
  *   <li><b>The 86-ulp claim is false after a fold</b> (found by the phase B2 reviews, Opus M1 and Fable F-1, independently, 2026-11-12; reproduced by
  *       {@code CoreMathTanFoldErrorReproducerTest}). {@code reduce} bounds its error relative to {@code F = frac(x/(2 pi))} (tan.c:1538-1541). {@code tan_accurate} then
@@ -82,7 +82,7 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  *       measured 24 of 96 inputs above the C's stated 2^-126.67 (worst 2^-126.34) and none above 2^-126.26; Fable 1,047 of 5,600 (largest 2^-126.277, 0 above 2^-126.26); for {@code ex >= 2} the stated
  *       2^-126.67 held (0 of 441; 0 of 204,600, Fable). This is the smaller of the two gaps: carried through the C's chain it makes the window 88 ulps, negligible next to the fold.</li>
  *   <li>{@code set_dd} with {@code c1 = 0}: the C writes the exponent field of {@code l} as {@code f - 64 - g} where the {@code c1 != 0} branch has {@code f - 53 - g}, so {@code l} is 2^-11 times the
- *       exact truncation. The branch needs {@code frac(x/(2 pi)) < 2^-64}; the smallest possible is about 2^-62, so tan never reaches it. The Java reproduces the C (tested).</li>
+ *       exact truncation. The branch needs {@code frac(x/(2 pi)) < 2^-64}; the smallest possible is about 2^-62, so tan never reaches it. The Java transcribes the C text (tested against a model written from it; the C was not run).</li>
  *   <li>{@code CoreMathDint#toD}: in the overflow branch for {@code ex > 1025} the C assigns a positive {@code MAX_VALUE} to {@code r.f}, so a negative value overflows to +Infinity; the
  *       subnormal and overflow branches are unreachable from tan (|tan(x)| lies in [0x1.14ae72e6ba22fp-60, 0x1.d9ba9a7975636p+60] above the tiny exit). Ported verbatim, driven by hand cases only (UNVALIDATED beyond those).</li>
  *   <li>{@code add_dint}: tan.c:157-158 says the Sterbenz case is exact; for both mantissas 2^128 - 1 and exponents one apart it is off by half an ulp (Fable C-4, 29 of 29 such pairs; unreachable
@@ -123,8 +123,10 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  * representable doubles as well as midpoints, so this is twice the midpoint-only figure {@code 2*W/2^75} (Fable L-2); about 2^-67 without a fold ({@code W = 95}), and after a fold
  * ({@code W = 8/R}) about 2^-30 at R = 2^-40 and 1 below R = 2^-71. The first window of the phase B2 fix pass, {@code 86 + K/R} on EVERY input, also widened the unfolded tiny
  * arguments ({@code R = x/(2 pi)}, 2^32.6 ulps at x = 2^-27) and so delegated 1,571 of the 1,098,254 {@code tan.wc} entries, 554 of the 4,260 golden entries and the two neighbours of the
- * tiny threshold, every one an unfolded input on which the fold gap does not exist (re-check reviews of 22a20ad5a: Opus MEDIUM-1, Fable M-2); the window above does not. What the
- * narrowed window delegates is measured in READY section Z.
+ * tiny threshold, every one an unfolded input on which the fold gap does not exist (re-check reviews of 22a20ad5a: Opus MEDIUM-1, Fable M-2); the window above does not. MEASURED
+ * with the narrowed window (fix pass 2, 2026-11-12, READY section Z; population and rule: calls of the production provider counted by {@code tanGuardDelegations}): 0 of the 1,098,254
+ * {@code tan.wc} entries, 0 of the 4,260 golden entries, 0 of 70,512 fast-tier inputs, 0 of 6,500,000 random and 0 of 500,000 near-pole inputs; on the FORCED accurate path the guard fires on
+ * 1 of the 1,098,245 in-domain {@code tan.wc} entries, the folded {@code x = 0x1.92456c9a2452ep282} (which the fast path decides) and on none of the other populations.
  *
  * <h2>Which constants the tests can see by behaviour (phase B2 mutation runs, 2026-11-12; DIAGNOSTIC)</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C

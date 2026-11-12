@@ -101,7 +101,7 @@ class CoreMathTanFoldErrorReproducerTest {
                     .append(" errorUlps=").append(String.format(Locale.ROOT, "%.6g", ulps)).append(" R=").append(String.format(Locale.ROOT, "%.6g", r)).append(" errorTimesR=").append(String.format(Locale.ROOT, "%.4f", ulps * r))
                     .append(" distanceToMidpointUlps=").append(String.format(Locale.ROOT, "%.6g", dist)).append(" folded=").append(folded).append(" c86Fires=").append(cFires)
                     .append(" guardFires=").append(guard).append(" window=").append(String.format(Locale.ROOT, "%.6g", windowUlps)).append(" correctlyRounded=").append(Double.toHexString(exact))
-                    .append(" U=(hi 0x").append(Long.toHexString(u.hi)).append(" lo 0x").append(Long.toHexString(u.lo)).append(" ex ").append(u.ex).append(", |tan x| = (hi/2^64 + lo/2^128) 2^ex)"));
+                    .append(" U=(hi 0x").append(String.format(Locale.ROOT, "%016x", u.hi)).append(" lo 0x").append(String.format(Locale.ROOT, "%016x", u.lo)).append(" ex ").append(u.ex).append(", |tan x| = (hi/2^64 + lo/2^128) 2^ex)"));
             // B2F-U3, U4 (second half)
             assertEquals(Double.doubleToRawLongBits(exact), Double.doubleToRawLongBits(accurate), CoreMathTestSupport.msg("accurate path at ", Double.toHexString(x)));
             assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(accurate), CoreMathTestSupport.msg("accurate path against CrMath at ", Double.toHexString(x)));
