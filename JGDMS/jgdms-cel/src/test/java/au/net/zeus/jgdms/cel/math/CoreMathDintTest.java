@@ -66,6 +66,8 @@ import org.junit.jupiter.api.Test;
  *   <li><b>B2-D8 normalize.</b> {@code CoreMathTan.normalize} shifts a non-zero value left until the top bit of {@code hi} is set and
  *       lowers {@code ex} by the shift, for 100,000 values incl. {@code hi = 0}: 0 mismatches against the BigInteger value.</li>
  * </ol>
+ * NOTE added after the seal (the sealed text above is unedited): B2-D7 says tan's results lie in [2^-27, 2^61]; the lower end is wrong. Near multiples of pi tan is tiny: the C's comment in tan.wc names
+ * 0x1.14ae72e6ba22fp-60 as the smallest |tan(x)| (at 2*x0, x0 = 0x1.6ac5b262ca1ffp+849). The conclusion stands (no result is near the subnormal range 2^-1022).
  */
 class CoreMathDintTest {
 

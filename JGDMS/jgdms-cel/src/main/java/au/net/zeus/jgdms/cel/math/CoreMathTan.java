@@ -77,11 +77,26 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  *       subnormal and overflow branches are unreachable from tan (|tan(x)| lies in [2^-27, 2^61]). Ported verbatim, driven by hand cases only (UNVALIDATED beyond those).</li>
  * </ul>
  *
- * <h2>Which constants the tests can see by behaviour</h2>
+ * <h2>Which constants the tests can see by behaviour (phase B2 mutation runs, 2026-11-12; DIAGNOSTIC)</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C
- * text, so none depends on a behavioural test to be guarded. The margin of the fast path's {@code FAST_ERR} (0x1.1ap-66) and of the accurate
- * path's {@code ACCURATE_ERR} (86) against the tests' sensitivity is recorded in this comment by the phase B2 mutation runs, dated and with
- * their populations (see {@code STAGE2B2_READY.md} of the delivery; none is recorded here until it has been measured).
+ * text, so none depends on a behavioural test to be guarded. Each mutant below was applied to a copy of the working tree and run against the fast tier
+ * (named inputs, the first 2,000 entries and the committed golden of 4,260 entries of {@code tan.wc}, seven random populations of 10,000, the BigInteger
+ * models) and, where stated, the slow tier (every one of the 1,098,254 finite {@code tan.wc} entries, 6,500,000 random inputs and 500,000 inputs near multiples of
+ * pi/2), the digest and C-text tests apart, which every constant mutant fails by design. Scoring: bits against {@link CrMath}.
+ * <ul>
+ *   <li>{@code FAST_ERR} (0x1.1ap-66): halved, survives both tiers; divided by 4, seen by 5 of the first 2,000 {@code tan.wc} entries; by 8, 72 of 2,000; by 16, 176 of 2,000
+ *       and 470 of 4,260 golden entries (and every slow test); by 256, 351 of 2,000. The hard cases of {@code tan.wc} lie within 2^-96 of a rounding boundary, so any actual error
+ *       above the shrunk bound mis-decides them: they measure the actual error of the fast path directly, which lies between 1/4 and 1/2 of the constant (a margin between
+ *       2 and 4), like the atan and atan2 constants of phase B1. A random population does not see halving.</li>
+ *   <li>{@code ACCURATE_ERR} (86): halved to 43, invisible to every behavioural test; set to 1, the 86-ulp test no longer fires for the exception inputs but no result changed in the fast tier (the slow tier was not run for that mutant).</li>
+ *   <li>The {@code exceptions} table: removing the loop changes no result on any entry of {@code tan.wc} (which contains both inputs), on the four exception inputs (both
+ *       signs) or on the 6,500,000 random inputs, so for round-to-nearest in this arithmetic the table is redundant (as four of the five acos exceptions of phase B1 were); it is
+ *       ported because the C has it.</li>
+ *   <li>{@code H_MIN} 2^-37 to 2^-38 (both tiers) and {@code ERR_UNDECIDED} 1 to 2^-70 (fast tier): invisible to behaviour (the second leaves {@code left != right} for every reduced argument that reaches it).
+ *       {@code CH} moved by one ulp: seen at once by the fast tier.</li>
+ *   <li>A dropped carry in {@code reduce} (into c[2]): seen by the BigInteger model, by the named inputs and by 4 of the 7 slow-tier tests; in {@code reduce_fast} (into c[1], exponent
+ *       field above 1074): by the BigInteger model alone in the fast tier and by 5 of 1,098,254 {@code tan.wc} entries in the slow tier (probability 2^-11 per input).</li>
+ * </ul>
  *
  * <h2>What differs from the C, and why</h2>
  * <ul>

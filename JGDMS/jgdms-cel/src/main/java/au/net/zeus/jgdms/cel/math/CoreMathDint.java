@@ -55,7 +55,7 @@ package au.net.zeus.jgdms.cel.math;
  *   <li>A shift by 64 or more is undefined in the C; Java masks the count to 6 bits, as the x86 instruction does. The C's guards keep every
  *       shift below 64 (or below 128 for {@code u128}, where {@link U128} handles the whole range).</li>
  *   <li>{@code subnormalize_dint} and the overflow and underflow branches of {@code dint_tod} cannot be reached by {@code tan} (its
- *       results lie in [2^-27, 2^61]); they are ported all the same and {@code CoreMathDintTest} drives them directly.</li>
+ *       results lie in [0x1.14ae72e6ba22fp-60, 0x1.d9ba9a7975636p+60] by the C's own comment in tan.wc, far from the subnormal and overflow ranges); they are ported all the same and {@code CoreMathDintTest} drives them directly.</li>
  * </ul>
  */
 final class CoreMathDint {
