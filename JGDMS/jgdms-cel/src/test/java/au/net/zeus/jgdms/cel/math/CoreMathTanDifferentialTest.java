@@ -77,6 +77,9 @@ import org.junit.jupiter.api.Test;
  *       the hard-case census fires on exactly the inputs of the two exceptions and no others.</li>
  *   <li><b>B2-P15 time.</b> The fast tier of the new classes together runs in under 90 s on this machine (Surefire's report).</li>
  * </ol>
+ * <p>
+ * FIX PASS 2 (appended 2026-11-12; the sealed texts above stand as history). B2F2-D (sealed in {@code CoreMathTanGuardTest}, before the first run): with the window narrowed (operator decision
+ * "Narrow it"), p6 sees 0 guard delegations over its 70,512 inputs (the first window delegated 2: B2F-G6, deviation FD1).
  */
 class CoreMathTanDifferentialTest {
 
@@ -171,15 +174,11 @@ class CoreMathTanDifferentialTest {
         }
         System.out.println(new StringBuilder(160).append("T5 tan: provider ").append(calls).append(" finite calls, ").append(mismatches).append(" mismatches; delegate tan calls ").append(delegate.tan.sum()));
         assertEquals(0L, mismatches);
-        // fix pass (B2F-G6): the guard may delegate a call; every delegate call must be a counted guard delegation, and the prediction is that there are none in these populations
+        // fix pass 2 (B2F2-D, sealed in CoreMathTanGuardTest): with the window narrowed to 86 + K after no fold (operator decision 2026-11-12, "Narrow it") the guard delegates NONE of these
+        // 70,512 inputs. The first window (86 + K/R on every input) delegated 2 of them, x = +-0x1.d12ed0af1a27fp-27, unfolded inputs on which the fold gap does not exist (re-check
+        // reviews of 22a20ad5a, Opus MEDIUM-1 and Fable M-2); every delegate call must be a counted guard delegation.
         assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
-        // FOUND AT THE FIRST RUN (B2F-G6 predicted 0 and FAILED, 2 delegations): the two inputs just above the tiny-argument threshold, x = +-0x1.d12ed0af1a27fp-27 (the neighbours of
-        // TINY_BITS). That threshold is where tan(x) = x + x^3/3 crosses the half-ulp above x, so tan of its neighbours is within about 2^22 128-bit ulps of a rounding midpoint (derived, not measured: see the scoring note in CoreMathTanGuardTest),
-        // inside the window 86 + 8/R (R = 2^-28.8 turns, window about 2^31.8): hard cases of the C's own threshold, delegated, and equal to CrMath (compared below). No other input of
-        // the 70,512 was delegated. They are real inputs on which the guard fires, an end-to-end control of the routing (the sealed text of B2F-G6 is in the class comment of CoreMathTanGuardTest).
-        java.util.List<Double> expectedGuarded = java.util.Arrays.asList(Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)), -Math.nextUp(Double.longBitsToDouble(CoreMathTanTables.TINY_BITS)));
-        assertEquals(2L, provider.tanGuardDelegations());
-        assertTrue(guarded.containsAll(expectedGuarded) && guarded.size() == 2, "the guard's delegations: " + guarded);
+        assertEquals(0L, provider.tanGuardDelegations(), CoreMathTestSupport.msg("the guard's delegations: ", guarded));
         // control: a provider that delegates everything
         CountingDelegate delegate2 = new CountingDelegate();
         CorrectlyRoundedMath everything = new CorrectlyRoundedMath() {
@@ -205,8 +204,8 @@ class CoreMathTanDifferentialTest {
         for (double x : bad) {
             assertThrows(IllegalArgumentException.class, () -> provider.tan(x));
         }
-        // the delegate saw the two guard delegations above and the three non-finite arguments (a test defect of the first edit of this fix pass: it expected only the three)
-        assertEquals(bad.length + provider.tanGuardDelegations(), delegate.tan.sum());
+        // the delegate saw the three non-finite arguments only (there are no guard delegations: see above)
+        assertEquals(bad.length, delegate.tan.sum());
     }
 
     @Test

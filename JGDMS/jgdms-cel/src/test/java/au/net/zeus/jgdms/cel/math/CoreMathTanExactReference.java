@@ -41,6 +41,14 @@ final class CoreMathTanExactReference {
     static final BigInteger ONE_F = BigInteger.ONE.shiftLeft(F);
     private static final BigInteger MASK_F = ONE_F.subtract(BigInteger.ONE);
 
+    /**
+     * Word {@code i} of the binary expansion of 1/(2 pi) after the point, 64 bits per word ({@code i = 0} is 0x28be60db9391054a): the SELF-CHECK of this evaluator's pi against
+     * the 20 words of {@code tan.c}'s table T (Fable L-4, re-check of 22a20ad5a; {@code CoreMathTanGuardTest#theExactReferenceUsesTheCsPiWords}).
+     */
+    static long inv2PiWord(int i) {
+        return INV2PI_B.shiftRight(B - 64 * (i + 1)).longValue();
+    }
+
     private static BigInteger atanInv(int n, int bits) {
         BigInteger nn = BigInteger.valueOf((long) n * n);
         BigInteger term = BigInteger.ONE.shiftLeft(bits).divide(BigInteger.valueOf(n));

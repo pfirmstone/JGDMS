@@ -63,6 +63,9 @@ import org.junit.jupiter.api.Test;
  * clause HELD (-27 (310, all the entries of tan.wc at that exponent), -25 (70), -24 (64), -23 (57), -22 (30), -21 (11), -20 (8), -19 (3), -17 (1)) and the 0 mismatches HELD. The premise was wrong: the
  * first 2,000 entries of tan.wc are not the entries at the smallest arguments (the golden has no entry at exponent -26, where tan.wc has 677 delegations of its 1,571). The test now asserts the
  * measured count exactly (deterministic: fixed file, fixed code).
+ * <p>
+ * FIX PASS 2 (appended 2026-11-12; the sealed texts and the scoring above stand as history). B2F2-D (sealed in {@code CoreMathTanGuardTest}, before the first run): with the window narrowed
+ * (operator decision "Narrow it") the guard delegates 0 of the 4,260 golden entries (the first window delegated 554: B2F-G6b, deviation FD3), 0 mismatches.
  */
 class CoreMathTanWorstCaseGoldenTest {
 
@@ -134,12 +137,12 @@ class CoreMathTanWorstCaseGoldenTest {
     @Test
     void guardDelegationsOverTheGolden() throws IOException {
         Golden g = load();
-        java.util.TreeMap<Integer, Long> byExponent = new java.util.TreeMap<>();
+        java.util.List<Double> guarded = new ArrayList<>();
         CountingDelegate delegate = new CountingDelegate();
         CoreMath provider = new CoreMath(delegate, CoreMathAtan2::atan2, x -> {
             double r = CoreMathTan.tan(x);
             if (r != r) {
-                byExponent.merge(Math.getExponent(x), 1L, Long::sum);
+                guarded.add(x);
             }
             return r;
         });
@@ -150,12 +153,12 @@ class CoreMathTanWorstCaseGoldenTest {
             }
         }
         long delegated = provider.tanGuardDelegations();
-        System.out.println(new StringBuilder(200).append("B2F-G6b golden: the guard delegated ").append(delegated).append(" of ").append(g.xs.length).append(" production calls, ").append(mismatches)
-                .append(" mismatches; by Math.getExponent(x): ").append(byExponent));
+        System.out.println(new StringBuilder(200).append("B2F2-D golden: the guard delegated ").append(delegated).append(" of ").append(g.xs.length).append(" production calls, ").append(mismatches)
+                .append(" mismatches"));
         assertEquals(0L, mismatches);
         assertEquals(delegated, delegate.tan.sum());
-        assertEquals(554L, delegated, "B2F-G6b / D10: the guard's delegations over the golden");
-        assertTrue(byExponent.firstKey() >= -27 && byExponent.lastKey() <= -17, "B2F-G6b: exponents " + byExponent);
+        // fix pass 2 (B2F2-D, narrowed window): none. The first window delegated 554 of these 4,260, every one an unfolded input at exponent -27..-17 where the fold gap does not exist.
+        assertEquals(0L, delegated, CoreMathTestSupport.msg("B2F2-D: the guard's delegations over the golden: ", guarded));
     }
 
     @Test

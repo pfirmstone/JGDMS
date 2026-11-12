@@ -39,6 +39,13 @@ import org.junit.jupiter.api.Test;
  * The 500,000 near-pole inputs are about 259,000 near a pole and about 241,000 ordinary large arguments (Opus L2). The oracle runs on all cores
  * ({@code CrMath} is thread-safe for results, see {@link CoreMathTestSupport}).
  * <p>
+ * FIX PASS 2 (appended 2026-11-12; the sealed text above stands as history, its bounds are superseded; operator decision "Narrow it": the guard's window is {@code 86 + K/R} after a fold and
+ * {@code 86 + K} without). <b>SEALED PREDICTIONS B2F2-D, written before the first run:</b> the guard delegates NONE of the production calls of any population, {@code tan.wc} included (the first
+ * window delegated 1,571 of its 1,098,254 entries, all unfolded tiny arguments); on the FORCED accurate path it fires on none of the in-domain inputs of any random or near-pole population
+ * (the window after a fold is unchanged and the first window already fired on none of them) and on exactly ONE of the 1,098,245 in-domain {@code tan.wc} entries, the folded
+ * {@code x = 0x1.92456c9a2452ep282} (Opus O8: 1 beside the two exceptions, which the table answers first; Fable M-1: 2,498 under the first window, 2,497 of them unfolded); 0 mismatches
+ * everywhere as before.
+ * <p>
  * Predictions are B2-P14 of {@code CoreMathTanDifferentialTest}'s javadoc, sealed before the first run: 0 mismatches in every population on the provider path, the accurate path alone and the fast
  * path alone; the hard-case census (the C's 86-ulp test) fires on no input other than the two exceptions of {@code tan_accurate}. Each population is run through the provider, the
  * accurate path alone and the fast path alone, so the accurate path is covered on all of them and not only where the fast path gives up. The comparison, the populations and the control are the
@@ -56,11 +63,6 @@ class CoreMathTanSlowTest {
     private static final int CHUNK = 1_000_000;
 
     private static void checkChunked(String population, IntFunction<double[]> chunkInputs, int total) {
-        checkChunked(population, chunkInputs, total, 0L);
-    }
-
-    /** {@code maxGuardDelegations}: the sealed bound (B2F-G6) on the production calls the guard may delegate in this population. */
-    private static void checkChunked(String population, IntFunction<double[]> chunkInputs, int total, long maxGuardDelegations) {
         long t0 = System.nanoTime();
         long undecided = 0;
         long done = 0;
@@ -90,7 +92,8 @@ class CoreMathTanSlowTest {
                 .append(" (not an exception input: ").append(notException).append("); guard: fires on ").append(guardSeam).append(" of ").append(inDomain)
                 .append(" in-domain inputs on the forced accurate path, delegated ").append(guardDelegations).append(" of ").append(total).append(" production calls"));
         assertEquals(0L, notException, "the C's 86-ulp hard-case test fired on an input that is not one of the two exceptions");
-        assertTrue(guardDelegations <= maxGuardDelegations, "B2F-G6: guard delegations " + guardDelegations + " of " + total + " calls in " + population);
+        assertEquals(0L, guardDelegations, CoreMathTestSupport.msg("B2F2-D: guard delegations ", guardDelegations, " of ", total, " calls in ", population));
+        assertEquals(0L, guardSeam, CoreMathTestSupport.msg("B2F2-D: guard fires on the forced accurate path on ", guardSeam, " inputs of ", population));
     }
 
     /** How many calls of the production provider over {@code xs} were answered by the delegate because the guard fired (every one must equal CrMath: the comparison tests do that). */
@@ -100,32 +103,6 @@ class CoreMathTanSlowTest {
         java.util.stream.IntStream.range(0, xs.length).parallel().forEach(j -> provider.tan(xs[j]));
         assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
         return provider.tanGuardDelegations();
-    }
-
-    /**
-     * The binary exponents ({@code Math.getExponent}) of the inputs of {@code xs} that the guard delegated through the production provider, with their counts. Fix pass: the guard fires on
-     * hard cases, and {@code tan.wc} is made of them.
-     */
-    private static java.util.TreeMap<Integer, Long> guardDelegationsByExponent(double[] xs) {
-        java.util.TreeMap<Integer, Long> byExponent = new java.util.TreeMap<>();
-        CountingDelegate delegate = new CountingDelegate();
-        CoreMath provider = new CoreMath(delegate, CoreMathAtan2::atan2, x -> {
-            double r = CoreMathTan.tan(x);
-            if (r != r) {
-                synchronized (byExponent) {
-                    byExponent.merge(Math.getExponent(x), 1L, Long::sum);
-                }
-            }
-            return r;
-        });
-        java.util.stream.IntStream.range(0, xs.length).parallel().forEach(j -> provider.tan(xs[j]));
-        long sum = 0;
-        for (long v : byExponent.values()) {
-            sum += v;
-        }
-        assertEquals(provider.tanGuardDelegations(), sum);
-        assertEquals(provider.tanGuardDelegations(), delegate.tan.sum());
-        return byExponent;
     }
 
     @Test
@@ -138,20 +115,15 @@ class CoreMathTanSlowTest {
         assertTrue(wc.values.length > 1_000_000, "the .wc reader lost entries");
         double[] expected = CoreMathTanTestSupport.oracle(wc.values);
         CoreMathTanTestSupport.checkUnary("tan.wc every finite entry", wc.values, expected);
-        java.util.TreeMap<Integer, Long> guardByExponent = guardDelegationsByExponent(wc.values);
-        long guardDelegationsWc = 0;
-        for (long v : guardByExponent.values()) {
-            guardDelegationsWc += v;
-        }
+        long guardDelegationsWc = productionGuardDelegations(wc.values);
         long[] gc = CoreMathTanTestSupport.ambiguousCensus(wc.values);
-        System.out.println(new StringBuilder(200).append("tan.wc guard: delegated ").append(guardDelegationsWc).append(" of ").append(wc.values.length).append(" production calls; fires on ").append(gc[3]).append(" of ")
-                .append(gc[0]).append(" in-domain entries on the forced accurate path; delegated by Math.getExponent(x): ").append(guardByExponent));
-        // B2F-G6 sealed at most 5 delegations over tan.wc (about 0.6 expected) and FAILED at the first run, 2026-11-12 (deviation D9): 1,571 of 1,098,254 (0.14%), all with exponent -27..-17. The
-        // sealed estimate assumed the 128-bit results are spread evenly over the spacing of the doubles; tan.wc is made of hard cases (a result within about 2^-43 of a midpoint, a few
-        // times 2^32 units of 2^-128), and for the tiny arguments R = |x|/(2 pi) is so small that the window 86 + 8/R (2^32.6 at x = 2^-27) reaches them. The comparison above (0 mismatches on all three paths) is unchanged.
-        // The count is deterministic (fixed file, fixed code): asserted exactly, so that a change of K, of the window or of the port shows here.
-        assertEquals(1571L, guardDelegationsWc, "B2F-G6 / D9: guard delegations over tan.wc");
-        assertTrue(guardByExponent.firstKey() >= -27 && guardByExponent.lastKey() <= -17, "B2F-G6 / D9: exponents " + guardByExponent);
+        System.out.println(new StringBuilder(200).append("tan.wc guard: delegated ").append(guardDelegationsWc).append(" of ").append(wc.values.length).append(" production calls; fires on ").append(gc[3])
+                .append(" of ").append(gc[0]).append(" in-domain entries on the forced accurate path"));
+        // B2F2-D (fix pass 2, narrowed window): no production delegation, and ONE forced-path firing, the folded x = 0x1.92456c9a2452ep282 (the fast path decides it, so production does not
+        // delegate it). History: the first window (86 + K/R on every input) delegated 1,571 entries (B2F-G6 had sealed at most 5: deviation FD2) and fired on 2,498 on the forced path; 2,497 of those were
+        // unfolded tiny arguments on which the fold gap does not exist (re-check reviews of 22a20ad5a). The counts are deterministic (fixed file, fixed code): asserted exactly.
+        assertEquals(0L, guardDelegationsWc, "B2F2-D: guard delegations over tan.wc");
+        assertEquals(1L, gc[3], "B2F2-D: guard firings on the forced accurate path over tan.wc");
         long[] c = CoreMathTanTestSupport.ambiguousCensus(wc.values);
         System.out.println(new StringBuilder(160).append("tan.wc hard-case census: ").append(c[1]).append(" of ").append(c[0]).append(" in-domain entries reach the 86-ulp test, ").append(c[2]).append(" of them not an exception input"));
         assertEquals(0L, c[2]);
@@ -184,7 +156,7 @@ class CoreMathTanSlowTest {
 
     @Test
     void nearMultiplesOfHalfPiQuarterMillionEach() {
-        checkChunked("the double nearest k pi/2 +-8 ulps, k of at most 52 bits (20261451)", chunk -> CoreMathTanTestSupport.nearHalfPiMultiples(20261451L, 250_000, 52), 250_000, 3L);
-        checkChunked("the double nearest k pi/2 +-8 ulps, k of at most 1020 bits (20261452; about 5% near a pole)", chunk -> CoreMathTanTestSupport.nearHalfPiMultiples(20261452L, 250_000, 1020), 250_000, 3L);
+        checkChunked("the double nearest k pi/2 +-8 ulps, k of at most 52 bits (20261451)", chunk -> CoreMathTanTestSupport.nearHalfPiMultiples(20261451L, 250_000, 52), 250_000);
+        checkChunked("the double nearest k pi/2 +-8 ulps, k of at most 1020 bits (20261452; about 5% near a pole)", chunk -> CoreMathTanTestSupport.nearHalfPiMultiples(20261452L, 250_000, 1020), 250_000);
     }
 }

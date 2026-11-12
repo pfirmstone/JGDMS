@@ -76,6 +76,15 @@ final class CoreMathTestSupport {
     // ----------------------------------------------------------------------------------------
 
     /** A double as its hexadecimal literal plus its raw bits, so a report can be pasted into a test. */
+    /** A message from its parts without {@code +} concatenation (the project's Java rule: StringBuilder). */
+    static String msg(Object... parts) {
+        StringBuilder sb = new StringBuilder(64);
+        for (Object p : parts) {
+            sb.append(p);
+        }
+        return sb.toString();
+    }
+
     static String hex(double v) {
         StringBuilder sb = new StringBuilder(48);
         sb.append(Double.toHexString(v)).append(" (0x");

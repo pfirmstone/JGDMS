@@ -28,7 +28,8 @@ package au.net.zeus.jgdms.cel.math;
  *   <li>{@link CoreMath}: conformant for all seven. {@code sin}, {@code cos}, {@code tan}, {@code asin}, {@code acos}, {@code atan} and {@code atan2} are Java ports of
  *       CORE-MATH's correctly-rounded binary64 routines ({@code src/binary64/<f>/<f>.c} at CORE-MATH
  *       commit 018fa97c, MIT licence, see the LICENSE and NOTICE files); all seven are ported, and {@link CrMath} answers only
- *       where a port does not (NaN and infinities, {@code |x| > 1} for asin and acos, an atan2 correct-rounding failure). This is what {@code MathProviders.correctlyRounded()} returns.</li>
+ *       where a port does not (NaN and infinities, {@code |x| > 1} for asin and acos, an atan2 correct-rounding failure, and a tan result inside the guard's window,
+ *       a counted event: see {@link CoreMath}). This is what {@code MathProviders.correctlyRounded()} returns.</li>
  *   <li>{@link CrMath}: conformant for all seven, by arbitrary-precision arithmetic with Ziv
  *       escalation (slow). It is kept as the delegate of {@code CoreMath} and as the independent
  *       oracle that the tests of the CORE-MATH ports compare against.</li>

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A REPRODUCER for the upstream report on CORE-MATH's {@code tan.c} (operator request 2026-11-12, "Can you make a test case?"). It runs a short NAMED list of inputs through the
- * port of {@code tan_accurate} (which is the C's algorithm, bit for bit: see {@code CoreMathTanDifferentialTest}) and compares the 128-bit result it rounds, {@code U}, with an
+ * port of {@code tan_accurate} (a statement-by-statement port of the C's algorithm; its rounded results are compared with {@code CrMath}, not with the C: see {@code CoreMathTanDifferentialTest}) and compares the 128-bit result it rounds, {@code U}, with an
  * EXACT tangent ({@link CoreMathTanExactReference}: Machin's pi to 2,400 bits, 800-bit fixed point, independent of the port, of {@code CrMath} and of CORE-MATH).
  * <p>
  * <b>The property shown.</b> {@code tan.c:2127-2131} and {@code :2206-2212} claim that the accurate path's 128-bit result is within 86 ulps (units of the last bit of the 128-bit
@@ -56,6 +56,12 @@ import org.junit.jupiter.api.Test;
  * true tangent is at least 2.8e21 ulps from a midpoint (the largest possible is 2^74 = 1.9e22), 1.3e3 to 6.5e19 times the error, so the guard fires on none of them (guardFires=false for the nine; the guard's firing is shown by
  * {@code CoreMathTanGuardTest} on constructed results); U5 HELD (11 of 11). The population carries no input on which the C's 86-ulp test or the guard fires: a wrong rounding needs the true
  * tangent within the error of a midpoint, and none of these is.
+ * <p>
+ * FIX PASS 2 (appended 2026-11-12; the sealed texts above stand as history; re-check review Fable M-3). SCOPE: every comparison here and in the tests this one refers to is against {@code CrMath}
+ * or against the exact reference of this class; the C was never compiled or run, so "the port equals the correctly rounded tangent on these inputs" is agreement with the C only where the C is
+ * correctly rounded. With the window narrowed (operator decision "Narrow it") the window of the two controls, which are unfolded, is {@code 86 + 8 = 94} ulps (95 in the code) instead of
+ * {@code 86 + 8/R}; sealed before the first run: U1 to U4 unchanged (9 of 9; error x R below 3.2; 11 of 11; 9 of 9), U5 with the narrowed window: 11 of 11, and the code's fold flag equals the
+ * exact reference's "frac(x/(2 pi)) >= 1/8" on all 11.
  */
 class CoreMathTanFoldErrorReproducerTest {
 
@@ -76,15 +82,17 @@ class CoreMathTanFoldErrorReproducerTest {
         for (int k = 0; k < INPUTS.length; k++) {
             double x = INPUTS[k];
             CoreMathDint xd = new CoreMathDint();
-            int[] ig = new int[1];
+            int[] ig = new int[2];
             CoreMathDint u = CoreMathTan.accurateU(x, xd, ig);
             CoreMathTanExactReference.Tan t = CoreMathTanExactReference.tan(x);
             double ulps = CoreMathTanExactReference.errorUlps(u, t);
             double dist = CoreMathTanExactReference.distanceToMidpointUlps(u, t);
             double r = new BigDecimal(ig[0]).divide(new BigDecimal(2048)).add(new BigDecimal(CoreMathDintTest.mant(xd)).multiply(pow2(xd.ex - 128))).doubleValue();
             boolean cFires = CoreMathTan.c86TestFires(u);
-            boolean guard = CoreMathTan.guardFires(u, ig[0], xd);
             boolean folded = !CoreMathTanExactReference.isUnfolded(t);
+            assertEquals(folded, ig[1] != 0, "the code's fold flag equals frac(x/(2 pi)) >= 1/8 of the exact reference");
+            boolean guard = CoreMathTan.guardFires(u, ig[0], xd, folded);
+            double windowUlps = folded ? 86 + 8 / r : 86 + 8;                // fix pass 2: the window narrowed (86 + K/R after a fold, 86 + K without)
             double accurate = CoreMathTan.accurate(x);
             double exact = CoreMathTanExactReference.round(t);
             double oracle = CoreMathTestSupport.ORACLE.tan(x);
@@ -92,31 +100,31 @@ class CoreMathTanFoldErrorReproducerTest {
             System.out.println(new StringBuilder(400).append("UPSTREAM x=").append(Double.toHexString(x)).append(" tan=").append(t.negative ? "-" : "+").append(t.absTan(40).round(new java.math.MathContext(40)).toString())
                     .append(" errorUlps=").append(String.format(Locale.ROOT, "%.6g", ulps)).append(" R=").append(String.format(Locale.ROOT, "%.6g", r)).append(" errorTimesR=").append(String.format(Locale.ROOT, "%.4f", ulps * r))
                     .append(" distanceToMidpointUlps=").append(String.format(Locale.ROOT, "%.6g", dist)).append(" folded=").append(folded).append(" c86Fires=").append(cFires)
-                    .append(" guardFires=").append(guard).append(" window=").append(String.format(Locale.ROOT, "%.6g", 86 + 8 / r)).append(" correctlyRounded=").append(Double.toHexString(exact))
+                    .append(" guardFires=").append(guard).append(" window=").append(String.format(Locale.ROOT, "%.6g", windowUlps)).append(" correctlyRounded=").append(Double.toHexString(exact))
                     .append(" U=(hi 0x").append(Long.toHexString(u.hi)).append(" lo 0x").append(Long.toHexString(u.lo)).append(" ex ").append(u.ex).append(", |tan x| = (hi/2^64 + lo/2^128) 2^ex)"));
             // B2F-U3, U4 (second half)
-            assertEquals(Double.doubleToRawLongBits(exact), Double.doubleToRawLongBits(accurate), "accurate path at " + Double.toHexString(x));
-            assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(accurate), "accurate path against CrMath at " + Double.toHexString(x));
-            assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(provider), "provider at " + Double.toHexString(x));
+            assertEquals(Double.doubleToRawLongBits(exact), Double.doubleToRawLongBits(accurate), CoreMathTestSupport.msg("accurate path at ", Double.toHexString(x)));
+            assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(accurate), CoreMathTestSupport.msg("accurate path against CrMath at ", Double.toHexString(x)));
+            assertEquals(Double.doubleToRawLongBits(oracle), Double.doubleToRawLongBits(provider), CoreMathTestSupport.msg("provider at ", Double.toHexString(x)));
             if (k < FOLDED) {
-                assertTrue(folded, "the input is folded: " + Double.toHexString(x));
+                assertTrue(folded, CoreMathTestSupport.msg("the input is folded: ", Double.toHexString(x)));
                 if (ulps > 86) {
                     over86++;
                 }
-                assertTrue(ulps * r < 3.2, "error x R at " + Double.toHexString(x) + ": " + ulps * r);
+                assertTrue(ulps * r < 3.2, CoreMathTestSupport.msg("error x R at ", Double.toHexString(x), ": ", ulps * r));
                 if (ulps < dist || guard) {
                     decidedOrGuarded++;
                 }
             } else {
-                assertTrue(!folded, "the control is not folded: " + Double.toHexString(x));
-                assertTrue(ulps <= 86, "control error " + ulps);
+                assertTrue(!folded, CoreMathTestSupport.msg("the control is not folded: ", Double.toHexString(x)));
+                assertTrue(ulps <= 86, CoreMathTestSupport.msg("control error ", ulps));
             }
-            if (ulps <= 86 + 8 / r) {
+            if (ulps <= windowUlps) {
                 windowContains++;
             }
         }
         System.out.println(new StringBuilder(160).append("B2F-U reproducer: error above the C's 86 ulps on ").append(over86).append(" of ").append(FOLDED).append(" folded inputs; decided or guarded ").append(decidedOrGuarded)
-                .append(" of ").append(FOLDED).append("; the window 86 + 8/R contains the error on ").append(windowContains).append(" of ").append(INPUTS.length));
+                .append(" of ").append(FOLDED).append("; the window (86 + 8/R after a fold, 86 + 8 without) contains the error on ").append(windowContains).append(" of ").append(INPUTS.length));
         assertEquals(FOLDED, over86);
         assertEquals(FOLDED, decidedOrGuarded);
         assertEquals(INPUTS.length, windowContains);

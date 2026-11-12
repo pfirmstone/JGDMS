@@ -44,10 +44,9 @@ Copyright (c) 2024-2025 Alexei Sibidanov. (acos)
 Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>. (atan)
 Copyright (c) 2024-2025 Paul Zimmermann and Alexei Sibidanov (atan2)
 Copyright (c) 2023-2024 Paul Zimmermann and Alexei Sibidanov (atan2, tint.h)
-Copyright (c) 2022 CERN. (log/dint.h)
 Copyright (c) 2022, 2023 CERN and Inria (pow/dint.h)
 Copyright (c) 2022-2025 CERN and Inria (pow/pow.h, pow.c)
-(the last three: the files from which the dint64_t code inside tan.c comes)
+(the last two: the files from which the dint64_t code inside tan.c comes)
 The original software is available from https://gitlab.inria.fr/core-math/core-math
 Licensed under the MIT license.
 See the LICENSE file for the permission notice and the list of the ported files.

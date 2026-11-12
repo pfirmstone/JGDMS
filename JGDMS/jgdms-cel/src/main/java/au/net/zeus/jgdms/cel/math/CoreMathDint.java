@@ -8,13 +8,13 @@
  * It is not part of CORE-MATH and is not endorsed by its authors. The copyright and permission notice below are the upstream's, reproduced without change.
  *
  * Copyright (c) 2022-2025 Paul Zimmermann and Tom Hubrecht
- * Copyright (c) 2022 CERN.
  * Copyright (c) 2022, 2023 CERN and Inria
  * Copyright (c) 2022-2025 CERN and Inria
  *
- * (The three CERN / Inria lines are those of src/binary64/log/dint.h, src/binary64/pow/dint.h and src/binary64/pow/pow.h, pow.c, line 3 of each: tan.c:41 says the
- * dint64_t code is "code copied from dint.h and pow.[ch]", and tan.c does not repeat their copyright lines. They are carried here, verbatim, as the operator ruled
- * on 2026-11-12.)
+ * (The two CERN / Inria lines are those of src/binary64/pow/dint.h and src/binary64/pow/pow.h, pow.c, line 3 of each: tan.c:41 says the dint64_t code is "code copied from
+ * dint.h and pow.[ch]", and tan.c does not repeat their copyright lines; pow/dint.h is the dint.h that holds the copied routines. They are carried here, verbatim, as the operator
+ * ruled on 2026-11-12. An earlier version of this file also carried the line of src/binary64/log/dint.h, which the copied text does not support; the operator ruled on
+ * 2026-11-12 to remove it.)
  *
  * This file is part of the CORE-MATH project
  * (https://core-math.gitlabpages.inria.fr/).

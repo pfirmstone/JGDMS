@@ -18,6 +18,7 @@
 package au.net.zeus.jgdms.cel.math;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -85,6 +86,28 @@ import org.junit.jupiter.api.Test;
  *   <li>Mg5 (the +1 dropped from the window): predicted to SURVIVE; FAILED: killed by G1, 13 violations of 200,148 (the cases placed within one ulp inside the exact window, where
  *       floor(K/R) falls short of K/R by up to 1). The tests are sharper than sealed: the +1 is what makes the window at least 86 + K/R.</li>
  * </ul>
+ *
+ * <h2>SEALED PREDICTIONS (B2F2-*, fix pass 2, 2026-11-12; written in the commit that precedes the first run of the tests below, which also adapts G1..G5 to the narrowed window)</h2>
+ * Re-check reviews of 22a20ad5a (Opus MEDIUM-1, Fable M-1 and M-2); operator decision, verbatim: "Narrow it (Recommended)" (the window is F-aware). {@code guardFires} now takes the fold flag. The
+ * window is {@code w = 86 + floor(K/R) + 1} after a fold and {@code w = 86 + floor(K) + 1 = 95} without one, on the CLOSED interval {@code [U - w, U + w]} (Opus LOW-2).
+ * <ol>
+ *   <li><b>B2F2-G1/G2/G3/G5 (adapted; G4 unchanged).</b> G1 (folded) as sealed: 0 violations of 200,148, at least 50,000 fire and 50,000 do not. G2: 50,000 of 50,000 (the four folded R and the
+ *       unfolded R = 0). G3 splits by the fold flag, in-band distance {@code 86 + 7/R} after a fold and 93 without: in-band fired n of n, the C's test 0, beyond-band 0; of the real inputs at least 10
+ *       are unfolded and at least 300 folded. G5: 0 above the window ({@code 86 + 8/R} after a fold, {@code 86 + 8} without), the fold flag of the code equals "frac(x/(2 pi)) >= 1/8" of the
+ *       exact reference on all 1,409 inputs (0 mismatches), the rest of G5 as sealed.</li>
+ *   <li><b>B2F2-G1b.</b> Without a fold the window is exactly 95 on the closed interval: on 100,000 cases (any index; U placed exactly at the reach, just inside, just outside, and random) 0
+ *       violations with NO tolerance band; at least 10,000 fire and 10,000 do not.</li>
+ *   <li><b>B2F2-M1 (Fable M-1 (i)).</b> The real folded {@code tan.wc} entry {@code x = 0x1.92456c9a2452ep282} (cot branch, R = 1.503e-8 turns): the fold flag is 1; {@code accurateAmbiguous} sets
+ *       {@code flags[1]} and not {@code flags[0]}; {@code accurateGuarded(x)} is NaN; a {@link CoreMath} whose tan port is {@code accurateGuarded} counts 1, calls the delegate once and answers
+ *       with the bits of {@code CrMath}; a {@code CoreMath} with the production port {@code tan} counts 0 and answers with the same bits (the fast path decides it); and {@code guardFires} on the
+ *       same {@code U}, {@code i}, {@code X} with the fold flag cleared is false (the unfolded window 95 is far below the 9.2e7 ulps distance): the flag is what makes the guard fire.</li>
+ *   <li><b>B2F2-K (Fable M-1 (iii)).</b> With {@code K = 2^54} on 20,000 inputs of the population "the double nearest k pi/2 +-8 ulps, k of at most 52 bits" (seed 20261701):
+ *       {@code tanWithK(x, K)} is NaN exactly when the fast path is undecided, x is not an exception and {@code guardFires(accurateU(x), i, xd, fold flag, K)} on the folded pair: 0 mismatches of
+ *       20,000; the number of NaN lies in [3,500, 6,200] (expected about 5,300: 30.4% undecided, seven eighths of them folded); at least 300 undecided inputs are unfolded, and at most 3 of those are NaN.</li>
+ *   <li><b>B2F2-P (Fable L-4).</b> The 1/(2 pi) words of the exact reference equal {@code tan.c}'s {@code T[0..19]}: 20 of 20.</li>
+ * </ol>
+ * Delegation counts over the populations (B2F2-D) are sealed in {@code CoreMathTanSlowTest}, {@code CoreMathTanDifferentialTest} and {@code CoreMathTanWorstCaseGoldenTest}; the mutation
+ * predictions (RA, RI, MR5 and three more) are in the message of the seal commit of this pass.
  */
 class CoreMathTanGuardTest {
 
@@ -202,7 +225,7 @@ class CoreMathTanGuardTest {
                 mustFire = true;
                 mustNotFire = false;
             }
-            boolean got = CoreMathTan.guardFires(u, i, x);
+            boolean got = CoreMathTan.guardFires(u, i, x, true);
             if (mustFire && !got || mustNotFire && got) {
                 violations++;
             }
@@ -232,12 +255,19 @@ class CoreMathTanGuardTest {
             for (int c = 0; c < 10_000; c++) {
                 CoreMathDint u = dint(new BigInteger(128, new java.util.Random(r.nextLong())).setBit(127), 1L);
                 total++;
-                if (CoreMathTan.guardFires(u, 0, x)) {
+                if (CoreMathTan.guardFires(u, 0, x, true)) {
                     fired++;
                 }
             }
         }
-        System.out.println(new StringBuilder(100).append("B2F-G2 R = 2^-72, 2^-80, 2^-100, 0: the guard fired on ").append(fired).append(" of ").append(total));
+        for (int c = 0; c < 10_000; c++) {                                     // fix pass 2: R = 0 without a fold fires too (the code never answers from a zero argument)
+            CoreMathDint u = dint(new BigInteger(128, new java.util.Random(r.nextLong())).setBit(127), 1L);
+            total++;
+            if (CoreMathTan.guardFires(u, 0, new CoreMathDint(0L, 0L, -1076L, 0L), false)) {
+                fired++;
+            }
+        }
+        System.out.println(new StringBuilder(100).append("B2F-G2 R = 2^-72, 2^-80, 2^-100, 0 (and 0 unfolded): the guard fired on ").append(fired).append(" of ").append(total));
         assertEquals(total, fired);
     }
 
@@ -278,14 +308,17 @@ class CoreMathTanGuardTest {
         int cFiredInBand = 0;
         int outFired = 0;
         int tinyR = 0;
+        int foldedInputs = 0;
+        int unfoldedInputs = 0;
         double maxR = 0;
         for (double x : xs) {
             if (!CoreMathTanTestSupport.PATH_DOMAIN.test(x)) {
                 continue;
             }
             CoreMathDint xd = new CoreMathDint();
-            int[] st = new int[2];
+            int[] st = new int[3];
             int i = CoreMathTan.fold(x, xd, st);
+            boolean folded = st[2] != 0;
             BigDecimal rExact = exactR(i, xd);
             double rd = rExact.doubleValue();
             assertTrue(rd < 0.125, "the folded argument is below 1/8");
@@ -293,30 +326,39 @@ class CoreMathTanGuardTest {
             if (rd < 0x1p-20) {
                 tinyR++;
             }
-            BigInteger dIn = BigInteger.valueOf(86).add(new BigDecimal(7).divide(rExact, new MathContext(60)).toBigInteger());
-            BigInteger dOut = BigInteger.valueOf(86).add(new BigDecimal("8.08").divide(rExact, new MathContext(60)).toBigInteger()).add(BigInteger.valueOf(3));
+            if (folded) {
+                foldedInputs++;
+            } else {
+                unfoldedInputs++;
+            }
+            // the window term: K/R after a fold, K without one (fix pass 2); in-band 7 of it, beyond-band 8.08 of it plus 3
+            BigDecimal termIn = folded ? new BigDecimal(7).divide(rExact, new MathContext(60)) : new BigDecimal(7);
+            BigDecimal termOut = folded ? new BigDecimal("8.08").divide(rExact, new MathContext(60)) : new BigDecimal("8.08");
+            BigInteger dIn = BigInteger.valueOf(86).add(termIn.toBigInteger());
+            BigInteger dOut = BigInteger.valueOf(86).add(termOut.toBigInteger()).add(BigInteger.valueOf(3));
             for (boolean above : new boolean[] {true, false}) {
                 CoreMathDint uIn = placed(r, dIn, above);
                 CoreMathDint uOut = placed(r, dOut, above);
                 n++;
-                if (CoreMathTan.guardFires(uIn, i, xd)) {
+                if (CoreMathTan.guardFires(uIn, i, xd, folded)) {
                     inFired++;
                 }
                 if (CoreMathTan.c86TestFires(uIn)) {
                     cFiredInBand++;
                 }
-                if (CoreMathTan.guardFires(uOut, i, xd)) {
+                if (CoreMathTan.guardFires(uOut, i, xd, folded)) {
                     outFired++;
                 }
             }
         }
-        System.out.println(new StringBuilder(220).append("B2F-G3 ").append(xs.length).append(" real inputs, ").append(n).append(" constructed results per side: guard fired inside the band on ").append(inFired)
-                .append(" of ").append(n).append(" (the C's 86-ulp test on ").append(cFiredInBand).append("), beyond the band on ").append(outFired).append("; inputs with R below 2^-20: ").append(tinyR)
-                .append(", largest R ").append(maxR));
+        System.out.println(new StringBuilder(260).append("B2F-G3 ").append(xs.length).append(" real inputs (folded ").append(foldedInputs).append(", unfolded ").append(unfoldedInputs).append("), ").append(n)
+                .append(" constructed results per side: guard fired inside the band on ").append(inFired).append(" of ").append(n).append(" (the C's 86-ulp test on ").append(cFiredInBand)
+                .append("), beyond the band on ").append(outFired).append("; inputs with R below 2^-20: ").append(tinyR).append(", largest R ").append(maxR));
         assertEquals(n, inFired);
         assertEquals(0, cFiredInBand);
         assertEquals(0, outFired);
         assertTrue(tinyR >= 100);
+        assertTrue(unfoldedInputs >= 10 && foldedInputs >= 300, CoreMathTestSupport.msg("folded ", foldedInputs, ", unfolded ", unfoldedInputs));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -379,6 +421,7 @@ class CoreMathTanGuardTest {
         int folded = 0;
         int foldedOver86 = 0;
         int wrongRounded = 0;
+        int flagMismatches = 0;
         double maxProduct = 0;
         double maxUlps = 0;
         for (double x : xs) {
@@ -386,14 +429,18 @@ class CoreMathTanGuardTest {
                 continue;
             }
             CoreMathDint xd = new CoreMathDint();
-            int[] ig = new int[1];
+            int[] ig = new int[2];
             CoreMathDint u = CoreMathTan.accurateU(x, xd, ig);
             CoreMathTanExactReference.Tan t = CoreMathTanExactReference.tan(x);
             double ulps = CoreMathTanExactReference.errorUlps(u, t);
             double rd = exactR(ig[0], xd).doubleValue();
             n++;
             maxUlps = Math.max(maxUlps, ulps);
-            if (ulps > 86 + 8 / rd) {
+            boolean foldedByCode = ig[1] != 0;
+            if (foldedByCode != !CoreMathTanExactReference.isUnfolded(t)) {
+                flagMismatches++;                                           // the code's fold flag against frac(x/(2 pi)) >= 1/8 of the exact reference
+            }
+            if (ulps > 86 + (foldedByCode ? 8 / rd : 8)) {                  // the narrowed window (fix pass 2): 86 + K/R after a fold, 86 + K without
                 outsideWindow++;
             }
             if (CoreMathTanExactReference.isUnfolded(t)) {
@@ -412,12 +459,155 @@ class CoreMathTanGuardTest {
                 wrongRounded++;
             }
         }
-        System.out.println(new StringBuilder(260).append("B2F-G5 ").append(n).append(" inputs against the 800-bit tangent: error above 86 + 8/R ulps on ").append(outsideWindow).append("; unfolded ").append(unfolded)
+        System.out.println(new StringBuilder(260).append("B2F-G5 ").append(n).append(" inputs against the 800-bit tangent: error above the window (86 + 8/R after a fold, 86 + 8 without) on ").append(outsideWindow).append("; unfolded ").append(unfolded)
                 .append(" (above 86 ulps: ").append(unfoldedOver86).append("), folded ").append(folded).append(" (above 86 ulps: ").append(foldedOver86).append("); largest error ").append(maxUlps)
-                .append(" ulps; largest error x R over the folded ").append(maxProduct).append("; accurate path rounded wrong on ").append(wrongRounded));
+                .append(" ulps; largest error x R over the folded ").append(maxProduct).append("; accurate path rounded wrong on ").append(wrongRounded)
+                .append("; fold flag of the code against the exact reference: ").append(flagMismatches).append(" mismatches"));
+        assertEquals(0, flagMismatches);
         assertEquals(0, outsideWindow);
         assertEquals(0, unfoldedOver86);
-        assertTrue(maxProduct >= 0.5 && maxProduct <= 3.2, "error x R over the folded inputs: " + maxProduct);
+        assertTrue(maxProduct >= 0.5 && maxProduct <= 3.2, CoreMathTestSupport.msg("error x R over the folded inputs: ", maxProduct));
         assertEquals(0, wrongRounded);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Fix pass 2: B2F2-G1b, M1, K, P
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void g1bWithoutAFoldTheWindowIsExactly95OnTheClosedInterval() {
+        SplittableRandom r = new SplittableRandom(20261611L);
+        BigInteger w = BigInteger.valueOf(86).add(BigInteger.valueOf((long) CoreMathTanTables.GUARD_K)).add(BigInteger.ONE);
+        int n = 100_000;
+        int violations = 0;
+        int fired = 0;
+        for (int c = 0; c < n; c++) {
+            int i = r.nextBoolean() ? 0 : r.nextInt(256);
+            CoreMathDint x = randomX(r, -74, -11);
+            boolean above = r.nextBoolean();
+            BigInteger d;
+            switch (c % 4) {
+                case 0:
+                    d = w;                                                  // exactly at the reach: the closed interval fires
+                    break;
+                case 1:
+                    d = w.subtract(BigInteger.valueOf(r.nextInt(5)));
+                    break;
+                case 2:
+                    d = w.add(BigInteger.ONE).add(BigInteger.valueOf(r.nextInt(5)));
+                    break;
+                default:
+                    d = BigInteger.valueOf(r.nextInt(4 * w.intValue()));
+                    break;
+            }
+            CoreMathDint u = placed(r, d, above);
+            BigInteger um = CoreMathDintTest.mant(u);
+            BigInteger dLow = um.mod(TWO74);
+            BigInteger dUp = TWO74.subtract(dLow);
+            boolean mustFire = dLow.compareTo(w) <= 0 || dUp.compareTo(w) <= 0;
+            boolean got = CoreMathTan.guardFires(u, i, x, false);
+            if (got != mustFire) {
+                violations++;
+            }
+            if (got) {
+                fired++;
+            }
+        }
+        System.out.println(new StringBuilder(160).append("B2F2-G1b without a fold (window ").append(w).append(", closed interval): ").append(violations).append(" violations of ").append(n)
+                .append(" cases (fired ").append(fired).append(", did not fire ").append(n - fired).append(")"));
+        assertEquals(0, violations);
+        assertTrue(fired >= 10_000 && n - fired >= 10_000, "the population does not discriminate");
+    }
+
+    private static long bits(double v) {
+        return Double.doubleToRawLongBits(v);
+    }
+
+    @Test
+    void aRealFoldedTanWcEntryIsCaughtOnTheForcedPathAndThroughTheGuardApplyingPath() {
+        double x = 0x1.92456c9a2452ep282;                                   // a real, folded tan.wc entry (cot branch); the fast path decides it, so production never reaches the guard
+        CoreMathDint xd = new CoreMathDint();
+        int[] ig = new int[2];
+        CoreMathDint u = CoreMathTan.accurateU(x, xd, ig);
+        double rd = exactR(ig[0], xd).doubleValue();
+        assertEquals(1, ig[1], "the entry is folded");
+        assertTrue(rd > 1.5e-8 && rd < 1.51e-8, CoreMathTestSupport.msg("R = ", rd));
+        boolean[] flags = new boolean[2];
+        CoreMathTan.accurateAmbiguous(x, flags);
+        assertTrue(flags[1], "the forced accurate path flags the guard");
+        assertFalse(flags[0], "the C's own 86-ulp test does not fire");
+        assertTrue(Double.isNaN(CoreMathTan.accurateGuarded(x)), "the guard-applying accurate path answers undecided");
+        double expected = CoreMathTestSupport.ORACLE.tan(x);
+        CountingDelegate d1 = new CountingDelegate();
+        CoreMath viaGuarded = new CoreMath(d1, CoreMathAtan2::atan2, CoreMathTan::accurateGuarded);
+        assertEquals(bits(expected), bits(viaGuarded.tan(x)));
+        assertEquals(1L, viaGuarded.tanGuardDelegations());
+        assertEquals(1L, d1.tan.sum());
+        CountingDelegate d2 = new CountingDelegate();
+        CoreMath production = new CoreMath(d2, CoreMathAtan2::atan2, CoreMathTan::tan);
+        assertEquals(bits(expected), bits(production.tan(x)));
+        assertEquals(0L, production.tanGuardDelegations());
+        assertEquals(0L, d2.tan.sum());
+        assertTrue(CoreMathTan.guardFires(u, ig[0], xd, true), "folded: the window 86 + K/R reaches the midpoint");
+        assertFalse(CoreMathTan.guardFires(u, ig[0], xd, false), "treated as unfolded the window is 95 ulps and does not: the fold flag is what makes the guard fire");
+        CoreMathTanExactReference.Tan t = CoreMathTanExactReference.tan(x);
+        System.out.println(new StringBuilder(260).append("B2F2-M1 x = ").append(Double.toHexString(x)).append(": R = ").append(rd).append(" turns, error of U ").append(CoreMathTanExactReference.errorUlps(u, t))
+                .append(" ulps, distance of tan x to the nearest midpoint ").append(CoreMathTanExactReference.distanceToMidpointUlps(u, t)).append(" ulps, window 86 + 8/R = ").append(86 + 8 / rd)
+                .append(" ulps; guard-applying path NaN, counted ").append(viaGuarded.tanGuardDelegations()).append(", result equal to CrMath; production delegations ").append(production.tanGuardDelegations()));
+    }
+
+    @Test
+    void aLargeKFiresOnRealFoldedInputsThroughTheProductionPathExactlyAsTheModelSays() {
+        double kBig = 0x1p54;
+        double[] xs = CoreMathTanTestSupport.nearHalfPiMultiples(20261701L, 20_000, 52);
+        int inputs = 0;
+        int mismatches = 0;
+        int nan = 0;
+        int undecided = 0;
+        int undecidedUnfolded = 0;
+        int undecidedUnfoldedNan = 0;
+        for (double x : xs) {
+            if (!CoreMathTanTestSupport.PATH_DOMAIN.test(x)) {
+                continue;
+            }
+            inputs++;
+            double got = CoreMathTan.tanWithK(x, kBig);
+            boolean expectNaN = false;
+            boolean folded = true;
+            if (Double.isNaN(CoreMathTan.fast(x))) {
+                undecided++;
+                CoreMathDint xd = new CoreMathDint();
+                int[] ig = new int[2];
+                CoreMathDint u = CoreMathTan.accurateU(x, xd, ig);
+                folded = ig[1] != 0;
+                boolean exception = Math.abs(x) == CoreMathTanTables.exceptions(0) || Math.abs(x) == CoreMathTanTables.exceptions(3);
+                expectNaN = !exception && CoreMathTan.guardFires(u, ig[0], xd, folded, kBig);
+                if (!folded) {
+                    undecidedUnfolded++;
+                }
+            }
+            if (Double.isNaN(got) != expectNaN) {
+                mismatches++;
+            }
+            if (Double.isNaN(got)) {
+                nan++;
+                if (!folded) {
+                    undecidedUnfoldedNan++;
+                }
+            }
+        }
+        System.out.println(new StringBuilder(220).append("B2F2-K K = 2^54 on ").append(inputs).append(" inputs near multiples of pi/2: fast path undecided on ").append(undecided).append(", NaN ").append(nan)
+                .append(", mismatches with the model on the folded pair ").append(mismatches).append("; undecided and unfolded ").append(undecidedUnfolded).append(" of which NaN ").append(undecidedUnfoldedNan));
+        assertEquals(0, mismatches);
+        assertTrue(nan >= 3_500 && nan <= 6_200, CoreMathTestSupport.msg("NaN ", nan));
+        assertTrue(undecidedUnfolded >= 300, CoreMathTestSupport.msg("undecided and unfolded ", undecidedUnfolded));
+        assertTrue(undecidedUnfoldedNan <= 3, CoreMathTestSupport.msg("unfolded NaN ", undecidedUnfoldedNan));
+    }
+
+    @Test
+    void theExactReferenceUsesTheCsPiWords() {
+        for (int i = 0; i < 20; i++) {
+            assertEquals(CoreMathTanTables.t(i), CoreMathTanExactReference.inv2PiWord(i), CoreMathTestSupport.msg("word ", i, " of 1/(2 pi)"));
+        }
     }
 }

@@ -51,7 +51,7 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  *   <li>When {@code h + (l - err)} and {@code h + (l + err)} differ, {@code tan_accurate}: a 128-bit reduction ({@code reduce}, {@code reduce2}),
  *       the {@code dint64_t} polynomials {@code PS}, {@code PC} and tables {@code S}, {@code C}, a 128-bit division, and a final check that
  *       the result is farther than 86 ulps (of the 128-bit mantissa) from a rounding boundary, with two hard-coded exceptions. NOT IN THE C: a GUARD widens that window
- *       by K/R ulps (R the folded argument) and answers "undecided" inside it, so that {@link CoreMath} delegates to {@link CrMath} (section "The guard" below).</li>
+ *       by K/R ulps after a fold (R the folded argument), by K when nothing was folded, and answers "undecided" inside it, so that {@link CoreMath} delegates to {@link CrMath} (section "The guard" below).</li>
  * </ul>
  *
  * <h2>Proof status, and what the evidence is (read 2026-11-12)</h2>
@@ -89,30 +89,42 @@ import static au.net.zeus.jgdms.cel.math.CoreMathSupport.MODE_FAST;
  *       from tan, whose operands {@code MAGIC} and {@code ONE} have mantissa 2^127). For the upstream list only.</li>
  * </ul>
  *
- * <h2>The guard (not in the C; operator ruling 2026-11-12, "Yes to all four, add the guard")</h2>
- * <b>What it does.</b> After the C's own 86-ulp test and exceptions, {@link #guardFires} tests whether the 128-bit result {@code U} is within {@code 86 + K/R} ulps (2^-128 of the
- * mantissa) of a multiple of 2^74, the rounding boundaries and midpoints of the 53-bit result; {@code R = i/2^11 + X} is the folded argument in turns ({@code i} the grid index 0..255
- * and {@code X} the remainder after {@code fold}: the variables {@code i} and {@code xd} of {@code tanAccurate}), {@code K = }{@link CoreMathTanTables#GUARD_K} {@code = 8}. When it fires
- * {@link #tan} returns {@code NaN} and {@link CoreMath} delegates the call to {@link CrMath} (exact by construction) and counts it, the pattern it uses for atan2's failure branch.
- * The seams {@link #accurate} and {@link #accurateAmbiguous} stay the C's accurate path (so they can be compared with {@code CrMath} on their own); {@code accurateAmbiguous}
- * reports the guard in {@code flags[1]}.
+ * <h2>The guard (not in the C; operator ruling 2026-11-12, "Yes to all four, add the guard"; window narrowed the same day, "Narrow it")</h2>
+ * <b>What it does.</b> After the C's own 86-ulp test and exceptions, {@link #guardFires} tests whether the 128-bit result {@code U} is within the window of a multiple of 2^74, the
+ * rounding boundaries and midpoints of the 53-bit result (a CLOSED interval {@code [U - w, U + w]}). The window is {@code 86 + K/R} ulps (2^-128 of the mantissa) when a fold happened and
+ * {@code 86 + K} when nothing was folded ({@code F = frac(x/(2 pi))} below 1/8, so {@code R = F}); {@code R = i/2^11 + X} is the folded argument in turns ({@code i} the grid index 0..255
+ * and {@code X} the remainder after {@code fold}: the variables {@code i} and {@code xd} of {@code tanAccurate}), {@code K = }{@link CoreMathTanTables#GUARD_K} {@code = 8}, and "a fold
+ * happened" is {@code st[2]} of {@link #fold} (the grid index {@code reduce2} returned was 256 or more). When it fires {@link #tan} returns {@code NaN} and {@link CoreMath} delegates the
+ * call to {@link CrMath} (exact by construction) and counts it, the pattern it uses for atan2's failure branch. The seams {@link #accurate} and {@link #accurateAmbiguous} stay the C's
+ * accurate path (so they can be compared with {@code CrMath} on their own); {@code accurateAmbiguous} reports the guard in {@code flags[1]}; {@link #accurateGuarded} and
+ * {@link #tanWithK} are test seams (the guard applied on a path the fast path would decide; the guard with another K).
  * <p>
- * <b>Derivation of K (rigorous, then compared with the measurement).</b> Let {@code F = frac(x/(2 pi))} (0 &lt;= F &lt; 1) and {@code R} the distance of F from the nearest quarter-turn
- * multiple ({@code R <= F}, {@code R < 1/8}). {@code reduce} returns F with absolute error at most {@code delta*F}, {@code delta = 2^-126.25 = 1.682 * 2^-127} (the provable bound
- * 2^-126.26 of the {@code ex <= 1} branch rounded up; the {@code ex >= 2} branch has 2^-126.67). The folds are exact, so the absolute error of R is at most {@code delta*F <= delta}.
- * The result is {@code y = tan(2 pi R)} or {@code cot(2 pi R)}; {@code |d ln y / dR| = 4 pi / sin(4 pi R) <= (pi/2)/R} for {@code 0 < R <= 1/8} (as {@code sin t >= 2t/pi} on
- * [0, pi/2]), so the relative error of y is at most {@code delta*F*(pi/2)/R}. In units of the last bit of the 128-bit mantissa (a mantissa below 1, so one relative unit is at
- * most 2^128 ulps) this is at most {@code 1.682 * 2 * (pi/2) * F/R = 5.28 * F/R <= 5.28/R} ulps. The C's 86 already contains the reduction's own (flat) share, so
- * {@code 86 + 5.28/R} bounds the whole error with the C's other terms as claimed. The measurement is 2.58/R (Fable, {@code tan.wc}) and 2.23/R (random): K = 8 is 1.51 times
- * the rigorous constant and 3.1 times the measured one. This is a DERIVATION, with the margin stated; {@code CoreMathTanGuardTest} also measures the error of {@code U} against an
- * exact tangent (800-bit fixed point) and asserts that it stays inside the window. The division {@code K/R} is done in {@link CoreMathDint} arithmetic (relative error 2^-123.67,
- * absorbed by the margin and by the {@code +1}); if {@code K/R >= 2^74} the window reaches the spacing of the boundaries and the guard fires unconditionally.
+ * <b>Derivation of the window (DERIVED from the C's component bounds and the corrected {@code reduce} bound, with the premises below; not a machine-checked proof).</b> Let
+ * {@code F = frac(x/(2 pi))} (0 &lt;= F &lt; 1) and {@code R} the distance of F from the nearest quarter-turn multiple ({@code R <= F}, {@code R < 1/8}; {@code R = F} exactly when
+ * F &lt; 1/8). PREMISES: (1) {@code reduce} returns F with absolute error at most {@code delta*F}, {@code delta = 2^-126.25 = 1.682 * 2^-127} (the provable bound 2^-126.26 of the
+ * {@code ex <= 1} branch rounded up; for {@code ex >= 2} the C's 2^-126.67 needs {@code F >= 2^-62}, the C's own bound on how close x can come to a multiple of 2 pi, tan.c:1656-1662, and
+ * tan.wc has F &gt;= 2^-62.55 for every finite input, which gives at most 2^-126.55); (2) the index folds and {@code reduce2} are exact, and so is the fold {@code 2^-11 - X} (the C's
+ * {@code add_dint (X, MAGIC, X)}) when {@code X >= 2^-12} (Sterbenz); for {@code X < 2^-12} it truncates and errs by up to 2 ulps of X, 2^-138 absolute, which adds at most
+ * {@code (pi/2) * 2^-138 * 2^128/R = 0.0015/R} ulps (the constant 5.284 below becomes 5.2855; Opus LOW-1, Fable L-1); (3) the C's 86 contains the reduction's own flat share, 86 for
+ * {@code ex >= 2} and about 88 for {@code ex <= 1} (the provable bound of D6), and the rest of it (the polynomials, the tables, {@code div_dint}) is the C's claim (its sage scripts,
+ * not re-derived here). Given those: the absolute error of R is at most {@code delta*F}; the result is {@code y = tan(2 pi R)} or {@code cot(2 pi R)};
+ * {@code |d ln y / dR| = 4 pi / sin(4 pi R) <= (pi/2)/R} for {@code 0 < R <= 1/8} (as {@code sin t >= 2t/pi} on [0, pi/2]), so the relative error of y is at most
+ * {@code delta*F*(pi/2)/R}. In units of the last bit of the 128-bit mantissa (a mantissa below 1, so one relative unit is at most 2^128 ulps) this is at most
+ * {@code 1.682 * 2 * (pi/2) * F/R = 5.284 * F/R} ulps, so the error of {@code U} is at most about {@code 88 + 5.29 * F/R} ulps. AFTER A FOLD {@code F <= 1}, so the fold term is at most
+ * {@code 5.29/R} and the window {@code 86 + K/R} has slack {@code (8 - 5.29)/R >= 21.7} ulps over it (R &lt; 1/8) against the 2 ulps of premise (3). WITHOUT A FOLD {@code F = R}: the fold
+ * term does not exist, the C's own 86 (88 for {@code ex <= 1}) applies, and even adding the whole reduction term on top, {@code 88 + 5.29 = 93.3}, stays below the window
+ * {@code 86 + K + 1 = 95} of the code. The measurement: 2.58/R (Fable, {@code tan.wc}), 2.70/R (Fable, random) and 1.608/R ({@code CoreMathTanGuardTest}, 1,409
+ * inputs) after a fold, at most 14.4 ulps without one (Fable); K = 8 is 1.51 times the derived constant and 3.0 times the largest measured one. The division {@code K/R} is done in
+ * {@link CoreMathDint} arithmetic (relative error 2^-123.67, absorbed by the margin and by the {@code +1}); if the window term reaches 2^74 the window reaches the spacing of the
+ * boundaries and the guard fires unconditionally.
  * <p>
- * <b>What it costs.</b> A call reaches the guard only when the fast path is undecided (about 0.02% of random inputs, 30% of inputs within 8 ulps of a multiple of pi/2) and
- * delegates with probability about {@code 2*(86 + 8/R)/2^75} for a result spread evenly over the spacing of the doubles. MEASURED (phase B2 fix pass, 2026-11-12, READY section 0.5):
- * 0 of 6,500,000 random and 0 of 500,000 near-pole inputs; but hard cases are not spread evenly: 1,571 of the 1,098,254 {@code tan.wc} entries (0.14%, every one with exponent -27..-17,
- * where R = |x|/(2 pi) is small and the window wide) and the two inputs just above the tiny threshold ({@code +-0x1.d12ed0af1a27fp-27}) are delegated, each answered by {@link CrMath}
- * with the same value (0 mismatches).
+ * <b>What it costs.</b> A call reaches the guard only when the fast path is undecided (about 0.02% of random inputs, 30% of inputs within 8 ulps of a multiple of pi/2). It then delegates
+ * with probability about {@code 2*W/2^74} for a result spread evenly over the spacing of the doubles, {@code W} the window: any multiple of 2^74 in {@code [U - W, U + W]} counts,
+ * representable doubles as well as midpoints, so this is twice the midpoint-only figure {@code 2*W/2^75} (Fable L-2); about 2^-67 without a fold ({@code W = 95}), and after a fold
+ * ({@code W = 8/R}) about 2^-30 at R = 2^-40 and 1 below R = 2^-71. The first window of the phase B2 fix pass, {@code 86 + K/R} on EVERY input, also widened the unfolded tiny
+ * arguments ({@code R = x/(2 pi)}, 2^32.6 ulps at x = 2^-27) and so delegated 1,571 of the 1,098,254 {@code tan.wc} entries, 554 of the 4,260 golden entries and the two neighbours of the
+ * tiny threshold, every one an unfolded input on which the fold gap does not exist (re-check reviews of 22a20ad5a: Opus MEDIUM-1, Fable M-2); the window above does not. What the
+ * narrowed window delegates is measured in READY section Z.
  *
  * <h2>Which constants the tests can see by behaviour (phase B2 mutation runs, 2026-11-12; DIAGNOSTIC)</h2>
  * Every error constant and every table is a named constant of {@link CoreMathTanTables}, under the committed digest and the comparison with the C
@@ -164,11 +176,19 @@ final class CoreMathTan {
 
     /**
      * C {@code cr_tan} ({@code tan.c:2245-2297}) PLUS THE GUARD (not in the C): returns {@code NaN} (never a valid tangent of a finite argument) when the accurate path's 128-bit
-     * result is within {@code 86 + K/R} ulps of a rounding boundary and the argument is not one of the C's two exceptions; {@link CoreMath} then answers by delegating to
-     * {@link CrMath} and counts the event. See the class javadoc.
+     * result is within the guard's window of a rounding boundary ({@code 86 + K/R} ulps after a fold, {@code 86 + K} when nothing was folded) and the argument is not one of the
+     * C's two exceptions; {@link CoreMath} then answers by delegating to {@link CrMath} and counts the event. See the class javadoc.
      */
     static double tan(double x) {
-        return run(x, CoreMathSupport.MODE_NORMAL, null);
+        return run(x, CoreMathSupport.MODE_NORMAL, null, true, CoreMathTanTables.GUARD_K);
+    }
+
+    /**
+     * {@link #tan(double)} with the guard's factor {@code K} given. TEST SEAM: with a large {@code K} the guard fires on many real folded inputs, so that the production wiring (the
+     * guard applied on the production path, fed the FOLDED argument) can be tested against {@link #guardFires} on the folded pair; production calls {@link #tan(double)}.
+     */
+    static double tanWithK(double x, double k) {
+        return run(x, CoreMathSupport.MODE_NORMAL, null, true, k);
     }
 
     /**
@@ -176,7 +196,7 @@ final class CoreMathTan {
      * result, or {@code NaN} if its error bound cannot decide the rounding. Inside the exit the C answers, and so does this.
      */
     static double fast(double x) {
-        return run(x, MODE_FAST, null);
+        return run(x, MODE_FAST, null, false, CoreMathTanTables.GUARD_K);
     }
 
     /**
@@ -185,7 +205,16 @@ final class CoreMathTan {
      * C's accurate path as ported, so that the tests can compare it with {@code CrMath} on its own.
      */
     static double accurate(double x) {
-        return run(x, MODE_ACCURATE, null);
+        return run(x, MODE_ACCURATE, null, false, CoreMathTanTables.GUARD_K);
+    }
+
+    /**
+     * The accurate path forced, WITH the guard applied: {@code NaN} where the guard fires, else the rounded result. TEST SEAM for inputs on which the fast path decides, so that
+     * production never reaches the guard (for example the real folded {@code tan.wc} entry {@code x = 0x1.92456c9a2452ep282}): {@code CoreMath} given this as its tan port counts and
+     * delegates them.
+     */
+    static double accurateGuarded(double x) {
+        return run(x, MODE_ACCURATE, null, true, CoreMathTanTables.GUARD_K);
     }
 
     /**
@@ -196,10 +225,10 @@ final class CoreMathTan {
      * Diagnostic: the production path never asks; the test census does.
      */
     static double accurateAmbiguous(double x, boolean[] flags) {
-        return run(x, MODE_ACCURATE, flags);
+        return run(x, MODE_ACCURATE, flags, false, CoreMathTanTables.GUARD_K);
     }
 
-    private static double run(double x, int mode, boolean[] flags) {
+    private static double run(double x, int mode, boolean[] flags, boolean applyGuard, double k) {
         long t = Double.doubleToRawLongBits(x);
         int e = (int) ((t >>> 52) & 0x7ffL);
         if (e == 0x7ff) {                                           // NaN, +Inf and -Inf
@@ -230,7 +259,7 @@ final class CoreMathTan {
         } else if (mode == MODE_FAST) {
             return Double.NaN;
         }
-        return tanAccurate(x, flags, mode == CoreMathSupport.MODE_NORMAL);
+        return tanAccurate(x, flags, applyGuard, k);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -640,7 +669,9 @@ final class CoreMathTan {
      * The folds of {@code tan_accurate} (tan.c:2086-2123): reduces {@code |x|} to {@code frac(|x|/(2 pi))} ({@code reduce}), splits the grid index off ({@code reduce2}) and
      * folds by tan(pi + x) = tan(x), tan(pi/2 + x) = -cot(x), tan(pi/2 - x) = cot(x). Returns the grid index {@code i} (0..255) and leaves in {@code xd} the remainder
      * {@code X} (0 &lt;= X &lt; 2^-11), so that the FOLDED ARGUMENT, in turns, is {@code R = i/2^11 + X} (0 &lt;= R &lt; 1/8: the distance of frac(x/(2 pi)) from the nearest
-     * multiple of a quarter turn); {@code st[0]} is {@code is_tan} (1 for tan, 0 for cot) and {@code st[1]} the sign flag {@code neg}.
+     * multiple of a quarter turn); {@code st[0]} is {@code is_tan} (1 for tan, 0 for cot), {@code st[1]} the sign flag {@code neg} and {@code st[2]} (so {@code st} has three
+     * elements) is 1 if a fold happened, that is if the grid index {@code reduce2} returned was 256 or more (frac(x/(2 pi)) of 1/8 or more, so that {@code R < F} in general and F/R
+     * is not 1), 0 if nothing was folded (F below 1/8, {@code R = F}).
      */
     static int fold(double x, CoreMathDint xd, int[] st) {
         double absx = (x > 0) ? x : -x;
@@ -652,6 +683,7 @@ final class CoreMathTan {
         int neg = x < 0 ? 1 : 0;
         // Write X = i/2^11 + r with 0 <= r < 2^11
         int i = reduce2(xd);                                         // exact
+        st[2] = i >= 256 ? 1 : 0;                                    // F = frac(x/(2 pi)) >= 1/8: some fold below subtracts, R <= F (NOT IN THE C: the guard reads it)
         i = i & 0x3ff;                                               // if pi <= x < 2*pi, tan(x) = tan(x-pi)
         if ((i & 0x200) != 0) {                                      // pi/2 <= x < pi: tan(x) = -1/tan(x-pi/2)
             isTan = 0;
@@ -708,12 +740,16 @@ final class CoreMathTan {
 
     /**
      * The 128-bit magnitude {@code U} that {@code tan_accurate} rounds, for a test (the sign is not applied): returns {@code U}, leaves the remainder {@code X} in
-     * {@code xdOut} and the grid index in {@code iOut[0]}, so the folded argument is {@code R = iOut[0]/2^11 + X}. Diagnostic seam of the guard tests; production does not call it.
+     * {@code xdOut} and the grid index in {@code iOut[0]}, so the folded argument is {@code R = iOut[0]/2^11 + X}; if {@code iOut} has a second element it receives the fold flag
+     * ({@code fold}'s {@code st[2]}: 1 if a fold happened). Diagnostic seam of the guard tests; production does not call it.
      */
     static CoreMathDint accurateU(double x, CoreMathDint xdOut, int[] iOut) {
-        int[] st = new int[2];
+        int[] st = new int[3];
         int i = fold(x, xdOut, st);
         iOut[0] = i;
+        if (iOut.length > 1) {
+            iOut[1] = st[2];
+        }
         CoreMathDint copy = new CoreMathDint(xdOut.hi, xdOut.lo, xdOut.ex, xdOut.sgn);
         return accurateQuotient(copy, i, st[0] != 0);
     }
@@ -733,44 +769,59 @@ final class CoreMathTan {
     }
 
     /**
-     * THE GUARD (not in the C; operator ruling 2026-11-12 after the phase B2 reviews). True if the 128-bit result {@code u} is within {@code 86 + K/R} ulps of a multiple of 2^74
-     * (a rounding boundary or midpoint of the 53-bit result), with {@code K = }{@link CoreMathTanTables#GUARD_K} and {@code R = i/2^11 + x} the folded argument in turns; the
-     * caller then returns "undecided" and {@code CoreMath} answers by delegating to {@code CrMath}. It is the C's own test with the window widened by the term the C
-     * omits (see the class javadoc for the derivation of K). If {@code R} is zero, or the window reaches 2^74 (the spacing of the boundaries: it would always straddle one),
-     * the answer is true.
+     * THE GUARD (not in the C; operator ruling 2026-11-12 after the phase B2 reviews). True if the 128-bit result {@code u} is within the window of a multiple of 2^74 (a rounding
+     * boundary or midpoint of the 53-bit result): {@code 86 + K/R} ulps (2^-128 of the mantissa) if a fold happened, {@code 86 + K} if nothing was folded, with {@code K = }
+     * {@link CoreMathTanTables#GUARD_K} and {@code R = i/2^11 + x} the folded argument in turns (operator ruling 2026-11-12, "Narrow it": the derivation of K gives {@code K F/R},
+     * which is {@code K} when nothing is folded, {@code F = R}). The caller then returns "undecided" and {@code CoreMath} answers by delegating to {@code CrMath}. It is the C's own
+     * test with the window widened by the term the C omits (see the class javadoc for the derivation). The comparison is CLOSED: some multiple of 2^74 in {@code [u - w, u + w]},
+     * {@code w = 86 + floor(K/R) + 1} (or {@code 86 + floor(K) + 1}), so the reach is {@code w} on both sides (the C's own 86-ulp test is half-open). If the folded {@code R} is zero,
+     * or the window reaches 2^74 (the spacing of the boundaries: it would always straddle one), the answer is true.
      *
      * @param u the 128-bit quotient (positive, normalised)
      * @param i the grid index after the folds (0..255)
      * @param x the remainder X after the folds (0 &lt;= X &lt; 2^-11)
+     * @param folded true if a fold happened ({@code fold}'s {@code st[2]}: frac(x/(2 pi)) of 1/8 or more)
      */
-    static boolean guardFires(CoreMathDint u, int i, CoreMathDint x) {
-        CoreMathDint r = new CoreMathDint();
-        if (i == 0) {
-            if (x.hi == 0L) {
-                return true;                                         // R = 0: no finite input reaches it, but never answer from a division by zero
-            }
-            CoreMathDint.copy(r, x);
-        } else {
-            CoreMathDint ri = new CoreMathDint();
-            CoreMathDint.fromD(ri, i * 0x1p-11);                     // exact
-            if (x.hi == 0L) {
-                CoreMathDint.copy(r, ri);
-            } else {
-                CoreMathDint.add(r, ri, x);                          // R = i/2^11 + X, relative error 2^-127
-            }
-        }
-        CoreMathDint k = new CoreMathDint();
-        CoreMathDint.fromD(k, CoreMathTanTables.GUARD_K);
+    static boolean guardFires(CoreMathDint u, int i, CoreMathDint x, boolean folded) {
+        return guardFires(u, i, x, folded, CoreMathTanTables.GUARD_K);
+    }
+
+    /** {@link #guardFires(CoreMathDint, int, CoreMathDint, boolean)} with the factor {@code K} given (test seam, see {@link #tanWithK}). */
+    static boolean guardFires(CoreMathDint u, int i, CoreMathDint x, boolean folded, double kFactor) {
         CoreMathDint q = new CoreMathDint();
-        CoreMathDint.div(q, k, r);                                   // K/R, relative error below 2^-123.67
-        if (q.ex >= 75) {
-            return true;                                             // K/R >= 2^74: the window reaches the spacing of the boundaries
+        CoreMathDint k = new CoreMathDint();
+        CoreMathDint.fromD(k, kFactor);
+        if (folded) {
+            CoreMathDint r = new CoreMathDint();
+            if (i == 0) {
+                if (x.hi == 0L) {
+                    return true;                                     // R = 0: no finite input reaches it, but never answer from a division by zero
+                }
+                CoreMathDint.copy(r, x);
+            } else {
+                CoreMathDint ri = new CoreMathDint();
+                CoreMathDint.fromD(ri, i * 0x1p-11);                 // exact
+                if (x.hi == 0L) {
+                    CoreMathDint.copy(r, ri);
+                } else {
+                    CoreMathDint.add(r, ri, x);                      // R = i/2^11 + X, relative error 2^-127
+                }
+            }
+            CoreMathDint.div(q, k, r);                               // K/R, relative error below 2^-123.67
+        } else {
+            if (i == 0 && x.hi == 0L) {
+                return true;                                         // R = F = 0: never answer from a zero argument
+            }
+            CoreMathDint.copy(q, k);                                 // nothing folded: F = R, K F/R = K
         }
-        int shift = (int) (128L - q.ex);                             // K/R = mantissa * 2^-shift; K/R >= 64 here, so shift <= 121
+        if (q.ex >= 75) {
+            return true;                                             // the window reaches 2^74, the spacing of the boundaries
+        }
+        int shift = (int) (128L - q.ex);                             // window term = mantissa * 2^-shift; shift <= 124 for K = 8
         U128 floorQ = shift >= 128 ? U128.of(0L, 0L) : U128.of(q.hi, q.lo).shr(shift);
-        U128 window = floorQ.add(U128.ofU64(CoreMathTanTables.ACCURATE_ERR + 1L));   // 86 + floor(K/R) + 1 >= 86 + K/R
+        U128 window = floorQ.add(U128.ofU64(CoreMathTanTables.ACCURATE_ERR + 1L));   // 86 + floor(window term) + 1 >= 86 + window term
         U128 uv = U128.of(u.hi, u.lo);
-        U128 low = uv.sub(window);                                   // U >= 2^127 and window < 2^75: no wrap
+        U128 low = uv.sub(window).sub(U128.ofU64(1L));               // U >= 2^127 and window < 2^75: no wrap. CLOSED interval [U - w, U + w]: floor((U - w - 1)/2^74) != floor((U + w)/2^74)
         U128 high = uv.add(window);
         if (high.ltU(uv)) {
             return true;                                             // U + window carries out of 128 bits: straddles 2^128
@@ -781,11 +832,11 @@ final class CoreMathTan {
     /**
      * C {@code tan_accurate} (tan.c:2083-2243), plus the guard. {@code flags}, if not null, receives in element 0 whether the C's 86-ulp test fired and, if it has a second
      * element, in element 1 whether the guard fired. When the guard fires and {@code applyGuard} is true the result is {@code NaN} (never a valid tangent of a finite
-     * argument): "undecided".
+     * argument): "undecided". {@code k} is the guard's factor K ({@link CoreMathTanTables#GUARD_K} in production).
      */
-    private static double tanAccurate(double x, boolean[] flags, boolean applyGuard) {
+    private static double tanAccurate(double x, boolean[] flags, boolean applyGuard, double k) {
         CoreMathDint xd = new CoreMathDint();
-        int[] st = new int[2];
+        int[] st = new int[3];
         int i = fold(x, xd, st);
         int neg = st[1];
         CoreMathDint u = accurateQuotient(xd, i, st[0] != 0);
@@ -803,8 +854,8 @@ final class CoreMathTan {
             }
             // if we go here, we have a hard-to-round case, but since all hard-to-round cases are known and pass all tests, we are ok (the C's argument; see the guard below)
         }
-        // NOT IN THE C: the guard. The C's window of 86 ulps is not the error of the accurate path after a fold; the guard widens it by K/R.
-        if (guardFires(u, i, xd)) {
+        // NOT IN THE C: the guard. The C's window of 86 ulps is not the error of the accurate path after a fold; the guard widens it by K/R after a fold, by K otherwise.
+        if (guardFires(u, i, xd, st[2] != 0, k)) {
             if (flags != null && flags.length > 1) {
                 flags[1] = true;
             }

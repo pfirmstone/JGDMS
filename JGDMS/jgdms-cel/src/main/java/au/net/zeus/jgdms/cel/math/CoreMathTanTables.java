@@ -1704,15 +1704,16 @@ final class CoreMathTanTables {
 
     /**
      * C: tan.c:2212 {@code uint64_t err = 86}: the C's claim for the accurate path's error, in units of the last word of the 128-bit result (relative error
-     * 2^-121.578 &lt; 86 ulps). THE C'S CLAIM, NOT A FACT: after a quarter-turn fold the error can exceed it by up to about 2.6/R ulps (R the folded argument in turns),
-     * see {@link CoreMathTan} (phase B2 reviews, 2026-11-12); this port keeps it as the C's window and adds {@link #GUARD_K}.
+     * 2^-121.578 &lt; 86 ulps). THE C'S CLAIM, NOT A FACT: after a quarter-turn fold the error was MEASURED up to about 2.6/R ulps (R the folded argument in turns; the reviews'
+     * largest, 1.6/R by the fix pass's exact-reference test) and the DERIVED bound is about 5.29/R, see {@link CoreMathTan} (phase B2 reviews, 2026-11-12); this port keeps 86 as the
+     * C's window and adds {@link #GUARD_K}.
      */
     static final long ACCURATE_ERR = 86L;
 
     /**
      * NOT IN THE C. The factor K of the port's guard: after the C's own tests, the accurate path answers "undecided" (and {@code CoreMath} delegates to
-     * {@code CrMath}) when the 128-bit result is within {@code ACCURATE_ERR + GUARD_K / R} ulps of a rounding boundary, R being the folded argument in turns
-     * ({@code i/2^11 + X}). The derivation (bound 5.28, measured 2.6, K = 8) is in the javadoc of {@link CoreMathTan}. This constant is guarded by the committed
+     * {@code CrMath}) when the 128-bit result is within {@code ACCURATE_ERR + GUARD_K / R} ulps after a fold ({@code ACCURATE_ERR + GUARD_K} when nothing was folded) of a rounding
+     * boundary, R being the folded argument in turns ({@code i/2^11 + X}). The derivation (derived bound 5.29, measured at most 2.7, K = 8) is in the javadoc of {@link CoreMathTan}. This constant is guarded by the committed
      * digest only; there is no C text to compare it with.
      */
     static final double GUARD_K = 8.0;

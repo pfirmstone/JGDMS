@@ -41,7 +41,7 @@ public final class MathProviders {
      * by {@code CoreMathSinCosDifferentialTest}, {@code CoreMathInverseTrigDifferentialTest} and {@code CoreMathTanDifferentialTest};
      * {@link CrMath} (arbitrary-precision {@code BigDecimal} arithmetic with Ziv-style escalating
      * precision -- see its class javadoc) is the oracle of those tests and the delegate only for non-finite arguments
-     * (and {@code |x| > 1} for asin and acos, and an atan2 correct-rounding failure).
+     * (and {@code |x| > 1} for asin and acos, an atan2 correct-rounding failure, and a tan result inside the guard's window, which {@link CoreMath} counts).
      */
     public static MathProvider correctlyRounded() {
         return MathProvider.conformant(new CoreMath());
