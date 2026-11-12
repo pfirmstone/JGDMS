@@ -155,7 +155,8 @@ final class TrigProviders {
         long atan2Before = atan2Failures(core);
         long checksum = 0L;
         for (int p = 0; p < TrigPopulations.SIZE; p++) {
-            checksum += Double.doubleToRawLongBits(apply(core, function, as[p], bs == null ? 0.0 : bs[p]));
+            // polynomial, not a sum: a population whose every result is one value (cos below 2^-27 is all 1.0) sums to 0 mod 2^64
+            checksum = checksum * 1_000_003L + Double.doubleToRawLongBits(apply(core, function, as[p], bs == null ? 0.0 : bs[p]));
         }
         return new GateResult(function, population, GATE_SAMPLES, tanBefore, tanGuardDelegations(core), atan2Before,
                 atan2Failures(core), checksum);
