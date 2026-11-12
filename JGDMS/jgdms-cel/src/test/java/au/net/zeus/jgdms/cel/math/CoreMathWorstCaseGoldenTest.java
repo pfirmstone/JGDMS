@@ -62,8 +62,17 @@ import org.junit.jupiter.api.Test;
  */
 class CoreMathWorstCaseGoldenTest {
 
-    private static final int EXPECTED_TOP_SIN = 2121;
-    private static final int EXPECTED_TOP_COS = 1079;
+    /**
+     * Entries of exponent 1023 beyond the leading 2000 (the header's third number), and in the whole golden.
+     * DEVIATION D7 from sealed prediction F5, declared in READY: F5 said 2,121 beyond the leading 2000 and none inside
+     * them for sin; the generator found 1,784 beyond and 337 INSIDE the leading 2000 (sin.wc's block for [2^1023, 2^1024)
+     * starts at line 1688 of the file, before the 2000th entry), 2,121 in all, which is the reviewers' grep count. cos is as
+     * predicted: 1,079 beyond, none inside.
+     */
+    private static final int BEYOND_SIN = 1784;
+    private static final int TOTAL_SIN = 2121;
+    private static final int BEYOND_COS = 1079;
+    private static final int TOTAL_COS = 1079;
     private static final Pattern ENTRIES = Pattern.compile("^# entries: (\\d+) \\(first (\\d+); exponent 1023 beyond those: (\\d+)\\)");
     private static final Pattern MD5 = Pattern.compile("^# source-md5: ([0-9a-f]{32})\\s*$");
 
@@ -116,31 +125,26 @@ class CoreMathWorstCaseGoldenTest {
         return g;
     }
 
-    private static void checkCounts(String function, Golden g, int expectedTop) {
+    private static void checkCounts(String function, Golden g, int expectedBeyond, int expectedTotal) {
         assertEquals(g.xs.length, g.entries, "the header's entries count differs from the data lines");
         assertEquals(2000, g.first);
-        assertEquals(expectedTop, g.top, "exponent-1023 entries beyond the first 2000");
-        assertEquals(2000 + expectedTop, g.xs.length);
+        assertEquals(expectedBeyond, g.top, "exponent-1023 entries beyond the first 2000");
+        assertEquals(2000 + expectedBeyond, g.xs.length);
         int atTop = 0;
-        int atTopInFirst = 0;
         for (int i = 0; i < g.xs.length; i++) {
             if (Math.getExponent(g.xs[i]) == 1023) {
                 atTop++;
-                if (i < 2000) {
-                    atTopInFirst++;
-                }
             }
         }
-        assertEquals(0, atTopInFirst, "an entry of exponent 1023 among the leading 2000");
-        assertEquals(expectedTop, atTop, new StringBuilder(64).append(function).append(": entries of exponent 1023").toString());
+        assertEquals(expectedTotal, atTop, new StringBuilder(64).append(function).append(": entries of exponent 1023 in the whole golden").toString());
     }
 
     @Test
     void portAgreesWithTheGoldenWorstCases() throws IOException {
         Golden s = load("sin");
         Golden c = load("cos");
-        checkCounts("sin", s, EXPECTED_TOP_SIN);
-        checkCounts("cos", c, EXPECTED_TOP_COS);
+        checkCounts("sin", s, BEYOND_SIN, TOTAL_SIN);
+        checkCounts("cos", c, BEYOND_COS, TOTAL_COS);
         System.out.println(new StringBuilder(120).append("golden worst cases: sin ").append(s.xs.length).append(" entries (2000 + ")
                 .append(s.top).append(" at exponent 1023), cos ").append(c.xs.length).append(" entries (2000 + ").append(c.top).append(')'));
         CoreMathTestSupport.checkPopulation("sin", "golden worst cases (committed)", s.xs, s.expected);
