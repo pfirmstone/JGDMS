@@ -3,7 +3,7 @@
 **Status:** the required change is done, in DirtyChai `trunk` `31fef43207e` ("proxy
 deserialization gap: SerialObjectPermission #213"), written by the project lead. It was verified
 against that commit on 2026-11-12 (section 4). Section 5's follow-up, exempting array classes, is
-decided and is still to be made in DirtyChai.
+done in `fe3464b3740` and verified the same day.
 Analysis written with AI assistance (Claude). It contains no DirtyChai code: DirtyChai's
 `CLAUDE.md` and the OpenJDK interim AI policy require contributions there to be human-written.
 
@@ -102,7 +102,7 @@ Same experiment, DirtyChai built from `31fef43207e`:
 | no `SerialObjectPermission "Payload"` (and `"[B"` granted, see section 5) | refused: `SerialObjectPermission "Payload"` | **0** (1 before the fix) |
 | control: `SerialObjectPermission "Payload"` granted | resolved, `Payload` in `PreferredClassLoader[httpmd://…/payload.jar…]` | 1 |
 
-## 5. Decided, to be made: array class descriptors are exempt
+## 5. Array class descriptors are exempt (done in `fe3464b3740`)
 
 Array classes are described in the stream by a class descriptor (`[B`, `[Ljava.lang.String;`), so
 they also pass through `readNonProxyDesc`. Arrays are read by `readArray`, not
@@ -139,8 +139,19 @@ individually checked.
   class name. An element's own descriptor also passes the new `readNonProxyDesc` check, unless it
   was already read earlier in the stream.
 
-To verify once it is pushed: rerun section 4 without the `"[B"` grant. Expected: refused at
-`SerialObjectPermission "Payload"` with no client-side initialiser run, and the control resolves.
+Verified on DirtyChai built from `fe3464b3740`, with no `"[B"` grant in either policy:
+
+| Client policy | Result | Client-side initialiser runs |
+|---|---|---|
+| no `SerialObjectPermission "Payload"` | refused: `SerialObjectPermission "Payload"` | 0 |
+| control: `SerialObjectPermission "Payload"` granted | resolved | 1 |
+
+The JGDMS suites on the same build:
+
+- jgdms-identity-it: 33 run, 0 failed.
+- jgdms-pref-class-loader: 244 run, 0 failed, plus `ResolvePinnedPermissionTest`, 2 run, 0 failed.
+- jgdms-jeri: 311 run, 1 failed, `SslServerSharedBudgetTest`, a CPU-budget timing test. It
+  passed 3 of 3 runs on its own, so it is load on a 4-core machine, not the change.
 
 ## 6. Related observations (not part of this change)
 
