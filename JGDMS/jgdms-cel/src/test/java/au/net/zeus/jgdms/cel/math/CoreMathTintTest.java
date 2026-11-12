@@ -178,60 +178,6 @@ class CoreMathTintTest {
         return low.shiftRight(64);
     }
 
-    /**
-     * A copy of {@link CoreMathTint#mul} with one carry dropped, for the controls. {@code mutation} 0: none (must equal the
-     * production routine); 1: {@code cm} never added into {@code m}; 2: the carry of the first {@code m} accumulation not added
-     * to {@code h}; 3: the final {@code m -> h} carry (of adding {@code cm}) dropped.
-     */
-    private static void mulCopy(CoreMathTint.Tint r, CoreMathTint.Tint a, CoreMathTint.Tint b, int mutation) {
-        long ex = a.ex + b.ex;
-        long sgn = a.sgn ^ b.sgn;
-        long ah = a.h;
-        long am = a.m;
-        long al = a.l;
-        long bh = b.h;
-        long bm = b.m;
-        long bl = b.l;
-        long rH = Math.unsignedMultiplyHigh(ah, bh);
-        long rM = ah * bh;
-        long rL = ah * bm;
-        long h = Math.unsignedMultiplyHigh(ah, bm);
-        rM += h;
-        rH += (mutation != 2 && Long.compareUnsigned(rM, h) < 0) ? 1L : 0L;
-        long l = am * bh;
-        h = Math.unsignedMultiplyHigh(am, bh);
-        rL += l;
-        long cm = Long.compareUnsigned(rL, l) < 0 ? 1L : 0L;
-        rM += h;
-        rH += Long.compareUnsigned(rM, h) < 0 ? 1L : 0L;
-        long s1 = Math.unsignedMultiplyHigh(ah, bl);
-        long s2 = Math.unsignedMultiplyHigh(am, bm);
-        long s3 = Math.unsignedMultiplyHigh(al, bh);
-        long s12 = s1 + s2;
-        long carry = Long.compareUnsigned(s12, s1) < 0 ? 1L : 0L;
-        long s123 = s12 + s3;
-        carry += Long.compareUnsigned(s123, s12) < 0 ? 1L : 0L;
-        l = s123;
-        cm += carry;
-        rL += l;
-        cm += Long.compareUnsigned(rL, l) < 0 ? 1L : 0L;
-        if (mutation != 1) {
-            rM += cm;
-            rH += (mutation != 3 && Long.compareUnsigned(rM, cm) < 0) ? 1L : 0L;
-        }
-        if ((rH >>> 63) == 0L) {
-            rH = (rH << 1) | (rM >>> 63);
-            rM = (rM << 1) | (rL >>> 63);
-            rL = rL << 1;
-            ex--;
-        }
-        r.ex = ex;
-        r.sgn = sgn;
-        r.h = rH;
-        r.m = rM;
-        r.l = rL;
-    }
-
     @Test
     void multiplyEqualsTheExactModelAndTheControlsRejectDroppedCarries() {
         SplittableRandom rnd = new SplittableRandom(20261211L);
@@ -259,7 +205,7 @@ class CoreMathTintTest {
             }
             for (int mu = 0; mu < 4; mu++) {
                 CoreMathTint.Tint c = new CoreMathTint.Tint();
-                mulCopy(c, a, b, mu);
+                CoreMathTintTestCopies.mulCopy(c, a, b, mu);
                 boolean differs = !same(c, (BigInteger) model[0], (Long) model[1], (Long) model[2]);
                 if (mu == 0) {
                     if (!mant(c).equals(mant(r)) || c.ex != r.ex || c.sgn != r.sgn) {
@@ -534,7 +480,7 @@ class CoreMathTintTest {
             }
         }
         System.out.println(new StringBuilder(260).append("add vs BigInteger model: ").append(mismatches).append(" mismatches of ").append(n).append("; overlap (r = a, r = b) mismatches ")
-                .append(overlapMismatches).append("; forced cancellation inputs ").append(cancellations).append(", of which the ex >= 2 branch ran on ").append(ex1Branch)
+                .append(overlapMismatches).append("; forced cancellation inputs ").append(cancellations).append("; the ex >= 2 branch (any input) ran on ").append(ex1Branch)
                 .append(" subtractions; additions with a carry out ").append(carryOutOfAdd).append("; control (no low-word carry) rejected ").append(lowCarryRejected)
                 .append(" of ").append(lowCarryInputs).append(" model low-word carries; control (no borrow at sh = 0) rejected ").append(borrowRejected).append(" of ").append(borrowInputs));
         assertEquals(0L, mismatches, first);

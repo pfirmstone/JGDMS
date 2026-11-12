@@ -458,24 +458,7 @@ final class CoreMathInverseTrigTestSupport {
      * accurate path), and asserts there is no mismatch. Returns the number of in-domain inputs the fast path could not decide.
      */
     static long checkUnary(String function, String population, double[] xs, double[] expected) {
-        DoublePredicate domain = pathDomain(function);
-        CoreMathTestSupport.Diff dc = CoreMathTestSupport.compare(label(function, population, "provider path"), xs, expected, provider(function), x -> true, false, true);
-        CoreMathTestSupport.Diff da = CoreMathTestSupport.compare(label(function, population, "accurate path alone"), xs, expected, accurate(function), domain, false, true);
-        CoreMathTestSupport.Diff df = CoreMathTestSupport.compare(label(function, population, "fast path alone"), xs, expected, fast(function), domain, true, true);
-        System.out.println(dc.line());
-        System.out.println(da.line());
-        System.out.println(df.line());
-        StringBuilder census = new StringBuilder(200);
-        census.append("path census {").append(function).append(", ").append(population).append("}: fast path decided ")
-                .append(df.applicable).append(" of ").append(df.applicable + df.undecided)
-                .append(" in-domain inputs; accurate path needed for ").append(df.undecided)
-                .append(" (").append(String.format(Locale.ROOT, "%.3f", 100.0 * df.undecided / Math.max(1, df.applicable + df.undecided))).append("%)");
-        System.out.println(census);
-        StringBuilder all = new StringBuilder(512);
-        all.append(dc.details()).append('\n').append(da.details()).append('\n').append(df.details());
-        Assertions.assertEquals(0L, dc.mismatches + da.mismatches + df.mismatches, all.toString());
-        Assertions.assertEquals(xs.length, dc.applicable, "the provider-path comparison skipped inputs");
-        return df.undecided;
+        return CoreMathTestSupport.checkUnary(function, population, xs, expected, provider(function), accurate(function), fast(function), pathDomain(function));
     }
 
     /** What {@link #checkPairs} counted, for the census and the correct-rounding-failure report. */
@@ -492,6 +475,12 @@ final class CoreMathInverseTrigTestSupport {
      * where a {@code NaN} (the correct-rounding failure branch) is counted and is also a mismatch; (3) the fast path
      * alone, both stages, where it decides; (4) the first stage alone, for the census. Asserts no mismatch and returns the
      * census.
+     * <p>
+     * <b>A correct-rounding failure FAILS the build here, by design</b> (Fable L5, fix pass of phase B1): the accurate path's NaN is a mismatch,
+     * so a population that reaches the C's "Unexpected worst-case" branch stops the run, whoever the caller is (the callers that discard the
+     * returned census are covered too). That is intended: such an input is rare and reportable (CORE-MATH asks to be told), and the production
+     * provider would still have answered it correctly through {@code CrMath}. The sealed else-branch of B1-P7 said "a finding, not a defect":
+     * the finding is exactly this stop; the wording difference is declared.
      */
     static PairsReport checkPairs(String population, double[] ys, double[] xs, double[] expected) {
         BiPredicate<Double, Double> all = (y, x) -> true;
@@ -709,5 +698,128 @@ final class CoreMathInverseTrigTestSupport {
             out[i] = v.get(i);
         }
         return out;
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // The named scalar constants (phase B1 fix pass): the committed digest covers them through
+    // CoreMathInverseTrigTables.snapshot(), and this parser reads the same numbers out of the C text
+    // ----------------------------------------------------------------------------------------
+
+    /** The snapshot keys of the named scalar constants start with this; the tables' keys do not. */
+    static final String CONSTANT_PREFIX = "K_";
+
+    /** {@code snapshot} restricted to the 26 tables (the entries whose digest was committed before the constants existed). */
+    static Map<String, long[]> tablesOnly(Map<String, long[]> snapshot) {
+        Map<String, long[]> out = new LinkedHashMap<>();
+        for (Map.Entry<String, long[]> e : snapshot.entrySet()) {
+            if (!e.getKey().startsWith(CONSTANT_PREFIX)) {
+                out.put(e.getKey(), e.getValue());
+            }
+        }
+        return out;
+    }
+
+    /** {@code snapshot} restricted to the named scalar constants. */
+    static Map<String, long[]> constantsOnly(Map<String, long[]> snapshot) {
+        Map<String, long[]> out = new LinkedHashMap<>();
+        for (Map.Entry<String, long[]> e : snapshot.entrySet()) {
+            if (e.getKey().startsWith(CONSTANT_PREFIX)) {
+                out.put(e.getKey(), e.getValue());
+            }
+        }
+        return out;
+    }
+
+    private static final String HEX = "(-?0x[0-9a-fA-F]*\\.?[0-9a-fA-F]*p[-+]?[0-9]+)";
+
+    /**
+     * The named scalar constants parsed from the C text: for each place in the C source where one of them is written (the
+     * expression that uses it, matched by a regular expression over the comment-stripped text, the n-th match), the value
+     * written there. Keys are {@code "<file>:<NAME>@<n>"} with {@code <NAME>} the field name of
+     * {@link CoreMathInverseTrigTables} (without the snapshot prefix) and {@code <n>} the index of the place; a double is
+     * returned as its raw bits, an integer as itself. A constant used in several places (or in several files) has one entry per
+     * place, so every use in the C is compared with the single Java definition.
+     */
+    static Map<String, long[]> constantsFromC(Path clone) throws IOException {
+        List<Object[]> specs = new ArrayList<>();
+        // atan.c
+        constantSpec(specs, "ATAN_EPS_P", "atan", "epsp = f\\*{H}, epsm = f\\*{H}", 1, 0, false);
+        constantSpec(specs, "ATAN_EPS_M", "atan", "epsp = f\\*{H}, epsm = f\\*{H}", 2, 0, false);
+        constantSpec(specs, "ATAN_E", "atan", "double e = h\\*{H};", 1, 0, false);
+        constantSpec(specs, "PI2_H", "atan", "ah = __builtin_copysign\\({H}, x\\);\\s*al = __builtin_copysign\\({H}, x\\);", 1, 0, false);
+        constantSpec(specs, "PI2_L", "atan", "ah = __builtin_copysign\\({H}, x\\);\\s*al = __builtin_copysign\\({H}, x\\);", 2, 0, false);
+        constantSpec(specs, "ATAN_AL_FAST", "atan", "A\\[i\\]\\[1\\] \\+ {H}\\*id;", 1, 0, false);
+        constantSpec(specs, "ATAN_PI128_H", "atan", "ah = {H}\\*id;", 1, 0, false);
+        constantSpec(specs, "ATAN_PI128_H", "atan", "ah = {H}\\*id;", 1, 1, false);
+        constantSpec(specs, "ATAN_PI128_L", "atan", "al = {H}\\*id, at = {H}\\*id;", 1, 0, false);
+        constantSpec(specs, "ATAN_PI128_S", "atan", "al = {H}\\*id, at = {H}\\*id;", 2, 0, false);
+        constantSpec(specs, "ATAN_RCP", "atan", "__builtin_fabs\\(a\\)\\*{H} \\+ 256\\.5", 1, 0, false);
+        // asin.c
+        constantSpec(specs, "ASIN_EPS_HI", "asin", "eps = __builtin_fabs\\(z\\*t\\)\\*{H};", 1, 0, false);
+        constantSpec(specs, "ASIN_EPS_LO", "asin", "eps = __builtin_fabs\\(z\\*t\\)\\*{H};", 1, 1, false);
+        constantSpec(specs, "RCP_PI64", "asin", "__builtin_fabs\\(phi\\) \\* {H}\\)", 1, 0, false);
+        constantSpec(specs, "MAGIC", "asin", "#define MAGIC {H}", 1, 0, false);
+        constantSpec(specs, "PI64_H", "asin", "pih = {H};", 1, 0, false);
+        constantSpec(specs, "PI64_L", "asin", "pil = {H};", 1, 0, false);
+        constantSpec(specs, "PI64_S", "asin", "pis = {H};", 1, 0, false);
+        // acos.c
+        constantSpec(specs, "ACOS_EPS_HI", "acos", "eps = __builtin_fabs\\(z\\*t\\)\\*{H} \\+ {H};", 1, 0, false);
+        constantSpec(specs, "ACOS_EPS_HI_ADD", "acos", "eps = __builtin_fabs\\(z\\*t\\)\\*{H} \\+ {H};", 2, 0, false);
+        constantSpec(specs, "ACOS_EPS1", "acos", "static const double eps1 = {H};", 1, 0, false);
+        constantSpec(specs, "ACOS_EPS_LO", "acos", "eps = \\(z\\*t\\)\\*{H};", 1, 0, false);
+        constantSpec(specs, "PI2_H", "acos", "f0h = {H};\\s*f0l = {H};", 1, 0, false);
+        constantSpec(specs, "PI2_L", "acos", "f0h = {H};\\s*f0l = {H};", 2, 0, false);
+        constantSpec(specs, "PI2_H", "acos", "__builtin_fabs\\(phi - {H}\\) \\* {H}\\)", 1, 0, false);
+        constantSpec(specs, "RCP_PI64", "acos", "__builtin_fabs\\(phi - {H}\\) \\* {H}\\)", 2, 0, false);
+        constantSpec(specs, "MAGIC", "acos", "#define MAGIC {H}", 1, 0, false);
+        constantSpec(specs, "PI64_H", "acos", "ph = jt \\* {H}, pl = {H}\\*jt, ps = {H}\\*jt;", 1, 0, false);
+        constantSpec(specs, "PI64_L", "acos", "ph = jt \\* {H}, pl = {H}\\*jt, ps = {H}\\*jt;", 2, 0, false);
+        constantSpec(specs, "PI64_S", "acos", "ph = jt \\* {H}, pl = {H}\\*jt, ps = {H}\\*jt;", 3, 0, false);
+        // atan2.c
+        constantSpec(specs, "PI_H", "atan2", "#define\\s+PI_H\\s+{H}", 1, 0, false);
+        constantSpec(specs, "PI_L", "atan2", "#define\\s+PI_L\\s+{H}", 1, 0, false);
+        constantSpec(specs, "PI2_H", "atan2", "#define\\s+PI_OVER2_H\\s+{H}", 1, 0, false);
+        constantSpec(specs, "PI2_L", "atan2", "#define\\s+PI_OVER2_L\\s+{H}", 1, 0, false);
+        constantSpec(specs, "ATAN2_EPS1", "atan2", "double eps = __builtin_fabs\\(z\\)\\*{H} \\+ {H};", 1, 0, false);
+        constantSpec(specs, "ATAN2_EPS1_ADD", "atan2", "double eps = __builtin_fabs\\(z\\)\\*{H} \\+ {H};", 2, 0, false);
+        constantSpec(specs, "ATAN2_EPS2", "atan2", "eps = {H}\\*\\(__builtin_fabs\\(zh\\)\\*z2 \\+ {H}\\);", 1, 0, false);
+        constantSpec(specs, "ATAN2_EPS2_ADD", "atan2", "eps = {H}\\*\\(__builtin_fabs\\(zh\\)\\*z2 \\+ {H}\\);", 2, 0, false);
+        constantSpec(specs, "ATAN2_ERR_DIV", "atan2", "\\berr = (\\d+);", 1, 0, true);
+        constantSpec(specs, "ATAN2_ERR_INV", "atan2", "\\berr = (\\d+);", 1, 1, true);
+        constantSpec(specs, "ATAN2_ERR_NEG", "atan2", "\\berr = (\\d+);", 1, 2, true);
+        constantSpec(specs, "ATAN2_ERR_SMALL", "atan2", "tint_tod \\(z, (\\d+), y, x\\)", 1, 0, true);
+        Map<String, String> texts = new LinkedHashMap<>();
+        Map<String, long[]> out = new LinkedHashMap<>();
+        int n = 0;
+        for (Object[] sp : specs) {
+            String name = (String) sp[0];
+            String file = (String) sp[1];
+            String text = texts.get(file);
+            if (text == null) {
+                text = stripComments(Files.readString(CoreMathTestSupport.cSource(clone, file), StandardCharsets.UTF_8));
+                texts.put(file, text);
+            }
+            Matcher m = Pattern.compile(((String) sp[2]).replace("{H}", HEX)).matcher(text);
+            int want = (Integer) sp[4];
+            int seen = 0;
+            String lit = null;
+            while (m.find()) {
+                if (seen++ == want) {
+                    lit = m.group((Integer) sp[3]);
+                    break;
+                }
+            }
+            if (lit == null) {
+                throw new AssertionError(new StringBuilder(120).append("constant ").append(name).append(" not found in ").append(file).append(".c: match ").append(want)
+                        .append(" of ").append(sp[2]).append(" (the C text changed?)").toString());
+            }
+            long v = ((Boolean) sp[5]) ? Long.parseLong(lit) : Double.doubleToRawLongBits(Double.parseDouble(lit));
+            out.put(new StringBuilder(40).append(file).append(':').append(name).append('@').append(n++).toString(), new long[] {v});
+        }
+        return out;
+    }
+
+    private static void constantSpec(List<Object[]> specs, String name, String file, String regex, int group, int occurrence, boolean isLong) {
+        specs.add(new Object[] {name, file, regex, group, occurrence, isLong});
     }
 }

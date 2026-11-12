@@ -307,64 +307,6 @@ class CoreMathInverseTrigDifferentialTest {
     // P6: the port path is taken
     // ----------------------------------------------------------------------------------------
 
-    /** A {@link CrMath} that counts how often each function is called. */
-    private static final class CountingDelegate implements CorrectlyRoundedMath {
-        private final CrMath real = new CrMath();
-        final LongAdder sin = new LongAdder();
-        final LongAdder cos = new LongAdder();
-        final LongAdder tan = new LongAdder();
-        final LongAdder asin = new LongAdder();
-        final LongAdder acos = new LongAdder();
-        final LongAdder atan = new LongAdder();
-        final LongAdder atan2 = new LongAdder();
-
-        @Override
-        public double sin(double x) {
-            sin.increment();
-            return real.sin(x);
-        }
-
-        @Override
-        public double cos(double x) {
-            cos.increment();
-            return real.cos(x);
-        }
-
-        @Override
-        public double tan(double x) {
-            tan.increment();
-            return real.tan(x);
-        }
-
-        @Override
-        public double asin(double x) {
-            asin.increment();
-            return real.asin(x);
-        }
-
-        @Override
-        public double acos(double x) {
-            acos.increment();
-            return real.acos(x);
-        }
-
-        @Override
-        public double atan(double x) {
-            atan.increment();
-            return real.atan(x);
-        }
-
-        @Override
-        public double atan2(double y, double x) {
-            atan2.increment();
-            return real.atan2(y, x);
-        }
-
-        long ported() {
-            return asin.sum() + acos.sum() + atan.sum() + atan2.sum();
-        }
-    }
-
     /** Runs {@code provider} over the unary and pair populations of P1 and P3; returns the number of calls it made. */
     private static long runAll(CorrectlyRoundedMath provider, StringBuilder report) throws IOException {
         long calls = 0;

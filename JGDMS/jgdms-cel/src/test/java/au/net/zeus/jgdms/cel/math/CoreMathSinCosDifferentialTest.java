@@ -238,60 +238,6 @@ class CoreMathSinCosDifferentialTest {
     // T5: the port path is taken
     // ----------------------------------------------------------------------------------------
 
-    /** A {@link CrMath} that counts how often each function is called. */
-    private static final class CountingDelegate implements CorrectlyRoundedMath {
-        private final CrMath real = new CrMath();
-        final LongAdder sin = new LongAdder();
-        final LongAdder cos = new LongAdder();
-        final LongAdder tan = new LongAdder();
-        final LongAdder asin = new LongAdder();
-        final LongAdder acos = new LongAdder();
-        final LongAdder atan = new LongAdder();
-        final LongAdder atan2 = new LongAdder();
-
-        @Override
-        public double sin(double x) {
-            sin.increment();
-            return real.sin(x);
-        }
-
-        @Override
-        public double cos(double x) {
-            cos.increment();
-            return real.cos(x);
-        }
-
-        @Override
-        public double tan(double x) {
-            tan.increment();
-            return real.tan(x);
-        }
-
-        @Override
-        public double asin(double x) {
-            asin.increment();
-            return real.asin(x);
-        }
-
-        @Override
-        public double acos(double x) {
-            acos.increment();
-            return real.acos(x);
-        }
-
-        @Override
-        public double atan(double x) {
-            atan.increment();
-            return real.atan(x);
-        }
-
-        @Override
-        public double atan2(double y, double x) {
-            atan2.increment();
-            return real.atan2(y, x);
-        }
-    }
-
     private static final String[] T5_POPS = {
         "named", "random exponent 0..2046, seed 20261112, 10000", "random exponent 2^-30..2^33, seed 20261113, 10000"
     };

@@ -76,7 +76,7 @@ class CoreMathGoldenGeneratorB1 {
     @Test
     void generateTablesDigest() throws IOException {
         CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, true, "CoreMathGoldenGeneratorB1.generateTablesDigest", "atan", "asin", "acos", "atan2");
-        Map<String, long[]> java = CoreMathInverseTrigTables.snapshot();
+        Map<String, long[]> java = CoreMathInverseTrigTestSupport.tablesOnly(CoreMathInverseTrigTables.snapshot());
         Map<String, long[]> c = CoreMathInverseTrigTestSupport.parseFromC(CoreMathTestSupport.CORE_MATH_DIR);
         for (Map.Entry<String, long[]> e : c.entrySet()) {
             String name = e.getKey().substring(e.getKey().indexOf(':') + 1);
@@ -91,6 +91,38 @@ class CoreMathGoldenGeneratorB1 {
         sb.append(digest).append('\n');
         write(outDir().resolve(CoreMathInverseTrigTablesDigestTest.RESOURCE), sb.toString());
         System.out.println(new StringBuilder(120).append("digest ").append(digest).append(" over ").append(java.size()).append(" tables, ").append(c.size()).append(" table-file pairs compared with the C text"));
+    }
+
+    /**
+     * Fix pass: the digest of the 26 tables followed by the 31 named scalar constants, in a NEW resource (the phase B1 digest of the 26 tables is an
+     * accepted artefact and is not regenerated). Written only if the Java tables equal the tables parsed from the C text and every Java constant equals
+     * every place where the C text writes it (42 comparisons).
+     */
+    @Test
+    void generateTablesAndConstantsDigest() throws IOException {
+        CoreMathTestSupport.requireClone(CoreMathTestSupport.CORE_MATH_DIR, true, "CoreMathGoldenGeneratorB1.generateTablesAndConstantsDigest", "atan", "asin", "acos", "atan2");
+        Map<String, long[]> all = CoreMathInverseTrigTables.snapshot();
+        Map<String, long[]> tablesC = CoreMathInverseTrigTestSupport.parseFromC(CoreMathTestSupport.CORE_MATH_DIR);
+        for (Map.Entry<String, long[]> e : tablesC.entrySet()) {
+            String name = e.getKey().substring(e.getKey().indexOf(':') + 1);
+            assertArrayEquals(all.get(name), e.getValue(), new StringBuilder(80).append("the Java table ").append(name).append(" differs from the C text of ").append(e.getKey()).append(": nothing written").toString());
+        }
+        Map<String, long[]> constantsC = CoreMathInverseTrigTestSupport.constantsFromC(CoreMathTestSupport.CORE_MATH_DIR);
+        for (Map.Entry<String, long[]> e : constantsC.entrySet()) {
+            String name = new StringBuilder(40).append(CoreMathInverseTrigTestSupport.CONSTANT_PREFIX).append(e.getKey().substring(e.getKey().indexOf(':') + 1, e.getKey().indexOf('@'))).toString();
+            assertArrayEquals(all.get(name), e.getValue(), new StringBuilder(80).append("the Java constant ").append(name).append(" differs from the C text at ").append(e.getKey()).append(": nothing written").toString());
+        }
+        String digest = CoreMathInverseTrigTestSupport.sha256(all);
+        StringBuilder sb = new StringBuilder(800);
+        sb.append("# SHA-256 of the canonical rendering (v1, see CoreMathInverseTrigTestSupport.canonical) of every entry of CoreMathInverseTrigTables.snapshot():\n");
+        sb.append("# the 26 tables of core-math-tables-b1-2026-11-12.sha256 followed by the 31 named scalar constants (keys K_...).\n");
+        sb.append("# source: CORE-MATH src/binary64/{atan/atan.c, asin/asin.c, acos/acos.c, atan2/atan2.c, atan2/tint.h} at commit ").append(COMMIT).append(".\n");
+        sb.append("# generator: CoreMathGoldenGeneratorB1.generateTablesAndConstantsDigest, ").append(LocalDate.now()).append(" (system clock); the Java tables equalled the tables parsed from every C file that carries them\n");
+        sb.append("# (").append(tablesC.size()).append(" table-file pairs) and every Java constant equalled the C text at all ").append(constantsC.size()).append(" places where the C writes one, when this file was written.\n");
+        sb.append(digest).append('\n');
+        write(outDir().resolve(CoreMathInverseTrigTablesDigestTest.RESOURCE_V2), sb.toString());
+        System.out.println(new StringBuilder(120).append("digest ").append(digest).append(" over ").append(all.size()).append(" entries; ").append(tablesC.size())
+                .append(" table-file pairs and ").append(constantsC.size()).append(" constant places compared with the C text"));
     }
 
     private static List<String> header(Path wc) throws IOException {

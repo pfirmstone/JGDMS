@@ -429,25 +429,37 @@ final class CoreMathTestSupport {
      */
     static void checkPopulation(String function, String population, double[] xs, double[] expected) {
         boolean isSin = function.equals("sin");
-        DoubleUnaryOperator provider = isSin ? PROVIDER::sin : PROVIDER::cos;
-        DoubleUnaryOperator accurate = isSin ? CoreMathSin::accurate : CoreMathCos::accurate;
-        DoubleUnaryOperator fast = isSin ? CoreMathSin::fast : CoreMathCos::fast;
-        DoublePredicate domain = isSin ? SIN_DOMAIN : COS_DOMAIN;
+        checkUnary(function, population, xs, expected, isSin ? PROVIDER::sin : PROVIDER::cos,
+                isSin ? CoreMathSin::accurate : CoreMathCos::accurate, isSin ? CoreMathSin::fast : CoreMathCos::fast,
+                isSin ? SIN_DOMAIN : COS_DOMAIN);
+    }
+
+    /**
+     * The three comparisons of one unary function on one population, for any function (phase A's sine and cosine through
+     * {@link #checkPopulation}, phase B1's atan, asin and acos through {@code CoreMathInverseTrigTestSupport.checkUnary}): the
+     * provider path on every input, the accurate path alone and the fast path alone on the inputs in {@code domain}; prints the three
+     * report lines and the path census (how many in-domain inputs the fast path decided, how many needed the accurate path) and asserts no
+     * mismatch. Returns the number of in-domain inputs the fast path could not decide. One definition (phase B1 fix pass; Fable L4).
+     */
+    static long checkUnary(String function, String population, double[] xs, double[] expected, DoubleUnaryOperator provider,
+                           DoubleUnaryOperator accurate, DoubleUnaryOperator fast, DoublePredicate domain) {
         Diff dc = compare(label(function, population, "provider path"), xs, expected, provider, x -> true, false, true);
         Diff da = compare(label(function, population, "accurate path alone"), xs, expected, accurate, domain, false, true);
         Diff df = compare(label(function, population, "fast path alone"), xs, expected, fast, domain, true, true);
         System.out.println(dc.line());
         System.out.println(da.line());
         System.out.println(df.line());
-        StringBuilder census = new StringBuilder(160);
+        StringBuilder census = new StringBuilder(200);
         census.append("path census {").append(function).append(", ").append(population).append("}: fast path decided ")
                 .append(df.applicable).append(" of ").append(df.applicable + df.undecided)
-                .append(" in-domain inputs; accurate path needed for ").append(df.undecided);
+                .append(" in-domain inputs; accurate path needed for ").append(df.undecided)
+                .append(" (").append(String.format(java.util.Locale.ROOT, "%.3f", 100.0 * df.undecided / Math.max(1, df.applicable + df.undecided))).append("%)");
         System.out.println(census);
         StringBuilder all = new StringBuilder(512);
         all.append(dc.details()).append('\n').append(da.details()).append('\n').append(df.details());
         Assertions.assertEquals(0L, dc.mismatches + da.mismatches + df.mismatches, all.toString());
         Assertions.assertEquals(xs.length, dc.applicable, "the provider-path comparison skipped inputs");
+        return df.undecided;
     }
 
     private static String label(String function, String population, String path) {
