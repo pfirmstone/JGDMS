@@ -1,0 +1,5 @@
+# SHA-256 of the canonical rendering (v1, see CoreMathTestSupport.TableSet.canonical) of every table of CoreMathTables.
+# source: CORE-MATH src/binary64/sin/sin.c at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7; the tables are identical in cos.c.
+# generator: CoreMathGoldenGenerator.generateTablesDigest, 2026-11-12 (system clock); the digest of the Java tables,
+# of the tables parsed from sin.c and of those parsed from cos.c were equal when this file was written.
+aa671231833128a0e8f33c9f2315082a6e5612ee8696de558e2d75817f56da63

@@ -235,3 +235,60 @@ ASM libraries
    CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
    THE POSSIBILITY OF SUCH DAMAGE.
+
+
+CORE-MATH correctly-rounded mathematical functions
+
+   CORE-MATH (https://core-math.gitlabpages.inria.fr/), binary64 sin, cos,
+   tan, asin, acos, atan and atan2, ported to Java (a modified, derived work)
+   from the C sources at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+   The ported files are in jgdms-cel, package au.net.zeus.jgdms.cel.math:
+   CoreMathAcos.java, CoreMathAsin.java, CoreMathAtan.java, CoreMathAtan2.java,
+   CoreMathCos.java, CoreMathDint.java, CoreMathInverseTrigTables.java,
+   CoreMathSin.java, CoreMathSupport.java, CoreMathTables.java, CoreMathTan.java,
+   CoreMathTanTables.java, CoreMathTint.java and U128.java; the test tree of the
+   same module holds one more file derived from a ported file,
+   CoreMathTintTestCopies.java (a test-only copy of the port of mul_tint with a
+   carry dropped on request). This list therefore names main and test files.
+   Each of those files carries the copyright and permission notice of the C file
+   it was ported from (U128.java: sin.c and cos.c; CoreMathTintTestCopies.java:
+   atan2/tint.h). The other files of the package (CoreMath.java, which routes
+   calls to the ports, CorrectlyRoundedMath.java, CrMath.java, MathProvider.java,
+   MathProviders.java, StrictMathPlaceholder.java) and the other test files are
+   this project's own code under the Apache License, Version 2.0. The worst-case
+   test resources (core-math-worst-cases-*.txt) are subsets of CORE-MATH's .wc
+   files and carry the permission text of those files, which have no copyright
+   line of their own.
+
+   Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov            (sin)
+   Copyright (c) 2026 Paul Zimmermann                                  (cos)
+   Copyright (c) 2022-2025 Paul Zimmermann and Tom Hubrecht            (tan)
+   Copyright (c) 2022-2026 Alexei Sibidanov <sibid@uvic.ca>.           (asin)
+   Copyright (c) 2024-2025 Alexei Sibidanov.                           (acos)
+   Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>.           (atan)
+   Copyright (c) 2024-2025 Paul Zimmermann and Alexei Sibidanov        (atan2)
+   Copyright (c) 2023-2024 Paul Zimmermann and Alexei Sibidanov        (atan2, tint.h)
+   Copyright (c) 2022, 2023 CERN and Inria                             (pow/dint.h)
+   Copyright (c) 2022-2025 CERN and Inria                              (pow/pow.h, pow.c)
+
+   The last two lines are those of the files from which the dint64_t code
+   inside tan.c ("code copied from dint.h and pow.[ch]", tan.c:41) comes;
+   CoreMathDint.java carries them beside tan.c's own line.
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
