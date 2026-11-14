@@ -26,7 +26,7 @@
  *          worker. Requires the DirtyChai SPIFFE worker API + a JDK with Unix
  *          domain sockets.
  * @build MockSpireAgent WorkerSurvivesDoAsPrivilegedTest
- * @run main/othervm/policy=worker.policy -Djava.security.manager=allow -Dspiffe.workload.socket=/tmp/jgdms-ws-test.sock -Dspiffe.reconnect.initial.backoff.ms=200 WorkerSurvivesDoAsPrivilegedTest
+ * @run main/othervm/policy=worker.policy -Djava.security.manager=default -Dspiffe.workload.socket=/tmp/jgdms-ws-test.sock -Dspiffe.reconnect.initial.backoff.ms=200 WorkerSurvivesDoAsPrivilegedTest
  */
 import java.io.File;
 import java.io.InputStream;
@@ -66,11 +66,9 @@ public class WorkerSurvivesDoAsPrivilegedTest {
             check("ambient worker carries the SVID SPIFFE id (" + SPIFFE_ID + ")",
                     SPIFFE_ID.equals(spiffeIdOf(worker)));
 
-            // Establish the worker with no SM (so nothing triggers early
-            // singleton init before the mock is up), THEN install the SM and
-            // run the execute-as assertions under it.
-            System.setSecurityManager(new SecurityManager());
-            check("SecurityManager installed", System.getSecurityManager() != null);
+            // The SecurityManager is in force from JVM start, before the mock
+            // agent is up; the worker is established when the agent appears.
+            check("SecurityManager in force", System.getSecurityManager() != null);
 
             Subject.callAs((Callable<Void>) () -> {
                 check("callAs(USER): current() carries USER", hasPrincipal(Subject.current(), USER));
