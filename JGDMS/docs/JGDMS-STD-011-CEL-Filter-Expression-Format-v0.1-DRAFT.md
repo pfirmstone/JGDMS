@@ -824,10 +824,11 @@ form is §11.3 item 7 and Appendix B.
    `false ? a : 0` counts as a use of `a`. So every body is reachable and every
    body is statically checked.
 3. **No alias bodies.** A binding body MUST NOT be a bare `REF`: it adds nothing,
-   and an alias binding gives a second encoding of the same expression, whereas
-   the format allows exactly one encoding per expression (§11.3 item 1). The main
-   body MAY be a bare `REF` (`cel.bind(a, e, a)`). *(v0.2: owner decision 4,
-   review S-n9, Chisel 2026-11-14)*
+   and two bounds rest on every body having a non-`REF` root: a walker's `REF`
+   visits are at most its other visits (§10.5), and `n` bindings need at least
+   2`n` nodes (§10.3). The main
+   body MAY be a bare `REF` (`cel.bind(a, e, a)`). *(v0.2: owner decision 4, as
+   amended by owner round 2 R2-1, review S-n9, RECHECK m4; Chisel 2026-11-14)*
 4. **Where a `REF` may appear.** The governing rule is meaning by expansion (§6.9):
    a `REF` is an expression node of arity 0 and may appear wherever the expression it
    names could appear, EXCEPT where §5.3.1 and §11.1 already fix the operand's
@@ -1520,7 +1521,7 @@ any of them).
 | Constant | Value | Evidence | Grade |
 |---|---|---|---|
 | `maxBindings` | 256 | E2 needs 22 (hand count of `Stage1Expressions.java:251-277` by the delta's author and independently by the Sonnet reviewer). The node ceiling alone would admit at most 512 bindings. Every binding is referenced (§5.5 item 2), so at least `n` `REF` nodes exist; no body is a bare `REF` (§5.5 item 3), so each binding body has at least one non-`REF` node, at least `n` more; the total is at least 2`n`, and 2`n` ≤ 1,024 = `maxExprNodes` gives `n` ≤ 512. The bound is met: `B_0` a literal, `B_k = NEG(REF(k-1))`, `M = REF(n-1)` (a bare `REF` is allowed for the main body) has 1 + 2(`n` − 1) + 1 = 2`n` nodes. (The delta's R18 gave 511; the owner corrected it to 512, owner answer Q5, Chisel 2026-11-14; the count argument is from review S-m5.) 256 is a policy value. | E2: HYPOTHESIS (hand count, no bound E2 exists) |
-| `maxEffectiveDepth` | 64 | E2 needs 48 with the hop counted (37 + 11 hops; both reviewers traced the same path, e2, col, rpx, th2, a2, a1, s, rs, theta, rho, xc to px); written-out E2 depth is 37 (`bench.log:56`, MEASURED by the Stage 1 run). Without a ceiling a 1,024-node expression could nest about 1,024 levels with the hop counted: 31 bindings and a main body, each a chain of 31 `NOT` over a `REF` to the previous tree (the first over a literal), are 32 trees × 32 nodes = 1,024 nodes, and `effDepth` = 32 × 32 = 1,024. (The 993 of the Fable review's F1 construction, `REVIEW_LET_FABLE.md`, is the same expression in the depth of its expansion, 32 + 31 × 31, where a `REF` and its body's root are one level; review F-n1.) | 48: HYPOTHESIS (hand trace); 37: MEASURED; 1,024: arithmetic |
+| `maxEffectiveDepth` | 64 | E2 needs 48 with the hop counted (37 + 11 hops; both reviewers traced the same path, e2, col, rpx, th2, a2, a1, s, rs, theta, rho, xc to px); written-out E2 depth is 37 (`bench.log:56`, MEASURED by the Stage 1 run). Without a ceiling a 1,024-node expression could nest 1,024 levels *(v0.2: owner round 2 R2-3 n5, Chisel 2026-11-14)* with the hop counted: 31 bindings and a main body, each a chain of 31 `NOT` over a `REF` to the previous tree (the first over a literal), are 32 trees × 32 nodes = 1,024 nodes, and `effDepth` = 32 × 32 = 1,024. (The 993 of the Fable review's F1 construction, `REVIEW_LET_FABLE.md`, is the same expression in the depth of its expansion, 32 + 31 × 31, where a `REF` and its body's root are one level; review F-n1.) | 48: HYPOTHESIS (hand trace); 37: MEASURED; 1,024: arithmetic |
 | `maxExpandedCost` | 8,388,608 = 2^23 | E2 needs 5,835,619 (`bench.log:57`, MEASURED by the Stage 1 run as the written-out `C(E)`; that the bound form's `xCost` equals it is an inference by construction, since expansion reproduces the written-out tree, UNVALIDATED until a bound E2 exists). Review F: "at least that (for example 2^23)". | written-out `C(E)`: MEASURED (E2 only); `xCost` of the bound form: HYPOTHESIS (by construction), UNVALIDATED |
 
 *(v0.2: let delta C.2, R3, R18)*
@@ -1544,7 +1545,7 @@ the entries below. A `REF(j)` reads entry `j`; nothing walks into `B_j`.
 
 | Entry | Definition |
 |---|---|
-| `effDepth(i)` | the maximum over the nodes `v` of `B_i` of `localDepth(v)` if `v` is not a `REF`, and of `localDepth(v) + effDepth(j)` if `v` is `REF(j)`. The root has `localDepth` 1, and `localDepth(v)` is the value of the Appendix B §B.6.2 depth counter when `v` is consumed (so an element of a list literal sits one level below the list's parent, as the decoder meters it; review F-m4). |
+| `effDepth(i)` | the maximum over the nodes `v` of `B_i` of `localDepth(v)` if `v` is not a `REF`, and of `localDepth(v) + effDepth(j)` if `v` is `REF(j)`. The root has `localDepth` 1, and `localDepth(v)` is the value of the Appendix B §B.6.2 depth counter when `v` is consumed (so an element of `IN`'s literal list operand sits one level below the `IN` node, and an element of a `LIST_LIT` node one level below that node, as the decoder meters them; review F-m4; v0.2: owner round 2 R2-3 m1, Chisel 2026-11-14). |
 | `xCost(i)` | Σ of the §10.2 cost over the non-`REF` nodes of `B_i`, plus Σ `xCost(j)` over its `REF(j)` nodes. A `REF` node adds nothing else. Checked 64-bit arithmetic (§10.6): an overflow means reject. |
 | static type | the type §11.2 synthesises for `B_i`; a `REF(j)` has `B_j`'s type |
 | static kind and static literal length (§10.2) | those of `B_j` for a `REF(j)`, so `cel.bind(k, "ACTIVE", f == k)` is charged as `f == "ACTIVE"` |
@@ -1937,7 +1938,9 @@ it. "Reject at ingest" means T2 decode or T6 verify; the layer is not part of th
 vector (§12.3). The corpus asserts a rejection, not its reason, so a vector meant
 to isolate one check, a ceiling or a structural rule alike, is built so that no
 OTHER check can produce the same reject. `B_k` is the body of
-binding `k` and `M` the main body. Every figure below is the delta's arithmetic or a
+binding `k` and `M` the main body. Unless a row says otherwise, a vector is a
+transform whose declared result type is the static type of `M` *(v0.2: owner
+round 2 R2-3 m2, Chisel 2026-11-14)*. Every figure below is the delta's arithmetic or a
 reviewer's, re-derived by hand; **none of it has been run** (UNVALIDATED
 until the corpus exists). *(v0.2: review S-m2)*
 
@@ -1989,7 +1992,7 @@ re-evaluated body gives the stored outcome (the semantics is pure, §3.1 claim 2
 so memoisation cannot be seen in any outcome; it is seen in work. What rule 1
 buys is that the admission cost `C(E)` is the evaluator's work bound and not only
 `xCost(M)` (§10.5). The implementation under test exposes an instrumented count of
-**binding-body evaluations per record**: a counter incremented each time the
+**binding-body evaluations per evaluation (one candidate)** *(v0.2: owner round 2 R2-3 n3, Chisel 2026-11-14)*: a counter incremented each time the
 evaluation of a binding body begins. The hook is language-neutral; its name and
 form are the implementation's, and the standard defines no projection call
 interface (the projection is a map, §8.1). **Pass rule:** the count is at most one
@@ -2015,6 +2018,18 @@ evaluations has no such escape. A metered implementation (§10.5) has a second
 observable: with the meter initialised to `C(E)`, a re-evaluated body trips
 `COST_BOUND`, which §10.5 already forbids for a verified expression. *(v0.2: review
 S-M2, F-M2)*
+
+**Static-walker test (§10.3 "Static walkers"): an IMPLEMENTATION test, NOT a corpus
+vector** *(v0.2: owner round 2 R2-2, decision 11 amended, RECHECK §3.2; Chisel
+2026-11-14)*. The implementation under test exposes an instrumented count of node
+visits by each static walker (cost, type, kind, depth, literal length) per
+registration. **Pass rule:** each walker's count is at most the record's node count.
+Run it on the `maxExpandedCost` pair of the table above: a walker that reads each
+`REF`'s attributes from the table visits about 70 nodes (HYPOTHESIS, hand count, not
+run); one that descends into `B_j` visits more than 2^22 (HYPOTHESIS, not run). Same
+form as the rule 1 test: a harness that cannot count reports NOT RUN, never PASS. It
+tests the MUST of the static-walker rule, which no corpus outcome can show, because an
+expanding verifier gives the same verdicts.
 
 **Other implementation tests, NOT corpus vectors** (each implementation runs them
 against its own evaluator; labelled so because a corpus vector must be runnable
@@ -2293,7 +2308,7 @@ section-cited rule governs.
 
 | 10 | Cross-type equality | `==`/`!=` between different types — outside the `int`×`double` numeric pair and the `null` rules — is `TYPE_MISMATCH` (§6.1) | Modern CEL's heterogeneous equality evaluates mixed-type `==` to `false` (`1 == "1"` is `false`, not an error) | Fail-closed (G6): a type-confused comparison is an authoring bug or schema skew to surface, not a silent `false`. In predicate context both dispositions are no-match — **except under negation** (`!("a" == 1)`: CEL matches, STD-011 errors ⇒ no-match), which is exactly where fail-closed matters |
 | 11 | `has()` on a present-but-null field | `false` — null is treated as unset, proto3-flavour (§4.6, §6.8) | For map values CEL's `has()` is key-presence: a key mapped to `null` yields `true` | One guard idiom (`has(f) && …`) covers both null and absence over a field-map substrate whose nulls mean "no value"; key-presence semantics would force every guard to also test `f != null` |
-| 12 | CEL-legal text rejected by the binding rules *(v0.2: owner decision 3, review S-m8, Chisel 2026-11-14)* | A `cel.bind` that is off the outer spine, has an unused binder, uses a bound name as a selector root, as `has()`'s target or as `in`'s list operand, reuses the spelling of a field, uses `cel` or a registry function name as the binder, or has an alias body (`cel.bind(b, a, …)`) is **rejected** at parse (§5.3.4 item 2 (b)-(h)) or at decode (§5.5 items 2-3) | Accepts all of these as legal bindings-extension text | G1 (one encoding per expression) and G7: each restriction removes a second spelling or second meaning of one expression, fails loudly, and never changes the meaning of text that is accepted. A rejection, not a semantic disagreement: it is not among the points of the (iii) summary |
+| 12 | CEL-legal text rejected by the binding rules *(v0.2: owner decision 3, review S-m8, Chisel 2026-11-14)* | A `cel.bind` that is off the outer spine, binds one name twice (shadowing), has an unused binder, uses a bound name as a selector root, as `has()`'s target or as `in`'s list operand, reuses the spelling of a field, uses `cel` or a registry function name as the binder, or has an alias body (`cel.bind(b, a, …)`) is **rejected** at parse (§5.3.4 item 2 (a)-(h)) or at decode (§5.5 items 2-3) | Accepts all of these as legal bindings-extension text | G7 and the two bounds of §5.5 item 3 (every body has a non-`REF` root: §10.5, §10.3): each restriction removes a second spelling or second meaning of one expression, fails loudly, and never changes the meaning of text that is accepted. *(v0.2: owner round 2 R2-1, R2-3 n1, Chisel 2026-11-14)* A rejection, not a semantic disagreement: it is not among the points of the (iii) summary |
 
 Row 9 is the divergence the board review found missing from the original
 inline notes; it was not previously flagged anywhere else in this document.

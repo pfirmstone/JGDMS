@@ -575,7 +575,8 @@ already rejects:
     after the outermost element of the record, MUST be rejected. Without this, a value
     has more than one accepted encoding (a canonical one and one with trailing octets),
     which G1 forbids. The Java decoder already rejects them (`CelDecoder.java:79-81,
-    97-99`, `requireExhausted`, as read by review F-n8), so this text catches up with
+    97-99` for the record and `requireExhausted` (`:511`) for every nested `SEQUENCE`, as read
+   by review F-n8 and RECHECK n2; v0.2: owner round 2 R2-3 n2, Chisel 2026-11-14), so this text catches up with
     the code. *(v0.2: owner decision 2, review F-n8, Chisel 2026-11-14)*
 
 ---
@@ -766,7 +767,7 @@ never allocate first and reject after:
   present but empty binding list (`30 00`) MUST be rejected as its own, standalone checked
   step (STD-011 §11.3 item 7): it is the only thing that keeps "no bindings" single-encoded
   now that no version number guards it (RL-JGDMS-0024), and generic ASN.1 tools do not
-  enforce a `SIZE` lower bound (§B.13.3). Reject vector: §B.11 item 7. *(v0.2: let delta B.1;
+  enforce a `SIZE` lower bound (§B.13.7, the lower-bound probes; v0.2: owner round 2 R2-3 n2, Chisel 2026-11-14). Reject vector: §B.11 item 7. *(v0.2: let delta B.1;
   RL-JGDMS-0024; review S-m9, F-§2)*
 - `CelFilterRecord` itself and every nested `SEQUENCE`: the outermost length octets bound
   total decode work before any recursive descent begins (X.690 definite-length TLVs make
@@ -841,7 +842,8 @@ They run in the order a decoder can make them:
 3. **`REF` index.** A `REF` content is one `INTEGER` of minimal encoding (§B.5 item 3) in
    `0 … maxBindings − 1`. In the element at position `i` of `bindings` the index MUST be `< i`;
    in `expression` it MUST be `< n`, the number of bindings. The check is made as each `REF` is
-   decoded, before the next node. An absent `bindings` list means `n` = 0, so every `REF` in
+   decoded, before the next node. The content length (1 or 2 octets) is checked before
+   the value is converted *(v0.2: owner round 2 R2-3 n4, Chisel 2026-11-14)*. An absent `bindings` list means `n` = 0, so every `REF` in
    `expression` is rejected (its index is `≥ 0`); the check MUST NOT be skipped for lack of a
    list, or the evaluator would read slot 0 of an empty table. Reject vector: §B.11 item 7.
    *(RL-JGDMS-0024; review S-m9, F-§2)*
@@ -1309,10 +1311,19 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
      - above `maxBindings − 1`, `9B 02 01 00` (256).
      - equal to or above its own body's position, and `REF(n)` in `expression` (§B.6.7
        item 3; STD-011 §13.1 gives the isolating constructions).
-   - Reject, malformed `REF` forms: zero-length content `9B 00`; the constructed form,
-     `BB 03 02 01 00` (leading octet `0xBB`, which is not in §B.4.1's table); and content of
-     more than 2 octets, for example `9B 03 00 01 00`, rejected on its length before the value
-     is converted (review F-m5 (iv)).
+   - Reject, malformed `REF` forms, each placed where index 0 is valid and is `B_0`'s only use
+     (so no other check can fire): zero-length content `9B 00`; the constructed form `BB 01 00`
+     (leading octet `0xBB`, which is not in §B.4.1's table; a decoder that ignores the
+     constructed bit reads `REF(0)` and accepts); and content of more than 2 octets, minimal and
+     in range after a wrap: `9B 05 01 00 00 00 00` (2^32, reads 0 in a 32-bit conversion) and
+     `9B 09 01 00 00 00 00 00 00 00 00` (2^64, reads 0 in a 64-bit conversion), rejected on
+     their length before the value is converted (review F-m5 (iv); v0.2: owner round 2 R2-3 m3,
+     Chisel 2026-11-14).
+   - Reject, leftover octets (§B.5 item 11): a record that is otherwise accepted, followed by
+     one extra octet `00`, and followed by a whole extra element `30 00`; leftover octets after
+     the last component of a nested `SEQUENCE` (its length covers one octet more than its
+     components) are rejected the same way. Healthy: reject. A decoder that stops at the last
+     component accepts (v0.2: owner round 2 R2-4, Chisel 2026-11-14).
    - Reject, presence: `bindings` present but empty (`30 00`) with `expression` a plain
      literal; a `REF` in `expression` (`9B 01 00` alone) with `bindings` absent; `formatVersion`
      2 (`02 01 02`) and 3 (`02 01 03`), that is, any value other than 1. Accept: `bindings`
