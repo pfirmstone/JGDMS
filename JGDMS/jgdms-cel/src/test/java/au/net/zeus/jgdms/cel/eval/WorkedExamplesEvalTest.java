@@ -41,11 +41,16 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class WorkedExamplesEvalTest {
 
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
     private static ExprNode field(String name) {
         return new ExprNode.FieldRef(List.of(new ExprNode.SelectorStep.Unqual(name)));
     }
 
-    private static boolean matches(Evaluator eval, ExprNode predicate, CandidateProjection candidate) {
+    private static boolean matches(EvaluatorUnderTest eval, ExprNode predicate, CandidateProjection candidate) {
         EvalOutcome outcome = eval.evaluate(predicate, candidate);
         // §9.4's verdict mapping: true -> match, false or any error -> no-match.
         return outcome instanceof EvalOutcome.Value v && v.value() instanceof CelValue.BoolV b && b.value();
@@ -57,7 +62,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_1_rangePredicate_match() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.And(
                 new ExprNode.Ge(field("pressureHpa"), new ExprNode.LitDouble(950.0)),
                 new ExprNode.Lt(field("pressureHpa"), new ExprNode.LitDouble(1050.0)));
@@ -69,7 +74,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_1_rangePredicate_nanIsNoMatch_notAnError() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.And(
                 new ExprNode.Ge(field("pressureHpa"), new ExprNode.LitDouble(950.0)),
                 new ExprNode.Lt(field("pressureHpa"), new ExprNode.LitDouble(1050.0)));
@@ -83,7 +88,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_1_rangePredicate_absentField_leftErrorReported_noMatch() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.And(
                 new ExprNode.Ge(field("pressureHpa"), new ExprNode.LitDouble(950.0)),
                 new ExprNode.Lt(field("pressureHpa"), new ExprNode.LitDouble(1050.0)));
@@ -109,7 +114,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_2_fullMatch() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         CandidateProjection candidate = FakeCandidateProjection.builder()
                 .field("com.example.SensorReading", "status", new CelValue.StringV("ACTIVE"))
                 .field("com.example.SensorReading", "station", new CelValue.StringV("GLS-1"))
@@ -121,7 +126,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_2_nullNote_unguardedIdiom_errorsToNoMatch() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         CandidateProjection candidate = FakeCandidateProjection.builder()
                 .field("com.example.SensorReading", "status", new CelValue.StringV("ACTIVE"))
                 .field("com.example.SensorReading", "station", new CelValue.StringV("GLS-1"))
@@ -136,7 +141,7 @@ class WorkedExamplesEvalTest {
     @Test
     void s14_2_nullNote_guardedIdiom_matches() {
         // status == "ACTIVE" && station.startsWith("GLS-") && (!has(note) || !note.contains("deprecated")) && sampleCount >= 30
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode statusEq = new ExprNode.Eq(field("status"), new ExprNode.LitString("ACTIVE"));
         ExprNode startsWith = new ExprNode.Call(23, List.of(field("station"), new ExprNode.LitString("GLS-")));
         ExprNode hasNote = new ExprNode.Has((ExprNode.FieldRef) field("note"));
@@ -204,7 +209,7 @@ class WorkedExamplesEvalTest {
      */
     @Test
     void s14_3_noProviderInstalled_throws() {
-        Evaluator eval = new Evaluator(); // MathProvider.none() by default
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none()); // MathProvider.none() by default
         CandidateProjection candidate = surveyCandidate(45.0, 10.0, 100.0);
         assertThrows(IllegalStateException.class, () -> eval.evaluate(s14_3_transform(), candidate));
     }
@@ -221,7 +226,7 @@ class WorkedExamplesEvalTest {
      */
     @Test
     void s14_3_placeholderOptIn_runsAndProducesWellShapedResult() {
-        Evaluator eval = new Evaluator(MathProvider.nonConformantForTestingOnly());
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.nonConformantForTestingOnly());
         CandidateProjection candidate = surveyCandidate(45.0, 10.0, 100.0);
         EvalOutcome outcome = eval.evaluate(s14_3_transform(), candidate);
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, outcome);
@@ -241,7 +246,7 @@ class WorkedExamplesEvalTest {
      */
     @Test
     void s14_3_nanElevation_deliversExplicitError_neverPoisonedVector() {
-        Evaluator eval = new Evaluator(MathProvider.nonConformantForTestingOnly());
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.nonConformantForTestingOnly());
         CandidateProjection candidate = surveyCandidate(45.0, Double.NaN, 100.0);
         EvalOutcome outcome = eval.evaluate(s14_3_transform(), candidate);
         EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class, outcome);
@@ -254,7 +259,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_4_ambiguousFieldRejection() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.Gt(field("timestamp"), new ExprNode.LitInt(1700000000000L));
         CandidateProjection betaCandidate = FakeCandidateProjection.builder()
                 .field("com.example.Beta", "timestamp", new CelValue.IntV(1750000000000L))
@@ -271,7 +276,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_5_absentFieldUnguarded_isError_noMatch() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.Lt(field("batteryMv"), new ExprNode.LitInt(3300));
         CandidateProjection oldSchema = FakeCandidateProjection.builder().namespace("com.example.SensorReading").build();
         assertFalse(matches(eval, predicate, oldSchema));
@@ -280,7 +285,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_5_hasGuard_oldSchema_falseNoError() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.And(
                 new ExprNode.Has((ExprNode.FieldRef) field("batteryMv")),
                 new ExprNode.Lt(field("batteryMv"), new ExprNode.LitInt(3300)));
@@ -292,7 +297,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_5_hasGuard_newSchema_lowBattery_matches() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.And(
                 new ExprNode.Has((ExprNode.FieldRef) field("batteryMv")),
                 new ExprNode.Lt(field("batteryMv"), new ExprNode.LitInt(3300)));
@@ -305,7 +310,7 @@ class WorkedExamplesEvalTest {
     @Test
     void s14_5_missingTelemetryTreatedAsSuspect_matchesOnAbsence() {
         // !has(batteryMv) || batteryMv < 3300
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.Or(
                 new ExprNode.Not(new ExprNode.Has((ExprNode.FieldRef) field("batteryMv"))),
                 new ExprNode.Lt(field("batteryMv"), new ExprNode.LitInt(3300)));
@@ -319,7 +324,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_6_overflowSurfaces() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode predicate = new ExprNode.Gt(
                 new ExprNode.Mul(field("sampleCount"), new ExprNode.LitInt(86400000000000L)),
                 new ExprNode.LitInt(0));
@@ -333,7 +338,7 @@ class WorkedExamplesEvalTest {
 
     @Test
     void s14_6_fixedWithExplicitDoubleConversion_noOverflow() {
-        Evaluator eval = new Evaluator();
+        EvaluatorUnderTest eval = evaluators().create(MathProvider.none());
         ExprNode doubleOfSampleCount = new ExprNode.Call(5, List.of(field("sampleCount"))); // double(x: int), id 5
         ExprNode predicate = new ExprNode.Gt(
                 new ExprNode.Mul(doubleOfSampleCount, new ExprNode.LitDouble(86400000000000.0)),

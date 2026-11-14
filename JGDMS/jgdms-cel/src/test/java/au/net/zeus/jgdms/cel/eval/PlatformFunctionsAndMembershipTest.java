@@ -24,6 +24,7 @@ import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -37,11 +38,21 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class PlatformFunctionsAndMembershipTest {
 
-    private static final Evaluator EVAL = new Evaluator(MathProvider.nonConformantForTestingOnly());
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.nonConformantForTestingOnly());
+    }
     private static final CandidateProjection CANDIDATE = FakeCandidateProjection.builder().build();
 
-    private static EvalOutcome eval(ExprNode node) {
-        return EVAL.evaluate(node, CANDIDATE);
+    private EvalOutcome eval(ExprNode node) {
+        return evaluator.evaluate(node, CANDIDATE);
     }
 
     private static ExprNode call(int id, ExprNode... args) {
@@ -270,7 +281,7 @@ class PlatformFunctionsAndMembershipTest {
         ExprNode.InListOperand listField = new ExprNode.InListOperand.FieldList(
                 new ExprNode.FieldRef(List.of(new ExprNode.SelectorStep.Unqual("tags"))));
         ExprNode inExpr = new ExprNode.In(new ExprNode.LitString("x"), listField);
-        EvalOutcome outcome = EVAL.evaluate(inExpr, candidate);
+        EvalOutcome outcome = evaluator.evaluate(inExpr, candidate);
         assertFalse(((CelValue.BoolV) ((EvalOutcome.Value) outcome).value()).value());
     }
 

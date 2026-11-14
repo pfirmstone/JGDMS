@@ -21,7 +21,9 @@ import au.net.zeus.jgdms.cel.CelError;
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
+import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,7 +36,17 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class BooleanMatrixTest {
 
-    private static final Evaluator EVAL = new Evaluator();
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.none());
+    }
     private static final CandidateProjection CANDIDATE = FakeCandidateProjection.builder().build();
 
     private static final ExprNode TRUE = new ExprNode.LitBool(true);
@@ -56,11 +68,11 @@ class BooleanMatrixTest {
     }
 
     private EvalOutcome evalAnd(Cell l, Cell r) {
-        return EVAL.evaluate(new ExprNode.And(nodeFor(l), nodeFor(r)), CANDIDATE);
+        return evaluator.evaluate(new ExprNode.And(nodeFor(l), nodeFor(r)), CANDIDATE);
     }
 
     private EvalOutcome evalOr(Cell l, Cell r) {
-        return EVAL.evaluate(new ExprNode.Or(nodeFor(l), nodeFor(r)), CANDIDATE);
+        return evaluator.evaluate(new ExprNode.Or(nodeFor(l), nodeFor(r)), CANDIDATE);
     }
 
     private static void assertBool(EvalOutcome outcome, boolean expected) {
@@ -118,7 +130,7 @@ class BooleanMatrixTest {
     @Test
     void not_ofError_isThatError() {
         ExprNode not = new ExprNode.Not(ERROR_A);
-        assertErrorCode(EVAL.evaluate(not, CANDIDATE), CelError.DIVISION_BY_ZERO);
+        assertErrorCode(evaluator.evaluate(not, CANDIDATE), CelError.DIVISION_BY_ZERO);
     }
 
     @Test
@@ -126,14 +138,14 @@ class BooleanMatrixTest {
         // A non-bool operand is replaced by TYPE_MISMATCH "at its own position" (§6.4); a determining
         // R=false still absorbs it, exactly like any other error would.
         ExprNode nonBool = new ExprNode.LitInt(5);
-        EvalOutcome result = EVAL.evaluate(new ExprNode.And(nonBool, FALSE), CANDIDATE);
+        EvalOutcome result = evaluator.evaluate(new ExprNode.And(nonBool, FALSE), CANDIDATE);
         assertBool(result, false);
     }
 
     @Test
     void and_leftNonBool_notAbsorbed_whenRightTrue() {
         ExprNode nonBool = new ExprNode.LitInt(5);
-        EvalOutcome result = EVAL.evaluate(new ExprNode.And(nonBool, TRUE), CANDIDATE);
+        EvalOutcome result = evaluator.evaluate(new ExprNode.And(nonBool, TRUE), CANDIDATE);
         assertErrorCode(result, CelError.TYPE_MISMATCH);
     }
 }
