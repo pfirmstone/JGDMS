@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, RL-JGDMS-0037 to RL-JGDMS-0048, see add.4t and add.4w)
-LATEST ADDENDUM: add.4w dated 2026-11-15 at heading "REVISION 4w, AS-OF 2026-11-15"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, RL-JGDMS-0037 to RL-JGDMS-0050, see add.4t, add.4w and add.4x)
+LATEST ADDENDUM: add.4x dated 2026-11-15 at heading "REVISION 4x, AS-OF 2026-11-15"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
 -->
@@ -479,3 +479,15 @@ The operator said "Yes add the newline guard." and `append()` in `E:\Claude\clai
 1. The assistant's proposals P1 to P11 are in the design memo section 16.1; none is ruled.
 2. Not ruled by the operator: whether the power-down follows the isolation or is replaced by it, and whether the attacker response is automatic or confirmed by a person.
 3. The board requirements document is the operator's to change (P5).
+
+## REVISION 4x, AS-OF 2026-11-15 (newest block; adds to 4w; the ruling statuses live in the register, not here)
+
+**Reader and purpose.** The next session of the same assistant. 4x records two operator rulings made after 4w and what they change in the open items of 4w.
+
+### 1. Register entries made (2026-11-15, later)
+- RL-JGDMS-0049 (the power-down follows the isolation) and RL-JGDMS-0050 (the proxy's state at isolation can differ from its stored initial state). Read `show <ID>`. The second statement carries one inference of the assistant, labelled as such in its note.
+- The script that appended them: `JGDMS/docs/REGISTER-2026-11-15-append-board-rulings-2.py` (do not run it again).
+
+### 2. Changes to the 4w open items
+- 4w section 2 item 2, first half (does the power-down follow or replace the isolation) is answered by RL-JGDMS-0049. The second half (automatic or confirmed by a person) is still open.
+- Memo section 16.2 holds the struck remark and the consequence for the analysis of a persisted proxy.
