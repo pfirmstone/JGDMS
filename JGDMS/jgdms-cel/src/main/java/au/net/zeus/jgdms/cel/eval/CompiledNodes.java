@@ -152,7 +152,9 @@ final class CompiledNodes {
          * The table is bounded by the number of {@code size(string)} nodes, so nothing grows with the data and
          * a reset is {@code sizeFill = 0}. Keyed by identity on purpose: the projection contract promises the
          * identical String for the identical query within one evaluation, and equal-content Strings that are
-         * different instances are counted independently, exactly as the walker's IdentityHashMap does.
+         * different instances are counted independently, as the walker's IdentityHashMap does. The scan count
+         * can be lower than the walker's for one record: two merged calls over one literal scan once where the
+         * walker scans once per String instance. Only the count can differ, never an outcome.
          */
         long sizeStringCount(String s) {
             for (int i = 0; i < sizeFill; i++) {
@@ -332,7 +334,10 @@ final class CompiledNodes {
      * Each element's kind and homogeneity are checked BEFORE the next element is evaluated, so
      * {@code [1, "a", 1/0]} is TYPE_MISMATCH, not DIVISION_BY_ZERO (§9 item 1; {@code Evaluator.evalListLit}).
      * The elements go into {@code List.of} so {@code ListV}'s defensive {@code List.copyOf} returns the same
-     * instance instead of copying again (§9 item 7).
+     * instance instead of copying a second time (§9 item 7). One copy remains: {@code List.of(E...)} copies
+     * the temporary {@code values} array itself for three or more elements, and the array's length is not a
+     * constant, so escape analysis cannot remove it. Its allocation cost per record is not measured
+     * (it needs {@code -prof gc}).
      */
     static final class ListLit extends Node {
         private final Node[] elements;
@@ -864,6 +869,11 @@ final class CompiledNodes {
     // Platform function calls (§7): one class per function id, so a call has no argument list
     // to allocate and no function-name dispatch. Arguments are evaluated in order, each error
     // returned at once, BEFORE any argument is type-checked.
+    //
+    // The transcendentals (sin, cos, tan, asin, acos, atan, atan2) check the domain BEFORE
+    // MathProvider.get(), and call get() once per evaluation of the call node, as the walker does.
+    // So an absent or lazy provider behaves identically: asin(1.5) is DOMAIN even with no provider
+    // installed.
     // ======================================================================
 
     /** A function id outside the registry: arguments first, then TYPE_MISMATCH, as {@code Evaluator.evalCall}. */
@@ -1199,11 +1209,7 @@ final class CompiledNodes {
         }
     }
 
-    /**
-     * The four finite-only unary transcendentals. The domain check runs BEFORE {@code MathProvider.get()},
-     * which is called once per evaluation as the walker does, so an absent or lazy provider behaves
-     * identically: {@code asin(1.5)} is DOMAIN even with no provider installed.
-     */
+    /** {@code sin}: a non-finite argument is DOMAIN, before {@code get()}. {@link Cos}, {@link Tan} and {@link Atan} do the same; the section comment above says why. */
     static final class Sin extends Node {
         private final Node a;
         private final MathProvider math;

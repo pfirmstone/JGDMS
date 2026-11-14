@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static au.net.zeus.jgdms.cel.testsupport.Msg.msg;
@@ -55,6 +56,12 @@ import static au.net.zeus.jgdms.cel.testsupport.Msg.msg;
  * <b>Trace rule</b> (section 9 item 8). With sharing off the compiled trace must be IDENTICAL to the walker's.
  * With sharing on it must be a SUBSEQUENCE of the walker's with the same first-occurrence order: a merged node
  * is evaluated once where the walker evaluates it at each occurrence, so calls only go missing, never move.
+ * <p>
+ * <b>Generated is not executed.</b> {@link CelCorpusGenerator#kindsOf} counts the kinds present in an AST, so a
+ * kind under an untaken branch or after a strict error still counts. The sharing-on variant is therefore compiled
+ * with an {@link ExecutedKinds} observer, a pass-through wrapper that counts each time a node's rule runs, and the
+ * census prints both. The count is a DIAGNOSTIC: no assertion rests on it. The wrapper adds no behaviour, but it is
+ * one more call per node on the variant that is compared, so the sharing-off variant stays unwrapped.
  */
 final class DifferentialHarness {
 
@@ -68,6 +75,7 @@ final class DifferentialHarness {
         int cases;
         long evaluations;
         final Map<String, Integer> astsWithKind = new TreeMap<>();
+        final Map<String, Long> executedKind = new TreeMap<>();
         final Map<String, Integer> rootOutcomes = new TreeMap<>();
         int astsWithSharedReference;
         int astsWithMergedDuplicates;
@@ -79,6 +87,10 @@ final class DifferentialHarness {
             map.merge(key, 1, Integer::sum);
         }
 
+        void addExecuted(Map<String, long[]> counts) {
+            counts.forEach((kind, c) -> executedKind.merge(kind, c[0], Long::sum));
+        }
+
         void print(PrintStream out) {
             StringBuilder sb = new StringBuilder();
             sb.append("--- differential census: ").append(cases).append(" ASTs, ").append(evaluations)
@@ -87,12 +99,51 @@ final class DifferentialHarness {
                     .append(traceEventsCompared).append(" trace events compared\n");
             sb.append("ASTs containing each kind:\n");
             astsWithKind.forEach((k, v) -> sb.append("  ").append(k).append(' ').append(v).append('\n'));
+            sb.append("executed node kinds, compiled (sharing on): times a node's rule ran (a memo hit is not a run),")
+                    .append(" summed over records and both provider modes; DIAGNOSTIC, no assertion rests on it:\n");
+            executedKind.forEach((k, v) -> sb.append("  ").append(k).append(' ').append(v).append('\n'));
+            sb.append("kinds generated in at least one AST but never executed: ");
+            int never = 0;
+            for (String kind : astsWithKind.keySet()) {
+                if (executedKind.containsKey(kind)) continue;
+                sb.append(never++ == 0 ? "" : ", ").append(kind);
+            }
+            sb.append(never == 0 ? "none" : "").append('\n');
             sb.append("compiled (sharing on) root outcomes, summed over records and both provider modes:\n");
             rootOutcomes.forEach((k, v) -> sb.append("  ").append(k).append(' ').append(v).append('\n'));
             sb.append("ASTs with a reference-shared node: ").append(astsWithSharedReference)
                     .append("; with structural duplicates merged by key: ").append(astsWithMergedDuplicates)
                     .append("; memo slots built: ").append(memoSlots).append("; memo hits: ").append(memoHits).append('\n');
             out.print(sb);
+        }
+    }
+
+    /** Counts each run of the node it wraps, in counters shared by every node of one kind within one compile. */
+    private static final class CountingNode extends CompiledNodes.Node {
+        private final CompiledNodes.Node inner;
+        private final long[][] counters;
+
+        CountingNode(CompiledNodes.Node inner, long[][] counters) {
+            this.inner = inner;
+            this.counters = counters;
+        }
+
+        @Override
+        void eval(CompiledNodes.Frame f) {
+            for (long[] c : counters) c[0]++;
+            inner.eval(f);
+        }
+    }
+
+    /** The {@code CompiledGraph} observer: wraps each node in a {@link CountingNode} keyed by its census names. */
+    static final class ExecutedKinds implements BiFunction<ExprNode, CompiledNodes.Node, CompiledNodes.Node> {
+        final Map<String, long[]> counts = new TreeMap<>();
+
+        @Override
+        public CompiledNodes.Node apply(ExprNode ast, CompiledNodes.Node node) {
+            ArrayList<long[]> mine = new ArrayList<>(2);
+            CelCorpusGenerator.kindNames(ast, kind -> mine.add(counts.computeIfAbsent(kind, k -> new long[1])));
+            return new CountingNode(node, mine.toArray(new long[0][]));
         }
     }
 
@@ -128,8 +179,9 @@ final class DifferentialHarness {
         CompiledExpression[] plain = new CompiledExpression[2];
         CompiledExpression.Session[] sharedSession = new CompiledExpression.Session[2];
         CompiledExpression.Session[] plainSession = new CompiledExpression.Session[2];
+        ExecutedKinds[] executed = {new ExecutedKinds(), new ExecutedKinds()};
         for (int m = 0; m < 2; m++) {
-            shared[m] = CompiledExpression.compile(ast, providers[m], true);
+            shared[m] = CompiledExpression.compile(ast, providers[m], true, executed[m]);
             plain[m] = CompiledExpression.compile(ast, providers[m], false);
             sharedSession[m] = shared[m].newSession();
             plainSession[m] = plain[m].newSession();
@@ -197,7 +249,10 @@ final class DifferentialHarness {
                 census.traceEventsCompared += walkerTrace.size() + sharedTrace.size() + plainTrace.size();
             }
         }
-        for (int m = 0; m < 2; m++) census.memoHits += sharedSession[m].memoHitCountForTesting();
+        for (int m = 0; m < 2; m++) {
+            census.memoHits += sharedSession[m].memoHitCountForTesting();
+            census.addExecuted(executed[m].counts);
+        }
     }
 
     private static String outcomeKey(String mode, Result r) {

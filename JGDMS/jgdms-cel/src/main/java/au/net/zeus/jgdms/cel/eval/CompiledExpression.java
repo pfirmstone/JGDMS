@@ -26,6 +26,7 @@ import au.net.zeus.jgdms.cel.eval.CompiledNodes.Node;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 
 import java.util.Arrays;
+import java.util.function.BiFunction;
 
 /**
  * A verified JGDMS-STD-011 expression compiled once and evaluated many times, for filters that run over
@@ -82,9 +83,15 @@ public final class CompiledExpression {
 
     /** As {@link #compile(ExprNode, MathProvider)}; {@code share} false turns merging and memoisation off, so evaluation is occurrence by occurrence like the walker's. */
     static CompiledExpression compile(ExprNode root, MathProvider math, boolean share) {
+        return compile(root, math, share, null);
+    }
+
+    /** As the three-argument form; {@code observer}, when not null, may wrap each executable node (see {@code CompiledGraph.observer}). */
+    static CompiledExpression compile(ExprNode root, MathProvider math, boolean share,
+                                      BiFunction<ExprNode, Node, Node> observer) {
         if (root == null) throw new NullPointerException("root");
         if (math == null) throw new NullPointerException("mathProvider");
-        return new CompiledExpression(CompiledGraph.build(root, math, share));
+        return new CompiledExpression(CompiledGraph.build(root, math, share, observer));
     }
 
     /** A new evaluation state for one thread. */
@@ -104,9 +111,20 @@ public final class CompiledExpression {
 
     /**
      * The evaluation state of one thread: the register, the per-record memo and the per-record
-     * {@code size(string)} table. NOT thread-safe and not re-entrant. It keeps references to the last
-     * record's values until the next record, so a Session per (filter, thread) pins up to one record's
-     * data per pair (design section 9 item 16, accepted).
+     * {@code size(string)} table. NOT thread-safe and not re-entrant.
+     * <p>
+     * <b>Retention.</b> Nothing is cleared between records (decision of 2026-11-14; clearing every slot
+     * costs O(slots) per record). A memo slot keeps the value it was last written with until that slot is
+     * next written, so a slot under a branch that later records do not take can hold a value from a record
+     * long past. A Session therefore pins at most one value per memo slot, and the slots are bounded by
+     * the node count, at most {@code CelCeilings.MAX_EXPR_NODES} = 1,024. It also holds one String per
+     * {@code size(string)} node, the register, and the last candidate. A pinned value can be a whole
+     * projected object, so a Session per (filter, thread) that stays idle keeps that data reachable.
+     * Design section 9 item 16 accepted "the last record's values", which was narrower than this.
+     * <p>
+     * <b>Isolation.</b> No stale value is ever visible to a later record: every slot is stamped with the
+     * epoch of the record that wrote it, and {@code evaluate} advances the epoch at its entry, so a slot
+     * not written by the current record reads as empty (STD-011 section 9.6).
      * <p>
      * The thread that first calls {@link #evaluate} becomes the owner and any other thread trips an
      * {@code assert}: a Session shared across threads corrupts results silently, so the check is
@@ -173,7 +191,7 @@ public final class CompiledExpression {
         }
     }
 
-    /** The root register becomes an outcome. BOOL, NULL and ERROR share immutable constants: equal under {@code equals} to the walker's fresh ones, and no caller compares outcomes by identity. */
+    /** The root register becomes an outcome. BOOL, NULL and ERROR share immutable constants: equal under {@code equals} to the walker's fresh ones. The identity of an outcome is not part of the contract, so a caller compares outcomes with {@code equals}. */
     private static EvalOutcome box(Frame f) {
         return switch (f.tag) {
             case CompiledNodes.BOOL -> f.bits != 0L ? TRUE : FALSE;

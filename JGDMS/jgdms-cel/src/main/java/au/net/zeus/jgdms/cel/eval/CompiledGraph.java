@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.function.BiFunction;
 
 /**
  * Turns an AST into the {@link CompiledNodes} of a {@link CompiledExpression}, merging structurally
@@ -70,6 +71,14 @@ final class CompiledGraph {
 
     private final MathProvider math;
     private final boolean share;
+
+    /**
+     * Test hook, null in production: given a canonical node's AST and the executable node just made for
+     * it, returns the node to use. It runs INSIDE the {@link CompiledNodes.Memo} wrapper, so a memo hit
+     * does not reach it, and after the decision to memoise, so a wrapper cannot change what is merged.
+     * It exists so the differential census can count the rules that ran, not only the kinds generated.
+     */
+    private final BiFunction<ExprNode, Node, Node> observer;
     private final IdentityHashMap<ExprNode, Canon> byIdentity = new IdentityHashMap<>();
     private final HashMap<Key, Canon> byKey = new HashMap<>();
     private int nextId;
@@ -78,14 +87,15 @@ final class CompiledGraph {
 
     private final Node root;
 
-    private CompiledGraph(ExprNode root, MathProvider math, boolean share) {
+    private CompiledGraph(ExprNode root, MathProvider math, boolean share, BiFunction<ExprNode, Node, Node> observer) {
         this.math = math;
         this.share = share;
+        this.observer = observer;
         this.root = nodeFor(intern(root));
     }
 
-    static CompiledGraph build(ExprNode root, MathProvider math, boolean share) {
-        return new CompiledGraph(root, math, share);
+    static CompiledGraph build(ExprNode root, MathProvider math, boolean share, BiFunction<ExprNode, Node, Node> observer) {
+        return new CompiledGraph(root, math, share, observer);
     }
 
     Node root() {
@@ -230,9 +240,9 @@ final class CompiledGraph {
     private Node nodeFor(Canon c) {
         if (c.node != null) return c.node;
         Node node = create(c);
-        if (share && c.inEdges >= 2 && !(node instanceof CompiledNodes.Const)) {
-            node = new CompiledNodes.Memo(node, memoSlots++);
-        }
+        boolean memoise = share && c.inEdges >= 2 && !(node instanceof CompiledNodes.Const);
+        if (observer != null) node = observer.apply(c.ast, node);
+        if (memoise) node = new CompiledNodes.Memo(node, memoSlots++);
         c.node = node;
         return node;
     }

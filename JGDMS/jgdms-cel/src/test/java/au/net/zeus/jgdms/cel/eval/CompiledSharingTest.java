@@ -123,6 +123,34 @@ class CompiledSharingTest {
         assertEquals(0, plainSession.memoHitCountForTesting());
     }
 
+    /**
+     * The executed-kind census ({@link DifferentialHarness.ExecutedKinds}) counts a node's rule once per RUN, not
+     * once per reading of its value: with sharing on the second {@code (i + 1)} is a memo hit and does not run,
+     * with sharing off both run. A census that counted hits would show a kind as executed that never ran, which is
+     * the gap it exists to close.
+     */
+    @Test
+    void executedKindCensus_countsRuns_notMemoHits() {
+        DifferentialHarness.ExecutedKinds on = new DifferentialHarness.ExecutedKinds();
+        DifferentialHarness.ExecutedKinds off = new DifferentialHarness.ExecutedKinds();
+        CompiledExpression.Session onSession =
+                CompiledExpression.compile(squareOfSuccessor(), PROVIDER, true, on).newSession();
+        CompiledExpression.Session offSession =
+                CompiledExpression.compile(squareOfSuccessor(), PROVIDER, false, off).newSession();
+        for (long v = 3; v <= 4; v++) {
+            assertEquals(intOutcome((v + 1) * (v + 1)), onSession.evaluate(withInt(v)));
+            assertEquals(intOutcome((v + 1) * (v + 1)), offSession.evaluate(withInt(v)));
+        }
+        assertEquals(2L, on.counts.get("Mul")[0], "one Mul per record");
+        assertEquals(2L, on.counts.get("Add")[0], "one Add per record: the second operand is a memo hit");
+        assertEquals(2L, on.counts.get("LitInt")[0], "under the one Add that ran");
+        assertEquals(2L, on.counts.get("FieldRef")[0], "under the one Add that ran");
+        assertEquals(2L, off.counts.get("Mul")[0]);
+        assertEquals(4L, off.counts.get("Add")[0], "two Adds per record");
+        assertEquals(4L, off.counts.get("LitInt")[0]);
+        assertEquals(4L, off.counts.get("FieldRef")[0]);
+    }
+
     @Test
     void referenceSharedDag_isComputedOncePerRecord_andTheMathProviderIsCalledOnce() {
         TraceLog.Sink sink = new TraceLog.Sink();

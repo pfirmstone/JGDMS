@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
 /**
  * A seeded, type-directed generator of random ASTs and of the candidates they run against, for the
@@ -639,11 +640,20 @@ final class CelCorpusGenerator {
 
     private static void collect(ExprNode n, IdentityHashMap<ExprNode, Boolean> seen, Set<String> out) {
         if (seen.put(n, Boolean.TRUE) != null) return;
-        out.add(n.getClass().getSimpleName());
+        kindNames(n, out::add);
         for (ExprNode c : children(n)) collect(c, seen, out);
-        if (n instanceof ExprNode.Call c) out.add(new StringBuilder("Call:").append(c.functionId()).toString());
+    }
+
+    /**
+     * The census names of one node: its class name, then {@code Call:<id>} or {@code In:literal} / {@code In:field}
+     * where the kind has a second axis. One source for the generated census ({@link #kindsOf}) and the executed one
+     * ({@code DifferentialHarness}), so the two tables use the same names and can be set side by side.
+     */
+    static void kindNames(ExprNode n, Consumer<String> out) {
+        out.accept(n.getClass().getSimpleName());
+        if (n instanceof ExprNode.Call c) out.accept(new StringBuilder("Call:").append(c.functionId()).toString());
         if (n instanceof ExprNode.In in) {
-            out.add(in.listOperand() instanceof ExprNode.InListOperand.LiteralList ? "In:literal" : "In:field");
+            out.accept(in.listOperand() instanceof ExprNode.InListOperand.LiteralList ? "In:literal" : "In:field");
         }
     }
 

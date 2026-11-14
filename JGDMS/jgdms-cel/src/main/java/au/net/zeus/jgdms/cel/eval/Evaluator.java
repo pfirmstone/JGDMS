@@ -38,7 +38,9 @@ import java.util.List;
  * <p>
  * This is the <b>reference implementation</b>: {@link CompiledExpression} must
  * reproduce its outcomes, its evaluation order and its exceptions, and the
- * differential test holds it to that. A rule decided here is decided for both.
+ * differential test holds it to that. A change to a semantic rule is made here
+ * and in {@code CelSemantics} first; the compiled evaluator follows, and the
+ * differential test shows whether it did.
  * <p>
  * <b>Numeric implementation traps this class deliberately avoids</b> (each
  * named at its definition site in STD-011, restated here because getting any
