@@ -36,7 +36,7 @@ import java.util.List;
  * pure function of its arguments, or a read-only query against a {@link
  * CandidateProjection}.
  * <p>
- * This is the <b>reference implementation</b>: {@code CompiledExpression} must
+ * This is the <b>reference implementation</b>: {@link CompiledExpression} must
  * reproduce its outcomes, its evaluation order and its exceptions, and the
  * differential test holds it to that. A rule decided here is decided for both.
  * <p>

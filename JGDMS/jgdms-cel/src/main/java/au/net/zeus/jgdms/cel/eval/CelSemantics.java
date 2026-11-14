@@ -21,7 +21,7 @@ import au.net.zeus.jgdms.cel.CelError;
 
 /**
  * The pure numeric and ordering rules of JGDMS-STD-011 that {@link Evaluator} (the
- * reference implementation) and {@code CompiledExpression} must apply identically.
+ * reference implementation) and {@link CompiledExpression} must apply identically.
  * They live here once so the two evaluators cannot drift apart on them.
  * <p>
  * <b>Epistemic status of the differential test.</b> Because both evaluators call this
