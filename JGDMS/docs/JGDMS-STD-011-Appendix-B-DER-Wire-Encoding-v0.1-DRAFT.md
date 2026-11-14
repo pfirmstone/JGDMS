@@ -118,10 +118,12 @@ needle must be a string literal) is **not** structurally eliminated (§B.6.5) �
 there as a genuine decode-time check T2 must still perform.
 
 **`REF` positions (v0.2).** The same grammar makes four of STD-011 §5.5 item 4's excluded
-positions for a `REF` unrepresentable: `HasNode.target` and `InListOperand` hold a
-`FieldRefNode`, never an `ExprNode`; `QualifiedSelector` holds `UTF8String`s; and a selector
-chain's root is a `SelectorStep`, not an `ExprNode`. The one excluded position the wire CAN
-represent is `contains`'s needle (§B.6.5). *(v0.2: let delta A.1, R7)*
+positions for a `REF` unrepresentable: `HasNode.target` is a `FieldRefNode` and
+`InListOperand` is a `CHOICE` of `ListLitNode` or `FieldRefNode`, neither an `ExprNode`, so a
+`REF` cannot be the `has()` target or the `in` list operand itself (it can still be an
+element of a `ListLitNode`); `QualifiedSelector` holds `UTF8String`s; and a selector chain's
+root is a `SelectorStep`, not an `ExprNode`. The one excluded position the wire CAN represent
+is `contains`'s needle (§B.6.5). *(v0.2: let delta A.1, R7)*
 
 ---
 
