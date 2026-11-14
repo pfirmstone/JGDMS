@@ -13,6 +13,8 @@ from these numbers; nothing here changes `jgdms-cel` or `jgdms-cel-authoring`.
 | `Stage1Expressions` | E1 (vector) and E2 (camera projection): text templates, parse, substitution, size/cost/verdict |
 | `NativeBaselines`, `Trig` | B-CR and B-STRICT baselines of the same arithmetic |
 | `CelRunner` | one `Evaluator` + projection; the unit both the benchmarks and the test drive |
+| `CompiledRunner` | the compiled twin of `CelRunner`: one production `CompiledExpression` Session + projection (public API only) |
+| `CompiledSelfCheck` | runs once per fork before the compiled benchmarks: walker vs compiled bit identity, and correctly-rounded calls per record (`SELFCHECK`, `CALLCOUNT` lines) |
 | `Sampling` | which records are run (one rule for the test and the benchmarks) |
 | `CelEvalBenchmark` | the JMH benchmarks; the operation is ONE RECORD |
 | `Stage1CorrectnessTest` | sealed predictions P1-P10 and the bit-identity checks (read its javadoc first) |

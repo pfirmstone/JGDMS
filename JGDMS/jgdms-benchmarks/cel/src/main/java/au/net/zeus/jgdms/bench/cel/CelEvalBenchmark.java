@@ -40,6 +40,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.infra.BenchmarkParams;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -76,6 +77,15 @@ import java.util.concurrent.TimeUnit;
  *       ({@code MathProviders.correctlyRounded()}); the projection's per-record {@code set} is INSIDE the timed path.
  *       E2 is the tree STD-011 v0.1 would force (every reuse written out) and is REJECTED by the v0.1 ceilings: it is
  *       measured anyway, as the brief requires.</li>
+ *   <li>{@code celE1Compiled}, {@code celE2Compiled} (design {@code DESIGN_COMPILED_EVALUATOR.md} section 6.4 and 9 items 12-15,
+ *       scoring claim CL-CHISEL-0027): the production {@code CompiledExpression} through its public API
+ *       ({@link CompiledRunner}), same correctly-rounded provider, same projection with {@code set} in the timed path.
+ *       {@code celE1Compiled} uses {@code celE1}'s cursor and block, so the two cover the same records. {@code celE2Compiled}
+ *       is average-time (steady state, NOT single shot) over the SAME 4-record ring as {@code nativeE2CrMatched}, one record per
+ *       invocation, so {@code celE2Compiled / nativeE2CrMatched} is over one population. Compile time is measured once per fork
+ *       in {@link CelCompiled#build} and printed ({@code COMPILE-TIME}), never per record. Before any timing,
+ *       {@link CompiledSelfCheck} checks the compiled result against the walker's bit for bit (E1 on all {@value #SAMPLE}
+ *       sample records, E2 on the ring) and counts correctly-rounded calls per record ({@code CALLCOUNT}).</li>
  *   <li>{@code nativeE1Cr}, {@code nativeE2Cr}: native arithmetic with the same correctly-rounded functions (B-CR);
  *       {@code nativeE2CrMatched} is the same code over the ring (see above). {@code nativeE1Strict}, {@code nativeE2Strict}:
  *       with {@code StrictMath} (B-STRICT).</li>
@@ -294,14 +304,98 @@ public class CelEvalBenchmark {
             if (invocations == 0) {
                 return;
             }
-            StringBuilder sb = new StringBuilder(160);
-            sb.append("TIMED-RECORDS benchmark=").append(benchmark).append(" startOffset=").append(startOffset)
-                    .append(" stride=").append(STRIDE).append(" invocations=").append(invocations)
-                    .append(" ring of ").append(E2_RING).append(" records:");
-            for (int r = 0; r < E2_RING; r++) {
-                sb.append(r == 0 ? " " : ",").append(ringRecords[r]);
+            System.out.println(ringLine(benchmark, startOffset, invocations, ringRecords));
+        }
+    }
+
+    /** The {@code TIMED-RECORDS} line of a benchmark that cycles the ring (the matched native and the compiled E2). */
+    static String ringLine(String benchmark, int startOffset, long invocations, int[] ringRecords) {
+        StringBuilder sb = new StringBuilder(160);
+        sb.append("TIMED-RECORDS benchmark=").append(benchmark).append(" startOffset=").append(startOffset)
+                .append(" stride=").append(STRIDE).append(" invocations=").append(invocations)
+                .append(" ring of ").append(E2_RING).append(" records:");
+        for (int r = 0; r < E2_RING; r++) {
+            sb.append(r == 0 ? " " : ",").append(ringRecords[r]);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * The compiled E1 and E2 (design section 6.4), built once per fork. Per thread: a Session is not thread-safe. Compile time
+     * is measured here, outside every timed method: the FIRST compile in the fork (cold: class loading and an unwarmed JIT
+     * included) and the median of {@value #COMPILE_REPEATS} further compiles of the same tree (warm-ish; DIAGNOSTIC). A
+     * "compile" here is the {@link CompiledRunner} constructor: {@code CompiledExpression.compile} plus {@code newSession}.
+     * The setup ends with {@link CompiledSelfCheck#run}, on THIS instance, before any iteration.
+     */
+    @State(Scope.Thread)
+    public static class CelCompiled {
+        static final int COMPILE_REPEATS = 21;
+        RecordProjection projection;
+        CompiledRunner e1;
+        CompiledRunner e2;
+        /** Position in the sample of {@code celE1Compiled}'s stride cursor. */
+        int cursor;
+        /** Ring slot of the next {@code celE2Compiled} invocation, as in {@link Nat}. */
+        int ring;
+        String benchmark = "?";
+        int startOffset;
+        long invocations;
+        final int[] ringRecords = new int[E2_RING];
+        /** Keeps the repeated compiles observable, so the JIT cannot drop them from the timing loop. */
+        CompiledRunner lastRepeat;
+
+        @Setup(Level.Trial)
+        public void build(Data data, BenchmarkParams params) throws CelParseException {
+            Stage1Expressions x = Stage1Expressions.synthetic();
+            ExprNode e1Tree = x.e1();
+            ExprNode e2Tree = x.e2();
+            projection = new RecordProjection(data.cols.range, data.cols.azimuth, data.cols.elevation);
+            MathProvider cr = MathProviders.correctlyRounded();
+            long t0 = System.nanoTime();
+            e1 = new CompiledRunner(e1Tree, cr, projection);
+            long t1 = System.nanoTime();
+            e2 = new CompiledRunner(e2Tree, cr, projection);
+            long t2 = System.nanoTime();
+            long[] again1 = new long[COMPILE_REPEATS];
+            long[] again2 = new long[COMPILE_REPEATS];
+            for (int k = 0; k < COMPILE_REPEATS; k++) {
+                long a = System.nanoTime();
+                lastRepeat = new CompiledRunner(e1Tree, cr, projection);
+                long b = System.nanoTime();
+                lastRepeat = new CompiledRunner(e2Tree, cr, projection);
+                long c = System.nanoTime();
+                again1[k] = b - a;
+                again2[k] = c - b;
             }
-            System.out.println(sb);
+            Arrays.sort(again1);
+            Arrays.sort(again2);
+            startOffset = data.startOffset;
+            cursor = startOffset & (SAMPLE - 1);
+            benchmark = params.getBenchmark();
+            for (int r = 0; r < E2_RING; r++) {
+                ringRecords[r] = data.sample[ringPosition(startOffset, r)];
+            }
+            System.out.println(new StringBuilder("COMPILE-TIME benchmark=").append(benchmark).append(" startOffset=")
+                    .append(startOffset).append(' ').append(tag()).append(": E1 first ").append(t1 - t0).append(" ns, E2 first ").append(t2 - t1)
+                    .append(" ns (cold, one sample each); then median of ").append(COMPILE_REPEATS).append(": E1 ")
+                    .append(again1[COMPILE_REPEATS / 2]).append(" ns (min ").append(again1[0]).append("), E2 ")
+                    .append(again2[COMPILE_REPEATS / 2]).append(" ns (min ").append(again2[0]).append(')').toString());
+            CompiledSelfCheck.run(data, this, benchmark);
+        }
+
+        /** Which instance and thread this is, so the log shows that the self-checked instance is the timed one. */
+        String tag() {
+            return new StringBuilder("[instance ").append(Integer.toHexString(System.identityHashCode(this)))
+                    .append(", thread ").append(Thread.currentThread().getName()).append(']').toString();
+        }
+
+        @TearDown(Level.Trial)
+        public void printRing() {
+            if (invocations == 0) {
+                return;
+            }
+            System.out.println(new StringBuilder(ringLine(benchmark, startOffset, invocations, ringRecords)).append(' ')
+                    .append(tag()));
         }
     }
 
@@ -346,6 +440,36 @@ public class CelEvalBenchmark {
         c.ring = (c.ring + 1) & (E2_RING - 1);
         c.log(record);
         bh.consume(c.e2Cr.evaluate(record));
+    }
+
+    /**
+     * The compiled E1: {@code celE1}'s cursor, stride and block, so both cover the same records, with {@code projection.set}
+     * inside the timed path.
+     */
+    @Benchmark
+    @OperationsPerInvocation(BLOCK_E1_CR)
+    public void celE1Compiled(Data d, CelCompiled c, Blackhole bh) {
+        int[] sample = d.sample;
+        int cur = c.cursor;
+        for (int b = 0; b < BLOCK_E1_CR; b++) {
+            bh.consume(c.e1.evaluate(sample[cur]));
+            cur = (cur + STRIDE) & (SAMPLE - 1);
+        }
+        c.cursor = cur;
+    }
+
+    /**
+     * The compiled E2 in steady-state block mode (design section 9 item 14; NOT single shot): one record per invocation over
+     * the SAME ring as {@link #nativeE2CrMatched}, in the same order, so the two are over one population and the scoring ratio
+     * {@code celE2Compiled / nativeE2CrMatched} is taken within one run.
+     */
+    @Benchmark
+    @OperationsPerInvocation(BLOCK_ONE)
+    public void celE2Compiled(Data d, CelCompiled c, Blackhole bh) {
+        int record = d.sample[ringPosition(c.startOffset, c.ring)];
+        c.ring = (c.ring + 1) & (E2_RING - 1);
+        c.invocations++;
+        bh.consume(c.e2.evaluate(record));
     }
 
     @Benchmark
