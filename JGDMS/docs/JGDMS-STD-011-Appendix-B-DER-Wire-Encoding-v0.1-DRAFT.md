@@ -136,11 +136,13 @@ guidance H5 — never rely on the ambient default once the module has any bare `
 this module has none).
 
 ```asn1
--- [[EDITOR-Q 6: the delta (R13) says the module identity is T2's. The module
--- OID arc v1(1) below is unchanged from v0.1 and no decision is taken here.]]
+-- v0.2: the module OID arc is bumped from v1(1) to v2(2) because the module
+-- content changed: a decoder compiled from the v1 module rejects tag [27].
+-- Records still carry formatVersion, and the module identity and formatVersion
+-- move together (owner answer Q6, Chisel 2026-11-14).
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v2(2) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
@@ -881,7 +883,7 @@ here, per this task's instructions):
 | `maxSelectorSteps` | 16 | JGDMS-STD-011 Appendix B `FieldRefNode.steps` (`SIZE(1..maxSelectorSteps)`) |
 | `maxScalarBytes` | 65536 | JGDMS-STD-011 Appendix B `LIT_STRING`/`LIT_BYTES` (`ExprNode.litString`/`litBytes`) content-octet length. **Enforced by** T2 decode (this appendix's `LIT_STRING`/`LIT_BYTES` length check, §B.6.3) **only** — mirroring the `maxCollection` row's "Enforced by …" style deliberately, to make the gap the same shape flags: the candidate-projected-scalar-field side of this same ceiling (STD-011 §3.3/§10.3's requirement that it be "enforced on both candidate projected scalar fields and expression literals") is a **separate, still-open STD-006 change**, not enforced by anything in this appendix and not yet enforced by STD-006 either — this row pins the *value* for both sides but only *discharges* the literal side |
 | `maxBindings` *(v0.2)* | 256 | JGDMS-STD-011 Appendix B `CelFilterRecord.bindings` (`SIZE(1..maxBindings)`) and the `ref` arm's index range (`0..maxBindings-1`) |
-| `maxEffectiveDepth` *(v0.2)* | 64 | JGDMS-STD-011 Appendix B effective depth of `CelFilterRecord.expression`, computed over the decoded bodies (see Appendix B §B.6.7 item 5 and STD-011 §10.3.1) **[[EDITOR-Q 7: the delta gives no ruling on whether this row belongs in STD-006's table. It is a decode-time metered quantity like `maxExprDepth`, so it is listed by that analogy; `maxExpandedCost`, a T6 computed sum like `maxExprCost`, is not.]]** |
+| `maxEffectiveDepth` *(v0.2)* | 64 | JGDMS-STD-011 Appendix B effective depth of `CelFilterRecord.expression`, computed over the decoded bodies (see Appendix B §B.6.7 item 5 and STD-011 §10.3.1). **A PROPOSAL, pending the STD-006 owner's acceptance** (the same acceptance as the §3.7 note in STD-006's status line): `maxEffectiveDepth` is decode-time metered, like `maxExprDepth`; `maxExpandedCost`, a T6 sum like `maxExprCost`, is not proposed for this table. *(v0.2: owner answer Q7, Chisel 2026-11-14)* |
 ```
 
 ```asn1
@@ -1016,7 +1018,9 @@ bindings** and **2 for one with bindings**. A version 1 record MUST NOT contain 
 record carries the lowest `formatVersion` that can express it**, so a later version number does
 not reopen the question. A version 1 peer rejects a version 2 record by its existing version
 check (`wire/CelDecoder.java:83-87`, re-read at the v0.2 edit, base `7ccf90bb9`), so the change
-fails closed.
+fails closed. The module identity (the OID arc, `v2(2)` from v0.2, §B.3) and `formatVersion`
+move together: a decoder compiled from the v1 module rejects tag `[27]`, and a v1 peer rejects
+`formatVersion` 2. *(v0.2: owner answer Q6, Chisel 2026-11-14)*
 Two consumer-policy rejections sit beside this, neither a decode defect nor a language rule:
 
 - A consumer MAY refuse version 2 entirely (for example Outrigger predicates, until one needs
@@ -1025,10 +1029,9 @@ Two consumer-policy rejections sit beside this, neither a decode defect nor a la
   `Evaluator` with no `MathProvider`) MAY refuse, at registration, any expression that calls it.
   STD-011's registry is closed and evaluation is total (§9.1), so an evaluator that cannot
   evaluate a registry function is defective, not a variant, and this is a policy of the
-  consumer, not a rule of the language (STD-011 §6.9). **[[EDITOR-Q 8: the delta (R22) calls
-  this "a consumer-policy rejection beside §B.1 item 5", and §B.1 item 5 says MAY. The
-  earlier delta text (A.3) said MUST reject at admission; R22 withdraws it as a language rule.
-  MAY is the editor's reading of "beside item 5". Confirm the strength.]]**
+  consumer, not a rule of the language (STD-011 §6.9). The strength is MAY: R22 supersedes
+  the earlier A.3 text and places this rejection beside §B.1 item 5, which is MAY.
+  *(v0.2: owner answer Q8, Chisel 2026-11-14)*
 
 *(v0.2: let delta B.1, R13, R22)*
 
@@ -1314,10 +1317,10 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
    `context` and `expression` (§B.3), `formatVersion` 2 (§B.9), the three new ceilings
    `maxBindings`, `maxEffectiveDepth` and `maxExpandedCost` (§B.7; values and their single
    use-case evidence are STD-011 §10.3's), and the decode-time obligations of §B.6.7. All of
-   it is derived from the let delta and **has not been ratified or re-reviewed**; the
-   open points are the numbered editor-question markers (§B.3, §B.7, §B.9, and STD-011 §5.3.4,
-   §5.5, §10.2 and §10.3).
-   *(v0.2: let delta B.1, C.2, R12, R13)*
+   it is derived from the let delta and **has not been ratified or re-reviewed**; the editor's
+   eight questions were answered by the owner (Chisel, 2026-11-14) and are applied, each
+   tagged `owner answer Qn`; the module OID arc is `v2(2)` (§B.3).
+   *(v0.2: let delta B.1, C.2, R12, R13; owner answers Q6-Q8, Chisel 2026-11-14)*
 
 **[OPEN] — named owning task, not resolved here:**
 

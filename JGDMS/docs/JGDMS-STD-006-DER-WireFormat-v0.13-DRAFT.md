@@ -7,7 +7,7 @@
 > "DER" (X.690 DER, "DER-encoded", "the DER value tree") continues to mean the ASN.1
 > encoding rules and is unchanged.
 
-**Status:** Draft (working scaffold for discussion). **§3.7 amended for STD-011 v0.2 let bindings, pending the STD-006 owner's acceptance** (a second permitted exception for the STD-011 binding list; the only change; STD-006's own version number is not bumped).
+**Status:** Draft (working scaffold for discussion). **§3.7 amended for STD-011 v0.2 let bindings, pending the STD-006 owner's acceptance** (a second permitted exception for the STD-011 binding list; the only change to the text of this standard; STD-006's own version number is not bumped). STD-011 Appendix B §B.7 also PROPOSES, and does not apply, §4.5 table rows for `maxBindings` and `maxEffectiveDepth` (decode-time metered, like `maxExprDepth`; `maxExpandedCost`, a T6 sum like `maxExprCost`, is not proposed), under the same acceptance. *(v0.2: owner answer Q7, Chisel 2026-11-14)*
 **Version:** 0.13-DRAFT
 **Applies to:** JGDMS, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-003 (Multi-Subject Identity)

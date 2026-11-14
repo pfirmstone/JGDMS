@@ -14,7 +14,7 @@
 > CEL.)*
 
 **Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below. **Ratified by Peter 2026-07-20:** the DETERMINISTIC CEL name (title note), the closed platform function registry (§7), and §7.5 option (a) — correctly-rounded transcendentals. Remaining open items are routed to B1/T2/T5/T6/T7 (§15).
-**v0.2-DRAFT (2026-11-14) adds bounded local bindings** (new §5.5; the `cel.bind` text form in §5.3 and §5.3.4; the `REF` node in §11.1; the binding list on the wire, §11.3 item 7 and Appendix B). Direction ruled RL-JGDMS-0022 (bindings yes; `maxExprNodes` stays 1,024); text syntax ruled RL-JGDMS-0023 (option (b): `cel.bind` on the outer spine only). **The v0.2 text is NOT ratified and has NOT been re-reviewed.** It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel, claude-opus-5-5; sections A-G revision 0 and R1-R26 revision 1, where R supersedes A-G), and every changed passage ends with a provenance tag `(v0.2: let delta ...)` naming the delta item; the tags are review scaffolding. The file name keeps `v0.1` so that existing links hold. Where the delta was ambiguous the text carries a numbered editor-question marker (double square brackets, "EDITOR-Q", a number, a colon) instead of a decision; the markers are numbered 1 to 8 across this standard, Appendix B and the ASN.1 file.
+**v0.2-DRAFT (2026-11-14) adds bounded local bindings** (new §5.5; the `cel.bind` text form in §5.3 and §5.3.4; the `REF` node in §11.1; the binding list on the wire, §11.3 item 7 and Appendix B). Direction ruled RL-JGDMS-0022 (bindings yes; `maxExprNodes` stays 1,024); text syntax ruled RL-JGDMS-0023 (option (b): `cel.bind` on the outer spine only). **The v0.2 text is NOT ratified and has NOT been re-reviewed.** It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel, claude-opus-5-5; sections A-G revision 0 and R1-R26 revision 1, where R supersedes A-G), and every changed passage ends with a provenance tag `(v0.2: let delta ...)` naming the delta item; the tags are review scaffolding. The file name keeps `v0.1` so that existing links hold. Eight points on which the delta was ambiguous were put to the owner and answered by Chisel on 2026-11-14; each answered passage carries the tag `(v0.2: owner answer Qn, Chisel 2026-11-14)`, and no open editor question remains in this standard, Appendix B or the ASN.1 file.
 **Version:** 0.2-DRAFT
 **Date:** 2026-07-20 (v0.1); 2026-11-14 (v0.2 edit)
 **Author:** Peter Firmstone + Claude
@@ -91,9 +91,11 @@ disposition of errors (§9.4, §9.5).
   user-defined functions, no assignment, no rebinding, no parameters, no nested
   scopes, no state (§3, §5.4). The only named values are the flat, backward-only
   bindings of §5.5. *(v0.2: let delta A.1)*
-- **Not CEL-with-extensions.** CEL's macros (`all`, `exists`, `exists_one`, `map`,
+- **Not CEL-with-extensions**, except `cel.bind` on the outer spine only (§5.3.4).
+  CEL's macros (`all`, `exists`, `exists_one`, `map`,
   `filter`) and `matches()` are **excluded** (§5.4) — they are precisely the parts of
-  CEL whose cost is not linear in expression size.
+  CEL whose cost is not linear in expression size. *(v0.2: owner answer on §1.2,
+  Chisel 2026-11-14)*
 - **Not a smart proxy.** Per `SOW-Smart-Proxy-Isolation-Architecture-Overview.md`
   §1a, anything needing state, I/O, or iteration is outside this format by
   construction, not by policy.
@@ -695,19 +697,21 @@ T6, and nothing in it can be checked on a wire expression.
      name in `contains`'s needle or in an argument of `field(…)` is already rejected
      by §5.3.1 items 3-4, because it is not a string literal);
    - (e) a bound name that also occurs as an unqualified field reference anywhere
-     in the same text **[[EDITOR-Q 1: the delta (R15) says "unqualified field
-     reference". Does a non-root selector step spelled like the bound name (`p.a`
-     with `a` bound) count? The printer rule in item 4 counts every unqualified
-     field STEP, so printed text never clashes either way; the delta does not say
-     which the parser rejects.]]** This is a lexical no-clash rule, decidable
+     in the same text. Only an unqualified field reference counts, that is, a
+     selector ROOT that is not a bound name in scope. A non-root step, such as `a`
+     in `p.a`, is a member name: it is never resolved against bindings and carries
+     one meaning, so it does not count. The printer of item 4 may stay conservative
+     and count every unqualified step; that only lengthens printed names, and the
+     round-trip identity still holds. This is a lexical no-clash rule, decidable
      without a schema. It removes the two meanings of one spelling in
      `cel.bind(a, a + 1, a)`, where the first `a` is a field and the other two are
      the binding. Under it a bound name hides no field; a field of that name stays
-     reachable as `field(…)` (§8.3);
-   - (f) `cel` as a bound name **[[EDITOR-Q 2: the delta rejects `cel` as a bound
-     name but does not say whether `cel` becomes a reserved word (§5.2). This text
-     does not reserve it, so a candidate field named `cel` stays reachable
-     unqualified.]]**.
+     reachable as `field(…)` (§8.3). *(v0.2: owner answer Q1, Chisel 2026-11-14)*;
+   - (f) `cel` as a bound name. `cel` is NOT a reserved word (§5.2): it is rejected
+     only as a bound name. `cel.bind(` is recognised as the macro only at an
+     outer-spine position (§5.3); elsewhere a `cel.bind` call is rejected by (b).
+     A field whose root is spelled `cel` keeps its v0.1 meaning.
+     *(v0.2: owner answer Q2, Chisel 2026-11-14)*.
 
    A method call on a bound name (`a.startsWith("x")`) is not a selection and is
    not rejected by (d).
@@ -802,20 +806,25 @@ form is §11.3 item 7 and Appendix B.
 3. **No alias bodies.** A binding body MUST NOT be a bare `REF`: it adds nothing
    and only multiplies ASTs with one meaning. The main body MAY be a bare `REF`
    (`cel.bind(a, e, a)`).
-4. **Where a `REF` may appear.** A `REF` is an expression node of arity 0 and may
-   appear wherever an expression may appear, EXCEPT where §5.3.1 and §11.1 already
-   fix the operand's form: `has()`'s target (a `FIELD_REF`), `in`'s list operand
-   (`LIST_LIT` or `FIELD_REF`), `contains`'s needle (a string literal),
-   `field(...)`'s arguments (literals), and the root of a selector chain
-   (selection exists only inside `FIELD_REF`). These restrictions are structural
-   in v0.1; this item says so.
-5. **Types.** A body may have any result type, including `list<T>` and `object`.
-   A list-typed binding can only be returned, used as a `?:` branch, or passed to
-   `size()`; an object-typed binding can only be returned or used as a `?:`
-   branch. This is intended, not an omission. **[[EDITOR-Q 3: §4.6 and §6.1 also
-   allow `== null` and `!= null` on a value of any type, so a list- or
-   object-typed binding can be compared with `null` as well; the delta's "can
-   only" omits it.]]**
+4. **Where a `REF` may appear.** The governing rule is meaning by expansion (§6.9):
+   a `REF` is an expression node of arity 0 and may appear wherever the expression it
+   names could appear, EXCEPT where §5.3.1 and §11.1 already fix the operand's
+   form: the three positions the text parser rejects (§5.3.4 item 2(d)), `has()`'s
+   target (a `FIELD_REF`), `in`'s list operand (`LIST_LIT` or `FIELD_REF`) and the
+   root of a selector chain (selection exists only inside `FIELD_REF`); and the two
+   positions §5.3.1 items 3-4 fix to a string literal, `contains`'s needle and
+   `field(...)`'s arguments, where a `REF` is not a literal and is rejected on the
+   wire (§13.1). These restrictions are structural in v0.1; this item says so.
+   *(v0.2: let delta A.1, R15; owner answer Q3, Chisel 2026-11-14)*
+5. **Types.** A body may have any result type, including `list<T>` and `object`,
+   and by the rule of item 4 a binding may be used wherever a value of its type
+   may be used. Examples, not a closed list: a list-typed binding can be returned,
+   used as a `?:` branch or passed to `size()`; an object-typed binding can be
+   returned or used as a `?:` branch (it cannot be passed to `size()`, §4.7); a
+   binding of any type can be compared with `null` (`== null`, `!= null`, §4.6,
+   §6.1). The delta's "can only be returned, used as a `?:` branch, or passed to
+   `size()`" omitted the `null` comparison and is not a closed list.
+   *(v0.2: let delta A.1, R23; owner answer Q3, Chisel 2026-11-14)*
 6. **Still excluded:** parameters, lambdas, nested scopes, rebinding, shadowing of
    one binding by another, recursion, forward references, assignment (§5.4 items
    3-5).
@@ -1423,16 +1432,19 @@ No node kind yields `object` without a schema (the editor's reading of
 `CostModel.categoryOf`, which never returns it). The **static literal length** is
 defined only for a string or bytes literal: its length in wire octets (the length
 unit above). A `REF(j)` has `B_j`'s static literal length; `?:` never has one; no
-other node has one. A string/bytes comparison costs 1 if the static kind of either
-operand is numeric, bool, null, list or object, and otherwise (both operands
-string, bytes or unknown) costs `1 + min(S, the static literal lengths of the
-operands that have one)`; `startsWith`/`endsWith` cost `1 + min(S, the
-argument's static literal length, or S if it has none)`. **[[EDITOR-Q 4: the
-delta (R11) pins the two definitions and says they are the table the Java cost
-model implements, but does not write the rule that applies them to comparison
-cost. That rule is transcribed here from `CostModel.comparisonCostByCategory`
-and `callCost` (CostModel.java:230-239 and 261-292, at base `7ccf90bb9`). Confirm.]]**
-*(v0.2: let delta R11)*
+other node has one. The two attributes select the rows of the table above, and
+this section is the authority for them. The row "numeric comparison", cost 1,
+applies to a comparison in which an operand has static kind numeric. The row
+`string`/`bytes` `==`/`!=`/ordering, `1 + S`, applies to a comparison in which both
+operands have static kind string, bytes or unknown, and the tightening MUST above
+makes it `1 + min(S, the static literal lengths of the operands that have one)`.
+The needle bound of the `startsWith`/`endsWith` row is the argument's static
+literal length, or S if it has none. *(Informative: §10.2 has no row for a
+comparison with an operand of static kind bool, null, list or object. The
+reference implementation charges such a comparison 1 and otherwise agrees with the
+rules above, CostModel.java:230-239 and 261-292 at base `7ccf90bb9`; this text does
+not pin that case.)* *(v0.2: let delta R11; owner answer Q4, Chisel
+2026-11-14)*
 
 `C(E)` = Σ over all AST nodes of all bodies (the bindings and the main body,
 §5.5), each body once and each `REF` node 1. Cost accounting is **syntactic**: a
@@ -1465,7 +1477,7 @@ any of them).
 
 | Constant | Value | Evidence | Grade |
 |---|---|---|---|
-| `maxBindings` | 256 | E2 needs 22 (hand count of `Stage1Expressions.java:251-277` by the delta's author and independently by the Sonnet reviewer). The node ceiling alone would admit at most 512 bindings: each binding needs a body with at least one non-`REF` node and a `REF` that uses it, so at least 2 nodes per binding (no alias bodies, §5.5 item 3), and 2 × 512 = 1,024 = `maxExprNodes`. **[[EDITOR-Q 5: delta R18 says the structural maximum is 511 ("a 2-node body that holds a use"). The editor derives 512: the body of `B_0` holds no use, so `B_0` is 1 node and every other binding 2, and the main body may be a bare `REF` (§5.5 item 3), giving 1 + 2 × 511 + 1 = 1,024 nodes for n = 512. Confirm which.]]** 256 is a policy value. | E2: HYPOTHESIS (hand count, no bound E2 exists) |
+| `maxBindings` | 256 | E2 needs 22 (hand count of `Stage1Expressions.java:251-277` by the delta's author and independently by the Sonnet reviewer). The node ceiling alone would admit at most 512 bindings: `B_0` need not hold a use (`B_1` uses it), so it can be 1 node; every other binding is a body with at least one non-`REF` node that holds a use, so at least 2 nodes (no alias bodies, §5.5 item 3); and the main body may be a bare `REF` (§5.5 item 3), 1 node. So `n` bindings need at least 1 + 2(n − 1) + 1 = 2n nodes, and 2n ≤ 1,024 = `maxExprNodes` gives n ≤ 512 (the delta's R18 gave 511; the owner corrected it to 512, owner answer Q5, Chisel 2026-11-14). 256 is a policy value. | E2: HYPOTHESIS (hand count, no bound E2 exists) |
 | `maxEffectiveDepth` | 64 | E2 needs 48 with the hop counted (37 + 11 hops; both reviewers traced the same path, e2, col, rpx, th2, a2, a1, s, rs, theta, rho, xc to px); written-out E2 depth is 37 (`bench.log:56`, MEASURED by the Stage 1 run). Without a ceiling a 1,024-node expression could nest 993 levels (the Fable review's F1 construction, `REVIEW_LET_FABLE.md`). | 48: HYPOTHESIS (hand trace); 37: MEASURED |
 | `maxExpandedCost` | 8,388,608 = 2^23 | E2 needs 5,835,619 (`bench.log:57`, MEASURED by the Stage 1 run: written-out `C(E)`, which equals `xCost` of the bound form by construction). Review F: "at least that (for example 2^23)". | MEASURED (for E2 only) |
 
@@ -2114,9 +2126,13 @@ double(sampleCount) * 86400000000000.0 > 0.0
     parser and evaluator are run (R17): whether a CEL parser accepts `has(x)` with a
     bare identifier, which v0.1 already uses (review F N2: if it does not, the
     subset claim is already approximate); and whether CEL evaluates
-    `cel.bind(a, 1/0, true)` to `true` (review S N-6). A variant not adopted
+    `cel.bind(a, 1/0, true)` to `true` (review S N-6). **If CEL evaluates the
+    `cel.bind` init strictly, Appendix A (iii) gains a fourth row** (a point where a
+    DETERMINISTIC CEL evaluation disagrees with every conformant CEL evaluation); no
+    row is added until the probe is run. A variant not adopted
     (review F N3): accept `cel.bind` anywhere CEL allows it and flatten at parse,
-    with the same wire form. *(v0.2: let delta R17)*
+    with the same wire form. *(v0.2: let delta R17; owner answer on Appendix A
+    (iii), Chisel 2026-11-14)*
 
 ---
 
@@ -2186,7 +2202,9 @@ travel with §4.1/§4.7/§5.3.2, and rows 10–11 with §6.1/§4.6, not be dropp
 **Subset summary (the naming question, answered precisely).** DETERMINISTIC CEL
 is: (i) a **strict syntactic subset** of CEL — every well-formed DETERMINISTIC
 CEL expression parses as CEL, treating §7's registry as CEL extension functions
-(CEL's own sanctioned mechanism); (ii) a **deterministic refinement** — wherever
+(CEL's own sanctioned mechanism) and the outer-spine `cel.bind` form (§5.3.4) as
+CEL's bindings extension *(v0.2: owner answer on Appendix A (i), Chisel
+2026-11-14)*; (ii) a **deterministic refinement** — wherever
 CEL leaves latitude (NaN ordering, competing error identity, evaluation order,
 transcendental accuracy), this standard pins one behaviour, and with the
 exceptions below the pinned behaviour is one a conformant CEL implementation

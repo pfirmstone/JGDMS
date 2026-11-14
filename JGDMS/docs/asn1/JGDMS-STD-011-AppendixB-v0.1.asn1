@@ -16,6 +16,7 @@
 -- the v0.1 module as of 2026-07-24 and were not re-run; at the base commit
 -- 7ccf90bb9 the merged jgdms-cel code has no REF arm and
 -- CelFilterRecord.FORMAT_VERSION = 1, so that cross-check does NOT hold for v0.2.
+-- The module OID arc is bumped to v2(2) (owner answer Q6, Chisel 2026-11-14).
 -- The file name keeps v0.1 so that existing links hold.
 --
 -- This file is a VALIDATION ARTIFACT in the same regime as
@@ -64,11 +65,13 @@
 -- IMPLICIT/EXPLICIT disposition, so the module default is inert for every type
 -- defined here.
 
--- [[EDITOR-Q 6: the delta (R13) says the module identity is T2's. The module
--- OID arc v1(1) below is unchanged from v0.1 and no decision is taken here.]]
+-- v0.2: the module OID arc is bumped from v1(1) to v2(2) because the module
+-- content changed: a decoder compiled from the v1 module rejects tag [27].
+-- Records still carry formatVersion, and the module identity and formatVersion
+-- move together (owner answer Q6, Chisel 2026-11-14).
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v2(2) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
