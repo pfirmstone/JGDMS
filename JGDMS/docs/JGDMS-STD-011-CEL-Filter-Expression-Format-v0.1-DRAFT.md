@@ -14,7 +14,7 @@
 > CEL.)*
 
 **Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below. **Ratified by Peter 2026-07-20:** the DETERMINISTIC CEL name (title note), the closed platform function registry (§7), and §7.5 option (a) — correctly-rounded transcendentals. Remaining open items are routed to B1/T2/T5/T6/T7 (§15).
-**v0.2-DRAFT (2026-11-14) adds bounded local bindings** (new §5.5; the `cel.bind` text form in §5.3 and §5.3.4; the `REF` node in §11.1; the binding list on the wire, §11.3 item 7 and Appendix B). Direction ruled RL-JGDMS-0022 (bindings yes; `maxExprNodes` stays 1,024); text syntax ruled RL-JGDMS-0023 (option (b): `cel.bind` on the outer spine only). **The v0.2 text is NOT ratified and has NOT been re-reviewed.** It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel, claude-opus-5-5; sections A-G revision 0 and R1-R26 revision 1, where R supersedes A-G), and every changed passage ends with a provenance tag `(v0.2: let delta ...)` naming the delta item; the tags are review scaffolding. The file name keeps `v0.1` so that existing links hold. Where the delta was ambiguous the text carries an `[[EDITOR-Q n: ...]]` marker instead of a decision.
+**v0.2-DRAFT (2026-11-14) adds bounded local bindings** (new §5.5; the `cel.bind` text form in §5.3 and §5.3.4; the `REF` node in §11.1; the binding list on the wire, §11.3 item 7 and Appendix B). Direction ruled RL-JGDMS-0022 (bindings yes; `maxExprNodes` stays 1,024); text syntax ruled RL-JGDMS-0023 (option (b): `cel.bind` on the outer spine only). **The v0.2 text is NOT ratified and has NOT been re-reviewed.** It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel, claude-opus-5-5; sections A-G revision 0 and R1-R26 revision 1, where R supersedes A-G), and every changed passage ends with a provenance tag `(v0.2: let delta ...)` naming the delta item; the tags are review scaffolding. The file name keeps `v0.1` so that existing links hold. Where the delta was ambiguous the text carries a numbered editor-question marker (double square brackets, "EDITOR-Q", a number, a colon) instead of a decision; the markers are numbered 1 to 8 across this standard, Appendix B and the ASN.1 file.
 **Version:** 0.2-DRAFT
 **Date:** 2026-07-20 (v0.1); 2026-11-14 (v0.2 edit)
 **Author:** Peter Firmstone + Claude
@@ -222,7 +222,7 @@ per-node bounds gives `C(E)` (§10) — claim 3. *(v0.2: let delta R20)*
 
 *(iv) Allocation.* The only allocating constructs are list-literal construction
 (≤ `|E|` slots), boxing of scalar results (O(1) each, ≤ one per node visit), and
-one outcome slot per binding (≤ `maxBindings`).
+one outcome slot per binding (≤ `maxBindings`). *(v0.2: let delta C.4 (iv))*
 No node concatenates, copies, or builds strings/bytes/collections: `+` is numeric-
 only (§6.3; string/list/bytes concatenation is excluded, a deliberate divergence
 from CEL). The projection `P` is decoded once by the STD-006 codec under its own
@@ -1477,6 +1477,7 @@ STD-006 §4.5's inclusive convention: a value
 **exactly equal** to the ceiling is accepted; the ceiling **plus one** is
 rejected. §13 requires the conformance corpus to test the boundary explicitly
 in both directions, not merely to probe values comfortably past the limit.
+*(v0.2: let delta C.1, C.2)*
 
 #### 10.3.1 Bindings: per-body scope and the per-binding table (NORMATIVE, v0.2)
 
@@ -1820,6 +1821,7 @@ dynamic-only (authors would learn of type errors one silent no-match at a time).
    narrower than the ≥64-bit width §10.6 requires; ill-formed constructs per
    §12.1; and, from v0.2, the binding rejections and the three new ceiling
    pairs (`maxBindings`, `maxEffectiveDepth`, `maxExpandedCost`) of §13.1.
+   *(v0.2: let delta E, R7)*
 3. **Mandatory semantic coverage** (minimum categories, each with pinned
    expected outcomes): checked-`int` edges (±2⁶³ boundaries, `−2⁶³/−1`,
    `−2⁶³ % −1`, literal-folding of `−9223372036854775808`); `int`×`double` exact
@@ -1837,7 +1839,7 @@ dynamic-only (authors would learn of type errors one silent no-match at a time).
    projected lists, one-element cases — G11); and, from v0.2, the binding
    categories of §13.1 (non-strict bindings, error identity through a slot, cost
    read through a reference, and the two instrumented vectors that gate §6.9
-   rule 1).
+   rule 1). *(v0.2: let delta E, R6)*
 4. **Transcendental correct rounding** is asserted by exact expected bit
    patterns in the corpus, generated from an arbitrary-precision oracle
    (e.g. MPFR) **independent of both implementations** (G12: bound to known-good,

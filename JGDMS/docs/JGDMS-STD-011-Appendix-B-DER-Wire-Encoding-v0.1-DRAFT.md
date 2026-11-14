@@ -1315,7 +1315,8 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
    `maxBindings`, `maxEffectiveDepth` and `maxExpandedCost` (§B.7; values and their single
    use-case evidence are STD-011 §10.3's), and the decode-time obligations of §B.6.7. All of
    it is derived from the let delta and **has not been ratified or re-reviewed**; the
-   open points are the `[[EDITOR-Q n: ...]]` markers (§B.3, §B.7, §B.9).
+   open points are the numbered editor-question markers (§B.3, §B.7, §B.9, and STD-011 §5.3.4,
+   §5.5, §10.2 and §10.3).
    *(v0.2: let delta B.1, C.2, R12, R13)*
 
 **[OPEN] — named owning task, not resolved here:**
