@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
 GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, see add.4t)
-LATEST ADDENDUM: add.4t dated 2026-11-14 at heading "REVISION 4t, AS-OF 2026-11-14"  (addenda govern body text)
+LATEST ADDENDUM: add.4u dated 2026-11-14 at heading "REVISION 4u, AS-OF 2026-11-14"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
 -->
@@ -450,3 +450,7 @@ The operator said "Yes, repair it" and the JGDMS rulings log was repaired: one n
 - RL-JGDMS-0034: the PolicyScope home trees (item 6).
 - RL-JGDMS-0035: the assistant commits and the operator pushes (transcript line 6283).
 The tool defect in `append()` (4s section 2) is still open; the next writer to a log whose last line lacks a newline will glue entries again.
+
+## REVISION 4u, AS-OF 2026-11-14 (newest block; it overrides the last sentence of 4t)
+
+The operator said "Yes add the newline guard." and `append()` in `E:\Claude\claim_register\claim_register.py` now starts a fresh line when the log's last byte is not a newline. Tested in a scratch copy of the register: with the final newline stripped from the JGDMS rulings log, two successive `new` calls allocated RL-JGDMS-0036 and RL-JGDMS-0037 in the copy (not the real register), every row had 8 fields and there were 0 blank lines; the real tool still parses (`ast.parse`). The real register was not given a test entry. The defect named in 4s section 2 is closed.
