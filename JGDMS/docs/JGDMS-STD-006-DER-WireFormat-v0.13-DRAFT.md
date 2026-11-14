@@ -478,10 +478,10 @@ acceptance): the STD-011 binding list.** An STD-011 expression (DETERMINISTIC CE
 sequence of finite trees, the bindings and a main body, and a `REF` leaf in one tree
 carries the index of an earlier tree. It does not meet the condition above, and does not
 claim to: the codebase table is validated in its entirety before use, whereas the binding
-list is validated prefix by prefix, each tree before any later tree is accepted. It meets a
+list is validated prefix by prefix, each `REF` index checked when it is decoded. It meets a
 distinct condition, argued on its own: its indices resolve only into already-completed,
 immutable expression trees, **backward only** (a `REF` in tree `k` names a tree `j < k`),
-and each tree is validated before any later tree is accepted. That is sufficient for what
+and each `REF` index is checked when it is decoded, before the next node. That is sufficient for what
 this section protects. The reference graph cannot contain a cycle, because every index
 points strictly backward; every index resolves to a completed, immutable value; and nothing
 refers to an object under construction. It is not a reference type in the data model.
