@@ -1,8 +1,8 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029; six more wait, see add.4s section 2)
-LATEST ADDENDUM: add.4s dated 2026-11-14 at heading "REVISION 4s, AS-OF 2026-11-14"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, see add.4t)
+LATEST ADDENDUM: add.4t dated 2026-11-14 at heading "REVISION 4t, AS-OF 2026-11-14"  (addenda govern body text)
 SUPERSEDED BY: none
-FASTEST-AGEING SECTION: REVISION 4s section 2 (the rulings log defect and the unrecorded rulings) - re-read the disk before acting on it
+FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
 -->
 # Handover: the code-free proxy window (2026-10-31 to 2026-11-01), revision 4 (currency update on top of revision 3)
 
@@ -438,3 +438,15 @@ A Linux run on a DirtyChai image that contains issue 236; the full jeri suite, q
 ### 3. Open items in order
 1. Repair the JGDMS rulings log (section 2), then append the six rulings and rerun `claim_register.py lint` on this file.
 2. Everything in 4q section 4 items 2 to 6 and 4r section 3 is unchanged.
+
+## REVISION 4t, AS-OF 2026-11-14 (newest block; it overrides 4s section 2 and 4s section 3 item 1)
+
+The operator said "Yes, repair it" and the JGDMS rulings log was repaired: one newline was inserted between the end of RL-JGDMS-0028 and the start of RL-JGDMS-0029 and nothing else changed (before and after compared byte for byte with the newlines removed; the pre-repair copy is `regv\JGDMS-LOG.tsv.before-repair` in the session scratchpad). The six waiting rulings were then appended with the scratch copy of `docs/REGISTER-2026-11-14-append-entries.py`, with the first skipped:
+- RL-JGDMS-0029: the OS aliases (4q section 2 item 1, first half).
+- RL-JGDMS-0030: the flag set and the relative-name rows (item 1, second half).
+- RL-JGDMS-0031: the 8.3 shape rule, the `Local Settings` fold, the PolicyScope aliasing and the dropped fixture n128 (items 2 and 3).
+- RL-JGDMS-0032: the `DOCUME~1` and `LOCALS~1` fold (item 4).
+- RL-JGDMS-0033: no clearing row for a real 8.3-shaped directory (item 5).
+- RL-JGDMS-0034: the PolicyScope home trees (item 6).
+- RL-JGDMS-0035: the assistant commits and the operator pushes (transcript line 6283).
+The tool defect in `append()` (4s section 2) is still open; the next writer to a log whose last line lacks a newline will glue entries again.
