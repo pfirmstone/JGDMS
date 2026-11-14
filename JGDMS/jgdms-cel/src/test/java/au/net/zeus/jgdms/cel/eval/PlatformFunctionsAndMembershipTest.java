@@ -147,6 +147,22 @@ class PlatformFunctionsAndMembershipTest {
         assertTrue(1.0 / max > 0, "max(-0.0, 0.0) MUST be +0.0");
     }
 
+    /**
+     * The pin above is tried in ONE argument order, and a comparison-based {@code x > y ? x : y} gives +0.0 for
+     * (-0.0, 0.0) but -0.0 for (0.0, -0.0). MEASURED 2026-11-14 (mutant pass): the compiled evaluator with that
+     * max passed all 1,315 tests, and the differential corpus failed 0 of 20,000 cases. The same shape of min is
+     * caught only because (-0.0, 0.0) happens to be its wrong order. Both orders, both functions.
+     */
+    @Test
+    void minMaxDouble_signedZeroPinned_inBothArgumentOrders() {
+        ExprNode negZero = new ExprNode.LitDouble(-0.0);
+        ExprNode posZero = new ExprNode.LitDouble(0.0);
+        assertTrue(1.0 / asDouble(eval(call(9, posZero, negZero))) < 0, "min(0.0, -0.0) MUST be -0.0");
+        assertTrue(1.0 / asDouble(eval(call(9, negZero, posZero))) < 0, "min(-0.0, 0.0) MUST be -0.0");
+        assertTrue(1.0 / asDouble(eval(call(11, posZero, negZero))) > 0, "max(0.0, -0.0) MUST be +0.0");
+        assertTrue(1.0 / asDouble(eval(call(11, negZero, posZero))) > 0, "max(-0.0, 0.0) MUST be +0.0");
+    }
+
     @Test
     void minMaxDouble_nanIsDomainError() {
         assertError(eval(call(9, new ExprNode.LitDouble(Double.NaN), new ExprNode.LitDouble(1.0))), CelError.DOMAIN);

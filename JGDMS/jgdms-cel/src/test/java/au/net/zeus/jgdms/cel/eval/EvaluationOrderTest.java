@@ -126,6 +126,40 @@ class EvaluationOrderTest {
                 Double.doubleToRawLongBits(((CelValue.DoubleV) l.elements().get(0)).value()));
     }
 
+    /**
+     * Canonicalisation is repeated at every node that leaves a double, and the differential corpus reaches the
+     * nodes that PRODUCE a NaN only by luck. MEASURED 2026-11-14 (mutant pass; 20,000 cases; Xeon E5-1650 v3,
+     * x86-64): with the canonicalisation removed from one node at a time, Add failed 0 cases and no other test,
+     * Mul 2 cases, Div 5, unary minus 9. So each producer is named here, as a ROOT result, by raw bits.
+     * <p>
+     * Architecture: an invalid operation gives 0xFFF8000000000000 on x86 (sign bit set), so the Add, Sub, Mul
+     * and Div rows can fail only where the hardware's default NaN is not the canonical one (not on AArch64).
+     * Unary minus flips the sign bit of a NaN on every CPU, so those rows can fail anywhere.
+     */
+    @Test
+    void everyNodeThatCanProduceNan_returnsTheCanonicalNan() {
+        ExprNode nan = div(d(0.0), d(0.0));
+        ExprNode[] producers = {
+            new ExprNode.Add(d(Double.POSITIVE_INFINITY), d(Double.NEGATIVE_INFINITY)),
+            new ExprNode.Sub(d(Double.POSITIVE_INFINITY), d(Double.POSITIVE_INFINITY)),
+            new ExprNode.Mul(d(0.0), d(Double.POSITIVE_INFINITY)),
+            nan,
+            new ExprNode.Neg(d(Double.NaN)),
+            new ExprNode.Neg(nan),
+            new ExprNode.Neg(f("nan")),
+            f("nan"),
+            d(Double.longBitsToDouble(0x7FF8000000000001L)),
+        };
+        CandidateProjection candidate = FakeCandidateProjection.builder()
+                .field("C", "nan", new CelValue.DoubleV(Double.longBitsToDouble(0xFFF8000000000123L))).build();
+        for (ExprNode producer : producers) {
+            EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, provided.evaluate(producer, candidate),
+                    String.valueOf(producer));
+            assertEquals(CelValue.DoubleV.CANONICAL_NAN_BITS,
+                    Double.doubleToRawLongBits(((CelValue.DoubleV) v.value()).value()), String.valueOf(producer));
+        }
+    }
+
     // ======================================================================
     // Strict constructs (§9.3): left, then right, and only then the types
     // ======================================================================

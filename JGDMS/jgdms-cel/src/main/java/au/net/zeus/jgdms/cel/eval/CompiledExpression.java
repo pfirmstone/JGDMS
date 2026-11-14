@@ -161,6 +161,16 @@ public final class CompiledExpression {
             frame.epoch = epoch;
             Arrays.fill(frame.memoEpoch, epoch);
         }
+
+        /**
+         * Adds {@code records} to the epoch and leaves every memo slot as it is: the state after that many
+         * records which evaluated none of the memoised sub-expressions (an untaken branch). It exists because
+         * {@link #startEpochAtForTesting} re-marks every slot, which hides exactly the fault an epoch boundary
+         * test is for: a slot that reads as current because the epoch's low bits came round again.
+         */
+        void skipEpochsForTesting(long records) {
+            frame.epoch += records;
+        }
     }
 
     /** The root register becomes an outcome. BOOL, NULL and ERROR share immutable constants: equal under {@code equals} to the walker's fresh ones, and no caller compares outcomes by identity. */

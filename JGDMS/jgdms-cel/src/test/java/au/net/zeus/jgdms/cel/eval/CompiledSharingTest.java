@@ -228,6 +228,31 @@ class CompiledSharingTest {
         }
     }
 
+    /**
+     * {@link #epochBoundaries_neverRevealAStaleMemo} cannot fail for an epoch that is too narrow: its seam
+     * re-marks every slot and its expression rewrites its only slot on every record, so no slot is ever read
+     * at an epoch other than the one that follows its own write. MEASURED 2026-11-14 (mutant pass, M15): an
+     * epoch truncated to 32 bits passed all 1,315 tests. Here a slot is written under the taken branch, then
+     * 2^32 - 1 records pass that leave it alone, and it must not read as current on the next record.
+     */
+    @Test
+    void aSlotLastWrittenTwoToThe32RecordsAgo_isNotAHit() {
+        ExprNode m1 = new ExprNode.Mul(f("i"), f("i"));
+        ExprNode m2 = new ExprNode.Mul(f("i"), f("i"));
+        ExprNode root = new ExprNode.Cond(f("b"), new ExprNode.Add(m1, m2), i(0));
+        CandidateProjection three = FakeCandidateProjection.builder().field("C", "i", new CelValue.IntV(3))
+                .field("C", "b", new CelValue.BoolV(true)).build();
+        CandidateProjection four = FakeCandidateProjection.builder().field("C", "i", new CelValue.IntV(4))
+                .field("C", "b", new CelValue.BoolV(true)).build();
+        for (long skipped : new long[] {(1L << 32) - 1L, (1L << 33) - 1L, (1L << 48) - 1L}) {
+            CompiledExpression.Session session = compile(root, true).newSession();
+            assertEquals(intOutcome(18), session.evaluate(three));
+            session.skipEpochsForTesting(skipped);
+            assertEquals(intOutcome(32), session.evaluate(four),
+                    msg("after ", skipped, " untouched records the slot holding 9 must be recomputed as 16"));
+        }
+    }
+
     @Test
     void sizeString_tableIsPerRecord_nothingIsRetainedAcrossRecords() {
         CelValue.StringV text = new CelValue.StringV("hello");
@@ -275,6 +300,53 @@ class CompiledSharingTest {
         // Two spellings of the same field are different nodes: only the identity size() table can join their values.
         CandidateProjection one = FakeCandidateProjection.builder().field("C", "x", new CelValue.IntV(1)).build();
         assertKeptApart("qualified against unqualified", new ExprNode.Eq(f("x"), q("C", "x")), 3, one);
+    }
+
+    /**
+     * The pairs in {@link #structuralKey_keepsApartWhatTheWalkerDistinguishes} are hand-picked (== against !=,
+     * sin against cos). MEASURED 2026-11-14 (mutant pass): a key that gave {@code <} and {@code <=} one node
+     * (MG5) and a key without the {@code in} operand kind (MG4) each passed all 1,315 tests. So the kinds are
+     * enumerated: every two binary kinds over the same operands, the two unary kinds, has() against the value
+     * reference, the two {@code in} operand kinds, and every two function ids of one arity.
+     */
+    @Test
+    void structuralKey_keepsEveryPairOfKindsApart() {
+        List<java.util.function.BinaryOperator<ExprNode>> binary = List.<java.util.function.BinaryOperator<ExprNode>>of(
+                ExprNode.And::new, ExprNode.Or::new, ExprNode.Eq::new, ExprNode.Ne::new, ExprNode.Lt::new,
+                ExprNode.Le::new, ExprNode.Gt::new, ExprNode.Ge::new, ExprNode.Add::new, ExprNode.Sub::new,
+                ExprNode.Mul::new, ExprNode.Div::new, ExprNode.Mod::new);
+        for (int first = 0; first < binary.size(); first++) {
+            for (int second = first + 1; second < binary.size(); second++) {
+                for (long value : new long[] {1L, 2L}) {
+                    ExprNode root = new ExprNode.Eq(binary.get(first).apply(f("i"), i(1)),
+                            binary.get(second).apply(f("i"), i(1)));
+                    assertKeptApart(msg("binary kinds ", first, " and ", second, ", i = ", value), root, 5, withInt(value));
+                }
+            }
+        }
+        assertKeptApart("! against unary -",
+                new ExprNode.Eq(new ExprNode.Not(f("i")), new ExprNode.Neg(f("i"))), 4, withInt(1));
+        assertKeptApart("has() against the value reference", new ExprNode.Eq(new ExprNode.Has(f("i")), f("i")), 3, withInt(1));
+
+        // 1 in l is true; 1 in [l] compares an int with a list. && then returns the right side's TYPE_MISMATCH.
+        CandidateProjection withList = FakeCandidateProjection.builder()
+                .field("C", "l", new CelValue.ListV(CelType.INT, List.of(new CelValue.IntV(1)))).build();
+        ExprNode inField = new ExprNode.In(i(1), new ExprNode.InListOperand.FieldList(f("l")));
+        ExprNode inLiteral = new ExprNode.In(i(1), new ExprNode.InListOperand.LiteralList(list(f("l"))));
+        ExprNode both = new ExprNode.And(inField, inLiteral);
+        assertKeptApart("in a field list against in a literal list", both, 5, withList);
+        assertEquals(EvalOutcome.error(CelError.TYPE_MISMATCH), compile(both, true).newSession().evaluate(withList));
+
+        for (int id1 = 1; id1 <= 24; id1++) {
+            for (int id2 = id1 + 1; id2 <= 24; id2++) {
+                int arity = au.net.zeus.jgdms.cel.wire.FunctionRegistry.byId(id1).arity();
+                if (arity != au.net.zeus.jgdms.cel.wire.FunctionRegistry.byId(id2).arity()) continue;
+                List<ExprNode> args1 = arity == 1 ? List.of(d(0.5)) : List.of(d(0.5), d(0.25));
+                List<ExprNode> args2 = arity == 1 ? List.of(d(0.5)) : List.of(d(0.5), d(0.25));
+                ExprNode root = new ExprNode.Eq(new ExprNode.Call(id1, args1), new ExprNode.Call(id2, args2));
+                assertKeptApart(msg("function ids ", id1, " and ", id2), root, arity == 1 ? 4 : 5, EMPTY);
+            }
+        }
     }
 
     /**
