@@ -231,7 +231,7 @@ public class DynamicPolicyProviderOneShotTest {
     // ---- Case 5: grantOneShot enforces the GrantPermission ceiling ----------
     // Mirrors AgentDelegationCeilingTest#grantEnforcesCeilingOnLeasedDelegation.
     // Needs an active SecurityManager (Permission.checkGuard is a no-op without one),
-    // so it is skipped via Assume when -Djava.security.manager=allow is absent.
+    // so it is skipped via Assume on a JVM that cannot install one.
 
     @Test
     public void grantOneShotEnforcesInstallCeiling() {
@@ -244,8 +244,8 @@ public class DynamicPolicyProviderOneShotTest {
         SecurityManager previous = System.getSecurityManager();
         try {
             System.setSecurityManager(sm);
-        } catch (UnsupportedOperationException noAllowFlag) {
-            Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
+        } catch (UnsupportedOperationException noSecurityManager) {
+            Assume.assumeNoException("needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {

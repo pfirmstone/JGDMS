@@ -159,8 +159,7 @@ import static org.junit.Assert.*;
  * throws {@code SecurityException: checking permissions is not supported}
  * on a vanilla (SecurityManager-removed, JEP 486) JDK 24+ such as the
  * system default {@code java-25-openjdk}. Run with e.g.
- * {@code JAVA_HOME=.../DirtyChai/build/*&#47;images/jdk} and
- * {@code -Djava.security.manager=allow}.
+ * {@code JAVA_HOME=.../DirtyChai/build/*&#47;images/jdk}.
  */
 public class EventWriterDerFormatTest {
 

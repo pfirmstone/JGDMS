@@ -1413,8 +1413,9 @@ public class PreferredProxyCodebaseProviderVerdictTest {
      * <p>The permit demand is routed through the installed
      * {@link SecurityManager}, so this test installs one that denies
      * {@link INCONCLUSIVEPermit}.  With no SecurityManager installed the demand
-     * is a no-op; on a JVM where {@code setSecurityManager} is unsupported
-     * without {@code -Djava.security.manager=allow} the test {@link Assume}-skips.
+     * is a no-op; on a JVM that cannot install a SecurityManager the test
+     * {@link Assume}-skips.  The module runs it under
+     * {@code -Djava.security.manager=default}.
      */
     @Test
     public void checkVerdictForJar_inconclusive_strictMode_withoutPermission_throwsIOException()
@@ -1427,11 +1428,12 @@ public class PreferredProxyCodebaseProviderVerdictTest {
         assertTrue("inconclusiveStrictMode should default to true",
                 PreferredProxyCodebaseProvider.inconclusiveStrictMode);
 
+        SecurityManager previous = System.getSecurityManager();
         try {
             System.setSecurityManager(new DenyInconclusivePermitSecurityManager());
-        } catch (UnsupportedOperationException noAllowFlag) {
+        } catch (UnsupportedOperationException noSecurityManager) {
             Assume.assumeNoException(
-                    "needs -Djava.security.manager=allow", noAllowFlag);
+                    "needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {
@@ -1448,10 +1450,10 @@ public class PreferredProxyCodebaseProviderVerdictTest {
             assertTrue("Cause should be SecurityException",
                     ex.getCause() instanceof SecurityException);
         } finally {
-            // A SecurityManager cannot be uninstalled on the DirtyChai JDK, so
-            // replace the restrictive test SM with a permissive one rather than
-            // attempting to revert to null -- later tests are then unaffected.
-            System.setSecurityManager(new AllowAllSecurityManager());
+            // A SecurityManager cannot be uninstalled on the DirtyChai JDK: put
+            // back the one installed at JVM start, or, where there was none,
+            // a permissive one so later tests are unaffected.
+            System.setSecurityManager(previous != null ? previous : new AllowAllSecurityManager());
         }
     }
 

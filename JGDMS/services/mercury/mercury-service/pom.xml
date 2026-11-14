@@ -74,8 +74,11 @@
           default java-25-openjdk, that throws "SecurityException: checking
           permissions is not supported". Run the test phase with a
           SecurityManager-capable JDK (e.g. DirtyChai's build/*/images/jdk as
-          JAVA_HOME) and -Djava.security.manager=allow to exercise those two
-          tests; every other test in this module runs fine on a vanilla JDK.
+          JAVA_HOME) to exercise those two tests.  No SecurityManager is
+          installed: with the default RMIClassLoaderSpi below the tests cannot
+          run under -Djava.security.manager=default, because its LoaderHandler
+          adds permissions to the read-only collection DirtyChai's policy
+          returns for a CodeSource.
         -->
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>

@@ -217,9 +217,7 @@ public final class ObjectCodec {
     /**
      * Testable seam for {@link #checkAtomicDeSerializationPermitted(Collection)}:
      * the {@link SecurityManager} is passed in so the gate can be exercised with a
-     * denying / permitting manager without installing one process-wide (which
-     * Java&nbsp;21 forbids at runtime unless started with
-     * {@code -Djava.security.manager=allow}). The permission is checked against an
+     * denying / permitting manager without installing one process-wide. The permission is checked against an
      * {@link AccessControlContext} built from the protection domains of the classes
      * being decoded (so the grant must sit with the class's codebase, not the
      * caller's).

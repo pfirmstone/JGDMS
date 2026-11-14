@@ -291,18 +291,17 @@ public class IsolationSecurityCriticalTest {
     /**
      * Installs {@code sm} for the duration of {@code body}, restoring
      * whatever was previously installed afterwards. Skips (via
-     * {@link Assume}) on a JDK where {@code setSecurityManager} is
-     * unsupported without {@code -Djava.security.manager=allow} -- mirrors
-     * the existing pattern in {@code SubProcessLocalPolicyAdminTest}.
+     * {@link Assume}) on a JDK that cannot install a SecurityManager --
+     * mirrors the existing pattern in {@code SubProcessLocalPolicyAdminTest}.
      */
     private static void withSecurityManager(SecurityManager sm, RunnableEx body)
             throws Exception {
         SecurityManager previous = System.getSecurityManager();
         try {
             System.setSecurityManager(sm);
-        } catch (UnsupportedOperationException noAllowFlag) {
+        } catch (UnsupportedOperationException noSecurityManager) {
             Assume.assumeNoException(
-                    "needs -Djava.security.manager=allow", noAllowFlag);
+                    "needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {

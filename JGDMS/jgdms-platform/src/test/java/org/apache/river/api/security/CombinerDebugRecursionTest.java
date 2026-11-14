@@ -35,7 +35,7 @@ import static org.junit.Assert.*;
  * {@code getContext()} (the unification), a combiner debug that prints private
  * credentials would re-enter the permission check and stack-overflow, and would
  * leak the secret to the log. This test forks a JVM with combiner debug enabled
- * and a SecurityManager installed (so the recursion path is live) and asserts
+ * and the CombinerSecurityManager in force from JVM start (so the recursion path is live) and asserts
  * the run completes without {@code StackOverflowError}, never prints the private
  * credential, and still logs the principal.
  *
@@ -64,7 +64,9 @@ public class CombinerDebugRecursionTest {
         ProcessBuilder pb = new ProcessBuilder(
                 javaBin,
                 "-cp", System.getProperty("java.class.path"),
-                "-Djava.security.manager=allow",
+                "-Djava.security.manager=default",
+                "-Djava.security.policy=" + new File(
+                        CombinerDebugRecursionTest.class.getResource("/test.policy").toURI()).getPath(),
                 "-Djava.security.debug=combiner",
                 CombinerDebugRecursionHelper.class.getName());
         pb.redirectErrorStream(true);

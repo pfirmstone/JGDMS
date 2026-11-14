@@ -22,9 +22,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.Permission;
-import java.security.Policy;
 import java.security.Principal;
-import java.security.ProtectionDomain;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -33,7 +31,9 @@ import javax.security.auth.x500.X500Principal;
 
 /**
  * Launched as a separate JVM by {@link CombinerDebugRecursionTest} with
- * {@code -Djava.security.debug=combiner} and a SecurityManager installed.
+ * {@code -Djava.security.debug=combiner}, {@code -Djava.security.manager=default}
+ * and the module's test policy, so the CombinerSecurityManager is in force from
+ * JVM start.
  *
  * <p>It binds a read-only Subject that carries a <em>private credential</em> and
  * performs a permission check inside {@code callAs}. That drives
@@ -54,16 +54,11 @@ public final class CombinerDebugRecursionHelper {
         final X500Principal principal = new X500Principal("CN=debuguser");
         final Permission probe = new RuntimePermission("combiner.debug.probe");
 
-        // Permissive policy so the installed SecurityManager lets the helper run;
-        // the check still EXECUTES (getContext -> combine -> debug), which is the
-        // path under test.
-        Policy.setPolicy(new Policy() {
-            @Override
-            public boolean implies(ProtectionDomain domain, Permission permission) {
-                return true;
-            }
-        });
-        System.setSecurityManager(new SecurityManager());
+        // The test policy grants this code everything; the check still EXECUTES
+        // (getContext -> combine -> debug), which is the path under test.
+        if (System.getSecurityManager() == null) {
+            throw new IllegalStateException("start with -Djava.security.manager=default");
+        }
 
         Class<?> userSubject = Class.forName("javax.security.auth.UserSubject");
         Object subject = userSubject

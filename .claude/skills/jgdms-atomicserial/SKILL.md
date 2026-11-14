@@ -121,9 +121,10 @@ Object recovered = ois.readObject();   // exercises the (GetArg) constructor
 ```
 
 Reference: `EventRegListenerDerRoundTripTest` (reggie-service). Tests that reconstruct via `GetArg`
-need an SM-capable JDK with `-Djava.security.manager=allow` (they hit
-`DeSerializationPermission("MARSHALL").checkGuard`) — already in the relevant modules' surefire
-argLine.
+need an SM-capable JDK, i.e. DirtyChai (they hit
+`DeSerializationPermission("MARSHALL").checkGuard`, which throws on a JDK with SecurityManager
+support stripped). Don't add `-Djava.security.manager=allow`: on DirtyChai it does nothing. A test
+that needs a SecurityManager runs under `-Djava.security.manager=default` with a test policy.
 
 ## Related
 

@@ -1,0 +1,20 @@
+/*
+ * Unit-test policy for the tests of this module that run under
+ * -Djava.security.manager=default (the CombinerSecurityManager is in force
+ * from JVM start).
+ *
+ * On DirtyChai, platform code that calls doPrivileged runs as a DomainIdentity
+ * whose code source is jrt:/<module>/<class>; the JDK's own grants name
+ * jrt:/<module>, which does not imply it, so platform modules are granted here.
+ * Code loaded from the local file system (target/classes, target/test-classes,
+ * the Maven repository and Surefire) is granted everything.  Code a test gives
+ * any other code source, such as a synthetic http: domain, gets nothing from
+ * this file.
+ */
+grant codeBase "jrt:/-" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:/-" {
+    permission java.security.AllPermission;
+};

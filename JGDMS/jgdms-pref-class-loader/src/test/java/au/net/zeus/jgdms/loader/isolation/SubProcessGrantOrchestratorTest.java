@@ -504,9 +504,9 @@ public class SubProcessGrantOrchestratorTest {
                 @Override public void checkPermission(Permission perm) { }
                 @Override public void checkPermission(Permission perm, Object ctx) { }
             });
-        } catch (UnsupportedOperationException noAllowFlag) {
+        } catch (UnsupportedOperationException noSecurityManager) {
             Assume.assumeNoException(
-                    "needs -Djava.security.manager=allow", noAllowFlag);
+                    "needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {

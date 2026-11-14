@@ -95,9 +95,7 @@ import static org.junit.Assert.*;
  * JDK build with SecurityManager support fully stripped (e.g. a vanilla
  * distro OpenJDK 25) {@code java.security.Permission.checkGuard}'s default
  * implementation throws {@code SecurityException} unconditionally instead.
- * Run these tests under an SM-capable JDK (e.g. the DirtyChai build) with
- * {@code -Djava.security.manager=allow} -- already baked into this module's
- * pom.xml surefire {@code argLine}, matching jgdms-platform's convention.
+ * Run these tests on an SM-capable JDK (e.g. the DirtyChai build).
  */
 public class EventRegListenerDerRoundTripTest {
 

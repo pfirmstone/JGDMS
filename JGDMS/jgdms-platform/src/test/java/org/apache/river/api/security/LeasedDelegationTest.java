@@ -48,8 +48,10 @@ import static org.junit.Assert.*;
  *
  * <p>Runs on a vanilla JDK 21 (JGDMS's compile target); production runs on
  * DirtyChai where an active authorization SecurityManager enforces the install
- * ceiling. The ceiling test installs a narrow SecurityManager and skips via
- * {@link Assume} if {@code -Djava.security.manager=allow} is absent.
+ * ceiling. The module's tests run under -Djava.security.manager=default; the
+ * ceiling test installs a narrow SecurityManager in place of the
+ * CombinerSecurityManager for its duration, and skips via {@link Assume} on a
+ * JVM that cannot install one.
  */
 public class LeasedDelegationTest {
 
@@ -150,8 +152,8 @@ public class LeasedDelegationTest {
         SecurityManager previous = System.getSecurityManager();
         try {
             System.setSecurityManager(sm);
-        } catch (UnsupportedOperationException noAllowFlag) {
-            Assume.assumeNoException("needs -Djava.security.manager=allow", noAllowFlag);
+        } catch (UnsupportedOperationException noSecurityManager) {
+            Assume.assumeNoException("needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {
@@ -169,8 +171,8 @@ public class LeasedDelegationTest {
             }
         } finally {
             sm.gating = false;
-            // DirtyChai forbids setSecurityManager(null); under -Djava.security.manager=allow
-            // no SM exists at startup, so only restore when one was actually installed.
+            // DirtyChai forbids setSecurityManager(null); under -Djava.security.manager=default
+            // the CombinerSecurityManager installed at JVM start is put back.
             if (previous != null) System.setSecurityManager(previous);
         }
     }

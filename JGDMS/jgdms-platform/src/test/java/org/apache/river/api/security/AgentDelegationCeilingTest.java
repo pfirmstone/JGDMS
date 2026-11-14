@@ -55,10 +55,12 @@ import static org.junit.Assert.*;
  * allowed, so the JVM and test framework are unaffected), then asserts that
  * {@code grant()} permits an in-ceiling delegation and denies an over-ceiling one.
  *
- * <p>Installing a SecurityManager requires {@code -Djava.security.manager=allow}
- * at JVM start (JEP 411); the module's surefire config sets it. If it is absent the
- * SecurityManager-backed assertion is skipped (via {@link Assume}) rather than
- * failing, while {@link #ceilingLogicIsMonotone()} always runs.
+ * <p>The module's surefire config runs the tests under
+ * {@code -Djava.security.manager=default}; this test replaces the
+ * CombinerSecurityManager for its duration and puts it back. On a JVM that cannot
+ * install a SecurityManager the SecurityManager-backed assertion is skipped (via
+ * {@link Assume}) rather than failing, while {@link #ceilingLogicIsMonotone()}
+ * always runs.
  */
 public class AgentDelegationCeilingTest {
 
@@ -102,9 +104,9 @@ public class AgentDelegationCeilingTest {
         SecurityManager previous = System.getSecurityManager();
         try {
             System.setSecurityManager(sm);
-        } catch (UnsupportedOperationException noAllowFlag) {
+        } catch (UnsupportedOperationException noSecurityManager) {
             Assume.assumeNoException(
-                    "needs -Djava.security.manager=allow at JVM start", noAllowFlag);
+                    "needs a SecurityManager: run on DirtyChai with -Djava.security.manager=default", noSecurityManager);
             return;
         }
         try {
@@ -122,8 +124,8 @@ public class AgentDelegationCeilingTest {
             }
         } finally {
             sm.gating = false;
-            // DirtyChai forbids setSecurityManager(null); under -Djava.security.manager=allow
-            // no SM exists at startup, so only restore when one was actually installed.
+            // DirtyChai forbids setSecurityManager(null); under -Djava.security.manager=default
+            // the CombinerSecurityManager installed at JVM start is put back.
             if (previous != null) System.setSecurityManager(previous);
         }
     }

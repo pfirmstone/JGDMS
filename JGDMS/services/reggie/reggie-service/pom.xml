@@ -89,20 +89,17 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Permit tests to touch SecurityManager-guarded APIs on JDK 17+
-                         (JEP 411); no SM is installed unless a test does so explicitly.
-                         Needed here because EventRegListenerDerRoundTripTest's
+                    <!-- No SecurityManager is installed.  EventRegListenerDerRoundTripTest's
                          @AtomicSerial-stream round trip reconstructs the listener's
                          net.jini.io.MarshalledInstance via its GetArg constructor,
-                         which calls DeSerializationPermission("MARSHALL").checkGuard(null)
-                         (a no-op with no SecurityManager installed, but on a JDK build
-                         with SecurityManager support fully stripped, e.g. a vanilla
-                         distro OpenJDK 25, java.security.Permission.checkGuard's
-                         default implementation throws unconditionally instead of
-                         no-op'ing; run these tests under an SM-capable JDK, e.g. the
-                         DirtyChai build, per this repo's jgdms-platform pom convention,
-                         which uses the same argLine). -->
-                    <argLine>-Djava.security.manager=allow</argLine>
+                         which calls DeSerializationPermission("MARSHALL").checkGuard(null):
+                         a no-op without a SecurityManager on DirtyChai, but on a JDK with
+                         SecurityManager support stripped (e.g. a vanilla distro OpenJDK
+                         25) checkGuard throws unconditionally, so run these tests on
+                         DirtyChai.  They cannot run under -Djava.security.manager=default
+                         with the default RMIClassLoaderSpi below: its LoaderHandler adds
+                         permissions to the read-only collection DirtyChai's policy
+                         returns for a CodeSource. -->
                     <systemPropertyVariables>
                         <!-- EventReg round-trip tests build real RegistrarImpl.EventReg
                              records, whose serialization pulls in RMI codebase
