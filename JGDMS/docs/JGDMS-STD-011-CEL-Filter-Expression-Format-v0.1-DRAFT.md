@@ -1517,9 +1517,11 @@ in declaration order.
 With the tables above, `C(E) ≤ maxExprNodes × (1 + S × max literal length)`; in
 the special case with no `contains` and no `in`-over-list-field term,
 `C(E) ∈ O(|E| × S)`, but that special case is not the normative bound (§3.1) —
-the normative bound is the `C(E) ≤ maxExprCost` gate itself (§10.5), computed
+the normative bound is the `C(E) ≤ maxExprCost` gate itself (§10.5; with
+bindings, together with the `xCost ≤ maxExpandedCost` gate), computed
 exactly, never approximated asymptotically. `C(E)` is computable by one
-post-order walk of the AST, with no candidate.
+post-order walk of the AST, with no candidate (with bindings, one walk of each
+body, in declaration order, §10.3.1). *(v0.2: let delta C.5)*
 
 ### 10.5 `COST_BOUND` and the no-runtime-gate property
 
