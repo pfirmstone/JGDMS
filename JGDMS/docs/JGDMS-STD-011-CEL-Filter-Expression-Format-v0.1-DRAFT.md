@@ -527,7 +527,8 @@ unchanged. The converse does not hold: text a CEL developer might legally write
 can be **rejected** here — the §5.4 exclusions (macros, `matches()`, `[]`
 indexing, map literals, concatenating `+`, `u` suffixes, raw strings), chained
 relations (a parse error here, a type error in CEL), and the §5.3.1 constraints
-(literal-only `contains` needle, `field(...)` literal arguments). Every such
+(literal-only `contains` needle, `field(...)` literal arguments), and the §5.3.4 binding rules (Appendix A row 12;
+*v0.2: owner decision 3, review S-m8, Chisel 2026-11-14*). Every such
 rejection is loud, at parse or verification time — never a silently different
 runtime meaning. There is exactly **one** syntax; "DETERMINISTIC CEL syntax"
 never means new notation, only fewer accepted sentences and pinned semantics
@@ -721,7 +722,13 @@ T6, and nothing in it can be checked on a wire expression.
    - (g) an `init` that, with its parentheses removed, is a bare bound name (the
      text form of §5.5 item 3, an alias body; `cel.bind(b, (a), …)` is the same
      tree). The result position of the last `BindCall`, the main body, MAY be a bare
-     bound name. *(v0.2: review S-m3, F-m2)*.
+     bound name. *(v0.2: review S-m3, F-m2)*;
+   - (h) a bound name equal to a registry function name (§7.2), for example
+     `cel.bind(abs, f, abs(abs))`, which reads as nested calls of itself. This is
+     author hygiene beside (f), and it is a PARSER rule only: it has no wire form,
+     no decoder and no T6 check, because on the wire a bound name does not exist
+     (RL-JGDMS-0023). *(v0.2: owner decision 5, review S-m3 residual, Chisel
+     2026-11-14)*.
 
    A method call on a bound name (`a.startsWith("x")`) is not a selection and is
    not rejected by (d).
@@ -816,9 +823,11 @@ form is §11.3 item 7 and Appendix B.
    An unreferenced binding is a well-formedness error. The rule is syntactic:
    `false ? a : 0` counts as a use of `a`. So every body is reachable and every
    body is statically checked.
-3. **No alias bodies.** A binding body MUST NOT be a bare `REF`: it adds nothing
-   and only multiplies ASTs with one meaning. The main body MAY be a bare `REF`
-   (`cel.bind(a, e, a)`).
+3. **No alias bodies.** A binding body MUST NOT be a bare `REF`: it adds nothing,
+   and an alias binding gives a second encoding of the same expression, whereas
+   the format allows exactly one encoding per expression (§11.3 item 1). The main
+   body MAY be a bare `REF` (`cel.bind(a, e, a)`). *(v0.2: owner decision 4,
+   review S-n9, Chisel 2026-11-14)*
 4. **Where a `REF` may appear.** The governing rule is meaning by expansion (§6.9):
    a `REF` is an expression node of arity 0 and may appear wherever the expression it
    names could appear, EXCEPT where §5.3.1 and §11.1 already fix the operand's
@@ -1679,10 +1688,13 @@ MUST reject a tree that contains a `REF`, and two filters with the same main bod
 and different binding lists MUST NOT compare equal. *(Informative: a `REF` is an
 index leaf, never a shared reference to the body's node, because a shared node
 would make structural equality and hashing exponential in the expansion size; the
-written-out E2 is 1,205,700 nodes, §5.5. An implementation that builds expressions
-in process can validate backward-only indices, every binding referenced and the
-no-alias rule when it constructs the binding list, so that an invalid list is
-unrepresentable.)* *(v0.2: let delta B.3, C.5, R21)*
+written-out E2 is 1,205,700 nodes, §5.5.)* An evaluator, verifier or encoder MUST
+accept a carrier (an expression with its binding list) only if the carrier has
+passed the §12.1 binding checks and the §10.3.1 ceilings, and an implementation
+that can construct a carrier in process MUST apply them when it constructs the
+binding list, so that an invalid carrier is unrepresentable and is refused
+(fail closed). *(v0.2: let delta B.3, C.5, R21; owner decision 1, review F-m3,
+Chisel 2026-11-14)*
 
 ### 11.2 Static typing rules
 
@@ -2215,6 +2227,15 @@ double(sampleCount) * 86400000000000.0 > 0.0
     (review F N3): accept `cel.bind` anywhere CEL allows it and flatten at parse,
     with the same wire form. *(v0.2: let delta R17; owner answer on Appendix A
     (iii), Chisel 2026-11-14)*
+12. **[OPEN — deferred by the owner]** A worked record with bindings (§14, Appendix B
+    §B.10), to be added when the codec supports `REF`, with the hex produced by the
+    codec and not by hand. *(v0.2: owner decision 7, review F-m8, Chisel 2026-11-14)*
+13. **[OPEN — deferred by the owner]** `JGDMS-ARCH-005` §5.1 and §5.2 need the bindings
+    qualifier, after v0.2 is ratified. *(v0.2: owner decision 8, review S-n10, Chisel
+    2026-11-14)*
+14. **[OPEN — deferred by the owner]** Strip the provenance tags and the review
+    citations from the text at ratification; they are kept now so that the reviewers
+    can trace each change. *(v0.2: owner decision 9, Chisel 2026-11-14)*
 
 ---
 
@@ -2272,6 +2293,7 @@ section-cited rule governs.
 
 | 10 | Cross-type equality | `==`/`!=` between different types — outside the `int`×`double` numeric pair and the `null` rules — is `TYPE_MISMATCH` (§6.1) | Modern CEL's heterogeneous equality evaluates mixed-type `==` to `false` (`1 == "1"` is `false`, not an error) | Fail-closed (G6): a type-confused comparison is an authoring bug or schema skew to surface, not a silent `false`. In predicate context both dispositions are no-match — **except under negation** (`!("a" == 1)`: CEL matches, STD-011 errors ⇒ no-match), which is exactly where fail-closed matters |
 | 11 | `has()` on a present-but-null field | `false` — null is treated as unset, proto3-flavour (§4.6, §6.8) | For map values CEL's `has()` is key-presence: a key mapped to `null` yields `true` | One guard idiom (`has(f) && …`) covers both null and absence over a field-map substrate whose nulls mean "no value"; key-presence semantics would force every guard to also test `f != null` |
+| 12 | CEL-legal text rejected by the binding rules *(v0.2: owner decision 3, review S-m8, Chisel 2026-11-14)* | A `cel.bind` that is off the outer spine, has an unused binder, uses a bound name as a selector root, as `has()`'s target or as `in`'s list operand, reuses the spelling of a field, uses `cel` or a registry function name as the binder, or has an alias body (`cel.bind(b, a, …)`) is **rejected** at parse (§5.3.4 item 2 (b)-(h)) or at decode (§5.5 items 2-3) | Accepts all of these as legal bindings-extension text | G1 (one encoding per expression) and G7: each restriction removes a second spelling or second meaning of one expression, fails loudly, and never changes the meaning of text that is accepted. A rejection, not a semantic disagreement: it is not among the points of the (iii) summary |
 
 Row 9 is the divergence the board review found missing from the original
 inline notes; it was not previously flagged anywhere else in this document.

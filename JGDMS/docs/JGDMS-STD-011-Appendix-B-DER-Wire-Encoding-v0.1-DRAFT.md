@@ -571,6 +571,12 @@ already rejects:
     accept an encoding a strict one rejects), which is the same G1 canonical-form hazard
     every other rule in this section closes — there is no principled reason to hold
     literals and selector names to a laxer standard than candidate string fields.
+11. **Leftover octets.** Octets left over after the last component of a `SEQUENCE`, or
+    after the outermost element of the record, MUST be rejected. Without this, a value
+    has more than one accepted encoding (a canonical one and one with trailing octets),
+    which G1 forbids. The Java decoder already rejects them (`CelDecoder.java:79-81,
+    97-99`, `requireExhausted`, as read by review F-n8), so this text catches up with
+    the code. *(v0.2: owner decision 2, review F-n8, Chisel 2026-11-14)*
 
 ---
 
