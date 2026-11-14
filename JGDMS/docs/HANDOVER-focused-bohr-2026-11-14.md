@@ -88,8 +88,7 @@ AS-OF 2026-11-14. Measured, not remembered (command in each line):
   (newest `7d58b3b3f`, 2026-11-13: SPIRE retry #237, SerialObjectPermission #213 and the #236 follow-ups). ~~The emulation pin in the non-conformances doc is
   therefore stale again~~ **CORRECTED (Opus review, H3; verified by `git -C dirtychai diff --name-only 4c71278f1 origin/trunk`):** those five commits change only `SpiffeCredentialManager.java` and `ObjectInputStream.java`; none of the 35 emulated
   classes changed, so the pin is not stale. CL-DERPERF-0012 depends on the maintainer's JDK, not on the pin.
-- Not pushed: the local branch `stubs-experiment` (`91b1531c3`, worktree `/tmp/claude-0/stubs-wt`, JGDMS clone). It dies with the container. The maintainer has not been
-  asked since he answered that stubs are not adopted (section 7); ask before pushing a branch he has not named.
+- ~~Not pushed: the local branch `stubs-experiment`~~ **Pushed 2026-11-14 at the maintainer's word ("Yes, keep the experiments, push")** as `origin/claude/stubs-experiment` at `91b1531c3` (`git ls-remote --heads origin claude/stubs-experiment`); nothing is merged and stubs are not adopted (section 7 item 3). The generator, the module and the pin are in that commit.
 - The register: this session's hypotheses are published (`b58e690470` on pfirmstone/Claude master). Its rulings are not (section 7).
 - No subagent is running at composition time (the last report was received before this wrap-up began).
 
@@ -116,7 +115,7 @@ AS-OF 2026-11-14. Measured, not remembered (command in each line):
 | Patching `java.base` or `-Xbootclasspath/a` in the platform tests BY DEFAULT (the optional `dirtychai-patch` profile and the emulation recipe use `--patch-module`, off unless asked) | RULING (section 7 item 1; its quoted words cover `-Xbootclasspath/a` only, the rest is my reading) | the maintainer says otherwise |
 | Writing or committing any DirtyChai source | RULING (section 7 item 9): no AI-assisted code in DirtyChai; the second half of the statement (agents only describe changes) is my reading of it | OpenJDK policy changes |
 | Changing the `maxServerHandshakes` default (`min(512, maxFds/8, max(16, 4 x processors))`) | EVIDENCE: RESULTS section 39 rests on the maintainer's 6-core, 12-logical-processor machine and a 4-core container (no difference established there); no run on the 36-core workstation | CL-DERPERF-0015 has clean warm runs |
-| Adopting the compile-time stubs | RULING (section 7 item 3) | the maintainer decides; the experiment is `stubs-experiment` |
+| Adopting the compile-time stubs | RULING (section 7 item 3) | the maintainer decides; the experiment is `claude/stubs-experiment` on origin |
 | Re-running the Opus cold review of RecordCounter | EVIDENCE: the review measured legitimate JDK 27 client framings and synthetic ones, on an in-memory engine pair with CPU in 10 ms clock steps | a non-JDK client is tried (CL-DERPERF-0003) or the bound's constants change |
 | Rebuilding the emulation | EVIDENCE: built at `4c71278f1`; the five newer DirtyChai commits touch none of the 35 emulated classes | a newer DirtyChai commit changes one of them (check with `git diff --name-only`) |
 
@@ -208,6 +207,14 @@ An Opus agent (read-only) reviewed the first version of this file (`2ec3fd489`) 
 
 One more error was mine and found afterwards: one of the replacement rows said none of the 35 emulated classes changed between `95ef6f96b` and `4c71278f1`; that is false, and it was replaced again (CL-DERPERF-0019).
 The review did not run tests or mutations, did not recount the 57-input table, and could not see the maintainer's pasted outputs except where they appear in the transcript. **This file after the corrections has not been reviewed again.**
+
+## 12. Tasks for a LOCAL session (added after the review; the local disk holds what this container lacks)
+
+A local session can read the whole raw transcript of this session (this container's copy begins at the 2026-10-23 compaction) and the real register at `E:\Claude`. In this order:
+1. Check `E:\Claude\claim_register\rulings\JGDMS` and `...\DIRTYCHAI` for numbers above those on origin/master of pfirmstone/Claude (the code-free-proxy-window handover cites JGDMS numbers 29 to 35); then append the nine rulings of section 7 with `claim_register.py new`, quoting only words found in the raw messages (rows 1, 2, 6 and 9 are currently relayed), and run `sync`.
+2. Audit the self-error count of section 0 against the transcript, and find the IDs of the earlier S0 board-seat agents and the October divergence-analysis agent for the roster; record both as an addendum, not an edit.
+3. Review this file again with a model other than the author's (the corrections of add.01 have not been reviewed), checking the register rows and the hashes with commands.
+Not for a local session: the Windows runs (maintainer), and anything that needs this container's scratchpad (it is discarded).
 
 ## 11. CURRENCY CHECK (mechanical; re-run at add.01, 2026-11-14)
 
