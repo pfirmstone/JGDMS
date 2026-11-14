@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PERMGRANT\INDEX.md  (this file's claims: CL-PERMGRANT-0001 to CL-PERMGRANT-0019); rulings: none registered for JGDMS or DIRTYCHAI yet (section 20.4 lists this session's, unregistered)
-LATEST ADDENDUM: add.01 dated 2026-11-14 at heading "20. Session of 2026-11-11 to 2026-11-14 (add.01)"
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PERMGRANT\INDEX.md  (this file's claims: CL-PERMGRANT-0001 to CL-PERMGRANT-0019); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md (RL-JGDMS-0018 to RL-JGDMS-0021), rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0001 to RL-DIRTYCHAI-0004)
+LATEST ADDENDUM: add.02 dated 2026-11-14 at heading "20.8 Rulings registered (add.02)"
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: 20.1 State - re-read the disk before acting on it
 -->
@@ -299,3 +299,16 @@ AS-OF 2026-11-14 00:20 UTC (sources: `git log -1` in each clone, `git status -sb
 - JGDMS: `JGDMS/docs/DirtyChai-Required-Changes-SerialObjectPermission-2026-11-12.md` (CL-PERMGRANT-0005), this file, module `JGDMS/jgdms-identity-it/` (fixture `AmbientIdentityFixture`, `IdentityServers`, `MockSpireAgent` copied from qa, `MockSpireAgentLauncher`).
 - Scratchpad `/tmp/claude-0/-home-user/d4b168a3-1250-5972-baaf-9d3e5bb67c58/scratchpad/` (EPHEMERAL, lost when the container is reclaimed): `run.sh`/`dcrun.sh`/`ambient-run.sh` harnesses, `mutate.py` (all mutant definitions), `exp-annot/` (annotation experiment), `polp/ambient.policy` (CL-PERMGRANT-0009), `ws3/NoWorker.java` (CL-PERMGRANT-0015), `igt/` (CL-PERMGRANT-0018), `permgrant_claims.tsv` (register ingest input).
 - Deliberately excluded: the turn-by-turn conversation (not on disk); test counts already in commit messages.
+
+### 20.8 Rulings registered (add.02)
+
+For ruling IDs, this list supersedes section 20.4.
+
+- Codebase-free proxies must not throw when resolved: RL-JGDMS-0018
+- No codebase name collisions; DirtyChai policy grants to digests where possible: RL-JGDMS-0019
+- Compile-time compatibility with JDK 21 only; security results come from DirtyChai: RL-JGDMS-0020
+- Unmarshalling proxies with codebase annotations off is gated by DeSerializationPermission and SerialObjectPermission (not in 20.4): RL-JGDMS-0021
+- Array class descriptors exempt from the SerialObjectPermission check: RL-DIRTYCHAI-0001
+- A domain identity reduces the privilege of platform, bootstrap and other overprivileged domains: RL-DIRTYCHAI-0002
+- doPrivileged does not exempt callers that extend Policy (not in 20.4): RL-DIRTYCHAI-0003
+- Policy is initialised before a SecurityManager is in force: RL-DIRTYCHAI-0004
