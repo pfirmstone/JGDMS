@@ -924,3 +924,22 @@ The rulings were recorded over several turns, so they are not all labelled `Ruli
 (Index addition: **Section 15** is this entry.)
 
 **Sources (all in `docs/`):** `SURVEY-core-transient-execution-2026-11-02.md`, `SURVEY-ele-signing-key-custody-2026-11-02.md`, `SURVEY-som-hardware-root-of-trust-2026-11-02.md`, `INVESTIGATION-fault-timing-memory-exposure-2026-11-02.md`, `SURVEY-timing-mitigations-edge-and-browsers-2026-11-01.md`; the rulings above are in the session transcript and the handover (revisions 4h and 4i).
+
+## 16. The proxy board: call direction, events, the mailbox node, response to an attacker (added 2026-11-15, at the operator's request; rulings are in the register, not restated here)
+
+**Rulings:** RL-JGDMS-0037 to RL-JGDMS-0048 (`E:\Claude\claim_register\rulings\JGDMS\INDEX.md`). Read the register for their status and the operator's words; this section holds only what the operator has NOT ruled.
+
+**Sources read for this section:** `DirtyChai/PROXY_HOST_BOARD_REQUIREMENTS.md` lines 358 to 379 (H2, H3); `JGDMS-STD-002-Safe-Codebase-Audit-Pipeline-Standard-v1.3.md` (host roles, connection matrix, verdict derivation, failure modes). The bytecode analysis engine's code and `DIGEST_GRANT_PLAN.md` were not read.
+
+### 16.1 Open items (the assistant's proposals; each needs an operator ruling or a test)
+- **P1. Events through an untrusted relay are unverified claims.** Origin-signed events, and encryption to the host if the content is sensitive. Unruled.
+- **P2. Resynchronise on a gap.** On a mailbox move or restart, the host detects gaps in event sequence numbers and re-reads the space. Unruled.
+- **P3. The mailbox node is stateless.** It boots from a signed, rollback-protected image delivered by the controller and attests before it takes the role. Unruled.
+- **P4. Per-origin controls on a shared mailbox node.** Per-origin identity (mutual TLS), opaque event payloads (no class instantiation), per-origin quotas and a uniform drop rule. Unruled.
+- **P5. The board document needs an inbound case.** An "event mailbox node" role: inbound from its origin's address only, with the R3 rule moving with the role. DirtyChai is human-authored; the operator writes it.
+- **P6. A host-exported listener never appears toward the origin server.** A negative test that fails when the control is removed. Not written; needs the operator's instruction.
+- **P7. Attacker response.** The capture is taken outside the node (egress switch, controller) before any power-off; SPIFFE identity revocation and removal of the origin's address from the switch allowlist; quarantine before permanent removal; a reinstatement path; a bound on how long an isolated node stays running; a rate limit on swaps; the victim rule for a busy-node swap. Unruled. Also open: whether the response is automatic or confirmed by a person, and who can remove a lookup entry.
+- **P8. Stored evidence.** Content-addressed, write-once, never executed on the store; the same normalised form as SCAP's digest; size and per-origin quotas; a retention rule. Where the code bytes are stored (host or controller) is not ruled.
+- **P9. The digest check.** The board's loader hashes the buffer it defines classes from; the grant mapping reaches the board as a signed update from the host and is revoked when a digest is later marked dangerous. Unruled; the DirtyChai digest-grant design was not read.
+- **P10. What the bytecode analysis engine does not cover.** STD-002 lists `<clinit>` blocking, cycles and `@AtomicSerial` compliance; DirtyChai's `PROBLEMS_SOLVED.md` also names a constant-pool scan for dangerous APIs. Which is built was not checked. `SOW-BAE-Timing-Sidechannel-Denial.md` was not read.
+- **P11. Two or more mailbox nodes share an uplink**, so queue timing between origins remains (board document section 4).
