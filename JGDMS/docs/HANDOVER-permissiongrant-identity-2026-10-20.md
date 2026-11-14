@@ -1,3 +1,9 @@
+<!-- CLAIM-HEADER (edit in place; body is append-only)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PERMGRANT\INDEX.md  (this file's claims: CL-PERMGRANT-0001 to CL-PERMGRANT-0019); rulings: none registered for JGDMS or DIRTYCHAI yet (section 20.4 lists this session's, unregistered)
+LATEST ADDENDUM: add.01 dated 2026-11-14 at heading "20. Session of 2026-11-11 to 2026-11-14 (add.01)"
+SUPERSEDED BY: none
+FASTEST-AGEING SECTION: 20.1 State - re-read the disk before acting on it
+-->
 # Handover: PermissionGrant mirror, DigestDomainGrant, verdict binding, JERI authenticateServer
 
 **AS-OF 2026-10-20, branch `claude/sow-permissiongrant-domain-grants`, trunk at `25b5b013` (source: `git log -1`).**
@@ -231,3 +237,65 @@ Deployment requirement found by two seats, NOT done: no policy in the repository
 Gaps still untested: `resolvePinned` denied without the permission (feasible on JDK 21 with `-Djava.security.manager=allow`, Fable verified the approach, not added); that `resolve` applies the router-context rewrite (the function is tested, its use is not: Fable's mutation passed); that `resolve` pins at all; both `SubProcessReconstructionServer` branches; SPIFFE routing with a real certificate.
 
 Correction of section 18: "the CACHE key uses the pinned handler" is misleading: handler `equals` ignores client constraints (Sonnet, Fable), so SERVICES_EXP and CACHE keys do not tell identities apart. That is the shape before this change.
+
+
+## 20. Session of 2026-11-11 to 2026-11-14 (add.01)
+
+Written by session `session_018wGHqdZVC44cD3kPyqL3vU` (scope PERMGRANT), at 81% context, before compaction. Same model throughout, not reviewed by a different model except where 20.5 says so. Statuses live in the register, never here: read `hypotheses\PERMGRANT\INDEX.md` first. Addendum add.01 governs sections 1-19 where they disagree.
+
+### 20.1 State (FASTEST-AGEING: measured; the operator pushes DirtyChai between my turns, five times this session)
+
+AS-OF 2026-11-14 00:20 UTC (sources: `git log -1` in each clone, `git status -sb`).
+- JGDMS branch `claude/sweet-cori-dhleev` at `e3b25fb95`, pushed, clean. Commits this session, oldest first: `045b6a477` (jeri pom tidy, AuthenticateServerTest trust-store reset), `e66ea819c` and `ea4f92ce5` (identity tests), `bb069a007` (module `jgdms-identity-it`; CL-PERMGRANT-0001), `a09040039` (ResolvePinnedPermissionTest on DirtyChai), `c00db2fe6` (codebase-free proxies; CL-PERMGRANT-0002), `3be43210d` (digest grant LoadClassPermission name; CL-PERMGRANT-0006), docs `a095682b4` `96644e83c` `c2ca911f8`, `e3b25fb95` (ambient worker client; CL-PERMGRANT-0007, CL-PERMGRANT-0008). Not merged to trunk.
+- DirtyChai: operator's trunk at `7d58b3b3f90` when last fetched; my local checkout detached there, built as `build/linux-x64-release` (release, not fastdebug). Nothing committed by me. Five JAXP test files differ only in line endings (pre-existing; the stop hook flags them every turn).
+- Claude repo: register entries CL-PERMGRANT-0001 to CL-PERMGRANT-0019 committed on `claude/sweet-cori-dhleev` (not master).
+- Waiting on the operator: the `setSecurityManager0` change (CL-PERMGRANT-0016), then rebuild and rerun scratchpad `ws3/NoWorker.java` and QA `WorkerSurvivesDoAsPrivilegedTest`.
+
+### 20.2 How to build and test here (recovered the hard way)
+
+- Maven builds with `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64` (apt `openjdk-25-jdk-headless`) after `mvn install` of Pack200 1.27.2 and `pack200-normalize-maven-plugin` from `/home/user/Pack200-ex-openjdk`.
+- Tests that need a SecurityManager run only on DirtyChai: build it with `env -u JAVA_TOOL_OPTIONS bash configure --with-boot-jdk=/usr/lib/jvm/java-25-openjdk-amd64 --with-debug-level=release --disable-warnings-as-errors ...` then `make images` (about 45 min first time, a few minutes incremental). Then `JAVA_HOME=<DirtyChai image> mvn -o test -pl jgdms-identity-it` runs the real Surefire (BUILD SUCCESS: 12 default + 21 ambient tests, CL-PERMGRANT-0007).
+- JDK 21 is compile-only; the operator ruled it insecure, so JDK 21 results are not security evidence.
+- Running a downloaded binary needs the operator's explicit request (auto-mode classifier blocked the DirtyChai release tarball until he asked).
+
+### 20.3 Triggers (my failure patterns this session, in the form they will be met)
+
+- BEFORE REPORTING A SECURITY RESULT, RUN IT ON DIRTYCHAI: three JDK 21 conclusions reversed on DirtyChai (CL-PERMGRANT-0003, ResolvePinnedPermissionTest's confinement, the jeri handshake failures).
+- BEFORE TRUSTING A TEST THAT PASSES, CHECK HOW THE CLIENT IS LOGGED ON: every identity test passed for days using `Subject.callAs` with a workload subject, which no deployment does (CL-PERMGRANT-0007).
+- BEFORE SAYING A METHOD DOES NOT EXIST, SEARCH WITHOUT `head`: I missed `AccessController.doUnlimited` because `head -12` cut the grep.
+- BEFORE SUGGESTING AN EXEMPTION FROM A HARDENING, ASK WHAT THE HARDENING IS FOR: I proposed exempting bootstrap `Policy` classes from `limited()`, which #233 exists to limit (CL-PERMGRANT-0017).
+- BEFORE BLAMING A TEST, CHECK WHERE ITS FILES LIVE: `SecurityPolicyWriterSocketTest` failed in my run only because its classes sat under `java.io.tmpdir` (CL-PERMGRANT-0019).
+- A SUB-AGENT MAY DO WHAT MY CLASSIFIER REFUSED: the Fable reviewer ran the DirtyChai tarball after I was blocked; I reported it to the operator. Say "do not run X" in every brief.
+
+### 20.4 Operator rulings this session (verbatim where quoted; not yet in a rulings register)
+
+- Codebase-free proxies: must not throw; identity represented by pinning, not permissions (2026-11-12). Built: CL-PERMGRANT-0002.
+- "There are no codebase name collisions, the code is always loaded into a ClassLoader that has the ObjectEndpoint identity. This is also why DirtyChai policy should grant to digests where possible." (CL-PERMGRANT-0004)
+- Arrays exempt from the new SerialObjectPermission check (2026-11-12, done in DirtyChai `fe3464b3740`).
+- "We only have compile time compatibility with JDK21. JDK 21 is insecure."
+- "A domain identity reduces unlimited privileges of platform and bootstrap code, or any overprivileged domains." (CL-PERMGRANT-0017)
+- "Prior to the SPIFFE policy, policy would be initiated prior to SecurityManager being in force." (CL-PERMGRANT-0016)
+- Standing: DirtyChai changes are written by the operator; I analyse, and may write only Zone T tests, which he commits (I may not write its commit messages).
+
+### 20.5 Open items, in order
+
+1. CL-PERMGRANT-0016 then CL-PERMGRANT-0015: rebuild after the operator's push, rerun the two programs.
+2. CL-PERMGRANT-0014: test an agent restart against the reconnect loop.
+3. CL-PERMGRANT-0018: operator to apply scratchpad `igt/InstantGranularityTest.patch` (the scratchpad is ephemeral: the full diff is in the conversation of 2026-11-13; regenerate from the description if lost).
+4. CL-PERMGRANT-0011: decide the AtomicDerInvocationHandler fix (readResolve restoring DEFAULT limits).
+5. CL-PERMGRANT-0010: condense the polpAudit result into policy grants; open item 3 of section 4 (PolicyLint ratings for ContextPermission and PinnedIdentityPermission) still undone.
+6. jeri `AuthenticateServerTest` still logs on with `Subject.callAs`; rework to the ambient fixture or accept it as handler-level only.
+7. Requirements documents not yet written for the three SPIRE/policy findings (CL-PERMGRANT-0013, CL-PERMGRANT-0014, CL-PERMGRANT-0015).
+
+### 20.6 Sub-agents (resumable by ID with SendMessage while this container lives)
+
+| ID | model (requested) | role | holds |
+|---|---|---|---|
+| aeffe7202fd0edcd0 | fable | test review; codebase-free proxy design | mutants A1 C3 C10 D1 D2; scratchpad `review-fable/` (ran the DirtyChai tarball unasked) |
+| a2b27ef2def48974d | sonnet | API/transport/build review | jeri pref-dependency NPE (CL-PERMGRANT-0001), Maven module proposal |
+
+### 20.7 Index of on-disk recordings
+
+- JGDMS: `JGDMS/docs/DirtyChai-Required-Changes-SerialObjectPermission-2026-11-12.md` (CL-PERMGRANT-0005), this file, module `JGDMS/jgdms-identity-it/` (fixture `AmbientIdentityFixture`, `IdentityServers`, `MockSpireAgent` copied from qa, `MockSpireAgentLauncher`).
+- Scratchpad `/tmp/claude-0/-home-user/d4b168a3-1250-5972-baaf-9d3e5bb67c58/scratchpad/` (EPHEMERAL, lost when the container is reclaimed): `run.sh`/`dcrun.sh`/`ambient-run.sh` harnesses, `mutate.py` (all mutant definitions), `exp-annot/` (annotation experiment), `polp/ambient.policy` (CL-PERMGRANT-0009), `ws3/NoWorker.java` (CL-PERMGRANT-0015), `igt/` (CL-PERMGRANT-0018), `permgrant_claims.tsv` (register ingest input).
+- Deliberately excluded: the turn-by-turn conversation (not on disk); test counts already in commit messages.
