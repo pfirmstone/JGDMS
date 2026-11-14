@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
 GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, see add.4t)
-LATEST ADDENDUM: add.4u dated 2026-11-14 at heading "REVISION 4u, AS-OF 2026-11-14"  (addenda govern body text)
+LATEST ADDENDUM: add.4v dated 2026-11-14 at heading "REVISION 4v, AS-OF 2026-11-14"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
 -->
@@ -454,3 +454,15 @@ The tool defect in `append()` (4s section 2) is still open; the next writer to a
 ## REVISION 4u, AS-OF 2026-11-14 (newest block; it overrides the last sentence of 4t)
 
 The operator said "Yes add the newline guard." and `append()` in `E:\Claude\claim_register\claim_register.py` now starts a fresh line when the log's last byte is not a newline. Tested in a scratch copy of the register: with the final newline stripped from the JGDMS rulings log, two successive `new` calls succeeded in the copy (their test IDs are not in the real register), every row had 8 fields and there were 0 blank lines; the real tool still parses (`ast.parse`). The real register was not given a test entry. The defect named in 4s section 2 is closed.
+
+## REVISION 4v, AS-OF 2026-11-14 (newest block; the mail watcher, nothing else changed)
+
+**Reader and purpose.** The next session of the same assistant. 4v records one operator instruction on how mail is watched, so a successor does not go back to a Monitor.
+
+### 1. Mail watcher (operator instruction, 2026-11-14, from the operator's session)
+- Reason given: the half-hourly empty wakes were the Monitor tool's 30-minute cap; its expiry notice wakes the seat for a full-context turn on an empty mailbox.
+- **Do not use a Monitor for mail.** If one is armed, stop it with TaskStop and do not re-arm it.
+- Arm instead `Bash` with `run_in_background: true`, command `python -I /e/Claude/tools/mailcheck.py <your-box> --wait` (keep any flags, e.g. `--batch-min`). It polls every 60 s at no token cost and exits on the first wake. Exit 10 = mail or attention (the output names the DIGEST.md to read); exit 2 = the watcher crashed (tell the operator).
+- After processing mail and `--advance` of marks, re-arm the same command, one at a time, never stacked. Keep the hourly loop fallback.
+- Authority: the mailbox skill and MAIL_PROTOCOL.md rule 9(a), updated 2026-11-14. No reply was needed.
+- State in this session: no mailbox name was known and no Monitor was armed (nothing to stop), so nothing was armed. Whoever has the box name arms the command above.
