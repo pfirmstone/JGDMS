@@ -1,3 +1,9 @@
+<!-- CLAIM-HEADER (edit in place; body is append-only)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029; six more wait, see add.4s section 2)
+LATEST ADDENDUM: add.4s dated 2026-11-14 at heading "REVISION 4s, AS-OF 2026-11-14"  (addenda govern body text)
+SUPERSEDED BY: none
+FASTEST-AGEING SECTION: REVISION 4s section 2 (the rulings log defect and the unrecorded rulings) - re-read the disk before acting on it
+-->
 # Handover: the code-free proxy window (2026-10-31 to 2026-11-01), revision 4 (currency update on top of revision 3)
 
 AS-OF 2026-11-01 00:41 +1000 (revision 3, after the Fable review; JGDMS HEAD `61d597451`, DirtyChai HEAD `91737c79880`). Three commits landed within six minutes while revision 2 was being reviewed, so a date alone is not an AS-OF. Author: the Sonnet 5.5 session. Reviewed by a different model: Fable 5.1, `docs/REVIEW-handover-2026-11-01-fable.md`; its findings are applied below and listed in the struck-in-place section. Revision 2 of the same day: revision 1 (`db1506fd8`) was written without re-running the
@@ -412,3 +418,23 @@ Sonnet `a680d64d7103d3d7d` (aliases and flag set, producer); Opus `a8e78784940ff
 
 ### 4. Not verified
 A Linux run on a DirtyChai image that contains issue 236; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window); whether any deployment host reports an 8.3 `java.home` or `java.io.tmpdir`.
+
+## REVISION 4s, AS-OF 2026-11-14 21:47 +1000 (newest block; it adds to 4r; the claim statuses live in the register, not here)
+
+**Reader and purpose.** The next session of the same assistant. 4s records what was put in the claim register before this window was compacted, one defect in the register that stopped part of it, and what remains to be written.
+
+### 1. Register entries made (2026-11-14)
+- A new hypothesis scope `CODEFREE` (named after this handover's window; the operator did not name a scope, so rename it by asking). Claims of this window: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012. CL-CODEFREE-0002 repeats CL-CODEFREE-0001 (a second run of the same command): cite 0001.
+- Ruling RL-JGDMS-0029 (the OS-alias ruling of 2026-11-07).
+- Each hypothesis carries its locator and its provenance in the log note (which ones the main session re-ran on 2026-11-14 and which are Opus measurements the main session did not repeat). Read `show <ID>` for it.
+
+### 2. A defect in `rulings/JGDMS/LOG.tsv` that blocks six rulings, and a repair that was refused
+- **What.** Line 30 of that log holds two entries on one physical line: the PERMGRANT session's RL-JGDMS-0028 was written without its trailing newline, and my `claim_register.py new` appended RL-JGDMS-0029 straight after it (`append()` in `claim_register.py`, lines 133 to 140, writes the row without checking that the file ends in a newline). The loader now stops with `LOG.tsv:30: expected 8 tab-separated fields, got 15`, so every `new`, `status` and `index` that touches the rulings fails, for every session. (Source: `python -I claim_register.py index` output of the same run; `[IO.File]` read of the log: 30 lines, line 30 has 15 tab-separated fields; field 7 of the glued line ends with the date `2026-11-14` that begins my row.)
+- **The repair.** Insert one newline between the end of RL-JGDMS-0028's note and the `2026-11-14` that starts RL-JGDMS-0029; no field text changes. I wrote `repair.py` for it (kept as `docs/REGISTER-2026-11-14-repair-jgdms-rulings-log.py`, whose `BAK` path points into the session scratchpad and needs changing: it takes the register's own lock, copies the log first, asserts the exact shape, writes atomically). The auto-mode classifier refused to run it as an edit of an append-only shared log, and I did not work around that. Whoever repairs it, the operator or the PERMGRANT session, should first check that no other writer has appended since.
+- **Rulings still to append to `rulings/JGDMS`** (statements, locators and the operator's verbatim words are in 4q section 2, items 1 to 6, and 4q section 2 does not cover the process ruling): the flag-set and relative-name ruling (item 1, second half; verbatim "I accept your recommendations."); the 8.3 shape rule, `Local Settings` fold, PolicyScope aliasing and the dropped fixture n128 (items 2 and 3; verbatim "I agree with your recommendations, go."); the `DOCUME~1` and `LOCALS~1` fold (item 4; verbatim "Q1 yes, Q3 none"); no clearing row for a real 8.3-shaped directory (item 5; same verbatim); `PolicyScope` home trees host-blind with `--define` (item 6; verbatim "Yes, do Q2"); and the process ruling (the assistant commits pathspec-scoped and never pushes; verbatim "You may commit the changes, I'll push them.", transcript line 6283). The script `docs/REGISTER-2026-11-14-append-entries.py` (`python -I it rulings`) appends all seven but would repeat the first, which is already RL-JGDMS-0029: skip it (its `hyps` part was already run; do not run it again).
+- **Tool defect to fix** (not mine to edit; `E:\Claude\claim_register\claim_register.py` is the operator's tool): `append()` should write a newline first when the file does not end in one.
+- **A second effect.** While the rulings log is broken, each hypothesis append also ends with the same error after the entry is written, so no ID was printed. The entries are in the log; the CODEFREE index did rebuild.
+
+### 3. Open items in order
+1. Repair the JGDMS rulings log (section 2), then append the six rulings and rerun `claim_register.py lint` on this file.
+2. Everything in 4q section 4 items 2 to 6 and 4r section 3 is unchanged.
