@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
 GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, RL-JGDMS-0037 to RL-JGDMS-0050, see add.4t, add.4w and add.4x)
-LATEST ADDENDUM: add.4x dated 2026-11-15 at heading "REVISION 4x, AS-OF 2026-11-15"  (addenda govern body text)
+LATEST ADDENDUM: add.4y dated 2026-11-15 at heading "REVISION 4y, AS-OF 2026-11-15"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
 -->
@@ -491,3 +491,9 @@ The operator said "Yes add the newline guard." and `append()` in `E:\Claude\clai
 ### 2. Changes to the 4w open items
 - 4w section 2 item 2, first half (does the power-down follow or replace the isolation) is answered by RL-JGDMS-0049. The second half (automatic or confirmed by a person) is still open.
 - Memo section 16.2 holds the struck remark and the consequence for the analysis of a persisted proxy.
+
+## REVISION 4y, AS-OF 2026-11-15 (newest block; adds to 4x)
+
+**Reader and purpose.** The next session of the same assistant. 4y records one new file.
+
+- `JGDMS/docs/SUMMARY-proxy-board-design-2026-11-15.md`: a reading aid for the proxy-board design (a diagram, who starts each connection, events and the mailbox node, loading and the digest check, the response to an attacker, the carrier board, open items). It cites RL-JGDMS-0037 to RL-JGDMS-0050 and the source files; the register stays the authority. Written at the operator's request ("Yes please"). Not read when it was written: the bytecode analysis engine's code, DIGEST_GRANT_PLAN.md, SOW-BAE-Timing-Sidechannel-Denial.md.
