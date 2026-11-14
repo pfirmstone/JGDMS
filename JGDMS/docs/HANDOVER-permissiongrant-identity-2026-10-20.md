@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PERMGRANT\INDEX.md  (this file's claims: CL-PERMGRANT-0001 to CL-PERMGRANT-0019); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md (RL-JGDMS-0018 to RL-JGDMS-0021), rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0001 to RL-DIRTYCHAI-0004)
-LATEST ADDENDUM: add.02 dated 2026-11-14 at heading "20.8 Rulings registered (add.02)"
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PERMGRANT\INDEX.md  (this file's claims: CL-PERMGRANT-0001 to CL-PERMGRANT-0019); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md (RL-JGDMS-0025 to RL-JGDMS-0028), rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0001 to RL-DIRTYCHAI-0004)
+LATEST ADDENDUM: add.03 dated 2026-11-14 at heading "20.9 Ruling IDs renumbered; allow removed (add.03)"
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: 20.1 State - re-read the disk before acting on it
 -->
@@ -312,3 +312,16 @@ For ruling IDs, this list supersedes section 20.4.
 - A domain identity reduces the privilege of platform, bootstrap and other overprivileged domains: RL-DIRTYCHAI-0002
 - doPrivileged does not exempt callers that extend Policy (not in 20.4): RL-DIRTYCHAI-0003
 - Policy is initialised before a SecurityManager is in force: RL-DIRTYCHAI-0004
+
+### 20.9 Ruling IDs renumbered; allow removed (add.03)
+
+Another session registered RL-JGDMS-0018 to RL-JGDMS-0021 for CEL-evaluator rulings at the same time; the operator's merge (Claude repo `0e494a2`) renumbered this file's four JGDMS rulings. Read 20.8 with these IDs:
+
+- RL-JGDMS-0018 in 20.8 is RL-JGDMS-0025
+- RL-JGDMS-0019 in 20.8 is RL-JGDMS-0026
+- RL-JGDMS-0020 in 20.8 is RL-JGDMS-0027
+- RL-JGDMS-0021 in 20.8 is RL-JGDMS-0028
+
+The DIRTYCHAI rulings are unchanged.
+
+Later work on this branch: `92929d788` (WorkerSurvivesDoAsPrivilegedTest runs under `-Djava.security.manager=default`; CL-PERMGRANT-0015's overflow needs the legacy `java.lang.SecurityManager` installed late) and `ab6d56f78` (`-Djava.security.manager=allow` removed; SecurityManager tests run in `default` forks with a test.policy; the commit message lists the DirtyChai issues met, none registered yet).
