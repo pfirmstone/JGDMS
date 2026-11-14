@@ -6,9 +6,10 @@ that document after board review. This file does not modify STD-011 or STD-006; 
 place this appendix needs a change to either is called out explicitly as a **[PATCH]**
 block (STD-006 §4.5) or a **[FLAG]** (a contradiction/gap in STD-011 found while designing
 against it, left for Peter/board disposition rather than silently resolved).
-**Version:** 0.1-DRAFT
-**Date:** 2026-07-20
-**Author:** Claude (T2 of `SOW-CEL-Filter-Format.md`)
+**v0.2-DRAFT (2026-11-14) adds the wire form of STD-011's bounded local bindings** (STD-011 v0.2 §5.5): the leaf node kind `REF` at tag `[27]` and the OPTIONAL binding list in `CelFilterRecord` (absent when there are no bindings, present and non-empty otherwise). `formatVersion` stays 1, the only accepted value, and the module OID arc stays `v1(1)`: no backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024, 2026-11-14, which withdrew the delta's `formatVersion` 2 and the owner's OID bump, owner answer Q6). The v0.2 text is **NOT ratified, NOT re-reviewed after its fix round, and its ASN.1 has NOT been compiled** (no ASN.1 tool was run for the v0.2 edit). It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel; sections A-G revision 0, R1-R26 revision 1, R supersedes); every changed passage ends with a provenance tag `(v0.2: let delta ...)`, which is review scaffolding; the letters after "let delta" name the DELTA's own sections (its B.1 is not this appendix's §B.1), and tags `review S-x` and `review F-x` name findings of `REVIEW_SPEC_SONNET.md` and `REVIEW_SPEC_FABLE.md`. The file name keeps `v0.1` so that existing links hold.
+**Version:** 0.2-DRAFT
+**Date:** 2026-07-20 (v0.1); 2026-11-14 (v0.2 edit)
+**Author:** Claude (T2 of `SOW-CEL-Filter-Format.md`); v0.2 edit by a Sonnet editor from Chisel's delta
 **Depends on:** `JGDMS-STD-011-CEL-Filter-Expression-Format-v0.1-DRAFT.md` (§2, §5, §10.3,
 §10.6, §11, §12, §13 — this appendix implements exactly and only what those sections
 require of T2), `JGDMS-STD-006-DER-WireFormat-v0.13-DRAFT.md` (§3.12, §4.4–§4.6 — the
@@ -43,10 +44,12 @@ define evaluation semantics (T3/T4 — those live entirely in STD-011 §6–§10
 here) and does not define the verification/load-gate (T6 — STD-011 §12, this appendix only
 states what T2 itself enforces at decode, per §11.3's explicit T2 constraints).
 
-Everything below is written against STD-011 v0.1-DRAFT, board-reviewed 2026-07-20, taken
-as binding per this task's instructions. Three points of genuine tension between STD-011's
+The v0.1 text below was written against STD-011 v0.1-DRAFT, board-reviewed 2026-07-20, taken
+as binding per that task's instructions; the v0.2 additions (§B.3's `REF` arm
+and binding list, §B.4.1, §B.5 to §B.7, §B.9, §B.11) are written against STD-011
+v0.2-DRAFT's §5.5, §10.3.1, §11.3 item 7 and §12.3. Three points of genuine tension between STD-011's
 prose and an implementable wire encoding were found; each is flagged at its point of
-relevance (§B.4.4, §B.8.1) and summarized in §B.12.
+relevance (§B.4.4, §B.8.1) and summarized in §B.12. *(v0.2: let delta B.1; review S-n7)*
 
 ---
 
@@ -54,7 +57,8 @@ relevance (§B.4.4, §B.8.1) and summarized in §B.12.
 
 ### B.2.1 One CHOICE, one discriminator (H3)
 
-The complete §11.1 node inventory (27 node kinds) is encoded as a single ASN.1 `CHOICE`,
+The complete §11.1 node inventory (28 node kinds from v0.2: the 27 of v0.1 plus `REF`,
+*v0.2: let delta B.3*) is encoded as a single ASN.1 `CHOICE`,
 `ExprNode`, whose context tag **is** the node-kind discriminator — no separate `kind`
 field, no `ENUMERATED` restating what the tag already says. This is exactly STD-006
 §3.12's `AnyElement` pattern (itself following board guidance H3: "one discriminator, not
@@ -113,6 +117,14 @@ silent omission. STD-011's **remaining** §5.3.1 constraint on `CALL` (item 4, `
 needle must be a string literal) is **not** structurally eliminated (§B.6.5) — flagged
 there as a genuine decode-time check T2 must still perform.
 
+**`REF` positions (v0.2).** The same grammar makes four of STD-011 §5.5 item 4's excluded
+positions for a `REF` unrepresentable: `HasNode.target` is a `FieldRefNode` and
+`InListOperand` is a `CHOICE` of `ListLitNode` or `FieldRefNode`, neither an `ExprNode`, so a
+`REF` cannot be the `has()` target or the `in` list operand itself (it can still be an
+element of a `ListLitNode`); `QualifiedSelector` holds `UTF8String`s; and a selector chain's
+root is a `SelectorStep`, not an `ExprNode`. The one excluded position the wire CAN represent
+is `contains`'s needle (§B.6.5). *(v0.2: let delta A.1, R7)*
+
 ---
 
 ## B.3 The ASN.1 Module (compiling)
@@ -124,6 +136,10 @@ guidance H5 — never rely on the ambient default once the module has any bare `
 this module has none).
 
 ```asn1
+-- v0.2: the module OID arc stays v1(1) and now names the v0.2 content. No
+-- backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024,
+-- 2026-11-14); the bump to v2(2) of owner answer Q6 is withdrawn, and
+-- formatVersion stays 1.
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
   enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
@@ -145,6 +161,10 @@ maxExprNodes     INTEGER ::= 1024
 maxExprDepth     INTEGER ::= 32
 maxSelectorSteps INTEGER ::= 16
 maxScalarBytes   INTEGER ::= 65536
+-- v0.2: the number of bindings in one CelFilterRecord (STD-011 Sec 10.3). The
+-- other two v0.2 ceilings are not wire SIZE constraints: maxEffectiveDepth is
+-- computed at decode (Sec B.6.7) and maxExpandedCost at verification (T6).
+maxBindings      INTEGER ::= 256
 -- maxExprCost is a T6 verification-time bound computed over the decoded AST
 -- (STD-011 Sec 10.2/10.5's cost sum), not a wire-level SIZE constraint on any
 -- single field; recorded for completeness, not referenced by any SIZE below.
@@ -179,17 +199,24 @@ EvaluationContext ::= CHOICE {
 }
 
 CelFilterRecord ::= SEQUENCE {
-    formatVersion  INTEGER (0..255),      -- this appendix pins value 1 (Sec B.9)
+    formatVersion  INTEGER (0..255),      -- this appendix pins value 1, the only accepted value (Sec B.9)
     context        EvaluationContext,
+    -- v0.2: a universal SEQUENCE (tag 0x30), so it cannot be confused with an
+    -- ExprNode arm, which are all context-class. ABSENT when there are no
+    -- bindings, present and non-empty otherwise (a present empty list is
+    -- rejected, Sec B.6.3). ORDER SIGNIFICANT: a REF in element i names an
+    -- element below i.
+    bindings       SEQUENCE (SIZE(1..maxBindings)) OF ExprNode OPTIONAL,
     expression     ExprNode
 }
 
 -- ============================================================================
 -- The AST CHOICE: the context tag IS the node-kind discriminator (H3).
--- Closed set: exactly the 27 arms below. Tags 27-62 RESERVED; any tag outside
--- the listed arms (including the reserved block and any tag > 62) is
--- UNREGISTERED and MUST be a hard decode reject (STD-011 Sec 11.3 item 2);
--- automatic in the CHOICE form, confirmed empirically (Sec B.13).
+-- Closed set: exactly the 28 arms below (v0.2: 27 plus ref). Tags 28-62
+-- RESERVED; any tag outside the listed arms (including the reserved block and
+-- any tag > 62) is UNREGISTERED and MUST be a hard decode reject (STD-011
+-- Sec 11.3 item 2); automatic in the CHOICE form, confirmed empirically
+-- (Sec B.13).
 -- ============================================================================
 
 ExprNode ::= CHOICE {
@@ -228,7 +255,12 @@ ExprNode ::= CHOICE {
     -- membership / conditional / call [24]-[26]
     inOp        [24] IMPLICIT InNode,
     condOp      [25] IMPLICIT CondNode,
-    callOp      [26] IMPLICIT CallNode
+    callOp      [26] IMPLICIT CallNode,
+
+    -- binding reference [27] (v0.2): the absolute 0-based index of a binding.
+    -- The upper bound 255 is maxBindings minus 1, and maxBindings is 256 (a
+    -- literal, because an ASN.1 range takes no arithmetic).
+    ref         [27] IMPLICIT INTEGER (0..255)   -- leading octet 0x9B, primitive
 }
 
 ListLitNode ::= SEQUENCE (SIZE(1..maxCollection)) OF ExprNode
@@ -299,6 +331,20 @@ CallNode ::= SEQUENCE {
 END
 ```
 
+**v0.2 status of the validation below (read first).** The compile and probe record in this
+subsection and in §B.13 was made on the **v0.1 module**. The v0.2 module printed above differs
+from it by the `bindings` field, the `ref` arm and the `maxBindings` value, and has **NOT** been
+compiled or probed: no ASN.1 tool was run for the v0.2 edit, so "OK 71 types" and every
+`asn1tools` observation below is not a statement about it. A v0.2 compile and transcript are
+owed before ratification. The module OID arc stays `v1(1)` (RL-JGDMS-0024), so the same identifier
+now names the v0.2 content while the v0.1 transcript below, and the July compile record in
+`JGDMS/docs/asn1/JGDMS-STD-006-v0.13-validation.md` ("2026-07-24 sync"), describe the v0.1 content:
+the owed recompile and transcript replace them. The `ref` range is written `(0..255)`, a literal,
+because an ASN.1 range takes no arithmetic and `maxBindings-1` would read as one undefined
+identifier (review S-M1, F-m1; HYPOTHESIS, no compiler run). The consolidated module file
+`JGDMS/docs/asn1/JGDMS-STD-011-AppendixB-v0.1.asn1` carries the same v0.2 edit and is
+likewise uncompiled. *(v0.2: let delta R13)*
+
 **Compile validation (honest report, per task instructions).** This module was compiled
 together with the existing `JGDMS/docs/asn1/JGDMS-STD-006-v0.13.asn1` (importing
 `maxCollection` from it) using Python `asn1tools` 0.167.0, `der` codec:
@@ -361,33 +407,35 @@ re-verified for this specific module, not merely cited.
 | `[24]` | `IN` | `InNode` (SEQUENCE) | IMPLICIT | `0xB8` |
 | `[25]` | `COND` | `CondNode` (SEQUENCE) | IMPLICIT | `0xB9` |
 | `[26]` | `CALL` | `CallNode` (SEQUENCE) | IMPLICIT | `0xBA` |
-| `[27]`–`[30]` | **RESERVED** (future node kinds) | — | — | still X.690 §8.1.2.3 short form (single byte, `≤ 30`) |
+| `[27]` *(v0.2)* | `REF` | `INTEGER` (`0 … 255`, that is `maxBindings − 1`; content octets minimal, §B.5 item 3, and of length 1 or 2, checked before the value is converted) | IMPLICIT | `0x9B` (context class, primitive; the constructed form `0xBB` is not in this table and is rejected) |
+| `[28]`–`[30]` | **RESERVED** (future node kinds) | — | — | still X.690 §8.1.2.3 short form (single byte, `≤ 30`) |
 | `[31]`–`[62]` | **RESERVED** (future node kinds) | — | — | high-tag-number form, ≥2 bytes (`[31]` is X.690's short/high-tag-number boundary) |
 | `> [62]`, or any reserved-gap tag | **UNREGISTERED** — hard reject | — | — | — |
 
-**Deliberate compactness choice.** All 27 currently-defined node kinds get single-byte
-context tags (`[0]`–`[26]`, all ≤ 30, X.690 §8.1.2.3 short form). The reserved block starts
-at `[27]` and is placed entirely above the low-tag-number boundary (`[31]` is the point
+**Deliberate compactness choice.** All 28 currently-defined node kinds (v0.2: the 27 of v0.1
+plus `REF`) get single-byte
+context tags (`[0]`–`[27]`, all ≤ 30, X.690 §8.1.2.3 short form). The reserved block starts
+at `[28]` (v0.1: `[27]`) and is placed entirely above the low-tag-number boundary (`[31]` is the point
 X.690 reserves as the high-tag-number-form marker, so any tag `≥ 31` already needs the
-multi-byte form regardless; this appendix reserves from `[27]` rather than `[31]` purely
-so the boundary is a round, memorable number, at the cost of four unused single-byte
-slots `[27]`–`[30]` (still short form, since all four are `≤ 30`; only `[31]`–`[62]` of the
+multi-byte form regardless; this appendix reserves from `[28]` rather than `[31]` purely
+so the boundary is a round, memorable number, at the cost of three unused single-byte
+slots `[28]`–`[30]` (v0.1: four, `[27]`–`[30]`; still short form, since all three are `≤ 30`; only `[31]`–`[62]` of the
 reserved block actually needs the multi-byte high-tag-number form) — an acceptable trade
-for a spec meant to be read, not just compiled).
+for a spec meant to be read, not just compiled). *(v0.2: let delta B.1, R13)*
 Unlike STD-006's `AnyElement` (which reserves gaps *between* semantically distinct
 categories — scalars vs `@AtomicSerial` objects vs collections — because each category's
 own future growth is independent), every `ExprNode` arm is the same kind of thing (one AST
 node), so a single contiguous run plus one trailing reserved block is the more faithful
 structure here, not a stylistic simplification of STD-006's pattern. **A future revision
-MUST append new node kinds after `[26]`** (consuming the reserved block in order) rather
-than inserting into the middle of the current range, to keep today's 27 kinds' tags stable
-across revisions.
+MUST append new node kinds after `[27]`** (v0.1: `[26]`; consuming the reserved block in
+order) rather than inserting into the middle of the current range, to keep today's 28 kinds'
+tags stable across revisions. *(v0.2: let delta B.1)*
 
 ### B.4.2 Why every `ExprNode` arm is `IMPLICIT`
 
 Per §B.2.2: every arm's payload is a `SEQUENCE` (or a primitive/`NULL` leaf), never a bare
 `CHOICE`/`ANY` type directly. X.680 §31.2.7 forbids `IMPLICIT`-tagging a `CHOICE`/`ANY`
-alternative *whose payload is itself an untagged `CHOICE`/`ANY`* — none of these 27 arms
+alternative *whose payload is itself an untagged `CHOICE`/`ANY`* — none of these 28 arms
 qualifies, so `IMPLICIT` is legal for all of them, and it is the *correct* choice (not
 merely the permitted one) because none of these payload types' own tags are load-bearing
 outside their own decode: nothing downstream needs to recover "this was originally a
@@ -445,17 +493,23 @@ already rejects:
 1. **Non-minimal tag encoding.** Any context tag using the multi-byte high-tag-number form
    (X.690 §8.1.2.4) for a value that fits the short form (`≤ 30`), or a multi-byte tag
    number itself carrying a non-minimal base-128 encoding (a leading `0x80` continuation
-   octet with nothing beyond it, etc.). None of this module's own 27 arms can trigger this
-   (all ≤ 26), but a decoder MUST still check it generically, because the reserved range
-   `[27]`–`[62]` and any future extension will use the multi-byte form and a non-minimal
+   octet with nothing beyond it, etc.). None of this module's own 28 arms can trigger this
+   (all ≤ 27), but a decoder MUST still check it generically, because the reserved range
+   `[28]`–`[62]` and any future extension will use the multi-byte form and a non-minimal
    encoding of *those* tag numbers is exactly the same hazard once they're allocated.
+   *(v0.2: let delta B.1)*
 2. **Non-minimal length encoding.** Any DER length using long form (X.690 §8.1.3.5) where
    the value fits short form (`< 128`), or any definite-length encoding that is not the
    shortest possible representation of that length. Worked reject example, §B.10.5.
 3. **Non-minimal `INTEGER` content.** Any `LIT_INT`/`CallNode.functionId`/
-   `CelFilterRecord.formatVersion` whose two's-complement content octets carry a redundant
+   `CelFilterRecord.formatVersion`/`REF` index (v0.2) whose two's-complement content octets
+   carry a redundant
    leading `0x00` or `0xFF` byte (X.690 §8.3.2) — DER `INTEGER` content MUST be the
-   shortest two's-complement form.
+   shortest two's-complement form. A `REF` index of 128 or more needs a leading `0x00` (its
+   top bit would otherwise read as a sign): `9B 02 00 80` is the canonical encoding of 128,
+   and a decoder MUST NOT reject it for having a leading zero; `9B 02 00 01` (index 1) and
+   `9B 02 00 7F` (index 127) are non-minimal and MUST be rejected. *(v0.2: let delta B.1, R7;
+   review S-m2)*
 4. **Out-of-range `LIT_INT` value.** A `LIT_INT` whose (correctly, minimally encoded)
    value falls outside `[-2^63, 2^63-1]` MUST be rejected — the ASN.1 `INTEGER (…)` range
    constraint states this, but (confirmed §B.13.4) is not mechanically enforced by every
@@ -481,7 +535,7 @@ already rejects:
 7. **Wrong element order where order is semantic.** STD-011's AST has **no** construct
    analogous to STD-006's canonicalise (`set:`/`bag:`/`map:`) collections — every
    multi-element wire structure here (`ListLitNode` elements, `FieldRefNode.steps`,
-   `CallNode.arguments`) is order-**preserving** `SEQUENCE OF`, because expression
+   `CallNode.arguments` and, from v0.2, the `bindings` list) is order-**preserving** `SEQUENCE OF`, because expression
    evaluation order and selector-chain order are themselves semantic (STD-011 §9.3's
    left-to-right, depth-first evaluation-order pin; §8.2's leaf-first selector order).
    There is therefore **no octet-sort/canonical-order reject case applicable to this
@@ -517,6 +571,13 @@ already rejects:
     accept an encoding a strict one rejects), which is the same G1 canonical-form hazard
     every other rule in this section closes — there is no principled reason to hold
     literals and selector names to a laxer standard than candidate string fields.
+11. **Leftover octets.** Octets left over after the last component of a `SEQUENCE`, or
+    after the outermost element of the record, MUST be rejected. Without this, a value
+    has more than one accepted encoding (a canonical one and one with trailing octets),
+    which G1 forbids. The Java decoder already rejects them (`CelDecoder.java:79-81,
+    97-99` for the record and `requireExhausted` (`:511`) for every nested `SEQUENCE`, as read
+   by review F-n8 and RECHECK n2; v0.2: owner round 2 R2-3 n2, Chisel 2026-11-14), so this text catches up with
+    the code. *(v0.2: owner decision 2, review F-n8, Chisel 2026-11-14)*
 
 ---
 
@@ -530,8 +591,9 @@ Several are also re-checked by T6 (§12.2/§12.3's stated "belt and braces … o
 ### B.6.1 Closed node set, hard reject (STD-011 §11.3 item 2)
 
 Automatic in the `CHOICE` form (§B.13.1 empirically confirms this for both a reserved-gap
-tag and an out-of-range tag): any `ExprNode` tag not in §B.4.1's 27-entry table — including
-every tag in `[27]`–`[62]` and every tag `> 62` — is a `CHOICE` decode error, full stop. The
+tag and an out-of-range tag): any `ExprNode` tag not in §B.4.1's 28-entry table (v0.1: 27) —
+including every tag in `[28]`–`[62]` (v0.1: `[27]`–`[62]`) and every tag `> 62` — is a
+`CHOICE` decode error, full stop. The
 same applies to `SelectorStep` (2 arms), `InListOperand` (2 arms), and `DeclaredResultType`
 (4 arms): each is independently closed.
 
@@ -559,13 +621,19 @@ bare grammar). Reject vector: §B.11 item 2.
 
 Three structural ceilings apply at decode (a fourth, `maxExprCost`, is a T6 post-decode
 computation over the whole AST, per STD-011 §10.5, out of T2's scope — noted so the
-boundary is explicit, not implied):
+boundary is explicit, not implied). **v0.2:** two more are enforced at decode, `maxBindings`
+and `maxEffectiveDepth` (§B.6.7), and a second T6 computation, `xCost` against
+`maxExpandedCost`, joins `maxExprCost` on the T6 side (STD-011 §12.3); with bindings, the
+counters below run over the whole record, not one expression tree:
 
 - **`maxExprNodes` (1024, [PROPOSED]) [HIGH, board review — counting mismatch with STD-011
   §10.3's own definition, found independently by both review seats].** STD-011 §10.3's
   table defines the unit being counted precisely: "AST node count (**every literal,
   operator, call, selector step, and list element is a node**)." A single running counter,
-  shared across the *entire* decode of one `CelFilterRecord.expression`, decremented once
+  shared across the *entire* decode of one `CelFilterRecord.expression` (v0.2: and of every
+  element of its `bindings` list, so ONE counter across all bodies, each `REF` counting 1,
+  STD-011 §10.3.1; the node counter MUST NOT restart at a body boundary, only the depth counter
+  does, and §B.11 item 7 has the vectors that tell the two apart: review S-M3, F-M3), decremented once
   per `ExprNode` consumed (regardless of kind) counts literals/operators/calls/list-element-
   `ExprNode`s correctly (every `ListLitNode` element is itself an `ExprNode`, so it is
   already counted by ordinary `ExprNode`-consumption), but **does not** count selector
@@ -596,7 +664,9 @@ boundary is explicit, not implied):
   §10.3).
 - **`maxExprDepth` (32, [PROPOSED]).** A depth counter, decremented on **every** recursive
   re-entry into `decode_expr_node`. **Fencepost [LOW, board review]:** the root `ExprNode`
-  consumed from `CelFilterRecord.expression` itself counts as depth 1 — decoding starts the
+  consumed from `CelFilterRecord.expression` itself counts as depth 1 (v0.2: as does the root
+  of every element of `bindings`; the depth counter restarts for each body, and a `REF` is a
+  leaf, so decoding one recurses into nothing, STD-011 §10.3.1) — decoding starts the
   counter at 1 for that first, non-recursive entry, not at 0 — so this is the same inclusive
   convention as `maxExprNodes` above: a decode reaching depth **exactly** `maxExprDepth`
   (32) MUST be accepted, and one whose recursion would reach `maxExprDepth + 1` (33) MUST
@@ -674,9 +744,12 @@ never allocate first and reject after:
   — identical treatment, not a weaker one, because the allocation hazard is identical.
   Reject vectors, §B.11 item 2: an over-length `unqual`/`fieldName` (256 bytes) and an
   over-length `className` (1025 bytes), and an over-length `litString` (65537 bytes).
-- `ListLitNode`, `FieldRefNode.steps`, `CallNode.arguments`: bound the loop by
-  `maxCollection`/`maxSelectorSteps`/2 respectively as each element's length-prefix is
+- `ListLitNode`, `FieldRefNode.steps`, `CallNode.arguments` and, from v0.2,
+  `CelFilterRecord.bindings`: bound the loop by
+  `maxCollection`/`maxSelectorSteps`/2/`maxBindings` respectively as each element's length-prefix is
   read, incrementally, rather than trusting a claimed count up front to size an array.
+  For `bindings` that means the 257th element's TLV is rejected the moment it is read
+  (`maxBindings` = 256, inclusive fencepost). *(v0.2: let delta B.1, R7)*
 - **Empty-collection lower bounds [MED-HIGH, board review — previously stated only in
   ASN.1 `SIZE(1..…)` grammar and in §B.11's conformance commentary, never as an explicit
   normative MUST here].** `ListLitNode` (`SIZE(1..maxCollection)`) and
@@ -690,6 +763,12 @@ never allocate first and reject after:
   the wire-decode-time restatement of the same requirement, per STD-011 §12.1's "MUST be
   enforced by parsers and by T6 on the wire form alike.") Reject vectors, §B.11 item 2:
   empty `ListLitNode` (0 elements) and empty `FieldRefNode.steps` (0 steps).
+  **v0.2:** `CelFilterRecord.bindings` (`SIZE(1..maxBindings)`) has the same lower bound: a
+  present but empty binding list (`30 00`) MUST be rejected as its own, standalone checked
+  step (STD-011 §11.3 item 7): it is the only thing that keeps "no bindings" single-encoded
+  now that no version number guards it (RL-JGDMS-0024), and generic ASN.1 tools do not
+  enforce a `SIZE` lower bound (§B.13.7, the lower-bound probes; v0.2: owner round 2 R2-3 n2, Chisel 2026-11-14). Reject vector: §B.11 item 7. *(v0.2: let delta B.1;
+  RL-JGDMS-0024; review S-m9, F-§2)*
 - `CelFilterRecord` itself and every nested `SEQUENCE`: the outermost length octets bound
   total decode work before any recursive descent begins (X.690 definite-length TLVs make
   this available for free — there is no reason to allocate more than the declared length
@@ -723,7 +802,11 @@ is deliberately generic (one `SEQUENCE` shape for all 24 function ids, per STD-0
 single `CALL` node kind), so this one check is a genuine per-function-id decode-time rule,
 not automatic from the grammar. `startsWith`/`endsWith` (ids 23/24) accept any `string`-
 typed argument in that position (STD-011 §6.6) — no literal restriction, so no
-corresponding check for those two ids.
+corresponding check for those two ids. **v0.2:** a `REF` in the needle position is "any other
+`ExprNode` kind" and is rejected, even when the binding it names is a string literal: this is
+the one excluded position for a `REF` (STD-011 §5.5 item 4) that the wire can represent, and the
+check reads the node kind in the needle position, never the binding behind it. Reject vector:
+STD-011 §13.1, wire form §B.11 item 7. *(v0.2: let delta A.1, R7)*
 
 ### B.6.6 List-literal homogeneity is deliberately not a T2 decode-time check [LOW, board review]
 
@@ -744,6 +827,41 @@ a T2 wire-shape obligation (`SIZE(1..maxCollection)`'s lower bound, §B.6.3) —
 this subsection exists so that split is explicit rather than something a reader has to
 infer from §B.2.3's silence on homogeneity.
 
+### B.6.7 Bindings: decode-time obligations (v0.2)
+
+These are T2's checks for STD-011 §5.5 and §11.3 item 7; the layer split is STD-011 §12.3.
+They run in the order a decoder can make them:
+
+1. **Version and presence.** `formatVersion` is 1, the only accepted value: any other value is
+   rejected by the existing check (RL-JGDMS-0024). `bindings` is ABSENT when there are no
+   bindings (`n` = 0) and present with at least one element otherwise; a present but empty list
+   (`30 00`) is rejected as its own step (§B.6.3). So "no bindings" has exactly one encoding, no
+   list, and such a record is byte-identical to a v0.1 record.
+2. **Binding count.** At most `maxBindings` (256) elements, enforced as the list is read
+   (§B.6.3).
+3. **`REF` index.** A `REF` content is one `INTEGER` of minimal encoding (§B.5 item 3) in
+   `0 … maxBindings − 1`. In the element at position `i` of `bindings` the index MUST be `< i`;
+   in `expression` it MUST be `< n`, the number of bindings. The check is made as each `REF` is
+   decoded, before the next node. The content length (1 or 2 octets) is checked before
+   the value is converted *(v0.2: owner round 2 R2-3 n4, Chisel 2026-11-14)*. An absent `bindings` list means `n` = 0, so every `REF` in
+   `expression` is rejected (its index is `≥ 0`); the check MUST NOT be skipped for lack of a
+   list, or the evaluator would read slot 0 of an empty table. Reject vector: §B.11 item 7.
+   *(RL-JGDMS-0024; review S-m9, F-§2)*
+4. **No alias body.** An element of `bindings` whose root is a `REF` is rejected (STD-011 §5.5
+   item 3). `expression` MAY be a bare `REF`.
+5. **`effDepth`.** As each body is decoded, in declaration order, its `effDepth` is computed
+   from the stored entries of the bodies it references (STD-011 §10.3.1: a `REF` at local depth
+   `d` naming `B_j` contributes `d + effDepth(j)`) and the decode is rejected when
+   `effDepth(expression)` exceeds `maxEffectiveDepth` (64). By monotonicity (STD-011 §10.3.1)
+   the verdict equals a check on `expression` alone; a decoder MAY check each body as it is
+   computed.
+6. **Every binding is referenced.** Checked AFTER `expression` is decoded, because only then
+   is every use known (it cannot be checked "before the next body is decoded"). An unreferenced
+   binding is rejected.
+
+`xCost` against `maxExpandedCost` and `C(E)` against `maxExprCost` are NOT T2's: they are T6's
+(STD-011 §12.3). *(v0.2: let delta B.1, R2, R12, R13)*
+
 ---
 
 ## B.7 Pinned Ceilings — [PROPOSED], and the STD-006 §4.5 Patch Block
@@ -759,6 +877,12 @@ them enforceable on the wire, which §B.6.2/§B.6.3 do):
 | `maxSelectorSteps` | 16 | T2 decode (`FieldRefNode.steps` `SIZE`) | Yes — `SEQUENCE (SIZE(1..16)) OF` |
 | `maxScalarBytes` | 65536 | T2 decode (`LIT_STRING`/`LIT_BYTES` length check) | Yes — bounds an `OCTET STRING`/`UTF8String` TLV length |
 | `maxExprCost` | 1 000 000 | T6 verification (post-decode, §10.5) | No — a computed sum, not a wire ceiling at all |
+| `maxBindings` *(v0.2)* | 256 | T2 decode (`CelFilterRecord.bindings` `SIZE`; `REF` index range) | Yes — `SEQUENCE (SIZE(1..256)) OF`; `ref` is `INTEGER (0..255)` |
+| `maxEffectiveDepth` *(v0.2)* | 64 | T2 decode (`effDepth` of `expression`, §B.6.7 item 5) | No — a value computed over decoded bodies, enforced during decode |
+| `maxExpandedCost` *(v0.2)* | 8 388 608 (2^23) | T6 verification (`xCost` of `expression`, STD-011 §12.3) | No — a computed sum, not a wire ceiling at all |
+
+Values for the three v0.2 rows are STD-011 §10.3's PROPOSED values with their evidence there
+(set from one expression, E2). *(v0.2: let delta C.2, R12)*
 
 Per STD-011 §10.3's `[OPEN → T2]` note and §3.3's honesty condition ("Claim 3 does not
 hold" until `maxScalarBytes` is pinned and enforced on both sides), this appendix pins
@@ -779,10 +903,12 @@ here, per this task's instructions):
 ```
 | Constant | Value | Applies to |
 |---|---|---|
-| `maxExprNodes` | 1024 | JGDMS-STD-011 Appendix B `CelFilterRecord.expression` — total AST node count across one decode |
+| `maxExprNodes` | 1024 | JGDMS-STD-011 Appendix B `CelFilterRecord.expression` and every element of `CelFilterRecord.bindings` (v0.2) — total AST node count across one decode, ONE counter across all of them |
 | `maxExprDepth` | 32 | JGDMS-STD-011 Appendix B `ExprNode` recursion depth (see Appendix B §B.6.2 for the exact recursive positions metered) |
 | `maxSelectorSteps` | 16 | JGDMS-STD-011 Appendix B `FieldRefNode.steps` (`SIZE(1..maxSelectorSteps)`) |
 | `maxScalarBytes` | 65536 | JGDMS-STD-011 Appendix B `LIT_STRING`/`LIT_BYTES` (`ExprNode.litString`/`litBytes`) content-octet length. **Enforced by** T2 decode (this appendix's `LIT_STRING`/`LIT_BYTES` length check, §B.6.3) **only** — mirroring the `maxCollection` row's "Enforced by …" style deliberately, to make the gap the same shape flags: the candidate-projected-scalar-field side of this same ceiling (STD-011 §3.3/§10.3's requirement that it be "enforced on both candidate projected scalar fields and expression literals") is a **separate, still-open STD-006 change**, not enforced by anything in this appendix and not yet enforced by STD-006 either — this row pins the *value* for both sides but only *discharges* the literal side |
+| `maxBindings` *(v0.2)* | 256 | JGDMS-STD-011 Appendix B `CelFilterRecord.bindings` (`SIZE(1..maxBindings)`) and the `ref` arm's index range (`0..255`, that is `maxBindings` minus 1) |
+| `maxEffectiveDepth` *(v0.2)* | 64 | JGDMS-STD-011 Appendix B effective depth of `CelFilterRecord.expression`, computed over the decoded bodies (see Appendix B §B.6.7 item 5 and STD-011 §10.3.1). **A PROPOSAL, pending the STD-006 owner's acceptance** (the same acceptance as the §3.7 note in STD-006's status line): `maxEffectiveDepth` is decode-time metered, like `maxExprDepth`; `maxExpandedCost`, a T6 sum like `maxExprCost`, is not proposed for this table. *(v0.2: owner answer Q7, Chisel 2026-11-14)* |
 ```
 
 ```asn1
@@ -790,13 +916,16 @@ maxExprNodes       INTEGER ::= 1024
 maxExprDepth       INTEGER ::= 32
 maxSelectorSteps   INTEGER ::= 16
 maxScalarBytes     INTEGER ::= 65536
+maxBindings        INTEGER ::= 256
+maxEffectiveDepth  INTEGER ::= 64
 ```
 
 Note `maxExprCost` is deliberately **not** proposed for the STD-006 §4.5 table: every
 existing entry in that table bounds a wire-decodable quantity (a field length, a
 recursion/nesting depth); `maxExprCost` bounds a *computed* value over an already-decoded
 AST (STD-011 §10.2's cost sum) and has no wire representation to size — it belongs in
-STD-011's own text (already does, §10.3) and not in STD-006's ceilings table.
+STD-011's own text (already does, §10.3) and not in STD-006's ceilings table. The same holds
+for the v0.2 `maxExpandedCost` (a computed sum over decoded bodies, T6's). *(v0.2: let delta C.2)*
 
 ---
 
@@ -903,9 +1032,34 @@ proceeding anyway — that "unknown ⇒ defer" exists to forbid.
 
 ## B.9 The Envelope, and Integrity Posture (STD-009 RULE-D1)
 
-`CelFilterRecord` (§B.3) is the parameter shape: `formatVersion` (this appendix pins `1`),
-`context` (predicate/transform, with the transform arm carrying the declared result type),
-and `expression` (the `ExprNode` tree).
+`CelFilterRecord` (§B.3) is the parameter shape: `formatVersion` (this appendix pins `1`, the only
+accepted value), `context` (predicate/transform, with the transform arm carrying the declared
+result type), `bindings` (v0.2; OPTIONAL: absent when there are no bindings, present and non-empty
+otherwise) and `expression` (the `ExprNode` tree, the main body).
+
+**Presence, version and consumer policy (v0.2).** `formatVersion` stays **1**, the only accepted
+value, and the module OID arc stays `v1(1)` (§B.3): no backward compatibility is required before
+JGDMS 4.0.0 (RL-JGDMS-0024, 2026-11-14), so there is no second version, no version coupling and no
+"lowest version" rule. The list is absent exactly when there are no bindings, so "no bindings" has
+exactly one encoding, and a record without bindings is byte-identical to a v0.1 record. Two decode
+rejections stand on their own (§B.6.3, §B.6.7): a present but empty list (`30 00`), and a `REF` in
+`expression` when the list is absent. *(Informative: a v0.1 decoder also fails closed on a record
+with bindings, by tag. It reads the list's universal tag `0x30` where it expects an `ExprNode`, or
+the `REF` tag `[27]`, which is outside its table; the reviewers read `wire/CelDecoder.java:154-158`
+at base `7ccf90bb9`, not run.)* The owner answer Q6, which bumped the OID arc to `v2(2)` and
+coupled it to `formatVersion`, is WITHDRAWN by RL-JGDMS-0024.
+Two consumer-policy rejections sit beside this, neither a decode defect nor a language rule:
+
+- A consumer MAY refuse any record that carries a binding list (for example Outrigger predicates,
+  until one needs it). That is a registration rejection.
+- A consumer whose evaluator cannot evaluate a registry function (for example a Java
+  `Evaluator` with no `MathProvider`) MAY refuse, at registration, any expression that calls it.
+  STD-011's registry is closed and evaluation is total (§9.1), so an evaluator that cannot
+  evaluate a registry function is defective, not a variant, and this is a policy of the
+  consumer, not a rule of the language (STD-011 §6.9). The strength is MAY.
+  *(v0.2: owner answer Q8, Chisel 2026-11-14; review F-m7)*
+
+*(v0.2: let delta B.1, R13, R22; RL-JGDMS-0024)*
 
 **No separate signature or digest field.** STD-009 §8's filter contract states the filter
 "rides the existing DER stream" and RULE-D1 (STD-009 §10, table row) already requires the
@@ -1058,7 +1212,7 @@ standing H1 warning.
 
 ### B.10.6 REJECT — unknown node tag
 
-Context tag `40` (within the `[27]`–`[62]` reserved block), constructed, high-tag-number
+Context tag `40` (within the `[28]`–`[62]` reserved block; v0.1: `[27]`–`[62]`), constructed, high-tag-number
 form (`40 ≥ 31`): first byte `0xBF` (context class, constructed, low-5-bits all-ones =
 high-tag-number marker), second byte `0x28` (40 in base-128, single byte since `< 128`),
 empty content: `BF 28 00`.
@@ -1074,8 +1228,8 @@ special-case code required in a correctly-generated decoder.
 
 Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
 
-1. **Encode/decode round-trip, one vector minimum per each of the 27 `ExprNode` kinds**
-   (§B.4.1), plus `SelectorStep` both arms, `InListOperand` both arms, `DeclaredResultType`
+1. **Encode/decode round-trip, one vector minimum per each of the 28 `ExprNode` kinds**
+   (§B.4.1; v0.1: 27, v0.2 adds `REF`), plus `SelectorStep` both arms, `InListOperand` both arms, `DeclaredResultType`
    all four arms, and both `EvaluationContext` arms (12 result-type/context combinations:
    5 scalar × predicate-N/A + nullType + listType×5 + objectType, crossed with
    predicate/transform as applicable — predicate is always just the one `NULL` arm).
@@ -1093,7 +1247,7 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
    - **Non-minimal `ENUMERATED` encoding** (§B.5 item 9, `ScalarType`): `82 02 00 02`
      (`listType`, a redundant leading `0x00` byte) where the canonical encoding of the same
      value (`doubleT = 2`) is `82 01 02`.
-   - Unknown node tag: both a reserved-gap tag (`[27]`–`[62]`, §B.10.6's exact bytes) and
+   - Unknown node tag: both a reserved-gap tag (`[28]`–`[62]`; v0.1: `[27]`–`[62]`; §B.10.6's exact bytes) and
      an out-of-range tag (`> 62`) — tested separately, since a decoder that special-cased
      "reject only if beyond the reserved block" would wrongly accept a reserved-gap tag.
    - Unknown `CallNode.functionId` (`0`, `25`, `1000`).
@@ -1137,6 +1291,57 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
    explicit: T2 bounds the needle literal's raw length (`maxScalarBytes`, structural); T6
    computes and bounds the resulting cost term (`maxExprCost`, arithmetic) over the AST
    T2 already accepted.
+7. **Binding vectors (v0.2).** The full vector table, with what each one flips on, is STD-011
+   §13.1; this item adds the wire-level specifics a T2 decoder is tested with. The byte
+   strings below are hand-derived from X.690 and §B.4.1, **not run through any codec**:
+   - `REF` canonical encodings (tag `0x9B`): index 0 `9B 01 00`; 127 `9B 01 7F`; 128
+     `9B 02 00 80`; 255 `9B 02 00 FF`. The last three are the accept vectors for "127, 128
+     and 255" (128 and above need the leading `0x00`, §B.5 item 3), each in a position and
+     record where the index is below the body's position and within `maxBindings − 1`
+     (index 255 needs a record of 256 bindings).
+   - Reject, `REF` index, each placed so that only this check can fire (the index is
+     otherwise valid, and every binding is referenced):
+     - non-minimal `9B 02 00 01` (index 1) in body 2 or later, or in `expression` with at least
+       2 bindings; and `9B 02 00 7F` (index 127) where 127 is a valid index. A range reject
+       must not be able to hide it (review F-m5 (ii), S-m2).
+     - negative: in the 256-binding accept record, encode the reference to binding 128 as
+       `9B 01 80` (minus 128). Healthy: reject. A decoder that reads the content unsigned
+       reads 128, which is in range and leaves every binding referenced, and accepts (review
+       F-m5 (i)). `9B 01 FF` (minus 1) is the plain negative.
+     - above `maxBindings − 1`, `9B 02 01 00` (256).
+     - equal to or above its own body's position, and `REF(n)` in `expression` (§B.6.7
+       item 3; STD-011 §13.1 gives the isolating constructions).
+   - Reject, malformed `REF` forms, each placed where index 0 is valid and is `B_0`'s only use
+     (so no other check can fire): zero-length content `9B 00`; the constructed form `BB 01 00`
+     (leading octet `0xBB`, which is not in §B.4.1's table; a decoder that ignores the
+     constructed bit reads `REF(0)` and accepts); and content of more than 2 octets, minimal and
+     in range after a wrap: `9B 05 01 00 00 00 00` (2^32, reads 0 in a 32-bit conversion) and
+     `9B 09 01 00 00 00 00 00 00 00 00` (2^64, reads 0 in a 64-bit conversion), rejected on
+     their length before the value is converted (review F-m5 (iv); v0.2: owner round 2 R2-3 m3,
+     Chisel 2026-11-14).
+   - Reject, leftover octets (§B.5 item 11): a record that is otherwise accepted, followed by
+     one extra octet `00`, and followed by a whole extra element `30 00`; leftover octets after
+     the last component of a nested `SEQUENCE` (its length covers one octet more than its
+     components) are rejected the same way. Healthy: reject. A decoder that stops at the last
+     component accepts (v0.2: owner round 2 R2-4, Chisel 2026-11-14).
+   - Reject, presence: `bindings` present but empty (`30 00`) with `expression` a plain
+     literal; a `REF` in `expression` (`9B 01 00` alone) with `bindings` absent; `formatVersion`
+     2 (`02 01 02`) and 3 (`02 01 03`), that is, any value other than 1. Accept: `bindings`
+     present with one binding and one use (RL-JGDMS-0024; review S-m9, F-§2).
+   - Reject, structure: an unreferenced binding; an alias body (§B.6.7 items 4 and 6).
+   - Reject: `contains` (`functionId = 22`) whose `arguments[1]` is a `REF`, as a v0.2 variant
+     of the `contains` probe in item 2 (§B.6.5).
+   - Boundary pairs and records: 256 accepted and 257 rejected bindings (§B.6.3, §B.6.7
+     item 2; the 257 case is also out of range for the last `REF`, so it does not isolate a
+     missing size check, and "reject before allocation" is not observable by accept or
+     reject); `effDepth` of `expression` 64 accepted and 65 rejected (§B.6.7 item 5); the
+     node-count pair across bodies (1,024 accepted, 1,025 rejected) and the 262,399-node
+     record, which tell ONE node counter from a counter that restarts at each body
+     (§B.6.2; STD-011 §13.1; review S-M3, F-M3). The `maxExpandedCost` pair, the
+     64-bit `xCost` record and every `C(E)` and `xCost` vector are T6's, not T2's
+     (STD-011 §13.1, §12.3).
+
+   *(v0.2: let delta E, R7, R12, R13; RL-JGDMS-0024)*
 
 ---
 
@@ -1153,13 +1358,23 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
 4. The `CALL` function-id table (§B.8.3), including the `min`/`max`/`sin`/`cos`/`tan`/
    `asin`/`acos` id-splitting fix (§B.8.1) and the new `contains`/`startsWith`/`endsWith`
    ids (§B.8.2).
-5. `formatVersion = 1` as this appendix's own pinned value for `CelFilterRecord`.
+5. `formatVersion = 1` as this appendix's own pinned value for `CelFilterRecord`, and from
+   v0.2 the only accepted value, with `bindings` OPTIONAL (§B.9; RL-JGDMS-0024).
 6. **Name-length ceilings [board review, fix item 2]:** `SelectorStep.unqual`
    `SIZE(1..255)`, `QualifiedSelector.fieldName` `SIZE(1..255)`, `QualifiedSelector.className`
    `SIZE(1..1024)` (§B.3, §B.6.3) — proposed as aligning with STD-006 §7.8's
    `AtomicSerialFieldDef` ceilings, not independently derived, so their ratification is a
    single decision alongside `AtomicSerialFieldDef`'s existing values rather than a fresh
    number to litigate.
+7. **v0.2 binding wire form:** the `REF` arm at `[27]` (§B.4.1), the `bindings` list between
+   `context` and `expression` (§B.3), the OPTIONAL presence rule (§B.9), the three new ceilings
+   `maxBindings`, `maxEffectiveDepth` and `maxExpandedCost` (§B.7; values and their single
+   use-case evidence are STD-011 §10.3's), and the decode-time obligations of §B.6.7. All of
+   it is derived from the let delta and **has not been ratified or re-reviewed after its fix
+   round**; the editor's eight questions were answered by the owner (Chisel, 2026-11-14) and
+   are applied, each tagged `owner answer Qn`, except Q6 (the OID bump), which RL-JGDMS-0024
+   withdrew: the module OID arc stays `v1(1)` (§B.3).
+   *(v0.2: let delta B.1, C.2, R12, R13; owner answers Q7, Q8; RL-JGDMS-0024)*
 
 **[OPEN] — named owning task, not resolved here:**
 
@@ -1183,6 +1398,16 @@ Per STD-011 §13, the corpus MUST include, for this wire encoding specifically:
 ---
 
 ## B.13 Appendix — Full Validation Transcript (for reviewer reproduction)
+
+**v0.2: this transcript is the v0.1 module's, and is left as it was.** It was produced against
+the v0.1 §B.3 module (27 `ExprNode` arms, no `bindings` field, no `maxBindings`). The v0.2 module
+has not been compiled or probed (§B.3's v0.2 status note), so nothing below, including every
+probe result and the byte-for-byte hex checks, is a statement about the `REF` arm or the
+`bindings` list. A v0.2 transcript, produced by extracting the v0.2 §B.3 text exactly as
+printed, is owed before ratification. The module OID arc stays `v1(1)` (RL-JGDMS-0024), so the
+same identifier now names the v0.2 content: this v0.1 transcript and the July compile record in
+`JGDMS-STD-006-v0.13-validation.md` ("2026-07-24 sync") describe the v0.1 content under it, and
+the owed recompile replaces both. *(v0.2: let delta R13; review S-§1a)*
 
 **Honesty note on this revision's transcript [board review, fix item 1].** The transcript
 in the prior (pre-board-review) revision of this appendix was produced against a locally
@@ -1352,6 +1577,6 @@ free grammar check, for exactly the same reason §B.13.3 already demonstrated fo
 
 ---
 
-*End of Appendix B, v0.1-DRAFT. No production code was written or modified in producing
-this document; the ASN.1 module above was validated with `asn1tools` 0.167.0 only, as
-described in §B.13.*
+*End of Appendix B, v0.2-DRAFT. No production code was written or modified in producing
+this document; the v0.1 ASN.1 module was validated with `asn1tools` 0.167.0 only, as
+described in §B.13, and the v0.2 module has not been compiled.*

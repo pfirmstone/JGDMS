@@ -14,8 +14,9 @@
 > CEL.)*
 
 **Status:** Draft (T1 deliverable of `SOW-CEL-Filter-Format.md`); board-reviewed 2026-07-20, fix list applied this revision — see editorial note below. **Ratified by Peter 2026-07-20:** the DETERMINISTIC CEL name (title note), the closed platform function registry (§7), and §7.5 option (a) — correctly-rounded transcendentals. Remaining open items are routed to B1/T2/T5/T6/T7 (§15).
-**Version:** 0.1-DRAFT
-**Date:** 2026-07-20
+**v0.2-DRAFT (2026-11-14) adds bounded local bindings** (new §5.5; the `cel.bind` text form in §5.3 and §5.3.4; the `REF` node in §11.1; the binding list on the wire, §11.3 item 7 and Appendix B). Direction ruled RL-JGDMS-0022 (bindings yes; `maxExprNodes` stays 1,024); text syntax ruled RL-JGDMS-0023 (option (b): `cel.bind` on the outer spine only); no backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024: `formatVersion` stays 1, the only accepted value, and the binding list is OPTIONAL). **The v0.2 text is NOT ratified and has NOT been re-reviewed after its fix round.** It was edited from `STD011_v0.2_LET_DELTA.md` (Chisel, claude-opus-5-5; sections A-G revision 0 and R1-R26 revision 1, where R supersedes A-G), and every changed passage ends with a provenance tag `(v0.2: let delta ...)` naming the delta item; the tags are review scaffolding (the letters after "let delta" name the DELTA's own sections; tags `review S-x` and `review F-x` name findings of `REVIEW_SPEC_SONNET.md` and `REVIEW_SPEC_FABLE.md`, and the older `review F D..`, `review S N-..` cite the delta reviews). The file name keeps `v0.1` so that existing links hold. Eight points on which the delta was ambiguous were put to the owner and answered by Chisel on 2026-11-14; each answered passage carries the tag `(v0.2: owner answer Qn, Chisel 2026-11-14)` (Q6, the module OID bump, was withdrawn by RL-JGDMS-0024), and no open editor question remains in this standard, Appendix B or the ASN.1 file.
+**Version:** 0.2-DRAFT
+**Date:** 2026-07-20 (v0.1); 2026-11-14 (v0.2 edit)
 **Author:** Peter Firmstone + Claude
 **Applies to:** JGDMS 4.0.0+, DirtyChai (JDK fork), and non-JVM JGDMS participants (Rust evaluator, T4)
 **Depends on:** JGDMS-STD-006 (ATOMIC DER Wire Format — the type substrate, §3.12, and the profile ceilings, §4.5), JGDMS-STD-009 (Service & Remote-Function Annotation Model — §8's 2026-07-17/2026-07-20 decision notes, the consumer-facing contract)
@@ -87,10 +88,14 @@ disposition of errors (§9.4, §9.5).
 ### 1.2 What this deliberately is not
 
 - **Not a scripting or query language.** There are no loops, no comprehensions, no
-  user-defined functions, no variables, no assignment, no state (§3, §5.4).
-- **Not CEL-with-extensions.** CEL's macros (`all`, `exists`, `exists_one`, `map`,
+  user-defined functions, no assignment, no rebinding, no parameters, no nested
+  scopes, no state (§3, §5.4). The only named values are the flat, backward-only
+  bindings of §5.5. *(v0.2: let delta A.1)*
+- **Not CEL-with-extensions**, except `cel.bind` on the outer spine only (§5.3.4).
+  CEL's macros (`all`, `exists`, `exists_one`, `map`,
   `filter`) and `matches()` are **excluded** (§5.4) — they are precisely the parts of
-  CEL whose cost is not linear in expression size.
+  CEL whose cost is not linear in expression size. *(v0.2: owner answer on §1.2,
+  Chisel 2026-11-14)*
 - **Not a smart proxy.** Per `SOW-Smart-Proxy-Isolation-Architecture-Overview.md`
   §1a, anything needing state, I/O, or iteration is outside this format by
   construction, not by policy.
@@ -125,7 +130,7 @@ be added to this language by any future revision without extending the theorem.
 | **Platform function** | A member of the closed, platform-provided function registry (§7). Never user-supplied, never wire-extensible. |
 | **Well-formed** | Passing every check in §12.1–§12.3 (structural well-formedness + allowlist + ceilings). Evaluation semantics are defined only for well-formed expressions. |
 | **Verified** | Well-formed and, where a registration-time schema is available, statically typed against it (§12.4). |
-| **Ceilings** | The profile constants bounding expression and data size: STD-006 §4.5's table plus this standard's `maxExprNodes`, `maxExprDepth`, `maxSelectorSteps`, `maxScalarBytes` (§10.3). |
+| **Ceilings** | The profile constants bounding expression and data size: STD-006 §4.5's table plus this standard's `maxExprNodes`, `maxExprDepth`, `maxSelectorSteps`, `maxScalarBytes` and, from v0.2, `maxBindings`, `maxEffectiveDepth`, `maxExpandedCost` (§10.3). |
 | **Correctly rounded** | Producing, for given IEEE-754 binary64 argument(s), the binary64 value nearest the exact mathematical result (ties to even). |
 
 ---
@@ -141,17 +146,22 @@ For every well-formed expression `E` and every candidate projection `P`:
    constants of this standard, and affects nothing. Two evaluations of the same
    `E` over the same `P` yield the identical result (value or error), on any
    conformant implementation, in any language, on any hardware.
-3. **Bounded cost.** Evaluation completes within `C(E)` abstract cost units, where
+3. **Bounded cost.** Evaluation by a conformant evaluator (§6.9, resource rule 1)
+   completes within `C(E)` abstract cost units, where
    `C(E)` is computed from `E` and the profile ceilings **alone** (no candidate
    needed), by the algorithm in §10. The normative bound is exactly what §10
-   enforces: the statically computable `C(E) ≤ maxExprCost` gate (§10.5) — not
+   enforces: the statically computable `C(E) ≤ maxExprCost` gate (§10.5) and, for
+   an expression with bindings, the second gate `xCost(M) ≤ maxExpandedCost`
+   (§10.3.1, §10.5) — not
    an asymptotic characterization. (An earlier draft of this claim stated
    `C(E) ∈ O(|E| × S)`; that is false as written, because the `in`-over-list-
    field term additionally scales with `maxCollection` independent of `|E|`,
-   §10.2/§10.4 — corrected here rather than left standing.)
+   §10.2/§10.4 — corrected here rather than left standing.) The second gate is
+   the bound for a defective evaluator that re-evaluates a body at each use
+   (§10.5). *(v0.2: let delta C.3, R5)*
 4. **Bounded allocation.** Evaluation allocates memory bounded by
-   `O(maxExprDepth + |E| × S)` — proportional to expression size and input scalar
-   sizes only, never to any adversary-scalable quantity beyond them.
+   `O(maxEffectiveDepth + |E| × S + maxBindings)` — proportional to expression size and input scalar
+   sizes only, never to any adversary-scalable quantity beyond them. *(v0.2: let delta R20)*
 
 These are the properties the SOW names "bounded-by-construction, not
 bounded-by-runtime-gate": no watchdog, fuel meter, or timeout is required for the
@@ -166,10 +176,17 @@ correctness never depends on it).
 **Argument.** By structural induction over the closed AST node inventory of §11.1,
 plus a closed-world premise:
 
-*(i) The AST is a finite tree of bounded size.* T2's wire form is acyclic and
-definite-length by STD-006 construction; §12.3 caps node count at `maxExprNodes`
-and depth at `maxExprDepth`. There is no sharing, no back-reference, no cycle
-(STD-006 §3.7 applies to the expression encoding as to every ATOMIC DER value).
+*(i) The AST is a sequence of `n + 1` finite trees of bounded size* (the `n`
+bindings, `0 ≤ n ≤ maxBindings`, and the main body; §5.5). T2's wire form is
+acyclic and definite-length by STD-006 construction; §12.3 caps the node count,
+summed over all trees, at `maxExprNodes` and each tree's depth at `maxExprDepth`.
+A `REF` in tree `k` names a tree `j < k`, its index checked when it is decoded
+(review F-n6),
+so the reference graph is acyclic and every index resolves to a completed,
+immutable tree. The encoding has no other sharing, back-reference or cycle
+(STD-006 §3.7 applies to the expression encoding as to every ATOMIC DER value,
+with the binding list as its second permitted exception, argued in STD-006 §3.7
+as amended for v0.2). *(v0.2: let delta C.4 (i), B.2)*
 
 *(ii) Evaluation is structural recursion that visits each node at most once.*
 The semantics in §6–§9 define each node's result purely as a function of its
@@ -178,9 +195,19 @@ evaluates no children; unary operators evaluate their one child once; binary
 operators evaluate each child at most once (`&&`/`||` and `in` may skip a child;
 none evaluates a child twice); the conditional evaluates its condition once and at
 most one branch once; a function call evaluates each argument once; `has()` and
-field references perform lookups, evaluating nothing. **No node type's semantics
-re-enters any node.** Hence total node visits ≤ `|E|` and evaluation stack depth ≤
-AST depth ≤ `maxExprDepth` (claim 1, and the stack part of claim 4).
+field references perform lookups, evaluating nothing; a `REF` evaluates no child
+of its own, it yields the stored outcome of its body. **No node type's semantics
+re-enters any node.** Under resource rule 1 (§6.9) each of the `n + 1` trees is
+evaluated at most once per evaluation and a later `REF` reads the stored
+outcome. Hence total node visits ≤ `|E|` (claim 1). The evaluation stack never
+exceeds the effective depth (§10.3.1), whichever strategy is used: a lazy
+walker's nesting, counted in node visits, equals the effective depth exactly
+(a `REF` counts as one level), and an eager evaluator's is at most
+`maxExprDepth`; so stack depth ≤ `maxEffectiveDepth` (the stack part of claim 4).
+Without rule 1, node visits are bounded by the expanded node count, which
+`maxExpandedCost` bounds, to within a factor of 2 for the `REF` visits (§10.5),
+because every non-`REF` node VISIT costs at least 1.
+*(v0.2: let delta C.4 (ii), R1, R20)*
 
 *(iii) Per-node work is bounded independently of anything adversary-scalable.*
 Excluding child evaluation: scalar arithmetic, comparisons, boolean operators, and
@@ -193,11 +220,13 @@ sizes by `maxCollection` (STD-006 §4.5), scalar sizes by `maxScalarBytes` (§10
 literal sizes by `|E|`. Every platform function (§7) is a finite, loop-free-in-the-
 adversary-controlled-dimension numeric procedure on fixed-width binary64 values
 (argument reduction in a correctly-rounded `sin` iterates over the fixed 64-bit
-exponent range, a constant, never over input length). Summing the per-node bounds
-gives `C(E)` (§10) — claim 3.
+exponent range, a constant, never over input length). A `REF`'s own work is one
+slot read; its body's work is charged once, under rule 1 (§6.9). Summing the
+per-node bounds gives `C(E)` (§10) — claim 3. *(v0.2: let delta R20)*
 
 *(iv) Allocation.* The only allocating constructs are list-literal construction
-(≤ `|E|` slots) and boxing of scalar results (O(1) each, ≤ one per node visit).
+(≤ `|E|` slots), boxing of scalar results (O(1) each, ≤ one per node visit), and
+one outcome slot per binding (≤ `maxBindings`). *(v0.2: let delta C.4 (iv))*
 No node concatenates, copies, or builds strings/bytes/collections: `+` is numeric-
 only (§6.3; string/list/bytes concatenation is excluded, a deliberate divergence
 from CEL). The projection `P` is decoded once by the STD-006 codec under its own
@@ -207,20 +236,26 @@ ceilings, before evaluation, and is read-only during it. Claim 4.
 error: there is no assignment (no syntax for it), no mutation (the projection is
 immutable; no node writes), no I/O (no node performs any), no clock, randomness,
 or environment access (no such function is in the registry, and §7.1 requires
-registry functions to be pure and deterministic). Claim 2's determinism
+registry functions to be pure and deterministic). A binding's outcome slot is
+written once per evaluation with its body's outcome and is invisible outside that
+evaluation (§9.6); by claim 2 the write cannot be observed, so purity holds.
+Claim 2's determinism
 additionally requires the numeric semantics of §4.3 and §7 to be exact or
 correctly rounded, which they are by construction (§4.3) or by mandate (§7.5).
+*(v0.2: let delta C.4 (v))*
 
 *(vi) Closed world.* The induction is exhaustive because the construct set is
 closed at three independent layers: the grammar (§5) generates only the node
 inventory of §11.1; T2 MUST reject any wire node type or function identifier
 outside this standard (§11.3); §12.2 re-checks the function allowlist at
 verification. There are **no loops, no comprehensions or macros, no recursion, no
-user-defined or wire-supplied functions, no variables, no assignment** — not as
+user-defined or wire-supplied functions, no assignment, no parameters, no nested
+scopes, no rebinding** — not as
 banned features but as absent productions: the grammar has no syntax and the AST
-no node type through which they could be expressed. A malformed encoding cannot
+no node type through which they could be expressed. The closed world gains exactly
+one leaf kind, `REF`, which takes no operand and no parameter. A malformed encoding cannot
 smuggle them in, because an unknown node type is a hard decode reject (§11.3),
-never a skip or a default. ∎
+never a skip or a default. ∎ *(v0.2: let delta C.4 (vi))*
 
 **Precedent (informative).** This is the same boundedness design Kubernetes relies
 on for CEL in admission control: cost is estimated statically from the expression
@@ -492,7 +527,8 @@ unchanged. The converse does not hold: text a CEL developer might legally write
 can be **rejected** here — the §5.4 exclusions (macros, `matches()`, `[]`
 indexing, map literals, concatenating `+`, `u` suffixes, raw strings), chained
 relations (a parse error here, a type error in CEL), and the §5.3.1 constraints
-(literal-only `contains` needle, `field(...)` literal arguments). Every such
+(literal-only `contains` needle, `field(...)` literal arguments), and the §5.3.4 binding rules (Appendix A row 12;
+*v0.2: owner decision 3, review S-m8, Chisel 2026-11-14*). Every such
 rejection is loud, at parse or verification time — never a silently different
 runtime meaning. There is exactly **one** syntax; "DETERMINISTIC CEL syntax"
 never means new notation, only fewer accepted sentences and pinned semantics
@@ -575,6 +611,28 @@ above (`Relation` admits at most one `RelOp`) — the mistake is unrepresentable
 rather than merely ill-typed (divergence from CEL, which parses it and fails
 type-checking; per G7, construction beats vigilance).
 
+**Start symbol and bindings (v0.2).** The start symbol is `Program`; `Expr` above is
+unchanged, and a text with no `cel.bind` is an `Expr` and denotes a v0.1 expression.
+
+```ebnf
+Program         ::= BindCall | Expr
+BindCall        ::= "cel" "." "bind" "(" IDENT "," Expr "," Program ")"
+```
+
+`BindCall` is CEL's `cel.bind(name, init, result)` restricted to the **outer spine**:
+the `result` position holds the next `BindCall` or the main body, and `init` is a
+plain `Expr`, so a `Program` has the shape `cel.bind(a, e1, cel.bind(b, e2, M))`.
+A `Program` of `n` nested `BindCall`s denotes the `n` bindings `B_0 … B_(n-1)`, in
+source order, and the main body `M` (§5.5). A text that begins with the tokens
+`cel` `.` `bind` `(` is a `BindCall`. The `Postfix` production would also derive
+that text (a field reference `cel` followed by a method call `bind`), and §5.3.1
+item 1 rejects that derivation, so the two derivations never both succeed. The
+tokens `cel` and `bind` are matched by spelling, as `IDENT` lexemes (`cel` is not a
+reserved word, §5.3.4 item 2(f)), and only at that start-symbol or spine position.
+The binder `IDENT` is a name that is not a reserved word (§5.2). Names, scope and
+the parse-time rejections are §5.3.4. *(v0.2: let delta R14, A.2; review S-m3,
+F-n5)*
+
 #### 5.3.1 Post-parse well-formedness constraints on the syntax
 
 The grammar above over-generates; the following constraints are part of
@@ -586,12 +644,17 @@ form alike:
    (§7.2). A `Postfix` call `. IDENT ( … )` (a method call) is well-formed only if
    `IDENT` is one of: `contains`, `startsWith`, `endsWith`, `field`. Arities per
    §6/§7. Any other call target is a well-formedness error — there is no
-   user-function call form at all.
+   user-function call form at all. `cel.bind(…)` is well-formed only as the
+   `BindCall` of the start symbol (§5.3); anywhere else it is a method call `bind`
+   on a field reference `cel`, which the previous sentence rejects.
+   *(v0.2: let delta A.2)*
 2. The argument of `has(...)` MUST be a field designator (§5.3.3).
 3. Both arguments of every `field(...)` form (global or method) MUST be string
    literals (§8.3) — never computed.
 4. The needle (argument) of `.contains(...)` MUST be a string literal (§6.6).
-5. A bare `IDENT` not in call position is a field reference (§8.2).
+5. A bare `IDENT` not in call position is a field reference (§8.2), unless it
+   spells a bound name that is in scope (§5.3.4), in which case it is a `REF`
+   (§5.5). *(v0.2: let delta A.2)*
 6. `in`'s right operand must be a `ListLiteral` or a field designator (§6.5).
 
 #### 5.3.2 List literals
@@ -618,6 +681,90 @@ designator is also an ordinary `Postfix` expression — this production defines 
 *restriction*, not new syntax. Method-call selectors other than `field(...)`
 disqualify a term from being a designator.
 
+#### 5.3.4 Bindings in the text form: names, scope and parse-time rejections (v0.2; text form only)
+
+Bound names exist only in the text form. A `REF` carries an index and names are
+never on the wire (§11.1), so this subsection binds parsers and printers, not T2 or
+T6, and nothing in it can be checked on a wire expression.
+
+1. **Scope and resolution.** The name bound by the `k`-th `BindCall` of a spine
+   (`k` counted from 0) is in scope in the `init` of every later `BindCall` of that
+   spine and in the main body. It is not in scope in its own `init` or in an
+   earlier one. A bare `IDENT` not in call position that spells a name in scope is
+   `REF(k)`, fixed by the parser at parse time; any other bare `IDENT` is a field
+   reference (§8.2). A name is resolved once, at parse, so no candidate and no
+   schema can change what it means. This is CEL's own scoping rule for `cel.bind`.
+2. **Parse-time rejections.** A parser MUST reject, loudly at parse and never by
+   partial acceptance (§5.1):
+   - (a) a name bound twice in one spine;
+   - (b) a `cel.bind` anywhere but the outer spine (§5.3.1 item 1);
+   - (c) a bound name that is never used (the text form of §5.5 item 2);
+   - (d) a bound name used as a selector root (`p.x`, `p.field(…)`), as `has()`'s
+     target, or as `in`'s list operand (the positions §5.5 item 4 excludes; a bound
+     name in `contains`'s needle or in an argument of `field(…)` is already rejected
+     by §5.3.1 items 3-4, because it is not a string literal);
+   - (e) a bound name that also occurs as an unqualified field reference anywhere
+     in the same text. Only an unqualified field reference counts, that is, a
+     selector ROOT that is not a bound name in scope. A non-root step, such as `a`
+     in `p.a`, is a member name: it is never resolved against bindings and carries
+     one meaning, so it does not count. The printer of item 4 may stay conservative
+     and count every unqualified step; that only lengthens printed names, and the
+     round-trip identity still holds. This is a lexical no-clash rule, decidable
+     without a schema. It removes the two meanings of one spelling in
+     `cel.bind(a, a + 1, a)`, where the first `a` is a field and the other two are
+     the binding. Under it a bound name hides no field; a field of that name stays
+     reachable as `field(…)` (§8.3). *(v0.2: owner answer Q1, Chisel 2026-11-14)*;
+   - (f) `cel` as a bound name. `cel` is NOT a reserved word (§5.2): it is rejected
+     only as a bound name. `cel.bind(` is recognised as the macro only at an
+     outer-spine position (§5.3); elsewhere a `cel.bind` call is rejected by (b).
+     A field whose root is spelled `cel` keeps its v0.1 meaning.
+     *(v0.2: owner answer Q2, Chisel 2026-11-14)*;
+   - (g) an `init` that, with its parentheses removed, is a bare bound name (the
+     text form of §5.5 item 3, an alias body; `cel.bind(b, (a), …)` is the same
+     tree). The result position of the last `BindCall`, the main body, MAY be a bare
+     bound name. *(v0.2: review S-m3, F-m2)*;
+   - (h) a bound name equal to a registry function name (§7.2), for example
+     `cel.bind(abs, f, abs(abs))`, which reads as nested calls of itself. This is
+     author hygiene beside (f), and it is a PARSER rule only: it has no wire form,
+     no decoder and no T6 check, because on the wire a bound name does not exist
+     (RL-JGDMS-0023). *(v0.2: owner decision 5, review S-m3 residual, Chisel
+     2026-11-14)*.
+
+   A method call on a bound name (`a.startsWith("x")`) is not a selection and is
+   not rejected by (d).
+3. **Iterative spine.** The parser MUST parse the spine iteratively (a loop over
+   the `BindCall`s), not with one parser recursion level per binding, so that the
+   text form can express every binding count the wire admits, `maxBindings`
+   (§10.3): a spine of `maxBindings` binds is accepted, and the spine's length does
+   not count against any nesting limit of the parser. *(v0.2: review F-n5)*
+   *(Informative: the Java authoring parser meters three frames per nested
+   argument against a 400-frame cap, so 256 nested binds would need about 768
+   frames and E2's 22 bindings about 66; the reviewer's reading of the parser
+   source, UNVERIFIED by a run: review F D3 (iii).)*
+4. **Printing.** A decoder that prints a wire expression as text prints its
+   bindings as a spine in index order and names binding `i` `b<i>` followed by the
+   fewest `_` characters that make the name differ from every unqualified field
+   step in the expression (every body, every selector chain), so that wire → text →
+   wire is the identity. *(Informative: with `B_0 = x * 2` and
+   `M = REF(0) + FIELD_REF(Unqual("b0"))`, plain `b0` would print
+   `cel.bind(b0, x * 2, b0 + b0)`, which re-parses to a different AST: review F D3 (ii).)*
+5. **Why `cel.bind` (informative; RL-JGDMS-0023, operator 2026-11-14).** It keeps the
+   format's CEL-subset claim (§5.1): `cel.bind` is CEL's own extension (cel-go
+   `ext/README.md`, as fetched by the delta's reviewer on 2026-11-14), and
+   restricting it to the outer spine gives exactly the flat list of §5.5. Because
+   names are resolved at parse into an index, §8.2's concern, a meaning that depends
+   on the candidate or its schema, cannot arise. Whether a CEL parser accepts the
+   text and whether CEL evaluates `cel.bind(a, 1/0, false ? a : 0)` to `0` are
+   HYPOTHESES until one is run (§15 item 11). **The rules of item 2 are author
+   tooling, not a security boundary.** The parser runs on the client, so a hostile
+   client sends any bytes it likes; server safety rests only on the decode and
+   verify checks (§12.3: T2, T6). Item 2 plays the part a compiler's diagnostics
+   play: it stops an honest author writing an expression that means something
+   other than it reads (operator, 2026-11-14: "helpful similar to how a compiler is
+   helpful to write correct code").
+
+*(v0.2: let delta A.2, R14, R15)*
+
 ### 5.4 Exclusions (NORMATIVE — the fence around the language)
 
 The following MUST NOT be accepted, in text or on the wire, and no conformant
@@ -637,9 +784,11 @@ standard):
    `contains`/`startsWith`/`endsWith` cover the surveyed Reggie/Outrigger needs
    (STD-009 §11's vocabulary check).
 3. **User-defined functions, lambdas, closures** — no syntax exists.
-4. **Variables, `let` bindings, assignment** — no syntax exists. Repeated
-   subexpressions are written out (cost is syntactic, §10.2; evaluators MAY CSE
-   since purity makes it unobservable).
+4. **Assignment, rebinding, parameterised bindings, nested scopes** — no syntax
+   exists; flat backward-only bindings are §5.5. A repeated subexpression is
+   either written out (cost is syntactic, §10.2; evaluators MAY CSE since purity
+   makes it unobservable in the outcome) or bound once (§5.5). *(v0.2: let delta A.1;
+   review S-n6)*
 5. **Loops, recursion** — no syntax exists.
 6. **String/bytes/list concatenation** (`+` is numeric-only) and all other
    string-building operations — keeps allocation trivially bounded (§3.2 iv).
@@ -648,6 +797,75 @@ standard):
    timestamp/duration types, type values and `type()`, `dyn`, string `size` as a
    method (use the global `size()`), map literals, object construction, index
    operator `[]`. Each is either substrate-absent or deferred (§15).
+
+**Where Turing-completeness would enter (v0.2).** A binding that takes a
+parameter, or a reference to the binding being defined or to a later one. Neither
+has a production, and either requires a new §3.2 extension. A second trap for a
+later revision: if `in` ever accepted a `REF` as its list operand, charging each
+use 1 (§10.2) would under-count, because an `in` over a list scales with the list
+size (§10.2's `in` rows), so that change needs a revised cost rule as well as a
+§3.2 extension. *(v0.2: let delta A.1, R23)*
+
+### 5.5 Bounded local bindings (NORMATIVE, v0.2)
+
+An expression is a sequence `B_0, …, B_(n-1), M` of `n + 1` trees (§11): the
+**bindings** `B_i` and the **main body** `M`, with `0 ≤ n ≤ maxBindings` (§10.3).
+`B_i` is binding `i`'s body. Indices are absolute, 0-based and in declaration
+order. With `n = 0` the expression is a v0.1 expression. The meaning of a
+binding is given by expansion (§6.9); the text form is §5.3 and §5.3.4; the wire
+form is §11.3 item 7 and Appendix B.
+
+1. **Backward-only references.** A `REF(j)` node may appear in `B_i` only if
+   `j < i`, and in `M` only if `j < n`. So the reference graph is a finite DAG:
+   there is no cycle and no recursion, and the language still denotes only
+   fixed-size circuits.
+2. **Every binding is referenced** at least once, from a later body or from `M`.
+   An unreferenced binding is a well-formedness error. The rule is syntactic:
+   `false ? a : 0` counts as a use of `a`. So every body is reachable and every
+   body is statically checked.
+3. **No alias bodies.** A binding body MUST NOT be a bare `REF`: it adds nothing,
+   and two bounds rest on every body having a non-`REF` root: a walker's `REF`
+   visits are at most its other visits (§10.5), and `n` bindings need at least
+   2`n` nodes (§10.3). The main
+   body MAY be a bare `REF` (`cel.bind(a, e, a)`). *(v0.2: owner decision 4, as
+   amended by owner round 2 R2-1, review S-n9, RECHECK m4; Chisel 2026-11-14)*
+4. **Where a `REF` may appear.** The governing rule is meaning by expansion (§6.9):
+   a `REF` is an expression node of arity 0 and may appear wherever the expression it
+   names could appear, EXCEPT where §5.3.1 and §11.1 already fix the operand's
+   form: the three positions the text parser rejects (§5.3.4 item 2(d)), `has()`'s
+   target (a `FIELD_REF`), `in`'s list operand (`LIST_LIT` or `FIELD_REF`) and the
+   root of a selector chain (selection exists only inside `FIELD_REF`); and the two
+   positions §5.3.1 items 3-4 fix to a string literal, `contains`'s needle and
+   `field(...)`'s arguments, where a `REF` is not a literal: a `REF` needle is
+   rejected on the wire (§13.1) and `field(...)`'s arguments are unrepresentable on
+   the wire (Appendix B §B.2.3). These restrictions are structural in v0.1; this item
+   says so. *(v0.2: let delta A.1, R15; owner answer Q3, Chisel 2026-11-14; review
+   F-n7)*
+5. **Types.** A body may have any result type, including `list<T>` and `object`,
+   and by the rule of item 4 a binding may be used wherever a value of its type
+   may be used. Examples, not a closed list: a list-typed binding can be returned,
+   used as a `?:` branch or passed to `size()`; an object-typed binding can be
+   returned or used as a `?:` branch (it cannot be passed to `size()`, §4.7); a
+   binding of any type can be compared with `null` (`== null`, `!= null`, §4.6,
+   §6.1). The delta's "can only be returned, used as a `?:` branch, or passed to
+   `size()`" omitted the `null` comparison and is not a closed list.
+   *(v0.2: let delta A.1, R23; owner answer Q3, Chisel 2026-11-14)*
+6. **Still excluded:** parameters, lambdas, nested scopes, rebinding, shadowing of
+   one binding by another, recursion, forward references, assignment (§5.4 items
+   3-5).
+
+*(Informative — the motivating case.)* E2, the camera projection
+(`Stage1Expressions.e2()` in the Stage 1 benchmark), written out is 1,205,700
+nodes, depth 37, `C(E)` 5,835,619, MEASURED by the Stage 1 run (benchmark log
+`bench.log:56-57`, a J: scratch log outside the repository; lines 56 and 57 re-read
+at the v0.2 edit: "E2: 1205700 nodes, depth 37" and "C(E) = 5835619"). Bound by hand it is
+about 260-280 nodes with 22 bindings (the delta's hand count of
+`Stage1Expressions.java:251-277`; a second hand count by the Sonnet reviewer also
+finds 22; UNVALIDATED, because no bound form of E2 exists yet). Its effective
+depth (§10.3.1) is 48, a hand trace of 37 + 11 hops by both reviewers
+(UNVALIDATED), and its expanded cost is 5,835,619 by construction, since
+expansion reproduces the written-out tree. Both new ceilings admit it with
+margin (§10.3). *(v0.2: let delta A.1, R2, R3, R23)*
 
 ---
 
@@ -784,6 +1002,50 @@ value. Result table (see §4.6, §8.4):
 fail-closed rule ("absent referenced field ⇒ no-match") is the *unguarded*
 behaviour; `has()` is the author's tool to make absence an explicit branch
 instead.
+
+### 6.9 Bindings: meaning, strategy and resource rules (NORMATIVE, v0.2)
+
+- **Meaning by expansion.** The outcome of `REF(j)` is the outcome of `B_j`
+  evaluated against the same projection. Equivalently, an expression's outcome is
+  that of its **expansion** (each `REF` replaced by its body's expansion) under
+  §6–§9. That is the whole definition; the evaluation strategy is free within the
+  two resource rules below. The ceilings of §10.3 do not apply to the expansion,
+  which can exceed every one of them (the written-out E2 is 1,205,700 nodes, §5.5).
+- **`REF` is non-strict** (§9.3). A binding whose body would error affects the
+  outcome only where the expansion would evaluate that body: it is the binding
+  whose body is not evaluated unless used, while a `REF` that is evaluated yields
+  its body's outcome, error included.
+  `cel.bind(a, 1/0, true || a > 0)` is `true` (an evaluator that aborts on the
+  failing binding would return `DIVISION_BY_ZERO`); `cel.bind(a, 1/0, c ? a : 0)`
+  with `c` false is `0`.
+- **Resource rule 1 (MUST).** A conformant evaluator evaluates each binding body
+  **at most once per record** (per evaluation) and stores its OUTCOME, error or
+  value, for reuse. An
+  evaluator that does not store error outcomes is non-conformant, whether it is
+  lazy or eager. A lazy evaluator evaluates a body at its first use; an eager one
+  evaluates the bodies in declaration order, and then it MUST store a body's error
+  and raise it only at a use: it MUST NOT abort on the first failing binding.
+  **Purpose:** the rule makes the admission cost `C(E)` the evaluator's work bound,
+  not only `xCost(M)` (§10.5). Memoisation cannot be seen in an outcome, because
+  the semantics is pure, so the rule is gated by an IMPLEMENTATION conformance test
+  with a pass rule, not by a corpus vector: an instrumented count of binding-body
+  evaluations per record is at most one per binding on two chains (§13.1).
+  *(v0.2: review S-M2, F-M2; owner decision B3, Chisel 2026-11-14)*
+- **Resource rule 2 (MUST).** The evaluation stack never exceeds the effective
+  depth (§10.3.1). Because a `REF` counts as one level there, this holds for every
+  strategy.
+- **Why lazy and eager cannot disagree on an outcome.** A body's outcome is a
+  function of the expression and the projection alone (§3.1 claim 2; §8.1 item 4),
+  so a stored outcome equals a re-evaluated one in any order. They can differ only
+  outside the outcome: timing, stack, and the order of calls on the projection.
+- **No provider-absent rule.** The registry is closed and evaluation is total
+  (§9.1), so an evaluator that cannot evaluate a registry function is defective.
+  Refusing an expression that calls such a function is a consumer policy
+  (Appendix B §B.9), not a language rule.
+- **Undecodable candidates.** This section inherits §8.1 item 2 as written (the
+  whole evaluation); see §15 item 9.
+
+*(v0.2: let delta A.3, R1, R4, R5, R6, R20, R22, R25)*
 
 ---
 
@@ -1049,7 +1311,7 @@ or the same error code.
 | `ABSENT_FIELD` | a value reference to an absent field, or through an absent/null intermediate (§4.6, §8.4) |
 | `AMBIGUOUS_FIELD` | an unqualified name declared by ≥2 namespaces in the relevant chain (§8.2) |
 | `DOMAIN` | a platform-function argument outside its domain, incl. NaN, and ±Inf for finite-only functions (§7.1, §7.2) |
-| `COST_BOUND` | the statically computed cost bound was exceeded — see §10.5 for why this cannot occur for a verified expression |
+| `COST_BOUND` | the statically computed cost bound was exceeded — see §10.5 for why this cannot occur for a verified expression and a conformant evaluator (§6.9 rule 1) *(v0.2: review S-n3)* |
 | `CANDIDATE_UNDECODABLE` | the candidate failed fail-closed projection (§8.1) |
 
 The set is **closed**: no implementation may add codes, and every abnormal
@@ -1068,6 +1330,16 @@ branches) follow their own pinned tables (§6.4, §6.5, §6.7), which are
 order-independent for values and pin the left error when two errors compete.
 Consequently the complete observable outcome — not merely "is error" — is
 deterministic, and T5 asserts codes exactly.
+
+**`REF` (v0.2).** `REF` is added to the non-strict constructs. A binding whose
+body would error affects the outcome only where the expansion would evaluate that
+body (§6.9; the binding is non-strict, while a `REF` that is evaluated yields its
+body's outcome, error included): `cel.bind(a, 1/0, true || a > 0)` is `true`, and
+`cel.bind(a, 1/0, c ? a : 0)`
+with `c` false is `0`. A stored error outcome is raised at each use with its stored
+code, so the left-error rule above carries through a slot unchanged: in `a && b`
+where both bodies error with different codes, the result is the left code.
+*(v0.2: let delta A.3)*
 
 ### 9.4 Predicate context
 
@@ -1114,6 +1386,13 @@ randomness, no host state. Evaluations are therefore trivially parallelizable an
 cacheable by (expression, candidate) — properties the host MAY exploit with no
 semantic effect.
 
+**Binding slots (v0.2).** A stored binding outcome (§6.9) belongs to ONE
+evaluation of ONE expression against ONE candidate. It is invalid at the entry of
+every evaluation, including after an evaluation that ended abnormally. Sharing slot
+storage between expressions, or across candidates, is non-conformant. (The rule
+above, "no previous evaluation's outcome", already implies this; the sentence makes
+it explicit for the first evaluator state the language has.) *(v0.2: let delta A.4)*
+
 ---
 
 ## 10. Cost Model and Static Bounds (NORMATIVE)
@@ -1156,55 +1435,157 @@ the pinned unit.
 | list literal of n elements | n |
 | `sqrt`, `radians`, `degrees` | 4 |
 | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2` | 32 |
+| `REF` *(v0.2)* | 1 in `C(E)`; in `xCost`, the referenced binding's `xCost(j)` and nothing else (§10.3.1) |
 
-**Comparison-row tightening (board-ratified 2026-07-20).** A conformant
-static cost computation MAY tighten the `string`/`bytes` `==`/`!=`/ordering
+The per-element comparison of the two `in` rows is a comparison under the rules
+below between the needle and each element; an element of a list field has static
+kind unknown and no static literal length. *(v0.2: let delta C.2; review F-m6,
+S-n2)*
+
+**Comparison-row tightening (board-ratified 2026-07-20; a MUST from v0.2).** A
+conformant static cost computation MUST tighten the `string`/`bytes`
+`==`/`!=`/ordering
 row's `1 + S` to `1 + min(S, known literal octet length)` when at least one
-operand is a literal of statically known length — this remains a sound upper
+operand has a static literal length (below) — this remains a sound upper
 bound because the comparison's actual work is bounded by the shorter
 operand (equality/lexicographic ordering on strings or byte arrays is
 `O(min(len))`, never `O(S)` once a shorter length is already known
 statically). The reference implementation applies this tightening; it is
-not merely tolerated, it is the ratified, expected behavior.
+the ratified, expected behavior, and from v0.2 it is mandatory. Without the MUST,
+two conformant verifiers disagree on admission already in v0.1, and v0.2
+multiplies the disagreement through `xCost` (§10.3.1). *(v0.2: let delta R10)*
 
-`C(E)` = Σ over all AST nodes. Cost accounting is **syntactic**: a repeated
-subexpression is charged per occurrence (no CSE assumed; implementations MAY CSE
-— unobservable by purity — but MUST NOT rely on it to pass the bound).
+**Static kind and static literal length (v0.2).** Cost is computed without a
+schema from two attributes of each node, defined here so that a second
+implementation computes the same integer. The **static kind** of a node is one of
+numeric, bool, string, bytes, null, list, object, unknown, by node kind:
+
+| Node | Static kind |
+|---|---|
+| `LIT_INT`, `LIT_DOUBLE`, `NEG`, `ADD`, `SUB`, `MUL`, `DIV`, `MOD` | numeric |
+| `LIT_BOOL`, `HAS`, `NOT`, `AND`, `OR`, `EQ`, `NE`, `LT`, `LE`, `GT`, `GE`, `IN` | bool |
+| `LIT_STRING` / `LIT_BYTES` / `LIT_NULL` / `LIST_LIT` | string / bytes / null / list |
+| `FIELD_REF` | unknown |
+| `COND` | its branches' kind if they are equal, else unknown |
+| `CALL` | its registry signature's result kind (§7.2, §6.6): numeric for `size`, `int`, `double`, `abs`, `min`, `max`, `sqrt`, `radians`, `degrees` and the seven transcendental functions; bool for `contains`, `startsWith`, `endsWith` |
+| `REF(j)` | the static kind of `B_j` |
+
+No node kind yields `object` without a schema (the editor's reading of
+`CostModel.categoryOf`, which never returns it). The **static literal length** is
+defined only for a string or bytes literal: its length in wire octets (the length
+unit above). A `REF(j)` has `B_j`'s static literal length; `?:` never has one; no
+other node has one. The two attributes select the rows of the table above, and
+this section is the authority for them. The row "numeric comparison", cost 1,
+applies to a comparison in which an operand has static kind numeric. The row
+`string`/`bytes` `==`/`!=`/ordering, `1 + S`, applies to a comparison in which both
+operands have static kind string, bytes or unknown, and the tightening MUST above
+makes it `1 + min(S, the static literal lengths of the operands that have one)`.
+The needle bound of the `startsWith`/`endsWith` row is the argument's static
+literal length, or S if it has none. *(Informative: §10.2 has no row for a
+comparison with an operand of static kind bool, null, list or object. The
+reference implementation charges such a comparison 1 and otherwise agrees with the
+rules above, CostModel.java:230-239 and 261-292 at base `7ccf90bb9`; this text does
+not pin that case.)* *(v0.2: let delta R11; owner answer Q4, Chisel
+2026-11-14)*
+
+`C(E)` = Σ over all AST nodes of all bodies (the bindings and the main body,
+§5.5), each body once and each `REF` node 1. Cost accounting is **syntactic**: a
+repeated subexpression that is written out is charged per occurrence (no CSE
+assumed; implementations MAY CSE — unobservable in the outcome, by purity — but MUST NOT rely on
+it to pass the bound); a subexpression that is bound once is charged once plus 1
+per use. That charge is a bound on work only for an evaluator that follows §6.9
+rule 1; §10.5 gives the bound for one that does not. *(v0.2: let delta C.3, R5;
+review S-n6)*
 
 ### 10.3 Expression ceilings **[PROPOSED values — T2 pins them in an STD-006 §4.5-style table]**
 
 | Constant | Proposed value | Applies to |
 |---|---|---|
-| `maxExprNodes` | 1024 | AST node count (every literal, operator, call, selector step, and list element is a node) |
-| `maxExprDepth` | 32 | AST depth = maximum evaluation stack depth (§3.2 ii) |
+| `maxExprNodes` | 1024 | AST node count (every literal, operator, call, selector step, and list element is a node), summed over all bodies, each `REF` counting 1 (§10.3.1) |
+| `maxExprDepth` | 32 | AST depth of each body separately, a `REF` being a leaf of depth 1 below its parent; the evaluation-stack bound is `maxEffectiveDepth` below (§3.2 ii, §10.3.1) |
 | `maxSelectorSteps` **[PROPOSED]** | 16 | maximum selector-chain length of a single `FIELD_REF` node (§11.1) — a G10 interior-fence ceiling: the chain is internal to one arity-0 node, so neither `maxExprNodes` nor `maxExprDepth` bounds it |
 | `maxScalarBytes` | 65536 | the per-scalar (string UTF-8 / bytes) size the cost model charges; **[OPEN → T2]** STD-006 §4.5 currently has no per-string ceiling — T2 MUST either pin this constant there or derive it from an enclosing-record bound, so that `S` in §10.2 is a real, enforced number, not an assumption. **This ceiling MUST be enforced on both candidate projected scalar fields and expression literals** (`LIT_STRING`/`LIT_BYTES`, §11.3); until it is pinned and enforced on both sides, §3.3 explicitly does not claim Claim 3 (bounded cost) holds. |
 | `maxExprCost` | 1 000 000 | the verification-time ceiling on `C(E)` |
+| `maxBindings` **[PROPOSED]** | 256 | `n`, the number of bindings of one expression (§5.5) |
+| `maxEffectiveDepth` **[PROPOSED]** | 64 | `effDepth` of the main body `M` (§10.3.1) |
+| `maxExpandedCost` **[PROPOSED]** | 8 388 608 (2^23) | `xCost` of the main body `M` (§10.3.1) |
 
 These compose with STD-006 §4.5: an expression's wire encoding is itself an
 ATOMIC DER value subject to that section's disciplines, and the candidate-side
 quantities (`K`, `maxFields`) are already enforced by the projection codec.
 
-**Fencepost convention.** `maxExprNodes`, `maxExprDepth`, and
-`maxSelectorSteps` follow STD-006 §4.5's inclusive convention: a value
+**Evidence for the three v0.2 values** (all [PROPOSED]; set from one expression,
+E2 (§5.5), and the Fable reviewer's suggestions, so a second use case could move
+any of them).
+
+| Constant | Value | Evidence | Grade |
+|---|---|---|---|
+| `maxBindings` | 256 | E2 needs 22 (hand count of `Stage1Expressions.java:251-277` by the delta's author and independently by the Sonnet reviewer). The node ceiling alone would admit at most 512 bindings. Every binding is referenced (§5.5 item 2), so at least `n` `REF` nodes exist; no body is a bare `REF` (§5.5 item 3), so each binding body has at least one non-`REF` node, at least `n` more; the total is at least 2`n`, and 2`n` ≤ 1,024 = `maxExprNodes` gives `n` ≤ 512. The bound is met: `B_0` a literal, `B_k = NEG(REF(k-1))`, `M = REF(n-1)` (a bare `REF` is allowed for the main body) has 1 + 2(`n` − 1) + 1 = 2`n` nodes. (The delta's R18 gave 511; the owner corrected it to 512, owner answer Q5, Chisel 2026-11-14; the count argument is from review S-m5.) 256 is a policy value. | E2: HYPOTHESIS (hand count, no bound E2 exists) |
+| `maxEffectiveDepth` | 64 | E2 needs 48 with the hop counted (37 + 11 hops; both reviewers traced the same path, e2, col, rpx, th2, a2, a1, s, rs, theta, rho, xc to px); written-out E2 depth is 37 (`bench.log:56`, MEASURED by the Stage 1 run). Without a ceiling a 1,024-node expression could nest 1,024 levels *(v0.2: owner round 2 R2-3 n5, Chisel 2026-11-14)* with the hop counted: 31 bindings and a main body, each a chain of 31 `NOT` over a `REF` to the previous tree (the first over a literal), are 32 trees × 32 nodes = 1,024 nodes, and `effDepth` = 32 × 32 = 1,024. (The 993 of the Fable review's F1 construction, `REVIEW_LET_FABLE.md`, is the same expression in the depth of its expansion, 32 + 31 × 31, where a `REF` and its body's root are one level; review F-n1.) | 48: HYPOTHESIS (hand trace); 37: MEASURED; 1,024: arithmetic |
+| `maxExpandedCost` | 8,388,608 = 2^23 | E2 needs 5,835,619 (`bench.log:57`, MEASURED by the Stage 1 run as the written-out `C(E)`; that the bound form's `xCost` equals it is an inference by construction, since expansion reproduces the written-out tree, UNVALIDATED until a bound E2 exists). Review F: "at least that (for example 2^23)". | written-out `C(E)`: MEASURED (E2 only); `xCost` of the bound form: HYPOTHESIS (by construction), UNVALIDATED |
+
+*(v0.2: let delta C.2, R3, R18)*
+
+**Fencepost convention.** `maxExprNodes`, `maxExprDepth`, `maxSelectorSteps`
+and, from v0.2, `maxBindings`, `maxEffectiveDepth` and `maxExpandedCost` follow
+STD-006 §4.5's inclusive convention: a value
 **exactly equal** to the ceiling is accepted; the ceiling **plus one** is
 rejected. §13 requires the conformance corpus to test the boundary explicitly
 in both directions, not merely to probe values comfortably past the limit.
+*(v0.2: let delta C.1, C.2)*
+
+#### 10.3.1 Bindings: per-body scope and the per-binding table (NORMATIVE, v0.2)
+
+`maxExprDepth` applies to each body separately, with a `REF` as a leaf of depth 1
+below its parent. `maxExprNodes` applies to the SUM over all bodies, each `REF`
+counting 1. `maxSelectorSteps` is unchanged.
+
+For each body, in declaration order, an implementation computes and stores once
+the entries below. A `REF(j)` reads entry `j`; nothing walks into `B_j`.
+
+| Entry | Definition |
+|---|---|
+| `effDepth(i)` | the maximum over the nodes `v` of `B_i` of `localDepth(v)` if `v` is not a `REF`, and of `localDepth(v) + effDepth(j)` if `v` is `REF(j)`. The root has `localDepth` 1, and `localDepth(v)` is the value of the Appendix B §B.6.2 depth counter when `v` is consumed (so an element of `IN`'s literal list operand sits one level below the `IN` node, and an element of a `LIST_LIT` node one level below that node, as the decoder meters them; review F-m4; v0.2: owner round 2 R2-3 m1, Chisel 2026-11-14). |
+| `xCost(i)` | Σ of the §10.2 cost over the non-`REF` nodes of `B_i`, plus Σ `xCost(j)` over its `REF(j)` nodes. A `REF` node adds nothing else. Checked 64-bit arithmetic (§10.6): an overflow means reject. |
+| static type | the type §11.2 synthesises for `B_i`; a `REF(j)` has `B_j`'s type |
+| static kind and static literal length (§10.2) | those of `B_j` for a `REF(j)`, so `cel.bind(k, "ACTIVE", f == k)` is charged as `f == "ACTIVE"` |
+
+`effDepth(M)` and `xCost(M)` are those of the main body. **A `REF` counts as one
+level.** The depth of the expansion would treat a `REF` and its body's root as one
+level; a tree walker has both in progress at once, so the hop is counted. Then a
+lazy walker's nesting, in node visits, equals `effDepth` exactly, an eager
+evaluator's is at most `maxExprDepth`, and §6.9 rule 2 is true for every strategy.
+
+**Monotonicity.** Every binding is referenced (§5.5 item 2), so `effDepth(M)` and
+`xCost(M)` are at least those of every binding. A ceiling checked on `M` therefore
+gives the same verdict as a ceiling checked on every binding; checking each binding
+as it is computed (§12.3) means no accumulator can overflow first.
+
+**Static walkers (normative for T2 and T6).** A cost, type, kind, depth or
+literal-length computation over an expression MUST read a `REF(j)`'s attributes
+from the table and MUST NOT descend into `B_j`. Each body is walked exactly once,
+in declaration order.
+
+*(v0.2: let delta C.1, C.2, C.5, R1, R11, R12)*
 
 ### 10.4 The resulting bound
 
 With the tables above, `C(E) ≤ maxExprNodes × (1 + S × max literal length)`; in
 the special case with no `contains` and no `in`-over-list-field term,
 `C(E) ∈ O(|E| × S)`, but that special case is not the normative bound (§3.1) —
-the normative bound is the `C(E) ≤ maxExprCost` gate itself (§10.5), computed
+the normative bound is the `C(E) ≤ maxExprCost` gate itself (§10.5; with
+bindings, together with the `xCost ≤ maxExpandedCost` gate), computed
 exactly, never approximated asymptotically. `C(E)` is computable by one
-post-order walk of the AST, with no candidate.
+post-order walk of the AST, with no candidate (with bindings, one walk of each
+body, in declaration order, §10.3.1). *(v0.2: let delta C.5)*
 
 ### 10.5 `COST_BOUND` and the no-runtime-gate property
 
-Verification (T6) MUST reject any expression with `C(E) > maxExprCost` — that
-rejection is the primary and sufficient enforcement, and it is a *registration*
-failure, not an evaluation error. Because `C(E)` is a true upper bound (§3.2),
+Verification (T6) MUST reject any expression with `C(E) > maxExprCost`, and any
+expression with bindings whose `xCost` exceeds `maxExpandedCost` (§10.3.1) — those
+rejections are the primary and sufficient enforcement, and they are *registration*
+failures, not evaluation errors. Because `C(E)` is a true upper bound (§3.2) for a
+conformant evaluator (§6.9 rule 1),
 **a verified expression can never exceed it at evaluation**; an implementation
 MAY nonetheless meter actual cost at runtime as defense in depth (e.g. while
 evaluating expressions from a peer whose verification it does not trust), and if
@@ -1214,13 +1595,37 @@ yield `COST_BOUND` on any implementation, metered or not: a trip would falsify
 either the implementation's accounting or this section's tables, and both are
 conformance bugs.
 
+**The two gates (v0.2).** A conformant evaluator does at most `C(E)` work. The
+second gate, `xCost(M) ≤ maxExpandedCost`, is the SAFETY bound: it bounds even a
+non-memoising evaluator, a defective DEMAND-DRIVEN component that re-evaluates a
+body at each use. Its work is at most 2 × `xCost(M)`: a `REF` node adds nothing to
+`xCost` but a walker visits it, and every `REF` visit is followed by a visit of a
+non-`REF` body root, which `xCost` charges at least 1 (no alias bodies, §5.5 item 3;
+review F-n2). An eager pass that re-expands every body, the main body included, is
+bounded by `xCost` summed over `n` + 1 trees, at most (`maxBindings` + 1) ×
+`maxExpandedCost` = 257 × 2^23 = 2,155,872,256 cost units (arithmetic; the delta's
+R5 figure 2^31 = 2,147,483,648 summed the bindings only: review F-n2, S-n4), and at
+most twice that in node visits. The runtime meter, if used, is
+initialised to `C(E)` only. *(Consequence for the operator: the defective
+demand-driven component's bound is 2 × 8,388,608 / 1,000,000 = 16.78 times the v0.1
+per-record work bound `maxExprCost`; the delta's figure 8.39 counted cost units
+without the `REF` visits; a conformant evaluator stays within `C(E)`.)*
+Every exponential chain is inadmissible by construction. In the doubling value
+chain `b_k = b_(k-1) + b_(k-1)`, `xCost(k) = 1 + 2 × xCost(k-1)` with
+`xCost(0) = 1`, so `xCost(k) = 2^(k+1) − 1`: `xCost(22) = 8,388,607` is admitted and
+`xCost(23) = 16,777,215` is rejected, long before the node ceiling would stop a
+chain (about 340 steps at 3 nodes per step, 1,024 / 3; arithmetic).
+*(v0.2: let delta C.3, R4, R5)*
+
 ### 10.6 Cost-arithmetic width (NORMATIVE)
 
 `C(E)` and every intermediate per-node cost term (§10.2) MUST be computed in
 checked or saturating arithmetic of width **≥ 64 bits** (or arbitrary
 precision). Overflow of any intermediate term MUST itself be treated as
 `C(E) > maxExprCost` — i.e., reject; an accumulator overflow MUST NOT be
-allowed to wrap silently into a small or zero value.
+allowed to wrap silently into a small or zero value. The same holds for `xCost`
+(§10.3.1) and its terms, where overflow is treated as `xCost > maxExpandedCost`.
+*(v0.2: let delta C.2, R12; review F-n3)*
 
 **Rationale.** `maxCollection × maxScalarBytes = 65536 × 65536 = 2^32`
 exactly (§10.3): the worst-case `contains` term (`1 + S × len(needle
@@ -1258,6 +1663,7 @@ other node types.
 | `IN` | needle, list operand (`LIST_LIT` or `FIELD_REF`) | 2 | `T × list<T'> → bool` per §6.5 |
 | `COND` | condition, then, else | 3 | `bool × T × T → T` (§6.7) |
 | `CALL` | registry function id (§7.2 / §6.6), argument nodes | per signature | per the function's signature |
+| `REF` *(v0.2)* | the binding index `j`: absolute, 0-based, `0 … maxBindings − 1` (§5.5) | 0 | the type of binding `B_j` (the per-binding type entry, §10.3.1) |
 
 A `FIELD_REF`'s selector chain MUST NOT exceed `maxSelectorSteps` (§10.3)
 steps: the chain lives inside this single arity-0 node, so it is not bounded
@@ -1269,8 +1675,27 @@ the cost model (§10.2), normatively, not merely as a table aside.
 values, not free-form strings** where possible (function ids MUST be from the
 pinned registry; field/class *names* are necessarily strings, matched exactly per
 §8.3). There is deliberately no `MACRO`, no `COMPREHENSION`, no `IDENT`-as-
-variable, no `ASSIGN`, no generic `APPLY` node — §3.2(vi)'s closed world is this
-table.
+variable (a `REF` carries a binding index, never a name, and names are never on
+the wire), no `ASSIGN`, no generic `APPLY` node — §3.2(vi)'s closed world is this
+table. *(v0.2: let delta A.1)*
+
+**Expression carrier (v0.2).** An expression is the pair (binding list, main
+body); a `REF` has no meaning outside its binding list. Two expressions are equal
+iff their binding lists are equal element by element and their main bodies are
+equal. Equality and hashing compare bodies index by index, never by expansion,
+because an expansion can be exponentially larger than the expression (§5.5).
+An entry point that accepts a bare expression node, without its binding list,
+MUST reject a tree that contains a `REF`, and two filters with the same main body
+and different binding lists MUST NOT compare equal. *(Informative: a `REF` is an
+index leaf, never a shared reference to the body's node, because a shared node
+would make structural equality and hashing exponential in the expansion size; the
+written-out E2 is 1,205,700 nodes, §5.5.)* An evaluator, verifier or encoder MUST
+accept a carrier (an expression with its binding list) only if the carrier has
+passed the §12.1 binding checks and the §10.3.1 ceilings, and an implementation
+that can construct a carrier in process MUST apply them when it constructs the
+binding list, so that an invalid carrier is unrepresentable and is refused
+(fail closed). *(v0.2: let delta B.3, C.5, R21; owner decision 1, review F-m3,
+Chisel 2026-11-14)*
 
 ### 11.2 Static typing rules
 
@@ -1281,6 +1706,10 @@ synthesis over the table above, with: numeric cross-type allowed **only** at
 (`abs`, `min`, `max`, `size`, arithmetic) by operand types with no implicit
 conversion anywhere. An expression that fails typing is rejected at
 verification; dynamic evaluation enforces identical rules regardless (§6).
+**Through references (v0.2):** each body is typed once, in declaration order, and
+the type is stored in the per-binding table (§10.3.1); a `REF(j)` has `B_j`'s type,
+read from the table, and the checker never descends into `B_j` at a use. *(v0.2:
+let delta C.2, C.5, R12)*
 
 ### 11.3 Constraints on T2 (NORMATIVE for T2; the encoding itself is T2's design)
 
@@ -1289,23 +1718,37 @@ verification; dynamic evaluation enforces identical rules regardless (§6).
    of an expression, and re-encoding a decoded AST MUST reproduce the input
    byte-for-byte. `LIT_DOUBLE` carries the strict-canonical 64-bit IEEE pattern
    (STD-006 §3.12's float/double discipline), so text-form parsing never sits on
-   the evaluation path.
+   the evaluation path. The binding list is part of the canonical form: its order
+   is significant, a `REF` index is a minimal-encoding integer, and the list is
+   absent exactly when there are no bindings (item 7). *(v0.2: let delta B.1, R13;
+   version coupling withdrawn, RL-JGDMS-0024)*
 2. **Closed node set, hard reject.** An unknown/reserved node tag, an unknown
    registry function id, an arity violation, or any structural violation of
    §11.1 MUST be a hard decode error — never skipped, defaulted, or tolerated
    (STD-006 §3.12 fence 3's discipline applied to expression nodes). Registry
    function ids are Appendix B §B.8.3's pinned table — one id per (function
    name × operand-type signature), see §7.2's corrected wire-identity note —
-   never a name string resolved dynamically.
+   never a name string resolved dynamically. The wire tag of `REF` is Appendix B
+   §B.4.1's `[27]`. A `REF` whose index is not below its own body's position (or,
+   in the main body, below the number of bindings), a binding body that is a bare
+   `REF`, a binding that no body references, and a binding count above
+   `maxBindings` are structural violations of §5.5 and are hard decode errors.
+   *(v0.2: let delta B.1, R2)*
 3. **Ceilings.** T2 MUST enforce `maxExprNodes`/`maxExprDepth`/
-   `maxSelectorSteps` (and the encoded size implied by them) at decode, before
+   `maxSelectorSteps` and, from v0.2, `maxBindings` and `maxEffectiveDepth` (and the encoded size implied by them) at decode, before
    allocation where practicable, composing with STD-006 §4.5's table (where
    the pinned constants of §10.3 live once ratified). Depth MUST be metered at
    every recursion of the node decoder (G10: the interior recursion, not just
    the entry); a `FIELD_REF`'s selector-chain length MUST likewise be metered
    as it is decoded, not merely bounded after the fact — the chain is internal
    to a single arity-0 node (§10.3, §11.1), so neither the node-count nor the
-   depth check reaches it by construction.
+   depth check reaches it by construction. With bindings, the node count is ONE
+   counter across all bodies (each `REF` counts 1), and it MUST NOT restart at a
+   body boundary; only the depth counter restarts, at 1 for the root of each
+   body. A `REF` is a leaf, so decoding a `REF` recurses into
+   nothing; `effDepth` is computed per body as the bodies are decoded, in
+   declaration order (§10.3.1), while `xCost` and `C(E)` belong to verification
+   (§12.3). *(v0.2: let delta C.1, B.1, R12; review S-M3, F-M3)*
 4. **Context and result-type declaration.** The wire form MUST carry the declared
    evaluation context (predicate | transform) and, for transforms, the declared
    result type, so §12.4 and §9.5 are checkable at the receiver without side
@@ -1321,6 +1764,32 @@ verification; dynamic evaluation enforces identical rules regardless (§6).
    projected scalar fields. Without this check on the literal side, §3.2(iii)'s
    cost argument and §3.3's condition on Claim 3 are not met, regardless of any
    candidate-side enforcement.
+7. **Binding list (v0.2).** The wire form carries the binding list as an
+   ORDER-SIGNIFICANT sequence of expression trees in the filter record, an OPTIONAL
+   field placed so that it cannot be confused with a node (Appendix B §B.3), and
+   `REF` as a leaf node kind whose content is one minimal-encoding integer, the
+   absolute 0-based binding index (Appendix B §B.4.1). The list is ABSENT when there
+   are no bindings (`n` = 0) and present with at least one binding otherwise. So "no
+   bindings" has exactly one encoding, no list, and a record without bindings is
+   byte-identical to a v0.1 record. `formatVersion` stays 1, the only accepted
+   value: no backward compatibility is required before JGDMS 4.0.0
+   (RL-JGDMS-0024), so there is no second version and no version coupling. Two
+   decode rejections stand on their own, each with its own vector (§13.1): (i) a
+   `bindings` list that is present but empty (`30 00`), which is the only thing that
+   keeps "no bindings" single-encoded; (ii) a `REF` anywhere in the record when
+   `bindings` is absent: an absent list means `n` = 0, so every `REF` index is out
+   of range. *(Informative: a v0.1 decoder also rejects a v0.2 record that carries
+   bindings, by tag: it reads the binding list's universal tag where it expects a
+   node, or the `REF` tag `[27]`, which is outside its table; reviewers read
+   `CelDecoder.java:154-158` at base `7ccf90bb9`, not run.)* A consumer MAY refuse
+   any record that carries a binding list (Appendix B §B.9); that is a registration
+   rejection, not a decode defect. The decode-time checks, in the order a decoder
+   can make them: the index of a `REF` in body `i` is `< i` (in the main body,
+   `< n`); the binding count is at most `maxBindings`, enforced as the list is read;
+   a binding body is not a bare `REF`; the per-body ceilings (§10.3.1) and `effDepth`
+   against `maxEffectiveDepth`; and, after the main body is decoded, every binding is
+   referenced. A violation is a hard reject (item 2). *(v0.2: let delta B.1, R2, R12,
+   R13; RL-JGDMS-0024; review S-m9, F-§2)*
 
 ---
 
@@ -1336,7 +1805,8 @@ The decoded AST satisfies §11.1's table (node kinds, arities, component
 presence), §5.3.1's constraints (call-target restrictions, `has`'s
 field-designator argument, `field(...)`'s literal arguments, `contains`'s
 literal needle, `in`'s operand shape), §5.3.2 (list-literal homogeneity,
-non-emptiness), and §5.2's literal range rules (int literals in range after
+non-emptiness), §5.5's binding constraints (backward-only `REF`, every binding
+referenced, no alias body; *v0.2: let delta A.1, R2*), and §5.2's literal range rules (int literals in range after
 folding, `LIT_DOUBLE` patterns being any binary64 value — including, on the wire,
 non-finite patterns, which are legal literals only if T2 admits them;
 **[PROPOSED]** T2 SHOULD reject non-finite `LIT_DOUBLE` — no textual literal
@@ -1366,6 +1836,20 @@ only `C(E) ≤ maxExprCost` is additive here, being a post-decode computed
 quantity T2 never enforces), and `C(E) ≤ maxExprCost` per §10. The computed
 `C(E)` SHOULD be retained with the registered expression for diagnostics and
 for §10.5's optional runtime meter.
+
+**Layer split for bindings (v0.2).** *T2 decode (at ingest):* `formatVersion` (1
+is the only accepted value); a `bindings` list that is present but empty; a `REF`
+when `bindings` is absent; the
+range and direction of every `REF` index; alias bodies; `maxBindings`; the per-body
+node and depth ceilings; `effDepth` and `maxEffectiveDepth`; and, AFTER the main
+body is decoded, "every binding is referenced". *T6 verify (at ingest,
+schema-free):* `C(E) ≤ maxExprCost` and `xCost ≤ maxExpandedCost`, each checked
+per binding as it is computed, with §10.6's checked arithmetic (so, beyond
+`C(E)`, `xCost` is also additive at this layer). By monotonicity (§10.3.1) the
+verdict equals a check on `M`; checking per binding means no accumulator can
+overflow first. *Type checking with a schema* (§12.4) reads the per-binding type
+table (§10.3.1). Conformance vectors (§13.1) say "reject at ingest", not which
+layer. *(v0.2: let delta R12; RL-JGDMS-0024)*
 
 ### 12.4 Type checking — static where schema known, dynamic always **[recommended resolution of the SOW's decide-point]**
 
@@ -1412,7 +1896,9 @@ dynamic-only (authors would learn of type errors one silent no-match at a time).
    `C(E)` is just over 2^32 (e.g. the worst-case `contains` term, §10.2) that
    MUST be rejected — catching any implementation whose cost accumulator is
    narrower than the ≥64-bit width §10.6 requires; ill-formed constructs per
-   §12.1.
+   §12.1; and, from v0.2, the binding rejections and the three new ceiling
+   pairs (`maxBindings`, `maxEffectiveDepth`, `maxExpandedCost`) of §13.1.
+   *(v0.2: let delta E, R7)*
 3. **Mandatory semantic coverage** (minimum categories, each with pinned
    expected outcomes): checked-`int` edges (±2⁶³ boundaries, `−2⁶³/−1`,
    `−2⁶³ % −1`, literal-folding of `−9223372036854775808`); `int`×`double` exact
@@ -1427,7 +1913,10 @@ dynamic-only (authors would learn of type errors one silent no-match at a time).
    constants' bit patterns (§7.3); ambiguity and qualified-resolution cases
    (§8.2–§8.4); fail-closed candidate cases (undecodable candidate, absent
    field ⇒ no-match); degenerate inputs throughout (empty strings, empty
-   projected lists, one-element cases — G11).
+   projected lists, one-element cases — G11); and, from v0.2, the binding
+   categories of §13.1 (non-strict bindings, error identity through a slot and cost
+   read through a reference; the §6.9 rule 1 test of §13.1 is an implementation
+   test, not a corpus vector). *(v0.2: let delta E, R6; review S-M2, F-M2)*
 4. **Transcendental correct rounding** is asserted by exact expected bit
    patterns in the corpus, generated from an arbitrary-precision oracle
    (e.g. MPFR) **independent of both implementations** (G12: bound to known-good,
@@ -1437,7 +1926,129 @@ dynamic-only (authors would learn of type errors one silent no-match at a time).
    implementation claims conformance to (standard version, corpus version)
    pairs. The corpus is the deferred Rust evaluator's safety net
    (`SOW-CEL-Filter-Format.md` status note) — T4 MUST pass the same corpus
-   version as T3 before any cross-language deployment.
+   version as T3 before any cross-language deployment. The vectors of §13.1 are
+   added with v0.2, so the corpus version is bumped with the standard: an
+   implementation of v0.2 claims conformance to the (standard version, corpus
+   version) pair that includes them. *(v0.2: let delta E)*
+
+### 13.1 Binding vectors and tests (NORMATIVE, v0.2)
+
+Each vector states what a healthy implementation reads and the fault that flips
+it. "Reject at ingest" means T2 decode or T6 verify; the layer is not part of the
+vector (§12.3). The corpus asserts a rejection, not its reason, so a vector meant
+to isolate one check, a ceiling or a structural rule alike, is built so that no
+OTHER check can produce the same reject. `B_k` is the body of
+binding `k` and `M` the main body. Unless a row says otherwise, a vector is a
+transform whose declared result type is the static type of `M` *(v0.2: owner
+round 2 R2-3 m2, Chisel 2026-11-14)*. Every figure below is the delta's arithmetic or a
+reviewer's, re-derived by hand; **none of it has been run** (UNVALIDATED
+until the corpus exists). *(v0.2: review S-m2)*
+
+**Structure and wire.**
+
+| Vector | Healthy | Flips when |
+|---|---|---|
+| `REF` index equal to its own body's position: `B_0` a literal, `B_1 = ADD(REF(0), REF(1))`, `M = REF(1)`; and above it: `B_1 = ADD(REF(0), REF(2))`, `B_2` a literal, `M = ADD(REF(1), REF(2))` (every binding is referenced, so only the index check can fire) | reject at ingest | the index check is missing or off by one |
+| `REF(n)` in the main body: `n` = 1, `B_0` a literal, `M = ADD(REF(0), REF(1))` | reject | the main-body bound is off by one (an out-of-range slot read at evaluation) |
+| `bindings` present but empty (`30 00`), `expression` a plain literal | reject | the empty-list reject is missing: a second encoding of "no bindings" |
+| a `REF` in `expression` with `bindings` absent (`REF(0)` alone) | reject | the index check is skipped for an absent list: the evaluator would read slot 0 of an empty table |
+| `formatVersion` 2, and 3 | reject | a version other than 1 is accepted (RL-JGDMS-0024) |
+| `bindings` present with one binding and one use: `B_0` a literal, `M = NEG(REF(0))` | accept | the presence rule is over-applied |
+| an unreferenced binding: `B_0` a literal, `M` a literal | reject | the §5.5 item 2 check is missing |
+| an alias body: `B_0` a literal, `B_1 = REF(0)`, `M = REF(1)` (so every binding is referenced and only the alias rule can fire) | reject | bare-`REF` bodies are admitted |
+| `contains` whose needle is a `REF` (the one excluded position the wire can represent, because `CALL` is one generic node, Appendix B §B.6.5) | reject | the needle-is-literal check reads through `REF` |
+| `REF` indices 127, 128 and 255 (128 and above need a leading `0x00`, Appendix B §B.5 item 3) | accept | a decoder over-applies "no leading zero" |
+| two structurally equal bodies, each referenced | accept; both evaluated by index | sharing by instance is assumed |
+
+The wire forms of the `REF` vectors (negative, non-minimal and malformed index
+encodings, with the placement each needs) are Appendix B §B.11 item 7.
+*(v0.2: let delta E, R7; RL-JGDMS-0024; review S-m2, S-m9, F-m5, F-§2)*
+
+**Ceilings, each pair or case tripping ONE gate.**
+
+| Vector | Healthy | Flips when |
+|---|---|---|
+| `maxBindings` pair: 256 and 257 bindings, each body an int literal, the main body a balanced `ADD` tree over one `REF` to each (767 and 770 nodes; effective depth 10 and 11 by the §10.3.1 formula, the editor's derivation where the delta says "depth about 11") | accept; reject | the `SEQUENCE OF` bound is off by one (binding 256 can be referenced only by `M`, and `REF(256)` is outside `0..255`, so an index-range check alone also rejects the 257 case: this row does not isolate a missing size check, and the "reject before allocation" property of Appendix B §B.6.3 is not observable by accept or reject) |
+| node-count pair across bodies: `B_0` a balanced `ADD` tree over 256 int literals (511 nodes), `M` a balanced `ADD` tree over 256 int literals and `REF(0)` (513 nodes): 1,024 nodes in all; and the same with `M` wrapped in one `NEG` (514 nodes, 1,025 in all). Every other ceiling holds | accept; reject | the node counter restarts at each body (each body alone is under 1,024) |
+| 262,399-node record: 256 bindings, each a balanced `ADD` tree over 512 int literals (512 + 511 = 1,023 nodes, depth 10), `M` a balanced `ADD` tree over one `REF` to each binding (256 + 255 = 511 nodes). `C(E)` 262,399, `xCost(M)` 255 + 256 × 1,023 = 262,143, `effDepth(M)` 9 + 10 = 19, every binding referenced: only the node ceiling can fire | reject | the node counter restarts at each body: the record is admitted, 256 times the node budget |
+| hop-depth pair: `effDepth` exactly 64 and 65, every body at depth ≤ 32, ≤ 4 bindings | accept; reject | hops are not counted (§10.3.1) |
+| per-body depth 32 in every body, with effective depth ≤ 64 | accept | depth is counted through references |
+| `maxExpandedCost` pair: `B_0 = x`, `B_k = REF(k-1) + REF(k-1)` for k = 1..22; `M = -REF(22)` (`xCost` = 2^23) and `M = -(-REF(22))` (`xCost` = 2^23 + 1) | accept; reject | the fencepost is off, or there is no expanded-cost gate (23 bindings, `effDepth` 47 and 48, about 70 nodes: no other ceiling fires) |
+| 31-step doubling chain, main body `REF(30) + REF(30)`: `xCost` = 2^32 − 1 | reject | an implementation that checks `M` only, not each binding, uses a signed 32-bit or wrapping accumulator (it reads −1); `effDepth` 63, 31 bindings. On the per-binding path of §12.3 it rejects at binding 23 (`xCost` = 2^24 − 1 = 16,777,215) whatever the accumulator width, so this row does not gate 64-bit arithmetic there; the next row does |
+| 64-bit `xCost` under the per-binding layout: `B_0 = x`, `B_k = REF(k-1) + REF(k-1)` for k = 1..22 (`xCost(22)` = 2^23 − 1 = 8,388,607, which passes the per-binding check), `M` a list literal of 512 elements, each `REF(22)` (a transform with result type `list<int>`): `xCost(M)` = 512 + 512 × 8,388,607 = 512 × 2^23 = 2^32 = 4,294,967,296 | reject | the accumulator is 32 bits wide, signed or unsigned: it reads 0 and admits (581 nodes, 23 bindings, `effDepth(M)` 2 + 45 = 47, `C(E)` 67 + 1,024 = 1,091: no other ceiling fires) |
+
+**Semantics and cost.**
+
+| Vector | Healthy | Flips when |
+|---|---|---|
+| `cel.bind(a, 1/0, true \|\| a > 0)`; `cel.bind(a, 1/0, c ? a : 0)` with `c` false | `true`; `0` | bindings are evaluated strictly: an evaluator that aborts on the failing binding returns `DIVISION_BY_ZERO` |
+| `a && b` where both bodies error with different codes | the left code | error identity through a slot is wrong |
+| `cel.bind(k, "ACTIVE", …)` with 16 comparisons `f_i == k`, `S` = 65,536 | accept (cost 16 × 7 plus the rest) | the literal length is not read through the reference: 16 × 65,537 = 1,048,592 > 1,000,000 |
+| `cel.bind(k, 5, …)` with 16 comparisons `f_i == k` | accept (cost 16 × 1 plus the rest) | the static kind is not read through the reference: each comparison is charged `1 + S`, 16 × 65,537 = 1,048,592 > 1,000,000 (the int literal has no literal length, so only the kind separates this row from the one above) |
+| E2-bound: E2 written with bindings, run on a sample of records that takes BOTH `?:` branches (the 240-record Stage 1 sample takes one: review F N6, `bench.log:61`) | admitted; outcome equal by raw bits to the written-out walker's result on the same sample | the bound form or a ceiling is wrong |
+
+**Rule 1 test (§6.9): an IMPLEMENTATION test, NOT a corpus vector.** A
+re-evaluated body gives the stored outcome (the semantics is pure, §3.1 claim 2),
+so memoisation cannot be seen in any outcome; it is seen in work. What rule 1
+buys is that the admission cost `C(E)` is the evaluator's work bound and not only
+`xCost(M)` (§10.5). The implementation under test exposes an instrumented count of
+**binding-body evaluations per evaluation (one candidate)** *(v0.2: owner round 2 R2-3 n3, Chisel 2026-11-14)*: a counter incremented each time the
+evaluation of a binding body begins. The hook is language-neutral; its name and
+form are the implementation's, and the standard defines no projection call
+interface (the projection is a map, §8.1). **Pass rule:** the count is at most one
+per binding on each chain below. A harness that cannot count reports NOT RUN, never
+PASS. The candidate carries the field present and small (for example `x` = 1), so
+that no sum overflows and no strict error skips a body (the editor's precondition,
+not the delta's).
+
+| Chain | Pass rule | Informative only: reads of the one field, memoised / not memoised |
+|---|---|---|
+| value chain, 22 steps: `B_0 = x` (an int field), `B_k = REF(k-1) + REF(k-1)` for k = 1..21, `M = REF(21) + REF(21)`; 22 bindings; `xCost(M)` = 2^23 − 1 = 8,388,607 (admitted) | at most 22 binding-body evaluations | 1 read of `x` / 2^22 = 4,194,304 reads |
+| error chain, 20 steps: `B_0 = (f / 0) > 0` with `f` an int field, `B_k = REF(k-1) \|\| REF(k-1)` for k = 1..19, `M = REF(19) \|\| REF(19)`; 20 bindings; `xCost(M)` = 6 × 2^20 − 1 = 6,291,455 (admitted); the outcome is `DIVISION_BY_ZERO` either way | at most 20 binding-body evaluations | 1 read of `f` / 2^20 = 1,048,576 reads, if errors are not stored |
+
+The recurrences are `xCost(k) = 1 + 2 × xCost(k-1)`, from `xCost(0)` = 1 for the
+value chain (so `xCost(k)` = 2^(k+1) − 1) and from `xCost(0)` = 5 for the error
+chain (so `xCost(k)` = 6 × 2^k − 1); the reads are the number of paths from `M` to
+`B_0`. **The field-read counts are informative only and cannot gate rule 1.** An
+evaluator that re-evaluates every body at each use but resolves each field once
+per record (a per-record value cache, which §9.6 and §10.2 allow) reads the field
+once and would pass; one that tests presence and then reads makes two reads per
+field reference, and would fail an exact count. The count of binding-body
+evaluations has no such escape. A metered implementation (§10.5) has a second
+observable: with the meter initialised to `C(E)`, a re-evaluated body trips
+`COST_BOUND`, which §10.5 already forbids for a verified expression. *(v0.2: review
+S-M2, F-M2)*
+
+**Static-walker test (§10.3 "Static walkers"): an IMPLEMENTATION test, NOT a corpus
+vector** *(v0.2: owner round 2 R2-2, decision 11 amended, RECHECK §3.2; Chisel
+2026-11-14)*. The implementation under test exposes an instrumented count of node
+visits by each static walker (cost, type, kind, depth, literal length) per
+registration. **Pass rule:** each walker's count is at most the record's node count.
+Run it on the `maxExpandedCost` pair of the table above: a walker that reads each
+`REF`'s attributes from the table visits about 70 nodes (HYPOTHESIS, hand count, not
+run); one that descends into `B_j` visits more than 2^22 (HYPOTHESIS, not run). Same
+form as the rule 1 test: a harness that cannot count reports NOT RUN, never PASS. It
+tests the MUST of the static-walker rule, which no corpus outcome can show, because an
+expanding verifier gives the same verdicts.
+
+**Other implementation tests, NOT corpus vectors** (each implementation runs them
+against its own evaluator; labelled so because a corpus vector must be runnable
+in every language):
+
+- slot scope: two expressions, one evaluator, one candidate; and a record that
+  throws, then another. Each outcome equals a fresh evaluator's. Flips when slots
+  are not scoped or not reset (§9.6).
+- expansion equivalence: random small bound expressions against their
+  substitution, equal by raw bits. Flips on any memo, index or order fault. The
+  expander is keyed by index (a name-keyed substitution that handles only some node
+  kinds does not suffice; review F D8).
+- cost equivalence: `xCost(M)` equals the `C(E)` of the expansion, computed on the
+  `REF`-free tree, on the same random population (review F D10).
+- the generator prints a count per class and MUST reach: an erroring body absorbed
+  by `||`; a body used twice; a body used only in an untaken branch; a `REF` as a
+  list element, as an `in` needle and as a `?:` condition (review F D8).
+
+*(v0.2: let delta E, R6, R7, R8, R9)*
 
 ---
 
@@ -1492,8 +2103,11 @@ Transform, declared result type `list<double>` — the local East/North/Up vecto
   slopeDistM * sin(radians(elevationDeg)) ]
 ```
 
-Notes: `radians(elevationDeg)` is written twice per component pair — there are
-no `let` bindings (§5.4 item 4); cost is charged syntactically (§10.2: 5
+Notes: `radians(elevationDeg)` is written twice per component pair — written out,
+as in v0.1; since v0.2 a repeated subexpression may instead be bound once with
+`cel.bind` (§5.5), and the `C(E)` of such a bound form is a different number that
+this note does not compute *(v0.2: let delta F)*. For the written-out form above,
+cost is charged syntactically (§10.2: 5
 trigonometric calls at 32, 5 `radians` at 4, 5 multiplies, 8 field references,
 list literal 3 → `C(E)` = 196 — far under `maxExprCost`, statically known). On a
 candidate with `elevationDeg = NaN` (a garbage observation), `radians(NaN)` →
@@ -1582,8 +2196,10 @@ double(sampleCount) * 86400000000000.0 > 0.0
    uniqueness-or-error is this standard's recommendation and default) and the
    filter-applicability key (§8.5: `className` vs `schemaDigest`).
 4. **[OPEN → T2]** Pinning `maxExprNodes` / `maxExprDepth` / `maxSelectorSteps` /
-   `maxScalarBytes` / `maxExprCost` (§10.3's proposed values) in STD-006 §4.5's
-   table, and the §12.1 non-finite-`LIT_DOUBLE` rejection decision.
+   `maxScalarBytes` / `maxExprCost` (§10.3's proposed values) and, from v0.2,
+   `maxBindings` / `maxEffectiveDepth` / `maxExpandedCost` in STD-006 §4.5's
+   table (Appendix B §B.7 says which rows go there), and the §12.1 non-finite-
+   `LIT_DOUBLE` rejection decision. *(v0.2: let delta C.2)*
 5. **[OPEN → T6 (SOW §5.3)]** Whether T6's re-checks of T2's decode-time
    rejections (§12.3's belt-and-braces note) stay redundant-by-design or are
    consolidated once T2's actual decode behaviour exists.
@@ -1592,9 +2208,49 @@ double(sampleCount) * 86400000000000.0 > 0.0
 7. **[OPEN — future revisions, each requiring a §3.2 theorem extension]** RE2-
    class `matches()` with pinned linear-time semantics; list indexing; map-field
    indexing; list/`object` equality; `floor`/`ceil`/`round`, `pow`/`exp`/`log`,
-   `hypot`; bounded `let` bindings; `Any`-field inspection; a `pi()` constant.
+   `hypot`; ~~bounded `let` bindings~~ (**specified in v0.2**: §5.5, text form
+   `cel.bind`, RL-JGDMS-0022 and RL-JGDMS-0023; not yet ratified); `Any`-field
+   inspection; a `pi()` constant. *(v0.2: let delta F)*
 8. **[OPEN → T5]** Choice of the arbitrary-precision oracle tooling (§13.4) and
    the corpus's storage/versioning location.
+9. **[OPEN — pre-existing, not settled by v0.2]** `CANDIDATE_UNDECODABLE` scope.
+   §8.1 item 2 says the error is yielded "for the whole evaluation". The Java
+   walker returns it only at a field reference (`Evaluator.resolveFieldValue`,
+   `Evaluator.java:214`, re-read at the v0.2 edit, base `7ccf90bb9`), so
+   `true || f > 0` on an undecodable candidate MATCHES in the walker. Outrigger masks
+   this: `FilterEval.java:240` rejects an undecodable projection before evaluating
+   (re-read at the v0.2 edit); a direct `Evaluator` caller is not masked.
+   Bindings inherit §8.1 as written (the whole evaluation). Recorded as a defect
+   candidate against the Java evaluator, not a change to this standard.
+   *(v0.2: let delta R25)*
+10. **[OPEN — pre-existing, not settled by v0.2]** `in` over a literal list with an
+    erroring element before an equal one. The delta (R26, after review F N4)
+    records that §6.5 and §9.3 do not pin whether the later equal element absorbs
+    the error; the Java walker absorbs it (`Evaluator.scanMembershipExpressions`,
+    `Evaluator.java:629-643`, re-read at the v0.2 edit). Bindings make erroring
+    elements more common (`x in [REF(0), 5]`). *(v0.2: let delta R26)*
+11. **[OPEN → verification of the `cel.bind` text form]** Two HYPOTHESES until a CEL
+    parser and evaluator are run (R17): whether a CEL parser accepts `has(x)` with a
+    bare identifier, which v0.1 already uses (review F N2: if it does not, the
+    subset claim is already approximate); and whether CEL evaluates
+    `cel.bind(a, 1/0, false ? a : 0)` to `0`, the probe text being well-formed here
+    (review S N-6; the delta's R17 probe `cel.bind(a, 1/0, true)` has an unreferenced
+    binding and is ill-formed, review F-M1). **If CEL evaluates the
+    `cel.bind` init strictly, Appendix A (iii) gains a fourth row** (a point where a
+    DETERMINISTIC CEL evaluation disagrees with every conformant CEL evaluation); no
+    row is added until the probe is run. A variant not adopted
+    (review F N3): accept `cel.bind` anywhere CEL allows it and flatten at parse,
+    with the same wire form. *(v0.2: let delta R17; owner answer on Appendix A
+    (iii), Chisel 2026-11-14)*
+12. **[OPEN — deferred by the owner]** A worked record with bindings (§14, Appendix B
+    §B.10), to be added when the codec supports `REF`, with the hex produced by the
+    codec and not by hand. *(v0.2: owner decision 7, review F-m8, Chisel 2026-11-14)*
+13. **[OPEN — deferred by the owner]** `JGDMS-ARCH-005` §5.1 and §5.2 need the bindings
+    qualifier, after v0.2 is ratified. *(v0.2: owner decision 8, review S-n10, Chisel
+    2026-11-14)*
+14. **[OPEN — deferred by the owner]** Strip the provenance tags and the review
+    citations from the text at ratification; they are kept now so that the reviewers
+    can trace each change. *(v0.2: owner decision 9, Chisel 2026-11-14)*
 
 ---
 
@@ -1652,6 +2308,7 @@ section-cited rule governs.
 
 | 10 | Cross-type equality | `==`/`!=` between different types — outside the `int`×`double` numeric pair and the `null` rules — is `TYPE_MISMATCH` (§6.1) | Modern CEL's heterogeneous equality evaluates mixed-type `==` to `false` (`1 == "1"` is `false`, not an error) | Fail-closed (G6): a type-confused comparison is an authoring bug or schema skew to surface, not a silent `false`. In predicate context both dispositions are no-match — **except under negation** (`!("a" == 1)`: CEL matches, STD-011 errors ⇒ no-match), which is exactly where fail-closed matters |
 | 11 | `has()` on a present-but-null field | `false` — null is treated as unset, proto3-flavour (§4.6, §6.8) | For map values CEL's `has()` is key-presence: a key mapped to `null` yields `true` | One guard idiom (`has(f) && …`) covers both null and absence over a field-map substrate whose nulls mean "no value"; key-presence semantics would force every guard to also test `f != null` |
+| 12 | CEL-legal text rejected by the binding rules *(v0.2: owner decision 3, review S-m8, Chisel 2026-11-14)* | A `cel.bind` that is off the outer spine, binds one name twice (shadowing), has an unused binder, uses a bound name as a selector root, as `has()`'s target or as `in`'s list operand, reuses the spelling of a field, uses `cel` or a registry function name as the binder, or has an alias body (`cel.bind(b, a, …)`) is **rejected** at parse (§5.3.4 item 2 (a)-(h)) or at decode (§5.5 items 2-3) | Accepts all of these as legal bindings-extension text | G7 and the two bounds of §5.5 item 3 (every body has a non-`REF` root: §10.5, §10.3): each restriction removes a second spelling or second meaning of one expression, fails loudly, and never changes the meaning of text that is accepted. *(v0.2: owner round 2 R2-1, R2-3 n1, Chisel 2026-11-14)* A rejection, not a semantic disagreement: it is not among the points of the (iii) summary |
 
 Row 9 is the divergence the board review found missing from the original
 inline notes; it was not previously flagged anywhere else in this document.
@@ -1664,7 +2321,9 @@ travel with §4.1/§4.7/§5.3.2, and rows 10–11 with §6.1/§4.6, not be dropp
 **Subset summary (the naming question, answered precisely).** DETERMINISTIC CEL
 is: (i) a **strict syntactic subset** of CEL — every well-formed DETERMINISTIC
 CEL expression parses as CEL, treating §7's registry as CEL extension functions
-(CEL's own sanctioned mechanism); (ii) a **deterministic refinement** — wherever
+(CEL's own sanctioned mechanism) and the outer-spine `cel.bind` form (§5.3.4) as
+CEL's bindings extension *(v0.2: owner answer on Appendix A (i), Chisel
+2026-11-14)*; (ii) a **deterministic refinement** — wherever
 CEL leaves latitude (NaN ordering, competing error identity, evaluation order,
 transcendental accuracy), this standard pins one behaviour, and with the
 exceptions below the pinned behaviour is one a conformant CEL implementation
@@ -1678,8 +2337,10 @@ never tolerated as drift.
 
 ---
 
-*End of v0.1-DRAFT. No production code was written or modified in producing this
-document. Board-reviewed 2026-07-20 (two adversarial seats: boundedness/
-security, cross-language determinism; both SOUND-WITH-FIXES; synthesis applied
-the consolidated 10-item fix list — this revision) per
-`SOW-CEL-Filter-Format.md` §4.*
+*End of v0.2-DRAFT. No production code was written or modified in producing this
+document. The v0.1 text was board-reviewed 2026-07-20 (two adversarial seats:
+boundedness/security, cross-language determinism; both SOUND-WITH-FIXES; synthesis
+applied the consolidated 10-item fix list) per `SOW-CEL-Filter-Format.md` §4. The
+v0.2 additions (every passage tagged `(v0.2: let delta ...)`) were reviewed on
+2026-11-14 by a Sonnet and a Fable reviewer as a delta, before this text was
+edited from it; this edited text has NOT been re-reviewed.*
