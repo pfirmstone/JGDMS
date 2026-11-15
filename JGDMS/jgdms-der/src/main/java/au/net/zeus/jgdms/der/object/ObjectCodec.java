@@ -970,6 +970,21 @@ public final class ObjectCodec {
      * run. The decode is purely structural: schema -> DER -> named values. This is
      * the S3.11 claim in executable form.
      *
+     * <p><b>Values whose type names a class are returned as names.</b> The fields are
+     * decoded by {@link DerFieldStore#classFree}, so a field whose wire type names a class
+     * never causes that class to be resolved, loaded or initialised:
+     * <ul>
+     *   <li>an {@code enum:} field is an {@link au.net.zeus.jgdms.der.getarg.EnumName}
+     *       (the declared class name and the constant's name), not an {@link Enum}
+     *       constant; whether the constant still exists is not checked here, because that
+     *       needs the class -- it is checked when an object is constructed;</li>
+     *   <li>a {@code java.lang.Class} field is an
+     *       {@link au.net.zeus.jgdms.der.getarg.ClassName}, not a {@link Class};</li>
+     *   <li>an array of either is an {@code EnumName[]} or a {@code ClassName[]}.</li>
+     * </ul>
+     * A nested {@code @AtomicSerial}, {@code @AtomicSerial[]} or collection field is held as
+     * its raw TLV bytes in an opaque holder; it is not decoded by this method.
+     *
      * <pre>
      * SEQUENCE {          -- outer hierarchy SEQUENCE (produced by encodeHierarchy)
      *   SEQUENCE { ... }  -- root-class private SEQUENCE (first on wire)
@@ -1014,7 +1029,9 @@ public final class ObjectCodec {
         for (AtomicSerialSchemaRecord schemaRecord : rootFirst) {
             // Build a DerFieldStore for this class's SEQUENCE from the outer reader.
             // This advances outerSeq past the per-class SEQUENCE TLV.
-            DerFieldStore store = new DerFieldStore(schemaRecord, outerSeq);
+            // Class-free: an enum / Class field is returned as its name(s); no class named by
+            // the (sender-supplied) schema is resolved, loaded or initialised (S3.11).
+            DerFieldStore store = DerFieldStore.classFree(schemaRecord, outerSeq);
             // Extract the present fields as an ordered map.
             result.put(schemaRecord.className(), store.presentFields());
         }
@@ -1030,7 +1047,7 @@ public final class ObjectCodec {
     /**
      * Decodes a DER hierarchy payload into a named field map <b>class-free and scalar-only</b>,
      * loading NO class from any codebase and reconstructing NO object (STD-011 §B2 class-free
-     * candidate projection). This is the fail-closed, non-class-loading counterpart of
+     * candidate projection). This is the fail-closed, scalar-only counterpart of
      * {@link #decodeToFieldMap}: it walks the same {@code SEQUENCE {per-class SEQUENCE ...}}
      * structure, but decodes each field via {@link DerFieldStore#decodeScalarFieldClassFree}
      * (which reaches only the inert scalar {@link au.net.zeus.jgdms.der.getarg.ResolutionContext}-free
@@ -1038,13 +1055,14 @@ public final class ObjectCodec {
      * collection / nested {@code @AtomicSerial} / {@code char} / {@code Class} / {@code any}) with a
      * {@link DerException}.
      *
-     * <p>The critical difference from {@link #decodeToFieldMap}: that method builds a
-     * {@link DerFieldStore} whose decode routes an {@code enum:} field through
-     * {@code WireTypes.decodeEnum -> loadClass}, i.e. it resolves an attacker-declared class name.
-     * This method never does -- a hostile nested schema that declares an {@code enum:com.evil.X}
-     * sub-field is fail-closed <em>without</em> {@code com.evil.X} ever being named to a loader. It
-     * supports exactly the one-level-deep, scalar-sub-field {@code @AtomicSerial} projection the
-     * candidate projector needs; deeper nesting is deferred (fail-closed).
+     * <p>The difference from {@link #decodeToFieldMap}: neither method resolves or loads a class,
+     * but that method accepts every field kind and returns an {@code enum:} or {@code Class} field
+     * as its name(s) and a nested or collection field as an opaque raw holder, whereas this method
+     * rejects the whole record if any field is not an inert scalar. A hostile nested schema that
+     * declares an {@code enum:com.evil.X} sub-field is fail-closed here, and {@code com.evil.X} is
+     * never named to a loader by either method. This method supports exactly the one-level-deep,
+     * scalar-sub-field {@code @AtomicSerial} projection the candidate projector needs; deeper
+     * nesting is deferred (fail-closed).
      *
      * @param chain            the nested value's schema chain (leaf-first)
      * @param hierarchyPayload the DER bytes produced by {@link #encodeHierarchy}
