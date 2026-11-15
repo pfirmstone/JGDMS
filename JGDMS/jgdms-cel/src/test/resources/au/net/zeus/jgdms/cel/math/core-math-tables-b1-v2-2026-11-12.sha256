@@ -1,0 +1,6 @@
+# SHA-256 of the canonical rendering (v1, see CoreMathInverseTrigTestSupport.canonical) of every entry of CoreMathInverseTrigTables.snapshot():
+# the 26 tables of core-math-tables-b1-2026-11-12.sha256 followed by the 31 named scalar constants (keys K_...).
+# source: CORE-MATH src/binary64/{atan/atan.c, asin/asin.c, acos/acos.c, atan2/atan2.c, atan2/tint.h} at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+# generator: CoreMathGoldenGeneratorB1.generateTablesAndConstantsDigest, 2026-11-12 (system clock); the Java tables equalled the tables parsed from every C file that carries them
+# (30 table-file pairs) and every Java constant equalled the C text at all 42 places where the C writes one, when this file was written.
+d9630cbdb9699c27d4b9c48d89737b283be82577c6c02c82f5bc5d0530284dc7

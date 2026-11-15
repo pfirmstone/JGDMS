@@ -30,3 +30,24 @@ This product includes the animal-sniffer library from codehaus.org.
 The original software is available from http://mojo.codehaus.org/animal-sniffer/
 Licensed under the MIT license.
 
+This product includes Java ports of the binary64 sine, cosine, tangent, arcsine,
+arccosine, arctangent and two-argument arctangent functions of the CORE-MATH
+project (https://core-math.gitlabpages.inria.fr/), in the jgdms-cel module
+(package au.net.zeus.jgdms.cel.math), ported from src/binary64/sin/sin.c,
+cos/cos.c, tan/tan.c, asin/asin.c, acos/acos.c, atan/atan.c, atan2/atan2.c and
+atan2/tint.h at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+Copyright (c) 2026 Paul Zimmermann and Alexei Sibidanov (sin)
+Copyright (c) 2026 Paul Zimmermann (cos)
+Copyright (c) 2022-2025 Paul Zimmermann and Tom Hubrecht (tan)
+Copyright (c) 2022-2026 Alexei Sibidanov <sibid@uvic.ca>. (asin)
+Copyright (c) 2024-2025 Alexei Sibidanov. (acos)
+Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>. (atan)
+Copyright (c) 2024-2025 Paul Zimmermann and Alexei Sibidanov (atan2)
+Copyright (c) 2023-2024 Paul Zimmermann and Alexei Sibidanov (atan2, tint.h)
+Copyright (c) 2022, 2023 CERN and Inria (pow/dint.h)
+Copyright (c) 2022-2025 CERN and Inria (pow/pow.h, pow.c)
+(the last two: the files from which the dint64_t code inside tan.c comes)
+The original software is available from https://gitlab.inria.fr/core-math/core-math
+Licensed under the MIT license.
+See the LICENSE file for the permission notice and the list of the ported files.
+

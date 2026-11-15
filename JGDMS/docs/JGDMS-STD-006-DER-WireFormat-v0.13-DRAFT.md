@@ -7,7 +7,7 @@
 > "DER" (X.690 DER, "DER-encoded", "the DER value tree") continues to mean the ASN.1
 > encoding rules and is unchanged.
 
-**Status:** Draft (working scaffold for discussion)
+**Status:** Draft (working scaffold for discussion). **§3.7 amended for STD-011 v0.2 let bindings, pending the STD-006 owner's acceptance** (a second permitted exception for the STD-011 binding list; the only change to the text of this standard; STD-006's own version number is not bumped). STD-011 Appendix B §B.7 also PROPOSES, and does not apply, §4.5 table rows for `maxBindings` and `maxEffectiveDepth` (decode-time metered, like `maxExprDepth`; `maxExpandedCost`, a T6 sum like `maxExprCost`, is not proposed), under the same acceptance. **Proposal for the STD-006 owner (not applied to the §3.7 argument):** the §3.7 second-exception paragraph and the sentence "DER cannot express one" could name the class that backward-only references admit besides cycles, namely acyclic sharing that expands exponentially, state that its bound is STD-011 §10.3.1 (`xCost`) and §10.5 and the `effDepth` ceiling and not the encoding, and qualify "DER cannot express one" (a forward or self index is expressible, and is rejected by a checked rule, not made impossible). *(v0.2: owner answer Q7; owner decision 6, review S-m7, Chisel 2026-11-14)*
 **Version:** 0.13-DRAFT
 **Applies to:** JGDMS, DirtyChai (JDK fork), and non-JVM JGDMS participants
 **Depends on:** JGDMS-STD-001 (@AtomicSerial), JGDMS-STD-003 (Multi-Subject Identity)
@@ -466,12 +466,29 @@ cyclic-reference denial of service — because neither is representable. The acy
 property is a **security requirement**, not an encoding convenience: no future schema
 revision may introduce a reference type or any construct that permits a cycle.
 
-The single permitted exception is the frame-level codebase-identity table (§8), which
+The first of two permitted exceptions is the frame-level codebase-identity table (§8), which
 is a flat dictionary decoded and validated *in its entirety* before any object body
 may index into it. Its indices resolve only into already-completed, immutable entries
 — never into the object graph under construction — so it does not reintroduce
 deferred construction or cycles. If that strict ordering cannot be guaranteed, the
 table is abandoned in favour of repeating the records (§8).
+
+**Second permitted exception (proposed for STD-011 v0.2; pending the STD-006 owner's
+acceptance): the STD-011 binding list.** An STD-011 expression (DETERMINISTIC CEL) is a
+sequence of finite trees, the bindings and a main body, and a `REF` leaf in one tree
+carries the index of an earlier tree. It does not meet the condition above, and does not
+claim to: the codebase table is validated in its entirety before use, whereas the binding
+list is validated prefix by prefix, each `REF` index checked when it is decoded. It meets a
+distinct condition, argued on its own: its indices resolve only into already-completed,
+immutable expression trees, **backward only** (a `REF` in tree `k` names a tree `j < k`),
+and each `REF` index is checked when it is decoded, before the next node. That is sufficient for what
+this section protects. The reference graph cannot contain a cycle, because every index
+points strictly backward; every index resolves to a completed, immutable value; and nothing
+refers to an object under construction. It is not a reference type in the data model.
+**This is NOT a precedent for a general reference type**: the requirement above, that no
+future schema revision may introduce a reference type or any construct that permits a
+cycle, stands unchanged for every other construct. STD-011 §3.2(i) cites this exception.
+*(v0.2: STD-011 let delta B.2, R19)*
 
 ### 3.8 Values and Bounds, Never Behaviour
 

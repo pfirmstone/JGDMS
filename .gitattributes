@@ -1,2 +1,4 @@
 * text=auto
 *.properties text eol=lf
+LICENSE text eol=lf
+NOTICE text eol=lf

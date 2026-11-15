@@ -1,3 +1,9 @@
+<!-- CLAIM-HEADER (edit in place; body is append-only)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\CODEFREE\INDEX.md  (this file's claims: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0029 to RL-JGDMS-0035, RL-JGDMS-0037 to RL-JGDMS-0050, see add.4t, add.4w and add.4x)
+LATEST ADDENDUM: add.4y dated 2026-11-15 at heading "REVISION 4y, AS-OF 2026-11-15"  (addenda govern body text)
+SUPERSEDED BY: none
+FASTEST-AGEING SECTION: REVISION 4t (the register state after the repair) - re-read the disk before acting on it
+-->
 # Handover: the code-free proxy window (2026-10-31 to 2026-11-01), revision 4 (currency update on top of revision 3)
 
 AS-OF 2026-11-01 00:41 +1000 (revision 3, after the Fable review; JGDMS HEAD `61d597451`, DirtyChai HEAD `91737c79880`). Three commits landed within six minutes while revision 2 was being reviewed, so a date alone is not an AS-OF. Author: the Sonnet 5.5 session. Reviewed by a different model: Fable 5.1, `docs/REVIEW-handover-2026-11-01-fable.md`; its findings are applied below and listed in the struck-in-place section. Revision 2 of the same day: revision 1 (`db1506fd8`) was written without re-running the
@@ -306,3 +312,188 @@ Default every dispatch to Sonnet. Reviews are two-stage: a Sonnet agent runs the
 - **Open operator question:** the allow-list row `java.io.FilePermission lib/- write` (f14-rel-sub-write) stays clean by an earlier ruling on relative paths; flagging it needs a rule for relative-path writes, not made.
 - **Not verified:** F2 and F3 on a Linux lint host; the lint gate end to end on the new spellings (only the catalogue rating is tested).
 - Items 2 to 5 of 4n section 3 are unchanged. Rulings 4n section 4 stand; added: whole `/root`, one user's home and an undefined-property root are HIGH for a read.
+
+## REVISION 4p, AS-OF 2026-11-07 01:40 +1000 (newest block; it overrides 4n and 4o where they differ)
+
+**Reader and purpose.** The next session of the same assistant. 4p corrects statements in 4n and 4o that the Fable review of 2026-11-06 (`docs/REVIEW-memo-s15-handover-4n-fable-2026-11-06.md`, agent `a3d2585ccfcf24bcd`, model `claude-fable-5-1`) showed overstated or stale, records the path-rating normaliser, and replaces the review status. The struck text stays in 4n and 4o.
+
+### 1. State (VERIFIED at 01:35 +1000)
+- JGDMS repo HEAD `c9da0bd84` (git log). `git rev-list --left-right --count origin/trunk...trunk` = `0 2`: the operator pushed through `0eb9f0cc7`, and `7ab89decc` and `c9da0bd84` are unpushed. `git worktree list | wc -l` = 28. The operator pushes; the assistant commits only (transcript line 6283).
+- Commits since 4o: `b342a34d3` docs 4o; `d95503fe7` JWT module state reset before `shutdown()`, a refused interrupt only logged (`JwtLoginModuleTest` is 60 tests, 58 in 4n); `0eb9f0cc7` long-path prefix and a slash before a drive letter; `7ab89decc` **`PermissionSets.filePath` rewritten to normalise in the JDK's order** (separators and prefixes, then `.` and `..`, then the wildcard from the last NORMALISED name; one trailing dot stripped per segment; `\\.\` device names with a `-` or `*` wildcard HIGH at any depth; the UNC floor withdrawn; the drive-relative `..` regression of `0eb9f0cc7` fixed) with `PermissionSetsFilePermissionDifferentialTest`; `c9da0bd84` the three Opus reports.
+- Tests of `7ab89decc`, run by me on the FRESH DirtyChai JDK (`build/windows-x86_64-server-release/images/jdk`, 27-internal, not installed) from the worktree reactor root `JGDMS-normaliser-20261106/JGDMS` with `mvn -o -pl jgdms-platform,tools/policy-condenser clean test -Dmaven.test.failure.ignore=true` on the final bytes (`PermissionSets.java` md5 begins `2cd13dd7`; log `verify-normaliser4.log` in the session scratchpad): platform 574 run, 1 failure; `PermissionSetsTest` 26/0; differential 2/0; condenser 220 run, 0 failed, 2 skipped (`PolicyLintTest` 49, `PolicyLintGateTest` 30, `PolicyLintCorpusTest` 19, `ListPromotionTest` 47, `ProxyPolicyGeneratorTest` 47, `PermissionSetsTest` 4). The one platform failure is `CombinerDebugRecursionTest` (a `StackOverflowError` in the JDK's `Subject.toString`). The producer reports it identical on a scratch copy of `0eb9f0cc7` and not referencing `PermissionSets`; I did not re-run it on base myself.
+- Differential test (producer's run; Opus reproduced the counts in round 2, before the round 3 edits): 0 of 15,322 JDK-covered rows below the ruling; narrow controls 0 of 992; population 8,878 spellings x 2 actions = 17,756 rows. Scoring rule: a row counts when `FilePermission.implies` covers a probe under a ruled whole tree and the catalogue rating is below HIGH. It runs on a Windows host only (Assume-skipped elsewhere), scores deep probes rather than direct children (`C:\Users\alice\*` is unrated by ruling), and does not generate device `*` names (a unit test covers them).
+
+### 2. Corrections to 4n and 4o (the memo has the section 14 and 15 ones struck in place)
+1. **Memo section 15, the damage bound.** Window = detection delay (O34, unbounded today) + the renewal tail. The SVID lifetime bounds nothing before detection because the board renews automatically and the re-attestation evidence (`hsm_dev_attest`) is boot-time. "SVID lifetime shorter than the token's" inverted section 14 (token shorter than SVID) and is struck; the SVID lifetime is UNRULED. Certificate binding does not make the JWT question go away (section 14 line 877). Under the stated purpose P to S is a legitimate exfiltration channel; the response-path attack on C and lateral movement are in the window and unbounded.
+2. **O32 is largely answered by the operator's own document**: DirtyChai `PROXY_HOST_BOARD_REQUIREMENTS.md` sections 3.2 to 3.4 (P2, M1, M4, W1 to W3; commit `2ee51eddd60`, 2026-10-31 16:06). 4n section 3 item 3 listed O32 as open. What stays open is who triggers the power-off on a detection signal, and O34.
+3. **Review status (4n section 1 and 4o), per report.** ~~"Opus 5.5 reviewed everything up to and including ab94352a6".~~
+   - Opus `abaad6298e1cb80e8` (`REVIEW-threadfactory-bounded-close-lint-opus-2026-11-03.md`): `3cf1f31d9`, `ca58e7430`, `7652bc63f`, `a003c0172`.
+   - Opus `a9194d41e4b5eb946` (`REVIEW-path-ratings-differential-opus-2026-11-06.md`): `d95503fe7`, `0eb9f0cc7` and the catalogue population.
+   - Opus `a3caf5ea1ade68dd0` and `a6d89a04d5a2071f6` (`REVIEW-normaliser-opus-2026-11-06.md`, `REVIEW-normaliser-r2-opus-2026-11-07.md`): the normaliser through round 2.
+   - Fable `a86f2de13b7c2d104` reviewed the F1 to F5 fixes of 2026-11-03; I have its findings only as a hand-back summary and no review file exists, so that review is not on disk. Its three findings were fixed in `d95503fe7` and `0eb9f0cc7`.
+   - NOT reviewed by any second model: rounds 5 and 6, `4055eec11` and `03b317ef6` (shared `PermissionSets`, `--allow-held`; only a Sonnet handover-currency review mentions them), and **round 3 of the normaliser** (device `*` HIGH, the case and delete tests, comment fixes: verified by my build only).
+4. **Section 14, "rebuilding PolicyLint on the production policy provider"** was stale when written (`c96183b6d`, 2026-11-01 02:34); struck in the memo.
+5. **4n section 4, "threads must be created privileged ... (acceptance MET)".** Corrected: MET by a test asserting no grant to `jgdms-collections`; the test's power is unmeasured (4o F8: it checks one foreign domain; a mutant was not run).
+6. **4n section 1, "16 known unrelated platform failures: DigestDomainGrantTest, GrantSignerTest".** Corrected: pre-existing, inside the digest-grant mechanism (O9) that rulings 7, 8, 12 and D20 rest on, last measured 2026-10-31 under `-Pdirtychai`. In my 2026-11-07 run `DigestDomainGrantTest` reported 16 run, 0 failed, 1 skipped (`verify-normaliser3.log`), so the earlier failures did not reproduce there. One run, cause not investigated, and `GrantSignerTest` was not looked at.
+7. **4o "unpushed" and "added rulings".** The operator pushed through `0eb9f0cc7`. Rulings added after 4o: a name begun by `\\?\`, or by a slash before a drive letter, is rated as the form it equals on Windows (`0eb9f0cc7`). Two further rules are the assistant's calls and NOT operator rulings: device-namespace wildcard names are HIGH (2026-11-07), and the UNC floor is withdrawn (after Opus confirmed the 360 affected names cover no ruled tree). The message of `d95503fe7` says "No new test" although `JwtLoginModuleTest` gained two.
+8. **JDK identity (PLAUSIBLE only).** The fresh image is named by path and mtime (22:52 on 2026-11-01); the DirtyChai commit it was built from is not recorded. `4c71278f1c5` (#236, 21:18 the same day) is probably in it, not shown.
+
+### 3. Open items in order
+1. **Operator rulings owed** (Opus differential report, section 6): (a) OS aliases (F7): `C:\Documents and Settings`, a junction to `C:\Users`, and admin shares such as `\\localhost\C$`, against the ruling "a named directory below a share stays unrated"; (b) whether the undefined-property ruling extends to the FLAG set (`flagReason`, used by `ListPromotion`, which misses every F1 to F5 spelling and `${undefined}`); (c) whether a relative `..` chain that reaches `C:\` counts as a whole-drive read; (d) the allow-list row `lib/-` write (4o). Also for confirmation: the case-INSENSITIVE `\\?\unc\` match kept because a pinned test needs it (the JDK refuses that form), and the two assistant calls in 2.7.
+2. F6 wiring (the flag set); `PolicyScope`'s `file:/C:../lib/-` gap and its `file:/C:/-/.` over-rating are untouched.
+3. Linux is unverified (no Linux JDK); the differential test is Windows-only.
+4. Unchanged from 4n section 3: verify-before-release in the three signers, `char[]` handling of the secret and refresh token, memo O24, O25, O30, O31, O33 to O35, O19 to O22, and the DirtyChai items (operator-owned).
+5. Housekeeping: 28 worktrees; `~/.m2` SNAPSHOT jars. Agents of the normaliser, all delivered: Sonnet `a0ec7eea314444da3` (producer, resumed for rounds 2 and 3), Opus `a3caf5ea1ade68dd0` (round 1), Opus `a6d89a04d5a2071f6` (round 2).
+
+### 4. Not verified
+Linux; the lint gate end to end on the new spellings; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window).
+
+## REVISION 4q, AS-OF 2026-11-08 00:40 +1000 (newest block; it overrides 4p where they differ)
+
+**Reader and purpose.** The next session of the same assistant. 4q records the operator rulings of 2026-11-07 on the path-rating aliases, the commits that carry them, the review status per commit, and what is still open. 4p section 3 item 1 (rulings owed) is answered below.
+
+### 1. State (VERIFIED 2026-11-08 00:36 +1000)
+- JGDMS HEAD `8800a7a69` (`git log`). `git rev-list --left-right --count origin/trunk...trunk` = `0 7`: seven commits unpushed (`7ab89decc`, `c9da0bd84`, `685e1e541`, `073333b04`, `44505725f`, `9c14ea866`, `8800a7a69`). The operator pushes; the assistant commits only (transcript line 6283). `git worktree list | wc -l` = 30 (three of them from this window: `JGDMS-shortnames-20261107`, `JGDMS-aliases-20261107`, `JGDMS-normaliser-20261106`, all uncommitted copies of what is now on trunk).
+- Commits since 4p and what each holds:
+  - `073333b04`: `Documents and Settings` is `Users`; a `<letter>$` share is that drive on any host; the flag set (`flagReason`) uses the same whole-tree decision as `danger`; fixtures n126, n127 (n128 added here, removed below); `docs/REVIEW-aliases-opus-2026-11-07.md`.
+  - `44505725f`: a recursive absolute name with an 8.3-shaped segment (`[^~]{1,6}~[0-9]+(\.[^.~]{0,3})?`) among its first two names is HIGH on every host (`PermissionSets.mayBeShortName`); `Local Settings` as the third name under `Users\<name>` folds to `AppData\Local`; `PolicyScope.file` reads the same aliases; `aliased()` is now public; fixture n128 dropped; `docs/REVIEW-shortnames-opus-2026-11-07.md`.
+  - `9c14ea866`: `DOCUME~1` folds like `Documents and Settings` and `LOCALS~1` like `Local Settings`; `PolicyScope` tests the short-name shape before the fold.
+  - `8800a7a69`: `PermissionSets.homeTreeReason` is the one definition of the home trees (directory holding every home, one home, the root user's home), used by `fileReach` and by `PolicyScope.file`, so those codeBases are writable on every lint host; `classify()` reads `user.home`, `java.io.tmpdir` and `user.dir` from `env` (`--define`) before the host.
+- Tests, run by me on the FRESH DirtyChai JDK (`build/windows-x86_64-server-release/images/jdk`, 27-internal, not installed) from the worktree reactor root with `mvn -o -pl jgdms-platform,tools/policy-condenser clean test -Dmaven.test.failure.ignore=true`, on the final bytes of `8800a7a69` (log `verify-q2.log` in the session scratchpad): platform 583 run, 1 failure (`CombinerDebugRecursionTest`, StackOverflowError in the JDK's `Subject.toString`, known, unrelated, not re-run by me on base); condenser 222 run, 0 failed, 2 skipped. Scoring rule: a number counts only from the final bytes, md5-checked before and after each mutant.
+- Mutants (my runs; the test must fail when the rule is disabled): Local Settings fold, `mayBeShortName`, `DOCUME~1` fold, `LOCALS~1` fold, short-name shape before the fold in `PolicyScope`, `PolicyScope` `homeTreeReason` call, `PolicyScope` `env` read, the one-user's-home rule in `homeTreeReason`, short name in second place: 9 of 9 killed after two test repairs (one mutant first survived because the host's `tmpdir` and `user.dir` also sit under `Users`; the test now moves them).
+
+### 2. Operator rulings of 2026-11-07, answered
+1. OS aliases, flag set, relative `..` stays MEDIUM, `lib/-` write stays clean: "I accept your recommendations." (073333b04).
+2. 8.3 short names and the `Local Settings` junction: rate them conservatively by shape (first two names, `-` only), fold `Local Settings`: "I agree with your recommendations, go." (44505725f).
+3. `PolicyScope` follows the same aliases; drop fixture n128: same message (44505725f).
+4. Q1 (fold `LOCALS~1` and `DOCUME~1` too): "Q1 yes" (9c14ea866). A profile moved off `Users` and the `Application Data` self-junction were NOT folded: not recommended, not ruled.
+5. Q3 (a way to clear a real short-name directory such as `C:\PROGRA~1\MyApp\-`): "Q3 none" (no allow-list row exists or is added; the javadoc says so).
+6. Q2 (`PolicyScope` home trees host-blind): "Yes, do Q2" (8800a7a69).
+7. The assistant's own calls, confirmed by the operator's "I agree with your recommendations": device wildcard names HIGH at any depth; UNC floor withdrawn; `\\?\unc\` case-insensitive.
+8. Linux: "We'll verify Linux later" then "We can do it this afternoon" (2026-11-07). NOT done: it needs a Linux DirtyChai JDK reachable from this shell.
+
+### 3. Review status per commit
+- `073333b04`: Opus `a8e78784940ff888a` (`REVIEW-aliases-opus-2026-11-07.md`). Its guard-test follow-up has no second-model review.
+- `44505725f`: Opus `a0c0709c4b1b0c0a9` (`REVIEW-shortnames-opus-2026-11-07.md`). No false negative among 18 hand-chosen spellings inside the ruled scope (a hunt, not a census; one host).
+- NOT reviewed by any second model: `9c14ea866`, `8800a7a69` (verified by my build and mutants only), and the earlier gaps listed in 4p section 2.3.
+- The corpus and deploy tests are inert for this change: 0 of 580 tracked policy files contain an 8.3 token or `Local Settings` (Opus `git grep`, review section (b)). The new unit tests are the only gates.
+
+### 4. Open items in order
+1. **Linux pass** (promised for the afternoon of 2026-11-07): `PermissionSetsTest` and the condenser suite on a Linux DirtyChai JDK. Needs the image and a way to run it from here (WSL or a host).
+2. **F1 (Opus review of shortnames, CONFIRMED mechanism):** `fileReach` compares the JDK-home and temp directory lexically against `java.home` and `java.io.tmpdir`; a JVM launched through an 8.3 path reports them in 8.3 form, so the long spelling of `conf\security\java.security` write then rates 0. Not caused by this work (the base has the same comparison). The operator can check whether any deployment host reports 8.3: `java -XshowSettings:properties -version` launched as the lint is launched there. No ruling yet.
+3. **F5:** `C:\DOCUME~1\peter\*` rates 0/0 while `C:\Users\peter\*` rates M/H, a consequence of the ruling that `*` over Users or a home is unrated (Q2 of the earlier review). Unruled.
+4. **F2 residue:** a profile moved off `Users`, and the `Application Data` self-junction (`AppData\Local\Application Data\Temp\-` rates 0/0 and is the same directory). Unruled.
+5. 4p items still open: FLAG ignores the action, so write-only HIGH names such as `..\..\-` write are unflagged (pre-existing, not decided); `\\?\unc\` pinned test; the owed second-model reviews; F6 to F8 of the first Opus review; J2 and J3; the verify-before-release in the three signers; `char[]` secrets; memo O19 to O22, O24, O25, O30, O31, O33 to O35.
+6. Housekeeping: 30 worktrees; `~/.m2` SNAPSHOT jars.
+
+### 5. Not verified
+Linux; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window); whether any real host reports an 8.3 `java.home` or `java.io.tmpdir` (F1); `fsutil 8dot3name query C:` (access denied without admin, so whether 8.3 generation is on for the volume is unknown).
+
+### 6. Agents of this block (all delivered)
+Sonnet `a680d64d7103d3d7d` (aliases and flag set, producer); Opus `a8e78784940ff888a` (alias review); Opus `a0c0709c4b1b0c0a9` (short-name review, model `claude-opus-5-5` self-reported). The 9c14ea866 and 8800a7a69 changes were written by the main session (Sonnet 5.5), not by an agent.
+
+## REVISION 4r, AS-OF 2026-11-11 19:50 +1000 (newest block; it adds to 4q and overrides it only on Linux)
+
+**Reader and purpose.** The next session of the same assistant. 4r records the Linux pass that 4q section 4 item 1 left open, and the access to the Linux host. Nothing else changed since 4q.
+
+### 1. State (VERIFIED 2026-11-11 19:50 +1000)
+- JGDMS HEAD `34fa219c2` (`git log`); `git rev-list --left-right --count origin/trunk...trunk` = `0 8`: eight commits unpushed (the seven of 4q plus `34fa219c2`); working tree clean (`git status --short | wc -l` = 0).
+
+### 2. The Linux pass (2026-11-11)
+- **Host:** Ubuntu 24.04 (`uname -a`: Linux 7.0.0-28-generic x86_64), 8 cores, 15 GB RAM, address `10.1.1.22`, login `user`. SSH key login works from this Windows machine (the operator installed sshd and authorised this machine's `id_ed25519` on 2026-11-11). Maven 3.8.7 there; Windows used 3.9.15.
+- **JDK:** `~/GitHub/DirtyChai/build/linux-x86_64-server-release/images/jdk` on that host, `openjdk version "27-internal" 2026-09-15`, image directory dated 2026-10-28. That DirtyChai checkout is at `33b748f90b5` and does NOT contain `4c71278f1c5` (issue 236, 2026-11-01 21:18): `git merge-base --is-ancestor 4c71278f1c5 HEAD` there printed `236-NOT-in-HEAD`.
+- **Code under test:** committed HEAD `34fa219c2`, copied with `git archive HEAD | ssh ... tar -x` into `~/GitHub/JGDMS-linux-verify-20261111` on that host (255 MB archive, 12.6 s). The operator's own checkouts there were not touched. The copy and the log `~/verify-linux-20261111.log` are still there.
+- **Command:** `mvn -o -B -pl jgdms-platform,tools/policy-condenser clean test -Dmaven.test.failure.ignore=true` from `JGDMS-linux-verify-20261111/JGDMS` with `JAVA_HOME` set to the Linux image.
+- **Results (surefire totals, that log):**
+  - platform 583 run, 3 failures, 4 skipped. Failures: `CombinerDebugRecursionTest` (known, unrelated, same as Windows) and `UnresolvedPrincipalImpliesTest.classWildcardImpliesNothing` and `.classWildcardWithNameImpliesNothing`. The 4 skips: `PermissionSetsFilePermissionDifferentialTest` 3 (Windows-gated by design) and `DigestDomainGrantTest` 1 (also skipped on Windows).
+  - condenser 222 run, 6 failures, 0 skipped. Failures: `PolicyLintCorpusTest` 3 (`cleanFilesGrantNoStrangerAHighPermission`, `corpusExitCodesAndKinds`, `theLoadedProviderAndParserAreDirtyChais`, each saying "wrong or stale JDK"), `PolicyLintGateTest.wildcardPrincipalsOfIssuedClassesFail` (expected `1/1 P1 D2`, got `1/1 D2`), `PolicyLintTest.providersAgreeOnFixtures` (`f06-principal-wild.policy [dirtychai]`) and `PolicyLintTest.s3WildcardPrincipals`.
+  - **Passes on Linux:** `PermissionSetsTest` 34 run, 0 failed, 0 skipped (the host-blind ratings: the 8.3 shape rule, the `Local Settings`, `DOCUME~1` and `LOCALS~1` folds, the `Documents and Settings` alias, `<letter>$` shares, `//host/-` HIGH, the home trees); `PolicyLintGateTest` 32 run, 1 failure (the wildcard-principal one above), so the new `junctionAndShortNamesOfAHomeAreWritable` and `homeTreesAreWritableWhateverTheLintHost` pass.
+- **Reading of the 8 non-known failures (PLAUSIBLE, not proved):** every one concerns a wildcard principal class, the subject of issue 236, and the Linux JDK predates it. The corpus tests name the cause themselves. The Windows image (mtime 22:52 on 2026-11-01, after 21:18) passes all of them (222/0 in 4q section 1). I read the failure text of `UnresolvedPrincipalImpliesTest.classWildcardImpliesNothing` only as far as its stack trace, and did not run the suite against a Linux JDK that contains 236.
+- **Scoring rule:** a Linux result counts as clean only when the only failure is `CombinerDebugRecursionTest`. That has NOT been reached: it needs a Linux DirtyChai image built from a commit at or after `4c71278f1c5`.
+
+### 3. Open items in order
+1. **Clean Linux run:** pull DirtyChai trunk on `10.1.1.22`, `make images` (30 to 60 minutes per the DirtyChai CLAUDE.md), rerun the command in section 2, expect only `CombinerDebugRecursionTest` to fail. DirtyChai is human-authored: the operator does the pull and the build.
+2. The differential test (`PermissionSetsFilePermissionDifferentialTest`) is Windows-gated and skips on Linux by design; Linux has no JDK-versus-catalogue differential for file names.
+3. Everything in 4q section 4 items 2 to 6 is unchanged: F1 (8.3 `java.home` or `java.io.tmpdir`), F5, the F2 residue, the 4p leftovers, and the housekeeping.
+
+### 4. Not verified
+A Linux run on a DirtyChai image that contains issue 236; the full jeri suite, qa/jtreg and a TLS peer-assertion test (run by no one in this window); whether any deployment host reports an 8.3 `java.home` or `java.io.tmpdir`.
+
+## REVISION 4s, AS-OF 2026-11-14 21:47 +1000 (newest block; it adds to 4r; the claim statuses live in the register, not here)
+
+**Reader and purpose.** The next session of the same assistant. 4s records what was put in the claim register before this window was compacted, one defect in the register that stopped part of it, and what remains to be written.
+
+### 1. Register entries made (2026-11-14)
+- A new hypothesis scope `CODEFREE` (named after this handover's window; the operator did not name a scope, so rename it by asking). Claims of this window: CL-CODEFREE-0001, CL-CODEFREE-0003 to CL-CODEFREE-0012. CL-CODEFREE-0002 repeats CL-CODEFREE-0001 (a second run of the same command): cite 0001.
+- Ruling RL-JGDMS-0029 (the OS-alias ruling of 2026-11-07).
+- Each hypothesis carries its locator and its provenance in the log note (which ones the main session re-ran on 2026-11-14 and which are Opus measurements the main session did not repeat). Read `show <ID>` for it.
+
+### 2. A defect in `rulings/JGDMS/LOG.tsv` that blocks six rulings, and a repair that was refused
+- **What.** Line 30 of that log holds two entries on one physical line: the PERMGRANT session's RL-JGDMS-0028 was written without its trailing newline, and my `claim_register.py new` appended RL-JGDMS-0029 straight after it (`append()` in `claim_register.py`, lines 133 to 140, writes the row without checking that the file ends in a newline). The loader now stops with `LOG.tsv:30: expected 8 tab-separated fields, got 15`, so every `new`, `status` and `index` that touches the rulings fails, for every session. (Source: `python -I claim_register.py index` output of the same run; `[IO.File]` read of the log: 30 lines, line 30 has 15 tab-separated fields; field 7 of the glued line ends with the date `2026-11-14` that begins my row.)
+- **The repair.** Insert one newline between the end of RL-JGDMS-0028's note and the `2026-11-14` that starts RL-JGDMS-0029; no field text changes. I wrote `repair.py` for it (kept as `docs/REGISTER-2026-11-14-repair-jgdms-rulings-log.py`, whose `BAK` path points into the session scratchpad and needs changing: it takes the register's own lock, copies the log first, asserts the exact shape, writes atomically). The auto-mode classifier refused to run it as an edit of an append-only shared log, and I did not work around that. Whoever repairs it, the operator or the PERMGRANT session, should first check that no other writer has appended since.
+- **Rulings still to append to `rulings/JGDMS`** (statements, locators and the operator's verbatim words are in 4q section 2, items 1 to 6, and 4q section 2 does not cover the process ruling): the flag-set and relative-name ruling (item 1, second half; verbatim "I accept your recommendations."); the 8.3 shape rule, `Local Settings` fold, PolicyScope aliasing and the dropped fixture n128 (items 2 and 3; verbatim "I agree with your recommendations, go."); the `DOCUME~1` and `LOCALS~1` fold (item 4; verbatim "Q1 yes, Q3 none"); no clearing row for a real 8.3-shaped directory (item 5; same verbatim); `PolicyScope` home trees host-blind with `--define` (item 6; verbatim "Yes, do Q2"); and the process ruling (the assistant commits pathspec-scoped and never pushes; verbatim "You may commit the changes, I'll push them.", transcript line 6283). The script `docs/REGISTER-2026-11-14-append-entries.py` (`python -I it rulings`) appends all seven but would repeat the first, which is already RL-JGDMS-0029: skip it (its `hyps` part was already run; do not run it again).
+- **Tool defect to fix** (not mine to edit; `E:\Claude\claim_register\claim_register.py` is the operator's tool): `append()` should write a newline first when the file does not end in one.
+- **A second effect.** While the rulings log is broken, each hypothesis append also ends with the same error after the entry is written, so no ID was printed. The entries are in the log; the CODEFREE index did rebuild.
+
+### 3. Open items in order
+1. Repair the JGDMS rulings log (section 2), then append the six rulings and rerun `claim_register.py lint` on this file.
+2. Everything in 4q section 4 items 2 to 6 and 4r section 3 is unchanged.
+
+## REVISION 4t, AS-OF 2026-11-14 (newest block; it overrides 4s section 2 and 4s section 3 item 1)
+
+The operator said "Yes, repair it" and the JGDMS rulings log was repaired: one newline was inserted between the end of RL-JGDMS-0028 and the start of RL-JGDMS-0029 and nothing else changed (before and after compared byte for byte with the newlines removed; the pre-repair copy is `regv\JGDMS-LOG.tsv.before-repair` in the session scratchpad). The six waiting rulings were then appended with the scratch copy of `docs/REGISTER-2026-11-14-append-entries.py`, with the first skipped:
+- RL-JGDMS-0029: the OS aliases (4q section 2 item 1, first half).
+- RL-JGDMS-0030: the flag set and the relative-name rows (item 1, second half).
+- RL-JGDMS-0031: the 8.3 shape rule, the `Local Settings` fold, the PolicyScope aliasing and the dropped fixture n128 (items 2 and 3).
+- RL-JGDMS-0032: the `DOCUME~1` and `LOCALS~1` fold (item 4).
+- RL-JGDMS-0033: no clearing row for a real 8.3-shaped directory (item 5).
+- RL-JGDMS-0034: the PolicyScope home trees (item 6).
+- RL-JGDMS-0035: the assistant commits and the operator pushes (transcript line 6283).
+The tool defect in `append()` (4s section 2) is still open; the next writer to a log whose last line lacks a newline will glue entries again.
+
+## REVISION 4u, AS-OF 2026-11-14 (newest block; it overrides the last sentence of 4t)
+
+The operator said "Yes add the newline guard." and `append()` in `E:\Claude\claim_register\claim_register.py` now starts a fresh line when the log's last byte is not a newline. Tested in a scratch copy of the register: with the final newline stripped from the JGDMS rulings log, two successive `new` calls succeeded in the copy (their test IDs are not in the real register), every row had 8 fields and there were 0 blank lines; the real tool still parses (`ast.parse`). The real register was not given a test entry. The defect named in 4s section 2 is closed.
+
+## REVISION 4v, AS-OF 2026-11-14 (newest block; the mail watcher, nothing else changed)
+
+**Reader and purpose.** The next session of the same assistant. 4v records one operator instruction on how mail is watched, so a successor does not go back to a Monitor.
+
+### 1. Mail watcher (operator instruction, 2026-11-14, from the operator's session)
+- Reason given: the half-hourly empty wakes were the Monitor tool's 30-minute cap; its expiry notice wakes the seat for a full-context turn on an empty mailbox.
+- **Do not use a Monitor for mail.** If one is armed, stop it with TaskStop and do not re-arm it.
+- Arm instead `Bash` with `run_in_background: true`, command `python -I /e/Claude/tools/mailcheck.py <your-box> --wait` (keep any flags, e.g. `--batch-min`). It polls every 60 s at no token cost and exits on the first wake. Exit 10 = mail or attention (the output names the DIGEST.md to read); exit 2 = the watcher crashed (tell the operator).
+- After processing mail and `--advance` of marks, re-arm the same command, one at a time, never stacked. Keep the hourly loop fallback.
+- Authority: the mailbox skill and MAIL_PROTOCOL.md rule 9(a), updated 2026-11-14. No reply was needed.
+- State in this session: no mailbox name was known and no Monitor was armed (nothing to stop), so nothing was armed. Whoever has the box name arms the command above.
+
+## REVISION 4w, AS-OF 2026-11-15 (newest block; adds to 4v; the ruling statuses live in the register, not here)
+
+**Reader and purpose.** The next session of the same assistant. 4w records the proxy-board design rulings made on 2026-11-15 and where their open items are.
+
+### 1. Register entries made (2026-11-15)
+- Rulings RL-JGDMS-0037 to RL-JGDMS-0048: call direction, events by mailbox, the mailbox node (identity, one per host, moving, power cycling, two nodes), isolation and DER analysis of a suspected attacker (RL-JGDMS-0044 amends the power-down step of RL-JGDMS-0045), digest and code and serial form stored before loading, the marshalled proxy from `SafeServiceRegistrar`, and the digest check for `LoadClassPermission`. Read `show <ID>` for each; the operator's words are in the note.
+- The script that appended them: `JGDMS/docs/REGISTER-2026-11-15-append-board-rulings.py` (do not run it again).
+
+### 2. Open items
+1. The assistant's proposals P1 to P11 are in the design memo section 16.1; none is ruled.
+2. Not ruled by the operator: whether the power-down follows the isolation or is replaced by it, and whether the attacker response is automatic or confirmed by a person.
+3. The board requirements document is the operator's to change (P5).
+
+## REVISION 4x, AS-OF 2026-11-15 (newest block; adds to 4w; the ruling statuses live in the register, not here)
+
+**Reader and purpose.** The next session of the same assistant. 4x records two operator rulings made after 4w and what they change in the open items of 4w.
+
+### 1. Register entries made (2026-11-15, later)
+- RL-JGDMS-0049 (the power-down follows the isolation) and RL-JGDMS-0050 (the proxy's state at isolation can differ from its stored initial state). Read `show <ID>`. The second statement carries one inference of the assistant, labelled as such in its note.
+- The script that appended them: `JGDMS/docs/REGISTER-2026-11-15-append-board-rulings-2.py` (do not run it again).
+
+### 2. Changes to the 4w open items
+- 4w section 2 item 2, first half (does the power-down follow or replace the isolation) is answered by RL-JGDMS-0049. The second half (automatic or confirmed by a person) is still open.
+- Memo section 16.2 holds the struck remark and the consequence for the analysis of a persisted proxy.
+
+## REVISION 4y, AS-OF 2026-11-15 (newest block; adds to 4x)
+
+**Reader and purpose.** The next session of the same assistant. 4y records one new file.
+
+- `JGDMS/docs/SUMMARY-proxy-board-design-2026-11-15.md`: a reading aid for the proxy-board design (a diagram, who starts each connection, events and the mailbox node, loading and the digest check, the response to an attacker, the carrier board, open items). It cites RL-JGDMS-0037 to RL-JGDMS-0050 and the source files; the register stays the authority. Written at the operator's request ("Yes please"). Not read when it was written: the bytecode analysis engine's code, DIGEST_GRANT_PLAN.md, SOW-BAE-Timing-Sidechannel-Denial.md.
