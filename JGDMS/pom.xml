@@ -480,39 +480,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <!-- Loud guard for the copy above: the reactor root must hold LICENSE, NOTICE
-               and pom.xml.  The pom.xml term rejects the git repo root, which holds
-               other LICENSE and NOTICE files but no pom.  Keep the three paths on the
-               same expression as the copy's <directory>; ${project.rootDirectory} is
-               null on Maven 3.9 and must not be substituted. -->
-          <execution>
-            <id>require-license-notice</id>
-            <phase>validate</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <fail message="maven.multiModuleProjectDirectory=${maven.multiModuleProjectDirectory} is not the JGDMS reactor root (needs LICENSE, NOTICE and pom.xml): jars would ship without the licence files, or with the wrong ones.">
-                  <condition>
-                    <not>
-                      <and>
-                        <available file="${maven.multiModuleProjectDirectory}/LICENSE"/>
-                        <available file="${maven.multiModuleProjectDirectory}/NOTICE"/>
-                        <available file="${maven.multiModuleProjectDirectory}/pom.xml"/>
-                      </and>
-                    </not>
-                  </condition>
-                </fail>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>tidy-maven-plugin</artifactId>
         <executions>
@@ -715,6 +682,106 @@
                               <goals>
                                   <goal>check</goal>
                               </goals>
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <!-- Loud guard for the copy of LICENSE and NOTICE into every jar (copy-license-notice above): the
+           reactor root must hold LICENSE, NOTICE and pom.xml.  The pom.xml term rejects the git repo
+           root, which holds other LICENSE and NOTICE files but no pom.  The guard is three profiles,
+           each active only when its file is MISSING, because a profile's plugins are resolved only
+           when it is active: an ordinary build, offline as well, never resolves maven-antrun-plugin,
+           while a wrong reactor root still fails the build (when the plugin cannot be fetched offline
+           the failure is the plugin's resolution error, still a failed build).  Keep the three paths on
+           the same expression as the copy's directory; ${project.rootDirectory} is null on Maven 3.9
+           and must not be substituted.  Changed 2026-11-15 from an always-resolved antrun execution
+           (offline builds failed: maven-antrun-plugin 3.1.0 absent). -->
+      <profile>
+          <id>require-license-notice-license</id>
+          <activation>
+              <file>
+                  <missing>${maven.multiModuleProjectDirectory}/LICENSE</missing>
+              </file>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <groupId>org.apache.maven.plugins</groupId>
+                      <artifactId>maven-antrun-plugin</artifactId>
+                      <executions>
+                          <execution>
+                              <id>require-license-notice</id>
+                              <phase>validate</phase>
+                              <goals>
+                                  <goal>run</goal>
+                              </goals>
+                              <configuration>
+                                  <target>
+                                      <fail message="maven.multiModuleProjectDirectory=${maven.multiModuleProjectDirectory} is not the JGDMS reactor root (LICENSE is missing; the root needs LICENSE, NOTICE and pom.xml): jars would ship without the licence files, or with the wrong ones."/>
+                                  </target>
+                              </configuration>
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <profile>
+          <id>require-license-notice-notice</id>
+          <activation>
+              <file>
+                  <missing>${maven.multiModuleProjectDirectory}/NOTICE</missing>
+              </file>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <groupId>org.apache.maven.plugins</groupId>
+                      <artifactId>maven-antrun-plugin</artifactId>
+                      <executions>
+                          <execution>
+                              <id>require-license-notice</id>
+                              <phase>validate</phase>
+                              <goals>
+                                  <goal>run</goal>
+                              </goals>
+                              <configuration>
+                                  <target>
+                                      <fail message="maven.multiModuleProjectDirectory=${maven.multiModuleProjectDirectory} is not the JGDMS reactor root (NOTICE is missing; the root needs LICENSE, NOTICE and pom.xml): jars would ship without the licence files, or with the wrong ones."/>
+                                  </target>
+                              </configuration>
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <profile>
+          <id>require-license-notice-pom</id>
+          <activation>
+              <file>
+                  <missing>${maven.multiModuleProjectDirectory}/pom.xml</missing>
+              </file>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <groupId>org.apache.maven.plugins</groupId>
+                      <artifactId>maven-antrun-plugin</artifactId>
+                      <executions>
+                          <execution>
+                              <id>require-license-notice</id>
+                              <phase>validate</phase>
+                              <goals>
+                                  <goal>run</goal>
+                              </goals>
+                              <configuration>
+                                  <target>
+                                      <fail message="maven.multiModuleProjectDirectory=${maven.multiModuleProjectDirectory} is not the JGDMS reactor root (pom.xml is missing; the root needs LICENSE, NOTICE and pom.xml): jars would ship without the licence files, or with the wrong ones."/>
+                                  </target>
+                              </configuration>
                           </execution>
                       </executions>
                   </plugin>
