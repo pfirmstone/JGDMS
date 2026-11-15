@@ -250,7 +250,7 @@ public final class DerFieldStore {
         if (outer.hasMore()) {
             throw new DerException("DerFieldStore: trailing bytes after payload SEQUENCE");
         }
-        DecodeResult r = decodeAllFields(schema, seq, res);
+        DecodeResult r = decodeAllFields(schema, seq, res, false);
         this.fields = r.fields;
         this.trailingDiscarded = r.trailingDiscarded;
     }
@@ -287,9 +287,48 @@ public final class DerFieldStore {
         Objects.requireNonNull(res, "res");
         this.schema = schema;
         DerReader seq = reader.readSequence();
-        DecodeResult r = decodeAllFields(schema, seq, res);
+        DecodeResult r = decodeAllFields(schema, seq, res, false);
         this.fields = r.fields;
         this.trailingDiscarded = r.trailingDiscarded;
+    }
+
+    /** The store {@link #classFree} returns: its fields are already decoded. */
+    private DerFieldStore(AtomicSerialSchemaRecord schema, DecodeResult r) {
+        this.schema = schema;
+        this.fields = r.fields;
+        this.trailingDiscarded = r.trailingDiscarded;
+    }
+
+    /**
+     * Decodes one class's private SEQUENCE <b>without resolving or loading any class</b>
+     * (JGDMS-STD-006 S3.11, data independence from code). The framing, the strict TLV-count
+     * contract and every value rule are those of
+     * {@link #DerFieldStore(AtomicSerialSchemaRecord, DerReader)}; what differs is the value
+     * stored for a field whose type names a class:
+     * <ul>
+     *   <li>an {@code enum:} field holds an {@link EnumName} (or {@code null}), not an
+     *       {@link Enum} constant, and the constant's existence is not checked;</li>
+     *   <li>a {@code java.lang.Class} field holds a {@link ClassName} (or {@code null}), not a
+     *       {@link Class};</li>
+     *   <li>an array of either holds an {@code EnumName[]} or a {@code ClassName[]}.</li>
+     * </ul>
+     * Nested {@code @AtomicSerial}, {@code @AtomicSerial[]} and collection fields are held as
+     * raw TLV bytes, as in every store. No {@link ResolutionContext} is involved, so nothing on
+     * this path can reach a class loader.
+     *
+     * @param schema the at-marshal-time schema for the class whose SEQUENCE is being decoded
+     * @param reader a {@link DerReader} positioned at the outer SEQUENCE TLV; it is advanced
+     *               past that SEQUENCE
+     * @return the decoded store
+     * @throws DerException         if the DER encoding is malformed or a wire type is unsupported
+     * @throws NullPointerException if either argument is {@code null}
+     */
+    public static DerFieldStore classFree(AtomicSerialSchemaRecord schema, DerReader reader)
+            throws DerException {
+        Objects.requireNonNull(schema, "schema");
+        Objects.requireNonNull(reader, "reader");
+        DerReader seq = reader.readSequence();
+        return new DerFieldStore(schema, decodeAllFields(schema, seq, null, true));
     }
 
     // =========================================================================
@@ -325,7 +364,8 @@ public final class DerFieldStore {
      *                       {@code schema} declares
      */
     private static DecodeResult decodeAllFields(AtomicSerialSchemaRecord schema,
-                                                 DerReader seq, ResolutionContext res) throws DerException {
+                                                 DerReader seq, ResolutionContext res,
+                                                 boolean classFree) throws DerException {
         List<AtomicSerialFieldDef> fieldDefs = schema.fields();
         // LinkedHashMap preserves schema insertion order
         Map<String, Object> map = new LinkedHashMap<>(fieldDefs.size() * 2);
@@ -370,6 +410,10 @@ public final class DerFieldStore {
                 // @AtomicSerial / nested-collection elements thread the cumulative depth guard
                 // and der.getarg stays cycle-free.
                 value = readCollectionRawTlv(seq, def.wireType());
+            } else if (classFree) {
+                // No class is resolved: enum and Class values are returned as their names
+                // (res is null here and must not be used).
+                value = WireTypes.decodeClassFree(seq, def.wireType());
             } else {
                 value = WireTypes.decode(seq, def.wireType(), res);
             }

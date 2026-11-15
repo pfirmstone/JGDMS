@@ -132,6 +132,56 @@ final class WireTypes {
     }
 
     /**
+     * {@link #decode} without a class: decodes the next TLV according to {@code wireType},
+     * resolving and loading <b>no class whatsoever</b> (JGDMS-STD-006 S3.11, data independence
+     * from code). It accepts exactly the wire types {@link #decode} accepts and applies the same
+     * framing and value rules; the only difference is what is returned where {@link #decode}
+     * would need a class:
+     * <ul>
+     *   <li>{@code "enum:<className>"} -- an {@link EnumName} holding the declared class name and
+     *       the constant's name (or {@code null} for DER NULL), not an {@link Enum} constant. The
+     *       constant's existence is NOT checked, because that needs the class.</li>
+     *   <li>{@code "java.lang.Class"} -- a {@link ClassName} (or {@code null}), not a
+     *       {@link Class}.</li>
+     *   <li>{@code "array:enum:<className>"} / {@code "array:java.lang.Class"} -- an
+     *       {@code EnumName[]} / {@code ClassName[]} whose elements may be {@code null}.</li>
+     * </ul>
+     * Every other type decodes to the value {@link #decode} returns. There is deliberately no
+     * {@link ResolutionContext} parameter: this path must never reach a class loader.
+     *
+     * @param reader   a {@link DerReader} positioned at the next TLV to decode
+     * @param wireType the wire-type string from the field's {@code AtomicSerialFieldDef}
+     * @return the decoded value (may be {@code null} for nullable types)
+     * @throws DerException if the wireType is unsupported or the DER encoding is malformed
+     */
+    static Object decodeClassFree(DerReader reader, String wireType) throws DerException {
+        if (wireType.startsWith("enum:")) {
+            return decodeEnumName(reader, wireType);
+        }
+        if (wireType.startsWith("array:")) {
+            return decodeArray(reader, wireType, null, true);
+        }
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return null;
+        }
+        if ("java.lang.Class".equals(wireType)) {
+            return new ClassName(reader.readUtf8String());
+        }
+        return decodeScalar(reader, wireType);
+    }
+
+    /** {@link #decodeEnum} without a class: the declared class name and the constant's name, or {@code null} for DER NULL. */
+    private static EnumName decodeEnumName(DerReader reader, String wireType) throws DerException {
+        String className = wireType.substring(5); // strip "enum:"
+        if (peekIsNull(reader)) {
+            readNull(reader);
+            return null;
+        }
+        return new EnumName(className, reader.readUtf8String());
+    }
+
+    /**
      * The one decoder of every scalar, {@code String} and {@code byte[]} wire type, for a TLV already known not to be NULL. It
      * resolves no class and takes no {@link ResolutionContext}, so {@link #decode}, {@link #decodeScalarNoClassLoad} and
      * {@link #validateClassFree} (which whole-stream admission calls before any class is loaded) all apply the SAME range,
@@ -490,6 +540,18 @@ final class WireTypes {
      *                      encoding is malformed
      */
     static Object decodeArray(DerReader reader, String wireType, ResolutionContext res) throws DerException {
+        return decodeArray(reader, wireType, res, false);
+    }
+
+    /**
+     * {@link #decodeArray(DerReader, String, ResolutionContext)}, optionally without a class. With
+     * {@code classFree} set, {@code res} is not used (and may be {@code null}), no class is
+     * resolved or loaded, an enum or {@code Class} component yields an {@code EnumName[]} or
+     * {@code ClassName[]}, and the component types accepted are exactly those
+     * {@link #validateArray} accepts.
+     */
+    private static Object decodeArray(DerReader reader, String wireType, ResolutionContext res,
+                                      boolean classFree) throws DerException {
         if (peekIsNull(reader)) {
             readNull(reader);
             return null;
@@ -513,22 +575,30 @@ final class WireTypes {
                     + "DerFieldStore must store it as NestedArrayRaw");
         }
 
+        // Class-free: refuse, before reading any element, every component type the class-free
+        // validator refuses, so nothing reaches decode()'s class-resolving branches.
+        if (classFree && !componentWT.equals("java.lang.String") && !componentWT.equals("java.lang.Class")
+                && !componentWT.startsWith("enum:") && !isPrimitiveArrayComponent(componentWT)) {
+            throw new DerException("WireTypes.buildArray: unsupported component wireType '" + componentWT + "'");
+        }
+
         // Read the outer SEQUENCE: one TLV per element
         DerReader seq = reader.readSequence();
         List<Object> elements = new ArrayList<>();
         while (seq.hasMore()) {
-            elements.add(decodeArrayElement(seq, componentWT, res));
+            elements.add(decodeArrayElement(seq, componentWT, res, classFree));
         }
 
-        return buildArray(elements, componentWT, res);
+        return buildArray(elements, componentWT, res, classFree);
     }
 
     /**
      * Decodes one element TLV from an array SEQUENCE.
      *
-     * <p>For nullable element types (String, enum), the element may be DER NULL.
+     * <p>For nullable element types (String, Class, enum), the element may be DER NULL.
      * For primitive element types (boolean/byte/short/int/long), DER NULL is
-     * not a valid element (primitives cannot be null in Java).
+     * not a valid element (primitives cannot be null in Java) and is refused with a
+     * {@link DerException}.
      *
      * @param seq        sub-reader positioned at the element TLV
      * @param componentWT the wireType of the component (e.g. {@code "int"},
@@ -536,8 +606,8 @@ final class WireTypes {
      * @return the decoded element value (may be {@code null} for nullable types)
      * @throws DerException if the element encoding is malformed or invalid
      */
-    private static Object decodeArrayElement(DerReader seq, String componentWT, ResolutionContext res)
-            throws DerException {
+    private static Object decodeArrayElement(DerReader seq, String componentWT, ResolutionContext res,
+                                             boolean classFree) throws DerException {
         // Nullable element types: String and enum support per-element DER NULL.
         if (componentWT.equals("java.lang.String")) {
             if (peekIsNull(seq)) {
@@ -551,12 +621,25 @@ final class WireTypes {
                 readNull(seq);
                 return null;
             }
-            return resolveClass(seq.readUtf8String(), res);
+            String name = seq.readUtf8String();
+            return classFree ? new ClassName(name) : resolveClass(name, res);
         }
         if (componentWT.startsWith("enum:")) {
-            return decodeEnum(seq, componentWT, res);
+            return classFree ? decodeEnumName(seq, componentWT) : decodeEnum(seq, componentWT, res);
         }
-        // Primitive types: decode normally (DER NULL is an error for primitives)
+        // Every remaining component is a value type whose array is a primitive array (int[], long[],
+        // ...), which cannot hold null. decode() would return null for a NULL element and buildArray
+        // would then fail unboxing it with a NullPointerException, so refuse it here, as
+        // validateArray does.
+        if (peekIsNull(seq)) {
+            throw new DerException(
+                    "WireTypes.decodeArray: NULL element in an array of '" + componentWT
+                    + "'; only String, Class and enum elements may be null");
+        }
+        if (classFree) {
+            // A primitive component (the caller has refused every other kind).
+            return decodeScalar(seq, componentWT);
+        }
         return decode(seq, componentWT, res);
     }
 
@@ -569,9 +652,18 @@ final class WireTypes {
      * @throws DerException if the component class cannot be loaded or elements have
      *                      unexpected null values for primitive component types
      */
-    private static Object buildArray(List<Object> elements, String componentWT, ResolutionContext res)
-            throws DerException {
+    private static Object buildArray(List<Object> elements, String componentWT, ResolutionContext res,
+                                     boolean classFree) throws DerException {
         int n = elements.size();
+        if (classFree) {
+            // No class: the names stand in for the Class objects and enum constants.
+            if (componentWT.equals("java.lang.Class")) {
+                return elements.toArray(new ClassName[0]);
+            }
+            if (componentWT.startsWith("enum:")) {
+                return elements.toArray(new EnumName[0]);
+            }
+        }
         switch (componentWT) {
             case "boolean", "java.lang.Boolean" -> {
                 boolean[] arr = new boolean[n];
