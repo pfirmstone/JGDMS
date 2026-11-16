@@ -64,10 +64,17 @@ public final class EntryRep implements Cloneable {
             new SerialForm("eclass", EntryClass.class),
             /** @serialField The codebase of the entry class. */
             new SerialForm("codebase", String.class),
-            /** @serialField The public fields of the Entry, each converted as necessary to
-             * a MarshalledWrapper (or left as is if of known java.lang immutable
-             * type).  The fields are in super- to subclass order. */
-            new SerialForm("fields", Object[].class)
+            /** @serialField The public fields of the Entry, each marshalled into
+             * its own {@code MarshalledInstance} (born ATOMIC_DER when the
+             * registrar/proxy is DER-configured, legacy JOSS otherwise -- see
+             * {@code useDer}). Homogeneous element type, DER-schema-encodable
+             * via the {@code array:@AtomicSerial} route (mirrors Outrigger's
+             * {@code EntryRep.values}); a bare {@code Object[]} is not (rejected
+             * by the DER SchemaGenerator as heterogeneous). Every field is
+             * wrapped -- the previous immutable-known-types raw-storage
+             * optimization is removed. The fields are in super- to subclass
+             * order. */
+            new SerialForm("fields", MarshalledInstance[].class)
         };
     }
     
@@ -93,44 +100,62 @@ public final class EntryRep implements Cloneable {
      */
     public final String codebase;
     /**
-     * The public fields of the Entry, each converted as necessary to
-     * a MarshalledWrapper (or left as is if of known java.lang immutable
-     * type).  The fields are in super- to subclass order.
+     * The public fields of the Entry, each marshalled into its own
+     * {@code MarshalledInstance} (born ATOMIC_DER or legacy JOSS -- see
+     * {@link #marshal(Object, boolean)}).  The fields are in super- to
+     * subclass order.
      *
      * @serial
      */
-    private final Object[] fields; // Individual fields were mutated by RegistrarImpl
+    private final MarshalledInstance[] fields; // Individual fields were mutated by RegistrarImpl
 
     transient List flds; // Reggie now uses flds to access fields.
-   
+
+    /**
+     * {@code true} if the last time this object was unmarshalled, integrity
+     * was being enforced -- sampled from the stream at GetArg construction
+     * time (mirroring {@link EntryClass}/{@link ServiceType}), since a raw
+     * {@code MarshalledInstance} (unlike {@code MarshalledWrapper}) does not
+     * self-track integrity and needs it passed explicitly to {@code get()}.
+     * Only meaningful -- and only ever consulted by {@link #get()} /
+     * {@link #getViaSerialEntry(Class)} -- on an {@code EntryRep} that was
+     * itself produced by real deserialization (always client-side); an
+     * {@code EntryRep} built fresh from an {@code Entry}, or copied via
+     * {@link #EntryRep(EntryRep, boolean)}, never has {@code get()} called on
+     * it (the registrar only matches/relays), so the {@code false} default
+     * is inert there.
+     */
+    private transient boolean integrity = false;
+
     public List fields(){
 	return flds;
     }
-    
-    private static boolean check(GetArg arg) 
+
+    private static boolean check(GetArg arg)
 	    throws IOException, ClassNotFoundException{
 	EntryClass eclass = Valid.notNull(
-	    arg.get("eclass", null, EntryClass.class), 
+	    arg.get("eclass", null, EntryClass.class),
 	    "eclass cannot be null"
-	); 
-	String codebase = arg.get("codebase", null, String.class); 
-	Object [] fields = Valid.notNull(
-	    arg.get("fields", null, Object[].class), 
+	);
+	String codebase = arg.get("codebase", null, String.class);
+	MarshalledInstance [] fields = Valid.notNull(
+	    arg.get("fields", null, MarshalledInstance[].class),
 	    "fields array cannot be null"
-	); 
+	);
 	return true;
     }
-    
+
     EntryRep(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
-    
-    private EntryRep(GetArg arg, boolean check) 
+
+    private EntryRep(GetArg arg, boolean check)
 	    throws IOException, ClassNotFoundException{
 	eclass = arg.get("eclass", null, EntryClass.class);
 	codebase = arg.get("codebase", null, String.class);
-	fields = Valid.copy(arg.get("fields", null, Object[].class));
-	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+	fields = Valid.copy(arg.get("fields", null, MarshalledInstance[].class));
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new MarshalledInstance[0]));
+	integrity = MarshalledWrapper.integrityEnforced(arg);
     }
 
     /**
@@ -142,7 +167,7 @@ public final class EntryRep implements Cloneable {
 	synchronized (copy.fields){
 	    fields = copy.fields.clone();
 	}
-	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new MarshalledInstance[0]));
     }
     
     /**
@@ -152,8 +177,10 @@ public final class EntryRep implements Cloneable {
      * @param useDer if {@code true}, marshallable fields are wrapped via DER
      *     ({@code MarshalledInstance} + {@code MarshallingFormat.ATOMIC_DER});
      *     if {@code false}, the legacy JOSS {@code AtomicMarshalledInstance}
-     *     form is used (unchanged pre-existing behavior). See
-     *     {@link Util#requiresDerFormat(Object)} for how callers derive this.
+     *     form is used (unchanged pre-existing behavior). Callers derive
+     *     this from the relevant proxy/registration's own immutable, born
+     *     {@code entryFormat} field (e.g. {@code RegistrarProxy.useDer()}),
+     *     never from {@code getConstraints()}.
      */
     private EntryRep(Entry entry, boolean needCodebase, boolean useDer) throws RemoteException {
 	EntryClassBase ecb = ClassMapper.toEntryClassBase(entry.getClass());
@@ -166,31 +193,45 @@ public final class EntryRep implements Cloneable {
 	} catch (IllegalAccessException e) {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
-	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new MarshalledInstance[0]));
     }
 
-    private static Object[] fields(Entry entry, boolean useDer)
+    /**
+     * Marshals every usable field of {@code entry} into its own
+     * {@code MarshalledInstance}, mirroring Outrigger's
+     * {@code EntryRep.values} (board-reviewed, commit {@code 5899a7f9e}).
+     * Every field is wrapped -- unlike the pre-A3-rework scheme, there is no
+     * raw-storage optimization for known-immutable types (String, boxed
+     * scalars, ...): a bare {@code Object[]} of mixed raw/wrapped elements
+     * is not DER-schema-encodable (rejected by the SchemaGenerator as
+     * heterogeneous), while a homogeneous {@code MarshalledInstance[]} is,
+     * via the existing {@code array:@AtomicSerial} route. Byte-comparison
+     * matching ({@link #equals(Object)}/{@link #matchEntry(EntryRep)}) stays
+     * correct because DER (and the JOSS {@code AtomicMarshalledInstance}
+     * form used when {@code useDer} is {@code false}) are both canonical:
+     * equal values marshal to identical bytes.
+     */
+    private static MarshalledInstance[] fields(Entry entry, boolean useDer)
             throws IOException, IllegalArgumentException, IllegalAccessException {
         Class<?> cls = entry.getClass();
         if (cls.isAnnotationPresent(SerialEntry.class)) {
             return fieldsViaSerialEntry(cls, entry, useDer);
         }
         EntryField[] efields = ClassMapper.getFields(cls);
-        Object[] fields = new Object[efields.length];
+        MarshalledInstance[] fields = new MarshalledInstance[efields.length];
         for (int i = efields.length; --i >= 0; ) {
             EntryField f = efields[i];
             Object val = f.field.get(entry);
-            if (f.marshal && val != null)
-                val = new MarshalledWrapper(marshal(val, useDer));
-            fields[i] = val;
+            if (val != null) {
+                fields[i] = marshal(val, useDer);
+            }
         }
         return fields;
     }
 
     /**
      * Marshals {@code val} either via DER ({@code useDer == true}) or the legacy
-     * JOSS {@code AtomicMarshalledInstance} form ({@code useDer == false}), for
-     * wrapping in a {@link MarshalledWrapper}. See {@link Util#requiresDerFormat(Object)}.
+     * JOSS {@code AtomicMarshalledInstance} form ({@code useDer == false}).
      */
     private static MarshalledInstance marshal(Object val, boolean useDer) throws IOException {
         return useDer
@@ -201,9 +242,11 @@ public final class EntryRep implements Cloneable {
 
     /**
      * Serialises an {@code @SerialEntry} instance by invoking its static
-     * {@code serialize(PutEntryArg, T)} method and collecting the results.
+     * {@code serialize(PutEntryArg, T)} method and collecting the results,
+     * marshalling every non-null wire-field value into its own
+     * {@code MarshalledInstance} (see {@link #fields(Entry, boolean)}).
      */
-    private static Object[] fieldsViaSerialEntry(Class<?> cls, Entry entry, boolean useDer)
+    private static MarshalledInstance[] fieldsViaSerialEntry(Class<?> cls, Entry entry, boolean useDer)
             throws IOException {
         try {
             Method entryFormMethod = cls.getMethod("entryForm");
@@ -213,14 +256,12 @@ public final class EntryRep implements Cloneable {
                     net.jini.core.entry.PutEntryArg.class, cls);
             serializeMethod.invoke(null, putArg, entry);
             Object[] rawValues = putArg.getResult();
-            // Wrap values that need marshalling (not simple immutable types)
-            Object[] fields = new Object[wireFields.length];
+            MarshalledInstance[] fields = new MarshalledInstance[wireFields.length];
             for (int i = 0; i < wireFields.length; i++) {
                 Object val = rawValues[i];
-                if (val != null && needsMarshal(wireFields[i].getType())) {
-                    val = new MarshalledWrapper(marshal(val, useDer));
+                if (val != null) {
+                    fields[i] = marshal(val, useDer);
                 }
-                fields[i] = val;
             }
             return fields;
         } catch (NoSuchMethodException e) {
@@ -235,27 +276,6 @@ public final class EntryRep implements Cloneable {
             throw new MarshalException(
                 "Cannot access serialize() on " + cls.getName(), e);
         }
-    }
-
-    /** Types whose instances are known-immutable and do not need MarshalledWrapper. */
-    private static final java.util.Set<Class<?>> IMMUTABLE_TYPES;
-    static {
-        java.util.Set<Class<?>> s = new java.util.HashSet<>();
-        s.add(String.class);
-        s.add(Integer.class);
-        s.add(Boolean.class);
-        s.add(Character.class);
-        s.add(Long.class);
-        s.add(Float.class);
-        s.add(Double.class);
-        s.add(Byte.class);
-        s.add(Short.class);
-        IMMUTABLE_TYPES = java.util.Collections.unmodifiableSet(s);
-    }
-
-    /** Returns {@code true} if values of the given type need MarshalledWrapper wrapping. */
-    private static boolean needsMarshal(Class<?> type) {
-        return !IMMUTABLE_TYPES.contains(type);
     }
 
     /**
@@ -277,8 +297,8 @@ public final class EntryRep implements Cloneable {
 		EntryField f = efields[i];
 		Field rf = f.field;
 		try {
-		    if (f.marshal && val != null)
-			val = ((MarshalledWrapper) val).get();
+		    if (val != null)
+			val = ((MarshalledInstance) val).get(integrity);
 		    rf.set(entry, val);
 		} catch (Throwable e) {
 		    if (e instanceof IllegalArgumentException) {
@@ -304,7 +324,7 @@ public final class EntryRep implements Cloneable {
 
     /**
      * Deserialises a {@code @SerialEntry} entry via its {@code (GetEntryArg)}
-     * constructor, first unmarshalling any {@link MarshalledWrapper} values
+     * constructor, first unmarshalling any {@link MarshalledInstance} values
      * back to their original objects.
      */
     private Entry getViaSerialEntry(Class clazz) {
@@ -315,9 +335,9 @@ public final class EntryRep implements Cloneable {
 	    Object[] rawValues = new Object[wireFields.length];
 	    for (int i = 0; i < wireFields.length && i < flds.size(); i++) {
 		Object val = flds.get(i);
-		if (val instanceof MarshalledWrapper) {
+		if (val instanceof MarshalledInstance) {
 		    try {
-			val = ((MarshalledWrapper) val).get();
+			val = ((MarshalledInstance) val).get(integrity);
 		    } catch (Throwable e) {
 			RegistrarProxy.handleException(e);
 			val = null;
@@ -393,7 +413,8 @@ public final class EntryRep implements Cloneable {
      * is false, then the codebase of every EntryRep will be null.
      *
      * @param useDer whether to marshal fields via DER instead of the legacy
-     *     JOSS form; see {@link Util#requiresDerFormat(Object)}.
+     *     JOSS form; callers derive this from the relevant proxy/
+     *     registration's own immutable, born {@code entryFormat} field.
      */
     public static EntryRep[] toEntryRep(Entry[] entries, boolean needCodebase, boolean useDer)
 	throws RemoteException
