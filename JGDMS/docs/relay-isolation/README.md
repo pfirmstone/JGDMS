@@ -85,6 +85,8 @@ node identity key and owns the TLS connections to the service.
   this directory. Read it before any work order after 01. Work order 01 is unaffected.
   Its last section lists conflicts with the landed isolation code that are awaiting
   operator rulings; no work order touches the launcher, pool or hand-off until then.
+- The inventory of proxies and endpoints in call streams is designed in `DESIGN-inventory.md`
+  (work order 02). Review findings it answers are in `REVIEW-01-docs-and-locator.md`.
 - Open operator decisions: where the signer for the node key lives; the open points listed
   at the end of `DESIGN-security.md`. Whether `BasicInvocationHandler.authenticateServer`
   may accept `RelayEndpoint` is now a compatibility question only, because that check runs
