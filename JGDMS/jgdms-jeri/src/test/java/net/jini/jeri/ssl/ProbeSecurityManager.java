@@ -30,11 +30,30 @@ import java.security.Permission;
 @SuppressWarnings("removal")
 public final class ProbeSecurityManager extends SecurityManager {
 
+    /**
+     * Set while a check is under way on this thread.  A plain SecurityManager
+     * has no defence against a check that causes another, as loading the
+     * policy does (it reads a security property), which then recurses until
+     * the stack is exhausted; DirtyChai's CombinerSecurityManager has one, so
+     * this has it too.  A check made while checking is not part of the
+     * scenario, and is not made.
+     */
+    private static final ThreadLocal<Boolean> CHECKING = new ThreadLocal<>();
+
     @Override
     public void checkPermission(Permission p) {
-        if (!TimeoutSchedulerProbe.ARMED.get()) {
+        if (!TimeoutSchedulerProbe.ARMED.get() || CHECKING.get() != null) {
             return;
         }
+        CHECKING.set(Boolean.TRUE);
+        try {
+            check(p);
+        } finally {
+            CHECKING.remove();
+        }
+    }
+
+    private static void check(Permission p) {
         if (p.getClass().getSimpleName().equals("DefineClassPermission")) {
             /*
              * DirtyChai's check for the hidden class of a lambda is of the

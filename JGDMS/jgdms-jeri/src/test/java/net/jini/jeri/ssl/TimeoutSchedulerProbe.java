@@ -20,10 +20,13 @@ package net.jini.jeri.ssl;
 import java.lang.reflect.Method;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.net.URL;
 import java.security.AllPermission;
+import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
+import java.security.Policy;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
@@ -93,7 +96,16 @@ public final class TimeoutSchedulerProbe {
         SecurityManager manager = (SecurityManager) managers
             .loadClass("net.jini.jeri.ssl.ProbeSecurityManager")
             .getDeclaredConstructor().newInstance();
-        ProtectionDomain jeri = new ProtectionDomain(null, granted);
+        /*
+         * The domain of jgdms-jeri has a code source, and a policy grants it
+         * the permissions: DirtyChai's doPrivileged limits the privilege to a
+         * domain that it identifies by the caller's code source, and one with
+         * none cannot hold a permission, whatever it was constructed with.
+         */
+        CodeSource jeriCodeSource = new CodeSource(new URL("file:/jgdms-jeri-probe/"),
+                                                   (java.security.cert.Certificate[]) null);
+        ProtectionDomain jeri = new ProtectionDomain(jeriCodeSource, granted);
+        Policy.setPolicy(new GrantPolicy(jeriCodeSource, granted));
         ProtectionDomain application = new ProtectionDomain(null, new Permissions());
         AccessControlContext context = new AccessControlContext(
             new ProtectionDomain[] { application });
@@ -151,6 +163,26 @@ public final class TimeoutSchedulerProbe {
         System.out.println(result);
         System.out.flush();
         Runtime.getRuntime().halt(0);
+    }
+
+    /** Grants a set of permissions to the domains of one code source, and nothing to any other. */
+    private static final class GrantPolicy extends Policy {
+
+        private final String location;
+        private final PermissionCollection granted;
+
+        GrantPolicy(CodeSource codeSource, PermissionCollection granted) {
+            this.location = codeSource.getLocation().toString();
+            this.granted = granted;
+        }
+
+        @Override
+        public boolean implies(ProtectionDomain domain, Permission permission) {
+            CodeSource cs = domain.getCodeSource();
+            return cs != null && cs.getLocation() != null
+                && location.equals(cs.getLocation().toString())
+                && granted.implies(permission);
+        }
     }
 
     /** Writes a permission as {@code class|name|actions}. */
