@@ -9,6 +9,16 @@
   against a launcher *abstraction*, never a real spawned OS process. Nothing in this document reopens
   that landed work; it closes the one thing left unbuilt underneath it.
 
+- ⛔ **RIVAL SOW FOR THIS SAME COMPONENT, on trunk since 2026-11-16, NOT RECONCILED:**
+  `SOW-Smart-Proxy-Isolation-Real-Launcher.md` (drafted 2026-07-20, 618 lines) scopes **the same
+  unbuilt `SubProcessLauncher`** in far more task detail, but with a **bare `ProcessBuilder`**
+  spawn rather than `systemd-run`, and without the per-launch-uid or CDS/Leyden elements. Neither
+  document is the sole authority. The mechanism choice is an **open decision for Peter**; see the
+  correction in Task 1 below (this SOW's `systemd-run`-reuse premise was factually wrong) and §C4
+  of the rival document (which states the same collision from the other side). Note also that the
+  per-launch-uid element of Task 2 collides with the standing operator ruling *"two uids, no
+  per-principal uid"* (2026-10-27). **Do not start implementation from either document until the
+  mechanism is ruled on** — the two imply different process topologies.
 - **Companions — read in this order before starting:**
   1. `SOW-Smart-Proxy-Isolation-Architecture-Overview.md` — orientation and the four-document index.
   2. `SOW-Smart-Proxy-Isolation-Wiring.md` — T1/T2/T3 (landed): routing, subprocess spawn/pool/track
@@ -50,14 +60,32 @@ the kernel rather than depending on any in-process guard holding.
 ### Task 1 — Real fork/exec via the existing Phoenix launch pattern, not a new one
 
 **Priority:** High
-**Files:** the `SubProcessLauncher` implementation (currently `UnsupportedSubProcessLauncher`);
-consult Phoenix's existing group-JVM launch code for the `systemd-run`-wrapping-`ProcessBuilder`
-pattern already in production use.
+**Files:** the `SubProcessLauncher` implementation (currently `UnsupportedSubProcessLauncher`).
 
-Implement real process creation by wrapping the target `java` invocation in `systemd-run`, the same
+> ### ⛔ CORRECTION 2026-11-16 — this task's premise was FALSE
+> The text below claimed Phoenix *already* launches activation-group JVMs via a
+> `systemd-run`-wrapping-`ProcessBuilder` pattern "already in production use", and argued for
+> `systemd-run` on the grounds of **reuse**. MEASURED on trunk at the time of correction:
+> - `grep -rl systemd-run` over the entire repository returns **exactly one file: this SOW.**
+>   There is no `systemd-run` code anywhere in JGDMS.
+> - `org.apache.river.phoenix.Activation.buildGroupProcess` (`Activation.java:1754`), the actual
+>   group-JVM launch path, ends in a **bare `new ProcessBuilder(argv)`** (`:1819`). No wrapper.
+>
+> The claim appears to have come from a DirtyChai *recommendation*, which was then written up as
+> existing JGDMS behaviour. ⇒ **The reuse argument does not hold: there is nothing to reuse, and
+> adopting `systemd-run` is new work.**
+>
+> **What is NOT settled by this correction:** whether the launcher *should* gain a `systemd-run`
+> wrapper anyway. cgroup resource limits and a seccomp profile are real security properties a bare
+> `ProcessBuilder` does not give you, and this correction argues only against the false premise,
+> not against the design. That decision is **Peter's**, and it must be taken together with the
+> rival SOW — see the companion note in the header.
+
+~~Implement real process creation by wrapping the target `java` invocation in `systemd-run`, the same
 way Phoenix already launches activation-group JVMs — not a bare `ProcessBuilder.start()`. This gets
 cgroup resource limits and the existing seccomp profile applied for free, by reuse rather than
-duplication.
+duplication.~~ *(premise withdrawn — see the correction above; the `systemd-run` option itself
+remains on the table as new work, to be decided alongside the rival SOW.)*
 
 ### Task 2 — Distinct uid per launched subprocess, assigned externally
 
