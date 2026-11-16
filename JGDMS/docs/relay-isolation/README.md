@@ -83,6 +83,8 @@ node identity key and owns the TLS connections to the service.
     per-call token registration, and the proxy JVM can only add requirements to them.
 - Security requirements and the remaining attack surface are in `DESIGN-security.md` in
   this directory. Read it before any work order after 01. Work order 01 is unaffected.
+- The inventory of proxies and endpoints in call streams is designed in `DESIGN-inventory.md`
+  (work order 02). Review findings it answers are in `REVIEW-01-docs-and-locator.md`.
 - Open operator decisions: where the signer for the node key lives; the open points listed
   at the end of `DESIGN-security.md`. Whether `BasicInvocationHandler.authenticateServer`
   may accept `RelayEndpoint` is now a compatibility question only, because that check runs
