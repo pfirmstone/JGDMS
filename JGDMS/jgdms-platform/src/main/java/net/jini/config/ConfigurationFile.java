@@ -42,6 +42,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,7 +59,6 @@ import java.util.logging.Logger;
 import net.jini.export.Exporter;
 import net.jini.loader.LoadClass;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -1820,7 +1820,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	options = checkOptions(options);
 	nonNullLoaderSupplied = cl != null;
 	this.cl = nonNullLoaderSupplied ? cl
-	    : (ClassLoader) Security.doPrivileged(contextClassLoader);
+	    : (ClassLoader) AccessController.doPrivileged(contextClassLoader);
 	if (location == null) {
 	    new Parser(null, options);
 	} else {
@@ -1952,7 +1952,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	options = checkOptions(options);
 	nonNullLoaderSupplied = cl != null;
 	this.cl = nonNullLoaderSupplied ? cl
-	    : (ClassLoader) Security.doPrivileged(contextClassLoader);
+	    : (ClassLoader) AccessController.doPrivileged(contextClassLoader);
 	new Parser(reader, options);
 	logger.log(Level.FINER, "created {0}", this);
     }

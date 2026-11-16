@@ -29,8 +29,7 @@ import java.util.logging.Level;
  *
  * <p>An instance of this class can be used as the argument of {@link
  * AccessController#doPrivileged(PrivilegedAction)
- * AccessController.doPrivileged} or <code>
- * net.jini.security.Security#doPrivileged(PrivilegedAction) Security.doPrivileged</code>.
+ * AccessController.doPrivileged}.
  *
  * <p>The following code retrieves the value of the system property
  * named <code>"prop"</code> as a privileged action:

@@ -125,7 +125,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
      * used for socket accept threads
      **/
     private static final Executor systemThreadPool =
-	(Executor) Security.doPrivileged(new GetThreadPoolAction(false));
+	(Executor) AccessController.doPrivileged(new GetThreadPoolAction(false));
     
     /** HTTP server manager */
     private static final HttpServerManager serverManager;

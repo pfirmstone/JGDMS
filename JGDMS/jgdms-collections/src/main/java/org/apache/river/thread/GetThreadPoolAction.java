@@ -24,7 +24,7 @@ import java.security.PrivilegedAction;
 /**
  * Provides security-checked access to internal thread pools as a
  * {@link PrivilegedAction}, to be used conveniently with
- * {@code AccessController.doPrivileged} or {@code Security.doPrivileged}.
+ * {@code AccessController.doPrivileged}.
  *
  * <h2>Two pools</h2>
  *

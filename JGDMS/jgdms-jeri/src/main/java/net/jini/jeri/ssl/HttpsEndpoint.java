@@ -82,7 +82,6 @@ import net.jini.jeri.connection.Connection;
 import net.jini.jeri.connection.ConnectionManager;
 import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.AuthenticationPermission;
-import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -927,7 +926,7 @@ public final class HttpsEndpoint
 		    sm.checkConnect(serverHost, port);
 		}
 		try {
-		    httpClient = (HttpClient) Security.doPrivileged(
+		    httpClient = (HttpClient) AccessController.doPrivileged(
 			new PrivilegedExceptionAction() {
 			    public Object run() throws IOException {
 				return new HttpClient(serverHost, port,

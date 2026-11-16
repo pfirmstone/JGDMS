@@ -30,8 +30,7 @@ import net.jini.security.Security;
  *
  * <p>An instance of this class can be used as the argument of {@link
  * AccessController#doPrivileged(PrivilegedAction)
- * AccessController.doPrivileged} or {@link
- * Security#doPrivileged(PrivilegedAction) Security.doPrivileged}.
+ * AccessController.doPrivileged}.
  *
  * <p>The following code retrieves the <code>int</code> value of the
  * system property named <code>"prop"</code> as a privileged action.
@@ -41,7 +40,7 @@ import net.jini.security.Security;
  *
  * <pre>
  * Integer tmp = (Integer)
- *     Security.doPrivileged(new GetIntegerAction("prop"));
+ *     AccessController.doPrivileged(new GetIntegerAction("prop"));
  * int i;
  * if (tmp != null) {
  *     i = tmp.intValue();
@@ -54,7 +53,7 @@ import net.jini.security.Security;
  * <code>"prop"</code> is not defined:
  *
  * <pre>
- * int i = ((Integer) Security.doPrivileged(
+ * int i = ((Integer) AccessController.doPrivileged(
  *                 new GetIntegerAction("prop", 3))).intValue();
  * </pre>
  *

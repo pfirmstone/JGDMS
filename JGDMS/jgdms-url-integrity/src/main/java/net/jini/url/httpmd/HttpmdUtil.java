@@ -27,12 +27,12 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.StringTokenizer;
-import net.jini.security.Security;
 
 /**
  * Provides utility methods for creating and using HTTPMD URLs.
@@ -152,7 +152,7 @@ public class HttpmdUtil {
 	     */
 	    URL url;
 	    try {
-		url = (URL) Security.doPrivileged(
+		url = (URL) AccessController.doPrivileged(
 		    new PrivilegedExceptionAction() {
 			public Object run() throws MalformedURLException {
 			    return new URL(null, spec, handler);

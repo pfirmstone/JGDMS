@@ -30,14 +30,13 @@ import net.jini.security.Security;
  *
  * <p>An instance of this class can be used as the argument of {@link
  * AccessController#doPrivileged(PrivilegedAction)
- * AccessController.doPrivileged} or {@link
- * Security#doPrivileged(PrivilegedAction) Security.doPrivileged}.
+ * AccessController.doPrivileged}.
  *
  * <p>The following code retrieves the boolean value of the system
  * property named <code>"prop"</code> as a privileged action:
  *
  * <pre>
- * boolean b = ((Boolean) Security.doPrivileged(
+ * boolean b = ((Boolean) AccessController.doPrivileged(
  *                 new GetBooleanAction("prop"))).booleanValue();
  * </pre>
  *

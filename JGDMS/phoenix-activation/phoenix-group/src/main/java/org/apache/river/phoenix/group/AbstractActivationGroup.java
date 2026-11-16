@@ -63,9 +63,9 @@ import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.loader.ClassLoading;
+import net.jini.security.SubjectScope;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -224,8 +224,10 @@ abstract class AbstractActivationGroup extends ActivationGroup
 
     /**
      * Reflective probe for {@code Subject.callAs(Subject, Callable)}, added in
-     * Java 18.  {@code null} on Java 8–17, where {@code Subject.doAsPrivileged}
-     * is used as a fallback.  Cached once at class-load time.
+     * Java 18; this module compiles with {@code --release 8}.  Used only by
+     * {@code newInstance} for {@code inheritGroupSubject}; the other subject
+     * bindings in this class go through {@link SubjectScope}.  Cached once at
+     * class-load time.
      */
     private static final Method SUBJECT_CALL_AS;
     static {
@@ -233,7 +235,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	try {
 	    m = Subject.class.getMethod("callAs", Subject.class, Callable.class);
 	} catch (NoSuchMethodException | SecurityException ignored) {
-	    // Java < 18 — Subject.callAs not available; doAsPrivileged used instead.
+	    // Java < 18: Subject.callAs not available.
 	}
 	SUBJECT_CALL_AS = m;
     }
@@ -670,8 +672,9 @@ abstract class AbstractActivationGroup extends ActivationGroup
      *
      * <p>If the <code>inheritGroupSubject</code> configuration entry is
      * <code>true</code> then the constructor is invoked in an action
-     * passed to the {@link Security#doPrivileged Security.doPrivileged}
-     * method; otherwise the constructor is invoked in an action passed to
+     * passed to the {@link AccessController#doPrivileged(PrivilegedAction,
+     * java.security.AccessControlContext) AccessController.doPrivileged(action,
+     * context)} method; otherwise the constructor is invoked in an action passed to
      * the {@link AccessController#doPrivileged
      * AccessController.doPrivileged} method.
      *
@@ -769,8 +772,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		 *
 		 * When inheritGroupSubject is set, the activation must run under
 		 * the group's login Subject so the activated service exports with
-		 * the group's credentials. net.jini.security.Security.doPrivileged
-		 * only preserves the *current* Subject, which on virtual threads is
+		 * the group's credentials. The former net.jini.security.Security.doPrivileged
+		 * only preserved the *current* Subject, which on virtual threads is
 		 * not the group's login Subject; establish it explicitly via
 		 * Subject.callAs (Java 18+, reflectively as this module targets
 		 * Java 8), as the unexport path does.
@@ -979,22 +982,14 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		    (PrivilegedAction) new GetThreadPoolAction(false) :
 		    new PrivilegedAction() {
 			public Object run() {
-			    if (SUBJECT_CALL_AS != null) {
-				try {
-				    return SUBJECT_CALL_AS.invoke(null, login.getSubject(),
-					(Callable<Object>) () -> new GetThreadPoolAction(false).run());
-				} catch (InvocationTargetException ite) {
-				    Throwable cause = ite.getCause();
-				    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
-				    throw new RuntimeException(cause);
-				} catch (IllegalAccessException iae) {
-				    throw new RuntimeException(iae);
-				}
-			    } else {
-				return Subject.doAsPrivileged(
-						  login.getSubject(),
-						  new GetThreadPoolAction(false),
-						  null);
+			    try {
+				return SubjectScope.callAs(login.getSubject(),
+				    (Callable<Object>) () -> new GetThreadPoolAction(false).run());
+			    } catch (RuntimeException e) {
+				throw e;
+			    } catch (Exception e) {
+				// GetThreadPoolAction.run throws no checked exception.
+				throw new RuntimeException(e);
 			    }
 			}
 		});
@@ -1071,33 +1066,16 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	try {
 	    if (login == null) {
 		return AccessController.doPrivileged(action);
-	    } else if (SUBJECT_CALL_AS != null) {
-		return AccessController.doPrivileged(
-		    new PrivilegedExceptionAction<Object>() {
-			@Override
-			public Object run() throws Exception {
-			    try {
-				return SUBJECT_CALL_AS.invoke(null, login.getSubject(),
-				    (Callable<Object>) action::run);
-			    } catch (InvocationTargetException ite) {
-				Throwable cause = ite.getCause();
-				if (cause instanceof Exception) throw (Exception) cause;
-				if (cause instanceof Error)     throw (Error)     cause;
-				throw ite;
-			    }
-			}
-		    });
 	    } else {
+		// SubjectScope.callAs rethrows the action's own exception, so a
+		// checked failure reaches the PrivilegedActionException mapping
+		// below exactly as it did from the former doAsPrivileged form.
 		return AccessController.doPrivileged(
 		    new PrivilegedExceptionAction<Object>() {
 			@Override
 			public Object run() throws Exception {
-			    try {
-				return Subject.doAsPrivileged(
-					   login.getSubject(), action, null);
-			    } catch (PrivilegedActionException e) {
-				throw e.getException();
-			    }
+			    return SubjectScope.callAs(login.getSubject(),
+				(Callable<Object>) action::run);
 			}
 		    });
 	    }

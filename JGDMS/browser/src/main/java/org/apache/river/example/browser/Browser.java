@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.Callable;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
@@ -119,6 +120,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import net.jini.security.SubjectScope;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.space.JavaSpace;
@@ -153,6 +155,12 @@ public class Browser extends JFrame implements Startable {
     static final Logger logger = Logger.getLogger(BROWSER);
 
     private final SecurityContext ctx;
+    /**
+     * Subjects bound when this browser was initialized, re-established by
+     * {@link Handler} on whichever thread (typically the AWT event dispatch
+     * thread) runs a wrapped listener.
+     */
+    private final Subject[] subjects;
     private final ClassLoader ccl;
     final Configuration config;
     private final DiscoveryGroupManagement disco;
@@ -203,6 +211,7 @@ public class Browser extends JFrame implements Startable {
     
     private static class Initializer {
 	private SecurityContext ctx;
+	private Subject[] subjects;
 	private ClassLoader ccl;
 	private Configuration config;
 	private DiscoveryGroupManagement disco;
@@ -228,6 +237,10 @@ public class Browser extends JFrame implements Startable {
 						   ActionListener.class, null);
 	    this.config = config;
 	    ctx = Security.getContext();
+	    // Subject.callAs binds the login Subject in a ScopedValue, which the
+	    // AWT event thread and other listener threads do not inherit: capture
+	    // it here, with the security context, for Handler to re-establish.
+	    subjects = SubjectScope.captureAll();
 	    ccl = Thread.currentThread().getContextClassLoader();
 	    leaseMgr = 
 		Config.getNonNullEntry(config, BROWSER, "leaseManager",
@@ -317,6 +330,7 @@ public class Browser extends JFrame implements Startable {
 	this.seqNo = Long.MAX_VALUE;
 	this.eventID = 0;
 	ctx = init.ctx;
+	subjects = init.subjects;
 	ccl = init.ccl;
 	config = init.config;
 	disco = init.disco;
@@ -479,18 +493,18 @@ public class Browser extends JFrame implements Startable {
 	} else {
 	    login.login();
 	    try {
-		return Subject.doAsPrivileged(
+		return SubjectScope.callAs(
 		    login.getSubject(),
-		    new PrivilegedExceptionAction<Initializer>() {
-			    public Initializer run()
+		    new Callable<Initializer>() {
+			    public Initializer call()
 				throws ConfigurationException, IOException
 			    {
 				return new Initializer(lc, config);
 			    }
-			},
-		    null);
-	    } catch (PrivilegedActionException pae) {
-		Exception e = pae.getException();
+			});
+	    } catch (RuntimeException e) {
+		throw e;
+	    } catch (Exception e) {
 		if (e instanceof ConfigurationException)
 		    throw (ConfigurationException) e;
 		throw (IOException) e;
@@ -882,25 +896,35 @@ public class Browser extends JFrame implements Startable {
 		return AccessController.doPrivileged(
 		    ctx.wrap(new PrivilegedExceptionAction() {
 			public Object run() throws Exception {
-			    Thread t = Thread.currentThread();
-			    ClassLoader occl = t.getContextClassLoader();
-			    try {
-				t.setContextClassLoader(ccl);
-				try {
-				    return method.invoke(obj, args);
-				} catch (InvocationTargetException e) {
-				    Throwable tt = e.getCause();
-				    if (tt instanceof Error)
-					throw (Error) tt;
-				    throw (Exception) tt;
+			    return SubjectScope.callAsAll(subjects, new Callable<Object>() {
+				public Object call() throws Exception {
+				    return invokeTarget(method, args);
 				}
-			    } finally {
-				t.setContextClassLoader(occl);
-			    }
+			    });
 			}
 		    }), ctx.getAccessControlContext());
 	    } catch (PrivilegedActionException e) {
 		throw e.getCause();
+	    }
+	}
+
+	private Object invokeTarget(Method method, Object[] args)
+	    throws Exception
+	{
+	    Thread t = Thread.currentThread();
+	    ClassLoader occl = t.getContextClassLoader();
+	    try {
+		t.setContextClassLoader(ccl);
+		try {
+		    return method.invoke(obj, args);
+		} catch (InvocationTargetException e) {
+		    Throwable tt = e.getCause();
+		    if (tt instanceof Error)
+			throw (Error) tt;
+		    throw (Exception) tt;
+		}
+	    } finally {
+		t.setContextClassLoader(occl);
 	    }
 	}
     }
@@ -1864,18 +1888,18 @@ public class Browser extends JFrame implements Startable {
 	    if (login != null) {
 		login.login();
 	    }
-	    PrivilegedExceptionAction action =
-		new PrivilegedExceptionAction() {
-		    public Object run() throws Exception {
+	    Callable<Browser> action =
+		new Callable<Browser>() {
+		    public Browser call() throws Exception {
 			Browser b = new Browser(config);
 			b.start();
 			return b;
 		    }
 		};
 	    if (login != null) {
-		Subject.doAsPrivileged(login.getSubject(), action, null);
+		SubjectScope.callAs(login.getSubject(), action);
 	    } else {
-		action.run();
+		action.call();
 	    }
 	} catch (Throwable t) {
 	    if (t instanceof PrivilegedActionException)

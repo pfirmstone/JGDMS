@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
+import java.security.AccessController;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +31,6 @@ import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLException;
-import net.jini.security.Security;
 import org.apache.river.action.GetLongAction;
 
 /**
@@ -121,7 +121,7 @@ final class HandshakeCounters {
     HandshakeCounters(Logger logger, String listener) {
         this.logger = logger;
         this.listener = listener;
-        long millis = ((Long) Security.doPrivileged(
+        long millis = ((Long) AccessController.doPrivileged(
             new GetLongAction(
                 "org.apache.river.jeri.ssl.handshakeSummaryInterval",
                 DEFAULT_SUMMARY_INTERVAL_MILLIS))).longValue();

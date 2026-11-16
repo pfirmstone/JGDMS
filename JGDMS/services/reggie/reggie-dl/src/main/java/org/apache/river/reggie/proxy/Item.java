@@ -24,6 +24,7 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
+import java.security.AccessController;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +37,6 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.io.MarshalledInstance;
-import net.jini.security.Security;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
@@ -102,7 +102,7 @@ public final class Item implements Cloneable {
     static {
 	Boolean b;
 	try {
-	    b = (Boolean) Security.doPrivileged(new GetBooleanAction(
+	    b = (Boolean) AccessController.doPrivileged(new GetBooleanAction(
 		"org.apache.river.reggie.enableImplToStubReplacement"));
 	} catch (SecurityException e) {
 	    logger.log(Levels.HANDLED, "failed to read system property", e);

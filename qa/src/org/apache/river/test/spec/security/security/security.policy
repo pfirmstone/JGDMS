@@ -43,18 +43,6 @@ grant codebase "jrt:/jdk.security.jgss",
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };
 
-grant principal org.apache.river.api.security.UnresolvedPrincipal "DoPrivilegedExceptionTest",
-{
-    permission java.lang.RuntimePermission "DoPrivilegedExceptionTEST1";
-    permission java.security.SecurityPermission "getDomainCombiner";
-};
-
-grant principal org.apache.river.api.security.UnresolvedPrincipal "DoPrivilegedTest",
-{
-    permission java.lang.RuntimePermission "DoPrivilegedTEST1";
-    permission java.security.SecurityPermission "getDomainCombiner";
-};
-
 grant {
     permission java.security.AllPermission "<all permissions>", "<all actions>";
 };

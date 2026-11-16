@@ -48,7 +48,6 @@ import javax.net.ssl.TrustManager;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
-import net.jini.security.Security;
 import org.apache.river.action.GetPropertyAction;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
@@ -75,18 +74,18 @@ class Utilities {
     /* -- Fields -- */
     
     /** The secure socket protocol used with JSSE. */
-    protected static final String SSL_PROTOCOL = (String) Security.doPrivileged(
+    protected static final String SSL_PROTOCOL = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.3"));
 
     /** The JSSE Provider to use*/
-    protected static final String JSSE_PROVIDER = (String) Security.doPrivileged(
+    protected static final String JSSE_PROVIDER = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.jsseProvider", null));
     
-    private static final String RAN_ALG = (String) Security.doPrivileged(
+    private static final String RAN_ALG = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.secureRandomAlgorithm", null));
     
     /** The providers and algorithms to use */
-    private static final String JCE_PROVIDER = (String) Security.doPrivileged(
+    private static final String JCE_PROVIDER = (String) AccessController.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.jceProvider", null));
         
     /**
@@ -690,7 +689,7 @@ class Utilities {
 		buf.append("    Private key: ");
 		try {
 		    X500PrivateCredential cred =
-			(X500PrivateCredential) Security.doPrivileged(
+			(X500PrivateCredential) AccessController.doPrivileged(
 			    new GetPrivateCredentialAction(subject, cert));
 		    PrivateKey privateKey =
 			cred != null ? cred.getPrivateKey() : null;

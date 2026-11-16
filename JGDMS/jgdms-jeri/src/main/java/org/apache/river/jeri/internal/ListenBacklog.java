@@ -18,7 +18,7 @@
 
 package org.apache.river.jeri.internal;
 
-import net.jini.security.Security;
+import java.security.AccessController;
 import org.apache.river.action.GetIntegerAction;
 
 /**
@@ -57,7 +57,7 @@ public final class ListenBacklog {
      * @return the requested backlog, or 0 for the JDK default
      */
     public static int get() {
-        int backlog = Security.doPrivileged(
+        int backlog = AccessController.doPrivileged(
             new GetIntegerAction(PROPERTY, DEFAULT_BACKLOG)).intValue();
         return backlog < 1 ? 0 : backlog;
     }

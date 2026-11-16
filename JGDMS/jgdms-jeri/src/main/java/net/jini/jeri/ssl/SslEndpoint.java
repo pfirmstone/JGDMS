@@ -26,6 +26,7 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.security.AccessController;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.SecureRandom;
@@ -67,7 +68,6 @@ import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.connection.ConnectionManager;
 import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.AuthenticationPermission;
-import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -607,7 +607,7 @@ public final class SslEndpoint
 	static void registerDiscoveryBackDoor() {
 	    final SslEndpointInternals backDoor = new SslEndpointInternals();
 	    try {
-		Security.doPrivileged(new PrivilegedAction() {
+		AccessController.doPrivileged(new PrivilegedAction() {
 		    public Object run() {
 			SslEndpointInternalsAccess.set(backDoor);
 			return null;

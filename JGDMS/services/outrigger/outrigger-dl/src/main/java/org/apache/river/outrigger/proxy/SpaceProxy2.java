@@ -22,6 +22,7 @@ import java.io.InvalidObjectException;
 import java.rmi.MarshalException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,7 +48,6 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-import net.jini.security.Security;
 import net.jini.space.FilterRejectedException;
 import net.jini.space.FilteredTupleSpace;
 import net.jini.space.MatchSet;
@@ -307,7 +307,7 @@ public abstract class SpaceProxy2 implements TupleSpace, Administrable, Referent
     private static long getMaxServerQueryTimeoutPropertyValue() {
 	try {
 	    final String propValue = 
-		(String)Security.doPrivileged(
+		(String)AccessController.doPrivileged(
                     new ReadProperityPrivilegedAction(
                        "org.apache.river.outrigger.maxServerQueryTimeout"));
 	    if (propValue == null)
