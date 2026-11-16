@@ -74,9 +74,19 @@ node identity key and owns the TLS connections to the service.
     released when the host retires the hosted proxy;
   - caller Subjects do not pass through the proxy JVM: the host registers them with the
     relay and gets a per-call token, the token travels in the relay endpoint's header, and
-    the relay writes the request prefix itself.
-- Open operator decisions: whether `BasicInvocationHandler.authenticateServer` may accept
-  `RelayEndpoint`; where the signer for the node key lives.
+    the relay writes the request prefix itself;
+  - concurrent callers are queued and dispatched to the proxy by a single thread;
+  - the proxy JVM's only channel out is the Unix socket to the relay;
+  - the service's server must be authenticated on every relay connection, enforced in the
+    relay;
+  - the host sets the client constraints that require it; they reach the relay with the
+    per-call token registration, and the proxy JVM can only add requirements to them.
+- Security requirements and the remaining attack surface are in `DESIGN-security.md` in
+  this directory. Read it before any work order after 01. Work order 01 is unaffected.
+- Open operator decisions: where the signer for the node key lives; the open points listed
+  at the end of `DESIGN-security.md`. Whether `BasicInvocationHandler.authenticateServer`
+  may accept `RelayEndpoint` is now a compatibility question only, because that check runs
+  in the untrusted JVM.
 
 Existing related code: `jgdms-pref-class-loader`, `PreferredProxyCodebaseProvider.resolve`
 (the isolation routing branch) and `au.net.zeus.jgdms.loader.isolation`. Longer background:
