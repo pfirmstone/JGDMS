@@ -232,15 +232,15 @@ ATOMIC org.apache.river.reggie.proxy.ConstrainableRegistration  -  | constraints
 ATOMIC org.apache.river.reggie.proxy.ConstrainableServiceLease  -  | constraints:net.jini.core.constraint.MethodConstraints
 ATOMIC org.apache.river.reggie.proxy.EntryClass  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.EntryClass, numFields:int
 ATOMIC org.apache.river.reggie.proxy.EntryClassBase  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String
-ATOMIC org.apache.river.reggie.proxy.EntryRep  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String, fields:[Ljava.lang.Object;
+ATOMIC org.apache.river.reggie.proxy.EntryRep  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String, fields:[Lnet.jini.io.MarshalledInstance;
 ATOMIC org.apache.river.reggie.proxy.EventLease  -  | eventID:long
-ATOMIC org.apache.river.reggie.proxy.Item  -  | serviceID:net.jini.core.lookup.ServiceID, serviceType:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String, service:org.apache.river.proxy.MarshalledWrapper, attributeSets:[Lorg.apache.river.reggie.proxy.EntryRep;, bootstrapProxy:java.lang.reflect.Proxy
+ATOMIC org.apache.river.reggie.proxy.Item  -  | serviceID:net.jini.core.lookup.ServiceID, serviceType:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String, service:org.apache.river.proxy.MarshalledWrapper, attributeSets:[Lorg.apache.river.reggie.proxy.EntryRep;, bootstrapProxy:org.apache.river.proxy.MarshalledWrapper, entryFormat:net.jini.core.constraint.MarshallingFormat
 ATOMIC org.apache.river.reggie.proxy.Matches  -  | items:java.util.List, totalMatches:int
 ATOMIC org.apache.river.reggie.proxy.ProxyVerifier  -  | server:net.jini.core.constraint.RemoteMethodControl, registrarIDMostSig:long, registrarIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.RegistrarEvent  -  | serviceItem:java.lang.Object, servIDMostSig:long, servIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.RegistrarLease  -  | server:org.apache.river.reggie.proxy.Registrar, leaseID:net.jini.id.Uuid, registrarIDMostSig:long, registrarIDLeastSig:long
-ATOMIC org.apache.river.reggie.proxy.RegistrarProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long
-ATOMIC org.apache.river.reggie.proxy.Registration  -  | server:org.apache.river.reggie.proxy.Registrar, lease:org.apache.river.reggie.proxy.ServiceLease
+ATOMIC org.apache.river.reggie.proxy.RegistrarProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long, entryFormat:net.jini.core.constraint.MarshallingFormat
+ATOMIC org.apache.river.reggie.proxy.Registration  -  | server:org.apache.river.reggie.proxy.Registrar, lease:org.apache.river.reggie.proxy.ServiceLease, entryFormat:net.jini.core.constraint.MarshallingFormat
 ATOMIC org.apache.river.reggie.proxy.RenewResults  -  | durations:[J, exceptions:[Ljava.lang.Exception;
 ATOMIC org.apache.river.reggie.proxy.ServiceLease  -  | serviceIDMostSig:long, serviceIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.ServiceType  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.ServiceType, interfaces:[Lorg.apache.river.reggie.proxy.ServiceType;
