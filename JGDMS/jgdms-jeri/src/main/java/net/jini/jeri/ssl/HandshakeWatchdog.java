@@ -53,6 +53,29 @@ final class HandshakeWatchdog {
         TimeoutScheduler.handOff(task);
     }
 
+    /**
+     * Runs the task as {@link #handOff(Runnable)} does; if that cannot be
+     * done at all, runs the last resort on the calling thread, which must not
+     * be held up by it: it is quick and does not block.
+     */
+    static void handOff(Runnable task, Runnable lastResort) {
+        TimeoutScheduler.handOff(task, lastResort);
+    }
+
+    /**
+     * For tests: makes the hand-offs of the calling thread, and of the tasks
+     * that it schedules, fail as given, or no longer, with false and false.
+     * Nothing else in the JVM is affected.
+     */
+    static void inject(boolean handOff, boolean retry) {
+        TimeoutScheduler.inject(handOff, retry);
+    }
+
+    /** Returns the number of tasks that were lost, for tests. */
+    static long lost() {
+        return TimeoutScheduler.lost();
+    }
+
     /** Returns the number of tasks that are waiting, for tests. */
     static int pending() {
         return TimeoutScheduler.pending();

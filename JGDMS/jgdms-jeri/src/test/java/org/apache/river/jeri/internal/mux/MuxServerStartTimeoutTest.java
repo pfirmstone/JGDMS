@@ -273,8 +273,19 @@ public class MuxServerStartTimeoutTest {
      * The timer for the client's header does not outlive a connection whose
      * client has sent it, however quickly the reader gets there: a header that
      * is processed before start returns must still find the timer to cancel.
-     * (The processors are kept busy, so that the thread that starts the
-     * connection is often descheduled before it gets on.)
+     * (Half the processors are kept busy, so that the thread that starts the
+     * connection is often descheduled before it gets on, while the reader
+     * still finds a processor at once.)
+     *
+     * <p>The loop is bounded by time as well as by count: each connection
+     * costs a few scheduling quanta of the machine, which are much longer on
+     * some systems (Windows) than on others, so a fixed count would make the
+     * test's duration scale with the scheduler rather than with the code.  It
+     * starts at least {@link #MIN_STARTS} connections, and at most {@link
+     * #MAX_STARTS} or as many as {@link #START_BUDGET_NANOS} allows.  With the
+     * timer scheduled after the I/O starts (the bug this guards against),
+     * about one connection in ten to one in three left its timer behind on a
+     * 4-processor Linux container, so the minimum is far more than enough.
      */
     @Test(timeout = 120000)
     public void theTimerDoesNotOutliveAConnectionThatStarted() throws Exception {
@@ -284,7 +295,8 @@ public class MuxServerStartTimeoutTest {
         int base = org.apache.river.jeri.internal.TimeoutScheduler.pending();
         List<Thread> burners = new ArrayList<>();
         java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
-        for (int i = 0; i < 2 * Runtime.getRuntime().availableProcessors(); i++) {
+        int burnerCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        for (int i = 0; i < burnerCount; i++) {
             burners.add(Thread.ofPlatform().daemon().start(() -> {
                 long x = 0;
                 while (!stop.get()) {
@@ -296,8 +308,14 @@ public class MuxServerStartTimeoutTest {
             }));
         }
         int leaked = 0;
+        int starts = 0;
+        long began = System.nanoTime();
         try {
-            for (int i = 0; i < 1500; i++) {
+            for (; starts < MAX_STARTS
+                   && (starts < MIN_STARTS
+                       || System.nanoTime() - began < START_BUDGET_NANOS);
+                 starts++)
+            {
                 HeaderThenWait in = new HeaderThenWait(header);
                 Server server = new Server(OutputStream.nullOutputStream(), in, 60000);
                 server.start();
@@ -310,9 +328,22 @@ public class MuxServerStartTimeoutTest {
             }
         } finally {
             stop.set(true);
+            for (Thread t : burners) {
+                t.join(5000);
+            }
         }
-        assertEquals("connections that left their start timer behind", 0, leaked);
+        assertEquals("connections, of " + starts + ", that left their start "
+                     + "timer behind", 0, leaked);
     }
+
+    /** The fewest connections that the timer test starts, however slow. */
+    private static final int MIN_STARTS = 200;
+
+    /** The most connections that the timer test starts. */
+    private static final int MAX_STARTS = 1500;
+
+    /** After this, the timer test starts no more than the minimum. */
+    private static final long START_BUDGET_NANOS = TimeUnit.SECONDS.toNanos(20);
 
     /**
      * The timer thread serves every connection, so the expiry of one start

@@ -79,8 +79,10 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *    <li> call grant(null, null, Permission[]) on constructed
  *         DynamicPolicyProvider passing array of permission
  *         and verify that NullPointerException is not thrown.
- *         This granted permissions will be used in some checks
- *         described later on.
+ *         A grant tied to the class loader of a class needs a class: with a
+ *         null class the grant is void, it grants nothing (it does not apply
+ *         to all protection domains).  The permissions will be used in some
+ *         checks described later on, to verify that they were not granted.
  *    </li>
  *    <li> some times call grant() passing various array of Principal
  *         that contains <code>null</code> and verify that NullPointerExceptions
@@ -92,15 +94,18 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *    </li>
  *    <li> call getGrants(null, null) on constructed DynamicPolicyProvider
  *         and verify that NullPointerException is not thrown. Also verify that
- *         returned Permission[] contains permissions granted earlier.
+ *         returned Permission[] does not contain the permissions passed to
+ *         grant(null, null, Permission[]) earlier, as that grant is void.
  *    </li>
  *    <li> some times call getGrants() passing various array of Principal
  *         that contains <code>null</code> and verify that
  *         NullPointerExceptions are thrown.
  *    </li>
  *    <li> call getPermissions() passing null as ProtectionDomain
- *         and verify that returned PermissionCollection contains permissions
- *         granted earlier.
+ *         and verify that NullPointerException is not thrown and that the
+ *         returned PermissionCollection does not contain the permissions
+ *         passed to grant(null, null, Permission[]) earlier, as that grant
+ *         is void.
  *    </li>
  *    <li> call getPermissions() passing null as CodeSource
  *         and verify that NullPointerException is thrown.
@@ -109,7 +114,8 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *         Permission and verify that NullPointerException is thrown.
  *    </li>
  *    <li> verify that policy.implies(null, p) passing permission
- *         granted earlier returned true.
+ *         passed to grant(null, null, Permission[]) earlier returned false,
+ *         as that grant is void.
  *    </li>
  *    <li> verify that policy.implies(null, p) passing permission
  *         not granted earlier returned false.
@@ -148,6 +154,7 @@ public class NullCases extends DynamicPolicyProviderTestBase {
 
         // Call policy.grant(null, null, Permission[]) and
         // verify that NullPointerException is not thrown.
+        // The grant has no class to be tied to, it is void.
         msg = "policy.grant(null, null, Permission[])";
         callGrant(null, null, pmGranted, msg);
 
@@ -179,10 +186,11 @@ public class NullCases extends DynamicPolicyProviderTestBase {
 
         // Call policy.getGrants(null, null) and
         // verify that NullPointerException is not thrown;
-        // also verify that returned array contains Permissions granted
-        // earlier.
+        // also verify that returned array does not contain the Permissions
+        // passed to grant(null, null, Permission[]) earlier: that grant is
+        // void.
         msg = "policy.getGrants(null, null)";
-        callGetGrants(null, null, pmGranted, msg);
+        callGetGrantsNegative(null, null, pmGranted, msg);
 
         // Some times call getGrants() passing various array of Principal
         // that contains null and verify that
@@ -199,10 +207,11 @@ public class NullCases extends DynamicPolicyProviderTestBase {
 
         // Call getPermissions() passing null as ProtectionDomain
         // and verify that NullPointerException is not thrown;
-        // also verify that returned array contains Permissions granted
-        // earlier.
+        // also verify that the returned PermissionCollection does not
+        // contain the Permissions passed to grant(null, null, Permission[])
+        // earlier: that grant is void.
         msg = "policy.getPermissions((ProtectionDomain) null)";
-        callGetPermissions((ProtectionDomain) null, pmGranted, msg);
+        callGetPermissionsNoGranted((ProtectionDomain) null, pmGranted, msg);
 
         // Call getPermissions() passing null as CodeSource
         // and verify that NullPointerException is thrown;
@@ -215,9 +224,10 @@ public class NullCases extends DynamicPolicyProviderTestBase {
         callImpliesNPE(null, null, msg);
 
         // Verify that policy.implies(null, p) passing permission
-        // granted earlier returned true.
-        msg = "policy.implies(null, <p granted earlier>)";
-        callImplies(null, pmGranted[0], true, msg);
+        // passed to grant(null, null, Permission[]) earlier returned false:
+        // that grant is void, it does not apply to all domains.
+        msg = "policy.implies(null, <p of the void grant>)";
+        callImplies(null, pmGranted[0], false, msg);
 
         // Verify that policy.implies(null, p) passing permission
         // not granted earlier returned false.

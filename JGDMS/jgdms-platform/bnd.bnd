@@ -1,5 +1,6 @@
 Bundle-Activator: org.apache.river.resource.OSGiServiceIterator
 -exportcontents: \
+    au.net.zeus.jgdms.api.policy,\
     net.jini.config,\
     net.jini.constraint,\
     net.jini.core.constraint,\

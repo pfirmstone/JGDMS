@@ -111,10 +111,9 @@ public class ValueSerializersMalformedInputTest {
     public void wellFormedInputIsRebuilt() throws Exception {
         assertEquals(new java.net.URI("http://example.org/a?b#c"), uri("http://example.org/a?b#c").readResolve());
         assertEquals("http://example.org/x", ((java.net.URL) url("http://example.org/x").readResolve()).toExternalForm());
-        // toURI() makes the path absolute, so on Windows ("\\tmp\\x" -> "C:\\tmp\\x") the
-        // round trip yields the absolute form; compare against that.
+        /* A File rebuilt from a file: URI is absolute; "/tmp/x" is not on Windows (no drive). */
         assertEquals(new java.io.File("/tmp/x").getAbsoluteFile(),
-                file(new java.io.File("/tmp/x").toURI()).readResolve());
+                     file(new java.io.File("/tmp/x").toURI()).readResolve());
         assertEquals(new StackTraceElement("a.B", "c", "B.java", 3), frame("a.B", "c", "B.java", 3).readResolve());
         assertEquals(new StackTraceElement("a.B", "c", null, -2), frame("a.B", "c", null, -2).readResolve());
     }

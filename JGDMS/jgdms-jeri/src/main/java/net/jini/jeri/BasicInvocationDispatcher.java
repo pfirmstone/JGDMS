@@ -106,7 +106,7 @@ import net.jini.security.jwt.JwtVerificationException;
 import net.jini.security.jwt.JwtVerifier;
 import net.jini.security.jwt.VerifiedJwt;
 import org.apache.river.api.io.AtomicObjectInput;
-import org.apache.river.api.security.UserSubjectSupport;
+import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,

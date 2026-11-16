@@ -103,6 +103,11 @@ script bodies into a small verify-bound mojo/antrun step — see T2 for the shap
   with a documented opt-out**, failing the build on a *detected unclassified break* but *skipping* (warn, not
   fail) when a baseline is genuinely unreachable — never fail-open on a *break*, never hard-fail on a
   *network outage*. The serial-schema gate is fully offline (local golden), so it binds unconditionally.
+- **Windows / non-PATH bash (T2 implementation note):** both gates are run as `bash check-*.sh` (a
+  `CreateProcess` cannot exec a `.sh` directly). The bash executable comes from the `jgdms.bash` property in
+  `compat-gate/pom.xml` (default `bash`). If bash is not on `PATH`, pass it explicitly, e.g.
+  `-Djgdms.bash="C:\Program Files\Git\bin\bash.exe"`. A missing bash fails the build with the exec plugin's
+  `Cannot run program "<value>"` error.
 
 **Not recommended as primary:** authoring a `.github/workflows/*.yml` now. No evidence the repo is moving to
 GitHub Actions; inventing that requirement picks a CI service the project has not chosen and leaves local

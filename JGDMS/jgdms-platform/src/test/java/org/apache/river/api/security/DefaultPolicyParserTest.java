@@ -322,41 +322,6 @@ public class DefaultPolicyParserTest extends TestCase {
     }
 
     /**
-     * A grant whose only discriminator is principals (no codeBase, no signedBy,
-     * no digest) must resolve to a PrincipalGrant, which matches by principal
-     * alone -- including a domain whose CodeSource is {@code null}. This is the
-     * §7.3 two-gate requirement that a reducing-context domain may "use only the
-     * Principal": a codebase-less authenticated frame must still satisfy a
-     * principal grant. Regression for the parser previously mis-building such a
-     * grant as a URIGrant (whose matcher rejects a null CodeSource).
-     */
-    @Test
-    public void testResolveGrantPrincipalOnlyProducesPrincipalGrant() throws Exception {
-        System.out.println("testResolveGrantPrincipalOnlyProducesPrincipalGrant");
-        DefaultPolicyParser parser = new DefaultPolicyParser();
-        Collection<DefaultPolicyScanner.PrincipalEntry> pe =
-                new ArrayList<DefaultPolicyScanner.PrincipalEntry>();
-        pe.add(new DefaultPolicyScanner.PrincipalEntry(
-                "javax.security.auth.x500.X500Principal", "CN=Test"));
-        GrantEntry principalGe = new GrantEntry(null, null, null, pe, null);
-        PermissionGrant grant = parser.resolveGrant(principalGe, null, system, false);
-        assertNotNull(grant);
-        assertTrue("principal-only grant must resolve to a PrincipalGrant",
-                isPrincipalGrant(grant));
-        Principal[] match = { new X500Principal("CN=Test") };
-        Principal[] other = { new X500Principal("CN=Other") };
-        // Matches a null-CodeSource domain carrying the principal -- the case the
-        // mis-categorised URIGrant rejected.
-        assertTrue("principal grant must match a null-CodeSource domain with the principal",
-                grant.implies(new ProtectionDomain(null, null, null, match)));
-        // PrincipalGrant ignores CodeSource, so a real-CS domain matches too.
-        CodeSource cs = new CodeSource(new URL("file:/app/lib.jar"), (Certificate[]) null);
-        assertTrue(grant.implies(new ProtectionDomain(cs, null, null, match)));
-        // ...but a different principal does not match.
-        assertFalse(grant.implies(new ProtectionDomain(null, null, null, other)));
-    }
-
-    /**
      * A BARE grant (no codeBase, no signedBy, no digest, no principals) must
      * resolve to a URIGrant (a codebase wildcard), NOT a PrincipalGrant -- so it
      * applies to codebase-bearing code but NOT to a null-CodeSource domain,

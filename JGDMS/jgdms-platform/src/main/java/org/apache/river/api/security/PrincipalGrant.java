@@ -46,10 +46,11 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     private static final long serialVersionUID = 1L;
     // Null object pattern for CodeSource.
     protected static final CodeSource nullCS = new CodeSource((URL) null, (Certificate[]) null);
+    @SuppressWarnings("serial")
     protected final Set<Principal> pals;
     private final int hashCode;
     private boolean hasUnresolved;
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked","rawtypes"})
     PrincipalGrant(Principal[] pals, Permission[] perm){
         super(perm);
         if ( pals != null ){
@@ -271,12 +272,6 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     }
     
     Principal[] getPrincipals(final ProtectionDomain pd){
-        if (pd instanceof SubjectDomain){
-            final Set<Principal> principals = ((SubjectDomain) pd).getSubject().getPrincipals();
-            // principals is a synchronized Set, always up to date.
-            // Contention should be minimal even if Subject run on many threads.
-            return principals.toArray(new Principal[principals.size()]);
-        }
         return pd.getPrincipals();
     }
     

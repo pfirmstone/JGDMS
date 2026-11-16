@@ -58,7 +58,8 @@ import org.apache.river.action.GetIntegerAction;
  * {@code Subject.callAs(null, ...)} and without the inheritable thread locals
  * of the thread that creates them, so that they are subject-neutral like the
  * accept thread, and not those of the system thread pool.  One pool of each
- * size serves the JVM.
+ * size serves the listeners of this copy of the classes (a static of the
+ * class loader, as the permits of {@code HandshakeLimits} are).
  */
 final class HandshakeCompute {
 

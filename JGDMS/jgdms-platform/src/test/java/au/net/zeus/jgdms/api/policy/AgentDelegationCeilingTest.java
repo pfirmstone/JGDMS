@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.rmi.RemoteException;
 import java.security.CodeSource;
@@ -35,6 +35,8 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.DynamicPolicyProvider;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;

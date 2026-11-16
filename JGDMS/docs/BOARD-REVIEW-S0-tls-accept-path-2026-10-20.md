@@ -81,10 +81,16 @@ Sequence: the HTTPS accept-thread fix and the explicit backlog land first as sep
 
 ### Addendum: what was built for decisions 5 to 9 (the follow-up package, 2026-10-21)
 One commit for each stage; the measurements are in `jgdms-benchmarks/serialization/RESULTS.md`, section 38.
-1. **Budgets for the JVM (`03893dcf9`, review M2).** One `HandshakeLimits` instance (one for each distinct setting of the
+1. **Budgets for the process (`03893dcf9`, review M2; reworded after L2 of the cold review).** "Process" means the listeners that
+   use one copy of the classes: the budgets, the `TimeoutScheduler` thread and the compute pool are statics of a class loader, so
+   a second copy in the JVM (an OSGi bundle beside a classpath copy, two bundle revisions after a refresh, two web applications)
+   has its own, and a refreshed bundle leaves its old timer thread until the JVM ends. One `HandshakeLimits` instance (one for each distinct setting of the
    properties) holds the admission count, the working places and the CPU permits for every listener, HTTPS included. Each accept
-   loop holds one admission permit while it waits in `accept()`, takes another before it accepts, and pauses when none is free;
-   the semaphore is fair, so the loops that wait are served in turn and none is passed over for ever (a hot listener cannot
+   loop waits, without holding a permit, until one is free, accepts, takes the permit for the connection, and pauses (stops calling
+   `accept()`) when none is free; at most one connection per listener is accepted beyond the permits. (The first version held a
+   permit in every loop that idled in `accept()`; the cold review, L1, showed that with listeners >= N+Q a later listener
+   never accepted and logged nothing.)
+   The semaphore is fair, so the loops that wait are served in turn and none is passed over for ever (a hot listener cannot
    starve another for longer than the connections ahead of it live). Sockets admitted by the process stay within maxFds/4.
    A listener's close releases only its own connections' permits.
 2. **Timer (`e002ed60c`, review M3 and the second timer thread).** `TimeoutScheduler` stays public (its callers are in three
@@ -92,11 +98,23 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    protect nothing without a security manager. Its tasks only decide and hand blocking work (socket close, mux take-down,
    acknowledgment notices) to a virtual thread; the mux start timer reads volatile flags and no longer takes the lock; the OOM
    fallback no longer runs on the timer thread. The mux's acknowledgment timer, a second timer thread, is a task of the same
-   scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals.
-3. **SSLSocket path CPU (`752d6bfe3`, review M4).** `startHandshake()` runs inside a permit, waited for within the deadline and
-   released in a `finally`. The permits are a separate set of the same size: the call cannot be split into work and waits, so a
-   peer that sends a ClientHello and stops holds its permit until the deadline, and sharing the engine path's permits would let
-   two such peers on an HTTPS listener stop every other TLS listener. Not a deadlock; a cross-path denial of service.
+   scheduler. Its threads, and those of `HandshakeCompute`, are created without inheritable thread locals. Under a security
+   manager the class needs four permissions of its own protection domain, jgdms-jeri's, and none of its callers
+   (`getStackWalkerWithClassReference`, `AuthPermission callAs`, `createPlatformThread`, `setContextClassLoader`; listed in the
+   class Javadoc and pinned by `TimeoutSchedulerPermissionTest`, which runs the class under a security manager that checks
+   them). The lookup of the caller's class was already inside `doPrivileged`; what the cold review found missing was that no
+   policy granted the permission to jgdms-jeri's domain. The grants are not in any policy file of the repository: DirtyChai's
+   polpAudit generates them and the maintainer reviews them.
+3. **SSLSocket path CPU (`752d6bfe3`, review M4; corrected after the cold review, H1).** `startHandshake()` runs inside a permit,
+   waited for within the deadline and released in a `finally`. The permits are a separate set of the same size, so that peers
+   that block on the path cannot stop the engine path's listeners. As first built the permit was taken before the peer had sent
+   a byte, and the text here said that "a peer that sends a ClientHello and stops holds its permit"; in fact a peer that sent
+   nothing held it, so `permits` silent connects (2 by default) stopped every HTTPS and custom-factory listener of the JVM for the
+   deadline (a legitimate open took 7.7 s, against 0.1 s before that commit). Now the first record is read ahead on this path too
+   (item 5), the permit is taken only after it has arrived, and it is given back when the server has written its first flight
+   and the JDK reads from the peer. Residual: a peer that does not read the flight, so that the write blocks, holds a permit until
+   the deadline; the work after a HelloRetryRequest is not within a permit on this path. (Item 9 supersedes this: the first record
+   was one fragment of a ClientHello, a HelloRetryRequest took the permit away, and TLS 1.2 was served.)
 4. **Small items (`dcb5eb823`).** The CPU gate ends after the first `wrap`, before any flush (L1); the admission count is
    computed in long and clamped (L2); server named groups are intersected with the engine's at listen, with warnings and a
    fall back to not pinning (L3); `com.sun.management` is an optional import (L4); tests that count descriptors are skipped,
@@ -107,11 +125,107 @@ One commit for each stage; the measurements are in `jgdms-benchmarks/serializati
    of its first TLS record on its virtual thread; junk is closed at once and counted, a departed peer is removed at once, the
    bytes are given to the engine channel when the connection takes a place to work. A place is given only with at least
    `serverHandshakeMinBudget` (2 s, at most half the timeout) left; otherwise the connection is dropped at no cost and counted
-   as a queue timeout, apart from working timeouts. Not covered: the SSLSocket path (the JDK reads for itself), and a peer that
-   leaves after its record is complete while it waits for a place to work. Decision 8 (the cap) stands: min(512, maxFds/8).
+   as a queue timeout, apart from working timeouts. The SSLSocket path is covered too (item 3). Not covered: a peer that
+   leaves after its record is complete while it waits for a place to work, and a peer that replays a captured ClientHello and
+   stalls, which passes the gate, takes a place to work and (on either path) holds it until the deadline; silent peers cost
+   a queue slot and no place only if they are silent from the first byte. Decision 8 (the cap) was changed afterwards, see item 8.
+   (Item 9: the gate reads the whole ClientHello, not one record, and a peer that replays and stalls holds its place for the
+   post-flight bound and not until the deadline.)
 6. **After the follow-up (not in the package as first scoped).** `sun.nio.ch` is no longer imported (`e8abed7a5`, `1aa52d443`:
    the IOVecWrapper workaround is removed and the manifest test fails on any `sun.*` import), and the workaround for JDK bug
    4854354 is removed (`8dc35b03a`).
+7. **After the cold review of the follow-up (H1, M1, M2, L1 to L6).** One commit for each stage. `f83bd9dc0` (H1): the SSLSocket
+   path reads its first record, takes its permit afterwards, and gives it back at the first flight (item 3; M2's residual,
+   a replay that stalls holds a place to work until the deadline on both paths, is stated in item 5). `6205732ab` (M1): the
+   four permissions that the timeout scheduler needs of jgdms-jeri's domain are documented and pinned by a test (item 2).
+   `7bf6cf91b`: an idle accept loop holds no place (L1, item 1); a first record of 1 to 3 bytes is accepted (L4); a hand-off
+   that cannot be made runs a last resort, the close of the socket, and is counted (L5); "per JVM" reads "per copy of the
+   classes" (L2, item 1); the accept thread is joined before it is asserted dead (L6); the fairness of the semaphores and the
+   class loader half of the scheduler's caller check are tested (L3). The summary line (stage 5) is written by a timer for
+   the last failures of a burst and by the close, and counts accepted, completed and failed over the same window, with no "of". Not done: a test that the gate ends before the flush
+   (L3, the gate-after-flush mutant): it needs a flight larger than the kernel's buffers or a delegating socket channel, and
+   neither is cheap; the mutant still survives.
+8. **The cap follows the processors.** Decision 8 chose `min(512, maxFds/8)`. On the maintainer's 12-logical-processor Windows
+   machine a cap of 512 under 4096 connectors gave 314 and 620 connections a second, with up to 809 failures and a p99 of 12 s,
+   and cap 48 gave 658 and 517 with none and 8 s (RESULTS section 39). The default is now `min(512, maxFds/8, max(16, 4 x
+   processors))`; the property still overrides it, and slow links, where a handshake mostly waits for the peer, should raise it
+   (48 at a round trip of 300 ms allows about 80 new connections a second). Not re-run on Windows. The cold review of the follow-up
+   showed what the lower cap did to the cost of an attack (item 9, H2) and the documents now state it.
+9. **After the second cold review of the follow-up (H1, H2, M1, M2, L1 to L6).** One commit for each stage; the measurements
+   are in RESULTS section 40. Decisions kept as given: production runs on DirtyChai only (monitors stay); accept stays paused
+   when the queue is full; queue wait counts inside the total deadline with the minimum budget; no policy file is created or
+   edited (the one new property read, `serverHandshakeClientFlightTimeout`, is one more `PropertyPermission` for polpAudit to
+   record); no new mandatory import; the cap default is unchanged; per-address caps stay off.
+   - `31e07c84f` (H1, M2, and the base of H2): the queue phase reads the whole ClientHello (`ClientHelloReader`, which replaces
+     `FirstRecord`): every record is checked as it arrives, the message is the 32768 bytes the JDK takes at most, in at most 8
+     records, and nothing after its last record is read; the bytes go to the engine and the SSLSocket as they came. Records are
+     not re-framed: a bound of 8 limits the JDK's copying (190 ms for 32 KiB in records of one byte) to nothing, takes no copy and
+     writes no header, and a legitimate client sends one record (the JDK) or two. (This closed the first ClientHello only. The
+     second ClientHello, after a HelloRetryRequest, was still put together by the engine itself on the engine path, a record at a
+     time and before the gate, at 210 ms to 3.2 s of CPU for 32 KB in records of one byte: the third cold review's M1, item 10.)
+     A peer that has sent part of a ClientHello holds a
+     queue place and nothing else, on both paths (a six-byte fragment held a place and, on the SSLSocket path, a permit, until the
+     deadline).
+   - `6d9f4489f` (H2, and the previous M2): the post-flight bound, `serverHandshakeClientFlightTimeout` (3 s, 0 removes it): the
+     peer has that long, added up over the reads that wait for it, to answer each flight of the server, whatever is left of the
+     deadline. The watchdog gets a second entry for the read under way (a socket timeout would renew with every byte and the JDK
+     sets `SO_TIMEOUT` itself; a per-phase deadline would count the server's own compute against the client). Cost of keeping
+     the places taken: N / X connections a second, about 5 at N = 16 (4 cores) and 16 at N = 48 (12 logical processors), each with
+     a complete, replayable ClientHello; before, N / T, 1.6 and 4.8 (N / X was right for a peer that does not make the server
+     retry; for one that does it is N / (2X), item 10). Counted apart: "client did not answer the server's flight".
+   - `1e60099cc` (M1): TLS 1.3 only on the SSLSocket path, with the same check after the handshake. The permit across a
+     HelloRetryRequest is not held from the first ClientHello to the flight after the second, as the maintainer's text had it:
+     that holds a permit for the whole post-flight bound for a peer that makes the server retry and stops, and `permits / X` such
+     connections a second stop every HTTPS handshake (the engine path's gate is empty during that wait). The layered socket
+     recognises the HelloRetryRequest, gives the permit back with that flight, reads the second ClientHello whole (a
+     ChangeCipherSpec may precede it) and takes a permit again for the work that follows. Premise checked: the engine path
+     already entered its gate again for the second ClientHello (the test passes against the unchanged channel; a mutant that
+     enters the gate once fails it), so the engine channel is unchanged.
+   - `0060fc266` (L1, L2, L4, L5, L6, and the documents of L3): the summary timer re-arms itself; two accept-loop claims have
+     tests that fail without them; the injection seam is the injecting thread's and has no public constants; the child of the
+     security-manager test is read on a thread and destroyed; lost tasks are logged once, then at most once for each 30 s; the
+     documents state the attacker cost at the defaults, the slow-link capacity (rate about N divided by one to two round trips:
+     N = 16, 160 / 80 a second at 100 ms and 53 / 27 at 300 ms; N = 48, 480 / 240 and 160 / 80), the reconnect storm (1000 clients
+     300 ms away drain at 27 to 53 a second at N = 16, 200 to 400 fit in the 8 s that the minimum budget leaves, and the rest
+     retry; operators on slow links should raise `maxServerHandshakes`), that the sockets of the process are a quarter of the
+     descriptors plus one accepted socket for each endpoint, and that the peer's second flight is not within a permit.
+   Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
+10. **After the third cold review of the follow-up (M1, L1 to L4, INFO).** One commit for each stage; the measurements are in
+   RESULTS section 41. Decisions kept as given: production runs on DirtyChai only (no carrier pinning; `synchronized` stays);
+   accept stays paused when the queue is full; queue wait counts inside the total deadline with the minimum budget; no policy
+   file is created or edited; no new mandatory import (`BundleImportsTest` green); TLS 1.2 is not used; per-address caps stay
+   off; the cap default is unchanged; the post-flight bound stays 3 s for each flight, and one budget is not shared by the two
+   flights of a handshake with a HelloRetryRequest (the consequence is documented, L1).
+   - Stage 1 (M1, and the related item): the engine path reads the second ClientHello with `ClientHelloReader.readAfterRetry`
+     (whole message, every record checked, at most 8 records and 32768 bytes, the post-flight bound applying to its reads) and
+     gives the engine the bytes in one piece, as the SSLSocket path does; the HelloRetryRequest is recognised in the bytes of
+     the wrap (`HelloRetryRequest.starts`). The client's encrypted second flight went through the same reassembly by the JDK, on
+     both paths, with nothing to bound it, and was real: the engine path cost 82 ms to 2.2 s (median 300 ms) for a Certificate
+     message of 30 KB in 5100 records of six bytes, the SSLSocket path 270 ms to 3.3 s (median 300 ms). `RecordCounter` counts
+     the records that follow the ClientHellos on both paths and closes a peer, as junk, that has sent more than 16 and one for
+     every 256 bytes. It is not "a cap on the records the engine unwraps before the gate ends": the gate is released when the
+     server's flight is computed, before the client's flight is read, so no gate is held while the client's flight is read, by
+     design.
+   - Stage 2 (L1 to L4, the claims of M2): documents. Added the test that the review found missing (a peer that is sent a
+     HelloRetryRequest and goes silent is cut off at the bound, counted as one that did not answer, on both paths; both
+     mutants, the SSLSocket read unwatched and the engine read unwatched, fail it). L1: a peer that makes the server retry holds
+     its place for about 2X (5.8 s measured by the review), so keeping the places costs N / (2X): 2.7 a second at N = 16, 8 at N =
+     48; the Javadoc of `maxServerHandshakes` and `serverHandshakeClientFlightTimeout` (`SslServerEndpoint`,
+     `HttpsServerEndpoint`, `package.html`) and design 4.6 say so. L3: what X must cover (round trips, loss, the client's crypto
+     and revocation checks, a PIN), with the estimates (0.35 to 0.8 s at 300 ms, 1.5 to 2.5 s at 1000 ms), and that operators
+     raise it for satellite links and interactive-PIN clients. L4: a full queue holds about 32 812 x Q bytes, 134 MB at Q = 4096.
+     Item 9's claim that a bound of 8 records limits the JDK's copying "to nothing", design 4.6 and the class comment of
+     `ClientHelloReader` presented the many-record cost as closed; they now say that it was closed for the first ClientHello and,
+     with stage 1, for the second and for the client's flight.
+   - Stage 3 (small items): the last losses of a burst of lost timer tasks are written by a timer task when the interval has
+     passed, although no later loss comes (`TimeoutScheduler.noteLoss`; the task is not counted by `pending()`, and if the timer
+     cannot take it the next loss tries again); `testASlowClientThatAnswersInTimeCompletes` has a bound of 5000 ms against a client
+     600 ms late (the margin was 900 ms), and none of its connections is made against the short bound; 10 runs pinned to one CPU
+     with 8 busy loops passed, as did 10 of the old test, so the load did not reproduce the flakiness (RESULTS section 41). The
+     API note: `TimeoutScheduler.inject(int)` became `inject(boolean, boolean)` and `FAIL_HAND_OFF` and `FAIL_RETRY` were removed
+     in the exported package `org.apache.river.jeri.internal`; the class was added by this branch (`6879a461d`) and is in no
+     release, nothing in the repository refers to the old signature, and the change is not a break against the 3.1.0 baseline.
+   Not done: Windows, macOS, a real wide-area link and a real OSGi framework were not run.
 
 ---
 
@@ -771,4 +885,78 @@ task); first-byte permit (transport F11, optional later); `ThreadPool` doc/code 
 off; groups as above; failures at FINE, summary every 30-60 s; client expiry jitter 0.8-1.0.
 
 ---
+
+## Addendum, 2026-10-23: the cold review of the accept path (Opus seat), and what was fixed
+
+Scope: the diff `5a68c62bb^..16db2238e` (`ClientHelloReader`, `RecordCounter`, `SslEngineChannel`, `HandshakeSocket`,
+`SslServerEndpointImpl`), reviewed cold, with probes, against the code of `16db2238e`. The maintainer approved the fixes
+below. Tests: `SslServerSecondFlightTest`, `SslServerClientHelloTest`, `RecordCounterTest` (new).
+
+### The numbers: kept
+
+* **16 free records and one more for every 256 bytes: kept.** The reviewer measured that a record of 256 wire bytes or more
+  pays for itself and is never refused, however many there are, and that the smallest record a client can negotiate (a
+  maximum fragment length of 512, plus what the cipher adds) is about 534 bytes on the wire, more than twice the bytes a record
+  must carry. The bound only bites a peer whose records are smaller than 256 bytes and which has sent more than 16 of them.
+  Pinned in `RecordCounterTest`, with the real class: records of 256 bytes (and 257, 534, 16406) are accepted 10 000 times
+  over; records of 255 bytes are refused at record 3847 (16 + 3830, the whole 256s in the 980 735 bytes up to the end of that
+  record's header; the reviewer's figure, confirmed by running it and by hand); records of 25 or 23 bytes at record 18; two
+  records of 16406 bytes followed by records of 23 bytes are refused at the 157th tiny record (record 159 in all).
+* **8 records for a ClientHello: kept.** A message of 32 KiB needs three records of the longest size, and the bound is far below
+  what costs the JDK anything (the 190 ms of 32 KiB in records of one byte).
+* **The longest handshake message, 32768: now driven by the property.** `ClientHelloReader.MAX_MESSAGE` was a copy of the
+  default of `jdk.tls.maxHandshakeMessageSize`, which a JVM that raises or lowers it for the JDK left behind. The reader now
+  reads the property once, when the class is initialised, as the JDK does (`Integer.getInteger` semantics, the length of the
+  body of the message without its header of 4 bytes, the comparison `body > max` of `SSLEngineInputRecord` and
+  `SSLSocketInputRecord`). A value that is not a number, is not positive (the JDK would refuse every handshake message), or is
+  more than 8 records of 16384 bytes can carry (131 068) is not used, and 32768 is. A server that raises it holds that many
+  more bytes for each connection that waits for its turn (the 32 812 of the design is for the default).
+
+### Findings fixed
+
+1. **HIGH (the main item). A client that pipelines application data behind its Finished was refused on the engine path.** The
+   engine path counted every byte a read of the channel brought in (`fillNetIn`), so a client that sent Certificate,
+   CertificateVerify and Finished and N records of application data in one write had those N records counted against the
+   handshake: with 20 records of one byte (39 wire bytes each) it was refused as junk ("21 in 1267 bytes"), where the SSLSocket
+   path, which counts what the JDK takes for the handshake, served it (N = 10 and 14 were served on the engine path, 20 and 40
+   refused, all served on the socket path). The records are now counted where the engine consumes them: in
+   `handshakeUnwrap`, one `RecordCounter.count` for each `unwrap` (each unwrap consumes exactly one record), skipping the
+   records of a ClientHello, which have their own reader and bound. The count ends with the handshake, at the unwrap after
+   which the engine reports FINISHED, so that at most the one record that completes the handshake is counted; what the client
+   sent behind it stays in the buffer and is read as application data. The bound itself is not loosened, and a flight in tiny
+   records is still refused before the Finished (`testAClientFlightInTinyRecordsIsRefused`, whose engine-path case fails if the
+   count is removed). Test: `testApplicationRecordsPipelinedBehindTheFinishedAreServed`, 1, 14, 20, 40 and 200 records, both
+   paths, served, no junk counted; it fails on the old code at 20.
+2. **LOW. The Javadoc of `readAfterRetry(Source)` said that the engine path reads what the connection sent ahead from its own
+   buffer first.** It does not: it reads the channel alone and appends the second ClientHello after whatever `netIn` holds
+   (`netIn.put(second)`). That is safe because `netIn` is empty at that point (the first ClientHello was consumed whole, the
+   reader took nothing after it), but nothing said so, and bytes there would have been put in front of the second ClientHello,
+   outside the checks of its reader. The Javadoc is corrected and the engine path fails closed (an `SSLException`, "N bytes of
+   the peer are already buffered ahead of its second ClientHello") if `netIn` is not empty. The test uses the existing seams,
+   `prime` and the gate's `flightWritten`: `testBytesAheadOfTheSecondClientHelloFailTheHandshake`.
+3. **LOW. An alert (record type 21) sent in place of the second ClientHello was counted as "not a TLS handshake record: 21",
+   that is as junk.** A client that cannot take what the server's HelloRetryRequest asks for sends an alert; that is a TLS
+   failure of a handshake, and is now an `SSLException` ("the client sent an alert instead of a second ClientHello"), counted
+   under the existing category "TLS failure", on both paths, with or without the ChangeCipherSpec before it. An alert in place
+   of the first ClientHello, or in the middle of the second, stays junk. No new counter. Tests:
+   `testAnAlertInPlaceOfTheSecondClientHelloIsATlsFailure` (reader) and
+   `testAnAlertInPlaceOfTheSecondClientHelloIsCountedAsATlsFailure` (both paths, counters).
+4. **LOW. A read that returned 0 bytes made `ClientHelloReader.read` spin until the watchdog closed the socket.** A blocking
+   read gives a byte or ends; a source that gives 0 for a request of more than 0 bytes is broken. It is now an `IOException`
+   ("the read of the ClientHello returned no bytes"), counted as an I/O error, for the first and the second ClientHello and for
+   channel, stream and source. Test: `testAReadOfNoBytesIsAnErrorAtOnce`, with a source that returns 0 (and fails the test if
+   it is asked 1000 times).
+5. **INFO. 32768 hardcoded:** see above. Tests: `testTheLongestMessageIsTheJdksOrTheDefault`,
+   `testTheLongestMessageFollowsTheJdkProperty` (the class loaded afresh with the property set) and
+   `testAMessageIsRefusedPastTheLimitThatIsSet`.
+6. **The bound is pinned** in `RecordCounterTest` (above), so that a change to 16, to 256, or to the way the bytes are counted
+   (up to the end of the header of the record being counted) has to change the numbers knowingly.
+
+### Not changed, and not verified
+
+* The SSLSocket path was not changed: it counts the bytes the JDK reads through `HandshakeSocket`'s stream, which are the
+  records of the handshake, since the JDK reads a record at a time and takes nothing behind the Finished.
+* Whether a client can in practice send more than 16 records smaller than 256 bytes in a legitimate handshake is not known
+  beyond the framings tried (the usual sizes, `setMaximumPacketSize` from 44 to 534, the 80-certificate chain); the bound is
+  the reviewer's, the engine now counts the same records the socket path does.
 

@@ -39,17 +39,44 @@ import org.apache.river.action.GetLongAction;
  * connections at most a quarter of them less the working ones (and 4096), which
  * leaves room for the established connections and for everything else.
  *
+ * <p>The handshakes that work at once are also at most a small multiple of the
+ * processors, four times as many and at least 16.  On a local network a
+ * handshake is bound by the processor (the key exchange, the signatures, the
+ * verification of the certificates), so more of them at once only share the
+ * same processor time among more of them: each finishes later, and at the
+ * deadline many are cut off after they have done their work and their peers
+ * try again.  Measured on a machine of 12 logical processors, with 4096
+ * connectors opening connections as fast as they could: a limit of 512 gave
+ * 314 and 620 connections a second with 809 and 70 failures and a 99th
+ * percentile of 12 s, with windows of seconds in which nothing completed
+ * although hundreds of handshakes were working; a limit of 48 gave 658 and 517
+ * a second, no failures and a 99th percentile of 8 s.  On a link with a long
+ * round trip a handshake mostly waits for the peer, and the rate is about the
+ * limit divided by the time a handshake takes: 48 handshakes at a round trip
+ * of 300 ms allow about 80 new connections a second, so the limit should be
+ * raised for such links (see {@link #MAX_HANDSHAKES_PROPERTY}).
+ *
  * <p>The descriptors and the processors belong to the process, not to a
  * listener, so the permits are kept here and {@link #shared} returns the one
- * instance that every listener of the JVM uses: a process with several
- * listeners admits no more sockets, and lets handshakes compute on no more
- * processors, than one with a single listener.  An instance is made for each
- * distinct setting of the properties, so a process whose properties do not
- * change has one.
+ * instance that every listener that uses this copy of the classes shares: a
+ * process with several listeners admits no more sockets, and lets handshakes
+ * compute on no more processors, than one with a single listener.  An
+ * instance is made for each distinct setting of the properties, so a process
+ * whose properties do not change has one.
+ *
+ * <p>The instance is a static of the class, so it is shared by the classes of
+ * one class loader, not of one JVM: a second copy of jgdms-jeri in the same
+ * JVM (a bundle beside a copy on the class path, two bundle revisions after
+ * a refresh, two web applications) has permits, and a timer thread, of its
+ * own, and the limits then hold for each copy, not for the process.
  */
 final class HandshakeLimits {
 
-    /** The system property that sets the number of handshakes at once. */
+    /**
+     * The system property that sets the number of handshakes at once.  The
+     * default is the least of 512, an eighth of the descriptors and four for
+     * each processor (at least 16).
+     */
     static final String MAX_HANDSHAKES_PROPERTY =
         "org.apache.river.jeri.ssl.maxServerHandshakes";
 
@@ -75,6 +102,12 @@ final class HandshakeLimits {
         "org.apache.river.jeri.ssl.serverHandshakeCpuPermits";
 
     static final int MAX_HANDSHAKES_CEILING = 512;
+
+    /** The handshakes at once that a machine of any size may work on. */
+    static final int MIN_HANDSHAKES_FOR_PROCESSORS = 16;
+
+    /** The handshakes at once that each processor adds to that. */
+    static final int HANDSHAKES_PER_PROCESSOR = 4;
     static final int MAX_QUEUED_CEILING = 4096;
 
     /** The handshakes that work at once. */
@@ -88,12 +121,17 @@ final class HandshakeLimits {
 
     /**
      * One permit for each accepted connection whose handshake has not
-     * finished, working or waiting, and one for each accept loop while it
-     * waits in accept.  An accept loop takes a permit before it accepts, so
-     * when the waiting connections fill the queue it stops accepting, and the
-     * connections that arrive wait in the operating system's backlog.  The
-     * queue of the loops that wait is first in, first out, so that no listener
-     * is passed over for ever.
+     * finished, working or waiting.  An accept loop waits for a permit to be
+     * free before it accepts, and takes it when it has accepted a connection,
+     * so when the waiting connections fill the queue it stops accepting, and
+     * the connections that arrive wait in the operating system's backlog; and
+     * a loop that is idle in accept holds none, so listeners that have no
+     * peers take nothing from those that have.  The queue of the loops that
+     * wait is first in, first out, so that no listener is passed over for
+     * ever; the semaphore must be fair for that.  Another listener may take the
+     * last permit between a loop's wait and its accept, and then the accepted
+     * connection waits for a permit: at most one connection for each listener
+     * is accepted beyond the permits.
      */
     final Semaphore admission;
 
@@ -113,16 +151,24 @@ final class HandshakeLimits {
     final Semaphore cpu;
 
     /**
-     * One permit for each handshake done with an SSLSocket, which holds it
-     * for the whole of its {@code startHandshake}.  The JDK does the reads and
-     * the writes of the handshake inside that call, so it cannot be split, as
-     * the first flight of an SSLEngine handshake is, into the work for the
-     * processor and the waits for the peer, and a peer that sends a
-     * ClientHello and then waits holds its permit until its handshake times
-     * out.  The permits are separate from those of {@link #cpu}, so that such
-     * peers, which can only be on the endpoints that use SSLSockets (HTTPS and
-     * those with a server socket factory), cannot hold up the handshakes of
-     * the other endpoints.  There are as many as the others.
+     * One permit for each handshake done with an SSLSocket, which is taken
+     * when the peer has sent the whole of a ClientHello, never before,
+     * and given back when the server has written its first flight and reads
+     * from the peer.  The JDK does the reads and the writes of the handshake
+     * inside {@code startHandshake}, so the work for the processor cannot be
+     * told from the waits for the peer, as it can with the first flight of an
+     * SSLEngine handshake; the streams of the socket that the SSLSocket is
+     * layered over show it ({@link HandshakeSocket}).  A peer that replays a
+     * ClientHello and then stalls holds a permit for that work, and one that
+     * does not read the flight, so that the write blocks, until its handshake
+     * times out.  The permits are separate from those of {@link #cpu}, so that
+     * such peers, which can only be on the endpoints that use SSLSockets (HTTPS
+     * and those with a server socket factory), cannot hold up the handshakes of
+     * the other endpoints.  There are as many as the others.  A handshake
+     * that the server answers with a HelloRetryRequest gives its permit
+     * back with that flight, and takes one again when the second
+     * ClientHello has been read whole (the wrapper reads it, as the queue
+     * phase reads the first), for the work of the flight that follows it.
      */
     final Semaphore socketCpu;
 
@@ -148,8 +194,9 @@ final class HandshakeLimits {
     }
 
     /**
-     * Returns the instance that the listeners of the JVM share, for the
-     * system properties as they are now.
+     * Returns the instance that the listeners that use this copy of the
+     * classes share (see the class comment), for the system properties as
+     * they are now.
      */
     static HandshakeLimits shared() {
         HandshakeLimits limits = get();
@@ -165,10 +212,27 @@ final class HandshakeLimits {
         }
     }
 
-    /** Returns the limits for a process that may open this many descriptors. */
+    /**
+     * Returns the limits for a process that may open this many descriptors,
+     * on the processors of this machine.
+     */
     static HandshakeLimits forDescriptors(long maxDescriptors) {
+        return forDescriptors(maxDescriptors,
+                              Runtime.getRuntime().availableProcessors());
+    }
+
+    /**
+     * Returns the limits for a process that may open this many descriptors
+     * and has this many processors: the handshakes at once are the least of
+     * 512, an eighth of the descriptors, and four for each processor (and at
+     * least 16).
+     */
+    static HandshakeLimits forDescriptors(long maxDescriptors, int processors) {
+        long forProcessors = Math.max(MIN_HANDSHAKES_FOR_PROCESSORS,
+            (long) HANDSHAKES_PER_PROCESSOR * Math.max(1, processors));
         long handshakes = Math.max(1L,
-            Math.min(MAX_HANDSHAKES_CEILING, maxDescriptors / 8));
+            Math.min(Math.min(MAX_HANDSHAKES_CEILING, maxDescriptors / 8),
+                     forProcessors));
         long queued = Math.max(0L,
             Math.min(MAX_QUEUED_CEILING, maxDescriptors / 4 - handshakes));
         return new HandshakeLimits((int) handshakes, (int) queued);

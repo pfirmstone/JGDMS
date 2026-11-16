@@ -63,6 +63,13 @@
                 <plugin>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>3.5.1</version>
+                    <configuration>
+                        <!-- The benchmark jars are run, not consumed as dependencies: skip the
+                             dependency-reduced-pom.xml that shade would write into each module
+                             directory on every package (it was tracked and showed as modified
+                             after every build; nothing reads it).  2026-11-16. -->
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <artifactId>maven-dependency-plugin</artifactId>

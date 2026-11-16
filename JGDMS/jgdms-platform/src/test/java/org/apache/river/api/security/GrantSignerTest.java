@@ -35,6 +35,8 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import tests.support.DigestCodeSources;
+import tests.support.SecurityCopy;
 
 /**
  * Signer handling of {@link CertificateGrant}, {@link URIGrant} and 
@@ -42,6 +44,11 @@ import static org.junit.Assert.*;
  * be the same on DirtyChai and on a stock JDK, except that a stock JDK has no
  * {@code java.security.DigestCodeSource}, so a DigestGrant implies nothing
  * there, it must never throw.
+ * <p>
+ * The tests run against the copy of the grant classes that the JDK loads. An
+ * older bundled copy throws a {@code NullPointerException} for a code source
+ * without signers or implies it for a grant that requires signers, which these
+ * tests of the fixed behaviour skip: see {@link SecurityCopy#assumeCurrentCopy}.
  */
 public class GrantSignerTest {
 
@@ -108,6 +115,7 @@ public class GrantSignerTest {
 
     @Test
     public void signedByUnsignedAndNullCodeSourceNotImplied() {
+        SecurityCopy.assumeCurrentCopy("a signedBy grant that does not imply a code source without signers");
         PermissionGrant g = signedBy(alice);
         // Used to throw NullPointerException from Arrays.asList(null).
         assertFalse(g.implies(new CodeSource(location, (Certificate[]) null), NONE));
@@ -130,6 +138,7 @@ public class GrantSignerTest {
 
     @Test
     public void signedByProtectionDomain() {
+        SecurityCopy.assumeCurrentCopy("a signedBy grant that does not imply a domain without signers");
         PermissionGrant g = signedBy(alice);
         assertTrue(g.implies(domain(new CodeSource(location, new Certificate[]{alice}))));
         assertFalse(g.implies(domain(new CodeSource(location, new Certificate[]{bob}))));
@@ -140,6 +149,7 @@ public class GrantSignerTest {
 
     @Test
     public void codeBaseWithSignedByEnforcesSigner() {
+        SecurityCopy.assumeCurrentCopy("a codeBase and signedBy grant that does not imply unsigned code");
         PermissionGrant g = codeBaseSignedBy("http://localhost/a.jar", alice);
         assertTrue(g.implies(new CodeSource(location, new Certificate[]{alice}), NONE));
         assertFalse("right location, unsigned", 
@@ -188,7 +198,7 @@ public class GrantSignerTest {
     @Test
     public void digestIgnoresLocationAndRequiresDigestAndSigners() throws Exception {
         Class<?> dcs = digestCodeSourceClass();
-        Assume.assumeNotNull(dcs); // Stock JDK: fail closed, covered above.
+        Assume.assumeNotNull(dcs); // A JDK without the DigestCodeSource needed: fail closed, covered above.
         // Real jars, a digest the code source computed from the jar is what
         // a loader makes: a digest asserted by a caller is not identity.
         File dir = Files.createTempDirectory("digest-grant").toFile();
@@ -235,12 +245,9 @@ public class GrantSignerTest {
         return f;
     }
 
+    /** The DigestCodeSource, if it has what this test needs, otherwise null. */
     private static Class<?> digestCodeSourceClass() {
-        try {
-            return Class.forName("java.security.DigestCodeSource");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
+        return DigestCodeSources.usable();
     }
 
     private static ProtectionDomain domain(CodeSource cs) {

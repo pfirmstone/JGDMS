@@ -304,6 +304,21 @@ final class SslEngineChannel {
     interface ServerGate {
         void begin() throws IOException;
         void end();
+
+        /**
+         * Called when the server has written a flight and waits for the peer
+         * to answer it, after the flight is out.
+         */
+        default void flightWritten() { }
+
+        /**
+         * Called before a read from the peer during the handshake, which
+         * blocks, and {@link #afterPeerRead} after it, so that an
+         * implementation can bound the time that the peer takes.
+         */
+        default void beforePeerRead() { }
+
+        default void afterPeerRead() { }
     }
 
     /**
@@ -314,11 +329,13 @@ final class SslEngineChannel {
      */
     void handshakeServer(ServerGate gate) throws IOException {
         this.gate = gate;
+        this.records = gate != null ? new RecordCounter() : null;
         try {
             handshake(0L);
         } finally {
             endGate();
             this.gate = null;
+            this.records = null;
         }
     }
 
@@ -330,6 +347,25 @@ final class SslEngineChannel {
 
     /** Whether a ClientHello has been seen and the work that follows is not done. */
     private boolean helloPending;
+
+    /**
+     * Whether the server has written a HelloRetryRequest and the peer owes a
+     * second ClientHello, which is read whole before the engine is given it.
+     */
+    private boolean retryPending;
+
+    /**
+     * Counts the records of the peer that the engine takes during a server
+     * handshake that has a gate, or is null.  The records are counted where
+     * the engine consumes them, in {@link #handshakeUnwrap}, one for each
+     * call of {@code unwrap}, and not as the channel brings the bytes in: a
+     * read of the channel may bring in, behind the client's Finished, the
+     * application data that the client sent right after it, which is not a
+     * record of the handshake and which the handshake never takes.  The count
+     * ends with the handshake, at the {@code unwrap} that makes the engine
+     * report that it is finished.
+     */
+    private RecordCounter records;
 
     private void beginGate() throws IOException {
         if (gate != null && !gateHeld) {
@@ -458,10 +494,22 @@ final class SslEngineChannel {
              * read must not hold the gate while the flight is written.
              */
             endGate();
+            if (gate != null && result.getStatus() == Status.OK
+                && HelloRetryRequest.starts(netOut.array(), netOut.arrayOffset(),
+                                            netOut.position()))
+            {
+                retryPending = true;
+            }
             flush(netOut);
             switch (result.getStatus()) {
                 case OK:
                 case CLOSED:
+                    if (gate != null
+                        && result.getHandshakeStatus() == HandshakeStatus.NEED_UNWRAP)
+                    {
+                        // The flight is out and the peer's answer is next.
+                        gate.flightWritten();
+                    }
                     return result.getHandshakeStatus();
                 case BUFFER_OVERFLOW:
                     // netOut sized to packet buffer; a handshake record should
@@ -479,6 +527,38 @@ final class SslEngineChannel {
     /** Reads and consumes one or more handshake records via unwrap(). */
     private HandshakeStatus handshakeUnwrap() throws IOException {
         synchronized (readLock) {
+            if (retryPending) {
+                /*
+                 * The peer owes the second ClientHello.  The engine would
+                 * take it a record at a time and copy what it has of it for
+                 * every record, before the gate, so it is read whole, as the
+                 * first was (which the engine has consumed, so that what the
+                 * channel holds next is the peer's answer), and the engine is
+                 * given it in one piece.
+                 */
+                retryPending = false;
+                /*
+                 * The second ClientHello is read from the channel, and
+                 * appended to what netIn holds, which is nothing: the engine
+                 * consumed the first ClientHello whole, the server's
+                 * HelloRetryRequest has been written since, and the reader of
+                 * the first took no byte after the first.  Bytes in netIn here
+                 * would be put in front of the second ClientHello, outside the
+                 * checks of the reader, so that it is refused.
+                 */
+                if (netIn.position() != 0) {
+                    throw new SSLException(
+                        "TLS handshake failed: " + netIn.position()
+                        + " bytes of the peer are already buffered ahead of its"
+                        + " second ClientHello, which is read from the channel"
+                        + " alone and put after them");
+                }
+                byte[] second = ClientHelloReader.readAfterRetry(this::pullHello);
+                while (netIn.remaining() < second.length) {
+                    growNetIn();
+                }
+                netIn.put(second);
+            }
             for (;;) {
                 netIn.flip();
                 SSLEngineResult result;
@@ -490,7 +570,19 @@ final class SslEngineChannel {
                     // scratch sink so appIn is untouched (and stays "drained"
                     // for the first application read).
                     handshakeScratch.clear();
+                    int at = netIn.position();
                     result = engine.unwrap(netIn, handshakeScratch);
+                    /*
+                     * One record, and only one, is consumed by each unwrap
+                     * (a ClientHello is checked by its own reader, whole,
+                     * before the engine has it).  What is counted is what the
+                     * engine takes, so that bytes that the channel brought in
+                     * behind the Finished are not.
+                     */
+                    if (records != null && !helloPending && result.bytesConsumed() > 0) {
+                        records.count(netIn.array(), netIn.arrayOffset() + at,
+                                      result.bytesConsumed());
+                    }
                 } finally {
                     netIn.compact();
                 }
@@ -706,8 +798,29 @@ final class SslEngineChannel {
         if (handshakeReadDeadline > 0L) {
             return fillNetInByDeadline();
         }
-        int n = channel.read(netIn);
-        return n >= 0;
+        ServerGate g = gate;
+        if (g == null) {
+            return channel.read(netIn) >= 0;
+        }
+        g.beforePeerRead();
+        try {
+            return channel.read(netIn) >= 0;
+        } finally {
+            g.afterPeerRead();
+        }
+    }
+
+    /**
+     * Gives the reader of the second ClientHello the bytes of the channel,
+     * the reads of which are told to the gate as any read of the peer is.
+     */
+    private int pullHello(byte[] bytes, int off, int len) throws IOException {
+        gate.beforePeerRead();
+        try {
+            return channel.read(ByteBuffer.wrap(bytes, off, len));
+        } finally {
+            gate.afterPeerRead();
+        }
     }
 
     /**

@@ -44,6 +44,9 @@
 
     <properties>
         <high.scale.lib.version>1.0.6</high.scale.lib.version>
+        <!-- Added to the surefire argLine; empty unless the dirtychai-patch
+             profile below is active. -->
+        <jgdms.dirtychai.args></jgdms.dirtychai.args>
     </properties>
 
     <dependencies>
@@ -134,8 +137,18 @@
                     <!-- Permit tests to install a SecurityManager on JDK 17+
                          (JEP 411). This only *allows* setSecurityManager; no SM
                          is installed unless a test does so explicitly. Needed by
-                         AgentDelegationCeilingTest. -->
-                    <argLine>-Djava.security.manager=allow</argLine>
+                         AgentDelegationCeilingTest.
+
+                         The tests run against whichever copy of the shared
+                         org.apache.river.api.security classes the JDK loads:
+                         a JDK that bundles its own in java.base uses those, any
+                         other uses the copies of this module from the class
+                         path.  Tests use public (and, for this module's own
+                         subclasses, protected) API of the shared classes only,
+                         and skip what the loaded copy does not have.  Nothing is
+                         patched into java.base unless the dirtychai-patch
+                         profile below is active. -->
+                    <argLine>-Djava.security.manager=allow ${jgdms.dirtychai.args}</argLine>
                 </configuration>
             </plugin>
         </plugins>
@@ -155,4 +168,30 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <profiles>
+        <!-- Optional, off by default: run the tests against the classes of a
+             newer JDK than the one running Maven (a DirtyChai build that is
+             newer than the installed one), given as a directory of class files:
+                 mvn -pl jgdms-platform test -Djgdms.dirtychai.patch=DIR
+             DIR holds org/apache/river/api/security/*.class and what they use
+             (java/security/DigestCodeSource.class and so on).  It is patched
+             over java.base, and the package is exported to the tests.  More
+             than one directory may be given, separated by the path separator.
+             Give -Djgdms.conformance.jdkClasses=DIR2 as well to have
+             BundledCopyConformanceTest compare against the classes in DIR2
+             (the runtime image is read otherwise, which shows nothing of a
+             patch). -->
+        <profile>
+            <id>dirtychai-patch</id>
+            <activation>
+                <property>
+                    <name>jgdms.dirtychai.patch</name>
+                </property>
+            </activation>
+            <properties>
+                <jgdms.dirtychai.args>--patch-module=java.base=${jgdms.dirtychai.patch} --add-exports java.base/org.apache.river.api.security=ALL-UNNAMED</jgdms.dirtychai.args>
+            </properties>
+        </profile>
+    </profiles>
 </project>

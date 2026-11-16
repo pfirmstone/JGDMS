@@ -4,6 +4,12 @@
 Read-only design pass: NO Java source modified, NO build/test run. Architectural
 decisions noted below are settled per the SOW and are not re-litigated here.*
 
+*Update 2026-10-23: `LeasedPermissionGrant`, `OneShotLeasedPermissionGrant`, `LeasedDelegation`,
+`OneShot`, `ExternallyVoidablePermissionGrant`, `LocalPrincipalProvider` and `UserSubjectSupport`
+now live in `au.net.zeus.jgdms.api.policy` (jgdms-platform), not `org.apache.river.api.security`.
+The decorator constructor of `PermissionGrant` is `protected`, so a subclass in another package
+can use it; the package named in section 2.1 below is the one at the time of this design.*
+
 **Companion documents:**
 - SOW: `C:\Users\peter\Documents\GitHub\JGDMS\JGDMS\docs\SOW-AI-Agent-Authority-Support.md` (§3 Phase 3)
 - Review: `C:\Users\peter\Documents\GitHub\JGDMS\JGDMS\docs\agent-authority-code-review-2026-06-14.md` (Q-A)

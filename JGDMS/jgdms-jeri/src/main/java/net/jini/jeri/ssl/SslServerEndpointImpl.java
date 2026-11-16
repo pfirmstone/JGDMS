@@ -60,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -1191,6 +1192,16 @@ class SslServerEndpointImpl extends Utilities {
 		static final long DEFAULT_SERVER_MIN_BUDGET = 2_000L;
 
 		/**
+		 * The system property that sets how long a server handshake waits for
+		 * the peer to answer a flight of the server, in milliseconds.
+		 */
+		static final String SERVER_CLIENT_FLIGHT_TIMEOUT_PROPERTY =
+			"org.apache.river.jeri.ssl.serverHandshakeClientFlightTimeout";
+
+		/** The default time to wait for the answer to a flight: 3 seconds. */
+		static final long DEFAULT_SERVER_CLIENT_FLIGHT_TIMEOUT = 3_000L;
+
+		/**
 		 * The system property that sets the number of server handshakes that
 		 * may compute their first flight at once.
 		 */
@@ -1257,7 +1268,15 @@ class SslServerEndpointImpl extends Utilities {
 		private final long minBudgetNanos;
 
 		/**
-		 * The permits that all the listeners of the JVM share: the sockets
+		 * The time in nanoseconds that a handshake waits, in all, for the peer
+		 * to answer a flight of the server, whatever time is left, or 0 for no
+		 * such limit.
+		 */
+		private final long clientFlightNanos;
+
+		/**
+		 * The permits that all the listeners that use this copy of the
+		 * classes share (see {@code HandshakeLimits}): the sockets
 		 * that may be admitted, the handshakes that may work, and those that
 		 * may compute a first flight.  A listener gives back only the permits
 		 * that its own connections hold.
@@ -1287,9 +1306,8 @@ class SslServerEndpointImpl extends Utilities {
 		final HandshakeCompute compute;
 
 		/**
-		 * The accepted connections that have not finished their handshake.
-		 * Not the same as the permits taken: the accept loop holds one while
-		 * it waits in accept.
+		 * The accepted connections that have not finished their handshake,
+		 * which are the permits of {@code admission} that are taken.
 		 */
 		private final AtomicInteger admitted = new AtomicInteger();
 
@@ -1348,6 +1366,12 @@ class SslServerEndpointImpl extends Utilities {
 			this.minBudgetNanos = minBudget > 0 && handshakeTimeoutNanos > 0L
 				? Math.min(Math.min(minBudget, Long.MAX_VALUE / 1_000_000L) * 1_000_000L,
 						   handshakeTimeoutNanos / 2)
+				: 0L;
+			long flight = ((Long) Security.doPrivileged(
+				new GetLongAction(SERVER_CLIENT_FLIGHT_TIMEOUT_PROPERTY,
+								  DEFAULT_SERVER_CLIENT_FLIGHT_TIMEOUT))).longValue();
+			this.clientFlightNanos = flight > 0
+				? Math.min(flight, Long.MAX_VALUE / 1_000_000L) * 1_000_000L
 				: 0L;
 			this.limits = HandshakeLimits.shared();
 			this.maxHandshakes = limits.maxHandshakes;
@@ -1411,28 +1435,42 @@ class SslServerEndpointImpl extends Utilities {
 			while (true) {
 				Socket socket = null;
 				Throwable exception;
-				boolean admitted = false;
 				try {
 					/*
 					 * Wait here, not in accept, while the handshakes in
 					 * progress and the connections waiting for one fill the
-					 * limit; the operating system queues what arrives.
+					 * limit; the operating system queues what arrives.  The
+					 * wait takes no place: a listener that is idle in accept
+					 * must not hold one, or the listeners of a process would
+					 * fill the limit with their idle accept loops.
+					 */
+					if (!awaitFreePlace()) {
+						break;
+					}
+					socket = serverSocket.accept();
+					/*
+					 * The place is taken now that there is a connection to
+					 * give it to.  Another listener may have taken the last
+					 * one meanwhile; then this connection waits here, with no
+					 * more than one for each listener beyond the limit, until
+					 * a place is free.
 					 */
 					if (!awaitAdmission()) {
 						break;
 					}
-					admitted = true;
-					socket = serverSocket.accept();
-					admitted = false;
-					startHandshake(socket);
+					/* The handshake now owns the socket and the place. */
+					Socket accepted = socket;
+					socket = null;
+					startHandshake(accepted);
 					continue;
 				} catch (Exception e) {
 					exception = e;
 				} catch (Error e) {
 					exception = e;
 				} finally {
-					if (admitted) {
-						admission.release();
+					if (socket != null) {
+						/* Accepted, but not admitted: the listener is closing. */
+						closeQuietly(socket);
 					}
 				}
 				/* Problem occurred */
@@ -1476,8 +1514,38 @@ class SslServerEndpointImpl extends Utilities {
 		}
 
 		/**
-		 * Takes the permit that lets the accept loop accept one more
-		 * connection, waiting for one if the limit is reached.
+		 * Waits until the limit leaves a place for one more connection,
+		 * without taking it.  The semaphore is fair, so the loops that wait
+		 * are served in turn: a loop passes when the place that it was next in
+		 * line for is free, and gives it back at once.
+		 *
+		 * @return false if the listener was closed or the thread interrupted
+		 */
+		private boolean awaitFreePlace() {
+			try {
+				admission.acquire();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+			admission.release();
+			synchronized (this) {
+				return !closed;
+			}
+		}
+
+		/** Closes a socket that will not be used; a failure is of no interest. */
+		private void closeQuietly(Socket socket) {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				/* Ignore and continue; we're already closing. */
+			}
+		}
+
+		/**
+		 * Takes the permit that admits the connection that has just been
+		 * accepted, waiting for one if the limit is reached.
 		 *
 		 * @return false if the listener was closed or the thread interrupted
 		 */
@@ -1595,15 +1663,16 @@ class SslServerEndpointImpl extends Utilities {
 				try {
 					/*
 					 * A connection that waits for its turn costs its socket,
-					 * this thread and the bytes of its first record, and
+					 * this thread and the bytes of its ClientHello, and
 					 * nothing is allocated for the handshake until it has a
-					 * permit.  It reads that record first, so that a peer
-					 * that goes away is noticed at once, and one that sends no
-					 * ClientHello, or something that is not TLS, never takes a
-					 * place to work in.  (An SSLSocket reads for itself, so
-					 * the connections of that path cannot be read ahead.)
+					 * permit.  It reads the whole ClientHello first, so that a
+					 * peer that goes away is noticed at once, and one that
+					 * sends no ClientHello, a part of one, or something that is
+					 * not TLS, never takes a place to work in or a permit to
+					 * compute.  A socket with no channel is read through its
+					 * input stream, and the SSLSocket is given the bytes.
 					 */
-					handshake.readFirstRecord();
+					handshake.readClientHello();
 					handshake.awaitPermit();
 					connection = serverConnection(handshake.socket, handshake);
 					java.util.function.Consumer<Handshake> hook = beforeComplete;
@@ -1696,6 +1765,8 @@ class SslServerEndpointImpl extends Utilities {
 			handshake.disarm();
 			HandshakeCounters.Kind kind = handshake.isQueueTimedOut()
 				? HandshakeCounters.Kind.QUEUE_TIMEOUT
+				: handshake.isFlightTimedOut()
+				? HandshakeCounters.Kind.FLIGHT_TIMEOUT
 				: handshake.isTimedOut()
 				? HandshakeCounters.Kind.TIMEOUT
 				: closedSync
@@ -1888,17 +1959,22 @@ class SslServerEndpointImpl extends Utilities {
 		 * when the handshake has finished, the watchdog from QUEUED to
 		 * QUEUE_TIMED_OUT when the connection has waited so long that the time
 		 * that is left is less than a handshake needs, and from WORKING to
-		 * TIMED_OUT when it has run out of time.  Whoever wins decides: after
-		 * DONE the watchdog never closes the socket, after a time out the task
-		 * never hands the connection on or goes on to work.
+		 * TIMED_OUT when it has run out of time, or to FLIGHT_TIMED_OUT when
+		 * the peer has taken too long to answer a flight of the server.
+		 * Whoever wins decides: after DONE the watchdog never closes the
+		 * socket, after a time out the task never hands the connection on or
+		 * goes on to work.
 		 */
-		final class Handshake implements Runnable, SslEngineChannel.ServerGate {
+		final class Handshake implements Runnable, SslEngineChannel.ServerGate,
+				HandshakeSocket.Watch
+		{
 
 			private static final int QUEUED = 0;
 			private static final int WORKING = 3;
 			private static final int DONE = 1;
 			private static final int TIMED_OUT = 2;
 			private static final int QUEUE_TIMED_OUT = 4;
+			private static final int FLIGHT_TIMED_OUT = 5;
 
 			final Socket socket;
 
@@ -1908,13 +1984,35 @@ class SslServerEndpointImpl extends Utilities {
 			private final AtomicInteger state = new AtomicInteger(QUEUED);
 
 			/**
-			 * The first record of the connection, which has been read, or
-			 * null: before it is read, if its bytes were given to the
-			 * engine's channel, and where it cannot be read ahead.
+			 * The records of the connection's ClientHello, which have been
+			 * read, or null: before they are read, and once their bytes were
+			 * given to the engine's channel or to the SSLSocket.
 			 */
-			private volatile byte[] firstRecord;
+			private volatile byte[] clientHello;
+
+			/**
+			 * The input stream of a socket that has no channel, which is
+			 * taken once: a socket from a custom factory may return a new
+			 * stream for each call, and a stream may have buffered bytes that
+			 * another would not have.
+			 */
+			private volatile InputStream socketInput;
 
 			private volatile ScheduledFuture<?> timer;
+
+			/**
+			 * The time in nanoseconds that the peer has left, in all, to
+			 * answer the flight that the server wrote last, or 0 if the server
+			 * does not wait for an answer or no such time is set.  Only the
+			 * handshake's own thread reads or sets it.
+			 */
+			private long flightLeft;
+
+			/** The System.nanoTime() at which the read under way began, or 0. */
+			private long flightRead;
+
+			/** The watchdog's entry for the read under way, or null. */
+			private volatile ScheduledFuture<?> flightTimer;
 
 			/** Whether this handshake holds a permit of {@code running}. */
 			private volatile boolean working;
@@ -1931,32 +2029,46 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/**
-			 * Reads the first record of the connection, while it waits for its
-			 * turn, if the socket has a channel to read it from (it has not on
-			 * the SSLSocket path, where the JDK reads for itself).  A peer that
-			 * does not send a ClientHello is dropped here, whatever it sends.
+			 * Reads the whole ClientHello of the connection, while it waits for
+			 * its turn: from the channel of the socket, or, if it has none (the
+			 * SSLSocket path), from its input stream.  A peer that does not
+			 * send a ClientHello is dropped here, whatever it sends, and so is
+			 * one that has not sent all of it when the time runs out.  The read
+			 * is ended by the watchdog, which closes the socket.
 			 */
-			void readFirstRecord() throws IOException {
-				java.nio.channels.SocketChannel channel = socket.getChannel();
-				if (channel == null) {
-					return;
-				}
+			void readClientHello() throws IOException {
 				waiter = Thread.currentThread();
 				try {
-					firstRecord = FirstRecord.read(channel);
+					java.nio.channels.SocketChannel channel = socket.getChannel();
+					clientHello = channel != null
+						? ClientHelloReader.read(channel)
+						: ClientHelloReader.read(socketInput());
 				} finally {
 					waiter = null;
 				}
 			}
 
 			/**
-			 * Returns the bytes of the first record that were read ahead, and
+			 * Returns the one input stream of a socket that has no channel.
+			 * Called by the handshake's own thread.
+			 */
+			InputStream socketInput() throws IOException {
+				InputStream in = socketInput;
+				if (in == null) {
+					in = socket.getInputStream();
+					socketInput = in;
+				}
+				return in;
+			}
+
+			/**
+			 * Returns the bytes of the ClientHello that were read ahead, and
 			 * forgets them, or null if none were.
 			 */
-			byte[] takeFirstRecord() {
-				byte[] record = firstRecord;
-				firstRecord = null;
-				return record;
+			byte[] takeClientHello() {
+				byte[] hello = clientHello;
+				clientHello = null;
+				return hello;
 			}
 
 			/**
@@ -2009,7 +2121,8 @@ class SslServerEndpointImpl extends Utilities {
 			}
 
 			/** The permits that this handshake holds one of to compute, or null. */
-			private volatile Semaphore computing;
+			private final AtomicReference<Semaphore> computing =
+				new AtomicReference<Semaphore>();
 
 			/**
 			 * Waits for a permit to compute the first flight, for as long as
@@ -2022,8 +2135,11 @@ class SslServerEndpointImpl extends Utilities {
 
 			/**
 			 * Waits for a permit to do the handshake with an SSLSocket, for as
-			 * long as the handshake has time.  The permit is given back by
-			 * {@link #end}.
+			 * long as the handshake has time.  The ClientHello has been read
+			 * by then.  The permit is given back by {@link #end}, which the
+			 * layered socket calls when the server has written its first
+			 * flight and reads from the peer, and the task calls whatever
+			 * happens.
 			 */
 			void beginSocket() throws IOException {
 				acquireToCompute(socketCpu, "the processor");
@@ -2044,7 +2160,7 @@ class SslServerEndpointImpl extends Utilities {
 								"timed out waiting for " + what);
 						}
 					}
-					computing = permits;
+					computing.set(permits);
 				} catch (InterruptedException e) {
 					throw new java.io.InterruptedIOException(
 						"interrupted waiting for " + what);
@@ -2055,10 +2171,76 @@ class SslServerEndpointImpl extends Utilities {
 
 			/** Gives the permit to compute back, if this handshake has it. */
 			public void end() {
-				Semaphore permits = computing;
+				Semaphore permits = computing.getAndSet(null);
 				if (permits != null) {
-					computing = null;
 					permits.release();
+				}
+			}
+
+			/**
+			 * Called by the layered socket of the SSLSocket path when the peer
+			 * has answered a HelloRetryRequest with its second ClientHello,
+			 * before the JDK works on it: the permit to compute is taken again
+			 * for that work, as the engine path's gate is entered again.
+			 */
+			public void helloRetryAnswered() throws IOException {
+				beginSocket();
+			}
+
+			/**
+			 * Called when the server has written a flight and waits for the
+			 * peer to answer it.  The work for the processor that the flight
+			 * took is done, so the permit goes back, and the peer has the time
+			 * that is set for the whole of its answer, which each of its reads
+			 * takes from, however slowly it sends.  A peer that replays a
+			 * ClientHello, reads the flight and stops therefore holds its
+			 * place for that time and not for the rest of the deadline.
+			 */
+			public void flightWritten() {
+				end();
+				flightLeft = clientFlightNanos;
+			}
+
+			/**
+			 * Called before the handshake blocks to read from the peer.  While
+			 * the peer owes an answer, the watchdog is given the time that it
+			 * has left, unless the deadline of the handshake is nearer.
+			 */
+			public void beforePeerRead() {
+				long left = flightLeft;
+				if (left <= 0L) {
+					return;
+				}
+				long now = System.nanoTime();
+				flightRead = now;
+				if (deadline != 0L && deadline - now <= left) {
+					/* The watchdog of the handshake ends it first. */
+					return;
+				}
+				flightTimer = HandshakeWatchdog.schedule(this::flightExpired, left);
+			}
+
+			/** Called when a read from the peer has returned, with bytes or without. */
+			public void afterPeerRead() {
+				ScheduledFuture<?> t = flightTimer;
+				if (t != null) {
+					flightTimer = null;
+					t.cancel(false);
+				}
+				long began = flightRead;
+				if (began != 0L) {
+					flightRead = 0L;
+					flightLeft = Math.max(1L, flightLeft - (System.nanoTime() - began));
+				}
+			}
+
+			/**
+			 * Called on the watchdog's thread when the peer has run out of
+			 * time to answer.  It only decides, like {@link #expired}.
+			 */
+			private void flightExpired() {
+				if (state.compareAndSet(WORKING, FLIGHT_TIMED_OUT)) {
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
 				}
 			}
 
@@ -2129,6 +2311,10 @@ class SslServerEndpointImpl extends Utilities {
 				if (t != null) {
 					t.cancel(false);
 				}
+				t = flightTimer;
+				if (t != null) {
+					t.cancel(false);
+				}
 			}
 
 			/**
@@ -2138,7 +2324,7 @@ class SslServerEndpointImpl extends Utilities {
 			 */
 			private void expiredQueued() {
 				if (state.compareAndSet(QUEUED, QUEUE_TIMED_OUT)) {
-					HandshakeWatchdog.handOff(this::cancel);
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
 				}
 			}
 
@@ -2146,13 +2332,16 @@ class SslServerEndpointImpl extends Utilities {
 			 * Called on the watchdog's thread when the time has run out.  It
 			 * only decides, and leaves the closing, which can block, to
 			 * another thread, so that one handshake cannot delay the deadline
-			 * of any other.
+			 * of any other.  Only if no thread can be started, even to try
+			 * again, is the close done on the watchdog's thread: it is
+			 * abortive, so it does not wait, and without it the socket and the
+			 * permits would be held for ever.
 			 */
 			private void expired() {
 				if (state.compareAndSet(WORKING, TIMED_OUT)
 					|| state.compareAndSet(QUEUED, QUEUE_TIMED_OUT))
 				{
-					HandshakeWatchdog.handOff(this::cancel);
+					HandshakeWatchdog.handOff(this::cancel, this::cancel);
 				}
 			}
 
@@ -2189,7 +2378,12 @@ class SslServerEndpointImpl extends Utilities {
 			/** Whether the watchdog cut the handshake off, working or waiting. */
 			boolean isTimedOut() {
 				int s = state.get();
-				return s == TIMED_OUT || s == QUEUE_TIMED_OUT;
+				return s == TIMED_OUT || s == QUEUE_TIMED_OUT || s == FLIGHT_TIMED_OUT;
+			}
+
+			/** Whether the watchdog cut the handshake off for want of an answer to a flight. */
+			boolean isFlightTimedOut() {
+				return state.get() == FLIGHT_TIMED_OUT;
 			}
 
 			/** Whether the connection was dropped before it was given a turn. */
@@ -2338,6 +2532,8 @@ class SslServerEndpointImpl extends Utilities {
 					}
 				}
 			}
+			/* Reports the failures that have not been, and stops the timer. */
+			counters.close();
 		}
 
 		/** Returns the number of registered connections. */
@@ -2393,6 +2589,11 @@ class SslServerEndpointImpl extends Utilities {
 		/** Returns the number of permits to compute a first flight. */
 		int cpuPermits() {
 			return cpuPermits;
+		}
+
+		/** Returns the milliseconds that a handshake waits for the answer to a flight, or 0. */
+		long clientFlightMillis() {
+			return TimeUnit.NANOSECONDS.toMillis(clientFlightNanos);
 		}
 
 		/** Returns the most handshakes that work at once. */
@@ -2574,7 +2775,7 @@ class SslServerEndpointImpl extends Utilities {
 							() -> handshake.isTimedOut() || socket.isClosed()));
 					}
 					/* What was read ahead while the connection waited. */
-					byte[] first = handshake.takeFirstRecord();
+					byte[] first = handshake.takeClientHello();
 					if (first != null) {
 						engineChannel.prime(first);
 					}
@@ -2596,15 +2797,36 @@ class SslServerEndpointImpl extends Utilities {
 				} else {
 					/*
 					 * Fallback (custom serverSocketFactory / HTTPS): channel-less
-					 * accepted socket, drive TLS via SSLSocket as before.
+					 * accepted socket, drive TLS via SSLSocket as before.  The
+					 * ClientHello has been read from the socket, so that a
+					 * peer that sends no ClientHello, or part of one, takes no
+					 * permit; the
+					 * JDK is given its bytes first and reads on from the
+					 * socket.  A socket made so is in server mode.  The socket
+					 * it is layered over notes when the first flight has been
+					 * written, and gives the permit back then.
 					 */
 					engineChannel = null;
+					byte[] first = handshake.takeClientHello();
+					HandshakeSocket layered = new HandshakeSocket(socket,
+						handshake.socketInput(), socket.getOutputStream(),
+						handshake);
 					sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
-						socket, socket.getInetAddress().getHostAddress(), socket.getPort(), true /* autoClose */);
+						layered, new java.io.ByteArrayInputStream(
+							first != null ? first : new byte[0]),
+						true /* autoClose */);
 					sslSocket.setEnabledCipherSuites(getSupportedCipherSuites());
 					/* Need to put in server mode before requesting client auth. */
 					sslSocket.setUseClientMode(false);
 					sslSocket.setNeedClientAuth(true);
+					/*
+					 * TLS 1.3 only, as on the engine path, which its permits and
+					 * its bounds are made for: a TLS 1.2 handshake has the
+					 * client's certificate and key exchange in plain records
+					 * that can be replayed from any capture, and its server
+					 * does the work for them outside the permit.
+					 */
+					sslSocket.setEnabledProtocols(new String[]{ "TLSv1.3" });
 					if (listenHandle.namedGroups != null) {
 						javax.net.ssl.SSLParameters sp = sslSocket.getSSLParameters();
 						sp.setNamedGroups(listenHandle.namedGroups);
@@ -2615,10 +2837,12 @@ class SslServerEndpointImpl extends Utilities {
 					 * which has no time limit and hides the cause of a
 					 * failure.  The handshake cannot be split into its work
 					 * and its waits, so the permit that bounds the work is
-					 * held for all of it, which the time that is left bounds:
-					 * the read timeout cuts off a silent peer, and the
-					 * watchdog the whole handshake, and a write to a peer that
-					 * does not read.
+					 * held from here until the layered socket sees the JDK
+					 * read after it wrote its first flight, or, if that does
+					 * not come, until the handshake ends: the time that is
+					 * left bounds both, for the read timeout cuts off a silent
+					 * peer, and the watchdog the whole handshake, and a write
+					 * to a peer that does not read.
 					 */
 					handshake.beginSocket();
 					try {
@@ -2635,9 +2859,16 @@ class SslServerEndpointImpl extends Utilities {
 						sslSocket.startHandshake();
 						sslSocket.setSoTimeout(soTimeout);
 					} finally {
+						layered.finish();
 						handshake.end();
 					}
 					sess = sslSocket.getSession();
+					if (!"TLSv1.3".equals(sess.getProtocol())) {
+						throw new SecurityException(
+							"Refusing non-TLS-1.3 connection: negotiated "
+							+ sess.getProtocol()
+							+ " (the SSLSocket transport requires TLS 1.3)");
+					}
 					sslSocket.setEnableSessionCreation(false);
 				}
 				session = sess;

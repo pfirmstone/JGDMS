@@ -77,8 +77,10 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *   the grant.
  *  </li>
  *  <li>
- *   grants where the specified class is null apply to all
- *   protection domains, regardless of their associated class loaders.
+ *   grants where the specified class is null are void: a grant is tied
+ *   to the class loader of a class and goes with it, so a grant with no
+ *   class applies to no protection domain (it never applies to all
+ *   protection domains, regardless of their associated class loaders).
  *  </li>
  *  <li>
  *   granted permissions (aside from those granted with a
@@ -176,15 +178,18 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *         null as specified class and permissions so that
  *         some permissions are dynamic granted earlier and
  *         some permissions are not dynamic granted yet.
- *         Lets name these permissions pmAll.
+ *         Lets name these permissions pmAll.  The grant has no class, it is
+ *         void, nothing is granted by it and no exception is thrown.
  *    </li>
  *    <li> Iterate over ProtectionDomains (including null ProtectionDomain)
  *         and call implies() on DynamicPolicyProvider.
  *      <ol>
  *        <li> Call implies on DynamicPolicyProvider passing
- *             pmAll permissions. Verify that implies()
- *             returns true for null and non-null
- *             ProtectionDomains.
+ *             pmAll permissions (pm3, which was dynamic granted earlier to
+ *             the class loaders, and pm8, which was only granted with the
+ *             null class). Verify that implies() returns false for the
+ *             null ProtectionDomain, and that for non-null ProtectionDomains
+ *             it returns true for pm3 and false for pm8.
  *        </li>
  *        <li> Call implies on DynamicPolicyProvider passing
  *             permissions that granted in the policy file. Verify that
@@ -210,14 +215,14 @@ import org.apache.river.test.spec.policyprovider.util.QAPrincipal;
  *                 and null as array of Principals.
  *            </li>
  *            <li> Call implies() on DynamicPolicyProvider passing
- *                 newly created ProtectionDomains and pmAll
- *                 permissions and verify that implies() returns true.
+ *                 newly created ProtectionDomains and pm3 and pm8
+ *                 and verify that implies() returns true for pm3 and false
+ *                 for pm8 (the grant with the null class is void).
  *            </li>
  *          </ol>
  *        </li>
- *        <li> Verify that granted permissions (aside from those granted
- *             with a class value of null) are not included in
- *             PermissionCollections returned from
+ *        <li> Verify that dynamically granted permissions, including pmAll,
+ *             are not included in PermissionCollections returned from
  *             Policy.getPermissions(CodeSource).
  *        </li>
  *      </ol>
@@ -368,6 +373,8 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
          * some permissions are dynamic granted earlier and
          * some permissions are not dynamic granted yet.
          * Lets name these permissions pmAll.
+         * A grant with a null class is void, nothing is granted, but it is
+         * not an error.
          */
         Permission[] pmAll = new Permission[] { pm3, pm8 };
         Permission[] pmAsided = new Permission[] { pm4, pm7 };
@@ -384,11 +391,17 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
 
                 /*
                  * Call implies on DynamicPolicyProvider passing
-                 * pmAll permissions. Verify that implies()
-                 * returns true for null and non-null
-                 * ProtectionDomains.
+                 * pmAll permissions. The grant with a null class is void.
+                 * Verify that implies() returns false for the null
+                 * ProtectionDomain, and returns true only for the
+                 * permissions that were dynamic granted to the class
+                 * loader of a non-null ProtectionDomain: pm3 is granted
+                 * to the class loaders of all the loaded classes
+                 * (the first permission of every array in pmaa), pm8
+                 * to none of them.
                  */
-                checkImplies(pd, pmAll, true, false);
+                checkImplies(pd, new Permission[] { pm8 }, false, false);
+                checkImplies(pd, new Permission[] { pm3 }, true, true);
 
                 /*
                  * Call implies on DynamicPolicyProvider passing
@@ -439,21 +452,26 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
 
                     /*
                      * Call implies() on DynamicPolicyProvider passing
-                     * newly created ProtectionDomains and pmAll
-                     * permissions and verify that implies() returns true.
+                     * newly created ProtectionDomains and pm3 (granted to
+                     * every class loader) and pm8 (not granted to any,
+                     * the grant with a null class is void) and verify
+                     * that implies() returns true for pm3 and false for pm8.
                      */
-                    checkImplies(pdNew01, pmAll, true, false);
-                    checkImplies(pdNew02, pmAll, true, false);
+                    checkImplies(pdNew01, new Permission[] { pm3 }, true, false);
+                    checkImplies(pdNew02, new Permission[] { pm3 }, true, false);
+                    checkImplies(pdNew01, new Permission[] { pm8 }, false, false);
+                    checkImplies(pdNew02, new Permission[] { pm8 }, false, false);
                 }
 
                 /*
-                 * Verify that granted permissions (aside from those granted
-                 * with a class value of null) are not included in
-                 * PermissionCollections returned from
-                 * Policy.getPermissions(CodeSource).
+                 * Verify that dynamically granted permissions are not
+                 * included in PermissionCollections returned from
+                 * Policy.getPermissions(CodeSource).  This includes pmAll,
+                 * which was granted with a class value of null: that grant
+                 * is void.
                  */
                 callGetPermissionsNoGranted(s, pmAsided);
-                callGetPermissions(s, pmAll, true, null);
+                callGetPermissionsNoGranted(s, pmAll);
             }
         }
     }

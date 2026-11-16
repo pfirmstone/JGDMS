@@ -36,6 +36,7 @@ import java.util.List;
  * @author Peter Firmstone.
  * @since 3.0.0
  */
+@SuppressWarnings("serial")
 class CertificateGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
     private final Collection<Certificate> certs;

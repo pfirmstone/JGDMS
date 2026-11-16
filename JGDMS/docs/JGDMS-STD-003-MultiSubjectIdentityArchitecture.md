@@ -7,6 +7,10 @@
 
 > ⚠️ **SUPERSEDED.** This is the original draft; the current model is in **v3**. Kept for history only.
 
+> Note (2026-10-23): JGDMS's `org.apache.river.api.security.SubjectDomain`, `Security.doAs`/`doAsPrivileged` and the
+> private `DistributedSubjectCombiner` were removed at the maintainer's direction; superseded by the multi-subject work
+> (see v3). Every `SubjectDomainCombiner` below is the JDK class, unaffected.
+
 ---
 
 ## 1. Purpose and Scope

@@ -49,7 +49,7 @@ public final class UnresolvedPrincipal implements Principal {
      * polpAudit records the actual class).  The policy scanner refuses a
      * wildcard class with a clear error.
      */
-    public static final String WILDCARD = DefaultPolicyScanner.PrincipalEntry.WILDCARD;
+    static final String WILDCARD = "*";
 
     // Class name
     private final String klass;

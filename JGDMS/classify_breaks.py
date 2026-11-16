@@ -21,13 +21,22 @@ def fqcn_name(h):
     toks = h.replace('(', ' ').split()
     return next((t for t in toks if '.' in t and t[0].islower()), h)
 
+def security_doas_only(lines):
+    """True if every breaking (*** / --- / +++ with '!') member line of a
+    net.jini.security.Security block is a REMOVED METHOD doAs/doAsPrivileged
+    (the class-file-version line is ignored: it shows on every class)."""
+    brk = [l for l in lines[1:] if re.match(r'^\s*(\*\*\*|---|\+\+\+)!', l)
+           and 'CLASS FILE FORMAT VERSION' not in l]
+    return bool(brk) and all(
+        re.search(r'REMOVED METHOD:.*\b(doAs|doAsPrivileged)\(', l) for l in brk)
+
 ACT = ('ActivatableInvocationHandler','ActivationExporter','ActivationGroup',
        'ActivationAdmin','MarshalledWrapper')
 REMOVALS = ('IncomingUnicastResponse','OutgoingUnicastResponse','.Discovery ',
             'DiscoveryProtocolVersion','CombinerSecurityManager','DelegateSecurityManager',
             'RemotePolicy')
 buckets = {'A serial':[], 'B jdk-activation':[], 'C marshalledobject':[],
-           'D deliberate-removal':[], 'E pre-ai-human':[], 'benign':[], 'UNCLASSIFIED':[]}
+           'D deliberate-removal':[], 'E pre-ai-human':[], 'G subject-domain-removal':[], 'benign':[], 'UNCLASSIFIED':[]}
 widenings = []
 
 for b in blocks:
@@ -44,6 +53,18 @@ for b in blocks:
         cat = 'E pre-ai-human'
     elif fq.endswith('DelegationAbsoluteTime'):
         cat = 'benign'
+    elif fq.endswith('org.apache.river.api.security.SubjectDomain') or (
+            fq.endswith('net.jini.security.Security') and security_doas_only(b['lines'])):
+        # Category G (2026-10-23, maintainer's direction): the SubjectDomain
+        # feature was removed -- the SubjectDomain marker interface and the
+        # four Security.doAs/doAsPrivileged overloads. Matched narrowly: the
+        # Security block qualifies only if EVERY breaking member line is a
+        # removed doAs/doAsPrivileged method, so any other break in Security
+        # is classified by the other branches (or stays UNCLASSIFIED). Placed
+        # before category A, whose generic "(not serializable)" header match
+        # would otherwise swallow these (japicmp tags every non-Serializable
+        # class that way). See docs/JGDMS-API-Compatibility-Accepted-Breaks.md.
+        cat = 'G subject-domain-removal'
     elif ('REMOVED INTERFACE: java.io.Serializable' in body or '(not serializable)' in body
           or '(Serializable removed)' in body
           or 'serialVersionUID' in body or '(field removed)' in body or '(type of field' in body):

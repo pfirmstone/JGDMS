@@ -32,7 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
-import org.apache.river.api.security.UserSubjectSupport;
+import au.net.zeus.jgdms.api.policy.UserSubjectSupport;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;

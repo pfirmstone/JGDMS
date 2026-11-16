@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package au.net.zeus.jgdms.api.policy;
 
 import java.lang.ref.WeakReference;
 import java.rmi.RemoteException;
@@ -32,6 +32,8 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;

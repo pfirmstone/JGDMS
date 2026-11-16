@@ -1292,19 +1292,23 @@ public final class Uri implements Comparable<Uri> {
                 thatFile = implied.path;
             }
             if (thatFile == null || thisFile == null) return false;
+            // The prefix that is compared is the pattern without its final
+            // character ('-' or '*'), so it keeps the trailing '/' (or ';'):
+            // "/opt/app/-" must not imply "/opt/application/x.jar", nor
+            // "/foo/*" imply "/foobar".  Same as java.security.CodeSource.
             if (thisFile.endsWith("/-")) { //javadoc:3.6."/-" //$NON-NLS-1$
                 if (!thatFile.startsWith(thisFile.substring(0, thisFile
-                        .length() - 2))) {
+                        .length() - 1))) {
                     return false;
                 }
             } else if (thisFile.endsWith(";-")) { //httpmd
                 if (!thatFile.startsWith(thisFile.substring(0, thisFile
-                        .length() - 2))) {
+                        .length() - 1))) {
                     return false;
                 }
             } else if (thisFile.endsWith("/*")) { //javadoc:3.6."/*" //$NON-NLS-1$
                 if (!thatFile.startsWith(thisFile.substring(0, thisFile
-                        .length() - 2))) {
+                        .length() - 1))) {
                     return false;
                 }
                 // no further separators(s) allowed
@@ -1969,22 +1973,24 @@ public final class Uri implements Comparable<Uri> {
                     + toString());
         }
         if (opaque) return new URL(toString()); // Let the Handler parse it.
-        String hst = host;
         StringBuilder sb = new StringBuilder();
-        //userinfo will be rare, utilise sb, then clear it.
-        if (userinfo != null){
-            sb.append(userinfo).append('@').append(hst);
-            hst = sb.toString();
-            sb.delete(0, sb.length()-1);
-        }
         // now lets create the file section of the URL.
         sb.append(path);
         if (query != null) sb.append('?').append(query);
         if (fragment != null) sb.append('#').append(fragment);
         String file = sb.toString(); //for code readability
+        if (userinfo != null){
+            // userinfo will be rare.  URL(scheme, host, port, file) accepts no
+            // user info in the host ("Illegal character found in host: '@'"),
+            // it is only kept by a URL that is parsed from its string form.
+            sb.setLength(0);
+            sb.append(scheme).append("://").append(userinfo).append('@').append(host);
+            if (port != -1) sb.append(':').append(port);
+            return new URL(sb.append(file).toString());
+        }
         // deprecated to provide a warning against misuse, not for removal.
         @SuppressWarnings("deprecation") 
-        URL url = new URL(scheme, hst, port, file, null);
+        URL url = new URL(scheme, host, port, file, null);
         return url;
     }
 }

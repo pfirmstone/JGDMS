@@ -9,6 +9,16 @@
 
 ## Change Log
 
+### Note (2026-10-23): `SubjectDomain` removed from JGDMS
+
+The JGDMS-only `org.apache.river.api.security.SubjectDomain` marker interface, the `Security.doAs` /
+`Security.doAsPrivileged` overloads that pushed a Subject-carrying domain through a private
+`DistributedSubjectCombiner`, and the matching `instanceof SubjectDomain` branch in `PrincipalGrant` were
+removed on 2026-10-23 at the maintainer's direction ("We are implementing better solutions to the problem it
+attempts to solve"); this multi-subject architecture supersedes them. They had no callers. Every
+`SubjectDomainCombiner` reference in this document is the JDK class `javax.security.auth.SubjectDomainCombiner`,
+which is unaffected. Earlier change-log entries are left as written.
+
 ### v3.4 changes from v3.3 (2026-07-02)
 
 Clarifies that digest-based code identity is produced by the DirtyChai `SecureClassLoader`
