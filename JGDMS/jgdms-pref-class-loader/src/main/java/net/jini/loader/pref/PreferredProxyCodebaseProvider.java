@@ -1968,6 +1968,19 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	ClassLoader loader;
 	final String path = bootstrapProxy.getClassAnnotation();
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
+        if (codebases == null) {
+            // A bootstrap proxy may declare no codebase at all, and that is a
+            // legitimate case, not an error: pathToURIs() returns null for a
+            // null annotation by design (asURL() propagates the null the same
+            // way), and record() already treats a null annotation as "nothing
+            // to record".  Nothing can be downloaded for such a proxy, so its
+            // classes can only come from the parent loader.  Everything below
+            // keys on and iterates over the codebase, so it is normalised to
+            // empty here -- the same shape an empty annotation already
+            // produces -- instead of letting the null reach Arrays.asList()
+            // below, which threw NullPointerException.
+            codebases = new Uri[0];
+        }
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
 
         // The first-party shortcut is keyed by the handler as exported here.
