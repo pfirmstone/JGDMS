@@ -22,6 +22,10 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.List;
 import net.jini.core.entry.Entry;
+import net.jini.core.entry.EntryWireField;
+import net.jini.core.entry.GetEntryArg;
+import net.jini.core.entry.PutEntryArg;
+import net.jini.core.entry.SerialEntry;
 import net.jini.entry.AbstractEntry;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -29,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
-import org.apache.river.proxy.MarshalledWrapper;
+import org.junit.Assume;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -55,14 +59,12 @@ import static org.junit.Assert.*;
 public class EntryRepDerFormatTest {
 
     /**
-     * Minimal @AtomicSerial payload -- not one of EntryField's known-immutable
-     * types, so ClassMapper.EntryField.marshal is true for a field of this
-     * type and it will be wrapped in a MarshalledWrapper. Both the JOSS
-     * (AtomicMarshalOutputStream) and DER (DerObjectStreamCodec) marshal
-     * paths this test exercises are @AtomicSerial-restricted (plain
-     * java.io.Serializable is rejected by both), so the fixture must be a
-     * properly-declared @AtomicSerial type, following this codebase's
-     * convention (see e.g. tests.support.SerializableTestObject).
+     * Minimal @AtomicSerial payload. Both the JOSS (AtomicMarshalOutputStream)
+     * and DER (DerObjectStreamCodec) marshal paths this test exercises are
+     * @AtomicSerial-restricted (plain java.io.Serializable is rejected by
+     * both), so the fixture must be a properly-declared @AtomicSerial type,
+     * following this codebase's convention (see e.g.
+     * tests.support.SerializableTestObject).
      */
     @AtomicSerial
     public static class Payload implements Serializable {
@@ -103,13 +105,86 @@ public class EntryRepDerFormatTest {
         public PayloadEntry(Payload payload) { this.payload = payload; }
     }
 
-    private static MarshalledWrapper wrappedField(EntryRep rep) {
+    /**
+     * Reflection-path Entry with boxed-scalar fields -- exactly the shape
+     * the DER codec's top-level boxed-primitive support (commit
+     * {@code c70cc8fa2}) unblocks: before that commit, {@code EntryRep}'s
+     * per-field {@code new MarshalledInstance(fieldValue, ...,
+     * MarshallingFormat.ATOMIC_DER)} would fail to marshal a bare
+     * {@code Integer}/{@code Long}/{@code Boolean} field value under
+     * {@code ATOMIC_DER}. Mirrors outrigger-dl's
+     * {@code EntryRepDerFormatTest.NumericEntry} (SOW-Entry-ATOMIC-DER
+     * -Migration.md sec.4 A3, structurally parallel to A1).
+     */
+    public static class NumericEntry extends AbstractEntry {
+        public Integer id;
+        public Long seq;
+        public Boolean flag;
+        public NumericEntry() { }
+        public NumericEntry(Integer id, Long seq, Boolean flag) {
+            this.id = id;
+            this.seq = seq;
+            this.flag = flag;
+        }
+    }
+
+    /**
+     * The same boxed-scalar shape as {@link NumericEntry}, but marshalled
+     * via the {@code @SerialEntry} path ({@code EntryRep.fieldsViaSerialEntry})
+     * instead of reflection, so both {@code EntryRep} marshal paths are
+     * exercised.
+     */
+    @SerialEntry
+    public static class SerialNumericEntry extends AbstractEntry {
+        public Integer id;
+        public Long seq;
+        public Boolean flag;
+
+        public SerialNumericEntry() { }
+
+        public SerialNumericEntry(Integer id, Long seq, Boolean flag) {
+            this.id = id;
+            this.seq = seq;
+            this.flag = flag;
+        }
+
+        public static EntryWireField[] entryForm() {
+            return new EntryWireField[] {
+                new EntryWireField("id", Integer.class),
+                new EntryWireField("seq", Long.class),
+                new EntryWireField("flag", Boolean.class),
+            };
+        }
+
+        public SerialNumericEntry(GetEntryArg arg) throws IOException {
+            id = arg.get("id", null, Integer.class);
+            seq = arg.get("seq", null, Long.class);
+            flag = arg.get("flag", null, Boolean.class);
+        }
+
+        public static void serialize(PutEntryArg arg, SerialNumericEntry e)
+                throws IOException {
+            arg.put("id", e.id);
+            arg.put("seq", e.seq);
+            arg.put("flag", e.flag);
+            arg.writeArgs();
+        }
+    }
+
+    /**
+     * Returns the sole field value, which is now a bare {@link
+     * MarshalledInstance} (the A3-rework wire shape -- {@code EntryRep
+     * .fields} is {@code MarshalledInstance[]}, mirroring Outrigger's
+     * {@code EntryRep.values}, not the pre-rework {@code Object[]} of
+     * raw-or-{@code MarshalledWrapper} elements).
+     */
+    private static MarshalledInstance wrappedField(EntryRep rep) {
         List flds = rep.fields();
         assertEquals(1, flds.size());
         Object val = flds.get(0);
-        assertTrue("field should have been wrapped in a MarshalledWrapper",
-            val instanceof MarshalledWrapper);
-        return (MarshalledWrapper) val;
+        assertTrue("field should have been wrapped in a MarshalledInstance",
+            val instanceof MarshalledInstance);
+        return (MarshalledInstance) val;
     }
 
     private static EntryRep repFor(Entry entry, boolean useDer) throws RemoteException {
@@ -123,8 +198,7 @@ public class EntryRepDerFormatTest {
     public void useDerFalseProducesJossFormat() throws Exception {
         PayloadEntry entry = new PayloadEntry(new Payload("hello"));
         EntryRep rep = repFor(entry, false);
-        MarshalledWrapper wrapper = wrappedField(rep);
-        Object instance = wrapper.getMarshalledInstance();
+        MarshalledInstance instance = wrappedField(rep);
         assertTrue("useDer=false must produce the legacy JOSS AtomicMarshalledInstance form",
             instance instanceof AtomicMarshalledInstance);
     }
@@ -134,11 +208,10 @@ public class EntryRepDerFormatTest {
         Payload payload = new Payload("hello");
         PayloadEntry entry = new PayloadEntry(payload);
         EntryRep rep = repFor(entry, false);
-        MarshalledWrapper viaEntryRep = wrappedField(rep);
+        MarshalledInstance viaEntryRep = wrappedField(rep);
 
         // Exactly the pre-existing construction shape EntryRep used to hardcode.
-        MarshalledWrapper viaDirectConstruction =
-            new MarshalledWrapper(new AtomicMarshalledInstance(payload));
+        MarshalledInstance viaDirectConstruction = new AtomicMarshalledInstance(payload);
 
         // MarshalledInstance.equals() is a raw payloadBytes byte-array comparison
         // (see net.jini.io.MarshalledInstance#equals), so this proves useDer=false
@@ -152,10 +225,7 @@ public class EntryRepDerFormatTest {
     public void useDerTrueProducesDerTaggedInstance() throws Exception {
         PayloadEntry entry = new PayloadEntry(new Payload("hello"));
         EntryRep rep = repFor(entry, true);
-        MarshalledWrapper wrapper = wrappedField(rep);
-        Object instance = wrapper.getMarshalledInstance();
-        assertTrue("useDer=true must produce a MarshalledInstance",
-            instance instanceof MarshalledInstance);
+        MarshalledInstance instance = wrappedField(rep);
         assertFalse("useDer=true must NOT produce the legacy JOSS AtomicMarshalledInstance form",
             instance instanceof AtomicMarshalledInstance);
     }
@@ -165,8 +235,8 @@ public class EntryRepDerFormatTest {
         Payload payload = new Payload("hello");
         PayloadEntry entry = new PayloadEntry(payload);
         EntryRep rep = repFor(entry, true);
-        MarshalledWrapper wrapper = wrappedField(rep);
-        Object decoded = wrapper.get();
+        MarshalledInstance instance = wrappedField(rep);
+        Object decoded = instance.get(false);
         assertEquals("DER-tagged instance must decode back to the original value",
             payload, decoded);
     }
@@ -187,11 +257,12 @@ public class EntryRepDerFormatTest {
         assertFalse(
             "EntryRep.equals() must NOT consider a JOSS-encoded and a "
             + "DER-encoded EntryRep for the same logical Entry equal -- "
-            + "MarshalledWrapper.equals() is a raw byte comparison of the "
-            + "inner MarshalledInstance, so mixing formats silently breaks "
+            + "MarshalledInstance.equals() is a raw byte comparison of the "
+            + "marshalled payload, so mixing formats silently breaks "
             + "matching instead of throwing. This is exactly why the format "
-            + "choice must be derived per client<->server relationship "
-            + "(Util.requiresDerFormat), never as a JVM-global flag.",
+            + "choice must be a single, immutable, born value for the whole "
+            + "registrar instance (RegistrarImpl.entryFormat()), never "
+            + "derived per-call from a client's own droppable constraints.",
             jossRep.equals(derRep));
 
         assertFalse(
@@ -213,5 +284,139 @@ public class EntryRepDerFormatTest {
         assertTrue(a.equals(b));
         assertTrue(a.matchEntry(b));
         assertTrue(b.matchEntry(a));
+    }
+
+    // ── (d) numeric (boxed-scalar) ATTRIBUTE end-to-end round trip under DER ─
+    //
+    // This is the property that was silently broken before jgdms-der commit
+    // c70cc8fa2 added top-level boxed-scalar support: EntryRep wraps each
+    // field in its own top-level MarshalledInstance, so a bare boxed
+    // Integer/Long/Boolean field value hit the codec's top-level entry point
+    // directly (not nested inside a container class), which used to reject
+    // it. These tests fail without that codec fix and pass with it -- the
+    // end-to-end validation the SOW's A3 row asks for, confirming the fix
+    // already on trunk covers Reggie's attribute fields too (no codec work
+    // needed here).
+
+    @Test
+    public void numericAttributeRoundTripsUnderDerReflectionPath() throws Exception {
+        EntryRep rep = repFor(
+            new NumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), true);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof NumericEntry);
+        NumericEntry n = (NumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
+    }
+
+    @Test
+    public void numericAttributeRoundTripsUnderDerSerialEntryPath() throws Exception {
+        EntryRep rep = repFor(
+            new SerialNumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), true);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof SerialNumericEntry);
+        SerialNumericEntry n = (SerialNumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
+    }
+
+    /**
+     * The load-bearing matching property (SOW sec.2.3): two DER-marshalled
+     * {@code EntryRep}s built from equal boxed-scalar attribute values must
+     * be byte-identical -- {@code EntryRep.equals()}/{@code matchEntry()}
+     * are raw {@code MarshalledWrapper}/{@code MarshalledInstance}-payload
+     * byte comparisons, so this assertion IS the byte-identical-payload
+     * assertion, not a proxy for it.
+     */
+    @Test
+    public void numericAttributeByteIdenticalForEqualValuesReflectionPath() throws Exception {
+        EntryRep a = repFor(
+            new NumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        EntryRep b = repFor(
+            new NumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        assertTrue("equal boxed-scalar attribute values must marshal to "
+            + "byte-identical EntryReps under DER", a.equals(b));
+        assertTrue(a.matchEntry(b));
+        assertTrue(b.matchEntry(a));
+    }
+
+    @Test
+    public void numericAttributeByteIdenticalForEqualValuesSerialEntryPath() throws Exception {
+        EntryRep a = repFor(
+            new SerialNumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        EntryRep b = repFor(
+            new SerialNumericEntry(Integer.valueOf(7), Long.valueOf(1234567890123L), Boolean.FALSE), true);
+        assertTrue("equal boxed-scalar attribute values must marshal to "
+            + "byte-identical EntryReps under DER", a.equals(b));
+        assertTrue(a.matchEntry(b));
+        assertTrue(b.matchEntry(a));
+    }
+
+    /** Companion sanity: distinct values must NOT match (no false positive from the fix). */
+    @Test
+    public void numericAttributeDifferentValuesDoNotMatchUnderDer() throws Exception {
+        EntryRep a = repFor(
+            new NumericEntry(Integer.valueOf(1), Long.valueOf(1L), Boolean.TRUE), true);
+        EntryRep b = repFor(
+            new NumericEntry(Integer.valueOf(2), Long.valueOf(1L), Boolean.TRUE), true);
+        assertFalse(a.equals(b));
+        assertFalse(a.matchEntry(b));
+    }
+
+    /** Same numeric fixture, sanity-checked under the legacy JOSS format too. */
+    @Test
+    public void numericAttributeRoundTripsUnderJoss() throws Exception {
+        assumeJossScalarDecodeWorksOnThisJdk();
+        EntryRep rep = repFor(
+            new NumericEntry(Integer.valueOf(42), Long.valueOf(9001L), Boolean.TRUE), false);
+        Entry decoded = rep.get();
+        assertTrue(decoded instanceof NumericEntry);
+        NumericEntry n = (NumericEntry) decoded;
+        assertEquals(Integer.valueOf(42), n.id);
+        assertEquals(Long.valueOf(9001L), n.seq);
+        assertEquals(Boolean.TRUE, n.flag);
+    }
+
+    /**
+     * Skips (never fails) this test on a JDK where the legacy JOSS decode
+     * path is unusable -- a pre-existing, out-of-scope {@code
+     * jgdms-platform} gap this A3 rework surfaces but does not cause:
+     * {@code AtomicMarshalInputStream}'s subclass-permission check
+     * ({@code SerializablePermission(...).checkGuard(null)}) throws
+     * unconditionally on a JDK with the Security Manager fully removed
+     * (e.g. vanilla JDK 24+, per JEP 486) rather than no-op'ing when no
+     * {@code SecurityManager} is installed, which is what every other
+     * {@code Permission.checkGuard} caller in the JDK does. DirtyChai (JGDMS
+     * 4.0.0's target platform) keeps SM support and is unaffected.
+     * <p>
+     * Before this A3 rework, {@code EntryRep}'s known-immutable-type
+     * raw-storage optimization meant a boxed scalar field was never actually
+     * decoded through this path under JOSS at all (it was stored raw,
+     * unwrapped) -- so this gap was latent and untested. Removing that
+     * optimization (every field is now wrapped, required for the {@code
+     * MarshalledInstance[]} DER fix) is what newly exercises it here. The
+     * DER path is unaffected (a completely separate codec, {@code
+     * DerMarshalInstanceInput}, that does not call this JDK-SM-dependent
+     * check) -- see the {@code useDerTrue}/{@code numericAttribute...Der...}
+     * tests in this file and in {@code RealWireDerRoundTripTest}, which
+     * exercise the equivalent decode under DER and are not skipped.
+     */
+    private static void assumeJossScalarDecodeWorksOnThisJdk() {
+        try {
+            new AtomicMarshalledInstance(Integer.valueOf(1)).get(false);
+        } catch (SecurityException e) {
+            Assume.assumeNoException(
+                "Skipping: this JDK's AtomicMarshalInputStream cannot decode "
+                + "even a trivial JOSS-wrapped value (Security Manager fully "
+                + "removed, e.g. vanilla JDK 24+/JEP 486) -- a pre-existing "
+                + "jgdms-platform gap, not a reggie A3-rework regression. "
+                + "Requires an SM-capable JDK (e.g. DirtyChai) to actually run.",
+                e);
+        } catch (Exception e) {
+            // Anything else is unrelated to this preflight; let the real
+            // test body run and fail on its own terms if warranted.
+        }
     }
 }

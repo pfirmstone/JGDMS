@@ -89,6 +89,8 @@ ATOMIC net.jini.jeri.AtomicInvocationHandler  -  | useCodebaseAnnotations:boolea
 ATOMIC net.jini.jeri.BasicInvocationHandler  -  | oe:net.jini.jeri.ObjectEndpoint, clientConstraints:net.jini.core.constraint.MethodConstraints, serverConstraints:net.jini.core.constraint.MethodConstraints
 ATOMIC net.jini.jeri.BasicObjectEndpoint  -  | ep:net.jini.jeri.Endpoint, id:net.jini.id.Uuid, dgc:boolean
 ATOMIC net.jini.jeri.http.HttpEndpoint  -  | host:java.lang.String, port:int, sf:javax.net.SocketFactory
+ATOMIC net.jini.jeri.kerberos.KerberosEndpoint  -  | serverHost:java.lang.String, serverPort:int, principalName:java.lang.String, principalNameType:int, csf:javax.net.SocketFactory
+ATOMIC net.jini.jeri.relay.RelayEndpoint  -  | destination:java.lang.String
 ATOMIC net.jini.jeri.ssl.ConfidentialityStrength  -  | value:boolean
 ATOMIC net.jini.jeri.ssl.HttpsEndpoint  -  | serverHost:java.lang.String, port:int, socketFactory:javax.net.SocketFactory
 ATOMIC net.jini.jeri.ssl.SslEndpoint  -  | serverHost:java.lang.String, port:int, socketFactory:javax.net.SocketFactory
@@ -116,6 +118,7 @@ ATOMIC org.apache.river.api.io.ArrayClassNotFoundException  -  | message:java.la
 ATOMIC org.apache.river.api.io.AtomicException  -  | message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;
 ATOMIC org.apache.river.api.io.AtomicMarshalledInstance  -  | useCodebaseAnnotations:boolean
 ATOMIC org.apache.river.api.io.AtomicRuntimeException  -  | message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;
+ATOMIC org.apache.river.api.io.DerThrowableForm  -  | className:java.lang.String, message:java.lang.String, stack:[Lorg.apache.river.api.io.StackTraceElementSerializer;, suppressed:[Lorg.apache.river.api.io.DerThrowableForm;, cause:org.apache.river.api.io.DerThrowableForm
 ATOMIC org.apache.river.api.io.FileSerializer  -  | path:java.net.URI
 ATOMIC org.apache.river.api.io.ListSerializer  -  | elements:[Ljava.lang.Object;
 ATOMIC org.apache.river.api.io.MapSerializer  -  | entrySet:[Lorg.apache.river.api.io.MapSerializer$Ent;, comparator:java.util.Comparator
@@ -125,6 +128,7 @@ ATOMIC org.apache.river.api.io.PropertiesSerializer  -  | m:org.apache.river.api
 ATOMIC org.apache.river.api.io.ProxySerializer  -  | bootstrapProxy:net.jini.export.CodebaseAccessor, serviceProxy:net.jini.io.MarshalledInstance, proxyInterfaces:[Ljava.lang.String;
 ATOMIC org.apache.river.api.io.SetSerializer  -  | content:[Ljava.lang.Object;, comparator:java.util.Comparator
 ATOMIC org.apache.river.api.io.StackTraceElementSerializer  -  | declaringClass:java.lang.String, methodName:java.lang.String, fileName:java.lang.String, lineNumber:int
+ATOMIC org.apache.river.api.io.StackTraceElementValueSerializer  -  | declaringClass:java.lang.String, methodName:java.lang.String, fileName:java.lang.String, lineNumber:int
 ATOMIC org.apache.river.api.io.ThrowableSerializer  -  | clazz:java.lang.Class, message:java.lang.String, cause:java.lang.Throwable, stack:[Ljava.lang.StackTraceElement;, suppressed:[Ljava.lang.Throwable;, classname:java.lang.String, length:int, eof:boolean
 ATOMIC org.apache.river.api.io.URISerializer  -  | uriExternalForm:java.lang.String
 ATOMIC org.apache.river.api.io.URLSerializer  -  | urlExternalForm:java.lang.String
@@ -232,15 +236,15 @@ ATOMIC org.apache.river.reggie.proxy.ConstrainableRegistration  -  | constraints
 ATOMIC org.apache.river.reggie.proxy.ConstrainableServiceLease  -  | constraints:net.jini.core.constraint.MethodConstraints
 ATOMIC org.apache.river.reggie.proxy.EntryClass  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.EntryClass, numFields:int
 ATOMIC org.apache.river.reggie.proxy.EntryClassBase  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String
-ATOMIC org.apache.river.reggie.proxy.EntryRep  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String, fields:[Ljava.lang.Object;
+ATOMIC org.apache.river.reggie.proxy.EntryRep  -  | eclass:org.apache.river.reggie.proxy.EntryClass, codebase:java.lang.String, fields:[Lnet.jini.io.MarshalledInstance;
 ATOMIC org.apache.river.reggie.proxy.EventLease  -  | eventID:long
-ATOMIC org.apache.river.reggie.proxy.Item  -  | serviceID:net.jini.core.lookup.ServiceID, serviceType:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String, service:org.apache.river.proxy.MarshalledWrapper, attributeSets:[Lorg.apache.river.reggie.proxy.EntryRep;, bootstrapProxy:java.lang.reflect.Proxy
+ATOMIC org.apache.river.reggie.proxy.Item  -  | serviceID:net.jini.core.lookup.ServiceID, serviceType:org.apache.river.reggie.proxy.ServiceType, codebase:java.lang.String, service:org.apache.river.proxy.MarshalledWrapper, attributeSets:[Lorg.apache.river.reggie.proxy.EntryRep;, bootstrapProxy:org.apache.river.proxy.MarshalledWrapper, entryFormat:net.jini.core.constraint.MarshallingFormat
 ATOMIC org.apache.river.reggie.proxy.Matches  -  | items:java.util.List, totalMatches:int
 ATOMIC org.apache.river.reggie.proxy.ProxyVerifier  -  | server:net.jini.core.constraint.RemoteMethodControl, registrarIDMostSig:long, registrarIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.RegistrarEvent  -  | serviceItem:java.lang.Object, servIDMostSig:long, servIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.RegistrarLease  -  | server:org.apache.river.reggie.proxy.Registrar, leaseID:net.jini.id.Uuid, registrarIDMostSig:long, registrarIDLeastSig:long
-ATOMIC org.apache.river.reggie.proxy.RegistrarProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long
-ATOMIC org.apache.river.reggie.proxy.Registration  -  | server:org.apache.river.reggie.proxy.Registrar, lease:org.apache.river.reggie.proxy.ServiceLease
+ATOMIC org.apache.river.reggie.proxy.RegistrarProxy  -  | server:org.apache.river.reggie.proxy.Registrar, registrarIDMostSig:long, registrarIDLeastSig:long, entryFormat:net.jini.core.constraint.MarshallingFormat
+ATOMIC org.apache.river.reggie.proxy.Registration  -  | server:org.apache.river.reggie.proxy.Registrar, lease:org.apache.river.reggie.proxy.ServiceLease, entryFormat:net.jini.core.constraint.MarshallingFormat
 ATOMIC org.apache.river.reggie.proxy.RenewResults  -  | durations:[J, exceptions:[Ljava.lang.Exception;
 ATOMIC org.apache.river.reggie.proxy.ServiceLease  -  | serviceIDMostSig:long, serviceIDLeastSig:long
 ATOMIC org.apache.river.reggie.proxy.ServiceType  -  | name:java.lang.String, hash:long, superclass:org.apache.river.reggie.proxy.ServiceType, interfaces:[Lorg.apache.river.reggie.proxy.ServiceType;

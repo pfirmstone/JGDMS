@@ -77,8 +77,13 @@ review before merge — do not merge any of these to trunk without review.*
    server-owned file via symlink race (bounded: can't escalate privilege or disclose, only
    tighten/corrupt a file the server's own uid owns) — closed in a follow-up commit, re-reviewed
    clean. Both suites re-enabled and green under DirtyChai with SecurityManager active:
-   `UdsEndpointRoundTripTest` 17/17, `UdsConstraintEnforcementTest` 7/7. **Known accepted
-   trade-off, not a bug**: this is a backward-incompatible tightening with no opt-out — a parent
+   `UdsEndpointRoundTripTest` 16/16, `UdsConstraintEnforcementTest` 7/7.
+   <!-- Count corrected 2026-11-16 from 17/17 to 16/16: the file now holds 16 @Test, all live
+        (0 commented, 0 @Disabled), and the suite ran 16/16 green on DirtyChai 27-internal in a
+        full-reactor mvn test. The STATUS in this line was always right; only the count drifted.
+        SOW-Smart-Proxy-Isolation-Real-Launcher.md previously called this line stale on the
+        stronger ground that the suite was disabled -- that is itself superseded; see its C1/C3. -->
+   **Known accepted trade-off, not a bug**: this is a backward-incompatible tightening with no opt-out — a parent
    directory that was group-writable-non-sticky for unrelated reasons (e.g. a shared
    `RuntimeDirectory`) will now fail to bind; remediation is `chmod +t` on that directory or use an
    owner-private one. Worth a release-note mention on next release. **Not in scope, still

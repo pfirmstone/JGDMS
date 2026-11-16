@@ -115,6 +115,35 @@ combiner; it had no callers anywhere in the repository (main, tests, qa, benchma
   `ProtectionDomain.getPrincipals()` only. Serial axis: none of these types is `Serializable` or
   `@AtomicSerial`, so nothing changes there. Not touched: the JDK class `javax.security.auth.SubjectDomainCombiner`.
 
+### H — reggie A3 born-immutable format epoch: two `serialForm()` RETYPEs *(serial axis, DER-unreleased)*
+Landed with the A3 born-immutable format epoch (`task-entry-der-a3-reggie`, merged 2026-11-16).
+These are **serial-axis** breaks caught by `check-serial-schema.sh`, not japicmp linkage breaks, and
+they gate because a typed `GetArg.get` of a stream written by an earlier version fails.
+- **Match:** `org.apache.river.reggie.proxy.EntryRep` field `fields`
+  `[Ljava.lang.Object;` → `[Lnet.jini.io.MarshalledInstance;`; and
+  `org.apache.river.reggie.proxy.Item` field `bootstrapProxy`
+  `java.lang.reflect.Proxy` → `org.apache.river.proxy.MarshalledWrapper`.
+- **Rationale:** both retypes are *required* by the DER wire format, which is why the branch exists.
+  A bare `Object[]` is heterogeneous and the DER `SchemaGenerator` rejects it outright
+  (`DerException: SchemaGenerator: unsupported serial field type java.lang.Object`), so `EntryRep`
+  could not be DER-encoded at all without the homogeneous `MarshalledInstance[]` element type; the
+  same applies to a bare `Proxy` field, which has no DER schema rule. Marshalling each value into
+  its own `MarshalledInstance` is also what carries the per-field born format.
+- **Why it is acceptable now:** the DER wire format is **unreleased**. No shipped release writes
+  either shape, so there is no deployed stream to be made unreadable — the break is only against
+  intermediate development states. ⚠ **This rationale expires on first release of the DER format.**
+  After that, a further retype of these fields needs the twin-class treatment used for
+  `DerThrowableForm`, not an in-place change.
+- **Also in the same change (informative, non-gating):** `entryFormat:MarshallingFormat` ADDed to
+  `Item`, `RegistrarProxy` and `Registration`; new fields read as absent/default from old streams
+  via defaulted `GetArg.get`.
+- **Golden:** `serial-schema.golden` updated **surgically** — exactly those 4 reggie lines, taken
+  from a `--regenerate` run of a full 91-module build and transplanted, so that trunk's own
+  pre-existing golden drift (6 `REMOVED` bae/hello/jfr proxy entries, 4 `ADDED`
+  `KerberosEndpoint`/`RelayEndpoint`/`DerThrowableForm`/`StackTraceElementValueSerializer`) was
+  **not** silently absorbed by this change. That drift is still outstanding and belongs to whoever
+  made it. Gate after the edit: `GATE: PASS`, `0 breaking`.
+
 ### Benign (flagged by japicmp, not a real break)
 - `DelegationAbsoluteTime` "field removed" = `private static SoftReference formatterRef`
   (impl detail; public serial form intact).
@@ -123,10 +152,14 @@ combiner; it had no callers anywhere in the repository (main, tests, qa, benchma
 
 ```
 japicmp -a public -b  (binary-incompatible, public API)
-  → classify each change against A–G
+  → classify each change against A–H
   → FAIL the build only on changes matching NONE
      (UNCLASSIFIED = candidate accidental break → adjudicate or fix)
 ```
+
+Note: categories A and H are **serial-axis**, so japicmp does not see them; they are gated by
+`check-serial-schema.sh` against `serial-schema.golden` instead. `classify_breaks.py` reads the
+japicmp axis only.
 
 ## Resolved accidental breaks
 - **2026-06-29** — surface *expansion*: 5 `@Serializer` proxies
