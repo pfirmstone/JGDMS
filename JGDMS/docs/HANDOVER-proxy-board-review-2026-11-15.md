@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0016); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0072) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0014)
-LATEST ADDENDUM: add.04 dated 2026-11-15 at heading "ADDENDUM add.04, AS-OF 2026-11-15 21:02 +1000"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0025); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0082) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
+LATEST ADDENDUM: add.05 dated 2026-11-16 at heading "ADDENDUM add.05, AS-OF 2026-11-16 08:35 +1000"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: LIVE STATE - re-read the disk before acting on it
 -->
@@ -171,3 +171,34 @@ Work after add.02, same session. Where this differs from the body or from add.01
 ## ADDENDUM add.04, AS-OF 2026-11-15 21:02 +1000
 
 Supersedes the sentence in add.03 that the claim register has not been synced. The operator ran `claim_register.py sync` on Windows and reported: published 13 log files to origin/master as b0d560ecfa. This session could not run it, because only `E:\Claude\claim_register` is connected and the repository root is `E:\Claude`. Everything else in add.03 stands.
+
+## ADDENDUM add.05, AS-OF 2026-11-16 08:35 +1000
+
+Work after add.04, same session, after one compaction. Where this differs from the body or an earlier addendum, this governs.
+
+**Register entries added.** CL-PROXYBOARD-0017 to CL-PROXYBOARD-0025, RL-JGDMS-0073 to RL-JGDMS-0082, RL-DIRTYCHAI-0015. No existing entry changed. Read their current state in the indexes named in the header, not here. None of these has been synced.
+
+**What happened.**
+
+- Timing attacks by the proxy. The operator's three statements are RL-DIRTYCHAI-0015, RL-JGDMS-0073 and RL-JGDMS-0074. What follows from the first for the coarsened clock is CL-PROXYBOARD-0019.
+- Certificate lifetime. The key in question is RL-JGDMS-0075 and where its handshake runs is RL-JGDMS-0076. The signing-oracle argument is CL-PROXYBOARD-0020. This session gave no measured lifetime; it gave the relation lifetime < samples needed x clock granularity / colluding proxies, and said the sample count is unknown for the candidate boards.
+- Relay design. The operator's proposal is RL-JGDMS-0077; the agreed cut is RL-JGDMS-0078; the design as it stands is CL-PROXYBOARD-0025. It is not written into the summary (offered as F20, not accepted or declined).
+- DER inspection at the relay. RL-JGDMS-0079 and RL-JGDMS-0080 are the operator's statements. Two read-only Sonnet subagents investigated: the JERI client layers (CL-PROXYBOARD-0022; the parts this session checked are CL-PROXYBOARD-0021) and the DER call stream (CL-PROXYBOARD-0024; the parts this session checked are CL-PROXYBOARD-0023).
+- Two defects in `jgdms-der`, both directed by RL-JGDMS-0081: CL-PROXYBOARD-0017 and CL-PROXYBOARD-0018. New files: `getarg/EnumName.java`, `getarg/ClassName.java`, `conformance/Std006DataIndependenceClassNamingFieldsTest.java`, `getarg/PrimitiveArrayNullElementTest.java`. Changed: `getarg/WireTypes.java`, `getarg/DerFieldStore.java`, `object/ObjectCodec.java`.
+- The operator committed all of it, with this handover (through add.04) and the summary, as JGDMS `trunk` 652768fbf, dated 2026-11-16 08:19 +1000. Whether it was pushed was not checked.
+- Working arrangement for tests: RL-JGDMS-0082.
+
+**On disk.** JGDMS `trunk` is at 652768fbf; this addendum and the header change are uncommitted. DirtyChai was not touched after add.04 and its state was not re-read: add.03 listed three tests and `SECURITY_MODEL.md` as uncommitted.
+
+**Next actions.** The operator's stated next topic is the design of process isolation for the smart proxy and the key (CL-PROXYBOARD-0025). Open under it:
+
+1. How the board forces the relay endpoint when the service chooses the endpoint class, and the three related paths in CL-PROXYBOARD-0022 (worker Subject fallback, DGC call, version 2 request prefix).
+2. Where the node identity key lives and what may trigger its use. `PROXY_HOST_BOARD_REQUIREMENTS.md` says nothing on either; a grep of it on 2026-11-15 found only the fused secure-boot keys (N4).
+3. A class-free reader that returns values for nested objects, arrays, collections and enums in a call stream, and a per-scalar ceiling on candidate data (CL-PROXYBOARD-0023, CL-PROXYBOARD-0024).
+4. Whether to write the design into the summary as F20.
+5. How `ObjectCodec` treats a NULL element in `@AtomicSerial` arrays and in collections with primitive elements (not checked; see CL-PROXYBOARD-0018).
+6. The next actions in add.03 still stand; none was done.
+
+**Not verified.** This session compiled `jgdms-der` main sources with JDK 21 and preview features in its cloud workspace, and ran the two new test classes through stand-in JUnit annotations and assertions, because Maven Central and a JDK 25 were unreachable there. The runs on the project toolchain are the operator's, read from pasted logs. Which JDK Maven used on the operator's machine was not determined. The timing, lifetime and signing-oracle analysis is reasoning; nothing was measured.
+
+**DEVIATIONS.** To move files to the cloud workspace this session wrote two archives into `jgdms-der/target` (`claude-check.tgz`, `claude-check2.tgz`) and deleted both. Subagents wrote nothing to the register; their reports are entered by this session under its own name and marked as theirs. This session told the operator that `decodeToFieldMap` loads no class, on the strength of that method's Javadoc; that was wrong and is corrected in CL-PROXYBOARD-0017. The operator's sentence "The fixes have been committed" is not entered as a ruling because the commit was read directly.
