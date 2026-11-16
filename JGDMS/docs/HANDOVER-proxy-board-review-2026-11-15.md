@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0030); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0095) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
-LATEST ADDENDUM: add.06 dated 2026-11-16 at heading "ADDENDUM add.06, AS-OF 2026-11-16 15:30 +1000"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
+LATEST ADDENDUM: add.08 dated 2026-11-16 at heading "ADDENDUM add.08, AS-OF 2026-11-16 21:10 +1000"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: LIVE STATE - re-read the disk before acting on it
 -->
@@ -233,3 +233,66 @@ Work after add.05, same session, after a second compaction. Where this differs f
 **Not verified.** This session read none of the code the two Opus agents wrote. Their test counts come from their own JDK 21 scratch builds with stand-in JUnit classes. Nothing new has been through Maven, real JUnit, release 25, a security manager or Windows; the operator was given commands but reported no run. The fact report's line numbers are the subagent's. `StreamSchemaDedup` behaviour is from its class comment. Whether a `BasicObjectEndpoint` built by the public constructor takes part in DGC was not checked, nor whether a lone decoded object-endpoint record gets the decode-unit context that DGC registration batching expects. `marshalRemoteContext` was not read, so it is not known whether the host can produce the access-control-context block without the real proxy object.
 
 **DEVIATIONS.** The item 4 agent was sent back with corrections (unfulfilled constraints, server principals, handshake timeout) before the operator had seen its first report; the call-token field was added after the operator agreed. Subagents wrote nothing to the register; their reports are recorded by this session under the CL IDs above. Subagents staged archives through `jgdms-der/target` and `jgdms-jeri/target` and removed them; none remained at 15:25 +1000. One whole-tree `git status` was killed by a timeout after about 36 seconds; it ran with optional locks off and no `index.lock` was left. The claim-register write for the corrected item 4 report failed once while the logs held conflict markers and was repeated after the repair.
+
+## ADDENDUM add.07, AS-OF 2026-11-16 19:25 +1000
+
+Work after add.06, same session, after a third compaction. Where this differs from the body or an earlier addendum, this governs.
+
+**Register entries added.** CL-PROXYBOARD-0031, RL-JGDMS-0096 to RL-JGDMS-0108. This session appended one status line each to two existing rulings, RL-JGDMS-0093 and RL-JGDMS-0106; read the register for what they say. No claim in this session's scope was settled at this wrap-up: none of the open ones has been through a build or a check that this session could make.
+
+**What happened.**
+
+- The operator asked what a hostile smart proxy can still do under the current isolation model and what can be detected by static analysis, by the relay and by the host. The answer and the requirements drawn from the discussion are in a new file, `docs/relay-isolation/DESIGN-security.md` (requirements R1 to R20 with R16a to R16g, and open points). Each requirement there is marked as an operator ruling or a design-session proposal.
+- Rulings from that discussion: the proxy JVM's only channel is the Unix socket to the relay (RL-JGDMS-0096); the service's server must be authenticated (RL-JGDMS-0097); the host sets the constraints that require it and they reach the relay with the token registration (RL-JGDMS-0098); the design documents may be updated because the Linux agent has not started (RL-JGDMS-0099).
+- Concurrency: callers are queued and dispatched by one thread (RL-JGDMS-0100). The token mechanism of the earlier per-call token ruling is restated without its concurrency sentence as RL-JGDMS-0101.
+- Sharing and scaling: RL-JGDMS-0102, RL-JGDMS-0103, RL-JGDMS-0104.
+- Hardware: a Sonnet subagent searched the web for boards with in-order cores only and 16 GB or more (CL-PROXYBOARD-0031). On that report the operator chose the processor and the arrangement: RL-JGDMS-0105, RL-JGDMS-0107, RL-JGDMS-0108. A swap device was proposed and then dropped by the operator (RL-JGDMS-0106, RL-JGDMS-0107). A virtual machine boundary and a mixed-core part were discussed and set aside (RL-JGDMS-0108).
+- `docs/relay-isolation/README.md` gained the new decisions and a pointer to the design file. Work order 01 is unchanged.
+
+**On disk (re-read at 19:22 +1000).** Uncommitted in JGDMS: this handover (add.06, add.07 and the header), `docs/relay-isolation/README.md` (modified), `docs/relay-isolation/DESIGN-security.md` (new). No local branch named `relay-isolation` was found; the relay commit is still on `trunk`.
+
+**Next actions.**
+
+1. Operator: decide where the relay work lives (unchanged from add.06 item 1) and whether to commit the three files above.
+2. This session or its successor: write work order 02 for the rewriter. In addition to the inputs in add.06 item 2 it must cite R3, R7 and R11 of the design file.
+3. Operator decisions open, listed at the end of the design file: queue scope, call deadline and queue bound (R16a); the sharing boundary between clients (the design session proposed a trust-domain label in the pooling key, one domain per host process by default); the address policy in R11; where the signer lives; who fetches the codebase for the proxy JVM; whether single-threaded loop counting between coarse clock edges matters without jitter (R16).
+4. Before buying hardware: confirm stock and price of a 16 GB i.MX 95 board or module, the processor's maximum addressable memory, whether inline ECC is on by default and what memory it costs, and whether the processor has an IOMMU. None of these was found by the subagent.
+5. The relay protocol design now differs from the committed `RelayEndpoint` only on the relay side: the token registration gains a constraints field and the relay gains the rule that proxy-supplied constraints only add requirements. Neither is built.
+6. The next actions in add.03, add.05 and add.06 still stand except where this addendum replaces them: add.06 item 3's `authenticateServer` question is now a compatibility question only (R1).
+
+**Not verified.** The capacity model in R16c (latency, then memory, then cores, then connections) is an estimate with no measurement. The hardware facts come from one subagent's web search and were not checked by this session; it listed many processor families as not researched. Statements this session made about hypervisors, shared caches on mixed-core parts and inline ECC overhead were from general knowledge and were labelled as such to the operator. The launcher requirement about path-based Unix sockets (R15) has not been tested because no launcher exists. Whether today's register entries are synced was not checked.
+
+**DEVIATIONS.** This session first wrote into the design file that finalization should be disabled and the clock jittered, as though new; the operator had already said no finalizer runs and the clock adds no jitter, and R16 was corrected the same hour. The design session recorded several operator remarks worded as possibilities ("could", "seems like") as rulings, with the wording preserved in each note.
+
+**Correction to "On disk" above (re-read at 19:35 +1000).** The paragraph above was wrong when written. The operator committed the design file, the README change and this handover up to add.06 as 3b4d2c67e (2026-11-16 17:11), and `trunk` is now at f057400e0, a merge from GitHub. Only add.07 and the header change that goes with it are uncommitted. Next action 1 therefore reduces to the branch decision and committing add.07. The merge brought in documents from another session that bear on this work and that this session has not read: `docs/SOW-Smart-Proxy-Isolation-Real-Launcher.md` and `docs/SOW-SubProcessLauncher-Implementation.md`. Read them before writing any launcher requirement into a work order; R14 and R15 of the design file were written without them.
+
+**Register collision, not repaired by this session.** Another session (the JGDMS orphan-audit session) allocated CL-PROXYBOARD-0031 for a different claim after this session had, then moved its claim to CL-PROXYBOARD-0052 and appended a line returning CL-PROXYBOARD-0031 to this session's entry. Its first colliding line remains in the PROXYBOARD log and lint reports it as an error against the log, not against this handover. The log is append-only and the line is not this session's, so it was left for the operator. CL-PROXYBOARD-0032 to CL-PROXYBOARD-0052 belong to that other session, not to this handover.
+
+## ADDENDUM add.08, AS-OF 2026-11-16 21:10 +1000
+
+**Register entries added.** CL-PROXYBOARD-0053. No ruling was added and no status line was appended.
+
+**What happened.** After compaction the operator said "Please continue". This session read the two launcher documents that arrived by merge (`docs/SOW-Smart-Proxy-Isolation-Real-Launcher.md`, `docs/SOW-SubProcessLauncher-Implementation.md`), and the public API of `EndpointLocator`, `EndpointFinding`, `EndpointLocatorConfig` and `RelayEndpoint`. It wrote work order 02 for the rewriter and appended a section to the design file listing where the relay design conflicts with the landed isolation design as those documents describe it (CL-PROXYBOARD-0053).
+
+**On disk, uncommitted.** In `JGDMS/docs/relay-isolation/`: `WORK-ORDER-02-rewriter.md` (new); `DESIGN-security.md` (section "Conflicts with the landed isolation code and the two launcher documents" appended, items C1 to C6); `README.md` (two lines pointing at that section). This handover (add.07 and add.08, header).
+
+**Next actions.**
+1. Operator rulings on C1 to C5 of the design file before any work order touches the launcher, the pool or the hand-off.
+2. Operator decision on the branch for the relay work; work order 02 says to use whichever the operator names.
+3. Review `RESULTS-01.md` when it exists; work order 02 must not start before it.
+4. The `dgc` false rewrite on object endpoints is not in work order 02; the locator does not report that field. It needs its own order after `RESULTS-02.md`.
+5. Items 3 to 6 of add.07's next actions stand.
+
+**Not verified.** The conflicts in the design file were read from the two documents, not from the code. Work order 02's statements about the codec are expectations for the implementing agent to check. Nothing was built or run.
+
+**DEVIATIONS.** None.
+
+**Added to add.08 at 21:15 +1000.** RL-JGDMS-0109 was added in answer to conflict C1 of the design file, and the C1 item there now cites it. Which channel carries the administration calls is still an operator decision.
+
+**Added to add.08 at 21:20 +1000.** RL-JGDMS-0110 to RL-JGDMS-0113 were added in answer to conflicts C2 to C5; the design file has a subsection citing them and listing what is still open.
+
+**Added to add.08 at 21:25 +1000.** RL-JGDMS-0114 was added in answer to conflict C6.
+
+**Added to add.08 at 21:30 +1000.** RL-JGDMS-0115 was added, a second answer to conflict C1.
+
+**Added to add.08 at 21:35 +1000.** RL-JGDMS-0116 was added. The first 150 lines of `docs/SOW-SubProcessDynamicPolicy.md` were read; the rest was not.

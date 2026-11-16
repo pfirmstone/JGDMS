@@ -83,6 +83,8 @@ node identity key and owns the TLS connections to the service.
     per-call token registration, and the proxy JVM can only add requirements to them.
 - Security requirements and the remaining attack surface are in `DESIGN-security.md` in
   this directory. Read it before any work order after 01. Work order 01 is unaffected.
+  Its last section lists conflicts with the landed isolation code that are awaiting
+  operator rulings; no work order touches the launcher, pool or hand-off until then.
 - Open operator decisions: where the signer for the node key lives; the open points listed
   at the end of `DESIGN-security.md`. Whether `BasicInvocationHandler.authenticateServer`
   may accept `RelayEndpoint` is now a compatibility question only, because that check runs

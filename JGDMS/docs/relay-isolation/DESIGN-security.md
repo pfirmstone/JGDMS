@@ -193,3 +193,113 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
    pooling key made of the service principals, the codebase digest and a domain label the
    host supplies, defaulting to one domain per host process.
 5. Who fetches the codebase for the proxy JVM, and under what destination rules.
+
+## Conflicts with the landed isolation code and the two launcher documents
+
+Added 2026-11-16 after reading `docs/SOW-Smart-Proxy-Isolation-Real-Launcher.md` and
+`docs/SOW-SubProcessLauncher-Implementation.md`, which arrived by merge after the
+requirements above were written. The design session has read those two documents, not the
+code they describe, so each item is "the document says", to be checked against the source.
+Every item needs an operator ruling; none is settled here. Until they are settled, no
+work order will touch the launcher, the subprocess pool or the hand-off.
+
+- **C1. The subprocess is given a TLS listener and an identity.** The Real-Launcher
+  document (section 5.2, recorded there as the operator's ruling) exports the
+  subprocess's policy administration object over `net.jini.jeri.ssl` with SPIFFE
+  authentication, because the Unix-socket transport cannot satisfy `Integrity.YES`. That
+  puts a network listener and a private key or SVID inside the JVM that hosts the
+  untrusted proxy. It conflicts with RL-JGDMS-0096 (the Unix socket to the relay is the
+  only channel) and with keeping keys out of that JVM. Ways to reconcile, for the
+  operator to choose: (a) the administration object is exported by the relay or a
+  supervisor on the subprocess's behalf and reaches the subprocess over a local channel;
+  (b) grants are delivered over the existing hand-off channel, authenticated by how the
+  channel was created rather than by TLS; (c) RL-JGDMS-0096 is narrowed to allow one
+  loopback listener, which reintroduces a key in the untrusted JVM and is the weakest.
+  **Ruled 2026-11-16 (RL-JGDMS-0109):** the TLS export was decided before the key was
+  removed from the proxy JVM; the key stays out, so (c) is excluded. Which of (a) or (b)
+  carries the administration calls is not yet ruled. Design-session recommendation: (a),
+  with the relay as the TLS end. The relay already authenticates the host, so it can
+  enforce the same administration constraints (integrity, client and server
+  authentication, the administrator principal) and pass the grant to the subprocess over
+  a local channel that only the relay can open. The existing constraint check then moves
+  to the relay unchanged, instead of being re-invented for the hand-off channel.
+- **C2. The subprocess downloads the codebase itself.** The same document says
+  `SubProcessReconstructionServer.reconstruct()` calls
+  `PreferredProxyCodebaseProvider.resolve()` in the subprocess, which fetches jars over
+  HTTP. With no network in the subprocess that cannot work. This is open point 5 made
+  concrete: a trusted process must fetch, hash and hand over the jars.
+- **C3. User ids.** Both documents cite a standing ruling of 2026-10-27, "two uids, no
+  per-principal uid": one uid for the local side and one shared by every proxy JVM. R14
+  says "own uid" and R7 binds a destination id to a subprocess by peer credentials. With
+  one shared uid, peer credentials (user and group) cannot tell two subprocesses apart,
+  and processes with the same uid can by default inspect and signal each other.
+  Proposal: read R14 as "the proxy uid"; give each subprocess its own relay socket
+  (inherited, or the only socket visible in its mount namespace) so that the connection
+  itself identifies the subprocess for R7; and add a process-id namespace and a ptrace
+  restriction so that subprocesses sharing the uid cannot see each other.
+- **C4. Spawn mechanism.** The two documents disagree (bare `ProcessBuilder` against a
+  `systemd-run` wrapper) and leave it to the operator. R14, R15 and R17 need a network
+  namespace, a mount namespace, a syscall filter and resource limits. A bare
+  `ProcessBuilder` gives none of these, so this design needs some wrapper or helper that
+  applies them before the JVM starts. Which one is the operator's decision; the board
+  image decides what is available.
+- **C5. Pooling key.** The landed pool keeps one subprocess per remote SPIFFE principal.
+  R16b (more instances when saturated) and open point 4 (sharing only within a trust
+  domain) both need more in the key: a domain label and an instance number.
+- **C6. Peer authentication of the hand-off channel** is still open in the Real-Launcher
+  document (its question 1). Whatever is chosen there should be the same mechanism that
+  identifies the subprocess to the relay in C3, so that there is one answer to "which
+  subprocess is on this socket", not two.
+- **Agreements, no action needed.** A class-data archive shared read-only between
+  subprocesses, owned by a trusted uid, mode 0444 and loaded with `-Xshare:on`, fits R16e.
+  Excluding checkpoint and restore fits the no-reuse rule. Detecting process death from
+  the operating system and not from a closed connection fits the deadline kill in R16a.
+  A ceiling on live subprocesses fits the caps in R16b.
+
+Open points added by this section: 6 (C1), 7 (C3), 8 (C4), 9 (C5). Open point 5 is now C2.
+
+### Rulings on the conflicts, 2026-11-16 21:06
+
+- **C2** (RL-JGDMS-0110): the subprocess cannot download the codebase. Still open: which
+  trusted process fetches it. Design-session proposal: a separate fetcher process on the
+  board with no key, not the relay, so that the process holding the node key never parses
+  HTTP replies from an address the service chose. It fetches, hashes, and hands the jars
+  to the launcher, which exposes them read-only to the subprocess.
+- **C3** (RL-JGDMS-0111): as proposed above. One proxy uid, one relay socket per
+  subprocess, process-id namespace, ptrace restriction.
+- **C4** (RL-JGDMS-0112): a `systemd-run` wrapper. Consequences: the board image needs
+  systemd; this is new code (nothing in the repository uses it today); and of the two
+  launcher documents, `SOW-SubProcessLauncher-Implementation.md` is the one whose
+  mechanism was chosen, less its per-launch uid (C3).
+- **C5** (RL-JGDMS-0113): the smart proxy JVM does not use SPIFFE. With C1 this means the
+  subprocess holds no identity of its own at all: the relay presents the node identity to
+  services and to the host. The pooling key is not settled by this. Design-session
+  reading: the key may still be built from the *service's* authenticated principal,
+  which is a value the trusted side holds and not a credential in the proxy JVM; the
+  domain label and instance number of open points 4 and R16b are still wanted.
+
+Still open after these rulings: who fetches the codebase (C2); the pooling key (C5).
+
+- **C1, second ruling** (RL-JGDMS-0115): the relay JVM manages the subprocess's policy,
+  as a dynamic policy delivered over the Unix socket to the subprocess. Design-session
+  notes: the administrator is authenticated at the relay, which is where the TLS
+  connection from the host ends; the socket to the subprocess is trusted because of how
+  it was created (C3, C6), so the fixed `Integrity.YES` and authentication constraints
+  of `SubProcessPolicyAdmin` cannot be what protects that last hop, since the Unix-socket
+  transport does not support them. How the existing administration classes are re-used
+  is to be worked out against `SOW-SubProcessDynamicPolicy.md` (first half read by the
+  design session on 2026-11-16).
+- **Constraints at different levels** (RL-JGDMS-0116). Design-session reading: the
+  administration constraints (integrity, client and server authentication, the
+  administrator principal) are met on the TLS connection that ends at the relay; the hop
+  from relay to subprocess is protected by the socket. That SOW's finding S1 says
+  authority must be proven by an enforced mechanism and not by which channel a call
+  arrived on. To keep that true here (proposals): the policy socket is separate from the
+  hand-off (business) socket; only the relay holds its other end; the subprocess accepts
+  grants on that socket and nowhere else; and the object answering on it is never the
+  hosted proxy. The subprocess still refuses to host a proxy whose interfaces include
+  the administration interfaces, as that SOW already requires.
+
+- **C6** (RL-JGDMS-0114): as proposed. The hand-off channel is authenticated by the same
+  per-subprocess socket arrangement as C3. This answers question 1 of the Real-Launcher
+  document; that document has not been edited to say so.
