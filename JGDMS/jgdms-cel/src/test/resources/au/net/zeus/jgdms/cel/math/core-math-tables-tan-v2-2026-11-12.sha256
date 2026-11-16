@@ -1,0 +1,7 @@
+# SHA-256 of the canonical rendering (v1, CoreMathInverseTrigTestSupport.canonical with the header "CORE-MATH tan.c tables, canonical rendering v1") of every entry of CoreMathTanTables.snapshot():
+# the 13 tables of tan.c followed by the 10 named scalar constants (keys K_...): the 9 of core-math-tables-tan-2026-11-12.sha256 and K_GUARD_K (the factor of the port's guard, 8.0;
+# NOT in tan.c, so it has no C text to compare with and is guarded by this digest only).
+# source: CORE-MATH src/binary64/tan/tan.c at commit 018fa97cbdacf59924b899a9dfa422d532cb2bb7.
+# generator: CoreMathGoldenGeneratorTan.generateTablesAndConstantsDigestV2, 2026-11-12 (system clock); the Java tables equalled the tables parsed from tan.c
+# (13 tables) and every Java constant that the C writes equalled the C text at all 9 places, when this file was written.
+f6796280596bfe0e2480cba4525a90c53980679a8fe2495b0ceb9c393be0dc66

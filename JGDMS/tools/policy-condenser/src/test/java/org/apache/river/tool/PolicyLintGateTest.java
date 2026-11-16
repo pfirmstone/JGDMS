@@ -510,6 +510,79 @@ public class PolicyLintGateTest {
         return PolicyScope.classify(codeBase, new java.util.Properties()).kind;
     }
 
+    // Operator ruling 2026-11-07: the codeBase check reads the Documents and Settings junction as Users, as the
+    // permission ratings do, and an 8.3 short name this close to the root may stand for a home.  user.home is
+    // set for the test, since the over-home rule reads the host's own.
+    @Test
+    public void junctionAndShortNamesOfAHomeAreWritable() {
+        String old = System.getProperty("user.home");
+        String oldTmp = System.getProperty("java.io.tmpdir");
+        String oldDir = System.getProperty("user.dir");
+        try {
+            System.setProperty("user.home", "C:\\Users\\alice");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/alice/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Documents%20and%20Settings/alice/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Documents%20and%20Settings/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/-"));
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/USERS~1/ALICE~1/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/opt/app/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/PROGRA~1/app/lib/-"));
+            // a short name that is not a recursive tree names one file, as C:/opt/app/x.jar does
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/DOCUME~1/x.jar"));
+            // the host's own home is compared in the same reading: a home spelt through the junction is the same home
+            System.setProperty("user.home", "C:\\Documents and Settings\\bob");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/Users/bob/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/Users/carol/app/-"));
+            // the junction's 8.3 name is rated by shape and by fold on a host whose home is elsewhere (Q1)
+            // every host property is moved off Users, so only the shape (tested before the fold) can rate the name
+            System.setProperty("user.home", "/home/lint");
+            System.setProperty("java.io.tmpdir", "/tmp");
+            System.setProperty("user.dir", "/work");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/-"));
+            System.setProperty("java.io.tmpdir", "C:\\Users\\bob\\AppData\\Local\\Temp");
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, kindOf("file:/C:/DOCUME~1/bob/AppData/Local/-"));
+            assertEquals(PolicyScope.Kind.FILE_PINNED, kindOf("file:/C:/DOCUME~1/carol/AppData/Local/-"));
+        } finally {
+            if (old == null) System.clearProperty("user.home"); else System.setProperty("user.home", old);
+            if (oldTmp == null) System.clearProperty("java.io.tmpdir"); else System.setProperty("java.io.tmpdir", oldTmp);
+            if (oldDir == null) System.clearProperty("user.dir"); else System.setProperty("user.dir", oldDir);
+        }
+    }
+
+    // Operator ruling 2026-11-07 (Q2): the directory holding every home, one home and the root user's home are
+    // writable codeBases on every lint host, as the permission ratings are host-blind, and --define moves the
+    // host's home, temp and working directory.  Every host property is moved off the names below.
+    @Test
+    public void homeTreesAreWritableWhateverTheLintHost() {
+        String[] keys = {"user.home", "java.io.tmpdir", "user.dir"};
+        String[] old = new String[3];
+        for (int i = 0; i < 3; i++) old[i] = System.getProperty(keys[i]);
+        try {
+            System.setProperty("user.home", "/srv/lint");
+            System.setProperty("java.io.tmpdir", "/tmp");
+            System.setProperty("user.dir", "/work");
+            for (String cb : new String[]{"file:/C:/Users/-", "file:/C:/Users/svc/-", "file:/C:/Documents%20and%20Settings/-",
+                "file:/C:/Documents%20and%20Settings/svc/-", "file:/home/-", "file:/home/svc/-", "file:/Users/svc/-",
+                "file:/root/-", "file:/var/root/-"}) {
+                assertEquals(cb, PolicyScope.Kind.FILE_WRITABLE, kindOf(cb));
+            }
+            // below a home is a named directory, as in the ratings, and an exact file is no tree
+            for (String cb : new String[]{"file:/C:/Users/svc/app/-", "file:/home/svc/app/-", "file:/C:/Users/svc/x.jar",
+                "file:/opt/app/-"}) {
+                assertEquals(cb, PolicyScope.Kind.FILE_PINNED, kindOf(cb));
+            }
+            // --define moves the host: a codeBase over a directory above the defined temp directory is writable
+            java.util.Properties env = new java.util.Properties();
+            env.setProperty("java.io.tmpdir", "D:\\build\\scratch\\tmp");
+            assertEquals(PolicyScope.Kind.FILE_PINNED, PolicyScope.classify("file:/D:/build/scratch/-", new java.util.Properties()).kind);
+            assertEquals(PolicyScope.Kind.FILE_WRITABLE, PolicyScope.classify("file:/D:/build/scratch/-", env).kind);
+        } finally {
+            for (int i = 0; i < 3; i++) {
+                if (old[i] == null) System.clearProperty(keys[i]); else System.setProperty(keys[i], old[i]);
+            }
+        }
+    }
+
     @Test
     public void slashRunTable() {
         String tail = "fileserver.example/share/-";

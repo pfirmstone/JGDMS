@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
 GOVERNING STATE: claim_register/hypotheses/DERPERF/INDEX.md in the clone of pfirmstone/Claude (branch master; `E:\Claude\` = that repo's root)  (this file's claims: CL-DERPERF-0001 to CL-DERPERF-0019; read the index, it carries the current row for each); rulings: claim_register/rulings/JGDMS/INDEX.md and claim_register/rulings/DIRTYCHAI/INDEX.md (nine rulings of this session are NOT yet in them, see section 7)
-LATEST ADDENDUM: add.01 dated 2026-11-14 at heading "10. Review by a different model" (its corrections govern the sections above; predecessor HANDOVER-der-codec-performance-2026-10-18.md still governs its own sections 1 to 8)
+LATEST ADDENDUM: add.01b dated 2026-11-16 at heading "Addendum add.01b, 2026-11-16: the branch is merged into trunk" (add.01, at "10. Review by a different model", also stands (its corrections govern the sections above; predecessor HANDOVER-der-codec-performance-2026-10-18.md still governs its own sections 1 to 8))
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: 3. STATE (branches, pins, what is pushed, who is running) - re-read the disk before acting on it
 -->
@@ -158,7 +158,7 @@ Only the JGDMS scope collides: origin's DIRTYCHAI scope ends at number 4 and not
 
 - **Builds.** `JAVA_HOME=/opt/dirtychai/jdk-27`; run `mvn -o` from the `JGDMS/` directory because `JGDMS/.mvn/maven.config` has a relative `-s .mvn/settings.xml`. Use a private repository copy
   (`cp -r ~/.m2/repository <scratch>/m2repo`, `-Dmaven.repo.local=...`) so `~/.m2` stays clean. `jgdms-benchmarks` is not in the reactor: install `jgdms-jeri` and `jgdms-rmi-tls` first, then
-  `mvn -o -f jgdms-benchmarks/pom.xml -pl serialization -am -DskipTests package`; revert the regenerated `dependency-reduced-pom.xml`.
+  `mvn -o -f jgdms-benchmarks/pom.xml -pl serialization -am -DskipTests package`; ~~revert the regenerated `dependency-reduced-pom.xml`~~ (no longer generated or tracked since the commit of 2026-11-16 that sets `createDependencyReducedPom` to false in `jgdms-benchmarks/pom.xml`).
 - **Emulating a newer DirtyChai:** `-Djgdms.dirtychai.patch=<dir> -Djgdms.conformance.jdkClasses=<dir>` on `mvn -pl jgdms-platform test`; recipe in the non-conformances doc.
   A stock-JDK run: `-Djvm=/usr/lib/jvm/java-21-openjdk-amd64/bin/java`.
 - **Agents share one working tree.** `git pull --rebase` refuses while another agent has unstaged edits; use `git fetch`, check you are not behind, push a fast-forward, stage files by explicit path.
@@ -308,3 +308,12 @@ Every item is either in this file or excluded below. Deliberately excluded: the 
 - `d7dfb0140` 2026-11-11 Pin DirtyChai 4c71278f1: rebuild emulation, record results, J8/J9 Uri defects
 - `f89127f4c` 2026-11-11 Uri: keep the separator in the "/-", ";-" and "/*" prefix compare (J8); toURL with user info (J9)
 - `87953afea` 2026-11-11 Non-conformances: J8 and J9 fixed in f89127f4c; D9 resolved by the maintainer's ruling
+
+## Addendum add.01b, 2026-11-16: the branch is merged into trunk (this governs the state sections above)
+
+- The maintainer merged `claude/focused-bohr-t6bwal` (head `5f8b537fe`) into `trunk` and pushed: `4157cf573` "Merge branch 'claude/focused-bohr-t6bwal' into trunk" (`git log --oneline -3 origin/trunk`). One of his own commits (`7672af1ef`, a proxy-board handover) lies between them.
+  Measured at 2026-11-16: `git merge-base --is-ancestor origin/claude/focused-bohr-t6bwal origin/trunk` is true; `git rev-list --left-right --count origin/trunk...HEAD` after the fast-forward below is `0 0`.
+- My branch was fast-forwarded to trunk (`git merge --ff-only origin/trunk`), so nothing of it is outside trunk. Further work starts from trunk on this branch name; no history is rewritten.
+- Section 3 (STATE), section 4 item 5 (repeat the trunk merge) and section 12's pointer to the branch are therefore out of date; sections 4 items 1 to 4, 6 and 7 and section 5 stand.
+- Before the merge the branch gained three commits that sections 0 to 12 do not mention: `6e6362289` (the LICENSE and NOTICE root guard in `JGDMS/pom.xml` made resolvable offline), a second trunk merge (`432aa77ed`, trunk's `decodeToFieldMap` commit; `jgdms-der` 1536 tests, 0 failures), and `5f8b537fe` (benchmark `dependency-reduced-pom.xml` no longer generated or tracked).
+- Not reported to me: whether the two gates that need `asm` (`check-serial-schema.sh` in full, the trunk-baseline half of `check-api-compat.sh`) were run before the push. The cloud container cannot run them.

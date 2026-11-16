@@ -8,6 +8,22 @@
 --   JGDMS/docs/JGDMS-STD-011-CEL-Filter-Expression-Format-v0.1-DRAFT.md
 --     (section 11 node inventory; section 10.3 ceilings)
 --
+-- v0.2-DRAFT EDIT (2026-11-14; STD011_v0.2_LET_DELTA.md R13; Appendix B v0.2):
+-- adds the maxBindings value, the CelFilterRecord field bindings (a SEQUENCE of
+-- ExprNode with SIZE 1..maxBindings, OPTIONAL: absent when there are no
+-- bindings, present and non-empty otherwise) and the ExprNode arm ref [27].
+-- THIS EDIT HAS NOT BEEN COMPILED: no ASN.1 tool was run. The words COMPILING
+-- above and the G8 THREE-WAY CROSS-CHECK below describe the v0.1 module as of
+-- 2026-07-24 and were not re-run; at the base commit 7ccf90bb9 the merged
+-- jgdms-cel code has no REF arm, so that cross-check does NOT hold for v0.2.
+-- RL-JGDMS-0024 (2026-11-14): no backward compatibility before JGDMS 4.0.0.
+-- formatVersion stays 1, the only accepted value, and the module OID arc stays
+-- v1(1) and now names the v0.2 content (the bump to v2(2) of owner answer Q6 is
+-- withdrawn); the July compile record in JGDMS-STD-006-v0.13-validation.md
+-- names the same OID and describes the v0.1 content, so the owed recompile
+-- replaces it.
+-- The file name keeps v0.1 so that existing links hold.
+--
 -- This file is a VALIDATION ARTIFACT in the same regime as
 -- JGDMS-STD-006-v0.13.asn1 (open item 20 discipline). It is not itself
 -- normative; the Appendix B document is. See JGDMS-STD-006-v0.13-validation.md
@@ -36,7 +52,8 @@
 --   No three-way disagreement found.
 --
 -- CEILINGS STATUS (load-bearing; STD-011 section 3.3's conditional Claim 3):
--- the five ceiling values below are [PROPOSED] in STD-011 section 10.3 /
+-- the five ceiling values of v0.1 below (six constants with the v0.2
+-- maxBindings) are [PROPOSED] in STD-011 section 10.3 /
 -- Appendix B section B.7 and are RATIFICATION-PENDING-CONFIRMATION — the merged
 -- Java implementation already enforces exactly these values on the
 -- expression-LITERAL side (see cross-check above), which is the half Appendix B
@@ -54,6 +71,10 @@
 -- IMPLICIT/EXPLICIT disposition, so the module default is inert for every type
 -- defined here.
 
+-- v0.2: the module OID arc stays v1(1) and now names the v0.2 content. No
+-- backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024,
+-- 2026-11-14); the bump to v2(2) of owner answer Q6 is withdrawn, and
+-- formatVersion stays 1.
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
   enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
@@ -76,6 +97,11 @@ maxExprNodes     INTEGER ::= 1024
 maxExprDepth     INTEGER ::= 32
 maxSelectorSteps INTEGER ::= 16
 maxScalarBytes   INTEGER ::= 65536
+-- v0.2: the number of bindings in one CelFilterRecord (STD-011 section 10.3).
+-- The other two v0.2 ceilings are not wire SIZE constraints: maxEffectiveDepth
+-- is computed at decode (Appendix B section B.6.7) and maxExpandedCost at
+-- verification (T6).
+maxBindings      INTEGER ::= 256
 -- maxExprCost is a T6 verification-time bound computed over the decoded AST
 -- (STD-011 section 10.2/10.5's cost sum), not a wire-level SIZE constraint on
 -- any single field; recorded for completeness, not referenced by any SIZE
@@ -116,22 +142,30 @@ EvaluationContext ::= CHOICE {
 
 -- The parameter shape (section B.9). formatVersion pinned to 1 for v0.1
 -- (CelFilterRecord.FORMAT_VERSION in code); unknown versions hard-reject.
+-- v0.2: formatVersion stays 1, the only accepted value (RL-JGDMS-0024).
 -- No signature/digest field of its own: tamper-detection is the enclosing
 -- Integrity-constrained ATOMIC DER stream's job (STD-009 RULE-D1; section B.9).
 CelFilterRecord ::= SEQUENCE {
-    formatVersion  INTEGER (0..255),      -- Appendix B pins value 1
+    formatVersion  INTEGER (0..255),      -- Appendix B pins value 1, the only accepted value
     context        EvaluationContext,
+    -- v0.2: a universal SEQUENCE (tag 0x30), so it cannot be confused with an
+    -- ExprNode arm, which are all context-class. ABSENT when there are no
+    -- bindings, present and non-empty otherwise (a present empty list is
+    -- rejected, Appendix B section B.6.3). ORDER SIGNIFICANT: a REF in
+    -- element i names an element below i.
+    bindings       SEQUENCE (SIZE(1..maxBindings)) OF ExprNode OPTIONAL,
     expression     ExprNode
 }
 
 -- ============================================================================
 -- The AST CHOICE: the context tag IS the node-kind discriminator (H3).
--- Closed set: exactly the 27 arms below (STD-011 section 11.1 inventory;
--- Appendix B section B.4.1 tag table). Tags [27]-[62] RESERVED; any tag outside
--- the listed arms (reserved block included, and anything > [62]) is
--- UNREGISTERED and MUST be a hard decode reject (STD-011 section 11.3 item 2)
--- — automatic in the CHOICE form, confirmed empirically (section B.13).
--- A future revision MUST append new node kinds after [26], never insert.
+-- Closed set: exactly the 28 arms below (STD-011 section 11.1 inventory;
+-- Appendix B section B.4.1 tag table; v0.2: the 27 of v0.1 plus ref). Tags
+-- [28]-[62] RESERVED; any tag outside the listed arms (reserved block included,
+-- and anything > [62]) is UNREGISTERED and MUST be a hard decode reject
+-- (STD-011 section 11.3 item 2) — automatic in the CHOICE form, confirmed
+-- empirically (section B.13, v0.1 module).
+-- A future revision MUST append new node kinds after [27], never insert.
 -- ============================================================================
 
 ExprNode ::= CHOICE {
@@ -170,7 +204,12 @@ ExprNode ::= CHOICE {
     -- membership / conditional / call [24]-[26]
     inOp        [24] IMPLICIT InNode,
     condOp      [25] IMPLICIT CondNode,
-    callOp      [26] IMPLICIT CallNode
+    callOp      [26] IMPLICIT CallNode,
+
+    -- binding reference [27] (v0.2): the absolute 0-based index of a binding.
+    -- The upper bound 255 is maxBindings minus 1, and maxBindings is 256 (a
+    -- literal, because an ASN.1 range takes no arithmetic).
+    ref         [27] IMPLICIT INTEGER (0..255)   -- leading octet 0x9B, primitive
 }
 
 ListLitNode ::= SEQUENCE (SIZE(1..maxCollection)) OF ExprNode

@@ -1,5 +1,6 @@
 # Maven build output — covers all modules (the explicit per-module
 # target/ entries below are now redundant but kept for history).
+**/dependency-reduced-pom.xml
 **/target/
 
 /nbproject/private/

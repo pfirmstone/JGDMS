@@ -171,15 +171,28 @@ public final class PermissionSets {
     }
 
     /**
+     * A FilePermission name is read as {@link #danger} reads it (the normaliser, the OS aliases and the
+     * undefined-{@code ${property}} ruling) and flagged when that reading is a whole tree, which is HIGH
+     * whatever the action.  A name that is HIGH only to write (a relative {@code ..} chain, the JDK home, a
+     * temp tree) is not flagged: FLAG does not look at the action.
+     *
      * @return why an entry is worth a reviewer's second look although it is written live,
      *         or {@code null}; reported by the plan and the gate, never refused
      */
     public static String flagReason(String type, String name, String actions) {
+        return flagReason(type, name, actions, null);
+    }
+
+    /**
+     * As {@link #flagReason(String, String, String)}; {@code env} is the environment {@link #danger} judged the
+     * name in.  Without it a property defined only there would read as undefined here and flag a name that
+     * {@code danger} has just found clean.
+     */
+    private static String flagReason(String type, String name, String actions, Properties env) {
         if (type == null || name == null) return null;
         if (FILE.equals(type) && ALL_FILES.equals(name)) return "reads or writes every file";
-        if (FILE.equals(type) && wholeTree(name)) {
-            return "FilePermission " + name + " covers a whole root, drive, share or home tree";
-        }
+        String tree = FILE.equals(type) ? wholeTree(name, env) : null;
+        if (tree != null) return "FilePermission " + name + " " + tree;
         if (AUTH.equals(type)) return "AuthPermission " + name + " acts on the current subject";
         if (SERIAL.equals(type)) return "SerializablePermission " + name;
         if (REFLECT.equals(type)) return "ReflectPermission " + name;
@@ -202,17 +215,20 @@ public final class PermissionSets {
     }
 
     /**
-     * Whether a FilePermission name covers a whole root, drive, UNC share or host, or user-home tree
-     * ({@code /-}, {@code C:\-}, a UNC share or host tree, {@code /home/-}, {@code ${user.home}/-}):
-     * the names {@link #fileReach} marks high whatever the action.
+     * Why a FilePermission name covers a whole root, drive, UNC share or host, or user-home tree
+     * ({@code /-}, {@code C:\-}, a UNC share or host tree, {@code /home/-}, {@code ${user.home}/-}), or
+     * {@code null}: the names {@link #fileReach} marks high whatever the action, and a name built on an
+     * undefined {@code ${property}}, which {@link #danger} rates as the root.
      */
-    private static boolean wholeTree(String name) {
-        if (name == null) return false;
-        String e = expand(name, null);
-        // an undefined ${property} cannot be judged here (danger() rates it from its own environment)
-        if (e == null) return false;
-        String why = fileReach(e, false, null, false);
-        return why != null && why.startsWith("[H]");
+    private static String wholeTree(String name, Properties env) {
+        if (name == null) return null;
+        // Operator ruling 2026-11-07 (Opus review 2026-11-06, F6): this returned false for an undefined ${property}
+        // because "danger() rates it", but ListPromotion never calls danger() (it asks holdReason and flagReason).
+        // The reading is now danger()'s own (nameReach), so a name danger() reads as a whole tree is flagged too.
+        String why = nameReach(name, false, env);
+        if (why == null || !why.startsWith("[H]")) return null;
+        return UNDEFINED_PROPERTY.equals(why) ? "names a ${property} defined nowhere here, rated as the root"
+            : "covers a whole root, drive, share or home tree";
     }
 
     // ------------------------------------------------------------ dangerous-policy catalogue
@@ -265,7 +281,8 @@ public final class PermissionSets {
      * current-directory tree; write/delete/execute (HIGH) on a whole JDK-home or temp-directory tree, the
      * deserialisation wildcard, and the identity, credential, network, TLS, JMX and management
      * permissions listed in {@link #extraDanger}.  File names are expanded with the system
-     * properties.
+     * properties; a {@code Documents and Settings} first name is read as {@code Users} and a
+     * {@code <letter>$} share as that drive, on any host (operator ruling 2026-11-07).
      *
      * @return {@code null} if the entry is not in the catalogue
      */
@@ -300,7 +317,7 @@ public final class PermissionSets {
         }
         Danger x = extraDanger(type, name, actions);
         if (x != null) return x;
-        String flag = flagReason(type, name, actions);
+        String flag = flagReason(type, name, actions, env);
         return flag == null ? null : new Danger(MEDIUM, flag);
     }
 
@@ -681,13 +698,19 @@ public final class PermissionSets {
         return sb.toString();
     }
 
+    private static final String UNDEFINED_PROPERTY =
+        "[H]a ${property} defined neither by --define nor in this JVM, treated as the root";
+
+    /** The one reading of a FilePermission name that {@link #danger} and {@link #flagReason} share. */
+    private static String nameReach(String name, boolean write, Properties env) {
+        String exp = expand(name, env);
+        return exp == null ? UNDEFINED_PROPERTY : fileReach(exp, write, env, name.contains("${user.dir}"));
+    }
+
     private static Danger fileDanger(String name, String actions, Properties env) {
         boolean write = hasAction(actions, "write") || hasAction(actions, "delete")
             || hasAction(actions, "execute");
-        String exp = expand(name, env);
-        String why = exp == null
-            ? "[H]a ${property} defined neither by --define nor in this JVM, treated as the root"
-            : fileReach(exp, write, env, name.contains("${user.dir}"));
+        String why = nameReach(name, write, env);
         if (why == null) return null;
         boolean medium = why.startsWith("[M]");
         boolean high = why.startsWith("[H]");
@@ -708,51 +731,225 @@ public final class PermissionSets {
         public final List<String> segments = new ArrayList<String>();
         /** {@code "-"}, {@code "*"} or null. */
         public String wildcard;
+        /**
+         * A Win32 device-namespace name ({@code //./} before the first name).  Only the prefix is taken off:
+         * {@code segments} start at the device name, which is not a drive and not a UNC share.
+         */
+        public boolean device;
     }
 
-    /** Splits a file name: separators unified, {@code .} dropped, {@code ..} applied. */
+    private static int leadingSlashes(String p) {
+        int n = 0;
+        while (n < p.length() && p.charAt(n) == '/') n++;
+        return n;
+    }
+
+    /**
+     * {@code p} (separators unified) without any long-path prefix.  Opus review 2026-11-06 (F2): three steps
+     * of the JDK remove it, in this order: WinNTFileSystem.normalize strips a raw prefix that was written
+     * with backslashes (stripLongOrUNCPrefix, DirtyChai WinNTFileSystem.java:69, called at :132), then
+     * normalizePrefix collapses the run of leading separators (:225-252), then WindowsPathParser.parse strips
+     * the prefix again (WindowsPathParser.java:66-67).  So "///?/C:/Users/-" and a doubled prefix are both
+     * C:/Users/-.  It is stripped repeatedly, a superset of those strips, and takes one separator after the
+     * "?": the rest of a run belongs to the next prefix, while "UNC" may follow the whole run because the
+     * collapse has happened by then.  "UNC" is matched without regard to case although the JDK's test is
+     * case-sensitive: the JDK refuses "//?/unc/server/share/-" and reads the backslash form as the relative
+     * path unc/server/share (both measured 2026-11-06), so HIGH is a conservative rating of a name that
+     * grants no share there, kept because testWholeTreeReadVariantsAreHigh has pinned it since 0eb9f0cc7.
+     */
+    private static String withoutLongPathPrefix(String p) {
+        for (;;) {
+            int lead = leadingSlashes(p);
+            String rest = p.substring(lead);
+            if (lead < 2 || !(rest.equals("?") || rest.startsWith("?/"))) return p;
+            rest = rest.substring(1);
+            if (rest.startsWith("/")) rest = rest.substring(1);
+            String name = rest.substring(leadingSlashes(rest));
+            if (name.regionMatches(true, 0, "UNC", 0, 3) && (name.length() == 3 || name.charAt(3) == '/')) {
+                p = "//" + (name.length() > 4 ? name.substring(4) : "");
+            } else {
+                p = rest;
+            }
+        }
+    }
+
+    /**
+     * Sets {@code f.device} and returns {@code p} without the "//./" root of a Win32 device-namespace name;
+     * the name is deliberately not resolved.  Opus normaliser review 2026-11-07 (N1, N2): the JDK reads
+     * "//./X/" as a UNC root (host ".", share X) and clamps ".." there, so "//./x/../Volume{guid}/Users/-" has
+     * the npath "//./x/Volume{guid}/Users" (measured on the DirtyChai build JDK), while Win32 roots the name at
+     * "//./" alone and applies "..", "." and one trailing dot to the device name itself: "//./x/../Volume{guid}/Users"
+     * and "//./UNC./localhost/C$/Users" reach C:/Users (live on the review host).  Neither reading gives
+     * the other's reach, and the 2026-11-06 model of the volume, UNC and GLOBALROOT names as drive and share
+     * roots both lowered base ratings and missed spellings, so fileReach rates every wildcard name here HIGH.
+     * One separator, as in "/Device/Mup/server/share/-", is no device name: Win32 reads it as a path below
+     * the current drive (File.exists is false for "/Device/Mup/localhost/C$/Users").
+     */
+    private static String withoutDeviceRoot(String p, FilePath f) {
+        int lead = leadingSlashes(p);
+        String rest = p.substring(lead);
+        if (lead < 2 || !(rest.equals(".") || rest.startsWith("./"))) return p;
+        f.device = true;
+        return rest.substring(1);
+    }
+
+    /**
+     * Win32 removes one trailing dot from a path segment (Opus review 2026-11-06 (F5): Files.isSameFile
+     * "C:\Users.\peter" == "C:\Users\peter" on the review host), which the JDK does not do lexically.
+     * A name made only of dots is left alone, so that "..." is not read as ".." .
+     */
+    private static String withoutTrailingDot(String s) {
+        return s.endsWith(".") && s.replace(".", "").length() > 0 ? s.substring(0, s.length() - 1) : s;
+    }
+
+    /**
+     * Splits a file name the way {@code java.io.FilePermission} reads a Windows name, whatever host the lint
+     * runs on, adding Win32's removal of one trailing dot per segment: separators unified, the long-path
+     * prefix removed, {@code .} dropped, {@code ..} applied and only then the last name tested for {@code -}.
+     * A {@code *} is a wildcard only as the raw last name, because the JDK tests {@code endsWith("*")} before
+     * it normalises ({@code C:\Users\*\.} is invalid there).  Two limits: a device-namespace name
+     * ({@code //./}) is flagged and not resolved, and
+     * {@code ..} may pop a UNC host or share.  A name the JDK refuses is parsed by the same rules, so what
+     * it is rated says nothing about what the JDK grants.
+     */
     public static FilePath filePath(String name) {
         FilePath f = new FilePath();
-        String p = name.trim().replace('\\', '/');
-        // Fable review 2026-11-03: WinNTFileSystem strips the long-path prefix, so a "//?/UNC/server/share/-"
-        // is "//server/share/-" and a "//?/C:/-" is "C:/-"
-        if (p.length() >= 8 && p.regionMatches(true, 0, "//?/UNC/", 0, 8)) p = "//" + p.substring(8);
-        else if (p.startsWith("//?/")) p = p.substring(4);
-        // Opus review 2026-11-03 (F3): java.io.File on Windows drops the slashes before a drive letter, so
-        // "/C:/-" is the whole C: drive; read it as a drive whatever the host the lint runs on.
-        int lead = 0;
-        while (lead < p.length() && p.charAt(lead) == '/') lead++;
-        boolean driveAfterSlashes = lead > 0 && p.length() >= lead + 2 && p.charAt(lead + 1) == ':'
-                && Character.isLetter(p.charAt(lead));
-        if (driveAfterSlashes) p = p.substring(lead);
-        // Opus review 2026-11-03 (F2): java.io.File on Windows collapses three or more leading separators
-        // into the same UNC prefix as two, so "///server/share/-" is a whole share; any run of two or more
-        // slashes followed by a name is a UNC name (conservative where the host reads it as a plain path).
-        f.unc = !driveAfterSlashes && lead >= 2 && p.length() > lead;
-        if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
-            f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
-            p = p.substring(2);
+        String p = withoutDeviceRoot(withoutLongPathPrefix(name.trim().replace('\\', '/')), f);
+        if (!f.device) {
+            // Opus review 2026-11-03 (F3): java.io.File on Windows drops the slashes before a drive letter, so
+            // "/C:/-" is the whole C: drive; read it as a drive whatever the host the lint runs on.
+            int lead = leadingSlashes(p);
+            boolean driveAfterSlashes = lead > 0 && p.length() >= lead + 2 && p.charAt(lead + 1) == ':'
+                    && Character.isLetter(p.charAt(lead));
+            if (driveAfterSlashes) p = p.substring(lead);
+            // Opus review 2026-11-03 (F2): java.io.File on Windows collapses three or more leading separators
+            // into the same UNC prefix as two, so "///server/share/-" is a whole share; any run of two or more
+            // slashes followed by a name is a UNC name (conservative where the host reads it as a plain path).
+            f.unc = !driveAfterSlashes && lead >= 2 && p.length() > lead;
+            if (p.length() >= 2 && p.charAt(1) == ':' && Character.isLetter(p.charAt(0))) {
+                f.drive = p.substring(0, 2).toLowerCase(Locale.ROOT);
+                p = p.substring(2);
+            }
         }
-        f.absolute = p.startsWith("/");
+        f.absolute = f.device || p.startsWith("/");
         String[] raw = p.split("/");
         int last = raw.length - 1;
         while (last >= 0 && raw[last].length() == 0) last--;
-        if (last >= 0 && (raw[last].equals("-") || raw[last].equals("*"))) {
-            f.wildcard = raw[last];
-            last--;
-        }
+        // Opus review 2026-11-06 (F1): FilePermission replaces a trailing "*" by "-", normalises, and only then
+        // tests the last name (DirtyChai FilePermission.java:373-389), so "C:/-/." and "C:/-/x/.." are the whole
+        // drive while "C:/Users/*/." is a name the JDK refuses.  A "*" counts only as the raw last name; a
+        // trailing separator is let through, the wider reading of a name the JDK refuses.
+        boolean star = last >= 0 && raw[last].equals("*");
+        if (star) raw[last] = "-";
+        // Opus normaliser review 2026-11-07 (N3): ".." pops a UNC host and share here.  The Windows JDK clamps
+        // at the share ("//server/share/../-/-" has the npath "//server/share/-", measured), but on a Unix JDK
+        // "//" is "/", so "//home/alice/../bob/-" is one user's home; the catalogue is host-blind and takes
+        // the reading that rates wider.  The 2026-11-06 floor at host and share, which narrowed these names
+        // to unrated on every host, is withdrawn.
+        List<String> names = new ArrayList<String>();
         for (int i = 0; i <= last; i++) {
             String s = raw[i];
             if (s.length() == 0 || s.equals(".")) continue;
             if (s.equals("..")) {
-                int n = f.segments.size();
-                if (n > 0 && !f.segments.get(n - 1).equals("..")) f.segments.remove(n - 1);
-                else if (!f.absolute) f.segments.add("..");
+                int n = names.size();
+                if (n > 0 && !names.get(n - 1).equals("..")) names.remove(n - 1);
+                else if (!f.absolute) names.add("..");
             } else {
-                f.segments.add(s);
+                names.add(s);
             }
         }
+        int n = names.size();
+        if (n > 0 && names.get(n - 1).equals("-")) {
+            f.wildcard = star ? "*" : "-";
+            names.remove(n - 1);
+        }
+        for (String s : names) f.segments.add(withoutTrailingDot(s));
         return f;
+    }
+
+    private static boolean isDriveShare(String share) {
+        if (share.length() != 2 || share.charAt(1) != '$') return false;
+        char c = share.charAt(0);
+        return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z';
+    }
+
+    /**
+     * {@link #filePath} with three OS aliases of a ruled tree read as the tree they reach (the third, a profile's
+     * {@code Local Settings} as {@code AppData\Local}, is described at its fold below).  Operator ruling
+     * 2026-11-07 (Opus review 2026-11-06, F7), host-blind and without asking the OS: the review measured
+     * {@code Files.isSameFile} true for {@code C:\Documents and Settings\peter} (a junction) and
+     * {@code C:\Users\peter}, and for {@code \\localhost\C$\Users\peter} (the admin share) and the same, so a
+     * first name {@code Documents and Settings} below a root is {@code Users} and a share named a letter and
+     * {@code $} is that drive, whatever the host.  Every other share keeps the ruling that a named directory
+     * below it is unrated: {@code ADMIN$}, {@code IPC$}, {@code CC$} and {@code C$x} are no drive, and
+     * {@code \\h\ADMIN$\-} is HIGH as a whole share.  The JDK does not model either alias lexically, so the
+     * differential test cannot score this.  A relative or drive-relative name is left alone, as {@code C:Users\-} is.
+     */
+    public static FilePath aliased(String name) {
+        FilePath f = filePath(name);
+        List<String> s = f.segments;
+        if (f.unc && s.size() >= 2 && isDriveShare(s.get(1))) {
+            f.drive = s.get(1).substring(0, 1).toLowerCase(Locale.ROOT) + ":";
+            f.unc = false;
+            s.subList(0, 2).clear();
+        }
+        // operator ruling 2026-11-07 (Q1): DOCUME~1 is the 8.3 name of that same junction
+        if (f.absolute && !f.unc && !f.device && !s.isEmpty()
+                && (s.get(0).equalsIgnoreCase("Documents and Settings") || s.get(0).equalsIgnoreCase("DOCUME~1"))) {
+            s.set(0, "Users");
+        }
+        // operator ruling 2026-11-07: "Local Settings" in a profile is the junction to AppData\Local, so the temp
+        // directory is reached as Users\<name>\Local Settings\Temp as well as Users\<name>\AppData\Local\Temp.
+        if (f.absolute && !f.unc && !f.device && s.size() >= 3 && s.get(0).equalsIgnoreCase("Users")
+                && (s.get(2).equalsIgnoreCase("Local Settings") || s.get(2).equalsIgnoreCase("LOCALS~1"))) {
+            s.set(2, "AppData");
+            s.add(3, "Local");
+        }
+        return f;
+    }
+
+    private static final Pattern SHORT_NAME =
+        Pattern.compile("[^~]{1,6}~[0-9]+(\\.[^.~]{0,3})?");
+
+    /**
+     * Whether a recursive name this close to the root has an 8.3 short name ({@code DOCUME~1}, {@code USERS~1},
+     * {@code PETER~1}) among its first two names, so it may reach a user home or the directory holding every
+     * home.  Operator ruling 2026-11-07, host-blind: the file system, not the name, says what a short name
+     * stands for and 8.3 generation can be off on a volume, so the shape alone is rated.  The names this rates
+     * HIGH include real directories such as {@code C:\PROGRA~1\-}; no PolicyLint option or corpus row clears one
+     * (the corpus allow-list takes no HIGH row), which is operator question Q3 of the 2026-11-07 Opus review.
+     * Deeper names stay unrated by the ruling that bounds the rule to the first two names.
+     */
+    public static boolean mayBeShortName(FilePath f) {
+        if (!f.absolute || f.device || !"-".equals(f.wildcard) || f.segments.size() > 2) return false;
+        for (String s : f.segments) {
+            if (SHORT_NAME.matcher(s).matches()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Why an absolute recursive name is the directory holding every user home, one user's whole home or the root
+     * user's home, on every platform whatever the host's own properties; {@code null} if it is not.  The one
+     * definition of the home trees, used by {@link #fileReach} and by the lint's codeBase check (operator ruling
+     * 2026-11-07, Q2 of the Opus review).  Operator rulings 2026-11-03: the parent of every home, and (Opus review
+     * F4) one user's whole home, on every platform; the root user's home is a whole tree of credentials and keys.
+     */
+    public static String homeTreeReason(FilePath f) {
+        if (!f.absolute || !"-".equals(f.wildcard)) return null;
+        List<String> s = f.segments;
+        boolean homes = s.size() >= 1 && (s.get(0).equalsIgnoreCase("home") || s.get(0).equalsIgnoreCase("Users"));
+        if (s.size() == 1 && homes) {
+            return "[H]the whole of the directory holding every user home";
+        }
+        if (s.size() == 2 && homes
+                || s.size() == 2 && s.get(0).equalsIgnoreCase("var") && s.get(1).equalsIgnoreCase("root")) {
+            return "[H]the whole of one user's home";
+        }
+        if (s.size() == 1 && s.get(0).equalsIgnoreCase("root")) {
+            return "[H]the whole of the root user's home";
+        }
+        return null;
     }
 
     /** Whether {@code prefix} is the same as, or a leading part of, {@code path} (case ignored). */
@@ -772,12 +969,23 @@ public final class PermissionSets {
      * Why a file name, already expanded, reaches too much; {@code null} if it does not.  Wide are:
      * all files, the current directory tree or anything above it, a root or drive, a recursive
      * name over a whole home, JDK-home or temp directory (or over a directory above one), a
-     * {@code *} name in such a directory, and, for writing, any exact name below the JDK home.
+     * {@code *} name in such a directory, a recursive name with an 8.3 short-name shape among its first two
+     * names ({@link #mayBeShortName}), and, for writing, any exact name below the JDK home.
      */
     static String fileReach(String expanded, boolean write, Properties env, boolean refsWorkingDir) {
         String n = expanded.trim();
         if (ALL_FILES.equals(n)) return "all files";
-        FilePath f = filePath(n);
+        FilePath f = aliased(n);
+        // Opus normaliser review 2026-11-07 (N1, N2, R2-1): the JDK and Win32 root a "//./" name differently, so no
+        // reading of its device name says what a wildcard grant reaches; any depth is HIGH, whatever the action.
+        // A "*" is not recursive but is not harmless: the JDK clamps ".." at "//./X/", so "//./pipe/*" implies
+        // "//./pipe/../Volume{guid}" and "//./pipe/../PhysicalDrive0" (read and write, measured on the DirtyChai
+        // build JDK), and Win32 opens the raw device (access denied, not "not found", on the review host).  An
+        // exact name is not rated: it implies only itself, as "/dev/sda" does.  Whether this is the ruling is
+        // operator question Q3.
+        if (f.device && f.wildcard != null) {
+            return "[H]a wildcard name in the Win32 device namespace, which the JDK and the OS root differently";
+        }
         if (f.wildcard != null && f.segments.isEmpty()) {
             // operator ruling 2026-11-02: reading a whole root or drive tree is HIGH, not only writing it
             if ("-".equals(f.wildcard) && f.absolute) {
@@ -787,7 +995,10 @@ public final class PermissionSets {
                 : f.drive != null ? "a whole drive-relative tree" : "the whole current directory tree";
         }
         if (!f.absolute) {
-            if (f.drive == null && !f.segments.isEmpty() && f.segments.get(0).equals("..")) {
+            // Opus review 2026-11-06 (F3): 0eb9f0cc7 made "/C:../../-" a drive-relative name, and this test
+            // left it unrated while "../../-" is rated; "C:.." climbs out of that drive's current directory
+            // just the same (Files.isSameFile "C:..\..\..\Windows" == "C:\Windows" on the review host).
+            if (!f.segments.isEmpty() && f.segments.get(0).equals("..")) {
                 return "a path above the current directory";
             }
             return null;
@@ -796,20 +1007,10 @@ public final class PermissionSets {
             // operator ruling 2026-11-03: a whole UNC share or host, and the parent of every user home,
             // are whole trees whatever the platform the lint runs on or the action
             if (f.unc && f.segments.size() <= 2) return "[H]a whole network share or host tree";
-            if (f.segments.size() == 1 && (f.segments.get(0).equalsIgnoreCase("home")
-                    || f.segments.get(0).equalsIgnoreCase("Users"))) {
-                return "[H]the whole of the directory holding every user home";
-            }
-            // operator ruling 2026-11-03 (Opus review F4): one user's whole home, on every platform
-            if (f.segments.size() == 2 && (f.segments.get(0).equalsIgnoreCase("home")
-                    || f.segments.get(0).equalsIgnoreCase("Users"))
-                    || f.segments.size() == 2 && f.segments.get(0).equalsIgnoreCase("var")
-                    && f.segments.get(1).equalsIgnoreCase("root")) {
-                return "[H]the whole of one user's home";
-            }
-            // operator ruling 2026-11-03: the root user's home is a whole tree of credentials and keys
-            if (f.segments.size() == 1 && f.segments.get(0).equalsIgnoreCase("root")) {
-                return "[H]the whole of the root user's home";
+            String home = homeTreeReason(f);
+            if (home != null) return home;
+            if (mayBeShortName(f)) {
+                return "[H]a whole tree named by an 8.3 short name, which may stand for a user home";
             }
         }
         List<String[]> dirs = new ArrayList<String[]>();
@@ -823,7 +1024,7 @@ public final class PermissionSets {
         }
         for (String[] d : dirs) {
             if (d[1] == null || d[1].length() == 0) continue;
-            FilePath dir = filePath(d[1]);
+            FilePath dir = aliased(d[1]);
             if (!sameDrive(f, dir)) continue;
             if ("-".equals(f.wildcard) && isPrefix(f.segments, dir.segments)) {
                 // operator ruling 2026-11-02: reading the whole user-home tree is HIGH as well
