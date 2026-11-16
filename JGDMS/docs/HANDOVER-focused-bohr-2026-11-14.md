@@ -158,7 +158,7 @@ Only the JGDMS scope collides: origin's DIRTYCHAI scope ends at number 4 and not
 
 - **Builds.** `JAVA_HOME=/opt/dirtychai/jdk-27`; run `mvn -o` from the `JGDMS/` directory because `JGDMS/.mvn/maven.config` has a relative `-s .mvn/settings.xml`. Use a private repository copy
   (`cp -r ~/.m2/repository <scratch>/m2repo`, `-Dmaven.repo.local=...`) so `~/.m2` stays clean. `jgdms-benchmarks` is not in the reactor: install `jgdms-jeri` and `jgdms-rmi-tls` first, then
-  `mvn -o -f jgdms-benchmarks/pom.xml -pl serialization -am -DskipTests package`; revert the regenerated `dependency-reduced-pom.xml`.
+  `mvn -o -f jgdms-benchmarks/pom.xml -pl serialization -am -DskipTests package`; ~~revert the regenerated `dependency-reduced-pom.xml`~~ (no longer generated or tracked since the commit of 2026-11-16 that sets `createDependencyReducedPom` to false in `jgdms-benchmarks/pom.xml`).
 - **Emulating a newer DirtyChai:** `-Djgdms.dirtychai.patch=<dir> -Djgdms.conformance.jdkClasses=<dir>` on `mvn -pl jgdms-platform test`; recipe in the non-conformances doc.
   A stock-JDK run: `-Djvm=/usr/lib/jvm/java-21-openjdk-amd64/bin/java`.
 - **Agents share one working tree.** `git pull --rebase` refuses while another agent has unstaged edits; use `git fetch`, check you are not behind, push a fast-forward, stage files by explicit path.
