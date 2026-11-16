@@ -23,19 +23,16 @@ import java.lang.reflect.Modifier;
 import java.nio.channels.ByteChannel;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
-import net.jini.io.context.ServerSubject;
 import net.jini.loader.pref.PreferredProxyCodebaseProvider;
 
 /**
@@ -306,16 +303,32 @@ final class SubProcessReconstructionServer {
         if (req.methodConstraints != null) {
             context.add(req.methodConstraints);
         }
-        if (req.serverPrincipals != null && req.serverPrincipals.length > 0) {
-            final Subject serverSubject = new Subject(true,
-                    new LinkedHashSet<Principal>(java.util.Arrays.asList(req.serverPrincipals)),
-                    Collections.emptySet(), Collections.emptySet());
-            context.add(new ServerSubject() {
-                @Override
-                public Subject getServerSubject() {
-                    return serverSubject;
-                }
-            });
+        // The parent routes only after pinning the proxy to exactly one
+        // authenticated principal.  A request without one takes the same path as
+        // an in-process resolve with no identity; more than one is refused.
+        if (req.serverPrincipals != null && req.serverPrincipals.length > 1) {
+            throw new RejectedHandoffException("MALFORMED_REQUEST",
+                    "Wire-handoff request carries more than one server principal;"
+                    + " the parent pins exactly one (fail-closed).");
+        }
+        final boolean pinned = req.serverPrincipals != null
+                && req.serverPrincipals.length == 1;
+        if (pinned) {
+            // The pooling key was derived from the principals the parent routed on:
+            // the identity asserted here must be the one this process serves.
+            final String derived;
+            try {
+                derived = IsolationPoolingKey.derive(req.serverPrincipals).value();
+            } catch (IOException e) {
+                throw new RejectedHandoffException("KEY_MISMATCH",
+                        "The asserted server principal derives no pooling key: "
+                        + safeMessage(e), e);
+            }
+            if (!derived.equals(ownKey.value())) {
+                throw new RejectedHandoffException("KEY_MISMATCH",
+                        "The asserted server principal does not derive this subprocess'"
+                        + " pooling key; refusing (fail-closed).");
+            }
         }
 
         Object sp;
@@ -328,9 +341,13 @@ final class SubProcessReconstructionServer {
             // ---- ResolutionContext deep in the DER/JOSS decode path) --
             // ---- now simply running inside the subprocess instead of the
             // ---- original client process.
-            sp = new PreferredProxyCodebaseProvider().resolve(
-                    req.bootstrapProxy, req.serviceProxy,
-                    subprocessRootLoader, subprocessRootLoader, context);
+            PreferredProxyCodebaseProvider provider = new PreferredProxyCodebaseProvider();
+            sp = pinned
+                    ? provider.resolvePinned(req.bootstrapProxy, req.serviceProxy,
+                            subprocessRootLoader, subprocessRootLoader, context,
+                            req.serverPrincipals[0])
+                    : provider.resolve(req.bootstrapProxy, req.serviceProxy,
+                            subprocessRootLoader, subprocessRootLoader, context);
         } catch (RuntimeException e) {
             throw new RejectedHandoffException("RECONSTRUCTION_REFUSED",
                     "Reconstruction refused: " + safeMessage(e), e);

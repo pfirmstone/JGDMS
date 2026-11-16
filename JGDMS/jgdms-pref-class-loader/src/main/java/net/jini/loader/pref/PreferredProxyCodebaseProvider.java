@@ -68,7 +68,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.Integrity;
@@ -81,7 +80,6 @@ import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.export.CodebaseAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.context.IntegrityEnforcement;
-import net.jini.io.context.ServerSubject;
 import net.jini.loader.DownloadPermission;
 import net.jini.loader.ProxyCodebaseSpi;
 import net.jini.security.Security;
@@ -1145,7 +1143,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * compatibility with both runtimes.
      *
      * @param serverPrincipals the authenticated server principals (from the
-     *                         TLS-layer {@link net.jini.io.context.ServerSubject})
+     *                         pinned identity from the proxy's own authenticated connection, see {@link ServerIdentityPin})
      * @param path             the codebase annotation string (for messages)
      * @throws SecurityException if the policy does not grant
      *                           {@code BootstrapPermission} to the principals
@@ -1515,7 +1513,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * @param localPrincipals the local client principals to scope the grant to,
      *                        or {@code null} to grant to any principal
      * @param serverPrincipals the authenticated server principals from the TLS
-     *                        layer (via {@link net.jini.io.context.ServerSubject});
+     *                        layer (the pinned identity, see {@link ServerIdentityPin});
      *                        when non-null and non-empty these are merged with
      *                        {@code localPrincipals} so that the grant is bound
      *                        to the specific service that attested to the codebase
@@ -1840,6 +1838,27 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         return (file.length() > 0 && file.charAt(file.length() - 1) == '/');
     }
 
+    /** A copy of {@code context} whose only ServerSubject holds {@code pinned}. */
+    static Collection contextWithPinnedIdentity(Collection context,
+                                                        Principal[] pinned) {
+        java.util.List<Object> routed = new java.util.ArrayList<Object>();
+        for (Object o : context) {
+            if (!(o instanceof net.jini.io.context.ServerSubject)) {
+                routed.add(o);
+            }
+        }
+        final javax.security.auth.Subject subject = new javax.security.auth.Subject(true,
+                new java.util.LinkedHashSet<Principal>(Arrays.asList(pinned)),
+                java.util.Collections.emptySet(), java.util.Collections.emptySet());
+        routed.add(new net.jini.io.context.ServerSubject() {
+            @Override
+            public javax.security.auth.Subject getServerSubject() {
+                return subject;
+            }
+        });
+        return routed;
+    }
+
     @Override
     public Object resolve(CodebaseAccessor bootstrapProxy,
 			MarshalledInstance serviceProxy,
@@ -1848,20 +1867,62 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 			Collection context) 
 	    throws IOException, ClassNotFoundException
     {
+        return resolve(bootstrapProxy, serviceProxy, parent, verifier, context, null);
+    }
+
+    /**
+     * As {@link #resolve(CodebaseAccessor, MarshalledInstance, ClassLoader,
+     * ClassLoader, Collection)}, for a caller that has already authenticated
+     * the server and holds the pinned bootstrap proxy: the identity is
+     * asserted instead of probed, and the proxy is pinned to it again.  Used by
+     * the sub-process reconstruction server, which has no stream and acts for
+     * the parent process that authenticated the server.
+     *
+     * @param pinnedIdentity the single SPIFFE or Kerberos principal the
+     *        server authenticated as
+     * @throws SecurityException if the caller lacks
+     *         {@link PinnedIdentityPermission}
+     * @throws IOException if {@code pinnedIdentity} is not a SPIFFE or
+     *         Kerberos principal
+     */
+    public Object resolvePinned(CodebaseAccessor bootstrapProxy,
+			MarshalledInstance serviceProxy,
+			ClassLoader parent,
+			ClassLoader verifier,
+			Collection context,
+			Principal pinnedIdentity)
+	    throws IOException, ClassNotFoundException
+    {
+        if (pinnedIdentity == null) {
+            throw new NullPointerException("pinnedIdentity cannot be null");
+        }
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new PinnedIdentityPermission());
+        }
+        return resolve(bootstrapProxy, serviceProxy, parent, verifier, context,
+                pinnedIdentity);
+    }
+
+    private Object resolve(CodebaseAccessor bootstrapProxy,
+			MarshalledInstance serviceProxy,
+			final ClassLoader parent,
+			ClassLoader verifier,
+			Collection context,
+			Principal assertedIdentity)
+	    throws IOException, ClassNotFoundException
+    {
 	if (context == null) throw new NullPointerException(
 		"stream context cannot be null");
 	Iterator it = context.iterator();
 	MethodConstraints mc = null;
 	IntegrityEnforcement integrityEnforcement = null;
-	Subject serverSubjectFromContext = null;
 	while(it.hasNext()){
 	    Object o = it.next();
 	    if (o instanceof MethodConstraints){
 		mc = (MethodConstraints) o;
 	    } else if (o instanceof IntegrityEnforcement){
 		integrityEnforcement = (IntegrityEnforcement) o;
-	    } else if (o instanceof ServerSubject) {
-		serverSubjectFromContext = ((ServerSubject) o).getServerSubject();
 	    }
 	}
 	if (mc != null || integrityEnforcement != null){
@@ -1871,28 +1932,48 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	    bootstrapProxy = (CodebaseAccessor) 
 		((RemoteMethodControl) bootstrapProxy).setConstraints(mc); // MinPrincipal happens here.
 	}   
+        // The identity comes from the bootstrap proxy's OWN authenticated
+        // connection, never from the stream that delivered it: a proxy relayed
+        // inside another service's stream carries that service's identity.  The
+        // proxy is pinned to the single principal the probe returns before any
+        // further call, so the connection that answers is the one probed.  No
+        // identity (null) leaves the proxy unpinned and takes the unverified
+        // path; a failed or ambiguous probe refuses (IOException).
+        final InvocationHandler exportedHandler = Proxy.getInvocationHandler(bootstrapProxy);
+        final Principal pinned;
+        if (assertedIdentity != null) {
+            // The caller has authenticated the server already: a recognised
+            // principal, as when probing, and a proxy whose handler enforces
+            // constraints, or the pin would enforce nothing.
+            if (!ServerIdentityPin.hasTrustedHandler(bootstrapProxy)) {
+                throw new IOException("cannot pin a bootstrap proxy whose invocation handler"
+                        + " is not a platform JERI handler class");
+            }
+            if (ServerIdentityPin.select(java.util.Collections.singleton(assertedIdentity))
+                    != assertedIdentity) {
+                throw new IOException("the asserted identity is not a recognised"
+                        + " principal: " + assertedIdentity);
+            }
+            pinned = assertedIdentity;
+        } else {
+            pinned = ServerIdentityPin.probe(bootstrapProxy);
+        }
+        final Principal[] serverPrincipals;
+        if (pinned != null) {
+            bootstrapProxy = ServerIdentityPin.pin(bootstrapProxy, pinned);
+            serverPrincipals = new Principal[]{pinned};
+        } else {
+            serverPrincipals = null;
+        }
 	ClassLoader loader;
 	final String path = bootstrapProxy.getClassAnnotation();
         Uri [] codebases = PreferredClassProvider.pathToURIs(path);
         final URL [] codebase = PreferredClassProvider.asURL(codebases);
-        // Extract the authenticated server principals from the TLS-layer
-        // ServerSubject injected by SslConnection.populateContext().  Using
-        // the actual authenticated identity (not client-declared
-        // ServerMinPrincipal constraints) ensures that DigestGrants are
-        // scoped to what the server *proved* during the TLS handshake.
-        final Principal[] serverPrincipals;
-        if (serverSubjectFromContext != null) {
-            Set<Principal> principals = serverSubjectFromContext.getPrincipals();
-            serverPrincipals = principals.isEmpty()
-                    ? null : principals.toArray(new Principal[0]);
-        } else {
-            serverPrincipals = null;
-        }
 
-        Key loaderKey = new Key(
-                            Proxy.getInvocationHandler(bootstrapProxy),
-                            Arrays.asList(codebases), null
-                        );
+        // The first-party shortcut is keyed by the handler as exported here.
+        // Handler equality ignores client constraints, so the pinned handler would
+        // equal it: the keys here and in CACHE do not tell identities apart.
+        Key loaderKey = new Key(exportedHandler, Arrays.asList(codebases), null);
         loader = SERVICES_EXP.get(loaderKey); // Was it exported from here?
         String loaderPath = PreferredClassProvider.getLoaderAnnotation(parent, false, null);
         if (loader == null && path != null && path.equals(loaderPath)){ // Has it unmarshalled itself?
@@ -1951,7 +2032,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         // the CACHE lookup, never after it.
         //
         // Routing key = serverPrincipals -- the identity the TLS peer
-        // *proved* during the handshake (derived above from ServerSubject),
+        // *proved* on the bootstrap proxy's own connection (the pinned identity above),
         // NOT the object/export-identity Key used for the in-process
         // ClassLoader cache below.  Isolation pools one subprocess per remote
         // SPIFFE principal, not per proxy object, so the Key class is
@@ -1966,12 +2047,20 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // in CACHE on ANY code path (normal return or exception).  The
             // SERVICES_EXP / self-unmarshal fast paths above have already
             // been given precedence (loader is still null to reach here).
+            if (serverPrincipals != null && serverPrincipals.length == 1
+                    && !ServerIdentityPin.isSpiffe(serverPrincipals[0])) {
+                // Pools are per SPIFFE principal, and only a SPIFFE principal can cross the
+                // Atomic wire to the sub-process (Kerberos and X.500 principals cannot).
+                throw new IOException("Smart-proxy isolation needs a SPIFFE server identity;"
+                    + " the server authenticated as " + serverPrincipals[0]
+                    + " (fail-closed). Codebase: " + path);
+            }
             if (serverPrincipals == null || serverPrincipals.length == 0) {
                 throw new IOException(
                     "Smart-proxy isolation is enabled ("
                     + SMART_PROXY_ISOLATION_ENABLED_PROPERTY
                     + "=true) but no authenticated server principal could be"
-                    + " derived from the TLS ServerSubject; refusing to resolve"
+                    + " established from the bootstrap proxy's own connection; refusing to resolve"
                     + " this codebase in-process (fail-closed). Codebase: " + path);
             }
             // Hand off to the isolation router.  Until T2/T4 land, the
@@ -1982,9 +2071,13 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
             // the subprocess spawn/pool/track implementation and T4 the
             // Unix-Domain-Socket wire-protocol handoff; the real router is
             // installed via setIsolationRouter(SmartProxyIsolationRouter).
+            // The hand-off reads the identity from a ServerSubject in the context it
+            // is given.  The one in this stream's context is the delivering server's,
+            // not this proxy's, so it is replaced by the pinned identity.
             return isolationRouter.route(
                     serverPrincipals, bootstrapProxy, serviceProxy,
-                    codebase, path, parent, verifier, context);
+                    codebase, path, parent, verifier,
+                    contextWithPinnedIdentity(context, serverPrincipals));
         }
 
         if (loader == null){
@@ -2156,7 +2249,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                     bootWindowHashes.append(']');
 
                     // Gate 1: BootstrapPermission check against the TLS-authenticated
-                    // server identity supplied by ServerSubject.  Absent a ServerSubject
+                    // server identity pinned above.  Absent a pinned identity
                     // (non-TLS or anonymous-server deployment) serverPrincipals is null
                     // and the gate is skipped for backward compatibility.
                     if (serverPrincipals != null && serverPrincipals.length > 0) {

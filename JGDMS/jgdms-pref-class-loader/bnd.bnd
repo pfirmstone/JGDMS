@@ -1,3 +1,4 @@
 -exportcontents: \
     net.jini.loader.pref
--sources: true
+-sources: true# ServerIdentityPin resolves the JERI handler classes by name, so bnd generates no import for them.
+DynamicImport-Package: net.jini.jeri

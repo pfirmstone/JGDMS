@@ -237,8 +237,14 @@ public class PreferredProxyCodebaseProviderIsolationTest {
     //     classload in-process.
     // ------------------------------------------------------------------
 
+    // The identity is the one probed on the bootstrap proxy's own connection,
+    // never the ServerSubject in the unmarshalling stream's context.  These
+    // proxies carry a test handler, which is not a trusted JERI handler class,
+    // so no identity can be established and isolation fails closed.  Routing
+    // WITH a probed identity needs a real SSL endpoint and is not covered here.
+
     @Test
-    public void flagOn_cacheMissNewLoaderPath_routesAndBypassesLegacy()
+    public void flagOn_cacheMissNewLoaderPath_streamSubjectIsNotAnIdentity_refuses()
             throws Exception {
         System.setProperty(FLAG, "true");
         Object sentinel = new Object();
@@ -248,40 +254,34 @@ public class PreferredProxyCodebaseProviderIsolationTest {
         int cacheBefore = cacheSize();
         int expBefore = servicesExpSize();
 
-        // parentLoader() is the test's own loader; its annotation is not PATH,
-        // so the self-unmarshal special case does NOT fire, SERVICES_EXP is a
-        // miss, and control reaches the isolation branch with loader == null.
-        Object result = new PreferredProxyCodebaseProvider().resolve(
-                accessor(PATH), null, parentLoader(), null,
-                context(subject("spiffe://example/a")));
-
-        assertSame("router result must be returned verbatim", sentinel, result);
-        assertTrue("router must have been invoked on the CACHE-miss/new-loader"
-                + " path", probe.invoked);
-        assertEquals("exactly one principal expected", 1,
-                probe.principals.length);
-        // Legacy new-loader path was NOT taken: no fresh CACHE entry, and the
-        // SERVICES_EXP map was not mutated either.
-        assertEquals("CACHE must not have gained a new-loader entry",
-                cacheBefore, cacheSize());
-        assertEquals("SERVICES_EXP must not have grown", expBefore,
-                servicesExpSize());
+        try {
+            new PreferredProxyCodebaseProvider().resolve(
+                    accessor(PATH), null, parentLoader(), null,
+                    context(subject("spiffe://example/a")));
+            fail("the stream's ServerSubject must not be taken as the server identity");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("fail-closed"));
+        }
+        assertFalse("router must not be invoked", probe.invoked);
+        assertEquals("CACHE must not have gained an entry", cacheBefore, cacheSize());
+        assertEquals("SERVICES_EXP must not have grown", expBefore, servicesExpSize());
     }
 
     @Test
-    public void flagOn_withMultiplePrincipals_routes() throws Exception {
+    public void flagOn_streamSubjectWithMultiplePrincipals_isNotAnIdentity() throws Exception {
         System.setProperty(FLAG, "true");
-        Object sentinel = new Object();
-        ProbeRouter probe = new ProbeRouter(sentinel);
+        ProbeRouter probe = new ProbeRouter(new Object());
         PreferredProxyCodebaseProvider.setIsolationRouter(probe);
 
-        Object result = new PreferredProxyCodebaseProvider().resolve(
-                accessor(PATH), null, parentLoader(), null,
-                context(subject("spiffe://example/a", "spiffe://example/b")));
-
-        assertSame(sentinel, result);
-        assertTrue(probe.invoked);
-        assertEquals(2, probe.principals.length);
+        try {
+            new PreferredProxyCodebaseProvider().resolve(
+                    accessor(PATH), null, parentLoader(), null,
+                    context(subject("spiffe://example/a", "spiffe://example/b")));
+            fail("refused");
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("fail-closed"));
+        }
+        assertFalse(probe.invoked);
     }
 
     // ------------------------------------------------------------------
@@ -399,17 +399,17 @@ public class PreferredProxyCodebaseProviderIsolationTest {
     }
 
     @Test
-    public void resolveWithDefaultRouter_flagOn_throwsUnsupported() throws Exception {
+    public void resolveWithDefaultRouter_flagOn_noProbedIdentity_refusesBeforeTheRouter()
+            throws Exception {
         System.setProperty(FLAG, "true");
-        // leave the default UnsupportedIsolationRouter installed
+        // leave the default UnsupportedIsolationRouter installed: it is never reached
         try {
             new PreferredProxyCodebaseProvider().resolve(
                     accessor(PATH), null, parentLoader(), null,
                     context(subject("spiffe://example/a")));
-            fail("expected UnsupportedOperationException from placeholder");
-        } catch (UnsupportedOperationException e) {
-            assertTrue(e.getMessage().contains("T2"));
-            assertTrue(e.getMessage().contains("T4"));
+            fail("expected a fail-closed refusal");
+        } catch (IOException e) {
+            assertTrue(e.getMessage().contains("fail-closed"));
         }
     }
 

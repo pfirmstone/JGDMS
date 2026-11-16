@@ -1836,8 +1836,9 @@ public class BasicInvocationHandler
      * endpoint exactly an {@code SslEndpoint}, {@code HttpsEndpoint} or
      * {@code KerberosEndpoint}, the transports that authenticate the server.
      * Any other handler, object endpoint or endpoint could return a forged
-     * subject.  A transport that cannot authenticate the server (TCP, HTTP,
-     * UDS) fails with {@link UnsupportedConstraintException}.
+     * subject.  For a transport that cannot authenticate the server (TCP,
+     * HTTP, UDS), or an endpoint of another class, no identity can be
+     * established and the result is empty; no connection is made.
      *
      * <p>The constraints are those of a real call to {@code method}, client
      * and server combined, plus {@link ServerAuthentication#YES} as a
@@ -1849,14 +1850,16 @@ public class BasicInvocationHandler
      *
      * @param method the method whose constraints select the connection, for
      *        example the one the caller is about to invoke; not null
-     * @return an unmodifiable, non-empty copy of the authenticated server
-     *         principals (for SSL an X500 principal and SPIFFE principals)
+     * @return an unmodifiable copy of the authenticated server principals
+     *         (for SSL an X500 principal and SPIFFE principals), non-empty
+     *         unless the transport or endpoint cannot authenticate a server,
+     *         in which case it is empty
      * @throws NullPointerException if {@code method} is null
-     * @throws SecurityException if this handler, its object endpoint or its
-     *         endpoint is not one of the platform's authenticating classes,
-     *         or the caller lacks the permission
-     * @throws UnsupportedConstraintException if the transport cannot
-     *         authenticate the server or the constraints cannot be met
+     * @throws SecurityException if this handler or its object endpoint is not
+     *         one of the platform's classes, or the caller lacks the permission
+     * @throws UnsupportedConstraintException if the constraints cannot be met
+     *         on an authenticating transport, for example because the client
+     *         is not logged on
      * @throws IOException if the connection cannot be established or does not
      *         produce exactly one authenticated server subject
      * @since 4.0.0
@@ -1881,14 +1884,10 @@ public class BasicInvocationHandler
 	    && ec != net.jini.jeri.ssl.HttpsEndpoint.class
 	    && ec != net.jini.jeri.kerberos.KerberosEndpoint.class)
 	{
-	    if (ec == net.jini.jeri.tcp.TcpEndpoint.class
-		|| ec == net.jini.jeri.http.HttpEndpoint.class
-		|| ec == net.jini.jeri.uds.UdsEndpoint.class)
-	    {
-		throw new UnsupportedConstraintException(
-		    "transport cannot authenticate the server: " + ec.getName());
-	    }
-	    throw new SecurityException("untrusted endpoint class: " + ec);
+	    // TCP, HTTP and UDS cannot authenticate a server, and an endpoint of
+	    // any other class cannot be believed if it says it did: no identity
+	    // can be established.  Nothing has been read from the connection.
+	    return Collections.emptySet();
 	}
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
