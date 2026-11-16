@@ -51,7 +51,11 @@ public final class CelRunner {
 
     /** Evaluates record {@code i} and copies the list result into {@code out}; an error outcome is a failure. */
     public void evaluateInto(int i, double[] out) {
-        EvalOutcome o = evaluate(i);
+        unpack(i, evaluate(i), out);
+    }
+
+    /** Copies the list of doubles in {@code o} into {@code out}; anything else is a failure naming record {@code i}. Shared with {@link CompiledRunner}. */
+    static void unpack(int i, EvalOutcome o, double[] out) {
         if (!(o instanceof EvalOutcome.Value v) || !(v.value() instanceof CelValue.ListV list)) {
             throw new IllegalStateException(new StringBuilder("record ").append(i).append(" did not yield a list: ")
                     .append(o).toString());

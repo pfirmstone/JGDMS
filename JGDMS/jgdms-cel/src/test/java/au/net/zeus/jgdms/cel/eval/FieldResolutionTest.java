@@ -21,7 +21,9 @@ import au.net.zeus.jgdms.cel.CelError;
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
+import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -35,7 +37,17 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FieldResolutionTest {
 
-    private static final Evaluator EVAL = new Evaluator();
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.none());
+    }
 
     private static ExprNode fieldRef(String name) {
         return new ExprNode.FieldRef(List.of(new ExprNode.SelectorStep.Unqual(name)));
@@ -57,11 +69,11 @@ class FieldResolutionTest {
                 .field("com.example.Sensor", "pressureHpa", new CelValue.DoubleV(1013.25))
                 .build();
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(fieldRef("pressureHpa"), candidate));
+                evaluator.evaluate(fieldRef("pressureHpa"), candidate));
         assertEquals(1013.25, ((CelValue.DoubleV) v.value()).value());
 
         EvalOutcome.Value hasResult = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(has((ExprNode.FieldRef) fieldRef("pressureHpa")), candidate));
+                evaluator.evaluate(has((ExprNode.FieldRef) fieldRef("pressureHpa")), candidate));
         assertTrue(((CelValue.BoolV) hasResult.value()).value());
     }
 
@@ -71,11 +83,11 @@ class FieldResolutionTest {
                 .field("com.example.Sensor", "note", CelValue.NullV.INSTANCE)
                 .build();
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(fieldRef("note"), candidate));
+                evaluator.evaluate(fieldRef("note"), candidate));
         assertInstanceOf(CelValue.NullV.class, v.value());
 
         EvalOutcome.Value hasResult = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(has((ExprNode.FieldRef) fieldRef("note")), candidate));
+                evaluator.evaluate(has((ExprNode.FieldRef) fieldRef("note")), candidate));
         assertFalse(((CelValue.BoolV) hasResult.value()).value());
     }
 
@@ -83,11 +95,11 @@ class FieldResolutionTest {
     void absent_referenceYieldsAbsentFieldError_hasIsFalse() {
         CandidateProjection candidate = FakeCandidateProjection.builder().namespace("com.example.Sensor").build();
         EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(fieldRef("batteryMv"), candidate));
+                evaluator.evaluate(fieldRef("batteryMv"), candidate));
         assertEquals(CelError.ABSENT_FIELD, e.code());
 
         EvalOutcome.Value hasResult = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(has((ExprNode.FieldRef) fieldRef("batteryMv")), candidate));
+                evaluator.evaluate(has((ExprNode.FieldRef) fieldRef("batteryMv")), candidate));
         assertFalse(((CelValue.BoolV) hasResult.value()).value());
     }
 
@@ -100,7 +112,7 @@ class FieldResolutionTest {
                 .field("com.example.Alpha", "timestamp", new CelValue.IntV(1600000000000L))
                 .build();
         EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(fieldRef("timestamp"), candidate));
+                evaluator.evaluate(fieldRef("timestamp"), candidate));
         assertEquals(CelError.AMBIGUOUS_FIELD, e.code());
     }
 
@@ -111,7 +123,7 @@ class FieldResolutionTest {
                 .field("com.example.Alpha", "timestamp", new CelValue.IntV(1600000000000L))
                 .build();
         EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(has((ExprNode.FieldRef) fieldRef("timestamp")), candidate));
+                evaluator.evaluate(has((ExprNode.FieldRef) fieldRef("timestamp")), candidate));
         assertEquals(CelError.AMBIGUOUS_FIELD, e.code());
     }
 
@@ -122,7 +134,7 @@ class FieldResolutionTest {
                 .field("com.example.Alpha", "timestamp", new CelValue.IntV(1600000000000L))
                 .build();
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(qualifiedFieldRef("com.example.Beta", "timestamp"), candidate));
+                evaluator.evaluate(qualifiedFieldRef("com.example.Beta", "timestamp"), candidate));
         assertEquals(1700000000000L, ((CelValue.IntV) v.value()).value());
     }
 
@@ -133,7 +145,7 @@ class FieldResolutionTest {
                 .field("com.example.Alpha", "timestamp", new CelValue.IntV(1600000000000L))
                 .build();
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(fieldRef("timestamp"), alphaOnly));
+                evaluator.evaluate(fieldRef("timestamp"), alphaOnly));
         assertEquals(1600000000000L, ((CelValue.IntV) v.value()).value());
     }
 
@@ -149,7 +161,7 @@ class FieldResolutionTest {
                 .build();
         ExprNode.FieldRef ab = new ExprNode.FieldRef(List.of(
                 new ExprNode.SelectorStep.Unqual("p"), new ExprNode.SelectorStep.Unqual("x")));
-        EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, EVAL.evaluate(ab, outer));
+        EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, evaluator.evaluate(ab, outer));
         assertEquals(5L, ((CelValue.IntV) v.value()).value());
     }
 
@@ -160,7 +172,7 @@ class FieldResolutionTest {
                 .build();
         ExprNode.FieldRef ab = new ExprNode.FieldRef(List.of(
                 new ExprNode.SelectorStep.Unqual("p"), new ExprNode.SelectorStep.Unqual("x")));
-        EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class, EVAL.evaluate(ab, outer));
+        EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class, evaluator.evaluate(ab, outer));
         assertEquals(CelError.ABSENT_FIELD, e.code());
     }
 
@@ -171,7 +183,7 @@ class FieldResolutionTest {
                 .build();
         ExprNode.FieldRef ab = new ExprNode.FieldRef(List.of(
                 new ExprNode.SelectorStep.Unqual("p"), new ExprNode.SelectorStep.Unqual("x")));
-        EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, EVAL.evaluate(has(ab), outer));
+        EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, evaluator.evaluate(has(ab), outer));
         assertFalse(((CelValue.BoolV) v.value()).value());
     }
 
@@ -182,7 +194,7 @@ class FieldResolutionTest {
                 .build();
         ExprNode.FieldRef ab = new ExprNode.FieldRef(List.of(
                 new ExprNode.SelectorStep.Unqual("p"), new ExprNode.SelectorStep.Unqual("x")));
-        EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class, EVAL.evaluate(ab, outer));
+        EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class, evaluator.evaluate(ab, outer));
         assertEquals(CelError.TYPE_MISMATCH, e.code());
     }
 
@@ -192,11 +204,11 @@ class FieldResolutionTest {
     void undecodableCandidate_everyAccessErrors() {
         CandidateProjection undecodable = FakeCandidateProjection.undecodable();
         EvalOutcome.Error e1 = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(fieldRef("anything"), undecodable));
+                evaluator.evaluate(fieldRef("anything"), undecodable));
         assertEquals(CelError.CANDIDATE_UNDECODABLE, e1.code());
 
         EvalOutcome.Error e2 = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(has((ExprNode.FieldRef) fieldRef("anything")), undecodable));
+                evaluator.evaluate(has((ExprNode.FieldRef) fieldRef("anything")), undecodable));
         assertEquals(CelError.CANDIDATE_UNDECODABLE, e2.code());
     }
 
@@ -206,7 +218,7 @@ class FieldResolutionTest {
     void nullEqualsNull() {
         ExprNode eq = new ExprNode.Eq(new ExprNode.LitNull(), new ExprNode.LitNull());
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(eq, FakeCandidateProjection.builder().build()));
+                evaluator.evaluate(eq, FakeCandidateProjection.builder().build()));
         assertTrue(((CelValue.BoolV) v.value()).value());
     }
 
@@ -214,7 +226,7 @@ class FieldResolutionTest {
     void nullNeverEqualsNonNullValue_regardlessOfType() {
         ExprNode eq = new ExprNode.Eq(new ExprNode.LitNull(), new ExprNode.LitInt(0));
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class,
-                EVAL.evaluate(eq, FakeCandidateProjection.builder().build()));
+                evaluator.evaluate(eq, FakeCandidateProjection.builder().build()));
         assertFalse(((CelValue.BoolV) v.value()).value());
     }
 
@@ -222,7 +234,7 @@ class FieldResolutionTest {
     void nonNullOperationOnNull_otherThanEqualityIsTypeMismatch() {
         ExprNode lt = new ExprNode.Lt(new ExprNode.LitNull(), new ExprNode.LitInt(5));
         EvalOutcome.Error e = assertInstanceOf(EvalOutcome.Error.class,
-                EVAL.evaluate(lt, FakeCandidateProjection.builder().build()));
+                evaluator.evaluate(lt, FakeCandidateProjection.builder().build()));
         assertEquals(CelError.TYPE_MISMATCH, e.code());
     }
 }

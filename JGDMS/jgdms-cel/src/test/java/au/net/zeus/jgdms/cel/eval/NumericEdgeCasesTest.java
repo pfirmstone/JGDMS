@@ -21,7 +21,9 @@ import au.net.zeus.jgdms.cel.CelError;
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
+import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,11 +36,21 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class NumericEdgeCasesTest {
 
-    private static final Evaluator EVAL = new Evaluator();
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.none());
+    }
     private static final CandidateProjection CANDIDATE = FakeCandidateProjection.builder().build();
 
-    private static EvalOutcome eval(ExprNode node) {
-        return EVAL.evaluate(node, CANDIDATE);
+    private EvalOutcome eval(ExprNode node) {
+        return evaluator.evaluate(node, CANDIDATE);
     }
 
     private static void assertError(EvalOutcome outcome, CelError expected) {
@@ -171,6 +183,23 @@ class NumericEdgeCasesTest {
         assertFalse(asBool(eval(new ExprNode.Ge(base, nan))));
         assertFalse(asBool(eval(new ExprNode.Eq(base, nan))));
         assertTrue(asBool(eval(new ExprNode.Ne(base, nan))));
+    }
+
+    /**
+     * The mirror of the test above: the double is on the LEFT. The compiled evaluator has a separate branch for
+     * that order (the int-against-double comparison is negated), and MEASURED 2026-11-14 (mutant pass): with
+     * NaN ordered against an int in that branch, ONE differential case of 20,000 failed and no named test did.
+     */
+    @Test
+    void doubleIntComparison_withNaNOnTheLeft_allOrderedFalse() {
+        ExprNode nan = new ExprNode.LitDouble(Double.NaN);
+        ExprNode base = new ExprNode.LitInt(5);
+        assertFalse(asBool(eval(new ExprNode.Lt(nan, base))));
+        assertFalse(asBool(eval(new ExprNode.Le(nan, base))));
+        assertFalse(asBool(eval(new ExprNode.Gt(nan, base))));
+        assertFalse(asBool(eval(new ExprNode.Ge(nan, base))));
+        assertFalse(asBool(eval(new ExprNode.Eq(nan, base))));
+        assertTrue(asBool(eval(new ExprNode.Ne(nan, base))));
     }
 
     private static ExprNode callAbsInt(ExprNode arg) {

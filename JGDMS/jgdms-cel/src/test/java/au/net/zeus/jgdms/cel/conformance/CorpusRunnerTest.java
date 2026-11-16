@@ -22,7 +22,7 @@ import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.eval.CandidateProjection;
-import au.net.zeus.jgdms.cel.eval.Evaluator;
+import au.net.zeus.jgdms.cel.eval.EvaluatorUnderTest;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.math.MathProviders;
 import au.net.zeus.jgdms.cel.verifier.CelVerifier;
@@ -53,6 +53,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static au.net.zeus.jgdms.cel.testsupport.Msg.msg;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -64,9 +65,15 @@ import static org.junit.jupiter.api.Assertions.fail;
  * T5 of {@code SOW-CEL-Filter-Format.md}: discovers every vector file under
  * the classpath resource {@code conformance/vectors/}, dispatches each
  * vector by its own {@code category} through the REAL public API
- * ({@link CelDecoder}, {@link CelVerifier}, {@link Evaluator}) -- never a
+ * ({@link CelDecoder}, {@link CelVerifier}, {@link
+ * au.net.zeus.jgdms.cel.eval.Evaluator}) -- never a
  * reimplementation of decode/verify/eval logic -- and asserts the exact
  * outcome the corpus's {@code expected} field pins.
+ * <p>
+ * Every {@code eval} vector runs twice, against the reference {@code Evaluator} and against the
+ * {@link au.net.zeus.jgdms.cel.eval.CompiledExpression} (the second under the name {@code <id> [compiled]}).
+ * The corpus is spec-derived, so it is the one witness for the compiled evaluator that does not come from
+ * the walker. Decode and verify vectors involve no evaluator and run once.
  * <p>
  * This class is deliberately thin: {@code conformance/CORPUS-FORMAT.md} is
  * the actual specification a Rust runner would build against; this class is
@@ -112,6 +119,10 @@ class CorpusRunnerTest {
 
     private static final String REQUIRES_CONFORMANT_TRANSCENDENTALS = "conformant-transcendentals";
 
+    private static final List<EvaluatorUnderTest.Factory> EVALUATORS =
+            List.of(EvaluatorUnderTest.WALKER, EvaluatorUnderTest.COMPILED);
+
+
     /**
      * The complete set of {@code requires} gate names this runner knows how
      * to evaluate. CORPUS-FORMAT.md Sec 2's rule: any gate name a vector
@@ -127,8 +138,8 @@ class CorpusRunnerTest {
     List<DynamicNode> conformanceCorpus() throws IOException {
         List<Path> files = discoverVectorFiles();
         assertFalse(files.isEmpty(),
-                "no corpus vector files discovered under classpath resource conformance/vectors/ "
-                        + "-- resource wiring is broken, not merely an empty corpus");
+                msg("no corpus vector files discovered under classpath resource conformance/vectors/ ",
+                        "-- resource wiring is broken, not merely an empty corpus"));
 
         List<Map<String, Object>> allVectors = new ArrayList<>();
         for (Path file : files) {
@@ -139,20 +150,20 @@ class CorpusRunnerTest {
         for (Map<String, Object> vector : allVectors) {
             Object category = vector.get("category");
             if (!(category instanceof String) || !KNOWN_CATEGORIES.contains(category)) {
-                throw new AssertionError("Unknown/missing category '" + category + "' in vector id="
-                        + vector.get("id") + " -- every vector MUST declare one of " + KNOWN_CATEGORIES);
+                throw new AssertionError(msg("Unknown/missing category '", category, "' in vector id=",
+                        vector.get("id"), " -- every vector MUST declare one of ", KNOWN_CATEGORIES));
             }
             if (!(vector.get("id") instanceof String) || !(vector.get("wireHex") instanceof String)
                     || !(vector.get("expected") instanceof Map)) {
-                throw new AssertionError("Malformed vector (missing id/wireHex/expected): " + vector);
+                throw new AssertionError(msg("Malformed vector (missing id/wireHex/expected): ", vector));
             }
             String id = (String) vector.get("id");
             if (!seenIds.add(id)) {
                 // CORPUS-FORMAT.md Sec 2: ids MUST be unique across the ENTIRE corpus, not
                 // merely within the file that declares them -- a per-file-only uniqueness
                 // check would silently miss a duplicate introduced across two vector files.
-                throw new AssertionError("Duplicate vector id across the corpus (ids MUST be "
-                        + "unique corpus-wide, not merely per file, CORPUS-FORMAT.md Sec 2): " + id);
+                throw new AssertionError(msg("Duplicate vector id across the corpus (ids MUST be ",
+                        "unique corpus-wide, not merely per file, CORPUS-FORMAT.md Sec 2): ", id));
             }
         }
 
@@ -183,29 +194,28 @@ class CorpusRunnerTest {
         for (Map.Entry<String, Integer> e : MIN_COUNTS.entrySet()) {
             int actual = counts.getOrDefault(e.getKey(), 0);
             if (actual < e.getValue()) {
-                minimumFailures.add(e.getKey() + ": " + actual + " < pinned minimum " + e.getValue());
+                minimumFailures.add(msg(e.getKey(), ": ", actual, " < pinned minimum ", e.getValue()));
             }
         }
         if (evalUnconditional < MIN_EVAL_UNCONDITIONAL) {
-            minimumFailures.add("eval (unconditional): " + evalUnconditional + " < pinned minimum " + MIN_EVAL_UNCONDITIONAL);
+            minimumFailures.add(msg("eval (unconditional): ", evalUnconditional,
+                    " < pinned minimum ", MIN_EVAL_UNCONDITIONAL));
         }
         if (evalTranscendental < MIN_EVAL_TRANSCENDENTAL) {
-            minimumFailures.add("eval (requires conformant-transcendentals): " + evalTranscendental
-                    + " < pinned minimum " + MIN_EVAL_TRANSCENDENTAL);
+            minimumFailures.add(msg("eval (requires conformant-transcendentals): ", evalTranscendental,
+                    " < pinned minimum ", MIN_EVAL_TRANSCENDENTAL));
         }
         if (!minimumFailures.isEmpty()) {
             throw new AssertionError(
-                    "Conformance corpus vector count(s) below pinned minimum -- possible silent "
-                            + "truncation (G6). Raise the corpus, or if this is a deliberate change, "
-                            + "the minimum in CorpusRunnerTest AND CORPUS-FORMAT.md Sec 4 together:\n  "
-                            + String.join("\n  ", minimumFailures));
+                    msg("Conformance corpus vector count(s) below pinned minimum -- possible silent ",
+                            "truncation (G6). Raise the corpus, or if this is a deliberate change, ",
+                            "the minimum in CorpusRunnerTest AND CORPUS-FORMAT.md Sec 4 together:\n  ",
+                            String.join("\n  ", minimumFailures)));
         }
 
         Optional<MathProvider> conformantProvider = conformantProviderIfAvailable();
         conformantProvider.ifPresent(p -> assertTrue(p.isConformant(),
                 "conformantProviderIfAvailable() returned a MathProvider not built via MathProvider.conformant(...)"));
-        Evaluator plainEvaluator = new Evaluator();
-        Evaluator conformantEvaluator = conformantProvider.map(Evaluator::new).orElse(null);
         boolean conformantAvailable = conformantProvider.isPresent();
 
         int[] skippedTranscendental = {0};
@@ -222,37 +232,45 @@ class CorpusRunnerTest {
                     skippedOther[0]++;
                 }
                 nodes.add(DynamicTest.dynamicTest(id, () -> Assumptions.assumeTrue(false,
-                        "SKIPPED: unsatisfiable requires gate(s) " + unsatisfied + " -- CORPUS-FORMAT.md Sec 2/5: "
-                                + "an unknown or currently-unavailable gate is always skipped loudly, never run, "
-                                + "never a hard suite failure"
-                                + (onlyTranscendental
+                        msg("SKIPPED: unsatisfiable requires gate(s) ", unsatisfied, " -- CORPUS-FORMAT.md Sec 2/5: ",
+                                "an unknown or currently-unavailable gate is always skipped loudly, never run, ",
+                                "never a hard suite failure",
+                                onlyTranscendental
                                         ? " (awaiting T3 phase 2 -- correctly-rounded sin/cos/tan/asin/acos/atan/atan2)"
                                         : ""))));
                 continue;
             }
+            boolean isEval = "eval".equals(vector.get("category"));
             boolean usesConformant = requiresList(vector).contains(REQUIRES_CONFORMANT_TRANSCENDENTALS);
-            Evaluator evaluatorForThisVector = usesConformant ? conformantEvaluator : plainEvaluator;
-            nodes.add(DynamicTest.dynamicTest(id, () -> runVector(vector, evaluatorForThisVector)));
+            MathProvider provider = usesConformant ? conformantProvider.orElseThrow() : MathProvider.none();
+            for (EvaluatorUnderTest.Factory factory : EVALUATORS) {
+                if (!isEval && factory != EvaluatorUnderTest.WALKER) continue; // no evaluator involved: run once
+                EvaluatorUnderTest evaluatorForThisVector = factory.create(provider);
+                String name = factory == EvaluatorUnderTest.WALKER ? id : msg(id, " [", factory.label(), "]");
+                nodes.add(DynamicTest.dynamicTest(name, () -> runVector(vector, evaluatorForThisVector)));
+            }
         }
 
-        System.out.println("=== DETERMINISTIC CEL conformance corpus: discovered " + allVectors.size() + " vectors ===");
-        counts.forEach((k, v) -> System.out.println("  " + k + ": " + v));
-        System.out.println("  eval (unconditional): " + evalUnconditional);
-        System.out.println("  eval (requires conformant-transcendentals): " + evalTranscendental);
+        System.out.println(msg("=== DETERMINISTIC CEL conformance corpus: discovered ", allVectors.size(), " vectors ==="));
+        counts.forEach((k, v) -> System.out.println(msg("  ", k, ": ", v)));
+        System.out.println(msg("  eval (unconditional): ", evalUnconditional));
+        System.out.println(msg("  eval (requires conformant-transcendentals): ", evalTranscendental));
         if (evalOtherGated > 0) {
-            System.out.println("  eval (requires an unrecognized/other gate): " + evalOtherGated);
+            System.out.println(msg("  eval (requires an unrecognized/other gate): ", evalOtherGated));
         }
         if (conformantProvider.isPresent()) {
-            System.out.println("MathProvider.conformant(...) IS installed -- all " + evalTranscendental
-                    + " conformant-transcendentals vectors will be RUN, not skipped.");
+            System.out.println(msg("MathProvider.conformant(...) IS installed -- all ", evalTranscendental,
+                    " conformant-transcendentals vectors will be RUN, not skipped."));
         } else {
-            System.out.println("SKIPPED " + skippedTranscendental[0] + " eval vectors requiring conformant-transcendentals: "
-                    + "MathProvider.none() in effect, no MathProvider.conformant(...) provider available "
-                    + "(awaiting T3 phase 2).");
+            System.out.println(msg("SKIPPED ", skippedTranscendental[0],
+                    " eval vectors requiring conformant-transcendentals: ",
+                    "MathProvider.none() in effect, no MathProvider.conformant(...) provider available ",
+                    "(awaiting T3 phase 2)."));
         }
         if (skippedOther[0] > 0) {
-            System.out.println("SKIPPED " + skippedOther[0] + " vector(s) requiring an unrecognized/unsatisfiable "
-                    + "gate (CORPUS-FORMAT.md Sec 2) -- see each vector's own SKIPPED assumption message for the gate name.");
+            System.out.println(msg("SKIPPED ", skippedOther[0], " vector(s) requiring an unrecognized/unsatisfiable ",
+                    "gate (CORPUS-FORMAT.md Sec 2) -- see each vector's own SKIPPED assumption message ",
+                    "for the gate name."));
         }
 
         return nodes;
@@ -297,7 +315,7 @@ class CorpusRunnerTest {
         if (REQUIRES_CONFORMANT_TRANSCENDENTALS.equals(gate)) {
             return conformantProviderAvailable;
         }
-        throw new IllegalStateException("KNOWN_GATE_NAMES contains a gate with no satisfiability rule wired up: " + gate);
+        throw new IllegalStateException(msg("KNOWN_GATE_NAMES contains a gate with no satisfiability rule wired up: ", gate));
     }
 
     /**
@@ -336,8 +354,8 @@ class CorpusRunnerTest {
         Map<String, Object> vector = Map.of("requires", List.of("some-future-gate-nobody-has-defined-yet"));
         assertEquals(List.of("some-future-gate-nobody-has-defined-yet"), unsatisfiedGates(vector, false));
         assertEquals(List.of("some-future-gate-nobody-has-defined-yet"), unsatisfiedGates(vector, true),
-                "an unrecognized gate name must stay unsatisfiable even when a conformant "
-                        + "MathProvider happens to be installed -- satisfiability is per-gate-name, not global");
+                msg("an unrecognized gate name must stay unsatisfiable even when a conformant ",
+                        "MathProvider happens to be installed -- satisfiability is per-gate-name, not global"));
     }
 
     @Test
@@ -360,8 +378,8 @@ class CorpusRunnerTest {
     private static List<Path> discoverVectorFiles() throws IOException {
         URL url = CorpusRunnerTest.class.getClassLoader().getResource("conformance/vectors");
         if (url == null) {
-            throw new AssertionError("classpath resource \"conformance/vectors\" was not found -- "
-                    + "test-resource wiring is broken (expected under src/test/resources/conformance/vectors)");
+            throw new AssertionError(msg("classpath resource \"conformance/vectors\" was not found -- ",
+                    "test-resource wiring is broken (expected under src/test/resources/conformance/vectors)"));
         }
         Path dir;
         try {
@@ -383,15 +401,15 @@ class CorpusRunnerTest {
         try {
             parsed = MiniJson.parse(text);
         } catch (RuntimeException e) {
-            throw new AssertionError("Malformed corpus JSON in " + file + ": " + e.getMessage(), e);
+            throw new AssertionError(msg("Malformed corpus JSON in ", file, ": ", e.getMessage()), e);
         }
         if (!(parsed instanceof List)) {
-            throw new AssertionError("Malformed corpus file " + file + ": top-level JSON value must be an array");
+            throw new AssertionError(msg("Malformed corpus file ", file, ": top-level JSON value must be an array"));
         }
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object element : (List<Object>) parsed) {
             if (!(element instanceof Map)) {
-                throw new AssertionError("Malformed vector in " + file + ": array element is not a JSON object: " + element);
+                throw new AssertionError(msg("Malformed vector in ", file, ": array element is not a JSON object: ", element));
             }
             result.add((Map<String, Object>) element);
         }
@@ -403,7 +421,7 @@ class CorpusRunnerTest {
     // ==========================================================================
 
     @SuppressWarnings("unchecked")
-    private void runVector(Map<String, Object> vector, Evaluator evaluatorForEval) throws Exception {
+    private void runVector(Map<String, Object> vector, EvaluatorUnderTest evaluatorForEval) throws Exception {
         String category = (String) vector.get("category");
         byte[] wire = Bits.hexToBytes((String) vector.get("wireHex"));
         Map<String, Object> expected = (Map<String, Object>) vector.get("expected");
@@ -414,7 +432,7 @@ class CorpusRunnerTest {
             case "verify-accept-defer" -> runVerify(wire, vector, expected);
             case "verify-accept" -> runVerify(wire, vector, expected);
             case "eval" -> runEval(wire, vector, expected, evaluatorForEval);
-            default -> throw new AssertionError("unknown category (should have been caught earlier): " + category);
+            default -> throw new AssertionError(msg("unknown category (should have been caught earlier): ", category));
         }
     }
 
@@ -423,7 +441,7 @@ class CorpusRunnerTest {
         try {
             record = CelDecoder.decode(wire);
         } catch (CelDecodeException e) {
-            throw new AssertionError("expected decode-accept but CelDecoder rejected: " + e.getMessage(), e);
+            throw new AssertionError(msg("expected decode-accept but CelDecoder rejected: ", e.getMessage()), e);
         }
         assertEquals("accept", expected.get("outcome"));
         Object expectedContext = expected.get("context");
@@ -440,7 +458,7 @@ class CorpusRunnerTest {
     private void runDecodeReject(byte[] wire, Map<String, Object> expected) {
         assertEquals("reject", expected.get("outcome"));
         assertThrows(CelDecodeException.class, () -> CelDecoder.decode(wire),
-                "expected decode-reject (reasonClass=" + expected.get("reasonClass") + ") but decode succeeded");
+                msg("expected decode-reject (reasonClass=", expected.get("reasonClass"), ") but decode succeeded"));
     }
 
     @SuppressWarnings("unchecked")
@@ -452,25 +470,26 @@ class CorpusRunnerTest {
 
         String outcome = (String) expected.get("outcome");
         switch (outcome) {
-            case "accept" -> assertTrue(result.accepted(), () -> "expected accept but rejected: "
-                    + (result.accepted() ? "" : result.reason() + " -- " + result.diagnostic()));
+            case "accept" -> assertTrue(result.accepted(), () -> msg("expected accept but rejected: ",
+                    result.accepted() ? "" : msg(result.reason(), " -- ", result.diagnostic())));
             case "reject" -> {
-                assertFalse(result.accepted(), "expected reject but accepted (cost=" + result.cost() + ")");
+                assertFalse(result.accepted(), msg("expected reject but accepted (cost=", result.cost(), ")"));
                 assertEquals(expected.get("reason"), result.reason().name(), "verify rejection reason mismatch");
             }
-            default -> fail("unknown verify expected outcome: " + outcome);
+            default -> fail(msg("unknown verify expected outcome: ", outcome));
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void runEval(byte[] wire, Map<String, Object> vector, Map<String, Object> expected, Evaluator evaluator)
+    private void runEval(byte[] wire, Map<String, Object> vector, Map<String, Object> expected,
+            EvaluatorUnderTest evaluator)
             throws CelDecodeException {
         CelFilterRecord record;
         try {
             record = CelDecoder.decode(wire);
         } catch (CelDecodeException e) {
-            throw new AssertionError("eval vector's own wireHex failed to decode -- malformed corpus vector "
-                    + "(id=" + vector.get("id") + "): " + e.getMessage(), e);
+            throw new AssertionError(msg("eval vector's own wireHex failed to decode -- malformed corpus vector ",
+                    "(id=", vector.get("id"), "): ", e.getMessage()), e);
         }
         CandidateProjection candidate = PureCandidateProjection.fromJson((Map<String, Object>) vector.get("candidate"));
         EvalOutcome outcome = evaluator.evaluate(record.expression(), candidate);
@@ -478,18 +497,18 @@ class CorpusRunnerTest {
         String expOutcome = (String) expected.get("outcome");
         switch (expOutcome) {
             case "value" -> {
-                assertTrue(outcome.isValue(), () -> "expected a value but got error "
-                        + (outcome.isError() ? outcome.errorOrThrow() : ""));
+                assertTrue(outcome.isValue(), () -> msg("expected a value but got error ",
+                        outcome.isError() ? outcome.errorOrThrow() : ""));
                 assertValueMatches(expected, outcome.valueOrThrow());
                 assertNeverCostBoundWhenVerifiedAccepted(wire, outcome);
             }
             case "error" -> {
-                assertTrue(outcome.isError(), () -> "expected error " + expected.get("code") + " but got value "
-                        + (outcome.isValue() ? outcome.valueOrThrow() : ""));
+                assertTrue(outcome.isError(), () -> msg("expected error ", expected.get("code"), " but got value ",
+                        outcome.isValue() ? outcome.valueOrThrow() : ""));
                 CelError expectedCode = CelError.valueOf((String) expected.get("code"));
                 assertEquals(expectedCode, outcome.errorOrThrow(), "eval error code mismatch");
             }
-            default -> fail("unknown eval expected outcome: " + expOutcome);
+            default -> fail(msg("unknown eval expected outcome: ", expOutcome));
         }
     }
 
@@ -511,8 +530,8 @@ class CorpusRunnerTest {
         VerificationResult verification = CelVerifier.verify(wire);
         if (verification.accepted()) {
             assertFalse(outcome.isError() && outcome.errorOrThrow() == CelError.COST_BOUND,
-                    "STD-011 Sec 10.5 violation: CelVerifier.verify(wire) accepted this expression "
-                            + "(cost statically bounded under maxExprCost) but evaluation yielded COST_BOUND anyway");
+                    msg("STD-011 Sec 10.5 violation: CelVerifier.verify(wire) accepted this expression ",
+                            "(cost statically bounded under maxExprCost) but evaluation yielded COST_BOUND anyway"));
         }
     }
 
@@ -520,33 +539,33 @@ class CorpusRunnerTest {
         String type = (String) expected.get("type");
         switch (type) {
             case "BOOL" -> {
-                assertTrue(actual instanceof CelValue.BoolV, () -> "expected BOOL, got " + actual);
+                assertTrue(actual instanceof CelValue.BoolV, () -> msg("expected BOOL, got ", actual));
                 assertEquals(expected.get("value"), ((CelValue.BoolV) actual).value());
             }
             case "INT" -> {
-                assertTrue(actual instanceof CelValue.IntV, () -> "expected INT, got " + actual);
+                assertTrue(actual instanceof CelValue.IntV, () -> msg("expected INT, got ", actual));
                 long expectedValue = Long.parseLong((String) expected.get("value"));
                 assertEquals(expectedValue, ((CelValue.IntV) actual).value());
             }
             case "DOUBLE" -> {
-                assertTrue(actual instanceof CelValue.DoubleV, () -> "expected DOUBLE, got " + actual);
+                assertTrue(actual instanceof CelValue.DoubleV, () -> msg("expected DOUBLE, got ", actual));
                 long expectedBits = Bits.parseUnsignedHexLong((String) expected.get("value"));
                 long actualBits = Double.doubleToRawLongBits(((CelValue.DoubleV) actual).value());
                 assertEquals(expectedBits, actualBits, () -> String.format(
                         "double bit-pattern mismatch: expected 0x%016x, got 0x%016x", expectedBits, actualBits));
             }
             case "STRING" -> {
-                assertTrue(actual instanceof CelValue.StringV, () -> "expected STRING, got " + actual);
+                assertTrue(actual instanceof CelValue.StringV, () -> msg("expected STRING, got ", actual));
                 assertEquals(expected.get("value"), ((CelValue.StringV) actual).value());
             }
             case "BYTES" -> {
-                assertTrue(actual instanceof CelValue.BytesV, () -> "expected BYTES, got " + actual);
+                assertTrue(actual instanceof CelValue.BytesV, () -> msg("expected BYTES, got ", actual));
                 assertArrayEquals(Bits.hexToBytes((String) expected.get("value")), ((CelValue.BytesV) actual).value());
             }
-            case "NULL" -> assertTrue(actual instanceof CelValue.NullV, () -> "expected NULL, got " + actual);
+            case "NULL" -> assertTrue(actual instanceof CelValue.NullV, () -> msg("expected NULL, got ", actual));
             case "LIST" -> assertListMatches(expected, actual);
             case "OBJECT" -> assertObjectMatches(expected, actual);
-            default -> fail("unsupported expected value \"type\" in eval vector: " + type);
+            default -> fail(msg("unsupported expected value \"type\" in eval vector: ", type));
         }
     }
 
@@ -563,7 +582,7 @@ class CorpusRunnerTest {
      */
     @SuppressWarnings("unchecked")
     private void assertListMatches(Map<String, Object> expected, CelValue actual) {
-        assertTrue(actual instanceof CelValue.ListV, () -> "expected LIST, got " + actual);
+        assertTrue(actual instanceof CelValue.ListV, () -> msg("expected LIST, got ", actual));
         CelValue.ListV listValue = (CelValue.ListV) actual;
         String elementType = (String) expected.get("elementType");
         assertEquals(elementType, listValue.elementType().name(), "list elementType mismatch");
@@ -592,7 +611,7 @@ class CorpusRunnerTest {
      */
     @SuppressWarnings("unchecked")
     private void assertObjectMatches(Map<String, Object> expected, CelValue actual) {
-        assertTrue(actual instanceof CelValue.ObjectV, () -> "expected OBJECT, got " + actual);
+        assertTrue(actual instanceof CelValue.ObjectV, () -> msg("expected OBJECT, got ", actual));
         CandidateProjection projection = ((CelValue.ObjectV) actual).projection();
         Map<String, Object> projectionJson = (Map<String, Object>) expected.get("projection");
         List<Object> expectedChain = (List<Object>) projectionJson.getOrDefault("namespaceChain", List.of());
@@ -604,7 +623,7 @@ class CorpusRunnerTest {
             for (Map.Entry<String, Object> fieldEntry : perClass.entrySet()) {
                 String fieldName = fieldEntry.getKey();
                 assertTrue(projection.declaresField(className, fieldName),
-                        () -> "expected nested field " + className + "." + fieldName + " to be declared");
+                        () -> msg("expected nested field ", className, ".", fieldName, " to be declared"));
                 Map<String, Object> fieldTypedValue = (Map<String, Object>) fieldEntry.getValue();
                 assertValueMatches(fieldTypedValue, projection.fieldValue(className, fieldName));
             }

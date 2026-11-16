@@ -20,7 +20,9 @@ package au.net.zeus.jgdms.cel.eval;
 import au.net.zeus.jgdms.cel.CelValue;
 import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
+import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,7 +34,17 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class NaNSignedZeroTest {
 
-    private static final Evaluator EVAL = new Evaluator();
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.none());
+    }
     private static final CandidateProjection CANDIDATE = FakeCandidateProjection.builder().build();
 
     private static boolean asBool(EvalOutcome outcome) {
@@ -40,8 +52,8 @@ class NaNSignedZeroTest {
         return assertInstanceOf(CelValue.BoolV.class, v.value()).value();
     }
 
-    private static EvalOutcome eval(ExprNode node) {
-        return EVAL.evaluate(node, CANDIDATE);
+    private EvalOutcome eval(ExprNode node) {
+        return evaluator.evaluate(node, CANDIDATE);
     }
 
     @Test
@@ -169,7 +181,7 @@ class NaNSignedZeroTest {
                 .build();
         ExprNode fieldRef = new ExprNode.FieldRef(java.util.List.of(new ExprNode.SelectorStep.Unqual("x")));
 
-        EvalOutcome outcome = EVAL.evaluate(fieldRef, candidate);
+        EvalOutcome outcome = evaluator.evaluate(fieldRef, candidate);
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, outcome);
         CelValue.DoubleV d = assertInstanceOf(CelValue.DoubleV.class, v.value());
         assertEquals(CelValue.DoubleV.CANONICAL_NAN_BITS, Double.doubleToRawLongBits(d.value()),
@@ -202,7 +214,7 @@ class NaNSignedZeroTest {
         ExprNode fieldRef = new ExprNode.FieldRef(java.util.List.of(new ExprNode.SelectorStep.Unqual("x")));
         ExprNode addZero = new ExprNode.Add(fieldRef, new ExprNode.LitDouble(0.0));
 
-        EvalOutcome outcome = EVAL.evaluate(addZero, candidate);
+        EvalOutcome outcome = evaluator.evaluate(addZero, candidate);
         EvalOutcome.Value v = assertInstanceOf(EvalOutcome.Value.class, outcome);
         CelValue.DoubleV d = assertInstanceOf(CelValue.DoubleV.class, v.value());
         assertEquals(CelValue.DoubleV.CANONICAL_NAN_BITS, Double.doubleToRawLongBits(d.value()),

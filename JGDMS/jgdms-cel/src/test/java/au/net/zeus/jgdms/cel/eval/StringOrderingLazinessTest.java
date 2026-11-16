@@ -22,6 +22,7 @@ import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -37,7 +38,17 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class StringOrderingLazinessTest {
 
-    private static final Evaluator EVAL = new Evaluator(MathProvider.nonConformantForTestingOnly());
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.nonConformantForTestingOnly());
+    }
     private static final CandidateProjection EMPTY = FakeCandidateProjection.builder().build();
 
     // ---- reference (the ORIGINAL eager algorithm, kept here as the oracle) ----------
@@ -54,14 +65,14 @@ class StringOrderingLazinessTest {
     }
 
     /** Drives the real (lazy) comparator through the Evaluator's ordering ops, returning -1/0/+1. */
-    private static int evalCompareSign(String a, String b) {
+    private int evalCompareSign(String a, String b) {
         ExprNode la = new ExprNode.LitString(a);
         ExprNode lb = new ExprNode.LitString(b);
-        boolean lt = boolOf(EVAL.evaluate(new ExprNode.Lt(la, lb), EMPTY));
-        boolean gt = boolOf(EVAL.evaluate(new ExprNode.Gt(la, lb), EMPTY));
+        boolean lt = boolOf(evaluator.evaluate(new ExprNode.Lt(la, lb), EMPTY));
+        boolean gt = boolOf(evaluator.evaluate(new ExprNode.Gt(la, lb), EMPTY));
         // Cross-check the non-strict forms are internally consistent with lt/gt.
-        boolean le = boolOf(EVAL.evaluate(new ExprNode.Le(la, lb), EMPTY));
-        boolean ge = boolOf(EVAL.evaluate(new ExprNode.Ge(la, lb), EMPTY));
+        boolean le = boolOf(evaluator.evaluate(new ExprNode.Le(la, lb), EMPTY));
+        boolean ge = boolOf(evaluator.evaluate(new ExprNode.Ge(la, lb), EMPTY));
         assertEquals(lt || !gt, le, "le must equal (lt or equal)");
         assertEquals(gt || !lt, ge, "ge must equal (gt or equal)");
         assertFalse(lt && gt, "lt and gt cannot both hold");
@@ -98,14 +109,16 @@ class StringOrderingLazinessTest {
                 {astral0, astral1},             // two distinct astral code points, share leading surrogate
                 {astral1, astral0},
                 {astral0, "�"},            // astral vs high-BMP: code-point order != UTF-16 order (see dedicated test)
-                {"a" + astral0 + "b", "a" + astral0 + "c"}, // differ AFTER an astral char
+                {new StringBuilder("a").append(astral0).append("b").toString(),
+                        new StringBuilder("a").append(astral0).append("c").toString()}, // differ AFTER an astral char
                 {"z", astral0},                 // 'z'(122) < astral(128512): NOT UTF-16 order
         };
         for (String[] p : pairs) {
             int expected = Integer.signum(referenceCompareCodePoints(p[0], p[1]));
             int actual = evalCompareSign(p[0], p[1]);
             assertEquals(expected, actual,
-                    () -> "code-point order mismatch for [" + p[0] + "] vs [" + p[1] + "]");
+                    () -> new StringBuilder("code-point order mismatch for [").append(p[0]).append("] vs [")
+                            .append(p[1]).append("]").toString());
         }
     }
 
@@ -138,15 +151,15 @@ class StringOrderingLazinessTest {
     void largeStrings_differAtFirstCodePoint_correctAndBounded() {
         int n = 800_000;
         String base = "a".repeat(n);
-        String differsAtZero = "b" + "a".repeat(n - 1); // differs only at index 0
+        String differsAtZero = new StringBuilder("b").append("a".repeat(n - 1)).toString(); // differs only at index 0
         assertEquals(-1, evalCompareSign(base, differsAtZero), "'a...' < 'b...'");
         assertEquals(1, evalCompareSign(differsAtZero, base));
 
         // Astral operands differing at the very first code point exercise the
         // surrogate-advance path on large input without full materialisation.
         String astralBig = new String(Character.toChars(0x1F600)).repeat(n / 2);
-        String astralBigHigher = new String(Character.toChars(0x1F601))
-                + new String(Character.toChars(0x1F600)).repeat(n / 2 - 1);
+        String astralBigHigher = new StringBuilder(new String(Character.toChars(0x1F601)))
+                .append(new String(Character.toChars(0x1F600)).repeat(n / 2 - 1)).toString();
         assertEquals(-1, evalCompareSign(astralBig, astralBigHigher));
         assertEquals(1, evalCompareSign(astralBigHigher, astralBig));
     }
@@ -159,7 +172,7 @@ class StringOrderingLazinessTest {
     void largeStrings_prefixOfLonger_ordersShorterFirst() {
         int n = 500_000;
         String shorter = "a".repeat(n);
-        String longer = shorter + "a"; // identical prefix, longer by one code point
+        String longer = new StringBuilder(shorter).append("a").toString(); // identical prefix, longer by one code point
         assertEquals(-1, evalCompareSign(shorter, longer));
         assertEquals(1, evalCompareSign(longer, shorter));
         assertEquals(0, evalCompareSign(shorter, shorter));
@@ -180,11 +193,10 @@ class StringOrderingLazinessTest {
         // Two independent occurrences of size(s) in one predicate: size(s) == size(s).
         ExprNode predicate = new ExprNode.Eq(sizeOfField("s"), sizeOfField("s"));
 
-        Evaluator evaluator = new Evaluator(MathProvider.nonConformantForTestingOnly());
         EvalOutcome outcome = evaluator.evaluate(predicate, candidate);
 
         assertTrue(boolOf(outcome), "size(s) == size(s) is true");
-        assertEquals(1, evaluator.sizeStringComputationCountForTesting(),
+        assertEquals(1, evaluator.sizeStringComputations(),
                 "code-point count must be computed once per candidate field, not once per size() occurrence");
     }
 
@@ -199,21 +211,60 @@ class StringOrderingLazinessTest {
                 new ExprNode.Add(new ExprNode.Add(sizeOfField("s"), sizeOfField("t")), sizeOfField("s")),
                 new ExprNode.LitInt(12)); // 5 + 2 + 5
 
-        Evaluator evaluator = new Evaluator(MathProvider.nonConformantForTestingOnly());
         EvalOutcome outcome = evaluator.evaluate(predicate, candidate);
 
         assertTrue(boolOf(outcome));
-        assertEquals(2, evaluator.sizeStringComputationCountForTesting(),
+        assertEquals(2, evaluator.sizeStringComputations(),
                 "two distinct field strings => exactly two O(len) scans, despite three size() occurrences");
+    }
+
+    /**
+     * Two different SPELLINGS of one field ({@code s} and {@code com.example.X.s}) are different AST nodes, so
+     * structural merging cannot join them; only the identity memo, which keys on the String the projection
+     * returns for the same query, can. The same-spelling tests above are satisfied by merging alone (design
+     * section 9 item 3) and cannot tell whether the identity memo works.
+     */
+    @Test
+    void sizeString_twoSpellingsOfOneField_scanOnce() {
+        CandidateProjection candidate = FakeCandidateProjection.builder()
+                .field("com.example.X", "s", new CelValue.StringV("hello"))
+                .build();
+        ExprNode qualified = new ExprNode.Call(1, List.of(new ExprNode.FieldRef(
+                List.of(new ExprNode.SelectorStep.Qual("com.example.X", "s")))));
+        ExprNode predicate = new ExprNode.Eq(sizeOfField("s"), qualified);
+
+        EvalOutcome outcome = evaluator.evaluate(predicate, candidate);
+
+        assertTrue(boolOf(outcome), "size(s) == size(com.example.X.s) is true: both are the same field");
+        assertEquals(1, evaluator.sizeStringComputations(),
+                "one String instance reached through two spellings must be scanned once");
+    }
+
+    /**
+     * The identity memo is keyed on the String instance, not its content: two fields holding equal content in
+     * different instances are two scans. Guards against a memo that quietly became a content map.
+     */
+    @Test
+    void sizeString_equalContentDistinctInstances_scanTwice() {
+        CandidateProjection candidate = FakeCandidateProjection.builder()
+                .field("com.example.X", "s", new CelValue.StringV(new String("hello".toCharArray())))
+                .field("com.example.X", "t", new CelValue.StringV(new String("hello".toCharArray())))
+                .build();
+
+        EvalOutcome outcome = evaluator.evaluate(new ExprNode.Eq(sizeOfField("s"), sizeOfField("t")), candidate);
+
+        assertTrue(boolOf(outcome));
+        assertEquals(2, evaluator.sizeStringComputations(),
+                "equal content in distinct String instances is counted independently, as the walker does");
     }
 
     @Test
     void sizeString_valueUnchanged_isCodePointCount() {
         // Guards that memoization did not alter the returned value: still code points, not UTF-16 units.
         CandidateProjection candidate = FakeCandidateProjection.builder()
-                .field("com.example.X", "s", new CelValue.StringV(new String(Character.toChars(0x1F600)) + "ab"))
+                .field("com.example.X", "s", new CelValue.StringV(
+                        new StringBuilder(new String(Character.toChars(0x1F600))).append("ab").toString()))
                 .build();
-        Evaluator evaluator = new Evaluator(MathProvider.nonConformantForTestingOnly());
         EvalOutcome outcome = evaluator.evaluate(
                 new ExprNode.Eq(sizeOfField("s"), new ExprNode.LitInt(3)), candidate); // 1 astral + 2 = 3 code points
         assertTrue(boolOf(outcome), "size of one astral char + 'ab' is 3 code points (not 4 UTF-16 units)");

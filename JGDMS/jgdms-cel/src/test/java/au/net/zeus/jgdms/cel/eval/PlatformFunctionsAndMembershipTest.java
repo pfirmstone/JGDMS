@@ -24,6 +24,7 @@ import au.net.zeus.jgdms.cel.EvalOutcome;
 import au.net.zeus.jgdms.cel.ast.ExprNode;
 import au.net.zeus.jgdms.cel.math.MathProvider;
 import au.net.zeus.jgdms.cel.testsupport.FakeCandidateProjection;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -37,11 +38,21 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class PlatformFunctionsAndMembershipTest {
 
-    private static final Evaluator EVAL = new Evaluator(MathProvider.nonConformantForTestingOnly());
+    /** The tests are written once; the compiled-evaluator subclass overrides this to run them again. */
+    EvaluatorUnderTest.Factory evaluators() {
+        return EvaluatorUnderTest.WALKER;
+    }
+
+    private EvaluatorUnderTest evaluator;
+
+    @BeforeEach
+    void createEvaluator() {
+        evaluator = evaluators().create(MathProvider.nonConformantForTestingOnly());
+    }
     private static final CandidateProjection CANDIDATE = FakeCandidateProjection.builder().build();
 
-    private static EvalOutcome eval(ExprNode node) {
-        return EVAL.evaluate(node, CANDIDATE);
+    private EvalOutcome eval(ExprNode node) {
+        return evaluator.evaluate(node, CANDIDATE);
     }
 
     private static ExprNode call(int id, ExprNode... args) {
@@ -134,6 +145,22 @@ class PlatformFunctionsAndMembershipTest {
         double max = asDouble(eval(call(11, negZero, posZero)));
         assertTrue(1.0 / min < 0, "min(-0.0, 0.0) MUST be -0.0");
         assertTrue(1.0 / max > 0, "max(-0.0, 0.0) MUST be +0.0");
+    }
+
+    /**
+     * The pin above is tried in ONE argument order, and a comparison-based {@code x > y ? x : y} gives +0.0 for
+     * (-0.0, 0.0) but -0.0 for (0.0, -0.0). MEASURED 2026-11-14 (mutant pass): the compiled evaluator with that
+     * max passed all 1,315 tests, and the differential corpus failed 0 of 20,000 cases. The same shape of min is
+     * caught only because (-0.0, 0.0) happens to be its wrong order. Both orders, both functions.
+     */
+    @Test
+    void minMaxDouble_signedZeroPinned_inBothArgumentOrders() {
+        ExprNode negZero = new ExprNode.LitDouble(-0.0);
+        ExprNode posZero = new ExprNode.LitDouble(0.0);
+        assertTrue(1.0 / asDouble(eval(call(9, posZero, negZero))) < 0, "min(0.0, -0.0) MUST be -0.0");
+        assertTrue(1.0 / asDouble(eval(call(9, negZero, posZero))) < 0, "min(-0.0, 0.0) MUST be -0.0");
+        assertTrue(1.0 / asDouble(eval(call(11, posZero, negZero))) > 0, "max(0.0, -0.0) MUST be +0.0");
+        assertTrue(1.0 / asDouble(eval(call(11, negZero, posZero))) > 0, "max(-0.0, 0.0) MUST be +0.0");
     }
 
     @Test
@@ -270,7 +297,7 @@ class PlatformFunctionsAndMembershipTest {
         ExprNode.InListOperand listField = new ExprNode.InListOperand.FieldList(
                 new ExprNode.FieldRef(List.of(new ExprNode.SelectorStep.Unqual("tags"))));
         ExprNode inExpr = new ExprNode.In(new ExprNode.LitString("x"), listField);
-        EvalOutcome outcome = EVAL.evaluate(inExpr, candidate);
+        EvalOutcome outcome = evaluator.evaluate(inExpr, candidate);
         assertFalse(((CelValue.BoolV) ((EvalOutcome.Value) outcome).value()).value());
     }
 

@@ -36,6 +36,12 @@ import java.util.List;
  * pure function of its arguments, or a read-only query against a {@link
  * CandidateProjection}.
  * <p>
+ * This is the <b>reference implementation</b>: {@link CompiledExpression} must
+ * reproduce its outcomes, its evaluation order and its exceptions, and the
+ * differential test holds it to that. A change to a semantic rule is made here
+ * and in {@code CelSemantics} first; the compiled evaluator follows, and the
+ * differential test shows whether it did.
+ * <p>
  * <b>Numeric implementation traps this class deliberately avoids</b> (each
  * named at its definition site in STD-011, restated here because getting any
  * one of them wrong silently breaks determinism, §9.1):
@@ -53,7 +59,7 @@ import java.util.List;
  *   <li>{@code int}x{@code double} comparison: the exact algorithm of
  *       §4.3.3, never a lossy {@code (double) intValue} widening.</li>
  *   <li>String ordering: by Unicode code point (a lazy, {@code O(min)}
- *       lockstep {@code codePointAt} scan -- see {@link #compareCodePoints}),
+ *       lockstep {@code codePointAt} scan -- see {@link CelSemantics#compareCodePoints}),
  *       never {@code String#compareTo} (UTF-16 code-unit order) and never a
  *       full {@code codePoints().toArray()} materialisation (§4.4).</li>
  *   <li>{@code int(x: double)}: NaN/±Inf and out-of-range magnitude checked
@@ -373,10 +379,10 @@ public final class Evaluator {
             return ld.value() == rd.value() ? EqResult.EQUAL : EqResult.NOT_EQUAL;
         }
         if (l instanceof CelValue.IntV li2 && r instanceof CelValue.DoubleV rd2) {
-            return intDoubleEqual(li2.value(), rd2.value()) ? EqResult.EQUAL : EqResult.NOT_EQUAL;
+            return CelSemantics.intDoubleEqual(li2.value(), rd2.value()) ? EqResult.EQUAL : EqResult.NOT_EQUAL;
         }
         if (l instanceof CelValue.DoubleV ld2 && r instanceof CelValue.IntV ri2) {
-            return intDoubleEqual(ri2.value(), ld2.value()) ? EqResult.EQUAL : EqResult.NOT_EQUAL;
+            return CelSemantics.intDoubleEqual(ri2.value(), ld2.value()) ? EqResult.EQUAL : EqResult.NOT_EQUAL;
         }
         if (l instanceof CelValue.StringV ls && r instanceof CelValue.StringV rs) {
             return ls.value().equals(rs.value()) ? EqResult.EQUAL : EqResult.NOT_EQUAL;
@@ -428,20 +434,20 @@ public final class Evaluator {
             };
         }
         if (l instanceof CelValue.IntV li2 && r instanceof CelValue.DoubleV rd2) {
-            Integer c = compareIntDoubleExact(li2.value(), rd2.value());
-            if (c == null) return false; // rd2 is NaN
+            int c = CelSemantics.compareIntDoubleExact(li2.value(), rd2.value());
+            if (c == CelSemantics.UNORDERED) return false; // rd2 is NaN
             return applyOrder(c, op);
         }
         if (l instanceof CelValue.DoubleV ld2 && r instanceof CelValue.IntV ri2) {
-            Integer c = compareIntDoubleExact(ri2.value(), ld2.value());
-            if (c == null) return false; // ld2 is NaN
+            int c = CelSemantics.compareIntDoubleExact(ri2.value(), ld2.value());
+            if (c == CelSemantics.UNORDERED) return false; // ld2 is NaN
             return applyOrder(-c, op); // c is (int <=> double); we want (double <=> int)
         }
         if (l instanceof CelValue.StringV ls && r instanceof CelValue.StringV rs) {
-            return applyOrder(compareCodePoints(ls.value(), rs.value()), op);
+            return applyOrder(CelSemantics.compareCodePoints(ls.value(), rs.value()), op);
         }
         if (l instanceof CelValue.BytesV lb && r instanceof CelValue.BytesV rb) {
-            return applyOrder(compareUnsignedBytes(lb.value(), rb.value()), op);
+            return applyOrder(CelSemantics.compareUnsignedBytes(lb.value(), rb.value()), op);
         }
         return null; // TYPE_MISMATCH: bool ordering, null, list, object, or any other unlisted pairing
     }
@@ -453,81 +459,6 @@ public final class Evaluator {
             case GT -> cmp > 0;
             case GE -> cmp >= 0;
         };
-    }
-
-    /**
-     * Exact int64-vs-double comparison per §4.3.3's pinned algorithm.
-     * Returns {@code null} if {@code d} is NaN (caller maps that to
-     * "not equal" / "every ordered comparison false"); otherwise returns
-     * negative/zero/positive as {@code i <=> d}.
-     */
-    private static Integer compareIntDoubleExact(long i, double d) {
-        if (Double.isNaN(d)) return null;
-        if (d >= 9223372036854775808.0) return -1; // d >= 2^63: i (<= 2^63-1) is always smaller
-        if (d < -9223372036854775808.0) return 1;  // d < -2^63: i (>= -2^63) is always larger
-        double floorD = Math.floor(d);
-        long floorLong = (long) floorD; // safe: floorD is within [-2^63, 2^63) here
-        int cmp = Long.compare(i, floorLong);
-        if (cmp != 0) return cmp;
-        double frac = d - floorD;
-        return (frac > 0.0) ? -1 : 0; // i == floor(d); a positive fractional part makes d strictly greater
-    }
-
-    private static boolean intDoubleEqual(long i, double d) {
-        Integer c = compareIntDoubleExact(i, d);
-        return c != null && c == 0;
-    }
-
-    /**
-     * Lexicographic Unicode code-point comparison (§4.4) -- never {@code
-     * String#compareTo} (UTF-16 code-unit order).
-     * <p>
-     * <b>Lazy and {@code O(min)} (B3 §4.4 lock-hold fix).</b> The two operands
-     * are scanned in lockstep <em>by code point</em> ({@code codePointAt} +
-     * advance by {@link Character#charCount}), returning at the first differing
-     * code point, so the work is {@code O(index of first difference)} in time
-     * and {@code O(1)} in extra allocation -- neither operand is ever
-     * materialised via {@code codePoints().toArray()}. This is what makes the
-     * {@code CostModel} string-ordering tightening ({@code 1 + min(S,
-     * literalLen)}) sound: a one-character literal no longer forces a full scan
-     * of a large candidate field. The result is byte-for-byte identical to the
-     * former eager array walk: equal code points up to the shorter operand's
-     * length compare by remaining length, i.e. the operand with fewer code
-     * points sorts first. {@code codePointAt}/{@code charCount} reproduce the
-     * exact code-point sequence of {@link String#codePoints()} (including for
-     * astral pairs, and identically even for the contract-forbidden lone
-     * surrogate, which both treat as its own code point), so equivalence holds
-     * for all inputs.
-     */
-    private static int compareCodePoints(String a, String b) {
-        int lenA = a.length();
-        int lenB = b.length();
-        int ia = 0;
-        int ib = 0;
-        while (ia < lenA && ib < lenB) {
-            int cpA = a.codePointAt(ia);
-            int cpB = b.codePointAt(ib);
-            if (cpA != cpB) return Integer.compare(cpA, cpB);
-            ia += Character.charCount(cpA);
-            ib += Character.charCount(cpB);
-        }
-        // Every compared code point was equal and consumed one code point from
-        // each side, so the side with characters still remaining has strictly
-        // more code points and therefore sorts after the exhausted side.
-        if (ia < lenA) return 1;   // a has more code points => a > b
-        if (ib < lenB) return -1;  // b has more code points => a < b
-        return 0;                  // identical code-point sequences
-    }
-
-    /** Unsigned-octet lexicographic comparison (§4.5). */
-    private static int compareUnsignedBytes(byte[] a, byte[] b) {
-        int n = Math.min(a.length, b.length);
-        for (int i = 0; i < n; i++) {
-            int ai = a[i] & 0xFF;
-            int bi = b[i] & 0xFF;
-            if (ai != bi) return Integer.compare(ai, bi);
-        }
-        return Integer.compare(a.length, b.length);
     }
 
     // ======================================================================
@@ -559,15 +490,13 @@ public final class Evaluator {
                 case SUB -> EvalOutcome.of(new CelValue.IntV(Math.subtractExact(a, b)));
                 case MUL -> EvalOutcome.of(new CelValue.IntV(Math.multiplyExact(a, b)));
                 case DIV -> {
-                    if (b == 0L) yield EvalOutcome.error(CelError.DIVISION_BY_ZERO);
-                    if (a == Long.MIN_VALUE && b == -1L) yield EvalOutcome.error(CelError.OVERFLOW);
+                    CelError guard = CelSemantics.intDivModError(a, b);
+                    if (guard != null) yield EvalOutcome.error(guard);
                     yield EvalOutcome.of(new CelValue.IntV(a / b)); // truncates toward zero
                 }
                 case MOD -> {
-                    if (b == 0L) yield EvalOutcome.error(CelError.DIVISION_BY_ZERO);
-                    // Pinned deliberately (§4.3.1): mathematically 0 and Java's raw % agrees,
-                    // but STD-011 pins this case to OVERFLOW for cross-language (Rust) alignment.
-                    if (a == Long.MIN_VALUE && b == -1L) yield EvalOutcome.error(CelError.OVERFLOW);
+                    CelError guard = CelSemantics.intDivModError(a, b);
+                    if (guard != null) yield EvalOutcome.error(guard);
                     yield EvalOutcome.of(new CelValue.IntV(a % b));
                 }
             };
@@ -668,11 +597,6 @@ public final class Evaluator {
     // Platform function calls (§7)
     // ======================================================================
 
-    private static final long C_DEG2RAD_BITS = 0x3F91DF46A2529D39L;
-    private static final long C_RAD2DEG_BITS = 0x404CA5DC1A63C1F8L;
-    private static final double C_DEG2RAD = Double.longBitsToDouble(C_DEG2RAD_BITS);
-    private static final double C_RAD2DEG = Double.longBitsToDouble(C_RAD2DEG_BITS);
-
     private EvalOutcome evalCall(ExprNode.Call call, CandidateProjection candidate) {
         List<CelValue> args = new ArrayList<>(call.arguments().size());
         for (ExprNode argNode : call.arguments()) {
@@ -736,18 +660,12 @@ public final class Evaluator {
         return EvalOutcome.of(new CelValue.IntV(l.elements().size()));
     }
 
-    private static final double LONG_MIN_AS_DOUBLE = -9223372036854775808.0; // -2^63, exact
-    private static final double LONG_MAX_EXCLUSIVE_AS_DOUBLE = 9223372036854775808.0; // 2^63, exact
-
     private static EvalOutcome callIntOfDouble(CelValue v) {
         if (!(v instanceof CelValue.DoubleV d)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
         double x = d.value();
-        if (!Double.isFinite(x)) return EvalOutcome.error(CelError.DOMAIN); // never rely on a saturating cast
-        double truncated = x < 0.0 ? Math.ceil(x) : Math.floor(x); // truncate toward zero
-        if (truncated < LONG_MIN_AS_DOUBLE || truncated >= LONG_MAX_EXCLUSIVE_AS_DOUBLE) {
-            return EvalOutcome.error(CelError.OVERFLOW);
-        }
-        return EvalOutcome.of(new CelValue.IntV((long) truncated));
+        CelError guard = CelSemantics.intOfDoubleError(x);
+        if (guard != null) return EvalOutcome.error(guard);
+        return EvalOutcome.of(new CelValue.IntV(CelSemantics.intOfDoubleValue(x)));
     }
 
     private static EvalOutcome callDoubleOfInt(CelValue v) {
@@ -804,14 +722,14 @@ public final class Evaluator {
         if (!(v instanceof CelValue.DoubleV d)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
         double x = d.value();
         if (!Double.isFinite(x)) return EvalOutcome.error(CelError.DOMAIN);
-        return EvalOutcome.of(new CelValue.DoubleV(x * C_DEG2RAD)); // pinned single multiply, never Math.toRadians
+        return EvalOutcome.of(new CelValue.DoubleV(CelSemantics.radians(x))); // pinned single multiply, never Math.toRadians
     }
 
     private static EvalOutcome callDegrees(CelValue v) {
         if (!(v instanceof CelValue.DoubleV d)) return EvalOutcome.error(CelError.TYPE_MISMATCH);
         double x = d.value();
         if (!Double.isFinite(x)) return EvalOutcome.error(CelError.DOMAIN);
-        return EvalOutcome.of(new CelValue.DoubleV(x * C_RAD2DEG)); // pinned single multiply, never Math.toDegrees
+        return EvalOutcome.of(new CelValue.DoubleV(CelSemantics.degrees(x))); // pinned single multiply, never Math.toDegrees
     }
 
     private enum UnaryTrigFn { SIN, COS, TAN, ATAN }
