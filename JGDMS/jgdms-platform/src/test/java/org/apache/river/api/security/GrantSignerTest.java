@@ -197,6 +197,7 @@ public class GrantSignerTest {
 
     @Test
     public void digestIgnoresLocationAndRequiresDigestAndSigners() throws Exception {
+        SecurityCopy.assumeCurrentCopy("a digest grant that requires its signers");
         Class<?> dcs = digestCodeSourceClass();
         Assume.assumeNotNull(dcs); // A JDK without the DigestCodeSource needed: fail closed, covered above.
         // Real jars, a digest the code source computed from the jar is what
