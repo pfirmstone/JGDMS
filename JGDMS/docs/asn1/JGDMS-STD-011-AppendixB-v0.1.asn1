@@ -32,7 +32,8 @@
 -- Separate module mirroring standard ownership: STD-006's types are IMPORTED,
 -- never redefined here. Module OID: the cel(2) arc beside atomicDer's own
 -- versioned arc, matching the OID printed in Appendix B section B.3 exactly
--- (999999 remains the documented PLACEHOLDER PEN; replace on IANA assignment).
+-- (PEN 66213, Zeus Project Services Pty Ltd; replaced the placeholder 999999
+-- on 2026-11-18).
 --
 -- G8 THREE-WAY CROSS-CHECK (2026-07-24; prose vs this module vs merged
 -- jgdms-cel code) — ALL AGREE, character-for-character:
@@ -77,7 +78,7 @@
 -- formatVersion stays 1.
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 66213 jgdms(1) atomicDer(1) cel(2) v1(1) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
@@ -86,7 +87,7 @@ IMPORTS
     maxCollection
         FROM JGDMS-STD-006
         { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-          enterprise(1) 999999 jgdms(1) atomicDer(1) v13(13) };
+          enterprise(1) 66213 jgdms(1) atomicDer(1) v13(13) };
 
 -- ============================================================================
 -- STD-011 section 10.3 ceilings [PROPOSED — ratification pending; see the

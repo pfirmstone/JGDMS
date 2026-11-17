@@ -10,8 +10,9 @@ Peter must fill are marked `«...»`.*
 ## 0. Which submission was closed? (read first)
 
 STD-006's only *hard* IANA dependency is a **Private Enterprise Number (PEN)**: the OID
-arc `1.3.6.1.4.1.<PEN>` is a clearly-marked placeholder (`999999`) that MUST be replaced
-on assignment (STD-006 §4.4 area, notes at lines ~37/1053-1082/3025). If the closed
+arc is `1.3.6.1.4.1.66213`. **Resolved 2026-11-18:** IANA replied that Zeus Project
+Services Pty Ltd already holds PEN **66213**, so no new PEN is needed; it replaced the
+placeholder `999999` in STD-006 §4.4 and STD-011 Appendix B. If the closed
 submission was the PEN application (§1 below), note two consequences:
 
 - **One PEN covers everything.** A PEN is assigned to the *organization*, not a format.
@@ -55,17 +56,20 @@ substance is organization verification.
 
 ### 1.3 Sub-arc allocation plan (internal, self-managed — no IANA involvement)
 
-On assignment, replace every `999999` placeholder in STD-006 (its own notes list the
-sites) and record the internal allocation here as the single source of truth:
+PEN 66213. This allocation is the single source of truth:
 
 ```
-1.3.6.1.4.1.<PEN>          Zeus Project Services Pty Ltd
-1.3.6.1.4.1.<PEN>.1        JGDMS
-1.3.6.1.4.1.<PEN>.1.1      JGDMS-STD-006 ATOMIC DER (ASN.1 module OIDs per STD-006)
-1.3.6.1.4.1.<PEN>.1.2      JGDMS-STD-011 DETERMINISTIC CEL (Appendix B module OID, if/when
-                           the module is given one — none required today)
-1.3.6.1.4.1.<PEN>.2        DirtyChai (reserved)
-1.3.6.1.4.1.<PEN>.3        (unassigned — future projects)
+1.3.6.1.4.1.66213            Zeus Project Services Pty Ltd
+1.3.6.1.4.1.66213.1          JGDMS
+1.3.6.1.4.1.66213.1.1        JGDMS-STD-006 ATOMIC DER
+1.3.6.1.4.1.66213.1.1.1      wireTypes (TypedWireObject type IDs)
+1.3.6.1.4.1.66213.1.1.2      cel: JGDMS-STD-011 DETERMINISTIC CEL
+1.3.6.1.4.1.66213.1.1.2.1    STD-011 Appendix B ASN.1 module, v1
+1.3.6.1.4.1.66213.1.1.13     STD-006 ASN.1 module, v0.13
+1.3.6.1.4.1.66213.1.2        (unassigned; an earlier plan put CEL here, but the
+                             STD-011 module uses .1.1.2)
+1.3.6.1.4.1.66213.2          DirtyChai (reserved)
+1.3.6.1.4.1.66213.3          (unassigned — future projects)
 ```
 
 ---
@@ -194,8 +198,8 @@ media-types@iana.org list; respond to reviewer feedback on-list to keep the tick
 1. `«Confirm which registry the closed submission was in»` — PEN (§1) or media types
    (§2) — and, if reviewer feedback exists, paste it into this file so the resubmission
    addresses it point-by-point rather than repeating the round-trip.
-2. PEN: resubmit §1, watch for verification mail, replace the `999999` placeholders in
-   STD-006 on assignment, record the §1.3 arc allocation.
+2. PEN: **done 2026-11-18** — existing PEN 66213; placeholders replaced; §1.3
+   allocation recorded.
 3. Media types (optional, batchable any time): fill the `«URLs»` with stable public
    spec links (a tagged GitHub release URL beats a branch URL — reviewers prefer
    references that won't drift), settle the `+der`-suffix naming question, submit both

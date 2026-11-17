@@ -761,7 +761,7 @@ implementing a documented protocol rather than reverse-engineering a JVM.
 **IANA note (informative).** ATOMIC DER's OID arc and any media-type registration
 depend on a Zeus Project Services Pty Ltd Private Enterprise Number (one PEN covers
 ATOMIC DER, DETERMINISTIC CEL, and future formats via self-managed sub-arcs); the
-`999999` placeholder in STD-006 §4.4 MUST be replaced before v1.0. *(Source:
+PEN is 66213 (STD-006 §4.4). *(Source:
 `IANA-Registrations.md`.)*
 
 ---

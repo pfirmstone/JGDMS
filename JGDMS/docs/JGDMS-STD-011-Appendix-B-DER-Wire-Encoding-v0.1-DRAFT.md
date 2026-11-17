@@ -142,7 +142,7 @@ this module has none).
 -- formatVersion stays 1.
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 999999 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 66213 jgdms(1) atomicDer(1) cel(2) v1(1) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
@@ -151,7 +151,7 @@ IMPORTS
     maxCollection
         FROM JGDMS-STD-006
         { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-          enterprise(1) 999999 jgdms(1) atomicDer(1) v13(13) };
+          enterprise(1) 66213 jgdms(1) atomicDer(1) v13(13) };
 
 -- ============================================================================
 -- STD-011 Sec 10.3 ceilings [PROPOSED, this appendix; see Sec B.7]

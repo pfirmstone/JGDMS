@@ -1089,22 +1089,21 @@ places that can disagree, forcing a decoder to reject the mismatch). The `body`'
 inner universal tag is not a *second* discriminator here — it is opaque `OCTET STRING`
 content the envelope does not interpret; the `typeId` alone routes it.
 
-**OID root — registrant Zeus Project Services Pty Ltd; PEN placeholder pending
-registration.** The OID root belongs to **Zeus Project Services Pty Ltd** (the legal
+**OID root — registrant Zeus Project Services Pty Ltd; IANA PEN 66213.** The OID root belongs to **Zeus Project Services Pty Ltd** (the legal
 company). One IANA Private Enterprise Number (PEN) roots *all* the company's projects;
 JGDMS is a sub-arc, ATOMIC DER a sub-arc of JGDMS, and the `TypedWireObject` `typeId`
 values live under `…atomicDer.wireTypes`. The arc shape is:
 
 ```
-1.3.6.1.4.1.<PEN>   Zeus Project Services Pty Ltd   -- IANA PEN, PLACEHOLDER pending registration
+1.3.6.1.4.1.66213   Zeus Project Services Pty Ltd   -- IANA PEN 66213
         .1  jgdms
             .1  atomicDer
                 .1  wireTypes    -- TypedWireObject type-ID subtree
 
 -- individual wire types are children of …atomicDer.wireTypes, e.g.
---   marshalledInstance    …<PEN>.1.1.1.1
---   unicastResponse       …<PEN>.1.1.1.2
---   accessControlContext  …<PEN>.1.1.1.3
+--   marshalledInstance    …66213.1.1.1.1
+--   unicastResponse       …66213.1.1.1.2
+--   accessControlContext  …66213.1.1.1.3
 ```
 
 Written as an ASN.1 value assignment (validation module):
@@ -1112,19 +1111,17 @@ Written as an ASN.1 value assignment (validation module):
 ```asn1
 zeusProjectServices OBJECT IDENTIFIER ::=
   { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-    enterprise(1) 999999 }   -- PLACEHOLDER PEN — replace on IANA assignment
+    enterprise(1) 66213 }   -- IANA PEN of Zeus Project Services Pty Ltd
 jgdms       OBJECT IDENTIFIER ::= { zeusProjectServices 1 }
 atomicDer   OBJECT IDENTIFIER ::= { jgdms 1 }
 wireTypes   OBJECT IDENTIFIER ::= { atomicDer 1 }
 ```
 
-**NORMATIVE placeholder note.** `<PEN>` (written `999999` in the module so it compiles)
-is a **clearly-marked PLACEHOLDER**. Zeus Project Services Pty Ltd will register an
-IANA Private Enterprise Number, and `<PEN>` **MUST** be replaced with the assigned
-number **before v1.0**. On assignment, the number is replaced in one edit (module
-value assignment + this section) and every `wireTypes` child OID below it becomes
-normative; the arc *shape* (`zeusProjectServices → jgdms → atomicDer → wireTypes`) is
-already fixed.
+**NORMATIVE PEN note.** The root is IANA Private Enterprise Number **66213**, held by
+Zeus Project Services Pty Ltd (IANA confirmed the existing registration on
+2026-11-18). It replaces the placeholder `999999` used by earlier drafts. The arc
+shape (`zeusProjectServices → jgdms → atomicDer → wireTypes`) and every `wireTypes`
+child OID below it are normative.
 
 ### 4.5 Module Validity: Distinct-Tag Rule, No DEFAULT, Profile Size Ceilings
 
@@ -3131,9 +3128,8 @@ Consolidated list of every **[OPEN]** above, for the next working session:
    (`TypedWireObject { typeId OID, body OCTET STRING }`, single discriminator per board
    H3). Root registrant = **Zeus Project Services Pty Ltd**; arc
    `zeusProjectServices → jgdms(1) → atomicDer(1) → wireTypes(1)`; `typeId`s under
-   `…atomicDer.wireTypes`. **OPEN sub-item: `<PEN>` (written `999999`) is a PLACEHOLDER**
-   — Zeus Project Services Pty Ltd will register an IANA PEN and it MUST be replaced
-   before v1.0.
+   `…atomicDer.wireTypes`. **RESOLVED (2026-11-18): `<PEN>` = 66213**, the existing IANA PEN of
+   Zeus Project Services Pty Ltd (replaces the placeholder `999999`).
 2. §5.2 — Protocol version marker value (e.g. `0x03`); collision check.
 3. §7.1 — Confirm `PRINCIPAL_CTORS` allow-list stays in validation layer, not schema.
 4. §7.2 — **RESOLVED (v0.12)** against `RemoteContextCodec`: ACC records are

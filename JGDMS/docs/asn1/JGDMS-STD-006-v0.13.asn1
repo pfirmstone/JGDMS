@@ -86,12 +86,12 @@
 -- ============================================================================
 
 -- Module OID under the Zeus Project Services Pty Ltd arc:
---   enterprise(1) 999999   = the company PEN (PLACEHOLDER — replace on IANA assignment)
+--   enterprise(1) 66213    = the company PEN (IANA, Zeus Project Services Pty Ltd)
 --     jgdms(1) atomicDer(1) v13(13)
--- (999999 is a documented placeholder so the module compiles; see spec section 4.4.)
+-- (66213 replaced the placeholder 999999 on 2026-11-18; see spec section 4.4.)
 JGDMS-STD-006
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 999999 jgdms(1) atomicDer(1) v13(13) }
+  enterprise(1) 66213 jgdms(1) atomicDer(1) v13(13) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
@@ -200,16 +200,15 @@ AlgorithmIdentifier ::= SEQUENCE {
 -- OID ROOT: registrant = Zeus Project Services Pty Ltd (the legal company); one
 -- IANA PEN roots all its projects, JGDMS is a sub-arc, ATOMIC DER a sub-arc of
 -- JGDMS, and TypedWireObject typeIds live under ...atomicDer.wireTypes:
---     1.3.6.1.4.1.<PEN>   Zeus Project Services Pty Ltd  (PEN, PLACEHOLDER)
+--     1.3.6.1.4.1.66213   Zeus Project Services Pty Ltd  (IANA PEN 66213)
 --             .1  jgdms  .1  atomicDer  .1  wireTypes
--- <PEN> (written 999999) is a documented PLACEHOLDER; Zeus Project Services Pty
--- Ltd will register an IANA Private Enterprise Number and it MUST be replaced
--- before v1.0 (spec section 4.4).
+-- <PEN> = 66213, the IANA Private Enterprise Number of Zeus Project Services
+-- Pty Ltd (replaced the placeholder 999999 on 2026-11-18; spec section 4.4).
 -- ============================================================================
 
 zeusProjectServices OBJECT IDENTIFIER ::=
   { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-    enterprise(1) 999999 }   -- PLACEHOLDER PEN — replace on IANA assignment
+    enterprise(1) 66213 }   -- IANA PEN of Zeus Project Services Pty Ltd
 jgdms       OBJECT IDENTIFIER ::= { zeusProjectServices 1 }
 atomicDer   OBJECT IDENTIFIER ::= { jgdms 1 }
 wireTypes   OBJECT IDENTIFIER ::= { atomicDer 1 }   -- TypedWireObject type-ID subtree
