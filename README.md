@@ -46,8 +46,7 @@ https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
 * Worlds fastest, highly scalable, Java security policy provider.
 * RFC3986URLClassLoader is much faster than Java's built in URLClassLoader.
 * RFC3986 compliant Uri.
-* Atomic Serialization outperforms standard Java.
-* JERI (Jini Extensible Remote Invocation) outperforms java RMI.
+* Atomic DER Serialization outperforms standard Java Serialization.
 * Unnecessary DNS calls have been eliminated.
 * Hi performance lookup service method delays or avoids unnecessary codebase downloads.
 
@@ -57,3 +56,4 @@ https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
 * If you would like to assist maintaining a fork of Java that includes Authorization, please get in touch. https://github.com/pfirmstone/jdk-with-authorization
 
 * https://youtu.be/uVob-4aXbxY
+* OpenJDK now has a trusted code model that is incompatible with JGDMS, even earlier versions of OpenJDK with SecurityManager have issues with Ambient authority, DirtyChai provides an untrusted code model that addresses ambient authority. 
