@@ -1226,9 +1226,17 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
             final byte[][] mine = sliceBytes;
             final boolean[] wild = absent;
             final byte[][] theirs = other.sliceBytes;
+            // The class identity that selects which reps are compared is client-supplied and
+            // is not bound to the body, so a candidate can hold fewer slices than the template
+            // has fields (board review 2026-11-20, F1). A template value with no candidate
+            // slice to equal cannot match; a wildcard there constrains nothing.
+            final int theirCount = theirs != null ? theirs.length : 0;
             for (int f = 0; f < mine.length; f++) {
                 if (wild[f]) {		// skip wildcards
                     continue;
+                }
+                if (f >= theirCount) {
+                    return false;
                 }
                 if (!Arrays.equals(mine[f], theirs[f])) {
                     return false;

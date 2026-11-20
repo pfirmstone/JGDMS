@@ -460,23 +460,31 @@ class OperationJournal extends Thread {
 		    ((CaughtUpMarker)payload).watcher.caughtUp();
 		} else {
 		    throw new 
-			AssertionError("JournalNode with unknown payload:" +
-				       payload.getClass());
+			AssertionError(new StringBuilder(
+				"JournalNode with unknown payload:")
+				.append(payload.getClass()).toString());
 		}
 	    } catch (InterruptedException e) {
 		// fin
 		return;
 	    } catch (Throwable t) {
+		// A RuntimeException skips only this node. Rethrowing it ended the thread for
+		// good, so one transition a client could provoke (EntryRep.matches on a
+		// malformed body, board review 2026-11-20, F1) silenced every notify and every
+		// blocked read/take wake-up for all clients. An Error still ends the thread.
 		try {
-		    logger.log(Level.INFO,
-			       "OperationJournal.run encountered " +
-			           t.getClass().getName() + ", continuing",
+		    final boolean fatal = t instanceof Error;
+		    logger.log(fatal ? Level.SEVERE : Level.WARNING,
+			       new StringBuilder("OperationJournal.run encountered ")
+				   .append(t.getClass().getName())
+				   .append(fatal ? ", terminating"
+						 : ", transition skipped, continuing")
+				   .toString(),
 			       t);
 		} catch (Throwable tt) {
 		    // don't let a problem in logging kill the thread
 		}
                 if (t instanceof Error) throw (Error) t;
-                if (t instanceof RuntimeException) throw (RuntimeException) t;
 	    }
 	}
     }
