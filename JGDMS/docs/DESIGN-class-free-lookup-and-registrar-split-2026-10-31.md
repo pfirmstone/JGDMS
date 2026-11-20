@@ -1,7 +1,7 @@
 # Design memo — class-free lookup and the ServiceRegistrar hierarchy split
 
 - **Status:** DRAFT rev 3 (second board round and the seats' discussion recorded in section 10; D11 added: sections 3.1 to 3.3 and decisions D1 to D3 are SUPERSEDED by section 3.8;
-  D9 is now interim). The board review of rev 1 is recorded in section 9; claims the board showed to be wrong are
+  D9 is now interim; **section 17, added 2026-11-21, records later operator rulings that change D4, D9, D12, D13 and D14**). The board review of rev 1 is recorded in section 9; claims the board showed to be wrong are
   struck in place in sections 2 and 3, and the design gaps it found are open. **The headline outcome (the host
   loads no mobile code) is NOT yet achieved by this design; see section 9.** Nothing here is implemented. **No production code was written or
   changed in producing this memo.**
@@ -948,3 +948,65 @@ The rulings were recorded over several turns, so they are not all labelled `Ruli
 - The power-down of a suspected attacker's node follows the isolation (RL-JGDMS-0049). The ~~open question~~ whether it follows or replaces the isolation in 16.1 P7 and in RL-JGDMS-0045 is answered. Whether the response is automatic or confirmed by a person is still open.
 - ~~"A difference between the persisted DER and the digest recorded at load means the proxy changed after loading, which is itself evidence."~~ (the assistant's remark in the 2026-11-15 conversation, never written to a file before this line.) **Struck**, on the operator's statement recorded as RL-JGDMS-0050: a DER TLS connection between the proxy and its service has been established, so the proxy's state at isolation may differ from its stored initial state.
 - Consequence for P8 and for the analysis of a persisted proxy: the stored pre-load serial form and code remain the baseline for the code and for the fields a connection does not touch; the persisted state at isolation must be compared field by field against what an established connection is expected to change. Which fields those are was not determined. The persisted state may include connection secrets, so the evidence store holding it needs the confidentiality of a key store. This paragraph is the assistant's inference, not a ruling.
+
+## 17. Revision after the operator's rulings of 2026-11-20 and 2026-11-21 (added 2026-11-21, at the operator's request; rulings are in the register, not restated here)
+
+Added by Claude Fable 5.2 (proxy-board review session) after the operator said "We need to revise the lookup design memo." Sections 0 to 16 are not edited; this section says which of their decisions the later rulings change. Everything outside the "Ruling" column is the author's reading and is UNREVIEWED. Nothing was built or run. Sections 11, 15 and 16 of this memo were not re-read for this section.
+
+**Rulings this section applies** (statement and status are in the register): RL-JGDMS-0132, RL-JGDMS-0134 to RL-JGDMS-0150. The ones that change this memo most: RL-JGDMS-0146 (no live interoperation with older releases; four points), RL-JGDMS-0149 (no new registrar; Derek is a development codename), RL-JGDMS-0150 (service implementation names are kept), RL-JGDMS-0142 (the client-side interface is installed locally, not in a `-dl` jar), RL-JGDMS-0147 (migration path), RL-JGDMS-0148 (migration guide after 4.0.0).
+
+### 17.1 Effect on the decisions of section 1
+
+| Decision | Effect | Ruling |
+|---|---|---|
+| D4 (JOSS path deprecated) | Goes further. New releases do not serve older clients at all, so the lookup service in a new release has no JOSS or Atomic JOSS path to keep. Atomic JOSS remains the format of older deployments, which stay on their old release. | RL-JGDMS-0146, RL-JGDMS-0144, RL-JGDMS-0132 |
+| D5 (schema chains in the attribute wire form) | Stands. | none |
+| D6 (`ServiceRegistrar` is the only client contract) | Stands. The resident wrapper presents it; existing client code moves by a configuration change. | RL-JGDMS-0146 point 2, RL-JGDMS-0147 |
+| D7 (DER serializer for `Entry`), D8 (immutable collections as fields) | Stand. A new Entry specification is under board review and bears on both; see 17.3. | RL-JGDMS-0136 |
+| D9 (the legacy Reggie's registrar proxy is a trusted pair, interim) | No longer describes anything in a new release: the legacy implementation is not carried forward. It describes older deployments only, which must be trusted and kept off the internet. | RL-JGDMS-0146 point 3, RL-JGDMS-0145 |
+| D10 (standard host UIs) | Not affected. | none |
+| D11 (`RemoteRegistrar` plus a local wrapper) | Stands. The service that offers it is the new implementation of Reggie. | RL-JGDMS-0149 |
+| D12 (discovery moves to DER) | Stands, and is simpler: with no older clients to serve, discovery in a new release needs one format. Whether any JOSS discovery path remains is open (17.4 item 3). | RL-JGDMS-0146 |
+| D13 (Derek is a separate DER-only registrar alongside the unchanged legacy Reggie) | Changed. There is one registrar. It is called Reggie. "Derek" is the codename of its new implementation while that is experimental. It does not run alongside a legacy Reggie in a new release. | RL-JGDMS-0149, RL-JGDMS-0150, RL-JGDMS-0146 point 3 |
+| D14 (the local wrapper goes in `jgdms-lib-dl`, "probably") | In doubt. The operator has ruled that the new client-side interface is installed locally and is not in a `-dl` jar, and that nothing new is built for download. That ruling was made about the space interface; whether it moves the registrar wrapper too was not asked (17.4 item 1). | RL-JGDMS-0142, RL-JGDMS-0146 point 4, RL-JGDMS-0140 |
+
+### 17.2 Effect on later sections
+
+| Where | Effect |
+|---|---|
+| Section 10, R15 (two registrars, because entries cannot be matched across formats) | The reason no longer arises inside one release: there is one registrar and one format. |
+| Section 10, R11 and R12 (a DER discovery provider pair; layered JOSS refusal) | To be re-examined against 17.1 D12. Not re-read. |
+| Section 10, R13 (modules) | To be re-examined against RL-JGDMS-0142. Not re-read. |
+| Section 12, the amendment to D16 and ruling 6 (the wrapper may be downloaded if not local, with a pre-identified digest), and rulings 7 and 8 (the digest grant and `LoadClassPermission` entry for that jar in the default policy) | In tension with RL-JGDMS-0146 point 4 and RL-JGDMS-0142. If the wrapper is always installed locally, the downloadable-wrapper path has no use for wrappers. The digest-grant mechanism may still be wanted for other downloaded code. Open (17.4 item 2). |
+| Section 13, answer 4 (existing Outrigger clients rely on downloading entry classes; that path stays, digest-gated) | In tension with RL-JGDMS-0146 point 4. Entry classes are application code, not something JGDMS builds, so the ruling may not reach them. Open (17.4 item 4); the review board's adversarial seat was asked to say whether the new design needs the path. |
+| Section 13, the per-service order (Mahalo, Mercury, Norm, Fiddler, Outrigger last) | Not affected. Each keeps its name. |
+| Section 5, O1 (generating Entry classes dynamically from the schema: not decided) | Discussed with the operator on 2026-11-20. The author advised build-time generation and against run-time generation, and proposed a class-free `MarshalledEntry` instead. Not a ruling; it is before the review board. |
+| Section 14 (index of rulings 1 to 21) | Not re-indexed. Rulings made since 2026-11-15 are in the register only. |
+
+### 17.3 Documents written since rev 3 that this memo should be read with
+
+| File | What it is | State |
+|---|---|---|
+| `docs/SOW-Lookup-CEL-Code-Free-Investigation-2026-11-20.md` | Scope: can client-side and server-side CEL remove code download from the lookup service. | Written before RL-JGDMS-0146 and RL-JGDMS-0149; it treats Derek as a separate service beside Reggie. |
+| `docs/RESULTS-lookup-cel-investigation.md` | The result of that scope, by the operator's agent. | Not yet reviewed by this session. Same assumption about Derek. |
+| `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md` | Draft: record entries, `MarshalledEntry`, a space interface that returns it. | Before a two-seat review board (RL-JGDMS-0136). |
+| `docs/SOW-Outrigger-Mahalo-CEL-Code-Free-Investigation-2026-11-20.md` | Scope: the same question for Outrigger and Mahalo. | Written before RL-JGDMS-0146. |
+
+Two points from the Entry draft that reach the lookup service whatever the board decides:
+- The lookup entry record (STD-006 section 7.7.2, scalar-only) and the Outrigger entry record were ratified as distinct. Whether lookup attributes are also presented to clients as a `MarshalledEntry` is an open question in that draft.
+- RL-JGDMS-0141 puts record entries in STD-006 1.0, which another session is freezing (RL-JGDMS-0133).
+
+### 17.4 Open, for the operator
+
+1. Does the registrar's resident wrapper move out of `jgdms-lib-dl` into the locally installed client module, as the space interface does?
+2. Is the downloadable-wrapper path (digest-pinned, section 12) withdrawn for wrappers?
+3. Does a new release keep any JOSS path in discovery, or is discovery DER only?
+4. In a new release, may a legacy entry class still be downloaded (digest-gated), or must it be local?
+5. Where does the new implementation live while it carries the codename, and at what point does it take Reggie's module and name? Section 3.8 and D13 give `services/derek/derek-service`.
+6. This memo is DRAFT rev 3 with seventeen sections, several of which supersede each other. A rev 4 that restates the design as it now stands, with the history moved to an appendix, would be easier to review than another appended section. Not started.
+
+### 17.5 Answers (added 2026-11-21)
+
+The operator answered items 1 to 4 of 17.4: RL-JGDMS-0151 (item 1), RL-JGDMS-0152 (item 2), RL-JGDMS-0153 (item 3), RL-JGDMS-0154 (item 4). Items 5 and 6 are open. Effect on 17.1 and 17.2: D14 is changed, not merely in doubt; the two rows of 17.2 marked "In tension" are settled by RL-JGDMS-0152 and RL-JGDMS-0154; D12's open point is settled by RL-JGDMS-0153.
+
+Item 4 was then rephrased by the operator: RL-JGDMS-0155 replaces RL-JGDMS-0154. Read the reference to RL-JGDMS-0154 above as RL-JGDMS-0155.

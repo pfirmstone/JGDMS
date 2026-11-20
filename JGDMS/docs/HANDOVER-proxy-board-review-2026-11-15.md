@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
-LATEST ADDENDUM: add.08 dated 2026-11-16 at heading "ADDENDUM add.08, AS-OF 2026-11-16 21:10 +1000"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116, RL-JGDMS-0134 to RL-JGDMS-0175) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
+LATEST ADDENDUM: add.14 dated 2026-11-21 at heading "ADDENDUM add.14, AS-OF 2026-11-21 03:33 +1000"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: LIVE STATE - re-read the disk before acting on it
 -->
@@ -296,3 +296,215 @@ Work after add.06, same session, after a third compaction. Where this differs fr
 **Added to add.08 at 21:30 +1000.** RL-JGDMS-0115 was added, a second answer to conflict C1.
 
 **Added to add.08 at 21:35 +1000.** RL-JGDMS-0116 was added. The first 150 lines of `docs/SOW-SubProcessDynamicPolicy.md` were read; the rest was not.
+
+## ADDENDUM add.09, AS-OF 2026-11-20 21:30 +1000
+
+**Register entries added.** None since the last paragraph appended to add.08. No claim in this session's scope was settled at this wrap-up: CL-PROXYBOARD-0053 and the earlier open ones rest on documents and reports this session did not check against code or a build.
+
+**What happened since add.08.**
+- 2026-11-17: at the operator's request and with his explicit permission, this session changed `cmd_lint` in `E:\Claude\claim_register\claim_register.py`. A later line carrying a statement under an existing ID is now a warning, not an error, when that exact statement is the first-line statement of another ID in the same log (an ID collision repaired by re-registration). Every other restatement is still an error; both cases were checked on a scratch copy. No log line was edited. The change is in that folder only; this session could not commit or sync it.
+- 2026-11-20: this session drafted an email for the operator, to two software architects, describing the JGDMS and DirtyChai security design. It is in the conversation only, not on disk. The operator added that a client can ask a service for a CEL expression and run it over its own data in a layout the service API defines; this was not registered as a ruling.
+
+**On disk.** `git status` for `JGDMS/docs` showed nothing uncommitted before this addendum was written, on `trunk` at 83c4d4c7a. This session's work order 02, the design-file additions and add.07 and add.08 are therefore committed (by the operator). Only this addendum and the header line are uncommitted.
+
+**Found at this wrap-up and NOT read by this session.** `JGDMS/docs/relay-isolation/` now also holds `REVIEW-01-docs-and-locator.md`, `DESIGN-inventory.md` and `WORK-ORDER-02-inventory.md`, written on 2026-11-16 by a Claude Opus 5.5 session on the operator's Linux machine (commit 075478c56). There are now two files named work order 02 (`-rewriter` from this session, `-inventory` from that one) and both tell the implementing agent to write `RESULTS-02.md`.
+
+**Next actions.**
+1. Read `REVIEW-01-docs-and-locator.md` and `DESIGN-inventory.md`; they review this session's documents and the locator. Then ask the operator which work order 02 stands and renumber the other.
+2. Operator decisions still open: who fetches the codebase; the pooling key; the branch for the relay work; the sharing boundary between clients; queue scope, deadline and bound; signer location; address policy. The design file's last section lists them.
+3. Read the second half of `docs/SOW-SubProcessDynamicPolicy.md` before writing anything on the policy administration path.
+4. The two launcher documents have not been edited to reflect RL-JGDMS-0109 to RL-JGDMS-0116.
+5. Hardware facts for the chosen board are unconfirmed (CL-PROXYBOARD-0031).
+
+**Not verified.** Nothing was built or run by this session. The "in place" list in the drafted email was taken from the operator's own draft.
+
+**DEVIATIONS.** The lint change was first attempted on 2026-11-17 without explicit permission and was blocked by the session's permission check before it ran; it was made only after the operator gave permission.
+
+## ADDENDUM add.10, AS-OF 2026-11-20 22:45 +1000
+
+**Register entries added.** None. No claim in this session's scope was settled: the open ones (CL-PROXYBOARD-0031, CL-PROXYBOARD-0053 and the earlier open ones) still rest on documents and reports not checked against code or a build.
+
+**What happened since add.09.**
+- The operator asked whether client-side and server-side CEL can remove code download from the proposed lookup service. This session read sections 0 to 10 and 14 of `docs/DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` and parts of `docs/JGDMS-STD-011-CEL-Filter-Expression-Format-v0.1-DRAFT.md` (the text on trunk, which is v0.2 with bindings), not the code. The answer given in conversation, unregistered and unreviewed: yes for the lookup service itself, no for smart service proxies that hold state or do I/O. Observed on disk: no `RemoteRegistrar` class and no `services/derek` directory exist.
+- This session wrote `docs/SOW-Lookup-CEL-Code-Free-Investigation-2026-11-20.md` (new, CRLF, uncommitted): a read-only scope for a Claude Code agent in six sections, A and B (Sonnet search agents), C (Opus), D and E (Fable), F (Opus review). Output file: `docs/RESULTS-lookup-cel-investigation.md`. Section D carries six hypotheses of this session about string concatenation, glob matching, regular expressions and case folding; they are untested.
+- The operator's agent has started that scope at 83c4d4c7a and asked two questions, answered through the operator: STD-011 section numbers in the scope are the trunk (v0.2) layout; the design memo's STD-011 line and section citations predate v0.2 and must be found by content; the results file goes in `JGDMS/JGDMS/docs`, uncommitted.
+- This session is not reachable through the operator's mailbox skill (its repository is not connected); the operator relays.
+
+**On disk.** `trunk` at 83c4d4c7a. Uncommitted in `JGDMS/docs`: this handover (add.09, add.10 and the header line) and the new scope file.
+
+**Next actions.**
+1. The operator's new request, not started: do for Outrigger and Mahalo what was done for the lookup service (an assessment of whether client-side and server-side CEL can remove code download, then a scope for an agent). Leads not yet read for this purpose: `docs/INVESTIGATION-code-free-outrigger-2026-10-31.md`, `docs/INVESTIGATION-code-free-mahalo-2026-10-31.md`, `docs/DESIGN-Outrigger-CEL-Filter-B1.md`, `docs/DESIGN-Outrigger-CEL-Filter-B3.md`, and section 12 of the design memo (other services), which this session has not read.
+2. Review `docs/RESULTS-lookup-cel-investigation.md` when the operator says it is finished.
+3. The next actions of add.09 all stand; none was done.
+
+**Not verified.** Nothing was built or run by this session. The lookup assessment rests on the design memo's own text, much of which that memo labels RELAYED.
+
+**DEVIATIONS.** None.
+
+## ADDENDUM add.11, AS-OF 2026-11-21 00:15 +1000
+
+**Register entries added.** RL-JGDMS-0134, RL-JGDMS-0135. No claim was settled.
+
+**What happened since add.10.**
+- Outrigger and Mahalo: this session read `docs/INVESTIGATION-code-free-outrigger-2026-10-31.md`, `docs/INVESTIGATION-code-free-mahalo-2026-10-31.md`, the two reviews of them, `docs/DESIGN-Outrigger-CEL-Filter-B1.md`, parts of the B3 memo and sections 12 and 13 of the lookup design memo, gave an assessment in conversation (not registered, code not opened), and wrote `docs/SOW-Outrigger-Mahalo-CEL-Code-Free-Investigation-2026-11-20.md` (new, CRLF, uncommitted): a read-only scope in sections A to G with agent types. Whether the operator's agent has started it is not known to this session.
+- `docs/RESULTS-lookup-cel-investigation.md` is on disk (the operator's agent finished it). This session read its one-page answer and recommendations table only. It has not been reviewed.
+- The operator then discussed a new Entry specification (see the two rulings above and six unregistered operator statements quoted in the design file below) and asked for a review and design of the new APIs. This session read the entry, space and codec interfaces and wrote `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md` (new, CRLF, uncommitted, DRAFT rev 1, unreviewed): record entries, a `MarshalledEntry` type, a space interface that returns it, eleven open questions for the operator.
+
+**On disk.** `trunk` at 83c4d4c7a. Uncommitted in `JGDMS/docs`: this handover (add.09 to add.11 and the header line), the two scope files and the design draft.
+
+**Next actions.**
+1. The operator answers the design draft's section 7; item 1 decides whether six statements become rulings, item 2 whether a row of RL-JGDMS-0135 is replaced by a new ruling.
+2. A blind review of the design draft by a different model; the operator has not yet asked for one.
+3. The STD-006 freeze belongs to another session (RL-JGDMS-0133); the design draft's section 6 lists what it would add. Nothing has been sent to that session.
+4. The Outrigger and Mahalo scope has not been edited to take the design draft as input (its sections A2, C.4, C.5, E.4).
+5. Review `docs/RESULTS-lookup-cel-investigation.md` when the operator asks.
+6. The next actions of add.09 all stand; none was done.
+
+**Not verified.** Nothing was built or run. The design draft labels each finding; its section 9 lists what was not checked.
+
+**DEVIATIONS.** None.
+
+**Added to add.11 at 00:05 +1000.** RL-JGDMS-0136 and RL-JGDMS-0137 were added, from the operator's answers to questions 1 and 2 of the design draft's section 7. The design draft's section 4.4 note on RL-JGDMS-0135 is now answered by RL-JGDMS-0137; the draft file has not been edited. The review board has not been convened; questions 3 to 11 are unanswered.
+
+**Added to add.11 at 00:08 +1000.** RL-JGDMS-0138, RL-JGDMS-0139 and RL-JGDMS-0140 were added, from the operator's answers to questions 3, 4 and 5 as numbered in this session's reply (the design draft's section 7 items 3, the freeze question of its section 8 item 1, and item 8). Two of the answers leave a point open, recorded in each ruling's note. The design draft has not been edited.
+
+**Added to add.11 at 00:15 +1000.** RL-JGDMS-0141 was added. On the module for RL-JGDMS-0140 the operator said at 00:04 "Yes move Java from release 8 to 16" and at 00:05 "Oh, that's a point, maybe jgmd-lib-dl stay at 8 for old clients?"; neither is registered, the point is open, and board seat 2 was asked to recommend. The design draft gained a section 10 listing RL-JGDMS-0136 to RL-JGDMS-0140. The review board was convened at the operator's request: two blind background agents (Opus, adversarial; Sonnet, compatibility), each to write one file, `docs/REVIEW-entry-records-design-opus-2026-11-21.md` and `docs/REVIEW-entry-records-design-sonnet-2026-11-21.md`. Neither had reported when this was written.
+
+**Added to add.11 at 00:20 +1000.** RL-JGDMS-0142 was added; it answers the module point left open under RL-JGDMS-0140. Board seat 2 was told of it by message.
+
+**Added to add.11 at 00:25 +1000.** RL-JGDMS-0143 was added.
+
+**Added to add.11 at 00:27 +1000.** RL-JGDMS-0144 was added. Open with the operator: whether a service that serves both older and new clients exports twice from one instance or runs as separate instances.
+
+**Added to add.11 at 00:29 +1000.** RL-JGDMS-0145 was added.
+
+**Added to add.11 at 00:35 +1000.** RL-JGDMS-0146 and RL-JGDMS-0147 were added, and a status line was appended to RL-JGDMS-0143. Both board seats were told of RL-JGDMS-0146 by message. The design draft (sections 5.2, 6) and both scope files were written before these and have not been edited to match.
+
+**Added to add.11 at 00:37 +1000.** RL-JGDMS-0148 was added.
+
+**Added to add.11 at 00:40 +1000.** RL-JGDMS-0149 was added. It bears on the lookup design memo (D13, D9) and on the lookup scope and result, none of which has been edited.
+
+**Added to add.11 at 00:42 +1000.** RL-JGDMS-0150 was added.
+
+**Added to add.11 at 00:50 +1000.** At the operator's request ("We need to revise the lookup design memo") this session appended section 17 to `docs/DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` and added one clause to its status line; sections 0 to 16 are otherwise unedited. Section 17 lists which decisions RL-JGDMS-0132 and RL-JGDMS-0134 to RL-JGDMS-0150 change and six open questions. The memo is uncommitted.
+
+**Added to add.11 at 01:25 +1000.** Both board seats reported. Their files are `docs/REVIEW-entry-records-design-opus-2026-11-21.md` (245 lines) and `docs/REVIEW-entry-records-design-sonnet-2026-11-21.md` (388 lines). The design draft gained section 11 (the board's verdicts, the HIGH findings with the author's replies, the two points the seats disagree on, their advice on the six statements of RL-JGDMS-0136, and what a rev 2 must do) and its status line now says it is not to be adopted as written. No finding was registered as a claim. Seat 1 asks the operator to revisit RL-JGDMS-0138; seat 2 does not. Rev 2 of the draft is not started.
+
+**Added to add.11 at 01:30 +1000.** RL-JGDMS-0151 to RL-JGDMS-0154 were added, from the operator's four numbered answers of 00:44, which this session matched to the lookup memo's section 17.4 items 1 to 4 (the reason is in each ruling's note). The lookup memo gained a section 17.5 saying so. Still open with the operator: the four decisions the board left (null in the record constructor, coexisting versions of one class name, release 21 for the local module; the fourth, no class download for entry classes, is answered by RL-JGDMS-0154), and section 17.4 items 5 and 6.
+
+**Added to add.11 at 01:33 +1000.** RL-JGDMS-0155 was added and a status line was appended to RL-JGDMS-0154. The lookup memo's section 17.5 gained a line. The board's question on class download for entry classes is therefore answered by RL-JGDMS-0155, not RL-JGDMS-0154.
+
+**Added to add.11 at 01:40 +1000.** New file `docs/CANDIDATE-isolated-processor-service-ui-2026-11-21.md` (CRLF, uncommitted): a candidate, not a ruling, recording the operator's idea of a device with an isolated processor for untrusted proxies and service interface code, and the outline he said would work. Nothing was registered for it. Open with the operator: what makes a downloaded entry class trusted under RL-JGDMS-0155 (a local digest, an isolated host, or both), and the three board decisions.
+
+**Added to add.11 at 01:45 +1000.** At the operator's request this session created `docs/SUGGESTIONS-requiring-further-review.md` (new, CRLF, uncommitted), a list of unreviewed ideas, and entered the isolated-processor candidate as its entry 1; the candidate file's status line now points to it.
+
+**Added to add.11 at 01:55 +1000.** RL-JGDMS-0156 to RL-JGDMS-0159 were added and a status line was appended to RL-JGDMS-0140. Still open with the operator: null in the record constructor (RL-JGDMS-0138; he asked for more context on the seats' disagreement, which this session gave in conversation). Rev 2 of the Entry design draft is not started.
+
+**Added to add.11 at 02:00 +1000.** RL-JGDMS-0160 was added and a status line was appended to RL-JGDMS-0138. All four decisions the board left are now answered (RL-JGDMS-0155 and RL-JGDMS-0156, RL-JGDMS-0157, RL-JGDMS-0159, RL-JGDMS-0160). Next action: rev 2 of `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md` against its section 11.6 list and these rulings; not started. Whether the six statements of RL-JGDMS-0136 are now to be registered as rulings, given the board's advice, has not been asked.
+
+## ADDENDUM add.12, AS-OF 2026-11-21 01:05 +1000
+
+Written at the operator's wrap-up request before a compaction. It gathers add.11 and its appended paragraphs into one place; where they differ, this addendum governs.
+
+**Register entries added since add.10.** RL-JGDMS-0134 to RL-JGDMS-0160. Status lines were appended to RL-JGDMS-0138, RL-JGDMS-0140, RL-JGDMS-0143 and RL-JGDMS-0154. No claim was added. No claim in this session's scope was settled: none of the open ones (CL-PROXYBOARD-0031, CL-PROXYBOARD-0053 and the earlier open ones) was checked against code or a build in this period.
+
+**Rulings by subject (IDs only).**
+- New Entry specification: RL-JGDMS-0134, RL-JGDMS-0135, RL-JGDMS-0136, RL-JGDMS-0137, RL-JGDMS-0139, RL-JGDMS-0141, RL-JGDMS-0160.
+- Entry class loading and trust: RL-JGDMS-0155, RL-JGDMS-0156, RL-JGDMS-0157, RL-JGDMS-0158.
+- No live interoperation with older releases, migration, names: RL-JGDMS-0144, RL-JGDMS-0145, RL-JGDMS-0146, RL-JGDMS-0147, RL-JGDMS-0148, RL-JGDMS-0149, RL-JGDMS-0150.
+- Local client module, wrappers, discovery: RL-JGDMS-0142, RL-JGDMS-0151, RL-JGDMS-0152, RL-JGDMS-0153, RL-JGDMS-0159.
+- Entries whose status line changed in this period: RL-JGDMS-0138, RL-JGDMS-0140, RL-JGDMS-0143, RL-JGDMS-0154.
+
+**Files this session wrote or changed since add.10 (all in `JGDMS/docs`, all uncommitted; `trunk` at 83c4d4c7a).**
+- New: `SOW-Outrigger-Mahalo-CEL-Code-Free-Investigation-2026-11-20.md` (scope for the operator's agent, sections A to G).
+- New: `DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md` (DRAFT rev 1; section 10 lists rulings made after it; section 11 records the board; its status line says it is not to be adopted as written).
+- New, written by two background agents of this session: `REVIEW-entry-records-design-opus-2026-11-21.md` and `REVIEW-entry-records-design-sonnet-2026-11-21.md`.
+- New: `CANDIDATE-isolated-processor-service-ui-2026-11-21.md` and `SUGGESTIONS-requiring-further-review.md` (the candidate is its entry 1).
+- Changed: `DESIGN-class-free-lookup-and-registrar-split-2026-10-31.md` (one clause in the status line; sections 17 and 17.5 appended).
+- Changed: this handover (add.09 to add.12 and the header).
+- Also uncommitted from before: `SOW-Lookup-CEL-Code-Free-Investigation-2026-11-20.md`. On disk and not written by this session: `RESULTS-lookup-cel-investigation.md`.
+
+**Next actions, in order.**
+1. Ask the operator the question left open when he called the wrap-up: whether the six statements of RL-JGDMS-0136 are written into rev 2 as amended by the board for him to confirm, or ruled on first. Both seats advised adopting all six, each with a change (design draft section 11.4).
+2. Write rev 2 of the Entry design draft from its section 11.6 list, the two review files and the rulings above. Points already fixed for it: record entries rest on the existing `@SerialEntry` path; a template for a record type is built by a builder; the `Query` record of section 5.1 is withdrawn; `MarshalledEntry` covers record entries first; the server's one-hash-per-class-name check has to change if RL-JGDMS-0157 is read as applying to the space (this session's reading, told to the operator, not confirmed); the new local module is the home of the new interface and the wrappers.
+3. Tell the session that holds the STD-006 freeze (RL-JGDMS-0133) what RL-JGDMS-0141 adds. Nothing has been sent.
+4. The Outrigger and Mahalo scope, the lookup scope and the lookup result were written before RL-JGDMS-0146 and RL-JGDMS-0149 and have not been edited. Whether the operator's agent has started the Outrigger and Mahalo scope is not known.
+5. Review `RESULTS-lookup-cel-investigation.md` when the operator asks; only its one-page answer and recommendations table have been read.
+6. Lookup memo section 17.4 items 5 and 6 are unanswered (where the codenamed implementation lives and when it takes Reggie's name; a rev 4 of that memo).
+7. Board seat 1's finding H1 is about existing code (five copies of an entry's type in `EntryRep`, one checked). This session did not re-open it and registered no claim for it.
+8. The next actions of add.09 all stand; none was done.
+
+**Open with the operator, beyond the above.** Whether RL-JGDMS-0150 covers the services he did not name. What the remote djinn policy of RL-JGDMS-0156 is and where it is held. Three unregistered ideas offered for the suggestions list and not answered: loading an untrusted entry class only on an isolated host; a server-side take-and-write-derived operation; a writer-set must-be-understood mark on a field.
+
+**Not verified.** Nothing was built or run by this session or by the two board agents. Of the board's findings this session re-opened three in code: the per-class-name hash check in `OutriggerServerImpl.typeCheck`, the generator's walk to `Object` at `EntrySchemaGenerator.java:162`, and the record example in `SerialEntry.java:102-127`. Everything else from the board is relayed. The survey counts are the compatibility seat's.
+
+**DEVIATIONS.**
+1. The times in add.11's heading and in its "Added to add.11 at ..." paragraphs were estimated and run ahead of the operator's clock by up to an hour (the last of them says 02:00; the operator's message that followed was stamped 00:58). The operator-message times in the register locators were taken from the messages and are right.
+2. RL-JGDMS-0151 to RL-JGDMS-0154 were registered from four numbered answers that could have referred to either of two open lists; the reason for the choice is in each note and was told to the operator, who then rephrased the fourth (RL-JGDMS-0155) without objecting to the reading.
+3. The design draft's section 2 finding 16 was wrong in substance (found by board seat 1, confirmed by this session); it is corrected in the draft's section 11.3, not in place.
+
+## ADDENDUM add.13, AS-OF 2026-11-21 02:10 +1000
+
+Written after the compaction that followed add.12. Times here are from the operator's message stamps.
+
+**RULINGS ADDED.** RL-JGDMS-0161 (component types and collections), RL-JGDMS-0162 to RL-JGDMS-0167 (the six statements that RL-JGDMS-0136 sent to the board, one ruling each, in the order of the design draft's section 1).
+
+**FILES CHANGED.** `docs/SUGGESTIONS-requiring-further-review.md`: entry 2 added (clients and services in other languages as a constraint on the wire). Not registered.
+
+**NEXT ACTION.** Write rev 2 of `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md` from its section 11.6, the two review files, and RL-JGDMS-0134 to RL-JGDMS-0167. Before stating collections as buildable, read what the entry codec does with a collection-typed field.
+
+**OPEN.** Whether arrays, including `byte[]`, are excluded as record entry components (this session's reading, in the note of RL-JGDMS-0161; told to the operator, not corrected). The other open items of add.12 stand, except the question about RL-JGDMS-0157 and the space, which RL-JGDMS-0165 answers.
+
+**NOT VERIFIED.** Nothing in this addendum was checked against code or a build.
+
+**Added to add.13 at 2026-11-21 02:12 +1000.** RL-JGDMS-0168 added (two kinds of `MarshalledEntry`; staging of the wrapper). Rev 2 of the Entry design draws on RL-JGDMS-0134 to RL-JGDMS-0168.
+
+**Added to add.13 at 2026-11-21 02:35 +1000.** RL-JGDMS-0169 and RL-JGDMS-0170 added. New file `docs/REVIEW-entry-encoding-canonical-matching-sonnet-2026-11-21.md` (a Sonnet agent's read-only report; RELAYED; four cited places re-opened by this session, listed in its status paragraph). Rev 2 of the Entry design draws on RL-JGDMS-0134 to RL-JGDMS-0170 and on that file. To read before rev 2 states the collection wrappers as buildable: whether the schema generator records type arguments for a parameterised class that is not a JDK collection, and whether the `@SerialEntry` path keeps type arguments.
+
+**Added to add.13 at 2026-11-21 02:50 +1000.** Rev 2 of the Entry design written: `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-rev2-2026-11-21.md` (DRAFT, not reviewed, uncommitted); rev 1's status line now points to it. The NEXT ACTION of add.13 is done. Next: the operator's answers to rev 2's six open questions and his choice between its options W1 and W2, then a blind review by a model other than Fable. Read by this session for rev 2 and VERIFIED there: `SchemaGenerator.toWireType(Type, Class)` and `EntryRepV2Codec.encodeSerialEntry`. Still not told: the session holding the STD-006 freeze.
+
+**Added to add.13 at 2026-11-21 02:52 +1000.** RL-JGDMS-0171 added. Rev 2 of the Entry design revised in place for it (section 3.2 replaced; sections 1, 6.2, 8.2, 10, 11 and 12 adjusted); its status line says so.
+
+**Added to add.13 at 2026-11-21 03:12 +1000.** RL-JGDMS-0172 added. Rev 2 of the Entry design gained sections 3.2.3 (other languages), 3.6 (nested records) and 3.7 (mapping Java classes to schema), and open questions 7 to 10. Row 2 of the suggestions list notes RL-JGDMS-0172. Awaiting the operator: W1 or W2 (rev 2 section 4.1) and the ten open questions of its section 11.
+
+**Added to add.13 at 2026-11-21 03:19 +1000.** RL-JGDMS-0173 added. Rev 2 section 3.7 gained "The nullable mark" and open question 11. Two rulings now bear on the STD-006 freeze session and have not been sent to it: RL-JGDMS-0141 and RL-JGDMS-0173.
+
+**Added to add.13 at 2026-11-21 03:22 +1000.** RL-JGDMS-0174 added; rev 2 sections 1, 3.4 and open question 11 changed for it.
+
+**Added to add.13 at 2026-11-21 03:26 +1000.** RL-JGDMS-0175 added; rev 2 sections 1, 3.7 and open question 11 changed for it.
+
+## ADDENDUM add.14, AS-OF 2026-11-21 03:33 +1000
+
+Wrap-up before a compaction asked for by the operator at 03:31 +1000. It consolidates add.13 and its "Added to add.13" paragraphs. Times are from the operator's message stamps.
+
+**CLAIMS SETTLED.** None. No open claim in this file's scope was checked against code or a build in this period.
+
+**RULINGS ADDED SINCE add.12, BY SUBJECT.**
+- Record entry component types and collections: RL-JGDMS-0161, RL-JGDMS-0169, RL-JGDMS-0171.
+- The six statements sent to the board by RL-JGDMS-0136: RL-JGDMS-0162 to RL-JGDMS-0167.
+- Kinds of `MarshalledEntry` and staging of the wrapper: RL-JGDMS-0168.
+- Matching and the canonical check: RL-JGDMS-0170.
+- Other languages and the schema: RL-JGDMS-0172.
+- The nullable mark: RL-JGDMS-0173, RL-JGDMS-0174, RL-JGDMS-0175.
+
+**FILES, ALL UNCOMMITTED, IN `JGDMS/docs`.**
+- NEW `DESIGN-Entry-Records-MarshalledEntry-Space-API-rev2-2026-11-21.md`: DRAFT rev 2, not reviewed, revised in place several times; its status line lists the revisions. Its section 1 maps rulings to subjects, section 11 holds eleven open questions, section 4.1 holds the W1 or W2 choice, section 3.7 holds the token-spelling choice.
+- NEW `REVIEW-entry-encoding-canonical-matching-sonnet-2026-11-21.md`: a Sonnet agent's read-only report, RELAYED except the places its status paragraph lists.
+- CHANGED `DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md`: status line points to rev 2.
+- CHANGED `SUGGESTIONS-requiring-further-review.md`: entry 2 added and annotated.
+- This handover.
+
+**NEXT ACTION (the operator, 03:31 +1000: "Please write the scope for a coding agent after compact.").** Write a scope for the operator's coding agent. The operator did not say for which work. This session's reading, to be confirmed with him first: the nullable mark, that is RL-JGDMS-0173 and RL-JGDMS-0175 (field definition gains the mark; declaration in the serial form; bytecode check of constructors; update of existing classes), with RL-JGDMS-0174 for record components only if record entries are in the same scope. The other candidate is the whole of rev 2, which is not reviewed and has open choices. A scope follows the form of the earlier ones in `docs` (agent type per section). Remember the coordination rule: only one side writes code at a time, and this session writes scopes, not code.
+
+**OPEN, AWAITING THE OPERATOR.**
+- Rev 2: W1 or W2; token spellings; open questions 1 to 10; in question 11, whether nested records follow the never-null default.
+- Readings recorded in notes and not confirmed: that the nullable mark is per field in the field definition and so applies to every `@AtomicSerial` schema, and that it is `BOOLEAN DEFAULT TRUE` (note of RL-JGDMS-0173).
+- A blind review of rev 2 by a model other than Fable has not been asked for.
+- The session holding the STD-006 freeze has been told nothing; RL-JGDMS-0141, RL-JGDMS-0173 and rev 2's request for a record-entry section all bear on it.
+- The open items of add.12 stand, except those add.13 says are answered.
+
+**NOT VERIFIED.** Nothing was compiled or run. Code opened by this session in this period, and only at the lines cited in rev 2 as VERIFIED: `SchemaGenerator`, `EntryRepV2Codec`, `AtomicSerialSchemaRecord`, `AtomicSerialFieldDef`, `DerObjectStreamCodec`, `ObjectCodec`, outrigger-dl and reggie-dl `EntryRep`, `SerialEntry`, `EntryWireField`, `Valid`. The count of `Valid.notNull(` covers the main sources of four modules only. The statement that the class-file API is standard from release 24 is from recall.
+
+**DEVIATIONS.**
+1. Rev 2 was edited in place after it was written, not appended to; its status line records each revision.
+2. RL-JGDMS-0172 registers a stated need, not a decision; RL-JGDMS-0148 is the precedent this session followed.
