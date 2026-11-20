@@ -63,11 +63,10 @@ PEN 66213. This allocation is the single source of truth:
 1.3.6.1.4.1.66213.1          JGDMS
 1.3.6.1.4.1.66213.1.1        JGDMS-STD-006 ATOMIC DER
 1.3.6.1.4.1.66213.1.1.1      wireTypes (TypedWireObject type IDs)
-1.3.6.1.4.1.66213.1.1.2      cel: JGDMS-STD-011 DETERMINISTIC CEL
-1.3.6.1.4.1.66213.1.1.2.1    STD-011 Appendix B ASN.1 module, v1
 1.3.6.1.4.1.66213.1.1.13     STD-006 ASN.1 module, v0.13
-1.3.6.1.4.1.66213.1.2        (unassigned; an earlier plan put CEL here, but the
-                             STD-011 module uses .1.1.2)
+1.3.6.1.4.1.66213.1.2        cel: JGDMS-STD-011 DETERMINISTIC CEL (moved here from
+                             .1.1.2 on 2026-11-20, RL-JGDMS-0130)
+1.3.6.1.4.1.66213.1.2.1      STD-011 Appendix B ASN.1 module, v1
 1.3.6.1.4.1.66213.2          DirtyChai (reserved)
 1.3.6.1.4.1.66213.3          (unassigned — future projects)
 ```

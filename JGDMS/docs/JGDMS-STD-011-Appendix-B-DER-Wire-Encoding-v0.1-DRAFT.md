@@ -140,9 +140,11 @@ this module has none).
 -- backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024,
 -- 2026-11-14); the bump to v2(2) of owner answer Q6 is withdrawn, and
 -- formatVersion stays 1.
+-- 2026-11-20: the arc moved from atomicDer(1) cel(2) to jgdms(1) cel(2), so CEL
+-- sits beside ATOMIC DER as its own standard (RL-JGDMS-0130).
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 66213 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 66213 jgdms(1) cel(2) v1(1) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN

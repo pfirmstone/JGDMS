@@ -30,8 +30,8 @@
 -- ("2026-07-24 sync" section) for this module's compile/round-trip record.
 --
 -- Separate module mirroring standard ownership: STD-006's types are IMPORTED,
--- never redefined here. Module OID: the cel(2) arc beside atomicDer's own
--- versioned arc, matching the OID printed in Appendix B section B.3 exactly
+-- never redefined here. Module OID: CEL's own cel(2) arc under jgdms, beside
+-- atomicDer(1), matching the OID printed in Appendix B section B.3 exactly
 -- (PEN 66213, Zeus Project Services Pty Ltd; replaced the placeholder 999999
 -- on 2026-11-18).
 --
@@ -76,9 +76,11 @@
 -- backward compatibility is required before JGDMS 4.0.0 (RL-JGDMS-0024,
 -- 2026-11-14); the bump to v2(2) of owner answer Q6 is withdrawn, and
 -- formatVersion stays 1.
+-- 2026-11-20: the arc moved from atomicDer(1) cel(2) to jgdms(1) cel(2), so CEL
+-- sits beside ATOMIC DER as its own standard (RL-JGDMS-0130).
 JGDMS-STD-011-Appendix-B
 { iso(1) identified-organization(3) dod(6) internet(1) private(4)
-  enterprise(1) 66213 jgdms(1) atomicDer(1) cel(2) v1(1) }
+  enterprise(1) 66213 jgdms(1) cel(2) v1(1) }
 DEFINITIONS
 EXPLICIT TAGS ::=
 BEGIN
