@@ -341,21 +341,11 @@ public final class ObjectCodec {
             return ctor.newInstance(arg);
         } catch (InvocationTargetException ex) {
             Throwable cause = ex.getCause();
-            if (cause instanceof InvalidObjectException ioe) {
-                throw ioe;
-            }
-            if (cause instanceof IOException ioe) {
-                throw ioe;
-            }
-            if (cause instanceof ClassNotFoundException cnfe) {
-                throw cnfe;
-            }
-            if (cause instanceof RuntimeException re) {
-                throw re;
-            }
-            if (cause instanceof Error err) {
-                throw err;
-            }
+            if (cause instanceof InvalidObjectException ioe) throw ioe;
+            if (cause instanceof IOException ioe) throw ioe;
+            if (cause instanceof ClassNotFoundException cnfe) throw cnfe;
+            if (cause instanceof RuntimeException re) throw re;
+            if (cause instanceof Error err) throw err;
             DerException de = new DerException(
                     "Construction of " + clazz.getName() + " failed: " + cause);
             de.initCause(cause);
