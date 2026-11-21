@@ -111,8 +111,9 @@ public final class RegistryVerdict {
             try {
                 new Uri(urls[i]);
             } catch (URISyntaxException e) {
-                throw new InvalidObjectException(
-                        "codebaseUrls[" + i + "] is not a valid RFC3986 URI: " + e.getMessage());
+                throw new InvalidObjectException(new StringBuilder()
+                        .append("codebaseUrls[").append(i)
+                        .append("] is not a valid RFC3986 URI: ").append(e.getMessage()).toString());
             }
         }
         if (arg.get(VERDICT, null, VerdictType.class) == null)
@@ -203,7 +204,8 @@ public final class RegistryVerdict {
         if (codebaseUrls.length == 0) throw new IllegalArgumentException("codebaseUrls must not be empty");
         for (int i = 0; i < codebaseUrls.length; i++) {
             if (codebaseUrls[i] == null)
-                throw new NullPointerException("codebaseUrls[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("codebaseUrls[").append(i).append("]").toString());
         }
         if (verdict == null) throw new NullPointerException("verdict");
         if (timestamp <= 0) throw new IllegalArgumentException("timestamp must be positive");
@@ -263,9 +265,11 @@ public final class RegistryVerdict {
 
     @Override
     public String toString() {
-        return "RegistryVerdict{verdict=" + verdict
-                + ", timestamp=" + timestamp
-                + ", urls=" + Arrays.toString(codebaseUrls) + '}';
+        return new StringBuilder()
+                .append("RegistryVerdict{verdict=").append(verdict)
+                .append(", timestamp=").append(timestamp)
+                .append(", urls=").append(Arrays.toString(codebaseUrls))
+                .append('}').toString();
     }
 
     /**
@@ -358,7 +362,8 @@ public final class RegistryVerdict {
         List<byte[]> urls = new ArrayList<byte[]>(codebaseUrls.length);
         for (int i = 0; i < codebaseUrls.length; i++) {
             if (codebaseUrls[i] == null)
-                throw new NullPointerException("codebaseUrls[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("codebaseUrls[").append(i).append("]").toString());
             urls.add(DerTbs.utf8(codebaseUrls[i]));
         }
         return DerTbs.sequence(Arrays.asList(
@@ -399,9 +404,9 @@ public final class RegistryVerdict {
                 result[i] = new Uri(urls[i]);
             } catch (URISyntaxException e) {
                 // Should not happen: check() already validated these strings.
-                throw new InvalidObjectException(
-                        "codebaseUrls[" + i + "] could not be parsed as URI: "
-                        + e.getMessage());
+                throw new InvalidObjectException(new StringBuilder()
+                        .append("codebaseUrls[").append(i)
+                        .append("] could not be parsed as URI: ").append(e.getMessage()).toString());
             }
         }
         return result;

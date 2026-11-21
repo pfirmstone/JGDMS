@@ -347,12 +347,14 @@ public final class JarAnalysisReport {
         if (declaredPermissions == null)  throw new NullPointerException("declaredPermissions");
         for (int i = 0; i < declaredPermissions.length; i++) {
             if (declaredPermissions[i] == null)
-                throw new NullPointerException("declaredPermissions[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("declaredPermissions[").append(i).append("]").toString());
         }
         if (codebaseUrls == null)         throw new NullPointerException("codebaseUrls");
         for (int i = 0; i < codebaseUrls.length; i++) {
             if (codebaseUrls[i] == null)
-                throw new NullPointerException("codebaseUrls[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("codebaseUrls[").append(i).append("]").toString());
         }
 
         // Check the private copy: the caller's map may change after the check.
@@ -610,10 +612,12 @@ public final class JarAnalysisReport {
 
     @Override
     public String toString() {
-        return "JarAnalysisReport{contentHash='" + contentHash
-                + "', classCount=" + results.size()
-                + ", verdict=" + deriveVerdictType()
-                + ", declaredPermissions=" + declaredPermissions.length
-                + ", codebaseUrls=" + codebaseUrls.length + '}';
+        return new StringBuilder()
+                .append("JarAnalysisReport{contentHash='").append(contentHash)
+                .append("', classCount=").append(results.size())
+                .append(", verdict=").append(deriveVerdictType())
+                .append(", declaredPermissions=").append(declaredPermissions.length)
+                .append(", codebaseUrls=").append(codebaseUrls.length)
+                .append('}').toString();
     }
 }

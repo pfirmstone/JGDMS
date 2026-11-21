@@ -381,8 +381,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                     default:
                         // ThrowableConstants.INDEFINITE - transient, leave intact
                         logger.log(Level.FINE,
-                                "Transient failure delivering VerdictEvent; "
-                                + "registration retained", t);
+                                "Transient failure delivering VerdictEvent; registration retained", t);
                         break;
                 }
             }
@@ -617,7 +616,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             if (publishedRv != null) {
                 appendLogRecord(new HashPublishedVerdictRecord(
                         contentHash, publishedRv, false));
-                notifyListeners("hash:" + contentHash, publishedRv);
+                notifyListeners(hashKey(contentHash), publishedRv);
             }
         }
     }
@@ -703,8 +702,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 state.dangerous = true;
                 publishedVerdicts.put(codebaseKey, rv);
                 logger.log(Level.WARNING,
-                        "Published DANGEROUS verdict (JFR pinning report: {0} events,"
-                                + " {1} ns pinned) for key: {2}",
+                        "Published DANGEROUS verdict (JFR pinning report: {0} events, {1} ns pinned) for key: {2}",
                         new Object[]{
                             report.getEventCount(),
                             report.getPinnedNanos(),
@@ -762,8 +760,9 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             }
         } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
             logger.log(Level.WARNING,
-                    "Signature verification failed for JarAnalysisReport from engine "
-                    + engineId + "; discarding", e);
+                    new StringBuilder()
+                            .append("Signature verification failed for JarAnalysisReport from engine ")
+                            .append(engineId).append("; discarding").toString(), e);
             return;
         }
 
@@ -784,8 +783,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         if (forcedDangerous) {
             derived = VerdictType.DANGEROUS;
             logger.log(Level.WARNING,
-                    "Forcing DANGEROUS for content hash {0} due to a pending URL "
-                    + "condemnation", contentHash);
+                    "Forcing DANGEROUS for content hash {0} due to a pending URL condemnation", contentHash);
         }
 
         HashVerdictState state = hashVerdictStates.computeIfAbsent(
@@ -837,7 +835,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         if (publishedRv != null) {
             appendLogRecord(new HashPublishedVerdictRecord(
                     contentHash, publishedRv, isDangerous));
-            notifyListeners("hash:" + contentHash, publishedRv);
+            notifyListeners(hashKey(contentHash), publishedRv);
         }
     }
 
@@ -881,7 +879,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             if (publishedRv != null) {
                 appendLogRecord(new HashPublishedVerdictRecord(
                         contentHash, publishedRv, true));
-                notifyListeners("hash:" + contentHash, publishedRv);
+                notifyListeners(hashKey(contentHash), publishedRv);
             }
         }
     }
@@ -996,7 +994,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         if (leaseId == null) throw new NullPointerException("leaseId");
 
         ListenerRegistration reg = listenerRegistrations.get(leaseId);
-        if (reg == null) throw new UnknownLeaseException("Unknown lease: " + leaseId);
+        if (reg == null) throw new UnknownLeaseException(
+                new StringBuilder().append("Unknown lease: ").append(leaseId).toString());
 
         long granted = clampLeaseDuration(duration);
         reg.leaseExpiration = System.currentTimeMillis() + granted;
@@ -1008,7 +1007,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             throws UnknownLeaseException, RemoteException {
         if (leaseId == null) throw new NullPointerException("leaseId");
         if (listenerRegistrations.remove(leaseId) == null) {
-            throw new UnknownLeaseException("Unknown lease: " + leaseId);
+            throw new UnknownLeaseException(
+                    new StringBuilder().append("Unknown lease: ").append(leaseId).toString());
         }
     }
 
@@ -1030,6 +1030,11 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             return MAX_LISTENER_LEASE_DURATION;
         }
         return Math.max(requested, 0L);
+    }
+
+    /** The listener key of a hash-keyed verdict: {@code "hash:"} then the content hash. */
+    private static String hashKey(String contentHash) {
+        return new StringBuilder().append("hash:").append(contentHash).toString();
     }
 
     /**
@@ -1090,7 +1095,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
      */
     private RegistryVerdict issueHashVerdict(String contentHash, VerdictType type) {
         try {
-            Uri urn = new Uri("urn:sha256:" + contentHash);
+            Uri urn = new Uri(new StringBuilder()
+                    .append("urn:sha256:").append(contentHash).toString());
             return issueVerdict(new Uri[]{ urn }, type);
         } catch (java.net.URISyntaxException e) {
             logger.log(Level.SEVERE, "Failed to construct URN for content hash", e);
