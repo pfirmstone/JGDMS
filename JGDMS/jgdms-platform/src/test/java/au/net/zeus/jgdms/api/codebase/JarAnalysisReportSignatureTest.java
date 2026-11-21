@@ -174,6 +174,63 @@ public class JarAnalysisReportSignatureTest {
                 verify(forged, engineKeys.getPublic()));
     }
 
+    /**
+     * Pins the TBS layout of JGDMS-STD-006 &sect;7.4 (RL-JGDMS-0197): every
+     * carried {@link ClassAnalysisResult} field is signed, enums by constant
+     * name.  The expected octets are hand-encoded DER, not produced by
+     * {@code DerTbs}, so a layout drift in either the code or the table fails here.
+     */
+    @Test
+    public void canonicalBytes_goldenLayout_signsEveryCarriedField() {
+        Map<String, ClassAnalysisResult> m = new LinkedHashMap<String, ClassAnalysisResult>();
+        m.put("A", new ClassAnalysisResult("A", ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.JAVA_SERIALIZATION,
+                Collections.singletonList("p"), Collections.singletonList("q")));
+        JarAnalysisReport r = new JarAnalysisReport("h", m, PLACEHOLDER,
+                new String[0], new String[0]);
+        byte[] expected = hex(
+                "30 3E",                                    // TBS SEQUENCE
+                "0C 01 68",                                 //   contentHash "h"
+                "30 35",                                    //   SEQUENCE OF per-class
+                "30 33",                                    //     per-class SEQUENCE
+                "0C 01 41",                                 //       className "A"
+                "0C 05 43 4C 45 41 4E",                     //       "CLEAN"
+                "0C 09 43 4F 4D 50 4C 49 41 4E 54",         //       "COMPLIANT"
+                "0C 12 4A 41 56 41 5F 53 45 52 49 41 4C 49 5A 41 54 49 4F 4E",
+                                                            //       "JAVA_SERIALIZATION"
+                "30 03 0C 01 70",                           //       blockingCallPath ["p"]
+                "30 03 0C 01 71",                           //       cycleParticipants ["q"]
+                "30 00",                                    //   declaredPermissions []
+                "30 00");                                   //   codebaseUrls []
+        assertArrayEquals(expected, r.canonicalBytes());
+    }
+
+    /**
+     * The map key is the signed className; a {@link ClassAnalysisResult} that
+     * names a different class would carry an unsigned className, so the report
+     * refuses it.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void classNameDifferentFromKey_isRejected() {
+        Map<String, ClassAnalysisResult> m = new LinkedHashMap<String, ClassAnalysisResult>();
+        m.put("com/example/Foo", new ClassAnalysisResult("com/example/Evil",
+                ClinitVerdict.CLEAN, AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.NA,
+                Collections.<String>emptyList(), Collections.<String>emptyList()));
+        new JarAnalysisReport("abc123", m, PLACEHOLDER, new String[0], new String[0]);
+    }
+
+    /** Parses groups of space-separated hex octets, in order. */
+    static byte[] hex(String... groups) {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        for (String group : groups) {
+            for (String octet : group.trim().split("\\s+")) {
+                out.write(Integer.parseInt(octet, 16));
+            }
+        }
+        return out.toByteArray();
+    }
+
     @Test
     public void tamperedCodebaseUrl_doesNotVerify() throws Exception {
         Map<String, ClassAnalysisResult> res =

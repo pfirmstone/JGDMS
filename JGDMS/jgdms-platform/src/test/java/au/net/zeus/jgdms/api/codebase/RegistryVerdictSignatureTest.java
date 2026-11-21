@@ -193,4 +193,23 @@ public class RegistryVerdictSignatureTest {
                 registryKeys.getPrivate());
         rv.verifySignature(registryKeys.getPublic(), "");
     }
+
+    /**
+     * Pins the TBS layout of JGDMS-STD-006 &sect;7.4 (RL-JGDMS-0197): the verdict
+     * is signed as its constant name, so the signed octets do not depend on the
+     * declaration order of {@link VerdictType}.  The expected octets are
+     * hand-encoded DER, not produced by {@code DerTbs}.
+     */
+    @Test
+    public void signedContent_goldenLayout_signsVerdictByName() {
+        byte[] expected = JarAnalysisReportSignatureTest.hex(
+                "30 1B",                                    // TBS SEQUENCE
+                "30 10",                                    //   SEQUENCE OF codebaseUrls
+                "0C 0E 68 74 74 70 3A 2F 2F 61 2F 78 2E 6A 61 72",
+                                                            //     "http://a/x.jar"
+                "0C 04 53 41 46 45",                        //   verdict "SAFE"
+                "02 01 01");                                //   timestamp 1
+        assertArrayEquals(expected, RegistryVerdict.signedContent(
+                new String[]{ "http://a/x.jar" }, VerdictType.SAFE, 1L));
+    }
 }
