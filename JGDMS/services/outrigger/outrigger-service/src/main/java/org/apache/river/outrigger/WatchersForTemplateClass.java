@@ -105,12 +105,18 @@ class WatchersForTemplateClass {
 	 */
 	for (TemplateHandle handle : content)
 	{
-	    // See the if handle mask is incompatible
-	    EntryHandleTmplDesc desc = handle.descFor(repNumFields); // final
+	    try {
+		// See the if handle mask is incompatible
+		EntryHandleTmplDesc desc = handle.descFor(repNumFields); // final
 
-	    if ((entryHash & desc.mask) != desc.hash) continue;
+		if ((entryHash & desc.mask) != desc.hash) continue;
 
-	    if (handle.matches(rep)) handle.collectInterested(set, transition, ordinal);
+		if (handle.matches(rep)) handle.collectInterested(set, transition, ordinal);
+	    } catch (RuntimeException e) {
+		// One template's failure is that pair's "no match"; it must not
+		// discard the watchers already collected or skip the other templates.
+		handle.recordFault("TemplateHandle.collect", e);
+	    }
 	}
     }
 

@@ -454,7 +454,14 @@ class OperationJournal extends Thread {
 
 		    for (Iterator<TransitionWatcher> i = set.iterator(); i.hasNext() && !dead; ) {
 			final TransitionWatcher watcher = i.next();
-			watcher.process(t, now);
+			try {
+			    watcher.process(t, now);
+			} catch (RuntimeException e) {
+			    // One watcher's failure is that pair's "no match". Without this
+			    // the watchers sorted after it (every later registration) would
+			    // lose this transition, and every following one while it lives.
+			    watcher.recordFault("TransitionWatcher.process", e);
+			}
 		    }
 		} else if (payload instanceof CaughtUpMarker) {
 		    ((CaughtUpMarker)payload).watcher.caughtUp();
@@ -468,10 +475,13 @@ class OperationJournal extends Thread {
 		// fin
 		return;
 	    } catch (Throwable t) {
-		// A RuntimeException skips only this node. Rethrowing it ended the thread for
-		// good, so one transition a client could provoke (EntryRep.matches on a
-		// malformed body, board review 2026-11-20, F1) silenced every notify and every
-		// blocked read/take wake-up for all clients. An Error still ends the thread.
+		// Failures of one watcher or template for one transition are isolated per pair
+		// above and in TransitionWatchers.allMatches, so a RuntimeException that reaches
+		// here is a fault outside any single pair (the watcher lookup, caughtUp). It
+		// skips only this node. Rethrowing it ended the thread for good, so one
+		// transition a client could provoke (EntryRep.matches on a malformed body,
+		// board review 2026-11-20, F1) silenced every notify and every blocked
+		// read/take wake-up for all clients. An Error still ends the thread.
 		try {
 		    final boolean fatal = t instanceof Error;
 		    logger.log(fatal ? Level.SEVERE : Level.WARNING,

@@ -327,10 +327,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		break;
 	    }
 	    if (c == null) {
-		throw new IllegalStateException(
-		    "EntryRep-v2 requires a DER-capable JVM: no "
-		    + EntryV2Codec.class.getName() + " provider found on the classpath"
-		    + " (jgdms-der). This space is born v2/ATOMIC-DER (flag-day).");
+		throw new IllegalStateException(message(
+		    "EntryRep-v2 requires a DER-capable JVM: no ",
+		    EntryV2Codec.class.getName(), " provider found on the classpath",
+		    " (jgdms-der). This space is born v2/ATOMIC-DER (flag-day)."));
 	    }
 	    CODEC = c;
 	}
@@ -425,12 +425,12 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		} catch (Exception e) {
 		    if (marshaling)
 			throw throwNewMarshalException(
-			   "Exception calculating entry class hash for " +
-			   clazz, e);
+			   message("Exception calculating entry class hash for ",
+			   clazz), e);
 		    else
 			throw throwNewUnusableEntryException(
-			   "Exception calculating entry class hash for " +
-			   clazz, e);
+			   message("Exception calculating entry class hash for ",
+			   clazz), e);
 		}
 	    }
 	    classHashes.put(clazz, hash);
@@ -452,10 +452,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    if (wireFields == null || wireFields.length == 0) {
 		if (marshaling)
 		    throw throwNewMarshalException(
-			clazz.getName() + ".entryForm() returned null or empty array", null);
+			message(clazz.getName(), ".entryForm() returned null or empty array"), null);
 		else
 		    throw throwNewUnusableEntryException(
-			clazz.getName() + ".entryForm() returned null or empty array", null);
+			message(clazz.getName(), ".entryForm() returned null or empty array"), null);
 	    }
 	    MessageDigest md = MessageDigest.getInstance("SHA-256");
 	    DataOutputStream out =
@@ -482,10 +482,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	} catch (Exception e) {
 	    if (marshaling)
 		throw throwNewMarshalException(
-		    "Exception calculating @SerialEntry hash for " + clazz, e);
+		    message("Exception calculating @SerialEntry hash for ", clazz), e);
 	    else
 		throw throwNewUnusableEntryException(
-		    "Exception calculating @SerialEntry hash for " + clazz, e);
+		    message("Exception calculating @SerialEntry hash for ", clazz), e);
 	}
     }
 
@@ -527,7 +527,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	     * amendment F1); wrap so this constructor honours its documented
 	     * "throws only MarshalException" contract. */
 	    throw throwNewMarshalException(
-		"Can't marshal entry of type " + className, e);
+		message("Can't marshal entry of type ", className), e);
 	}
 
 	try {
@@ -596,16 +596,16 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    Throwable cause = e.getCause();
 	    if (cause instanceof IOException)
 		throw throwNewMarshalException(
-		    "IOException during " + realClass.getName() + ".serialize()",
+		    message("IOException during ", realClass.getName(), ".serialize()"),
 		    (IOException) cause);
 	    throw throwNewMarshalException(
-		"Exception during " + realClass.getName() + ".serialize()", e);
+		message("Exception during ", realClass.getName(), ".serialize()"), e);
 	} catch (IOException e) {
 	    throw throwNewMarshalException(
-		"Cannot marshal @SerialEntry " + realClass.getName(), e);
+		message("Cannot marshal @SerialEntry ", realClass.getName()), e);
 	} catch (Exception e) {
 	    throw throwNewMarshalException(
-		"Cannot marshal @SerialEntry " + realClass.getName(), e);
+		message("Cannot marshal @SerialEntry ", realClass.getName()), e);
 	}
     }
 
@@ -664,6 +664,13 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	return format;
     }
 
+    /** Joins the parts of an exception or log message as {@code String.valueOf} renders them. */
+    private static String message(Object... parts) {
+	final StringBuilder sb = new StringBuilder();
+	for (Object part : parts) sb.append(part);
+	return sb.toString();
+    }
+
     private static boolean checkIntegrity(GetArg arg) throws IOException, ClassNotFoundException {
 	byte[] body = (byte[]) arg.get("body", null);
 	if (body == null) throw new InvalidObjectException("null body (EntryRep-v2)");
@@ -671,12 +678,21 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	if (entrySchemaDigest == null) throw new InvalidObjectException("null entrySchemaDigest");
 	String[] superclasses = (String[]) arg.get("superclasses", null);
 	if (superclasses == null) throw new InvalidObjectException("null superclasses");
+	/*
+	 * A null element is used as a class name by the server (a null key in its
+	 * holder lookup and type tree) and an honest client never sends one.
+	 * Reject-only: no repair, and no comparison with the body's own chain.
+	 */
+	for (int i = 0; i < superclasses.length; i++) {
+	    if (superclasses[i] == null)
+		throw new InvalidObjectException(message("null superclasses[", i, "]"));
+	}
 	long[]	hashes = (long[]) arg.get("hashes", null);
 	if (hashes == null) throw new InvalidObjectException("null hashes");
 	if (hashes.length != superclasses.length)
-	    throw new InvalidObjectException("hashes.length (" +
-                hashes.length + ") does not equal  superclasses.length (" +
-	        superclasses.length + ")");
+	    throw new InvalidObjectException(message("hashes.length (",
+                hashes.length, ") does not equal  superclasses.length (",
+	        superclasses.length, ")"));
 	arg.get("hash", 0L);
 	String	className = (String) arg.get("className", null);
 	if (className == null) throw new InvalidObjectException("null className");
@@ -765,7 +781,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	try {
 	    if (!Modifier.isPublic(c.getModifiers())) {
 		throw throwRuntime(new IllegalArgumentException(
-		    "entry class " + c.getName() + " not public"));
+		    message("entry class ", c.getName(), " not public")));
 	    }
 	    if (c.isAnnotationPresent(SerialEntry.class)) {
 		Constructor ctor = c.getConstructor(GetEntryArg.class);
@@ -781,8 +797,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	}
 	if (!ctorOK) {
 	    String msg = c.isAnnotationPresent(SerialEntry.class)
-		? "entry class " + c.getName() + " needs public (GetEntryArg) constructor"
-		: "entry class " + c.getName() + " needs public no-arg constructor";
+		? message("entry class ", c.getName(), " needs public (GetEntryArg) constructor")
+		: message("entry class ", c.getName(), " needs public no-arg constructor");
 	    throw throwRuntime(new IllegalArgumentException(msg));
 	}
     }
@@ -849,7 +865,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		}
                 if (findHash(realClass, false).longValue() != hash)
                     throw throwNewUnusableEntryException(
-                        new IncompatibleClassChangeError(realClass + " changed"));
+                        new IncompatibleClassChangeError(message(realClass, " changed")));
 
 		if (realClass.isAnnotationPresent(SerialEntry.class)) {
 		    return entryViaSerialEntry(realClass);
@@ -859,10 +875,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 		    entryObj = (Entry) realClass.getDeclaredConstructor().newInstance();
 		} catch (NoSuchMethodException e) {
 		    throw throwNewUnusableEntryException(
-			    new IncompatibleClassChangeError(realClass + " changed: " + e.getMessage()));
+			    new IncompatibleClassChangeError(message(realClass, " changed: ", e.getMessage())));
 		} catch (InvocationTargetException e) {
 		    throw throwNewUnusableEntryException(
-			    new IncompatibleClassChangeError(realClass + " changed: " + e.getMessage()));
+			    new IncompatibleClassChangeError(message(realClass, " changed: ", e.getMessage())));
 		}
 
                 final EntryV2Codec.Decoded dec = codec().decode(body);
@@ -901,10 +917,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
                             entryObj,
                             null,
                             new Throwable[] {
-                                new IncompatibleClassChangeError(
-                                        "A usable field has been removed from " +
-                                        entryObj.getClass().getName() +
-                                        " since this EntryRep was created")
+                                new IncompatibleClassChangeError(message(
+                                        "A usable field has been removed from ",
+                                        entryObj.getClass().getName(),
+                                        " since this EntryRep was created"))
                             });
                 }
             }
@@ -924,18 +940,18 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	} catch (InstantiationException e) {
 	    throw throwNewUnusableEntryException(e);
 	} catch (ClassNotFoundException e) {
-	    throw throwNewUnusableEntryException("Encountered a " +
-		"ClassNotFoundException while unmarshalling " + className, e);
+	    throw throwNewUnusableEntryException(message("Encountered a ",
+		"ClassNotFoundException while unmarshalling ", className), e);
 	} catch (IllegalAccessException e) {
 	    throw throwNewUnusableEntryException(e);
 	} catch (RuntimeException e) {
-	    throw throwNewUnusableEntryException("Encountered a " +
-		"RuntimeException while unmarshalling " + className, e);
+	    throw throwNewUnusableEntryException(message("Encountered a ",
+		"RuntimeException while unmarshalling ", className), e);
 	} catch (IOException e) {
 	    // Covers MarshalException (findHash), MalformedURLException (loadClass), and a
 	    // bad/undecodable v2 body (codec) -- all surface as an UnusableEntryException.
-	    throw throwNewUnusableEntryException("Encountered an " +
-		"IOException while unmarshalling " + className, e);
+	    throw throwNewUnusableEntryException(message("Encountered an ",
+		"IOException while unmarshalling ", className), e);
 	}
     }
 
@@ -963,7 +979,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	    return (Entry) ctor.newInstance(getArg);
 	} catch (Exception e) {
 	    throw throwNewUnusableEntryException(
-		"Exception constructing @SerialEntry " + realClass.getName(), e);
+		message("Exception constructing @SerialEntry ", realClass.getName()), e);
 	}
     }
 
@@ -1032,7 +1048,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 	// if it isn't ignorable, it has to be an object of some kind
 	if (field.getType().isPrimitive()) {
 	    throw throwRuntime(new IllegalArgumentException(
-		"primitive field, " + field + ", not allowed in an Entry"));
+		message("primitive field, ", field, ", not allowed in an Entry")));
 	}
 
 	return true;
@@ -1248,7 +1264,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
     @Override
     public String toString() {
-	return ("EntryRep[" + className + "]");
+	return message("EntryRep[", className, "]");
     }
 
     /**
@@ -1414,7 +1430,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource {
 
 	if (logger.isLoggable(Levels.FAILED)) {
 	    logger.log(Levels.FAILED,
-		       "failure constructing entry of type " + className, uee);
+		       message("failure constructing entry of type ", className), uee);
 	}
 
 	throw uee;

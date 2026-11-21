@@ -41,6 +41,14 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Test-only: PoisonSuperclassesRestartTest starts a real server, whose join manager
+             loads the discovery format providers named in jgdms-resources. -->
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-discovery-providers</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -55,7 +63,28 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Tests only: PoisonSuperclassesRestartTest compiles against jgdms-der
+                         (release 25, uses java.lang.Record), as outrigger-service (release 21) does.
+                         The main sources keep the parent's release. -->
+                    <testRelease>21</testRelease>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- PoisonSuperclassesRestartTest builds real EntryReps, whose static init
+                             pulls in the RMI codebase machinery. Use the default RMI class
+                             provider so the test JVM needs no preferred-class-loader SPI on its
+                             classpath (same setting as outrigger-service). -->
+                        <java.rmi.server.RMIClassLoaderSpi>default</java.rmi.server.RMIClassLoaderSpi>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

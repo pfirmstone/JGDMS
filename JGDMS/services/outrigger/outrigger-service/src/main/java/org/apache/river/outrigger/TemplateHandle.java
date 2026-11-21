@@ -65,6 +65,9 @@ class TemplateHandle extends BaseHandle {
      */
     final private OutriggerServerImpl owner;
 
+    /** Faults the journal thread isolated for this template, see {@link FaultTally}. */
+    private final FaultTally faults = new FaultTally();
+
     /**
      * Create a handle for the template <code>tmpl</code>.
      */
@@ -88,6 +91,22 @@ class TemplateHandle extends BaseHandle {
      */
     boolean matches(EntryRep entry) {
 	return rep().matches(entry);
+    }
+
+    /**
+     * Record that the journal thread isolated a failure of this template for one
+     * transition. The failed pair counts as "no match"; the template and its watchers
+     * stay registered.
+     * @param phase which call failed, for the log line.
+     * @param fault the exception that was isolated.
+     */
+    void recordFault(String phase, RuntimeException fault) {
+	faults.record(phase, rep(), fault);
+    }
+
+    /** @return the number of failures isolated for this template. */
+    long faultCount() {
+	return faults.count();
     }
 
     /** 
@@ -151,8 +170,14 @@ class TemplateHandle extends BaseHandle {
             final Iterator i = watchers.iterator();
             while (i.hasNext()) {
                 final TransitionWatcher w = (TransitionWatcher)i.next();
-                if (w.isInterested(transition, ordinal)) {
-                    set.add(w);
+                try {
+                    if (w.isInterested(transition, ordinal)) {
+                        set.add(w);
+                    }
+                } catch (RuntimeException e) {
+                    // One watcher's failure is that pair's "no match"; it must
+                    // not discard the watchers already collected or skip the rest.
+                    w.recordFault("TransitionWatcher.isInterested", e);
                 }
             }
         } finally {
