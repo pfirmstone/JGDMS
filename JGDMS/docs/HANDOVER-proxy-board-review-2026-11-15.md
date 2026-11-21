@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116, RL-JGDMS-0134 to RL-JGDMS-0175) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
-LATEST ADDENDUM: add.14 dated 2026-11-21 at heading "ADDENDUM add.14, AS-OF 2026-11-21 03:33 +1000"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116, RL-JGDMS-0134 to RL-JGDMS-0191, RL-JGDMS-0198 to RL-JGDMS-0207) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
+LATEST ADDENDUM: add.16 dated 2026-11-21 at heading "ADDENDUM add.16, AS-OF 2026-11-21 14:52 +1000"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: LIVE STATE - re-read the disk before acting on it
 -->
@@ -508,3 +508,78 @@ Wrap-up before a compaction asked for by the operator at 03:31 +1000. It consoli
 **DEVIATIONS.**
 1. Rev 2 was edited in place after it was written, not appended to; its status line records each revision.
 2. RL-JGDMS-0172 registers a stated need, not a decision; RL-JGDMS-0148 is the precedent this session followed.
+
+## ADDENDUM add.15, AS-OF 2026-11-21 04:31 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model.
+
+**COMMIT.** At the operator's request (03:34) the uncommitted files under `docs` were committed to JGDMS `trunk` as `21965190d` (12 files, not pushed), author and committer `Claude <noreply@anthropic.com>` because the VM has no git identity. It includes `docs/RESULTS-lookup-cel-investigation.md`, written by another agent and not reviewed here. The commit was made with `write-tree`, `commit-tree` and `update-ref` after a plain `git commit` timed out.
+
+**BOARD REVIEW OF REV 2.** Asked for by the operator at 03:38 in place of a coding scope ("We aren't ready to write the scope yet"). Two read-only agents, Opus and Sonnet. Reports saved as received: `docs/REVIEW-entry-records-design-rev2-opus-2026-11-21.md`, `docs/REVIEW-entry-records-design-rev2-sonnet-2026-11-21.md`. Both found rev 2 not ready to build from.
+
+**CLAIMS SETTLED.** None.
+
+**RULINGS REGISTERED IN THIS PERIOD, BY SUBJECT (status is in the register).**
+- Component types and immutability: RL-JGDMS-0176, RL-JGDMS-0185.
+- Cycles: RL-JGDMS-0177.
+- Validity and its consequences: RL-JGDMS-0178, RL-JGDMS-0188, RL-JGDMS-0189, RL-JGDMS-0190.
+- Java release and where the wrappers live: RL-JGDMS-0179, RL-JGDMS-0182.
+- Primitives: RL-JGDMS-0180. Cap on digests: RL-JGDMS-0181.
+- Codec as configuration, canonical constraint, one digest: RL-JGDMS-0183, RL-JGDMS-0184, RL-JGDMS-0191.
+- Wrapper encoding: RL-JGDMS-0186.
+- Nullability of existing classes as separate work: RL-JGDMS-0187.
+- Status changes made in this period: RL-JGDMS-0169, RL-JGDMS-0171, RL-JGDMS-0176.
+
+**FILES, ALL UNCOMMITTED, UNDER `JGDMS/JGDMS/docs`.**
+- `DESIGN-Entry-Records-MarshalledEntry-Space-API-rev3-2026-11-21.md` (new; DRAFT rev 3, not reviewed).
+- `DESIGN-Entry-Records-MarshalledEntry-Space-API-rev2-2026-11-21.md` (status line points to rev 3).
+- The two rev 2 review files named above.
+- This handover.
+
+**NEXT ACTION.** The operator decides the open questions in rev 3 section 13 (twelve), and whether rev 3 gets a review by a model other than Fable before a coding scope is written. No scope has been written. The operator said the scope is to cover the whole entry design, not only the nullable mark.
+
+**OPEN ITEMS.**
+- The session holding the STD-006 freeze has not been told of RL-JGDMS-0173, RL-JGDMS-0187, RL-JGDMS-0191 or of rev 3's request for new sections.
+- The suggestions list entry 2 has not been updated for RL-JGDMS-0183 and RL-JGDMS-0184.
+- Items carried in add.14 that this period did not touch remain open.
+
+**NOT VERIFIED.** Nothing was compiled or run. Of the two rev 2 reviews this session re-opened only: `ObjectCodec.java` lines 705-716, 735-738 and 2117-2126; `jgdms-der/pom.xml` lines 45 and 66-74; `MarshallingFormat.java` by a search of its declarations; and two rev 2 passages. Every other finding in those reviews is relayed.
+
+**DEVIATIONS.**
+1. Two of the operator's replies were taken as assent without the word: the wording of RL-JGDMS-0176 (he then confirmed it at 04:00), and "Yes" to an either/or question for RL-JGDMS-0184. Each ruling's note says so.
+2. RL-JGDMS-0183 and RL-JGDMS-0184 were registered in the operator's short words with this session's reading in the note; he confirmed both readings afterwards and the confirmations are appended to those rulings.
+3. This session proposed at 04:04 that the old-interface wrapper skip unconvertible entries, then withdrew it as contrary to RL-JGDMS-0167.
+
+## ADDENDUM add.16, AS-OF 2026-11-21 14:52 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model. Written before a compaction the operator asked for at 14:51.
+
+**CLAIMS SETTLED.** None. The CLAIM-HEADER and the scope's INDEX.md were re-read at 14:34 at the operator's instruction; six CENSUS-UNVERIFIED pointers in the scope were treated as pointers only.
+
+**RULINGS REGISTERED SINCE add.15, BY SUBJECT (status is in the register).**
+- The new space proxy is a dynamic proxy with no downloaded code; service API: RL-JGDMS-0198, RL-JGDMS-0199.
+- The jar for the space's service API: RL-JGDMS-0200.
+- Binding interfaces: RL-JGDMS-0201, RL-JGDMS-0202.
+- Decorators for the old interfaces, their jar, registration of two proxies, statelessness, trusted download: RL-JGDMS-0203, RL-JGDMS-0204, RL-JGDMS-0205, RL-JGDMS-0206, RL-JGDMS-0207.
+- Registered by another session in the same period and used by rev 3: RL-JGDMS-0192, RL-JGDMS-0194, RL-JGDMS-0196.
+
+**FILES, ALL UNCOMMITTED, UNDER `JGDMS/JGDMS/docs`.** As add.15. Rev 3 was revised in place between 12:55 and 14:52 for the rulings above (its status line says so) and gained section 8.2.
+
+**NEXT ACTION.** No coding scope has been written; the operator said at 03:38 that the design is not ready for one. Before a scope:
+1. The operator's answers to the open points: rev 3 section 13 (questions 1, 6 and 7 are the ones this session has put to him three times: final `@AtomicSerial` classes as components, records that are not public, what a space permission names) and rev 3 section 8.2 (one service ID or two; how the lookup service's own proxy gets its decorator; a client without the compatibility jar).
+2. A check of CL-PROXYBOARD-0007, which bears on RL-JGDMS-0198 and RL-JGDMS-0207.
+3. Whether rev 3 gets a review by a model other than Fable.
+
+**OPEN ITEMS.**
+- Unconfirmed readings recorded in ruling notes: RL-JGDMS-0199 (one module for all parties, contract only), RL-JGDMS-0204 ("service decorators" read as general to services), RL-JGDMS-0205 and RL-JGDMS-0206 (what "deserializable locally" and "stateless" require).
+- A provider interface in `jgdms-platform` that compatibility jars plug into has the operator's tentative assent only (14:46); it is not a ruling.
+- The compatibility jar has no name. The interface name and package in `tuple-space-api.jar` are not ruled.
+- The session holding the STD-006 freeze has still not been told.
+- The suggestions list entry 2 has not been updated for RL-JGDMS-0183, RL-JGDMS-0184, RL-JGDMS-0199.
+
+**NOT VERIFIED.** Nothing was compiled or run. Opened by this session since add.15: `ProxyWireSupport.java` lines 86-166; the class Javadoc of `DerProxySerializer`, `ProxyWireSupport` and `AtomicDerInvocationHandler`; `MarshallingFormat.java` by a search of its declarations; the declaration of `OutriggerServer`; the locations of `JavaSpace`, `JavaSpace05`, `MatchSet`, `ServiceDiscoveryManager`, `LookupDiscovery`, `LookupLocatorDiscovery`, `LookupDiscoveryManager`; the release settings and dependencies in the `jgdms-lib`, `jgdms-lib-dl` and `jgdms-der` build files. Whether JOSS and Atomic JOSS require a binding interface was not checked.
+
+**DEVIATIONS.**
+1. Rev 3 was edited in place after it was written, as rev 2 was.
+2. This session wrote RL-JGDMS-0192 into rev 3 before seeing that the register had allocated RL-JGDMS-0198 (another session had taken six IDs); corrected in the same minute.
+3. "I agree with all three" (11:05) was read as repeating the 04:27 assent already registered; nothing was registered for it.

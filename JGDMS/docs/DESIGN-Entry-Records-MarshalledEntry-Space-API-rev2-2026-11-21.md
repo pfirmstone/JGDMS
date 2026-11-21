@@ -1,6 +1,6 @@
 # Design: record entries, `MarshalledEntry` and the space API that returns it (DRAFT rev 2)
 
-- **Status:** DRAFT rev 2, section 3.2 revised at 02:50 +1000 for RL-JGDMS-0171; sections 3.6 and 3.7 added at 03:10 +1000; 3.7 extended at 03:18 +1000 for RL-JGDMS-0173. Not reviewed. Nothing in it is built. It replaces rev 1 (`docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md`), which a board reviewed and found not to be adopted as written.
+- **Status:** DRAFT rev 2, section 3.2 revised at 02:50 +1000 for RL-JGDMS-0171; sections 3.6 and 3.7 added at 03:10 +1000; 3.7 extended at 03:18 +1000 for RL-JGDMS-0173. Not reviewed. Nothing in it is built. It replaces rev 1 (`docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-2026-11-20.md`), which a board reviewed and found not to be adopted as written. REPLACED BY REV 3: `docs/DESIGN-Entry-Records-MarshalledEntry-Space-API-rev3-2026-11-21.md`.
 - **Date:** 2026-11-21. **Written by:** Claude Fable 5.2, proxy-board review session, at the operator's request (02:35 +1000).
 - **Read against:** JGDMS trunk `83c4d4c7a`. Uncommitted.
 - **Rulings it rests on:** RL-JGDMS-0134 to RL-JGDMS-0175, cited by ID only; the register holds their wording and status.
