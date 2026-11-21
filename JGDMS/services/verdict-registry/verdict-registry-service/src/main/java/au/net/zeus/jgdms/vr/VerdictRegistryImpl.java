@@ -747,10 +747,10 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             return;
         }
 
-        // Verify the engine's signature over the report's single-source-of-truth
-        // canonical form.  This covers contentHash, per-class verdicts, declared
-        // permissions AND codebase URLs — fixing the prior silent-discard bug for
-        // reports that declared permissions or carried codebase URLs.
+        // Verify the engine's signature over JarAnalysisReport.canonicalBytes().
+        // Everything read from the report below (deriveVerdictType, the codebase
+        // URLs) is authenticated only to the extent canonicalBytes() signs it;
+        // the signed field set is defined there and in STD-006 s7.4.
         try {
             byte[] canonical = report.canonicalBytes();
             if (!verify(reg.publicKey, reg.sigAlgorithm, canonical,

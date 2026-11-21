@@ -334,11 +334,13 @@ public final class RegistryVerdict {
      * reconstruct them for verification.
      *
      * <p>The bytes are {@code DER(SEQUENCE { SEQUENCE OF UTF8String codebaseUrls,
-     * INTEGER verdict.ordinal(), INTEGER timestamp })}.  The {@code signature}
-     * field is excluded.  The codebase URLs are encoded in the supplied array
-     * order (order-significant, matching the {@code SEQUENCE OF} wire form); the
-     * caller is responsible for any canonicalisation of that order before both
-     * signing and construction.
+     * UTF8String verdict.name(), INTEGER timestamp })}.  The verdict is the
+     * UTF8String of its constant name, never its ordinal, so the signed octets do
+     * not depend on the declaration order of {@link VerdictType}.  The
+     * {@code signature} field is excluded.  The codebase URLs are encoded in the
+     * supplied array order (order-significant, matching the {@code SEQUENCE OF}
+     * wire form); the caller is responsible for any canonicalisation of that
+     * order before both signing and construction.
      *
      * @param codebaseUrls the codebase URI strings, in the order stored on the
      *                     verdict; must be non-null with no null elements
@@ -361,7 +363,7 @@ public final class RegistryVerdict {
         }
         return DerTbs.sequence(Arrays.asList(
                 DerTbs.sequence(urls),
-                DerTbs.integer(verdict.ordinal()),
+                DerTbs.utf8(verdict.name()),
                 DerTbs.integer(timestamp)));
     }
 

@@ -1794,14 +1794,25 @@ JarAnalysisReport ::= SEQUENCE {
     declaredPermissions  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
     codebaseUrls         SEQUENCE (SIZE(0..maxCollection)) OF UTF8String
 }
--- ClassAnalysisResult: [PROPOSED — field list not yet extracted; confirm against
--- au.net.zeus.jgdms.api.codebase.ClassAnalysisResult @AtomicSerial serialForm().]
+
+-- ClassAnalysisResult.serialForm(): className String, clinitVerdict ClinitVerdict,
+-- atomicVerdict AtomicSerialVerdict, constrainableProxyVerdict
+-- ConstrainableProxyVerdict, blockingCallPath String[], cycleParticipants String[].
+-- A declared enum field is written as the UTF8String of its Java constant name.
+ClassAnalysisResult ::= SEQUENCE {
+    className                  UTF8String,    -- internal binary name; equals the paired classNames[i]
+    clinitVerdict              UTF8String,    -- ClinitVerdict constant name
+    atomicVerdict              UTF8String,    -- AtomicSerialVerdict constant name
+    constrainableProxyVerdict  UTF8String,    -- ConstrainableProxyVerdict constant name
+    blockingCallPath           SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
+    cycleParticipants          SEQUENCE (SIZE(0..maxCollection)) OF UTF8String
+}
 
 -- RegistryVerdict.serialForm(): codebaseUrls String[], verdict VerdictType,
 -- timestamp long, signature byte[]. Registry-signed.
 RegistryVerdict ::= SEQUENCE {
     codebaseUrls  SEQUENCE (SIZE(0..maxCollection)) OF UTF8String,
-    verdict       INTEGER,               -- VerdictType enumerant (closed set; [PROPOSED] confirm values)
+    verdict       UTF8String,            -- VerdictType constant name
     timestamp     INTEGER,               -- epoch-millis (long), consistent with §7.6 Date
     signature     OCTET STRING           -- DER signature over the signed TBS (§7.4.1)
 }
@@ -1842,9 +1853,52 @@ classes emit.
 
 | Record | Signed fields (the TBS `SEQUENCE`, in order) | Excluded (not in TBS) | Signer key |
 |---|---|---|---|
-| `JarAnalysisReport` | `contentHash`, per-class results (`className` + `clinitVerdict` + `atomicVerdict`), `declaredPermissions`, `codebaseUrls` | `engineSignature` | engine key |
+| `JarAnalysisReport` | `contentHash`, per-class results (`className` + `clinitVerdict` + `atomicVerdict` + `constrainableProxyVerdict` + `blockingCallPath` + `cycleParticipants`), `declaredPermissions`, `codebaseUrls` | `engineSignature` | engine key |
 | `RegistryVerdict` | `codebaseUrls`, `verdict`, `timestamp` | `signature` | registry key |
 | `CrashReport` | `codebaseUrls`, `exitCode`, `incarnation`, `stderrSummary` | `signature` | Phoenix key |
+
+**TBS definitions (NORMATIVE — a peer implements the signature input from these alone).**
+Each TBS is the canonical DER of the `SEQUENCE` below; the signature field is not part
+of it. Every `SEQUENCE OF` keeps its stored element order and is never re-sorted (§3.8).
+
+```asn1
+JarAnalysisReportTBS ::= SEQUENCE {
+    contentHash          UTF8String,      -- the SHA-256 hex String carried by the record
+    classResults         SEQUENCE OF SEQUENCE {   -- one per class; element i is classNames[i]
+        className                  UTF8String,    -- classNames[i]
+        clinitVerdict              UTF8String,    -- ClinitVerdict constant name
+        atomicVerdict              UTF8String,    -- AtomicSerialVerdict constant name
+        constrainableProxyVerdict  UTF8String,    -- ConstrainableProxyVerdict constant name
+        blockingCallPath           SEQUENCE OF UTF8String,
+        cycleParticipants          SEQUENCE OF UTF8String
+    },
+    declaredPermissions  SEQUENCE OF UTF8String,
+    codebaseUrls         SEQUENCE OF UTF8String
+}
+
+RegistryVerdictTBS ::= SEQUENCE {
+    codebaseUrls  SEQUENCE OF UTF8String,
+    verdict       UTF8String,             -- VerdictType constant name
+    timestamp     INTEGER                 -- epoch-millis (long)
+}
+
+CrashReportTBS ::= SEQUENCE {
+    codebaseUrls   SEQUENCE OF UTF8String,
+    exitCode       INTEGER,
+    incarnation    INTEGER,               -- long
+    stderrSummary  UTF8String
+}
+```
+
+- An enumeration in a TBS is the `UTF8String` of its Java constant name, never its
+  ordinal: the signed octets do not depend on the declaration order of the enum.
+- The per-class `className` in `JarAnalysisReportTBS` is `classNames[i]`. A
+  `ClassAnalysisResult` whose own `className` differs from the paired `classNames[i]`
+  is rejected (at construction and on decoding), so no unsigned name is carried.
+- RL-JGDMS-0197: every field a signed record carries is covered by its signature, so an
+  altered `ClassAnalysisResult` field cannot pass signature verification, and
+  enumerations are signed by name so a reordered enum declaration does not change the
+  signed octets.
 
 (`AnalysisRequest` is **unsigned**; its integrity is self-verifying — `check(GetArg)`
 re-hashes the unpacked jar and rejects a mismatched `contentHash` — so it has no TBS
