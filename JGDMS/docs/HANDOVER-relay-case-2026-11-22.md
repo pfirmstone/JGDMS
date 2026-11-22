@@ -164,3 +164,5 @@ Open items added:
 14. Open point 21 in DESIGN-security.
 
 Note, 2026-11-22 22:42: the operator agreed, and the drawings are republished as version 1795351360-1996; open item 13 is done.
+
+Note, 2026-11-22 23:02: the drawings as republished are also in the repository as JGDMS/docs/LAYOUT-proxy-host-board-2026-11-22.html (uncommitted), beside the first issue of 2026-11-15.
