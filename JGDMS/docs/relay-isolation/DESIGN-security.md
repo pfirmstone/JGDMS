@@ -10,22 +10,43 @@ Additions of 2026-11-21, made by a Claude Opus 5.5 session at the operator's req
 a review of the timing attacks that remain, R16h, R16i, open points 10 and 11, and dated
 paragraphs in R8, R16, R16e and R20; then R16j (the operator's decision that HotSpot never
 compiles proxy code), R16k, and an amendment to R13 after reading the landed hand-off
-code. Except R16j's decision itself, all are proposals; none is registered, and nothing in
-them has been measured.
+code. Except R16j's decision itself (RL-DIRTYCHAI-0016), all are proposals; none is
+registered, and nothing in them has been measured.
+
+Addition of 2026-11-22, same session: the section "Case topology" at the end, from the
+operator's statements in conversation (wording preserved there, not registered) and the
+session's proposals.
+
+Revision of 2026-11-22, later the same day: the operator replaced RL-JGDMS-0037 and set
+how a proxy JVM reaches the relay (RL-JGDMS-0211, -0212). The trust-boundary note, R16g,
+K3 and K7 are amended to match, and open points 16 and 17 are added.
+
+Second revision, 2026-11-22 evening: the operator dropped encryption on the internal links
+(RL-JGDMS-0213) and chose slot ID pins on the caddy backplane (RL-JGDMS-0214). K1 to K4
+are rewritten around one VLAN per slot, K7 notes what that replaces, K8 (hot swap) and
+open points 18 to 20 are added, and open point 16 is closed.
+
+Late evening, 2026-11-22: the operator reconsidered and kept R16j (RL-DIRTYCHAI-0016
+reaffirmed); a dated note in R16j records why, and K9 (proxy JVM crashes reported into
+SCAP) is added as a proposal.
+
 
 ## Trust boundaries
 
 | Party | Trusted | Holds |
 |---|---|---|
 | Host (client application) | yes | caller Subjects, client constraints, the thin stub |
-| Relay (on the proxy board) | yes | TLS connections, destination table, tokens, minimum constraints |
+| Relay (on the proxy board; since 2026-11-22 its own board in the case, K1) | yes | TLS connections, destination table, tokens, minimum constraints |
 | Signer (optional) | yes | node key |
-| Proxy JVM (on the proxy board) | no | downloaded proxy code, marshalling, the arguments the host passes in |
+| Proxy JVM (on the proxy board) | no | downloaded proxy code, marshalling, the arguments the host passes in; since 2026-11-22 a plain TCP connection to the relay on its slot's VLAN; no key (K3) |
 | Service | authenticated, not trusted | wrote the proxy bytes, the codebase and every endpoint in them |
 
-The proxy JVM's only channel out is the Unix socket to the relay (RL-JGDMS-0096). Real
-endpoints are replaced in the DER bytes by a trusted process before the proxy JVM
-deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JGDMS-0088).
+The proxy JVM's only channel out is its connection to the relay: a Unix socket while the
+relay shared the board (RL-JGDMS-0096), and since 2026-11-22, with the relay on its own
+board, an unencrypted TCP connection over the case's private network, identified by the
+slot's VLAN and the JVM's address (RL-JGDMS-0211, -0213; K3). Real endpoints are replaced
+in the DER bytes by a trusted process before the proxy JVM deserializes them, so the proxy
+never holds a host or port (RL-JGDMS-0083, RL-JGDMS-0088).
 
 ## Requirements
 
@@ -219,6 +240,7 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
   that has escaped its JVM and the relay, so the launcher controls (R14, R15), the
   syscall filter and board integrity (R20) carry that weight. The relay channel stays a
   Unix socket with peer credentials.
+  (2026-11-22: replaced by the case topology; see K3 and K7.)
 - **R16h. No second thread, enforced below the JVM** (proposal, added 2026-11-21). A
   thread that does nothing but count is a fine clock, and coarsening does not survive it.
   Every route to a second thread of control in the proxy JVM is closed:
@@ -255,8 +277,8 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
     a proxy's core in a pattern the proxy can count.
   - R16f relies on the A55 not speculating in an exploitable way. To be checked against
     Arm's published list for the core revision in the i.MX 95.
-- **R16j. Proxy code is never compiled** (operator decision 2026-11-21, not yet
-  registered). HotSpot decides by the defining class loader, not by class name: a proxy
+- **R16j. Proxy code is never compiled** (operator decision,
+  RL-DIRTYCHAI-0016). HotSpot decides by the defining class loader, not by class name: a proxy
   chooses its own class names, and the name-based flags (`CompileOnly`, `CompileCommand`,
   compiler directives) are dodged by a class declared in a trusted package. The change is
   DirtyChai source and is written by the operator. Design-session proposals for it:
@@ -279,6 +301,14 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
     interpreted after any number of calls and never appear in the inlining log of a hot
     trusted caller; the flag cannot be set without the permission or after the loader has
     defined a class. Each test is shown to fail with the check disabled.
+  *Reaffirmed 2026-11-22 (operator: "Ok, sounds like we need the permission check.").* The
+  operator asked whether the restriction was needed, since the case topology limits what a
+  JVM escape reaches (K3). It stays: the proxy writes the bytecode a JIT bug needs, and C2
+  and C1 have both had such bugs recently, one fixed in October 2026 that affects JDK 27
+  (CL-RELAYCASE-0021). Pack200 normalisation preserves what the bytecode does, so a
+  compiler-hostile shape survives it (CL-RELAYCASE-0022), and SCAP's analysis does not
+  look for such shapes (CL-RELAYCASE-0023); neither replaces R16j. SCAP's crash signal
+  complements it (K9).
 - **R16k. Exhaustion inside trusted code fails closed** (proposal, added 2026-11-21). A
   proxy with no permissions can fill its heap, or its stack to the frame, and then call
   into JDK, DirtyChai or JGDMS code, so that an `OutOfMemoryError` or `StackOverflowError`
@@ -452,3 +482,190 @@ Still open after these rulings: who fetches the codebase (C2); the pooling key (
 - **C6** (RL-JGDMS-0114): as proposed. The hand-off channel is authenticated by the same
   per-subprocess socket arrangement as C3. This answers question 1 of the Real-Launcher
   document; that document has not been edited to say so.
+
+## Case topology (2026-11-22)
+
+Proposed: the relay replaces the trusted host inside the rack case drawn in "Proxy host
+board layouts" (sheets of 2026-11-15, variant V2), and the hosts move to racks of their
+own. The case then holds everything that runs other people's code and the one component
+that speaks for it; nothing from a proxy board leaves the case. Operator statements are
+quoted below; the firm ones are RL-JGDMS-0208, -0209, -0211, -0213 and -0214 (-0210 and
+-0212 were ruled and then replaced the same day); everything else is a proposal of this
+session.
+
+Operator statements, 2026-11-22:
+
+- "the design should be the relay and the proxy boards, in one rack case. The hosts can
+  then have their own rack cases."
+- "There's one relay and 24 proxy boards"
+- "The relay could have it's own spiffe server and manage the certs for the proxy boards,
+  these wouldn't have any permission outside the relay."
+- "The network boot images could also be stored on the relay."
+- "There may be multiple jvms running on each board, holding proxy's for the same server
+  certificate domain, I think we need a Spiffe cert per jvm." and "the certs can be stored
+  in the trust zone"
+- "The JVM still holds no key, that should be in the TrustZone, however a Unix socket is
+  insufficient for communication with the relay as it's no longer collocated on the board,
+  but must be contacted via the private network."
+- "the caddy backplane giving each slot a fixed ID is better."
+- "Yes, drop encryption on the internal links"
+
+- **K1. Layout** (revised 2026-11-22 evening). The rear single-socket server board of
+  variant V2 becomes the relay. The front holds 24 proxy boards in caddies (six rows of
+  four), each row on one row board with one switch chip that has no firmware: the case
+  controller writes its registers at power-up over MDIO or SPI, a bus no board reaches.
+  The controller keeps per-board power, reset, presence and boot select. Each proxy board
+  has one network link (one PHY) to its row switch. Each caddy slot has fixed ID pins on
+  the backplane, wired to free GPIO lines of the SMARC connector (RL-JGDMS-0214; five bits
+  cover 24 slots). The egress network is removed from the node side: only the relay faces
+  services.
+- **K2. Ports leaving the case.** The relay has host-facing and service-facing ports on
+  separate physical interfaces, so no service reaches the host network through the case;
+  the service side sits behind the egress allowlist (S2). The controller's management port
+  and the relay's BMC are on a third network that no board port reaches. Inside: one relay
+  port per row uplink (six), each a VLAN trunk carrying that row's four slot VLANs.
+- **K3. Slot identity inside the case** (RL-JGDMS-0213; replaces the mutual-TLS design of
+  earlier the same day, RL-JGDMS-0210 and -0212). The internal links are not encrypted.
+  Proposals below except where a ruling is cited.
+  - Each board port is in a VLAN of its own whose only other member is the uplink. The
+    switch tags each board's frames on the way in with its port's VLAN, accepts only
+    untagged frames on board ports (so no pre-tagged or double-tagged frame gets through),
+    and filters by VLAN membership on the way out. The relay knows the slot from the VLAN
+    a frame arrives on, which the board cannot choose, and the relay's frames for slot N
+    leave the switch only through port N, whatever MAC address any board claims
+    (CL-RELAYCASE-0019). If the chip keeps one address table for all VLANs, learning is
+    off on board ports, or their entries fixed, so a spoofed address cannot get a
+    neighbour's frames dropped. Board ports are rate-limited, so a taken board floods only
+    its own share of the uplink.
+  - Addresses: slot N has a fixed subnet (for example 10.0.N.0/28, relay at .1). The
+    board's bootloader derives its address from the slot pins (K4); the board's launcher
+    gives each proxy JVM a network namespace and an address from that subnet. The relay
+    binds tokens (R6), destination ids (R7) and host dispatch to the pair (VLAN, address):
+    the switch enforces the VLAN, the board's kernel the address within the slot, as it
+    enforced the Unix socket's peer credentials before. The relay drops anything on VLAN N
+    from outside slot N's subnet and never keys its state on an address alone.
+  - No key, no TLS and no SPIFFE identity in the proxy JVM: RL-JGDMS-0113 holds again and
+    RL-JGDMS-0211 stands. The JVM's one socket is a TCP connection to the relay; the
+    board's packet filter, matched on the subprocess's cgroup, allows only the relay's
+    address and port, and the syscall filter (R14) refuses `listen` and `accept`. There is
+    no SPIRE server inside the case and no TrustZone or `/dev/tee0` access for proxies.
+    The relay's own identities towards hosts and services are unchanged.
+  - What this rests on: the switch configuration and the controller that writes it are now
+    trusted parts of the case; a fault in either merges slots. A taken board can read and
+    forge only its own slot's traffic and can appear only as its own slot. Someone inside
+    the case can swap cables or tap a link; physical access was out of scope before and
+    remains so, apart from the optional check in K8.
+- **K4. Boot** (revised 2026-11-22 evening). The boot images are on the relay. They are
+  signed on the build machine with a key that never reaches the relay, carry no secrets,
+  and are protected against rollback (B5). The i.MX 95 boot ROM cannot boot over Ethernet
+  (CL-RELAYCASE-0010), so each board's write-protected SPI flash holds a signed bootloader
+  that the boot ROM verifies.
+  - The bootloader reads the slot pins (RL-JGDMS-0214; CL-RELAYCASE-0020), sets its own
+    address and the relay's from them, fetches the one image every slot shares over TFTP
+    or HTTP, checks its signature and rollback version before running it, and passes the
+    slot number and address to the kernel on its command line. No DHCP or BOOTP server is
+    needed.
+  - The relay serves the images from a minimal, read-only static-file process on each slot
+    VLAN, with no access to the node key or to slot state. It serves only the address that
+    matches the VLAN; a mismatch means a miswired or tampered board, and it refuses and
+    tells the controller. The relay checks the signature and rollback version of every
+    image it receives before staging it.
+  - The pins are trusted only by the signed bootloader at boot. Afterwards a taken board
+    can change its address, and the relay relies on the VLAN, not the pins. The controller
+    keeps power, reset and boot select. No board boots while the relay is down (open point
+    14).
+- **K5. Call path.** Host calls reach a proxy only through the relay, which delivers them;
+  the proxy can answer the call it was given and call its own service through ids the
+  relay issued, and can start nothing towards the host. The relay applies the tick of R8
+  to host dispatches and service replies alike. A call making k service round trips costs
+  about k + 1 ticks plus network time, which R16c should include when the tick is chosen.
+- **K6. Capacity.** Connections to services number about services x trust domains x
+  ceil(concurrent calls / sessions per connection), independent of the number of boards;
+  they are kept long-lived, with TLS 1.3 resumption, because each full handshake costs a
+  signature from the node-key device. Relay CPU per call is expected to be a small
+  fraction of proxy CPU per call (the proxies marshal; the relay forwards, checks and
+  encrypts): to be measured on the prototype, which decides how many boards one relay
+  carries. Scaling (R16d): a saturated core calls for another board, saturated connections
+  for another case.
+- **K7. What this supersedes.** R16g (one kernel on one part, relay and proxies together):
+  the relay is separate hardware, and an escaped proxy must cross a board, not a kernel,
+  to reach it. R16i between relay and proxies: no cache, memory, clock domain or page is
+  shared (R16i still applies among proxies on a board). C3 and C6: per K3. Unchanged: R14,
+  R15 and R16h within each board; the residue among proxies, now including contention in a
+  row's switch and uplink and in the relay, quantised by the tick.
+  RL-JGDMS-0037 (each board wired to its host and to its service) is replaced by the
+  operator (2026-11-22); its rule that the board never calls the host and that no
+  call-back listeners are used carries on as K5, a proposal not separately registered.
+  Revised 2026-11-22 evening: the mutual TLS of RL-JGDMS-0210 and -0212, the relay's SPIRE
+  server for the case, the per-JVM certificates and MAC-stealing detection are replaced by
+  K3's slot VLANs (RL-JGDMS-0213).
+- **K8. Hot swap** (proposal, 2026-11-22 evening). The slot, not the board, carries the
+  identity, so the switch configuration does not change when a board is swapped.
+  - Sequence: the relay stops sending new calls to the slot and drains it (the host sees
+    calls in flight fail and fetches those proxies again elsewhere, open point 14); the
+    controller cuts the slot's power; the board is swapped; the controller powers the
+    slot; the board boots as in K4. Each caddy has a hot-swap controller limiting inrush
+    current, under the case controller.
+  - On any presence change or link loss on VLAN N the relay discards everything bound to
+    slot N (tokens, destination ids, sessions, calls in flight) and starts the slot afresh
+    on link-up. A board reset is treated the same way.
+  - Optional: attestation once per insertion. The board proves itself at boot with a key
+    in its EdgeLock enclave, the presence signal forces it again on every swap, and
+    traffic afterwards stays unencrypted. It catches a substituted board, not a tap.
+- **K9. Proxy JVM crashes are reported into SCAP** (proposal, 2026-11-22 late evening). A
+  JIT exploit that misfires usually crashes its JVM, and an attacker probing an unfamiliar
+  build needs attempts. JGDMS-STD-002 already condemns a codebase whose analysis JVM exits
+  abnormally; the boards feed the same signal, so each failed attempt burns the digests
+  involved.
+  - The board's launcher reports any abnormal exit of a proxy JVM (signal, VM error,
+    watchdog kill) to the relay over the slot's link, with the digests of every jar that
+    JVM had loaded.
+  - The relay, not the board, files a `CrashReport` with the Verdict Registry (STD-002
+    Host 3), naming the digests and the service whose proxies they were, since a rebuilt
+    jar has a new digest; repeated crashes from one service can then be acted on. The
+    board never talks to the registry.
+  - The crash also counts as a K8 event for the slot: the relay drops the slot's state and
+    the controller re-images it before it hosts proxies again. Other proxy JVMs on that
+    board were exposed to whatever caused the crash, so they go with it.
+  - Limit: an exploit tuned offline against the published DirtyChai build need not crash.
+    K9 is a tripwire; R16j is the barrier.
+
+Open points added by this section:
+
+12. **One case per host, or shared.** If several hosts share a case, one node identity
+    acts for all of them; per-call registration (R2) keeps caller identity apart, trust
+    domains (open point 4) become per host at least, and the relay must authenticate each
+    host.
+13. **The controller's heartbeat (H4, F8).** With the host outside the case, or several
+    hosts per case, whose heartbeat powers boards down, and per board or all at once.
+14. **Relay availability.** One relay stops all 24 boards when it is down. Whether that is
+    accepted, or a second case is the fallback; the V2 rear section probably holds one
+    server board.
+15. **Where the fetcher (C2) and the event mailbox run.** The fetcher as a keyless process
+    on the relay hardware or on a board of its own; the mailbox (RL-JGDMS-0038) as a node
+    type in one of the bays, reaching services through the relay.
+16. **Keeping each proxy JVM to its own TrustZone key** (K3). One uid for all proxy JVMs
+    (RL-JGDMS-0111) against OP-TEE's uid-or-gid client identity (CL-RELAYCASE-0015): a uid
+    or supplementary gid per subprocess, which revises RL-JGDMS-0111 and the launcher
+    (R14), or session key objects (CL-RELAYCASE-0016); and how many tokens the trusted
+    application is built with. Closed 2026-11-22 evening: proxy JVMs hold no keys under
+    RL-JGDMS-0213.
+17. **Rulings worded for the Unix socket.** RL-JGDMS-0111 and -0114 (the socket identifies
+    the subprocess), -0115 and -0116 (policy delivered over the Unix socket) and -0077 and
+    -0078 (the cut at the byte stream, over Unix sockets) still name it. Under K3 as
+    revised the subprocess is identified by its slot VLAN and address and the transport is
+    an unencrypted TCP connection; the operator to say whether each is restated or stands
+    read that way. As with the Unix socket, nothing on this hop satisfies `Integrity.YES`
+    by cryptography; the slot VLAN and the board kernel stand in for it, which is the case
+    RL-JGDMS-0116 already allows for.
+18. **Switch chip** (K1, K3). A part that runs without firmware and whose registers the
+    controller can set for per-port ingress tagging, dropping tagged frames on board
+    ports, VLAN membership with egress filtering, per-port rate limits, and per-VLAN
+    learning or fixed entries (CL-RELAYCASE-0018); and the controller's bus to it.
+19. **Carrier hardware** (K1, K8). Five free GPIO lines per slot on the chosen SMARC
+    carrier for the ID pins, and a hot-swap controller per caddy.
+20. **Attestation on insertion** (K8). Whether it is wanted depends on who can reach the
+    case.
+21. **Crash reports from boards** (K9). Whether a crash condemns only the digests or also
+    suspends the service after a threshold, and whether the relay needs its own identity
+    towards the Verdict Registry under STD-002's SPIFFE scheme to file reports.
