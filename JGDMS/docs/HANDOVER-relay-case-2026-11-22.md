@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0023); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0214; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
-LATEST ADDENDUM: "Addendum 3, 2026-11-22 late" at the end of this file
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0031); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0226; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
+LATEST ADDENDUM: "Addendum 6, 2026-11-23 early morning" at the end of this file
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: "Open items" - re-read the disk before acting on it
 -->
@@ -166,3 +166,123 @@ Open items added:
 Note, 2026-11-22 22:42: the operator agreed, and the drawings are republished as version 1795351360-1996; open item 13 is done.
 
 Note, 2026-11-22 23:02: the drawings as republished are also in the repository as JGDMS/docs/LAYOUT-proxy-host-board-2026-11-22.html (uncommitted), beside the first issue of 2026-11-15.
+
+## Addendum 4, 2026-11-23
+
+A hardware session after midnight, the operator shaping and the session checking parts:
+
+- Network: an 8-port I350 card per eight boards was too many double-width cards; I350s on row
+  boards, then Innodisk EGPL-G401 M.2 modules, then the network controllers on a backplane behind
+  a PCIe switch with one cable to the relay. Parts checked from vendor pages: CL-RELAYCASE-0024
+  (I350-AM4), CL-RELAYCASE-0025 (cable margin, untested), CL-RELAYCASE-0026 (EGPL-G401).
+- Modules: i.MX 95 SMARC options and requirements (CL-RELAYCASE-0027); heatsinks and power
+  (CL-RELAYCASE-0028).
+- Decisions registered: RL-JGDMS-0215 (twelve top-loaded vertical cards of two staggered
+  modules), RL-JGDMS-0216 (a controller port per module, PCIe switch, one cable), RL-JGDMS-0217
+  (links unencrypted, slot known by its port; logged as replacing RL-JGDMS-0213), RL-JGDMS-0218
+  (ducts and fans), RL-JGDMS-0219 (module requirements). Notes added to RL-JGDMS-0214 (slot pins
+  now on the backplane plus a card strap) and RL-JGDMS-0209 (24 modules per case unchanged).
+- DESIGN-security.md: K1 to K4 and K8 rewritten, K10 (cooling, with the thermal side channel)
+  and K11 (module requirements) added, R16f note, open points 18 and 19 closed, 22 to 26 added.
+- Drawings: new issue published (artifact version 1795359888-d982) and in the repository as
+  JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html; earlier issues stay in the repository.
+
+Open items added:
+
+15. Open points 22 to 26 in DESIGN-security (PCIe switch and controller parts, card pitch,
+    thermal test, module vendor checks, relay board).
+16. PROXY_HOST_BOARD_REQUIREMENTS.md in DirtyChai still describes caddies (C1 to C11, A1 to A3).
+    It is not on CLAUDE.md's list of root documents an AI may edit; the operator decides who
+    revises it.
+17. The reply to Paul predates this hardware revision.
+
+Note, 2026-11-23 01:12: at the operator's request the candidate network controller (Innodisk EGPL-G401, with alternatives and the parts set aside) is recorded as DESIGN-security K12 and named on drawing sheets 1 and 5 and in the notes; drawings republished as version 1795360287-888f and saved over JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html.
+
+Note, 2026-11-23 01:20: RL-JGDMS-0220 registered (modules stand on end, air crosses the 50 mm side); DESIGN-security K1 and K10 updated; the operator's suggestion of a 3U case is recorded in K1 as the target, not as a ruling, with open point 27 for the height check. Drawings sheets 2 to 4 redrawn and republished as version 1795360755-5ece, and saved over the repository copy.
+
+Note, 2026-11-23 01:28: the operator's statement on a small relay board, supplies at the rear left and one x16 slot is quoted in DESIGN-security K1 (not registered as a ruling); open point 26 widened (two on-board LAN ports and a BMC port). Sheet 2 redrawn; drawings republished as version 1795361254-bb09 and saved over the repository copy.
+
+Note, 2026-11-23 01:31: RL-JGDMS-0221 registered (on-board MCIO or SlimSAS connector on the relay board for the backplane link). The operator's statement that the chassis must be long, with the network controllers flat on the backplane, is quoted in DESIGN-security K1 (estimate 500 to 600 mm deep), with the 55 degree C concern and the front-of-backplane fallback; open points 26 and 27 updated. Drawings republished as version 1795361390-96d9 and saved over the repository copy.
+
+Note, 2026-11-23 01:45: RL-JGDMS-0222 registered (network controllers and PCIe switch on a network card at the front of the relay duct; passive backplane; logged as replacing RL-JGDMS-0216; RL-JGDMS-0218 noted as still in force). DESIGN-security K1, K3, K10, K12 and open points 22, 24, 27 updated; the network modules lie three high and two deep on one face of the network card (the operator's wording, put into the document's terms at his invitation). The operator edited and resent a message mid-turn at 01:39, so one run of this session's edits landed before the run that reported them; he confirmed they were this session's. Drawings: sheets 1, 2 and 5 redrawn, sheet 6 (network card) added; republished as version 1795362183-2206 and saved over the repository copy.
+
+## Addendum 5, 2026-11-23 wrap-up
+
+State at the second compaction. The notes after Addendum 4 record each step; this is the summary.
+
+Registered since Addendum 4: RL-JGDMS-0220 (modules stand on end), RL-JGDMS-0221 (on-board MCIO or
+SlimSAS connector on the relay board), RL-JGDMS-0222 (network controllers and PCIe switch on a
+network card at the front of the relay duct; passive backplane; logged as replacing RL-JGDMS-0216).
+New claim CL-RELAYCASE-0029 (the EGPL-G401's LAN ports leave on two micro-coax connectors, one on
+each face). Settled from sources at wrap-up: CL-RELAYCASE-0010 and CL-RELAYCASE-0011. Left as they
+are: CL-RELAYCASE-0007 and CL-RELAYCASE-0012 (no source found tonight); CL-RELAYCASE-0009,
+CL-RELAYCASE-0015 to CL-RELAYCASE-0019 and CL-RELAYCASE-0025 no longer bear on the design (VLANs,
+TrustZone keys and row boards are gone) and could be withdrawn if the operator wishes.
+
+Operator statements recorded in DESIGN-security K1 but not registered, because he worded them as
+what could be done: a 3U case, a small relay board with the supplies at the rear left, and all
+network modules on one face of the network card. At his invitation the last two are given in the
+document's terms, not quoted; his words are in the transcript.
+
+Open at compaction, in the order the operator was working:
+
+18. The network controller route (DESIGN-security K12, open point 22): the operator proposed port
+    boards per bank of three modules plugging into the backplane; the datasheet he supplied shows a
+    LAN connector under each module, so port boards cannot mate. The session proposed EGPL-G401 with
+    short micro-coax leads for the prototype and I350-AM4 laid out on the network card for
+    production. Awaiting his decision; drawing sheet 6 is marked provisional. Questions for
+    Innodisk are listed in K12.
+19. Open points 22 to 27 in DESIGN-security (network card parts, card pitch, thermal test, module
+    vendor checks, relay board, case size), and 12 to 15, 17, 20, 21 from earlier.
+20. Whether to register the 3U case and the relay board and supply placement as rulings.
+21. Commit: DESIGN-security.md, this handover, JGDMS/docs/LAYOUT-proxy-host-board-2026-11-22.html
+    and -2026-11-23.html, and the register logs (JGDMS, DIRTYCHAI, RELAYCASE).
+22. The reply to Paul predates the whole 2026-11-23 hardware revision.
+23. PROXY_HOST_BOARD_REQUIREMENTS.md (DirtyChai) still describes caddies; not on CLAUDE.md's list
+    of root documents an AI may edit.
+
+Drawings at compaction: artifact version 1795363100-e21e, six sheets, same content as the
+repository copy JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html.
+
+## Addendum 6, 2026-11-23 early morning
+
+After the second compaction the operator reworked the network controllers, the relay board, the
+controller and the cooling, then asked for the whole revision to be written up (03:04).
+
+Registered: RL-JGDMS-0223 (network modules on a passive carrier on the right-hand wall, one MCIO
+cable per module to its own CPU root port, no PCIe switch; LAN leads behind the carrier and under
+the divider through a foam seal on a folded flange; logged as replacing RL-JGDMS-0221 and
+RL-JGDMS-0222), RL-JGDMS-0224 (no network activity LEDs), RL-JGDMS-0225 (relay duct: front, middle
+and rear fan in series, no flaps; card bank: front and rear fans; speeds may follow inlet
+temperature in coarse steps, never load; logged as replacing RL-JGDMS-0218), RL-JGDMS-0226
+(controller on an off-the-shelf board beside the supplies; backplane carries only firmware-free
+chips and the write-protect gate; no wiring to the relay side; the controller owns the fans).
+New claims: CL-RELAYCASE-0030 (the MSI D3061's MCIO connectors are fed straight from the CPU) and
+CL-RELAYCASE-0031 (Xeon 6505P and 6507P are 150 W parts).
+
+Recorded in DESIGN-security as proposals, not registered: EGPL-G401 for production as well as the
+prototype, with I350-AM4 as fallback (K12); the MSI D3061 as candidate relay board, with the CPU at
+a fixed frequency rather than power-capped, because a power cap reopens the Hertzbleed channel
+(K13; the operator's "We can underclock the CPU." is quoted there); status and safe-to-remove
+LEDs on the front panel (K1); boot-time check of cable and lead wiring through the image server
+(K4); eFuses and staggered pins (K8); JTAG and module time (K11); controller details (K14); the
+supplies' fans fixed over PMBus by the BMC (K10).
+
+Done: DESIGN-security.md header paragraph, K1 to K4, K7, K8, K10 to K12 revised, K13 and K14
+added, open points 13, 22, 24, 26, 27 revised and 28 to 30 added. Drawings sheets 1, 2, 5 and 6
+redrawn (network carrier, controller, fans), notes and captions updated; republished as artifact
+version 1795367739-2515 and saved over JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html.
+
+Correction to this session's own advice during the discussion: the operator said the motherboard
+had a PCIe switch; the D3061's published specifications list none, and its MCIO connectors are on
+CPU root ports (CL-RELAYCASE-0030), which is what made one cable per module possible.
+
+Open items, replacing 18 to 20 of Addendum 5 (21 to 23 stand):
+
+24. Innodisk's answers (K12, open point 22): connector and LED header pinout, magnetics, mating
+    connector and custom leads, supply life, configuration memory.
+25. Open points 22 to 30 in DESIGN-security, and 12 to 15, 17, 20, 21 from earlier.
+26. Whether to register the 3U case, the supplies at the rear left and the EGPL-G401 for
+    production as rulings; and whether the D3061 becomes the chosen relay board.
+27. Commit now also covers the register logs for RL-JGDMS-0223 to RL-JGDMS-0226 and
+    CL-RELAYCASE-0030 and CL-RELAYCASE-0031.

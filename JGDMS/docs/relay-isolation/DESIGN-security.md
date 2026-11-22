@@ -30,6 +30,24 @@ Late evening, 2026-11-22: the operator reconsidered and kept R16j (RL-DIRTYCHAI-
 reaffirmed); a dated note in R16j records why, and K9 (proxy JVM crashes reported into
 SCAP) is added as a proposal.
 
+Revision of 2026-11-23: the operator replaced the caddies and row switches with twelve
+vertical cards of two modules on a backplane, a network controller port per module and one
+PCIe cable to the relay (RL-JGDMS-0215 to -0217), set the cooling (RL-JGDMS-0218) and the
+module requirements (RL-JGDMS-0219). K1 to K4 and K8 are rewritten, K10 and K11 added,
+open points 18 and 19 closed and 22 to 26 added. K12 records the candidate network
+controller. RL-JGDMS-0220 (modules on end) is in K1
+and K10; a 3U case is the target (K1, open point 27).
+
+Revision of 2026-11-23, early morning: the operator moved the network modules onto a
+passive carrier on the right-hand wall with one MCIO cable per module and the LAN leads
+routed behind it to the backplane (RL-JGDMS-0223, replacing -0221 and -0222), ruled out
+activity LEDs (RL-JGDMS-0224), set three fans in series in the relay duct and front and
+rear fans for the card bank, with speeds allowed to follow inlet temperature in coarse
+steps (RL-JGDMS-0225, replacing -0218), and put the controller on its own board beside the
+supplies with no wiring to the relay side (RL-JGDMS-0226). K1 to K4, K7, K8 and K10 to K12
+are revised, K13 (the MSI D3061 as candidate relay board) and K14 (the controller) added,
+open points 13, 22, 24, 26 and 27 revised and 28 to 30 added.
+
 
 ## Trust boundaries
 
@@ -38,15 +56,15 @@ SCAP) is added as a proposal.
 | Host (client application) | yes | caller Subjects, client constraints, the thin stub |
 | Relay (on the proxy board; since 2026-11-22 its own board in the case, K1) | yes | TLS connections, destination table, tokens, minimum constraints |
 | Signer (optional) | yes | node key |
-| Proxy JVM (on the proxy board) | no | downloaded proxy code, marshalling, the arguments the host passes in; since 2026-11-22 a plain TCP connection to the relay on its slot's VLAN; no key (K3) |
+| Proxy JVM (on the proxy board) | no | downloaded proxy code, marshalling, the arguments the host passes in; since 2026-11-22 a plain TCP connection to the relay on its slot's own controller port; no key (K3) |
 | Service | authenticated, not trusted | wrote the proxy bytes, the codebase and every endpoint in them |
 
 The proxy JVM's only channel out is its connection to the relay: a Unix socket while the
 relay shared the board (RL-JGDMS-0096), and since 2026-11-22, with the relay on its own
 board, an unencrypted TCP connection over the case's private network, identified by the
-slot's VLAN and the JVM's address (RL-JGDMS-0211, -0213; K3). Real endpoints are replaced
-in the DER bytes by a trusted process before the proxy JVM deserializes them, so the proxy
-never holds a host or port (RL-JGDMS-0083, RL-JGDMS-0088).
+slot's own network controller port and the JVM's address (RL-JGDMS-0211, -0217; K3). Real
+endpoints are replaced in the DER bytes by a trusted process before the proxy JVM
+deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JGDMS-0088).
 
 ## Requirements
 
@@ -233,6 +251,7 @@ never holds a host or port (RL-JGDMS-0083, RL-JGDMS-0088).
   found on sale; from an unchecked subagent report). The board has no swap device: swap
   was considered and rejected because page-fault delays would give proxies a timing
   source. Memory is therefore a hard limit (R16e).
+  *Note 2026-11-23:* 16 GB modules confirmed from several vendors (CL-RELAYCASE-0027).
 - **R16g. No virtual machine** (RL-JGDMS-0108). The proxy JVMs and the relay run as
   processes on one kernel on the i.MX 95. A VM boundary and a mixed-core part with the
   proxies pinned to the in-order cores were considered and set aside in favour of the
@@ -489,9 +508,9 @@ Proposed: the relay replaces the trusted host inside the rack case drawn in "Pro
 board layouts" (sheets of 2026-11-15, variant V2), and the hosts move to racks of their
 own. The case then holds everything that runs other people's code and the one component
 that speaks for it; nothing from a proxy board leaves the case. Operator statements are
-quoted below; the firm ones are RL-JGDMS-0208, -0209, -0211, -0213 and -0214 (-0210 and
--0212 were ruled and then replaced the same day); everything else is a proposal of this
-session.
+quoted below; the firm ones are RL-JGDMS-0208, -0209, -0211, -0214, -0215, -0217, -0219,
+-0220 and -0223 to -0226 (-0210, -0212, -0213, -0216, -0218, -0221 and -0222 were ruled
+and later replaced); everything else is a proposal of this session.
 
 Operator statements, 2026-11-22:
 
@@ -510,70 +529,139 @@ Operator statements, 2026-11-22:
 - "the caddy backplane giving each slot a fixed ID is better."
 - "Yes, drop encryption on the internal links"
 
-- **K1. Layout** (revised 2026-11-22 evening). The rear single-socket server board of
-  variant V2 becomes the relay. The front holds 24 proxy boards in caddies (six rows of
-  four), each row on one row board with one switch chip that has no firmware: the case
-  controller writes its registers at power-up over MDIO or SPI, a bus no board reaches.
-  The controller keeps per-board power, reset, presence and boot select. Each proxy board
-  has one network link (one PHY) to its row switch. Each caddy slot has fixed ID pins on
-  the backplane, wired to free GPIO lines of the SMARC connector (RL-JGDMS-0214; five bits
-  cover 24 slots). The egress network is removed from the node side: only the relay faces
-  services.
+- **K1. Layout** (revised 2026-11-23; RL-JGDMS-0215, -0223). The rear single-socket server
+  board of variant V2 remains the relay. The case holds twelve vertical cards, loaded from
+  the top (the case slides out on rails and the lid opens) into a flat backplane on the
+  case floor. Each card carries two SMARC i.MX 95 modules mounted directly on it, one on
+  each face: the front module on one face near the front of the card, the rear module on
+  the other face near the rear, so their connectors are never back to back. A "proxy
+  board" elsewhere in this document is now one such module with its share of its card. The
+  caddies, row boards and row switches of the earlier layouts are gone; the 2026-11-15 and
+  2026-11-22 drawings in the repository show them.
+  - Orientation (RL-JGDMS-0220): each module stands with its 82 mm side vertical, so the
+    air crosses its 50 mm side: a shorter path through the fins and a larger face to the
+    airflow. The card is then about 120 to 140 mm front to rear and 100 to 110 mm high
+    (estimates).
+  - Case height: 3U is the target (operator, 2026-11-23: "This would fit in a 3U case,
+    which is more compact than the original 4U."; not registered as a ruling). Estimated
+    stack from the floor: standoffs, backplane, connector and a card of about 100 mm,
+    roughly 110 mm against about 125 mm inside 3U; front fans of 80 or 92 mm; the relay's
+    CPU heatsink and full-height cards must fit too (open point 27).
+  - Relay board and supplies (operator, 2026-11-23, in this document's terms: the relay
+    board need not be large; the two hot-swap supplies go on the left side viewed from the
+    front; not registered as a ruling). Candidate relay board: the MSI D3061 (K13), a
+    DC-MHS board of 305.59 x 210 mm at the rear right, its CPU in the relay duct. The
+    host-facing and service-facing ports are on its OCP 3.0 network card and the BMC port
+    on its DC-SCM module (K2, K13). The two hot-swap CRPS supplies sit at the rear left,
+    feed the case through the relay board's power distribution board, pull out from the
+    rear and breathe card-bank exhaust. The controller board (K14) is on a panel beside
+    them.
+  - Network carrier (RL-JGDMS-0223, replacing the network card with its PCIe switch of
+    RL-JGDMS-0222 and the single 8-lane link of RL-JGDMS-0221). The six network modules
+    (K12) stand on a passive carrier board on standoffs on the inside of the right-hand
+    chassis wall, at the front of the relay duct, upstream of the CPU heatsink and away
+    from the card bank's heat. The carrier has six M.2 sockets, six MCIO connectors on its
+    rear edge, one per socket, a 3.3 V regulator, a power input and the status LED driver;
+    no PCIe switch, no edge connector and no Ethernet signals. Six MCIO cables, one per
+    module, lie flat along the right-hand wall to six of the relay board's eight CPU-fed
+    MCIO connectors (CL-RELAYCASE-0030), so each module has a PCIe root port of its own;
+    each link trains at x2. Two cable lengths serve the board's near-side and far-side
+    connectors.
+  - LAN leads (RL-JGDMS-0223). The carrier has a cut-out under each module's underside LAN
+    connector, so its lead mates from behind, and a slot beside each module for the lead
+    from its top-face connector (proposal). All leads run in the gap between the carrier
+    and the wall, out of the airflow, then flat along the duct floor under a cover strip,
+    and under the divider wall to connectors along the backplane's right-hand edge. Where
+    they pass, the divider ends in a hemmed, folded flange that fixes the gap at about 1
+    mm more than a lead, so the metal never presses on one, with soft closed-cell foam
+    (low compression set, rated V-0 or HF-1) bonded to the flange closing round each lead
+    and keeping the duct sealed. The leads are one length, clamped flat on both sides of
+    the divider and numbered at both ends. If each module connector carries two ports
+    (CL-RELAYCASE-0029), there are twelve leads, one per card, each with its front and
+    rear module's ports. The leads end at the backplane, not the cards, so a card swap
+    never moves them.
+  - Card: for each module, its connector, a write-protected SPI boot flash, the
+    boot-select straps and its power regulation, laid out once and placed twice, mirrored;
+    and one strap per module position (front 0, rear 1). Only Ethernet pairs, power and
+    slow control lines cross the card's backplane connector; no PCIe or USB does, so a
+    taken module never reaches anything that can write into memory (proposal).
+  - Backplane: per card connector, the fixed slot ID pins (four bits for twelve cards,
+    five with the card strap, for 24 modules; RL-JGDMS-0214); per module the power switch
+    (an eFuse per slot, K8), watchdog, presence, console, boot-select and recovery lines,
+    brought to firmware-free I/O and UART expander chips (K14); the fan controller chips;
+    the boot-flash write-protect gate; and the LAN lead connectors along its right-hand
+    edge, routed to each card's connector. It carries no PCIe, no switch and no firmware
+    (RL-JGDMS-0223, -0226): only Ethernet pairs, power and slow control lines, so it
+    covers only the card connectors and the strip along its edge. Each module's PCIe 2.1
+    x2 link carries its four gigabit ports with headroom.
+  - Front panel (proposal; RL-JGDMS-0224 rules out activity LEDs): a status LED per module
+    (24), driven by the relay through the carrier's LED driver, showing booting, running,
+    fault or crashed; and a safe-to-remove LED per card (12), driven by the controller
+    through the backplane expanders, lit once both of the card's modules are off. Both
+    show through light pipes in the fan wall. They change only on events the relay or the
+    controller decides, never on traffic. The network modules' LED connectors are
+    unconnected.
+  - Depth: about 550 to 600 mm with the D3061 behind the carrier (estimate, open point
+    27), so a deep four-post rack and rails to suit.
+  - Cards are keyed so they cannot go in reversed, and a retention bar under the lid holds
+    them seated. The controller (K14) keeps per-module power, reset, presence and boot
+    select and reads a lid intrusion switch (K8). The egress network is removed from the
+    node side: only the relay faces services.
 - **K2. Ports leaving the case.** The relay has host-facing and service-facing ports on
   separate physical interfaces, so no service reaches the host network through the case;
   the service side sits behind the egress allowlist (S2). The controller's management port
-  and the relay's BMC are on a third network that no board port reaches. Inside: one relay
-  port per row uplink (six), each a VLAN trunk carrying that row's four slot VLANs.
-- **K3. Slot identity inside the case** (RL-JGDMS-0213; replaces the mutual-TLS design of
-  earlier the same day, RL-JGDMS-0210 and -0212). The internal links are not encrypted.
-  Proposals below except where a ruling is cited.
-  - Each board port is in a VLAN of its own whose only other member is the uplink. The
-    switch tags each board's frames on the way in with its port's VLAN, accepts only
-    untagged frames on board ports (so no pre-tagged or double-tagged frame gets through),
-    and filters by VLAN membership on the way out. The relay knows the slot from the VLAN
-    a frame arrives on, which the board cannot choose, and the relay's frames for slot N
-    leave the switch only through port N, whatever MAC address any board claims
-    (CL-RELAYCASE-0019). If the chip keeps one address table for all VLANs, learning is
-    off on board ports, or their entries fixed, so a spoofed address cannot get a
-    neighbour's frames dropped. Board ports are rate-limited, so a taken board floods only
-    its own share of the uplink.
+  and the relay's BMC are on a third network that no module reaches. Inside: six MCIO
+  cables from the relay board to the network carrier, no PCIe to the backplane, and no
+  Ethernet uplinks (revised 2026-11-23 early morning). The relay's ports are on its OCP
+  network card with NC-SI off, so the BMC never shares them (K13); the controller's port
+  leaves at the rear, physically apart from the relay's (K14).
+- **K3. Slot identity inside the case** (RL-JGDMS-0217, -0223; replaces the VLAN design of
+  2026-11-22 evening). The internal links are not encrypted. Each module's Ethernet port
+  is wired, through the backplane, to one port of one network controller on the network
+  carrier, by a numbered lead, and there is no switch, so no module's frames reach another
+  module and the relay knows the slot from the interface a frame arrives on, fixed by
+  wiring. The switch configuration the VLAN design trusted is gone, and CL-RELAYCASE-0018
+  and -0019 no longer bear on the design. Proposals below except where a ruling is cited.
   - Addresses: slot N has a fixed subnet (for example 10.0.N.0/28, relay at .1). The
-    board's bootloader derives its address from the slot pins (K4); the board's launcher
-    gives each proxy JVM a network namespace and an address from that subnet. The relay
-    binds tokens (R6), destination ids (R7) and host dispatch to the pair (VLAN, address):
-    the switch enforces the VLAN, the board's kernel the address within the slot, as it
-    enforced the Unix socket's peer credentials before. The relay drops anything on VLAN N
-    from outside slot N's subnet and never keys its state on an address alone.
-  - No key, no TLS and no SPIFFE identity in the proxy JVM: RL-JGDMS-0113 holds again and
-    RL-JGDMS-0211 stands. The JVM's one socket is a TCP connection to the relay; the
-    board's packet filter, matched on the subprocess's cgroup, allows only the relay's
-    address and port, and the syscall filter (R14) refuses `listen` and `accept`. There is
-    no SPIRE server inside the case and no TrustZone or `/dev/tee0` access for proxies.
-    The relay's own identities towards hosts and services are unchanged.
-  - What this rests on: the switch configuration and the controller that writes it are now
-    trusted parts of the case; a fault in either merges slots. A taken board can read and
-    forge only its own slot's traffic and can appear only as its own slot. Someone inside
-    the case can swap cables or tap a link; physical access was out of scope before and
-    remains so, apart from the optional check in K8.
-- **K4. Boot** (revised 2026-11-22 evening). The boot images are on the relay. They are
-  signed on the build machine with a key that never reaches the relay, carry no secrets,
-  and are protected against rollback (B5). The i.MX 95 boot ROM cannot boot over Ethernet
-  (CL-RELAYCASE-0010), so each board's write-protected SPI flash holds a signed bootloader
-  that the boot ROM verifies.
+    module's bootloader derives its address from the slot pins (K4); the launcher gives
+    each proxy JVM a network namespace and an address from that subnet. The relay binds
+    tokens (R6), destination ids (R7) and host dispatch to the pair (interface, address),
+    drops anything on interface N from outside slot N's subnet, and never keys its state
+    on an address alone.
+  - No key, no TLS and no SPIFFE identity in the proxy JVM: RL-JGDMS-0113 and -0211 stand.
+    The JVM's one socket is a TCP connection to the relay; the module's packet filter,
+    matched on the subprocess's cgroup, allows only the relay's address and port, and the
+    syscall filter (R14) refuses `listen` and `accept`. There is no SPIRE server inside
+    the case and no TrustZone or `/dev/tee0` access for proxies.
+  - What this rests on: the backplane wiring, the numbered leads and MCIO cables, and the
+    controller; the network controllers, whose configuration memory is read and checked
+    before use and whose management interfaces (NC-SI, SMBus) are left unconnected; and
+    the relay's IOMMU, kept on, with each network module on a CPU root port of its own
+    (RL-JGDMS-0223, CL-RELAYCASE-0030), so each controller's memory access is kept apart
+    with no switch to trust; each module is confirmed in an IOMMU group of its own when a
+    board is first booted. A taken module can read and forge only its own slot's traffic
+    and appear only as its own slot.
+- **K4. Boot** (revised 2026-11-23). The boot images are on the relay, signed on the build
+  machine with a key that never reaches the relay, carry no secrets, and are protected
+  against rollback (B5). The i.MX 95 boot ROM cannot boot over Ethernet
+  (CL-RELAYCASE-0010), so each module boots from the write-protected SPI flash on its
+  card, chosen by the SMARC boot-select pins, which the controller drives (RL-JGDMS-0219,
+  K11).
   - The bootloader reads the slot pins (RL-JGDMS-0214; CL-RELAYCASE-0020), sets its own
     address and the relay's from them, fetches the one image every slot shares over TFTP
     or HTTP, checks its signature and rollback version before running it, and passes the
     slot number and address to the kernel on its command line. No DHCP or BOOTP server is
     needed.
-  - The relay serves the images from a minimal, read-only static-file process on each slot
-    VLAN, with no access to the node key or to slot state. It serves only the address that
-    matches the VLAN; a mismatch means a miswired or tampered board, and it refuses and
-    tells the controller. The relay checks the signature and rollback version of every
-    image it receives before staging it.
-  - The pins are trusted only by the signed bootloader at boot. Afterwards a taken board
-    can change its address, and the relay relies on the VLAN, not the pins. The controller
-    keeps power, reset and boot select. No board boots while the relay is down (open point
-    14).
+  - The relay serves the images from a minimal, read-only static-file process on each
+    slot's interface, with no access to the node key or to slot state. It serves only the
+    address that matches the interface; a mismatch means a miswired or tampered module,
+    and it refuses and reports it to the management station, which tells the controller
+    (K14; the two share no wiring). A swapped MCIO cable or LAN lead shows up the same
+    way, because it moves a module to another interface. It checks the signature and
+    rollback version of every image it receives before staging it.
+  - The pins are trusted only by the signed bootloader at boot. Afterwards a taken module
+    can change its address, and the relay relies on the interface, not the pins. No module
+    boots while the relay is down (open point 14).
 - **K5. Call path.** Host calls reach a proxy only through the relay, which delivers them;
   the proxy can answer the call it was given and call its own service through ids the
   relay issued, and can start nothing towards the host. The relay applies the tick of R8
@@ -599,19 +687,40 @@ Operator statements, 2026-11-22:
   Revised 2026-11-22 evening: the mutual TLS of RL-JGDMS-0210 and -0212, the relay's SPIRE
   server for the case, the per-JVM certificates and MAC-stealing detection are replaced by
   K3's slot VLANs (RL-JGDMS-0213).
-- **K8. Hot swap** (proposal, 2026-11-22 evening). The slot, not the board, carries the
-  identity, so the switch configuration does not change when a board is swapped.
-  - Sequence: the relay stops sending new calls to the slot and drains it (the host sees
-    calls in flight fail and fetches those proxies again elsewhere, open point 14); the
-    controller cuts the slot's power; the board is swapped; the controller powers the
-    slot; the board boots as in K4. Each caddy has a hot-swap controller limiting inrush
-    current, under the case controller.
-  - On any presence change or link loss on VLAN N the relay discards everything bound to
-    slot N (tokens, destination ids, sessions, calls in flight) and starts the slot afresh
-    on link-up. A board reset is treated the same way.
-  - Optional: attestation once per insertion. The board proves itself at boot with a key
-    in its EdgeLock enclave, the presence signal forces it again on every swap, and
-    traffic afterwards stays unencrypted. It catches a substituted board, not a tap.
+  Revised 2026-11-23: the slot VLANs and row switches are in turn replaced by a network
+  controller port per module (RL-JGDMS-0216, -0217), and the caddies by cards
+  (RL-JGDMS-0215).
+  Revised 2026-11-23 early morning: the network card's PCIe switch and single link are
+  replaced by a passive carrier with one MCIO cable per module (RL-JGDMS-0223).
+- **K8. Hot swap** (revised 2026-11-23 early morning, proposal). The slot, not the module,
+  carries the identity, and a card carries two slots, so a card is the unit swapped.
+  - Sequence: the operator, through the management station, has the relay drain both slots
+    of the card (the host sees calls in flight fail and fetches those proxies again
+    elsewhere, open point 14) and tells the controller a swap is expected; the controller
+    cuts both modules' power and lights the card's safe-to-remove LED; the case slides out
+    on its rails and the lid opens; the card is swapped; the lid closes; the controller
+    powers the slots, and the modules boot as in K4. The relay and the controller share no
+    wiring (RL-JGDMS-0226), so the management station is the only path between them. Only
+    Ethernet, power and slow lines cross the card connector, so a swap never touches PCIe.
+  - Electrical: an eFuse per slot on the backplane limits inrush and isolates a short; the
+    card connector has staggered pins, ground and power first, presence last on insertion
+    and first on removal, so a module is never powered half-seated. The backplane, the
+    carrier and the controller are fed from the relay board's power distribution board,
+    which now supplies the whole case (open point 29); the controller runs from the
+    supplies' 12 V standby rail, so it is up before any module and stays up while they are
+    off.
+  - On any presence change or link loss on a slot's interface the relay discards
+    everything bound to that slot (tokens, destination ids, sessions, calls in flight) and
+    starts it afresh on link-up. A module reset is treated the same way.
+  - Lid switch: the controller logs and alerts on every opening, and the relay refuses to
+    start a newly powered slot unless a swap was expected (set through the management
+    station). Opening the lid is the only way to reach a module, and the only state in
+    which the cards' boot flash can be written (K14).
+  - The chassis needs rails and a cable-management arm for the relay's external cables and
+    power; the internal cables move with the case. The SMARC connector is meant for a
+    module fitted once, so modules are replaced on failure, not routinely.
+  - Optional: attestation once per insertion, with a key in the module's EdgeLock enclave;
+    traffic afterwards stays unencrypted. It catches a substituted module, not a tap.
 - **K9. Proxy JVM crashes are reported into SCAP** (proposal, 2026-11-22 late evening). A
   JIT exploit that misfires usually crashes its JVM, and an attacker probing an unfamiliar
   build needs attempts. JGDMS-STD-002 already condemns a codebase whose analysis JVM exits
@@ -629,6 +738,192 @@ Operator statements, 2026-11-22:
     board were exposed to whatever caused the crash, so they go with it.
   - Limit: an exploit tuned offline against the published DirtyChai build need not crash.
     K9 is a tripwire; R16j is the barrier.
+- **K10. Cooling** (RL-JGDMS-0225, replacing -0218; details are proposals). Two sealed air
+  zones run front to rear, with separate rear exhausts.
+  - Fans and control: filtered fans at the front for both zones, split so no fan feeds
+    both. The controller owns every case fan (RL-JGDMS-0226), reads every tachometer and
+    alarms on a failure. Speeds never follow load; they may follow inlet air temperature
+    only, in a few coarse steps with hysteresis (RL-JGDMS-0225), because the room's
+    temperature says nothing about the workload, and a fan failure may step the remaining
+    fans up for the same reason. The relay board's BMC does not drive the case fans: its
+    usual control follows CPU temperature, which follows load. Filters are
+    front-serviceable without lifting the lid.
+  - Card bank: each card carries a duct on the face with its rear module. At the front the
+    duct runs close to the card, leaving room for the next card's front module; at the
+    rear it steps out to shroud its own rear module. Each gap between cards so holds two
+    channels, every module breathes fresh air, and the staggered modules let the cards
+    nest at about one module stack plus the narrow channel per pitch. The end positions
+    use a fixed baffle on the side wall. Ducts are grounded and insulated on the face
+    towards the neighbouring card.
+    Pull fans at the rear of the cards and the filtered front fans are two stages in
+    series, the front slightly stronger (RL-JGDMS-0225), so the bank sits just above
+    outside pressure and a gap leaks clean air out rather than drawing dust in; the lid,
+    the card openings and the retention bar are gasketed.
+  - Relay zone: the free width beside the cards is a sealed duct with three fans in series
+    (RL-JGDMS-0225): a filtered front fan; the network carrier on the right-hand wall; a
+    92 mm middle fan centred on and ducted to the relay CPU's heatsink; the CPU, its
+    memory and the board; and one large rear fan (120 mm if the 3U height allows,
+    otherwise a thick 92 mm). With one fan per stage there is no parallel path, so a
+    stopped fan cannot let air flow backwards and no flaps are needed: with any one
+    stopped, the other two move air through it. The front stage is the strongest, so the
+    duct stays just above outside pressure. With any one fan stopped, at 35 degrees C
+    inlet and full load, the CPU stays below its throttle point; if it nears it, the BMC
+    alarms and the relay is drained and shut down cleanly rather than left to throttle
+    (K13). The MCIO cables and the carrier's power lead pass the middle fan along the
+    right-hand wall in a channel sealed like the divider slot.
+  - Power supplies: CRPS supplies set their own fan speed from their load, which would
+    make them load-driven fans again. The BMC, which manages them through the power
+    distribution board, sets both to a fixed speed over PMBus at power-on, high enough
+    that a supply never needs to raise it at full load with 35 degrees C intake, and
+    alarms if one reports a higher speed (check the chosen supply honours the command). A
+    spare supply bay is closed with a blanking cover, since an open bay short-circuits the
+    fans.
+  - The carrier's heat in the relay duct: the six network modules dissipate at most about
+    23 W, and their power follows the traffic the relay forwards anyway, so they add a few
+    watts of swing to a coupling the relay's own load already has, about a degree at the
+    CPU (estimate). Under the fixed relay clock and fan speeds that never follow load,
+    that changes no timing. The duct still keeps the proxies' computing heat, which is
+    independent of the relay's work, away from the relay.
+  - Why this is a security item: air is shared hardware state (R16i). A proxy that varies
+    its load changes the temperature of the air downstream and, through temperature-driven
+    fans, the airflow over every module. Fan speeds that never follow load, fixed clocks
+    on the relay and the modules with throttle points above anything normal running
+    reaches, and the relay's own duct keep proxies from moving the relay's or each other's
+    timing through heat.
+  - Heatsinks: the module vendor's heat spreader with a fin block cut to the channel, its
+    fins running front to rear across the module's 50 mm side (RL-JGDMS-0220).
+    Off-the-shelf i.MX 95 SMARC heatsinks are 82 x 42 mm with fins of 5.5 to 14.7 mm, for
+    modules dissipating about 3 to 10 W (CL-RELAYCASE-0028), but they are made for the
+    module's usual orientation and may have their fins across the airflow once it stands
+    on end. Rear modules are industrial grade. Estimated pitch 22 to 30 mm per card, so
+    twelve cards take about 260 to 360 mm of the roughly 430 mm inside the case, the rest
+    being the relay duct (open point 23).
+- **K11. Proxy module requirements** (RL-JGDMS-0219; candidate modules CL-RELAYCASE-0027).
+  - SMARC i.MX 95 short size (82 x 50 mm), 16 GB LPDDR5 with inline ECC enabled by the
+    module's memory setup; usable memory is less by what ECC reserves (R16e).
+  - No wireless variant: a radio would be a way out of the case that bypasses the relay.
+  - Boots from its card's write-protected SPI flash through SMARC boot select (K4). Per
+    vendor, check that this source is supported on the i.MX 95, and whether an on-module
+    microcontroller translates the pins; its firmware is then trusted too.
+  - The module's eMMC, and QSPI flash if present, is never executed and is wiped on every
+    re-image unless the variant has none, so nothing left by one tenant survives to the
+    next.
+  - Secure boot fused closed with the project's key before first use; the controller holds
+    FORCE_RECOV# inactive.
+  - Five GPIO lines free for the slot pins. NXP's firmware (System Manager on the
+    Cortex-M33, EdgeLock enclave) is trusted on every module alike; the kernel built for
+    the modules leaves out GPU, NPU and video drivers. Industrial temperature grade at
+    least in the rear position (K10).
+  - Debug: each module's JTAG is left unconnected on the card and fused to disabled or
+    secure mode when secure boot is fused, so neither an open lid nor a debug header left
+    on the module bypasses secure boot.
+  - Time: modules take time only from the relay, consistent with the timer restrictions of
+    R20.
+- **K12. Candidate network controller** (2026-11-23; a candidate, not a decision;
+  CL-RELAYCASE-0026). Innodisk EGPL-G401, an M.2 2280 to four-port gigabit module, six per
+  case on the network carrier in the relay duct (RL-JGDMS-0223), each on its own MCIO
+  cable and CPU root port, one port per proxy module.
+  - All six modules are on one face of the carrier, its back towards the right-hand wall,
+    so the modules stand into the airflow rather than splitting it (operator, 2026-11-23,
+    in this document's terms: all the network modules on one face of the network card, to
+    disturb the duct's airflow as little as possible; not registered as a ruling). Lying
+    with their 80 mm length front to rear, three high and two deep, they make the card
+    about 170 to 190 mm long and 100 mm high (estimate), standing about 15 to 20 mm into
+    the duct.
+  - Controller Intel I350 (quad-port MAC and PHY, `igb` driver, SR-IOV not used; part
+    facts in CL-RELAYCASE-0024). Host interface PCIe 2.1 x2; M.2 B+M key, which fits an
+    M-key socket wired for two lanes. Four ports per module, so six modules give the 24
+    ports; at about 500 MB/s each way per module an x2 link has headroom.
+  - Power at most 3.8 W (1151 mA at 3.3 V); operating 0 to 55 degrees C ambient; 500 V
+    HiPOT isolation; main board 22 x 80 x 15.3 mm.
+  - Ports leave the M.2 board on a 25 cm micro-coaxial cable to a separate RJ45 daughter
+    board (41.9 x 64.27 x 21 mm), offered with a mounting-hole option (EGPL-G401-C1) or a
+    PCIe bracket (-C2 low profile, -C3 standard). In the case the RJ45 board is not
+    wanted: custom leads run from the module's connectors to the backplane (K1,
+    RL-JGDMS-0223), which needs Innodisk's mating connector and pinout, and magnetics or
+    capacitive coupling at the backplane end if the magnetics are on Innodisk's RJ45 board
+    (open point 22).
+  - Port connectors (2026-11-23, from the datasheet the operator supplied;
+    CL-RELAYCASE-0029): the four LAN ports most likely leave on two long micro-coaxial
+    connectors in the half away from the M.2 fingers, one on each face, so one faces the
+    carrier under at most 2.5 mm of clearance; the small two-row connector beside the
+    fingers is most likely the LED connector. The operator proposed a small port board per
+    bank of three modules, mating with their connectors and plugging into a backplane
+    slot, to keep cables out of the airflow. With a connector under each module that board
+    cannot mate; the operator's answer is cut-outs and slots in the carrier with the leads
+    behind it (K1, RL-JGDMS-0223).
+  - Proposal (2026-11-23 early morning, following from the lead routing; not registered as
+    a ruling): EGPL-G401 for the prototype and production alike, so the carrier is the
+    only custom board and carries no Ethernet signals or controllers; I350-AM4 laid out on
+    a board stays as the fallback if Innodisk's answers on supply life or magnetics are
+    poor. Questions for Innodisk, now needed before production: the LAN connectors' and
+    LED header's part numbers and pinout (two ports per connector?); where the magnetics
+    are; the mating connector, and whether Innodisk supplies custom-length leads or
+    approves a cable house's; how long the product will be supplied; and how its
+    configuration memory is protected.
+  - Before use: read each module's I350 configuration memory, which Innodisk wrote, and
+    confirm the management interfaces (NC-SI, SMBus) are off and unconnected; the relay's
+    IOMMU stays on (K3).
+  - Alternatives with the same controller: Commell M2-3504 and LR-Link LRES2030PT-4RJ45
+    (M.2, I350, four ports), or I350-AM4 laid out on a board of its own (the fallback
+    above).
+  - Considered and set aside: LR-Link LRES2008PT (eight-port I350 PCIe card; three per
+    case in the relay, too many slots, and its ports face outwards); an Ethernet switch
+    with VLANs (needs trusted switch configuration; RL-JGDMS-0217); Broadcom BCM5719
+    (quad-port, but its datasheet is confidential).
+- **K13. Candidate relay board** (2026-11-23 early morning; a candidate, not a decision;
+  CL-RELAYCASE-0030, -0031). MSI D3061, a DC-MHS M-DNO Type-2 board for one Intel Xeon 6
+  (socket E2).
+  - PCIe: eight MCIO-8i connectors, each a PCIe 5.0 x8 link from the CPU with no switch
+    (CL-RELAYCASE-0030); six carry one network module each (K1) and two are spare for a
+    second card bank. One OCP 3.0 x16 slot for the relay's host-facing and service-facing
+    ports.
+  - Memory: 16 DDR5 RDIMM slots on eight channels; one ECC RDIMM per channel is enough.
+  - Management and trust: BMC (AST2600, AMI MegaRAC) on a DC-SCM 2.0 module with its own
+    management port; dual BIOS and BMC flash; optional TPM 2.0 and AST1060 root-of-trust
+    modules, the root of trust being the route to open point 20 for the relay itself.
+  - Power: from a power distribution board on 12-pin connectors, suited to hot-swap CRPS
+    supplies; that board also feeds the backplane, the carrier and the controller (open
+    point 29).
+  - CPU at a fixed clock (proposal; operator, 2026-11-23: "We can underclock the CPU.").
+    The lowest-power parts it takes, the Xeon 6505P and 6507P, are rated 150 W
+    (CL-RELAYCASE-0031). The relay runs at one fixed core frequency with Turbo and dynamic
+    frequency scaling off, chosen so it keeps up with peak load. A power cap is not used:
+    it varies the frequency with power draw, which is the Hertzbleed channel, on the
+    machine that does the TLS. Only the cores scale, so the saving has a floor; package
+    power is to be measured on the relay's own workload. Xeon 6 parts include QAT
+    accelerators that could take TLS work off the cores; check the chosen part.
+  - Settings: IOMMU on, with each network module, the OCP card and the DC-SCM's PCIe link
+    in groups of their own; NC-SI on the OCP card off; the BMC's own fan control not used
+    for case fans (K10); a written policy for BMC firmware updates, since BMC firmware has
+    a long record of vulnerabilities.
+  - Costs: roughly 150 W even underclocked (estimate), a deeper case (open point 27), and
+    DC-MHS parts (DC-SCM module, power distribution board) sourced separately. Rated for 0
+    to 35 degrees C ambient.
+- **K14. Controller** (RL-JGDMS-0226; details are proposals). An off-the-shelf
+  microcontroller board with Ethernet and secure boot, on a panel beside the supplies at
+  the rear left, joined to the backplane by one harness carrying the buses, interrupt
+  lines and 12 V standby power. Examples of the class: STM32H5 Nucleo or NXP MCX N FRDM
+  boards for the prototype; for production an industrial module with the same
+  microcontroller, since evaluation boards carry debug probes and are not made for long
+  supply.
+  - On the backplane, only parts with no firmware: I/O expanders for the roughly 200
+    module lines (power enable, reset, presence, boot select, watchdog, FORCE_RECOV#),
+    UART expanders for the 24 consoles, fan controller chips, and the write-protect gate;
+    differential I2C buffers at each end if the harness runs near the supplies.
+  - No wiring to the relay side (relay board, BMC, carrier). A compromised relay or BMC
+    cannot power, reset, recover or reflash a module, and a compromised controller never
+    sees proxy traffic. What the two must share goes through the management station: a
+    swap expected (K8), boot mismatch reports (K4) and the heartbeat (open point 13).
+  - Boot flash writes: each card's SPI flash write-protect line is released only when the
+    controller asks and the lid switch reports open, through a logic gate on the
+    backplane, so a compromised controller alone cannot plant module firmware; bootloader
+    updates are done with the lid open (open point 30).
+  - Consoles are output from modules that may be compromised: the controller logs the
+    bytes raw to the management station and never interprets them.
+  - Its own firmware is secure-booted with the project's key, its debug port permanently
+    locked, and it is updated only with the lid open. Its management port leaves at the
+    rear on the third network (K2). It owns every case fan (K10).
 
 Open points added by this section:
 
@@ -638,6 +933,8 @@ Open points added by this section:
     host.
 13. **The controller's heartbeat (H4, F8).** With the host outside the case, or several
     hosts per case, whose heartbeat powers boards down, and per board or all at once.
+    Revised 2026-11-23 early morning: the controller shares no wiring with the relay
+    (K14), so the management station watches both.
 14. **Relay availability.** One relay stops all 24 boards when it is down. Whether that is
     accepted, or a second case is the fallback; the V2 rear section probably holds one
     server board.
@@ -653,19 +950,52 @@ Open points added by this section:
 17. **Rulings worded for the Unix socket.** RL-JGDMS-0111 and -0114 (the socket identifies
     the subprocess), -0115 and -0116 (policy delivered over the Unix socket) and -0077 and
     -0078 (the cut at the byte stream, over Unix sockets) still name it. Under K3 as
-    revised the subprocess is identified by its slot VLAN and address and the transport is
-    an unencrypted TCP connection; the operator to say whether each is restated or stands
-    read that way. As with the Unix socket, nothing on this hop satisfies `Integrity.YES`
-    by cryptography; the slot VLAN and the board kernel stand in for it, which is the case
-    RL-JGDMS-0116 already allows for.
-18. **Switch chip** (K1, K3). A part that runs without firmware and whose registers the
-    controller can set for per-port ingress tagging, dropping tagged frames on board
-    ports, VLAN membership with egress filtering, per-port rate limits, and per-VLAN
-    learning or fixed entries (CL-RELAYCASE-0018); and the controller's bus to it.
-19. **Carrier hardware** (K1, K8). Five free GPIO lines per slot on the chosen SMARC
-    carrier for the ID pins, and a hot-swap controller per caddy.
+    revised the subprocess is identified by its slot's interface and address and the
+    transport is an unencrypted TCP connection; the operator to say whether each is
+    restated or stands read that way. As with the Unix socket, nothing on this hop
+    satisfies `Integrity.YES` by cryptography; the slot's wiring and the module's kernel
+    stand in for it, which is the case RL-JGDMS-0116 already allows for.
+18. **Switch chip** (K1, K3). Closed 2026-11-23: no Ethernet switch (RL-JGDMS-0216). A
+    part that runs without firmware and whose registers the controller can set for
+    per-port ingress tagging, dropping tagged frames on board ports, VLAN membership with
+    egress filtering, per-port rate limits, and per-VLAN learning or fixed entries
+    (CL-RELAYCASE-0018); and the controller's bus to it.
+19. **Carrier hardware** (K1, K8). Closed 2026-11-23 by K1 and K11. Five free GPIO lines
+    per slot on the chosen SMARC carrier for the ID pins, and a hot-swap controller per
+    caddy.
 20. **Attestation on insertion** (K8). Whether it is wanted depends on who can reach the
     case.
 21. **Crash reports from boards** (K9). Whether a crash condemns only the digests or also
     suspends the service after a threshold, and whether the relay needs its own identity
     towards the Verdict Registry under STD-002's SPIFFE scheme to file reports.
+22. **Network carrier** (K1, K3, K12). Settled in part 2026-11-23 early morning: no PCIe
+    switch, one MCIO cable per module (RL-JGDMS-0223). Still open: Innodisk's answers
+    (K12) on connector and LED header part numbers and pinout, magnetics, mating connector
+    and custom leads, supply life and configuration memory; then the lead length, the
+    backplane's lead connectors, and magnetics or capacitive coupling there if needed. The
+    I350's expected discontinuance is 1H 2031.
+23. **Card pitch** (K10). SMARC connector stack heights and module component heights from
+    vendor drawings (CL-RELAYCASE-0028); the narrow channel width from the fan curve.
+24. **Thermal test** (K10). 35 degrees C inlet, every module and the relay at full load, a
+    filter partly blocked, and one fan stopped in turn at each stage (front, middle and
+    rear of the relay duct; front and rear of the card bank; one supply); record CPU,
+    module and carrier temperatures against their limits, confirm the CPU never reaches
+    its throttle point, and set the coarse inlet-temperature steps.
+25. **Module vendor checks** (K11). Boot from the card's SPI flash, any on-module
+    microcontroller, variants without eMMC, five free GPIO lines.
+26. **Relay board** (K13). The MSI D3061 is the candidate. To confirm: each network module
+    in an IOMMU group of its own at x2 on a booted board; the CPU part, its fixed
+    frequency and package power on the relay's workload; the OCP network card; the DC-SCM
+    module with TPM and AST1060; the power distribution board.
+27. **Case size** (K1). Confirm 3U: the card's height with the module on end and the
+    connector seated, the retention bar and lid clearance, the 92 mm middle fan and the
+    rear fan's height, and the relay's CPU heatsink. Confirm the depth, about 550 to 600
+    mm with the D3061 behind the carrier (estimate), and a rack and rails to suit.
+28. **Controller board** (K14). The board; the backplane's expander, UART and fan
+    controller chips; the harness and its connectors; whether consoles go to UART
+    expanders or stay as bench-only headers.
+29. **Power distribution** (K8, K13). A power distribution board for the D3061 that also
+    feeds the backplane, the carrier and the controller's 12 V standby; per-slot eFuses;
+    the card connector's pin staggering.
+30. **Boot flash updates** (K14). The procedure for updating the cards' bootloader with
+    the lid open, and who authorises it.
