@@ -80,9 +80,9 @@ code{font-family:var(--display);font-size:.92em}
 </svg>
 <main>
   <header style="display:flex;flex-direction:column;gap:10px">
-    <div class="no">JGDMS / DIRTYCHAI &middot; ISSUE OF 2026-11-23 &middot; NOT TO SCALE</div>
+    <div class="no">JGDMS / DIRTYCHAI &middot; ISSUE OF 2026-11-23, MIDDAY &middot; NOT TO SCALE</div>
     <h1>Proxy host board layouts</h1>
-    <p class="lede">Drawings of the rack case that runs untrusted smart proxies on separate hardware. Issue of 2026-11-23: the caddies, row boards and row switches are replaced by twelve vertical cards, each carrying two SMARC i.MX 95 modules, loaded from the top into a backplane that holds a network controller port per module and joins the relay by one PCIe cable (RL-JGDMS-0215 to -0217). Cooling and module requirements: RL-JGDMS-0218 and -0219. K-numbers are items of the section "Case topology" in <code>JGDMS/docs/relay-isolation/DESIGN-security.md</code>; other letters and numbers are from <code>PROXY_HOST_BOARD_REQUIREMENTS.md</code>. Earlier issues are kept in the repository as <code>JGDMS/docs/LAYOUT-proxy-host-board-2026-11-15.html</code> and <code>-2026-11-22.html</code>.</p>
+    <p class="lede">Drawings of the rack case that runs untrusted smart proxies on separate hardware. Issue of 2026-11-23, revised midday. Twelve vertical cards, each carrying two SMARC i.MX 95 modules, load from the top into a backplane (RL-JGDMS-0215, -0217); each module has a network controller port of its own on six M.2 network modules, which stand on a passive carrier on the right-hand wall, each with its own MCIO cable to the relay board (RL-JGDMS-0223); the relay's outward NIC has an MCIO connector of its own, the board's OCP slot stays empty, and no MCIO cable carries SMBus (RL-JGDMS-0227, -0229). There are no activity LEDs (RL-JGDMS-0224). Cooling: RL-JGDMS-0225; module requirements: RL-JGDMS-0219; the controller, with no wiring to the relay side: RL-JGDMS-0226. K-numbers are items of the section "Case topology" in <code>JGDMS/docs/relay-isolation/DESIGN-security.md</code>; other letters and numbers are from <code>PROXY_HOST_BOARD_REQUIREMENTS.md</code>. Earlier issues are kept in the repository as <code>JGDMS/docs/LAYOUT-proxy-host-board-2026-11-15.html</code> and <code>-2026-11-22.html</code>.</p>
     <div class="key">
       <span><i class="h"></i>module Ethernet link (unencrypted, one controller port each)</span>
       <span><i class="k"></i>PCIe</span>
@@ -98,8 +98,8 @@ code{font-family:var(--display);font-size:.92em}
     <h2>Who is wired to whom</h2>
     <figure>
       <div class="draw">
-      <svg viewBox="0 0 940 490" role="img" aria-label="Inside the rack case, twelve cards of two proxy modules send their own Ethernet pairs through a passive backplane, under the sealed wall, to six four-port network modules on a network card at the front of the relay duct; a PCIe switch there joins the relay by one cable; only the relay reaches the hosts and, through the egress switch, the services."><rect class="d" x="20" y="40" width="750" height="440"/>
-<text class="tb" x="30" y="32">RACK CASE (RL-JGDMS-0208, -0209, -0215)</text>
+      <svg viewBox="0 0 940 490" role="img" aria-label="Inside the rack case, twelve cards of two proxy modules send their own Ethernet pairs through a backplane with no PCIe and no firmware, by LAN leads, to six four-port network modules on a passive carrier on the right-hand wall; each module has its own MCIO cable to the relay; a separate controller, with no wiring to the relay side, keeps module power and the fans; only the relay reaches the hosts and, through the egress switch, the services."><rect class="d" x="20" y="40" width="750" height="440"/>
+<text class="tb" x="30" y="32">RACK CASE (RL-JGDMS-0208, -0209, -0215, -0223, -0227, -0229)</text>
 <text class="ts" x="395" y="62" text-anchor="middle">modules reach only the relay; no module-to-module path (K1, K3)</text>
 <rect class="b" x="40" y="74" width="140" height="58"/>
 <text class="tb" x="110" y="94" text-anchor="middle">card 1</text>
@@ -124,34 +124,42 @@ code{font-family:var(--display);font-size:.92em}
 <path class="h" d="M180 288H205"/>
 <rect class="b" x="205" y="74" width="125" height="244"/>
 <text class="tb" x="267" y="96" text-anchor="middle">BACKPLANE</text>
-<text class="ts" x="267" y="114" text-anchor="middle">passive, no PCIe</text>
+<text class="ts" x="267" y="114" text-anchor="middle">no PCIe, no firmware</text>
 <text class="ts" x="267" y="130" text-anchor="middle">slot ID straps</text>
-<text class="ts" x="267" y="146" text-anchor="middle">power, watchdog</text>
-<text class="ts" x="267" y="162" text-anchor="middle">per module (K1)</text>
+<text class="ts" x="267" y="146" text-anchor="middle">eFuse, watchdog</text>
+<text class="ts" x="267" y="162" text-anchor="middle">per module; I/O,</text>
+<text class="ts" x="267" y="178" text-anchor="middle">UART, fan chips,</text>
+<text class="ts" x="267" y="194" text-anchor="middle">WP gate (K14)</text>
 <path class="h" d="M330 190H352"/>
 <path class="h" d="M330 210H352"/>
 <path class="h" d="M330 230H352"/>
 <rect class="b" x="352" y="110" width="124" height="190"/>
-<text class="tb" x="414" y="130" text-anchor="middle">NETWORK CARD</text>
-<text class="ts" x="414" y="146" text-anchor="middle">front of relay duct</text>
-<rect class="s" x="362" y="158" width="104" height="44"/>
-<text class="t" x="414" y="177" text-anchor="middle">6 x EGPL-G401</text>
-<text class="ts" x="414" y="193" text-anchor="middle">24 ports (K12)</text>
-<rect class="s" x="362" y="226" width="104" height="44"/>
-<text class="t" x="414" y="245" text-anchor="middle">PCIe switch</text>
-<text class="ts" x="414" y="261" text-anchor="middle">no fw, ACS</text>
-<path class="k" d="M414 202V226"/>
-<path class="k" d="M466 248H496"/>
-<text class="tk" x="352" y="318">8-lane MCIO/SlimSAS cable</text>
+<text class="tb" x="414" y="130" text-anchor="middle">NETWORK</text>
+<text class="tb" x="414" y="146" text-anchor="middle">CARRIER</text>
+<text class="ts" x="414" y="162" text-anchor="middle">passive, on the</text>
+<text class="ts" x="414" y="176" text-anchor="middle">right-hand wall</text>
+<rect class="s" x="362" y="190" width="104" height="44"/>
+<text class="t" x="414" y="209" text-anchor="middle">6 x EGPL-G401</text>
+<text class="ts" x="414" y="225" text-anchor="middle">24 ports (K12)</text>
+<text class="ts" x="414" y="256" text-anchor="middle">no PCIe switch</text>
+<text class="ts" x="414" y="272" text-anchor="middle">LAN leads in</text>
+<path class="k" style="stroke-width:2" d="M476 170H496"/>
+<path class="k" style="stroke-width:2" d="M476 188H496"/>
+<path class="k" style="stroke-width:2" d="M476 206H496"/>
+<path class="k" style="stroke-width:2" d="M476 224H496"/>
+<path class="k" style="stroke-width:2" d="M476 242H496"/>
+<path class="k" style="stroke-width:2" d="M476 260H496"/>
+<text class="tk" x="352" y="318">six MCIO cables, one per module, no SMBus</text>
 <rect class="b" x="496" y="100" width="176" height="182"/>
 <text class="tb" x="584" y="124" text-anchor="middle">RELAY</text>
-<text class="ts" x="584" y="144" text-anchor="middle">single-socket server (K1)</text>
+<text class="ts" x="584" y="144" text-anchor="middle">candidate: MSI D3061 (K13)</text>
 <text class="ts" x="584" y="161" text-anchor="middle">node key in HSM or enclave</text>
-<text class="ts" x="584" y="178" text-anchor="middle">slot = controller port (K3)</text>
-<text class="ts" x="584" y="195" text-anchor="middle">signed boot images (K4)</text>
-<text class="ts" x="584" y="212" text-anchor="middle">IOMMU on</text>
+<text class="ts" x="584" y="178" text-anchor="middle">each module: own root port</text>
+<text class="ts" x="584" y="195" text-anchor="middle">slot = controller port (K3)</text>
+<text class="ts" x="584" y="212" text-anchor="middle">IOMMU on, fixed clock</text>
 <text class="ts" x="584" y="229" text-anchor="middle">tick on all traffic</text>
 <text class="ts" x="584" y="246" text-anchor="middle">runs no proxy code</text>
+<text class="ts" x="584" y="263" text-anchor="middle">outward NIC: own MCIO (K15)</text>
 <rect class="b" x="790" y="100" width="140" height="110"/>
 <text class="tb" x="860" y="128" text-anchor="middle">HOSTS</text>
 <text class="ts" x="860" y="146" text-anchor="middle">own rack cases</text>
@@ -171,19 +179,22 @@ code{font-family:var(--display);font-size:.92em}
 <rect class="b" x="790" y="300" width="140" height="64"/>
 <text class="tb" x="860" y="326" text-anchor="middle">SERVICES</text>
 <text class="ts" x="860" y="344" text-anchor="middle">origin servers</text>
-<rect class="b" x="205" y="392" width="150" height="56"/>
-<text class="tb" x="280" y="415" text-anchor="middle">NODE CONTROLLER</text>
-<text class="ts" x="280" y="432" text-anchor="middle">reads the lid switch (K8)</text>
-<path class="c" d="M250 392V320" marker-end="url(#mn)"/>
-<text class="ts" x="40" y="380">power, reset, watchdog, presence,</text>
-<text class="ts" x="40" y="395">console, boot select per module</text>
-<path class="c" d="M355 420H790" marker-end="url(#mn)"/>
-<path class="c" d="M560 282V420"/>
-<text class="t" x="570" y="410">management network (M3): controller, relay BMC</text>
-<text class="ts" x="570" y="440">no module reaches it; whose heartbeat</text>
-<text class="ts" x="570" y="455">governs the controller is open (point 13)</text></svg>
+<rect class="b" x="40" y="392" width="200" height="72"/>
+<text class="tb" x="140" y="412" text-anchor="middle">CONTROLLER (K14)</text>
+<text class="ts" x="140" y="428" text-anchor="middle">own board beside the supplies;</text>
+<text class="ts" x="140" y="442" text-anchor="middle">fans, lid switch, WP gate; no</text>
+<text class="ts" x="140" y="456" text-anchor="middle">wiring to the relay side</text>
+<path class="c" d="M210 392V350H250V320" marker-end="url(#mn)"/>
+<text class="ts" x="40" y="368">one harness: power, reset,</text>
+<text class="ts" x="40" y="382">watchdog, console, boot select</text>
+<path class="c" d="M240 440H790" marker-end="url(#mn)"/>
+<path class="c" d="M560 282V440"/>
+<text class="t" x="570" y="410">management network: controller, relay BMC,</text>
+<text class="t" x="570" y="426">management station (RL-JGDMS-0226)</text>
+<text class="ts" x="570" y="460">no module reaches it; the station</text>
+<text class="ts" x="570" y="475">coordinates relay and controller</text></svg>
       </div>
-      <figcaption>Each of the 24 modules has an Ethernet link of its own to one port of a network controller on the backplane; there is no Ethernet switch, so the relay knows the slot from the port a frame arrives on and no module reaches another (K3, RL-JGDMS-0217). The controllers sit behind a PCIe switch, and one 8-lane cable joins the backplane to the relay (RL-JGDMS-0216). The links are not encrypted and the modules hold no keys. The relay is the only part of the case that reaches the hosts or the services, on separate physical ports (K2). The controller keeps power, reset, watchdog and boot select for every module and reads the lid switch (K8).</figcaption>
+      <figcaption>Each of the 24 modules has an Ethernet link of its own to one port of a network controller; there is no Ethernet switch, so the relay knows the slot from the port a frame arrives on and no module reaches another (K3, RL-JGDMS-0217). The links run from each card through the backplane and a LAN lead to the network carrier, whose six network modules each have their own MCIO cable to a PCIe root port of the relay's CPU, so there is no PCIe switch (RL-JGDMS-0223). The links are not encrypted and the modules hold no keys. The relay is the only part of the case that reaches the hosts or the services, on separate physical ports (K2). The controller keeps power, reset, watchdog, consoles and boot select for every module, owns the fans and reads the lid switch; it shares no wiring with the relay side, and the management station coordinates the two (K14, RL-JGDMS-0226). The relay's own ports are on an outward NIC on its own MCIO cable; the board's OCP slot, which has an NC-SI path to the BMC, stays empty, and none of the seven MCIO cables carries SMBus, so a swapped cable opens no sideband path (K15, RL-JGDMS-0227, -0229).</figcaption>
     </figure>
   </section>
 
@@ -192,20 +203,19 @@ code{font-family:var(--display);font-size:.92em}
     <h2>Rack unit seen from above (3U target)</h2>
     <figure>
       <div class="draw">
-      <svg viewBox="0 0 940 400" role="img" aria-label="Plan view: a filtered fan wall at the front, the bank of twelve cards with front and rear modules over a backplane, a sealed relay duct along one side to the relay CPU heatsink and a large rear fan, the relay board and supplies at the rear, and separate exhausts."><rect class="o" x="70" y="40" width="800" height="330"/>
+      <svg viewBox="0 0 940 400" role="img" aria-label="Plan view: a filtered fan wall at the front, the bank of twelve cards with front and rear modules over a backplane and rear pull fans, a sealed relay duct along the right-hand wall with the network carrier, a middle fan, the relay CPU heatsink and a large rear fan, the controller board and supplies at the rear left, the relay board at the rear right, and separate exhausts."><rect class="o" x="70" y="40" width="800" height="330"/>
 <text class="t" x="70" y="30">FRONT</text>
 <text class="t" x="870" y="30" text-anchor="end">REAR</text>
-<circle class="o" cx="90" cy="76" r="15"/>
-<circle class="o" cx="90" cy="128" r="15"/>
-<circle class="o" cx="90" cy="180" r="15"/>
-<circle class="o" cx="90" cy="232" r="15"/>
-<circle class="o" cx="90" cy="284" r="15"/>
-<circle class="o" cx="90" cy="336" r="15"/>
+<circle class="o" cx="90" cy="80" r="15"/>
+<circle class="o" cx="90" cy="136" r="15"/>
+<circle class="o" cx="90" cy="192" r="15"/>
+<circle class="o" cx="90" cy="248" r="15"/>
+<circle class="o" cx="90" cy="326" r="20"/>
 <rect class="s" x="72" y="48" width="36" height="316" style="fill:none"/>
-<text class="ts" x="90" y="392" text-anchor="middle">fan wall, filtered</text>
+<text class="ts" x="90" y="392" text-anchor="middle">front fans, filtered</text>
 <path class="o" d="M72 284H870" style="stroke-width:2.2"/>
-<text class="ts" x="515" y="278" text-anchor="middle">sealed wall between zones</text>
-<rect class="d" x="130" y="52" width="300" height="214"/>
+<text class="ts" x="140" y="280">divider; foam seal where the leads pass</text>
+<rect class="d" x="130" y="52" width="300" height="218"/>
 <rect class="card" x="140" y="62" width="280" height="2.4"/>
 <rect class="mod" x="148" y="55" width="95" height="6"/>
 <rect class="mod" x="317" y="65" width="95" height="6"/>
@@ -243,49 +253,70 @@ code{font-family:var(--display);font-size:.92em}
 <rect class="mod" x="148" y="242" width="95" height="6"/>
 <rect class="mod" x="317" y="252" width="95" height="6"/>
 <text class="ts" x="280" y="48" text-anchor="middle">card bank: twelve cards from above, backplane under (dashed)</text>
-<text class="ts" x="195" y="262" text-anchor="middle">front modules</text>
-<text class="ts" x="365" y="262" text-anchor="middle">rear modules</text>
-<rect class="b" x="600" y="160" width="200" height="192"/>
-<text class="tb" x="700" y="182" text-anchor="middle">RELAY BOARD</text>
-<text class="ts" x="700" y="198" text-anchor="middle">small single-socket</text>
-<text class="ts" x="700" y="212" text-anchor="middle">mini-ITX or micro-ATX</text>
-<text class="ts" x="700" y="264" text-anchor="middle">on board: 2 LAN, BMC</text>
-<rect class="d" x="130" y="266" width="90" height="94"/>
-<rect class="card" x="120" y="356" width="410" height="2.4"/>
-<rect class="mod" x="132" y="342" width="170" height="13"/>
-<rect class="mod" x="310" y="342" width="170" height="13"/>
-<rect class="s" x="488" y="340" width="36" height="15"/>
-<text class="ts" x="217" y="352" text-anchor="middle">3 x EGPL-G401</text>
-<text class="ts" x="395" y="352" text-anchor="middle">3 x EGPL-G401</text>
-<text class="ts" x="506" y="351" text-anchor="middle">sw</text>
-<text class="ts" x="325" y="334" text-anchor="middle">network card (K12): modules on one face, back to the wall</text>
-<rect class="s" x="740" y="296" width="56" height="20"/>
-<text class="ts" x="768" y="310" text-anchor="middle">MCIO</text>
-<path class="k" style="stroke-width:2.4" d="M524 362H768V316"/>
-<rect class="s" x="618" y="294" width="110" height="52"/>
-<text class="t" x="673" y="316" text-anchor="middle">CPU heatsink</text>
-<text class="ts" x="673" y="333" text-anchor="middle">passive, in the duct</text>
-<rect class="s" x="808" y="290" width="40" height="60"/>
-<circle class="o" cx="828" cy="320" r="22"/>
-<text class="ts" x="828" y="392" text-anchor="middle">large rear fan, pulling</text>
+<text class="ts" x="195" y="266" text-anchor="middle">front modules</text>
+<text class="ts" x="365" y="266" text-anchor="middle">rear modules</text>
+<circle class="o" cx="448" cy="80" r="13"/>
+<circle class="o" cx="448" cy="136" r="13"/>
+<circle class="o" cx="448" cy="192" r="13"/>
+<circle class="o" cx="448" cy="248" r="13"/>
+<text class="ts" x="448" y="60" text-anchor="middle">rear pull fans</text>
+<rect class="b" x="540" y="54" width="104" height="82"/>
+<text class="tb" x="592" y="76" text-anchor="middle">CONTROLLER</text>
+<text class="ts" x="592" y="92" text-anchor="middle">board on a panel</text>
+<text class="ts" x="592" y="106" text-anchor="middle">by the supplies</text>
+<text class="ts" x="592" y="120" text-anchor="middle">(K14)</text>
+<path class="c" d="M540 108H470V164H432"/>
+<text class="ts" x="474" y="180">harness</text>
 <rect class="b" x="660" y="54" width="208" height="38"/><rect class="b" x="660" y="98" width="208" height="38"/>
-<text class="ts" x="764" y="77" text-anchor="middle">hot-swap supply 1</text>
-<text class="ts" x="764" y="121" text-anchor="middle">hot-swap supply 2</text>
-<text class="ts" x="764" y="150" text-anchor="middle">rear left, out from the rear</text>
-<path class="a" d="M20 150H66" marker-end="url(#ma)"/>
-<path class="a" d="M20 325H66" marker-end="url(#ma)"/>
-<path class="a" d="M112 318H612" marker-end="url(#ma)"/>
-<path class="a" d="M732 325H800" marker-end="url(#ma)"/>
-<path class="a" d="M852 325H920" marker-end="url(#ma)"/>
-<path class="a" d="M430 120H650" marker-end="url(#ma)"/>
-<path class="a" d="M868 95H920" marker-end="url(#ma)"/>
-<text class="ta" x="325" y="302" text-anchor="middle">relay duct: its own front fans, sealed (K10)</text>
-<text class="ta" x="936" y="168" text-anchor="end">card-bank exhaust</text>
-<text class="ta" x="936" y="312" text-anchor="end">relay exhaust</text>
-<rect class="s" x="420" y="372" width="14" height="8"/>
-<text class="ts" x="442" y="382">lid switch (K8)</text></svg>
+<text class="ts" x="764" y="77" text-anchor="middle">CRPS supply 1</text>
+<text class="ts" x="764" y="121" text-anchor="middle">CRPS supply 2</text>
+<text class="ts" x="764" y="150" text-anchor="middle">fans fixed over PMBus (K10)</text>
+<rect class="b" x="560" y="164" width="300" height="196"/>
+<text class="tb" x="710" y="186" text-anchor="middle">RELAY BOARD</text>
+<text class="ts" x="710" y="202" text-anchor="middle">candidate MSI D3061 (K13)</text>
+<text class="ts" x="710" y="216" text-anchor="middle">DC-MHS, 305 x 210 mm</text>
+<text class="ts" x="710" y="230" text-anchor="middle">DC-SCM MGT1: BMC, ROT1; OCP empty</text>
+<text class="ts" x="710" y="244" text-anchor="middle">8 MCIO from the CPU, 7 used</text>
+<rect class="s" x="782" y="256" width="76" height="30"/>
+<text class="ts" x="820" y="268" text-anchor="middle">outward NIC</text>
+<text class="ts" x="820" y="281" text-anchor="middle">I350-T4 (K15)</text>
+<path class="p" d="M858 271H918" marker-end="url(#mp)"/>
+<rect class="s" x="660" y="292" width="100" height="52"/>
+<text class="t" x="710" y="314" text-anchor="middle">CPU heatsink</text>
+<text class="ts" x="710" y="331" text-anchor="middle">fixed clock</text>
+<rect class="s" x="574" y="346" width="40" height="12"/>
+<circle class="o" cx="636" cy="318" r="17"/>
+<text class="ts" x="622" y="297" text-anchor="middle">middle fan</text>
+<circle class="o" cx="836" cy="318" r="22"/>
+<text class="ts" x="836" y="392" text-anchor="middle">large rear fan</text>
+<rect class="card" x="120" y="356" width="360" height="2.4"/>
+<rect class="mod" x="128" y="343" width="160" height="12"/>
+<rect class="mod" x="300" y="343" width="160" height="12"/>
+<text class="ts" x="208" y="353" text-anchor="middle">3 x EGPL-G401</text>
+<text class="ts" x="380" y="353" text-anchor="middle">3 x EGPL-G401</text>
+<rect class="fk" x="466" y="344" width="12" height="11"/>
+<path class="k" style="stroke-width:2.4" d="M478 350H500V365H594V358"/>
+<text class="tk" x="604" y="380">6 x MCIO</text>
+<path class="h" style="stroke-width:1.2" d="M404 363V270"/>
+<path class="h" style="stroke-width:1.2" d="M409 363V270"/>
+<path class="h" style="stroke-width:1.2" d="M414 363V270"/>
+<rect class="s" x="396" y="280" width="26" height="8" style="fill:var(--muted)"/>
+<text class="ts" x="424" y="300">LAN leads</text>
+<text class="ts" x="296" y="386" text-anchor="middle">network carrier on standoffs on the right-hand wall (K1)</text>
+<path class="a" d="M20 160H66" marker-end="url(#ma)"/>
+<path class="a" d="M20 326H66" marker-end="url(#ma)"/>
+<path class="a" d="M114 312H600" marker-end="url(#ma)"/>
+<path class="a" d="M762 318H808" marker-end="url(#ma)"/>
+<path class="a" d="M862 318H920" marker-end="url(#ma)"/>
+<path class="a" d="M466 150H650" marker-end="url(#ma)"/>
+<path class="a" d="M868 120H920" marker-end="url(#ma)"/>
+<text class="ta" x="250" y="333" text-anchor="middle">relay duct: three fans in series (K10)</text>
+<text class="ta" x="936" y="142" text-anchor="end">bank exhaust</text>
+<text class="ta" x="936" y="306" text-anchor="end">relay exhaust</text>
+<rect class="s" x="470" y="372" width="14" height="8"/>
+<text class="ts" x="490" y="392">lid switch (K8)</text></svg>
       </div>
-      <figcaption>Two sealed air zones run front to rear (K10, RL-JGDMS-0218). The network card stands at the front of the relay duct, its six network modules and PCIe switch on one face and its flat back to the duct wall; the backplane runs under the sealed wall to reach it, and its cable runs along the duct to the relay board (RL-JGDMS-0222). The case is roughly 400 to 500 mm deep (estimate). The relay is a small single-socket board at the rear right, its CPU in the duct and the link from the network card on an on-board MCIO or SlimSAS connector (RL-JGDMS-0221); the two hot-swap supplies sit at the rear left and breathe card-bank exhaust (K1). A filtered fan wall across the front is split so that no fan feeds both zones. The card bank takes most of the width; its exhaust passes the supplies and the rest of the relay board. The free width beside it is a sealed duct with its own front fans, carrying fresh air to the relay CPU's passive heatsink, with a large fan at the rear pulling: two fans in series, and the relay is shut down cleanly rather than left to throttle if both fall short. Fans run at fixed speeds. The case slides out on rails and the cards load from the top; the lid switch is read by the controller.</figcaption>
+      <figcaption>Two sealed air zones run front to rear (K10, RL-JGDMS-0225). Card bank: filtered fans at the front and pull fans at the rear of the cards, the front slightly stronger, so the bank stays just above outside pressure. Relay duct, along the right-hand wall: a filtered front fan, the network carrier, a middle fan ducted to the relay CPU's heatsink, and one large rear fan, in series, so any one may stop without air flowing backwards; the relay is shut down cleanly rather than left to throttle. Fan speeds never follow load and may follow inlet temperature in coarse steps; the controller owns the case fans, and the supplies' own fans are fixed over PMBus. The network carrier stands on standoffs on the right-hand wall, away from the card bank's heat; its LAN leads run behind it, across the duct floor and under the divider through a foam seal on a folded flange to the backplane's edge, and its six MCIO cables run along the wall to the relay board (RL-JGDMS-0223). The candidate relay board is the MSI D3061 at the rear right (K13); the two CRPS supplies and the controller board sit at the rear left. The case is about 550 to 600 mm deep (estimate), slides out on rails, and the cards load from the top; the lid switch is read by the controller. The outward NIC, an I350-T4 card on an MCIO-to-PCIe slot adapter, sits at the rear of the relay zone with its RJ45s on its own bracket (RL-JGDMS-0227). The carrier stays for production: three off-the-shelf MCIO-to-M.2 adapters would need more duct width than a mid-range card pitch leaves, so they carry the modules only on the prototype bench (RL-JGDMS-0228).</figcaption>
     </figure>
   </section>
 
@@ -583,127 +614,183 @@ code{font-family:var(--display);font-size:.92em}
     <h2>Backplane seen from above</h2>
     <figure>
       <div class="draw">
-      <svg viewBox="0 0 940 372" role="img" aria-label="The passive backplane from above: twelve card connectors, each with its slot ID straps and the power switch and watchdog for its two modules; Ethernet pairs run under the sealed wall to the network card connector beneath the relay duct."><path class="o" d="M60 40H620V252H660V340H60Z"/>
+      <svg viewBox="0 0 940 340" role="img" aria-label="The backplane from above: twelve card connectors, each with its slot ID straps and the eFuses and watchdog for its two modules; firmware-free expander, fan controller and write-protect chips joined by one harness to the controller; and along its right-hand edge one LAN lead connector per card."><rect class="o" x="60" y="40" width="580" height="262" style="fill:none"/>
 <text class="t" x="60" y="30">FRONT EDGE</text>
-<text class="ts" x="76" y="362">left side, viewed from the front: top of the drawing; relay duct along the bottom</text>
+<text class="t" x="640" y="30" text-anchor="end">REAR EDGE</text>
+<text class="ts" x="76" y="330">left side of the case at the top of the drawing; the right-hand edge, towards the relay duct, along the bottom</text>
 <rect class="b" x="150" y="54" width="250" height="8"/>
 <rect class="s" x="410" y="53" width="30" height="10"/>
 <rect class="s" x="448" y="53" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 58H560V290"/>
 <rect class="b" x="150" y="70" width="250" height="8"/>
 <rect class="s" x="410" y="69" width="30" height="10"/>
 <rect class="s" x="448" y="69" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 74H560V291"/>
 <rect class="b" x="150" y="86" width="250" height="8"/>
 <rect class="s" x="410" y="85" width="30" height="10"/>
 <rect class="s" x="448" y="85" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 90H560V292"/>
 <rect class="b" x="150" y="102" width="250" height="8"/>
 <rect class="s" x="410" y="101" width="30" height="10"/>
 <rect class="s" x="448" y="101" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 106H560V293"/>
 <rect class="b" x="150" y="118" width="250" height="8"/>
 <rect class="s" x="410" y="117" width="30" height="10"/>
 <rect class="s" x="448" y="117" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 122H560V294"/>
 <rect class="b" x="150" y="134" width="250" height="8"/>
 <rect class="s" x="410" y="133" width="30" height="10"/>
 <rect class="s" x="448" y="133" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 138H560V295"/>
 <rect class="b" x="150" y="150" width="250" height="8"/>
 <rect class="s" x="410" y="149" width="30" height="10"/>
 <rect class="s" x="448" y="149" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 154H560V290"/>
 <rect class="b" x="150" y="166" width="250" height="8"/>
 <rect class="s" x="410" y="165" width="30" height="10"/>
 <rect class="s" x="448" y="165" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 170H560V291"/>
 <rect class="b" x="150" y="182" width="250" height="8"/>
 <rect class="s" x="410" y="181" width="30" height="10"/>
 <rect class="s" x="448" y="181" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 186H560V292"/>
 <rect class="b" x="150" y="198" width="250" height="8"/>
 <rect class="s" x="410" y="197" width="30" height="10"/>
 <rect class="s" x="448" y="197" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 202H560V293"/>
 <rect class="b" x="150" y="214" width="250" height="8"/>
 <rect class="s" x="410" y="213" width="30" height="10"/>
 <rect class="s" x="448" y="213" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 218H560V294"/>
 <rect class="b" x="150" y="230" width="250" height="8"/>
 <rect class="s" x="410" y="229" width="30" height="10"/>
 <rect class="s" x="448" y="229" width="58" height="10"/>
-<path class="h" style="stroke-width:1.1" d="M506 234H560V295"/>
-<text class="ts" x="140" y="62" text-anchor="end">card 1</text>
-<text class="ts" x="140" y="238" text-anchor="end">card 12</text>
-<text class="ts" x="275" y="248" text-anchor="middle">card connectors</text>
-<text class="ts" x="425" y="248" text-anchor="middle">ID</text>
-<text class="ts" x="477" y="248" text-anchor="middle">pwr, wdog</text>
-<path class="o" d="M60 268H660" style="stroke-width:2.2;stroke-dasharray:8 4"/>
-<text class="ts" x="590" y="262" text-anchor="end">sealed wall above (gasket)</text>
-<rect class="b" x="150" y="300" width="300" height="10"/>
-<text class="ts" x="300" y="328" text-anchor="middle">network card connector: 24 ports x 4 pairs, power (open point 22)</text>
-<path class="h" style="stroke-width:2" d="M560 290V305H450"/>
-<path class="c" d="M70 330V90H150"/>
-<text class="ts" x="76" y="120">control bus</text>
-<text class="ts" x="76" y="134">from the</text>
-<text class="ts" x="76" y="148">controller</text>
-<text class="ts" x="690" y="80">Passive: Ethernet pairs, power and</text>
-<text class="ts" x="690" y="95">control lines only. No PCIe, no switch</text>
-<text class="ts" x="690" y="110">(RL-JGDMS-0222).</text>
-<text class="ts" x="690" y="300">under the relay duct: only the</text>
-<text class="ts" x="690" y="315">network card connector</text></svg>
+<text class="ts" x="112" y="62" text-anchor="end">card 1</text>
+<text class="ts" x="112" y="238" text-anchor="end">card 12</text>
+<text class="ts" x="275" y="250" text-anchor="middle">card connectors</text>
+<text class="ts" x="425" y="250" text-anchor="middle">ID</text>
+<text class="ts" x="477" y="250" text-anchor="middle">eFuse, wdog</text>
+<rect class="b" x="150" y="272" width="26" height="10"/>
+<rect class="b" x="186" y="272" width="26" height="10"/>
+<rect class="b" x="222" y="272" width="26" height="10"/>
+<rect class="b" x="258" y="272" width="26" height="10"/>
+<rect class="b" x="294" y="272" width="26" height="10"/>
+<rect class="b" x="330" y="272" width="26" height="10"/>
+<rect class="b" x="366" y="272" width="26" height="10"/>
+<rect class="b" x="402" y="272" width="26" height="10"/>
+<rect class="b" x="438" y="272" width="26" height="10"/>
+<rect class="b" x="474" y="272" width="26" height="10"/>
+<rect class="b" x="510" y="272" width="26" height="10"/>
+<rect class="b" x="546" y="272" width="26" height="10"/>
+<path class="h" style="stroke-width:1.1" d="M150 58H118V264H163V272"/>
+<path class="h" style="stroke-width:1.1" d="M150 234H128V258H559V272"/>
+<text class="ts" x="350" y="296" text-anchor="middle">LAN lead connectors, one per card, all leads one length (RL-JGDMS-0223)</text>
+<rect class="s" x="522" y="52" width="108" height="40"/>
+<text class="t" x="576" y="69" text-anchor="middle">I/O expanders</text>
+<text class="ts" x="576" y="84" text-anchor="middle">power, reset, boot</text>
+<rect class="s" x="522" y="100" width="108" height="40"/>
+<text class="t" x="576" y="117" text-anchor="middle">UART expanders</text>
+<text class="ts" x="576" y="132" text-anchor="middle">24 consoles, raw</text>
+<rect class="s" x="522" y="148" width="108" height="40"/>
+<text class="t" x="576" y="165" text-anchor="middle">fan controller</text>
+<text class="ts" x="576" y="180" text-anchor="middle">PWM, tachometers</text>
+<rect class="s" x="522" y="196" width="108" height="40"/>
+<text class="t" x="576" y="213" text-anchor="middle">WP gate</text>
+<text class="ts" x="576" y="228" text-anchor="middle">controller AND lid</text>
+<path class="c" d="M630 72H676" marker-end="url(#mn)"/>
+<text class="ts" x="684" y="68">one harness to the controller</text>
+<text class="ts" x="684" y="83">board beside the supplies (K14)</text>
+<text class="ts" x="684" y="130">No PCIe, no switch, no firmware:</text>
+<text class="ts" x="684" y="145">only register-driven chips</text>
+<text class="ts" x="684" y="160">(RL-JGDMS-0223, -0226).</text>
+<text class="ts" x="684" y="200">The lid switch also feeds the</text>
+<text class="ts" x="684" y="215">WP gate: boot flash is written</text>
+<text class="ts" x="684" y="230">only with the lid open.</text>
+<path class="h" style="stroke-width:1.6" d="M640 277H676"/>
+<text class="ts" x="684" y="274">LAN leads arrive from the carrier</text>
+<text class="ts" x="684" y="289">under the divider (foam seal)</text></svg>
       </div>
-      <figcaption>The backplane lies on the case floor under the cards, so nothing blocks the air, and it is passive: no PCIe and no switch. Per card connector: the slot ID straps, and the power switch and watchdog for its two modules. Each module's Ethernet pairs run under the sealed wall, which seals on the board with a gasket, to the network card's connector beneath the relay duct (RL-JGDMS-0222). One card connector carries all 96 pairs; two network cards would halve that (open point 22).</figcaption>
+      <figcaption>The backplane lies on the case floor under the cards. It carries no PCIe, no switch and no firmware (RL-JGDMS-0223, -0226): per card connector, the slot ID straps, and the eFuses and watchdog for its two modules; register-driven I/O, UART and fan controller chips, joined to the controller by one harness; and the write-protect gate, which lets the cards' boot flash be written only when the controller asks and the lid is open (K14). Along its right-hand edge, one LAN lead connector per card takes the leads from the network carrier; each card's pairs are routed in the board to its own connector (two shown).</figcaption>
     </figure>
   </section>
 
   <section class="sheet">
     <div class="no">SHEET 6</div>
-    <h2>Network card, module face</h2>
+    <h2>Network carrier, module face</h2>
     <figure>
       <div class="draw">
-      <svg viewBox="0 0 940 426" role="img" aria-label="The network card seen from its module face: six M.2 network modules lying three high and two deep, a PCIe switch and an MCIO or SlimSAS connector to the relay board at the rear, and an edge connector to the backplane along the bottom; its other face is flat against the duct wall."><rect class="b" x="60" y="50" width="570" height="300"/>
-<text class="tb" x="60" y="40">NETWORK CARD, module face (the other face is flat, against the duct wall)</text>
-<rect class="s" x="80" y="64" width="220" height="60"/>
-<text class="t" x="190" y="90" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="190" y="108" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="s" x="310" y="64" width="220" height="60"/>
-<text class="t" x="420" y="90" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="420" y="108" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="s" x="80" y="140" width="220" height="60"/>
-<text class="t" x="190" y="166" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="190" y="184" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="s" x="310" y="140" width="220" height="60"/>
-<text class="t" x="420" y="166" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="420" y="184" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="s" x="80" y="216" width="220" height="60"/>
-<text class="t" x="190" y="242" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="190" y="260" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="s" x="310" y="216" width="220" height="60"/>
-<text class="t" x="420" y="242" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
-<text class="ts" x="420" y="260" text-anchor="middle">I350, 4 ports, PCIe x2, 3.8 W max</text>
-<rect class="b" x="545" y="130" width="70" height="70"/>
-<text class="t" x="580" y="160" text-anchor="middle">PCIe</text>
-<text class="t" x="580" y="176" text-anchor="middle">switch</text>
-<rect class="fk" x="622" y="150" width="10" height="34"/>
-<path class="k" d="M632 167H700" marker-end="url(#mk)"/>
-<text class="tk" x="708" y="162">MCIO / SlimSAS 8i</text>
-<text class="ts" x="708" y="178">to the relay board</text>
-<rect class="fn" x="140" y="350" width="400" height="7"/>
-<text class="ts" x="340" y="376" text-anchor="middle">edge connector to the backplane: Ethernet pairs, power, control</text>
-<path class="a" d="M60 398H630" marker-end="url(#ma)"/>
-<text class="ta" x="345" y="416" text-anchor="middle">duct air, front to rear</text>
-<text class="ts" x="60" y="392">FRONT</text>
-<text class="ts" x="630" y="392" text-anchor="end">REAR</text>
-<text class="ts" x="700" y="260">about 170 to 190 mm long,</text>
-<text class="ts" x="700" y="275">100 mm high (estimates)</text>
-<text class="ts" x="700" y="300">port cables from each module</text>
-<text class="ts" x="700" y="315">to the card: two micro-coax</text>
-<text class="ts" x="700" y="330">leads each (open point 22)</text>
-<text class="ts" x="700" y="350">layout provisional (K12)</text></svg>
+      <svg viewBox="0 0 940 412" role="img" aria-label="The network carrier seen from its module face: six M.2 network modules three high and two deep, each with a cut-out under its underside LAN connector and a slot for its other lead; each M.2 socket wired to its own MCIO connector on the rear edge; an LED driver, regulator and power input at the front; no PCIe switch and no edge connector."><rect class="b" x="40" y="50" width="600" height="300"/>
+<text class="tb" x="40" y="40">NETWORK CARRIER, module face (standoffs hold its back off the right-hand wall)</text>
+<rect class="s" x="50" y="70" width="52" height="44"/>
+<text class="ts" x="76" y="89" text-anchor="middle">LED</text>
+<text class="ts" x="76" y="104" text-anchor="middle">driver</text>
+<rect class="s" x="50" y="160" width="52" height="44"/>
+<text class="ts" x="76" y="179" text-anchor="middle">3.3 V</text>
+<text class="ts" x="76" y="194" text-anchor="middle">regulator</text>
+<rect class="s" x="50" y="250" width="52" height="44"/>
+<text class="ts" x="76" y="269" text-anchor="middle">power</text>
+<text class="ts" x="76" y="284" text-anchor="middle">input</text>
+<rect class="s" x="118" y="62" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="136" y="92" width="70" height="24"/>
+<rect class="fn" x="338" y="74" width="8" height="36"/>
+<rect class="s" x="136" y="128" width="70" height="6" style="fill:none"/>
+<text class="t" x="228" y="82" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="273" y="108" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M346 92H358V142H622"/>
+<rect class="s" x="368" y="62" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="386" y="92" width="70" height="24"/>
+<rect class="fn" x="588" y="74" width="8" height="36"/>
+<rect class="s" x="386" y="128" width="70" height="6" style="fill:none"/>
+<text class="t" x="478" y="82" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="523" y="108" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M596 92H622"/>
+<rect class="s" x="118" y="156" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="136" y="186" width="70" height="24"/>
+<rect class="fn" x="338" y="168" width="8" height="36"/>
+<rect class="s" x="136" y="222" width="70" height="6" style="fill:none"/>
+<text class="t" x="228" y="176" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="273" y="202" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M346 186H358V236H622"/>
+<rect class="s" x="368" y="156" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="386" y="186" width="70" height="24"/>
+<rect class="fn" x="588" y="168" width="8" height="36"/>
+<rect class="s" x="386" y="222" width="70" height="6" style="fill:none"/>
+<text class="t" x="478" y="176" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="523" y="202" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M596 186H622"/>
+<rect class="s" x="118" y="250" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="136" y="280" width="70" height="24"/>
+<rect class="fn" x="338" y="262" width="8" height="36"/>
+<rect class="s" x="136" y="316" width="70" height="6" style="fill:none"/>
+<text class="t" x="228" y="270" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="273" y="296" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M346 280H358V330H622"/>
+<rect class="s" x="368" y="250" width="220" height="60"/>
+<rect class="s" style="stroke-dasharray:5 3;fill:none" x="386" y="280" width="70" height="24"/>
+<rect class="fn" x="588" y="262" width="8" height="36"/>
+<rect class="s" x="386" y="316" width="70" height="6" style="fill:none"/>
+<text class="t" x="478" y="270" text-anchor="middle">EGPL-G401 (M.2 2280)</text>
+<text class="ts" x="523" y="296" text-anchor="middle">I350, 4 ports</text>
+<path class="k" style="stroke-width:2" d="M596 280H622"/>
+<rect class="fk" x="622" y="85" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 92H676" marker-end="url(#mk)"/>
+<rect class="fk" x="622" y="135" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 142H676" marker-end="url(#mk)"/>
+<rect class="fk" x="622" y="179" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 186H676" marker-end="url(#mk)"/>
+<rect class="fk" x="622" y="229" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 236H676" marker-end="url(#mk)"/>
+<rect class="fk" x="622" y="273" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 280H676" marker-end="url(#mk)"/>
+<rect class="fk" x="622" y="323" width="14" height="14"/>
+<path class="k" style="stroke-width:2" d="M636 330H676" marker-end="url(#mk)"/>
+<text class="ts" x="684" y="92">six MCIO connectors on the</text>
+<text class="ts" x="684" y="107">rear edge, one per module;</text>
+<text class="ts" x="684" y="122">six cables along the wall to</text>
+<text class="ts" x="684" y="137">the relay board (RL-JGDMS-0223)</text>
+<text class="ts" x="684" y="186">dashed: cut-out under each</text>
+<text class="ts" x="684" y="201">module's underside LAN connector</text>
+<text class="ts" x="684" y="216">thin outline: slot for the lead</text>
+<text class="ts" x="684" y="231">from its top-face connector</text>
+<text class="ts" x="684" y="280">all leads run behind the carrier,</text>
+<text class="ts" x="684" y="295">then along the duct floor (K1)</text>
+<text class="ts" x="684" y="330">no PCIe switch, no edge connector</text>
+<text class="ts" x="684" y="345">about 170 to 190 x 100 mm (est.)</text>
+<path class="a" d="M40 384H640" marker-end="url(#ma)"/>
+<text class="ta" x="340" y="402" text-anchor="middle">duct air, front to rear</text>
+<text class="ts" x="40" y="372">FRONT</text>
+<text class="ts" x="640" y="372" text-anchor="end">REAR</text></svg>
       </div>
-      <figcaption>The network card stands at the front of the relay duct, upstream of the relay CPU, with all six network modules and the PCIe switch on one face and its flat back against the duct wall, so it disturbs the duct's airflow as little as possible (operator, 2026-11-23). The candidate module is the Innodisk EGPL-G401: an Intel I350 with four ports on a PCIe x2 link, at most 3.8 W, rated 0 to 55 degrees C (K12). The switch needs no firmware of its own and Access Control Services, so the relay's IOMMU can keep each controller's memory access apart; the cable leaves on MCIO or SlimSAS (RL-JGDMS-0221). Its heat follows the traffic the relay forwards anyway (K10). The module layout drawn here is provisional: the datasheet shows the LAN ports leaving on two micro-coax connectors, one on each face of the module, so they need short leads; I350-AM4 laid out on the card is proposed for production (K12, open point 22).</figcaption>
+      <figcaption>The network carrier stands on standoffs on the inside of the right-hand wall, its six network modules on one face, three high and two deep, so they stand into the duct's air rather than splitting it. Each M.2 socket is wired to its own MCIO connector on the rear edge, so the carrier needs no PCIe switch and no edge connector, and carries no Ethernet signals and no SMBus to the sockets (RL-JGDMS-0223, -0229). A cut-out under each module lets its underside LAN connector take a lead from behind, and a slot beside it takes the lead from its top-face connector, so every lead runs behind the carrier, out of the airflow (K1). At the front: the LED driver for the 24 status LEDs, the 3.3 V regulator and the power input. The candidate module is the Innodisk EGPL-G401: an Intel I350 with four ports on a PCIe x2 link, at most 3.8 W, rated 0 to 55 degrees C; its connector pinout and magnetics are still to be confirmed with Innodisk (K12, open point 22).</figcaption>
     </figure>
   </section>
 
@@ -712,11 +799,12 @@ code{font-family:var(--display);font-size:.92em}
     <h2>What these drawings do not settle</h2>
     <ul>
       <li>Nothing here is to scale. Card size (about 120 to 140 mm by 100 to 110 mm), card pitch (about 22 to 30 mm) and the width left for the relay duct are estimates until the SMARC connector stack heights and module heights are read from vendor drawings (open point 23).</li>
-      <li>The network controller is a candidate, not a decision: Innodisk EGPL-G401 (K12), with Commell M2-3504 and LR-Link LRES2030PT-4RJ45 as same-controller alternatives. How its ports reach the card connectors needs Innodisk's cable pinout or a custom daughter board (open point 22). The I350 is rated to 55 degrees C and its expected discontinuance is 1H 2031.</li>
-      <li>The thermal test of rear modules, network controllers and the relay duct with a fan failed (open point 24). The network card now sits at the front of the relay duct in fresh air; the test checks it and the swing in the relay CPU's intake temperature with traffic.</li>
-      <li>Module vendor checks: boot from the card's flash, any on-module microcontroller, variants without eMMC, five free GPIO lines (open point 25); the relay board's CPU on the duct side and a connector for the backplane cable (open point 26).</li>
-      <li>Case height: 3U is the target (operator, 2026-11-23). Estimated stack from the floor: standoffs, backplane, connector and a card of about 100 mm come to roughly 110 mm against about 125 mm inside 3U; fans of 80 or 92 mm; the relay's full-height cards and CPU heatsink must fit too (open point 27).</li>
-      <li>One relay as a single point of failure for 24 modules (open point 14); one case per host or shared (12); whose heartbeat governs the controller (13).</li>
+      <li>The network module is a candidate, not a decision: Innodisk EGPL-G401 (K12), proposed for the prototype and production, with an I350-AM4 board as the fallback. Innodisk must confirm the LAN connectors' pinout (two ports per connector would give one lead per card), where the magnetics are, the mating connector and custom leads, supply life and the configuration memory (open point 22). The I350 is rated to 55 degrees C and its expected discontinuance is 1H 2031.</li>
+      <li>The relay board is a candidate: MSI D3061 (K13), about 150 W even at a fixed underclock; each network module in its own IOMMU group to be confirmed on a booted board (open point 26). It cannot boot without its DC-SCM module (MGT1), whose BMC is hardened and kept off every network but management (K15); questions for MSI are open point 31, the cable build 32, the prototype bench 33.</li>
+      <li>The thermal test: 35 degrees C inlet, full load, a filter partly blocked, one fan stopped at each stage in turn (open point 24).</li>
+      <li>The controller board, the backplane's chips and the harness (open point 28); power distribution, eFuses and pin staggering (29); updating the cards' boot flash with the lid open (30).</li>
+      <li>Case height: 3U is the target (operator, 2026-11-23), with the middle and rear fan heights to check; depth about 550 to 600 mm (open point 27).</li>
+      <li>One relay as a single point of failure for 24 modules (open point 14); one case per host or shared (12); the heartbeat, now watched by the management station (13).</li>
     </ul>
   </section>
 </main>

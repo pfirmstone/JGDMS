@@ -48,6 +48,15 @@ supplies with no wiring to the relay side (RL-JGDMS-0226). K1 to K4, K7, K8 and 
 are revised, K13 (the MSI D3061 as candidate relay board) and K14 (the controller) added,
 open points 13, 22, 24, 26 and 27 revised and 28 to 30 added.
 
+Revision of 2026-11-23, midday: the operator moved the relay's outward network off the
+relay board's OCP 3.0 slot onto a NIC on its own MCIO connector (RL-JGDMS-0227), kept the
+custom network carrier for production with off-the-shelf MCIO-to-M.2 adapters for the
+prototype bench (RL-JGDMS-0228), and ruled that no MCIO cable carries SMBus
+(RL-JGDMS-0229). K1, K2, K4, K12 and K13 are revised, K15 (relay management, the outward
+NIC and the MCIO cables) is added, open point 26 is revised and 31 to 33 are added. Facts
+read from the D3061 user guide, the XIC 0582 brief and the Innodisk and Intel pages are
+CL-RELAYCASE-0032 to -0044.
+
 
 ## Trust boundaries
 
@@ -509,7 +518,7 @@ board layouts" (sheets of 2026-11-15, variant V2), and the hosts move to racks o
 own. The case then holds everything that runs other people's code and the one component
 that speaks for it; nothing from a proxy board leaves the case. Operator statements are
 quoted below; the firm ones are RL-JGDMS-0208, -0209, -0211, -0214, -0215, -0217, -0219,
--0220 and -0223 to -0226 (-0210, -0212, -0213, -0216, -0218, -0221 and -0222 were ruled
+-0220 and -0223 to -0229 (-0210, -0212, -0213, -0216, -0218, -0221 and -0222 were ruled
 and later replaced); everything else is a proposal of this session.
 
 Operator statements, 2026-11-22:
@@ -551,22 +560,29 @@ Operator statements, 2026-11-22:
     board need not be large; the two hot-swap supplies go on the left side viewed from the
     front; not registered as a ruling). Candidate relay board: the MSI D3061 (K13), a
     DC-MHS board of 305.59 x 210 mm at the rear right, its CPU in the relay duct. The
-    host-facing and service-facing ports are on its OCP 3.0 network card and the BMC port
-    on its DC-SCM module (K2, K13). The two hot-swap CRPS supplies sit at the rear left,
+    host-facing and service-facing ports are on an outward NIC on its own MCIO connector
+    and CPU root port, its RJ45s on its own bracket at the rear of the relay zone; the
+    board's OCP 3.0 slot stays empty (RL-JGDMS-0227, K15). The BMC port is on the board's
+    DC-SCM module (K2, K13, K15). The two hot-swap CRPS supplies sit at the rear left,
     feed the case through the relay board's power distribution board, pull out from the
     rear and breathe card-bank exhaust. The controller board (K14) is on a panel beside
     them.
   - Network carrier (RL-JGDMS-0223, replacing the network card with its PCIe switch of
-    RL-JGDMS-0222 and the single 8-lane link of RL-JGDMS-0221). The six network modules
-    (K12) stand on a passive carrier board on standoffs on the inside of the right-hand
-    chassis wall, at the front of the relay duct, upstream of the CPU heatsink and away
-    from the card bank's heat. The carrier has six M.2 sockets, six MCIO connectors on its
-    rear edge, one per socket, a 3.3 V regulator, a power input and the status LED driver;
-    no PCIe switch, no edge connector and no Ethernet signals. Six MCIO cables, one per
-    module, lie flat along the right-hand wall to six of the relay board's eight CPU-fed
-    MCIO connectors (CL-RELAYCASE-0030), so each module has a PCIe root port of its own;
-    each link trains at x2. Two cable lengths serve the board's near-side and far-side
-    connectors.
+    RL-JGDMS-0222 and the single 8-lane link of RL-JGDMS-0221; kept for production by
+    RL-JGDMS-0228). The six network modules (K12) stand on a passive carrier board on
+    standoffs on the inside of the right-hand chassis wall, at the front of the relay
+    duct, upstream of the CPU heatsink and away from the card bank's heat. The carrier has
+    six M.2 sockets, six MCIO connectors on its rear edge, one per socket, a 3.3 V
+    regulator, a power input and the status LED driver; no PCIe switch, no edge connector,
+    no Ethernet signals and no SMBus to the sockets (RL-JGDMS-0229). Six MCIO cables, one
+    per module and built without SMBus (K15), lie flat along the right-hand wall to six of
+    the relay board's eight CPU-fed MCIO connectors (CL-RELAYCASE-0030), so each module
+    has a PCIe root port of its own; each link trains at x2. Two cable lengths serve the
+    board's near-side and far-side connectors. Off-the-shelf MCIO-to-dual-M.2 adapters
+    (XIC 0582, CL-RELAYCASE-0042) were weighed instead: three of them need about 130 mm of
+    duct width beside the card bank, which only a card pitch near 22 mm leaves
+    (CL-RELAYCASE-0044), and any placed beside the relay board would crowd its memory
+    (CL-RELAYCASE-0037). They carry the modules on the prototype bench (K15).
   - LAN leads (RL-JGDMS-0223). The carrier has a cut-out under each module's underside LAN
     connector, so its lead mates from behind, and a slot beside each module for the lead
     from its top-face connector (proposal). All leads run in the gap between the carrier
@@ -610,10 +626,12 @@ Operator statements, 2026-11-22:
 - **K2. Ports leaving the case.** The relay has host-facing and service-facing ports on
   separate physical interfaces, so no service reaches the host network through the case;
   the service side sits behind the egress allowlist (S2). The controller's management port
-  and the relay's BMC are on a third network that no module reaches. Inside: six MCIO
-  cables from the relay board to the network carrier, no PCIe to the backplane, and no
-  Ethernet uplinks (revised 2026-11-23 early morning). The relay's ports are on its OCP
-  network card with NC-SI off, so the BMC never shares them (K13); the controller's port
+  and the relay's BMC are on a third network that no module reaches. Inside: seven MCIO
+  cables, six from the relay board to the network carrier and one to the outward NIC, all
+  without SMBus (RL-JGDMS-0229); no PCIe to the backplane, and no Ethernet uplinks
+  (revised 2026-11-23 midday). The relay's ports are on the outward NIC on its own MCIO
+  connector, and the OCP 3.0 slot, whose NC-SI bus reaches the BMC (CL-RELAYCASE-0034),
+  stays empty, so the BMC has no path to them (RL-JGDMS-0227, K15); the controller's port
   leaves at the rear, physically apart from the relay's (K14).
 - **K3. Slot identity inside the case** (RL-JGDMS-0217, -0223; replaces the VLAN design of
   2026-11-22 evening). The internal links are not encrypted. Each module's Ethernet port
@@ -657,8 +675,10 @@ Operator statements, 2026-11-22:
     address that matches the interface; a mismatch means a miswired or tampered module,
     and it refuses and reports it to the management station, which tells the controller
     (K14; the two share no wiring). A swapped MCIO cable or LAN lead shows up the same
-    way, because it moves a module to another interface. It checks the signature and
-    rollback version of every image it receives before staging it.
+    way, because it moves a module to another interface; a swap between a module's cable
+    and the outward NIC's is caught earlier, before any interface comes up, by the
+    root-port check (K15). It checks the signature and rollback version of every image it
+    receives before staging it.
   - The pins are trusted only by the signed bootloader at boot. Afterwards a taken module
     can change its address, and the relay relies on the interface, not the pins. No module
     boots while the relay is down (open point 14).
@@ -862,8 +882,15 @@ Operator statements, 2026-11-22:
     approves a cable house's; how long the product will be supplied; and how its
     configuration memory is protected.
   - Before use: read each module's I350 configuration memory, which Innodisk wrote, and
-    confirm the management interfaces (NC-SI, SMBus) are off and unconnected; the relay's
-    IOMMU stays on (K3).
+    confirm the management interfaces (NC-SI, SMBus) are off. They are also unconnected:
+    the carrier wires no SMBus to its sockets and the MCIO cables carry none
+    (RL-JGDMS-0229), because the I350 can share its ports with a BMC over SMBus as well as
+    NC-SI (CL-RELAYCASE-0040). The relay's IOMMU stays on (K3).
+  - Prototype and outward NIC (2026-11-23 midday): on the prototype bench the modules sit
+    two to an XIC 0582 adapter (RL-JGDMS-0228, K15); the EGPL-G401 is M.2 2280 B+M key
+    (CL-RELAYCASE-0043), which the adapter's M-key sockets take. The -C2 version, its RJ45
+    daughter board on a low-profile bracket, is the second choice for the outward NIC
+    (RL-JGDMS-0227).
   - Alternatives with the same controller: Commell M2-3504 and LR-Link LRES2030PT-4RJ45
     (M.2, I350, four ports), or I350-AM4 laid out on a board of its own (the fallback
     above).
@@ -871,17 +898,25 @@ Operator statements, 2026-11-22:
     case in the relay, too many slots, and its ports face outwards); an Ethernet switch
     with VLANs (needs trusted switch configuration; RL-JGDMS-0217); Broadcom BCM5719
     (quad-port, but its datasheet is confidential).
-- **K13. Candidate relay board** (2026-11-23 early morning; a candidate, not a decision;
-  CL-RELAYCASE-0030, -0031). MSI D3061, a DC-MHS M-DNO Type-2 board for one Intel Xeon 6
-  (socket E2).
-  - PCIe: eight MCIO-8i connectors, each a PCIe 5.0 x8 link from the CPU with no switch
-    (CL-RELAYCASE-0030); six carry one network module each (K1) and two are spare for a
-    second card bank. One OCP 3.0 x16 slot for the relay's host-facing and service-facing
-    ports.
-  - Memory: 16 DDR5 RDIMM slots on eight channels; one ECC RDIMM per channel is enough.
-  - Management and trust: BMC (AST2600, AMI MegaRAC) on a DC-SCM 2.0 module with its own
-    management port; dual BIOS and BMC flash; optional TPM 2.0 and AST1060 root-of-trust
-    modules, the root of trust being the route to open point 20 for the relay itself.
+- **K13. Candidate relay board** (2026-11-23 early morning, revised midday; a candidate,
+  not a decision; CL-RELAYCASE-0030 to -0039). MSI D3061, a DC-MHS M-DNO Type-2 board for
+  one Intel Xeon 6 (socket E2), 305.59 x 210 mm (CL-RELAYCASE-0037).
+  - PCIe: eight MCIO-8i connectors, each a PCIe 5.0 x8 half of a CPU root port with no
+    switch (CL-RELAYCASE-0030); six carry one network module each (K1), one the outward
+    NIC (RL-JGDMS-0227, K15) and one is spare. Each MCIO connector also carries SMBus,
+    USB, FlexIO and standby lines (CL-RELAYCASE-0035), which the cables leave unwired
+    (RL-JGDMS-0229). The board has no LAN controller of its own (CL-RELAYCASE-0033); its
+    OCP 3.0 x16 slot stays empty because it has an NC-SI bus to the BMC
+    (CL-RELAYCASE-0034). Two M.2 slots take the relay's boot drive.
+  - Memory: 16 DDR5 RDIMM slots on eight channels, in two banks of eight standing front to
+    back either side of the CPU (CL-RELAYCASE-0037); one ECC RDIMM per channel is enough.
+  - Management and trust: the board cannot boot without its DC-SCM 2.0 module, the MGT1,
+    which holds the BIOS and BMC flash (CL-RELAYCASE-0032): BMC (AST2600, AMI MegaRAC)
+    with its own management port; dual BIOS and BMC flash; optional TPM 2.0 and AST1060
+    root-of-trust modules, the root of trust being the route to open point 20 for the
+    relay itself. The DC-SCM edge carries the BMC's JTAG and Intel At-Scale Debug lines,
+    and the chassis intrusion header goes to the BMC (CL-RELAYCASE-0036). Settings and
+    hardening: K15.
   - Power: from a power distribution board on 12-pin connectors, suited to hot-swap CRPS
     supplies; that board also feeds the backplane, the carrier and the controller (open
     point 29).
@@ -893,10 +928,11 @@ Operator statements, 2026-11-22:
     machine that does the TLS. Only the cores scale, so the saving has a floor; package
     power is to be measured on the relay's own workload. Xeon 6 parts include QAT
     accelerators that could take TLS work off the cores; check the chosen part.
-  - Settings: IOMMU on, with each network module, the OCP card and the DC-SCM's PCIe link
-    in groups of their own; NC-SI on the OCP card off; the BMC's own fan control not used
-    for case fans (K10); a written policy for BMC firmware updates, since BMC firmware has
-    a long record of vulnerabilities.
+  - Settings: IOMMU on, with each network module, the outward NIC and the DC-SCM's PCIe
+    link in groups of their own; VMD off on the MCIO connectors in use; the OCP slot empty
+    and the BMC on its dedicated port only (K15); the BMC's own fan control not used for
+    case fans (K10); a written policy for BMC firmware updates, since BMC firmware has a
+    long record of vulnerabilities.
   - Costs: roughly 150 W even underclocked (estimate), a deeper case (open point 27), and
     DC-MHS parts (DC-SCM module, power distribution board) sourced separately. Rated for 0
     to 35 degrees C ambient.
@@ -924,6 +960,60 @@ Operator statements, 2026-11-22:
   - Its own firmware is secure-booted with the project's key, its debug port permanently
     locked, and it is updated only with the lid open. Its management port leaves at the
     rear on the third network (K2). It owns every case fan (K10).
+- **K15. Relay management, outward NIC and MCIO cables** (2026-11-23 midday; RL-JGDMS-0227
+  to -0229; details are proposals). The relay side gets the same care as the card side: no
+  sideband paths, a root of trust, and a lid switch of its own.
+  - The MGT1 is the relay side's own management controller, kept apart from the controller
+    (K14) as RL-JGDMS-0226 requires; the management station coordinates the two. Its AMI
+    MegaRAC firmware is a closed component the relay side has to trust; MSI is to say
+    whether OpenBMC is offered for it, and if not the operator records that trust as a
+    ruling (open point 31).
+  - Root of trust and TPM: fit the AST1060 module (ROT1), which checks the BMC and BIOS
+    images before they run, the relay side's counterpart of the cards' write-protect gate.
+    Whether the operator's own signing keys can be loaded and unsigned updates refused is
+    for MSI, and whether the relay's node identity key is sealed in the TPM is for the
+    operator (open point 31).
+  - Relay lid switch: a switch of its own on the board's chassis intrusion header, read by
+    the BMC (CL-RELAYCASE-0036), apart from the controller's lid switch, so no wire joins
+    the two sides.
+  - BMC settings: dedicated management port only, shared-NIC failover off; the Redfish
+    host interface (a virtual USB network between the BMC and the relay's OS) off; KVM and
+    virtual media off; IPMI over LAN off; Intel At-Scale Debug, which lets the BMC halt
+    and inspect the host CPU, off permanently if MegaRAC allows it (CL-RELAYCASE-0036,
+    open point 31). Setting the supplies' fans over PMBus still works.
+  - Outward NIC (RL-JGDMS-0227): an MCIO-to-PCIe x8 slot adapter carrying a standard Intel
+    I350-T4 card, its RJ45s on its own bracket in a slot opening at the rear of the relay
+    zone beside the large rear fan; failing that, an XIC 0582 carrying an EGPL-G401-C2 on
+    its low-profile bracket; then a U.2 or SlimSAS to M.2 adapter. A standard PCIe slot
+    has no NC-SI pins but has SMBus (B5/B6), which the adapter leaves unconnected or which
+    is taped on the card's fingers; the chosen card must have no NC-SI header. VMD is off
+    on its connector, and it links at x4. Same controller and `igb` driver as the network
+    modules.
+  - MCIO cables (RL-JGDMS-0229): one part number for all seven. Wired: the PCIe lanes and
+    grounds, reference clock (A11/A12), reset (B11) and cable-present (B12). Not wired:
+    the BMC's SMBus (B8/B9), the CPU's SMBus (A26/A27) and its alert (A9), the USB pair
+    (A29/A30), the four FlexIO lines (B26, B27, B29, B30) and 3.3 V standby (A8)
+    (CL-RELAYCASE-0035). B12 is shared with PESTI; MSI is to confirm the link trains with
+    B12 pulled low at the far end and nothing answering PESTI (CL-RELAYCASE-0039). The
+    board-side break stays as well: the carrier has no SMBus pads and the outward
+    adapter's slot SMBus pins are not connected. The outward NIC's cable is a different
+    length or colour from the module cables, so a swap is hard to make and easy to see.
+    Whether the I350 can carry MCTP to a BMC in-band over PCIe, which no cable spec would
+    stop, is not yet checked (CL-RELAYCASE-0041).
+  - Root-port check (proposal): before any interface comes up, the relay checks that each
+    root port holds the device it expects, by link width (x4 for the outward NIC, x2 for a
+    network module), PCIe subsystem vendor ID (the card vendor's or Intel's against
+    Innodisk's) and MAC prefix, and brings up no interface if any differs. Without it, a
+    cable swapped between a module and the outward NIC would put proxy traffic on the
+    outward ports and treat an outward port as a slot's link (K3, K4).
+  - Prototype bench (RL-JGDMS-0228): a D3061 with its MGT1 and ROT1; three XIC 0582
+    adapters (CL-RELAYCASE-0042) carrying six EGPL-G401 modules on SMBus-free cables; and
+    the outward NIC. It is to show: x4x4 on the MCIO connectors in use
+    (CL-RELAYCASE-0038), and each module under its own root port (`lspci -t`) in an IOMMU
+    group of its own; by continuity test, whether the XIC 0582 wires the MCIO's SMBus pins
+    to the M.2 sockets' SMBus pins; the modules' lead clearance (about 5 mm between an
+    adapter's two sockets); link training with B12 alone (CL-RELAYCASE-0039); and the
+    root-port check failing closed when two cables are swapped.
 
 Open points added by this section:
 
@@ -985,8 +1075,8 @@ Open points added by this section:
     microcontroller, variants without eMMC, five free GPIO lines.
 26. **Relay board** (K13). The MSI D3061 is the candidate. To confirm: each network module
     in an IOMMU group of its own at x2 on a booted board; the CPU part, its fixed
-    frequency and package power on the relay's workload; the OCP network card; the DC-SCM
-    module with TPM and AST1060; the power distribution board.
+    frequency and package power on the relay's workload; the outward NIC and its adapter
+    (K15); the DC-SCM module with TPM and AST1060; the power distribution board.
 27. **Case size** (K1). Confirm 3U: the card's height with the module on end and the
     connector seated, the retention bar and lid clearance, the 92 mm middle fan and the
     rear fan's height, and the relay's CPU heatsink. Confirm the depth, about 550 to 600
@@ -999,3 +1089,16 @@ Open points added by this section:
     the card connector's pin staggering.
 30. **Boot flash updates** (K14). The procedure for updating the cards' bootloader with
     the lid open, and who authorises it.
+31. **Questions for MSI, and the relay's trust** (K13, K15). OpenBMC for the MGT1; loading
+    the operator's keys into the AST1060 and refusing unsigned updates; turning At-Scale
+    Debug off permanently; turning the Redfish host interface off; x4x4 on JMCIO1-8
+    (CL-RELAYCASE-0038); link training with B12 alone (CL-RELAYCASE-0039); whether the
+    board boots without the MGT1 (CL-RELAYCASE-0032). For the operator: whether the
+    relay's node identity key is sealed in the TPM, and the trust in the BMC firmware
+    recorded as a ruling if OpenBMC is not offered.
+32. **MCIO cables** (K15). A cable house to build seven to the RL-JGDMS-0229 pinout, with
+    a drawing to check against; the outward cable's length or colour; whether the I350
+    supports MCTP over PCIe (CL-RELAYCASE-0041).
+33. **Prototype bench** (K15, RL-JGDMS-0228). Buy and run the bench in K15; its results
+    decide the carrier's layout and, with the card pitch (open point 23), whether
+    off-the-shelf adapters could replace the carrier.

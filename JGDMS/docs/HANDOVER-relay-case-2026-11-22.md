@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0031); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0226; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
-LATEST ADDENDUM: "Addendum 6, 2026-11-23 early morning" at the end of this file
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0044); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0229; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
+LATEST ADDENDUM: "Addendum 7, 2026-11-23 midday" at the end of this file
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: "Open items" - re-read the disk before acting on it
 -->
@@ -286,3 +286,58 @@ Open items, replacing 18 to 20 of Addendum 5 (21 to 23 stand):
     production as rulings; and whether the D3061 becomes the chosen relay board.
 27. Commit now also covers the register logs for RL-JGDMS-0223 to RL-JGDMS-0226 and
     CL-RELAYCASE-0030 and CL-RELAYCASE-0031.
+
+Note, 2026-11-23 03:30 wrap-up: CL-RELAYCASE-0020 settled from U-Boot sources (gpio read and gpio input in boot scripts). CL-RELAYCASE-0007 and CL-RELAYCASE-0012 left as they were: no source found tonight. The claims listed in Addendum 5 as no longer bearing on the design are unchanged, awaiting the operator. Drawings at this point: artifact version 1795367739-2515, same content as the repository copy JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html.
+
+## Addendum 7, 2026-11-23 midday
+
+After the operator committed (03:28) and compacted, the session reviewed the design, then the relay
+board's management module (MSI MGT1), the D3061 user guide v1.2 the operator uploaded, the relay's
+outward network and off-the-shelf MCIO-to-M.2 adapters (the XIC 0582 brief he uploaded). The
+operator asked for the write-up at 13:40.
+
+Registered: RL-JGDMS-0227 (the outward NIC on its own MCIO connector and root port, the OCP 3.0 slot
+empty; order of preference: MCIO-to-PCIe slot adapter with an I350-T4, then XIC 0582 with
+EGPL-G401-C2, then U.2 or SlimSAS), RL-JGDMS-0228 (the custom carrier stays for production; XIC 0582
+adapters for the prototype bench; revisit if the card pitch settles near 22 mm), RL-JGDMS-0229
+(every MCIO cable built without SMBus, USB, FlexIO or standby lines; SMBus also left unconnected on
+the boards). New claims CL-RELAYCASE-0032 to CL-RELAYCASE-0044: D3061 facts read from the user guide
+(needs its DC-SCM module to boot, no LAN controller of its own, an NC-SI path through the OCP slot,
+the MCIO sideband lines, BMC JTAG and At-Scale Debug lines and the intrusion header, dimensions and
+DIMM banks, and the open x4x4 and B12/PESTI questions); I350 SMBus pass-through and the open
+MCTP-over-PCIe question; XIC 0582 and EGPL-G401 facts; the duct-width estimate. CL-RELAYCASE-0030
+has a new log line from the full block diagram.
+
+Recorded in DESIGN-security as proposals, not registered (K15): BMC hardening (dedicated port only;
+Redfish host interface, KVM, virtual media, IPMI over LAN and At-Scale Debug off; ROT1 fitted; the
+relay's own lid switch on the intrusion header); a root-port check at boot (link width, subsystem
+vendor ID, MAC prefix; no interface comes up on a mismatch), which catches a swap between a module's
+cable and the outward NIC's; the outward cable in a different length or colour; the prototype bench
+and its tests.
+
+Done: DESIGN-security.md header paragraph, the case-topology ruling list, K1, K2, K4, K12 and K13
+revised, K15 added, open point 26 revised and 31 to 33 added. Drawings sheets 1 and 2 (outward NIC,
+MGT1 and ROT1, OCP slot empty, cables without SMBus), lede, captions and notes; republished as
+artifact version 1795405594-f216 and saved over JGDMS/docs/LAYOUT-proxy-host-board-2026-11-23.html.
+
+Corrections to this session's own advice during the discussion: it proposed three XIC 0582 boards
+around the duct (right-hand wall, divider and floor) before checking the width; beside the card bank
+the duct is wide enough only at a card pitch near 22 mm (CL-RELAYCASE-0044). It also placed an XIC
+0582 for the outward NIC behind the DIMMs, where the board leaves about 100 mm, less than the
+adapter's 145 mm; the chosen outward NIC, an I350-T4 on a slot adapter, does not need that space.
+
+Open items, replacing 27 of Addendum 6 (the operator committed at 03:28; 24 to 26 stand):
+
+28. Questions for MSI (open point 31): OpenBMC for the MGT1, loading the operator's keys into the
+    AST1060 and refusing unsigned updates, At-Scale Debug, the Redfish host interface, x4x4 on
+    JMCIO1-8, link training with B12 alone, booting without the MGT1. For the operator: whether the
+    node identity key is sealed in the TPM, and recording trust in the BMC firmware if OpenBMC is
+    not offered.
+29. A cable house for the seven MCIO cables without SMBus (open point 32); whether the I350 carries
+    MCTP over PCIe.
+30. The prototype bench (open point 33).
+31. Commit: DESIGN-security.md, this handover, the layout file, and the register logs for
+    RL-JGDMS-0227 to RL-JGDMS-0229 and CL-RELAYCASE-0032 to CL-RELAYCASE-0044 (with the new
+    CL-RELAYCASE-0030 line).
+
+Note, 2026-11-23 14:25 wrap-up: no claim settled at this wrap-up. CL-RELAYCASE-0038, CL-RELAYCASE-0039 and CL-RELAYCASE-0044 wait on MSI and the card pitch; CL-RELAYCASE-0041 was searched again (Intel forum quoting the I350 datasheet names MCTP over SMBus only; the I210 datasheet names MCTP over SMBus/PCIe; neither settles the I350) and is left as it was. CL-RELAYCASE-0007 and CL-RELAYCASE-0012 are still without a source. The first save of the layout file at 13:46 left the old content on disk; it was saved again at 13:58 and now matches artifact version 1795405594-f216 byte for byte.
