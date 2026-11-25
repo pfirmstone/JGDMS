@@ -57,6 +57,70 @@ NIC and the MCIO cables) is added, open point 26 is revised and 31 to 33 are add
 read from the D3061 user guide, the XIC 0582 brief and the Innodisk and Intel pages are
 CL-RELAYCASE-0032 to -0044.
 
+Revision of 2026-11-23, afternoon: the operator ruled that a host sharing the case's rack
+runs its fans at speeds that never follow its load (RL-JGDMS-0230). K10 gains the host in
+the same rack and why the case's fans hold a speed rather than a temperature, K11 a
+requirement for no sensors of sound or motion, open point 25 is revised and 34 and 35 are
+added. How a proxy could read its module's temperature through its own clock is
+CL-RELAYCASE-0045.
+
+Revision of 2026-11-23, later afternoon: from two NXP application notes the operator
+supplied (AN14581 on TSN and PTP, AN14542 on NETC virtualization), R20 gains the
+socket-timestamp and PTP-clock routes to a fine clock, K11 gains the Cortex-M7, the
+Ethernet's ownership and the drivers left out of the module kernel, and open points 36
+(how modules get their time) and 37 (the System Manager configuration) are added. Facts
+and untested points are CL-RELAYCASE-0046 to -0050. All are proposals.
+
+Revision of 2026-11-23, 15:15: from NXP's i.MX 95 Hardware Design Guide (UG10210),
+supplied by the operator: the SoC's 24 MHz reference takes a crystal only, so K10 and open
+point 25 no longer look to a better oscillator; K11 gains the System Manager's console and
+pins and names the PDM and SAI audio interfaces; open points 23, 25, 36 and 37 are
+revised. Facts are CL-RELAYCASE-0051 and -0052, an untested point CL-RELAYCASE-0053, and
+CL-RELAYCASE-0049 is partly supported. All are proposals.
+
+Revision of 2026-11-23, 16:30: from the SMARC Design Guide 2.0, the i.MX 95 industrial
+data sheet and errata, and the Intel I350 datasheet, supplied by the operator (the last
+three read by a subagent and checked by this session): K1's card leaves more SMARC pins
+unconnected, K4 checks the boot source, K11 fixes the module frequency and adds to the
+driver list, K12 sets each I350's NVM at commissioning, K15's root-port check covers it,
+R20 closes the RTC and memory-mapped counter routes, open points 25, 32, 36 and 37 are
+revised and 38 (a boot-select strap, for the operator) and 39 (documents still to read)
+added. Facts are CL-RELAYCASE-0054 and -0056 to -0058, untested points -0055, -0059 and
+-0060, and CL-RELAYCASE-0041 is partly supported. All are proposals.
+
+Revision of 2026-11-23, 20:30: from Arm's DynamIQ Shared Unit manuals supplied by the
+operator (100453 r0p2 and r4p1; the DSU-110 manual turned out not to apply), and the
+operator's remark that services sharing a module "allows more untrusted third parties":
+R16l (services sharing a module) is added, K11 gains the cluster registers, open point 39
+is revised and 40 added. Facts are CL-RELAYCASE-0061 to -0063, untested points -0064 and
+-0065. All are proposals; the operator's remark is quoted, not registered.
+
+Revision of 2026-11-23, 21:00: the operator ruled that proxies sharing a module are
+grouped by the identity providing their services, not by service (RL-JGDMS-0231), and that
+a module hosts at most three server certificate identities, two cores each
+(RL-JGDMS-0232). R16l and open point 40 are revised to match.
+
+Revision of 2026-11-23, 21:10: the operator replaced RL-JGDMS-0232 with one core per
+identity, all its JVMs sharing that core, and three cores for the system with the fourth
+L3 partition (RL-JGDMS-0233); ruled that one identity's JVMs may share memory through
+Leyden and different identities' none (RL-JGDMS-0234); and that each identity runs under
+its own operating-system user (RL-JGDMS-0235). R16l is rewritten, R14 and open point 40
+revised.
+
+Revision of 2026-11-23, 21:15: the operator ruled that JDK memory is never shared between
+processes of different uids (RL-JGDMS-0236), so an identity's JVMs share one uid; R14 and
+R16l are revised; the operator then agreed that processes of one uid cannot trace or read
+each other (RL-JGDMS-0237).
+
+Revision of 2026-11-25: after reviewing the risks of identities sharing a module, the
+operator ruled that a module hosts proxies of one server certificate identity only, with
+L3 partitioning used only to separate the system's tasks from the proxies (RL-JGDMS-0238),
+superseding RL-JGDMS-0231, -0233 and -0235. R16l is rewritten as one identity per module;
+R14, the case-topology ruling list and open point 40 are revised. The operator then
+accepted the R16l proposals (RL-JGDMS-0239). K16 (the relay as a resource every identity
+shares) is added as proposals, with open point 41; CL-RELAYCASE-0066 is untested. At 14:10
+he accepted K16 as well (RL-JGDMS-0240).
+
 
 ## Trust boundaries
 
@@ -161,7 +225,10 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
 
 ### Launcher and proxy JVM
 
-- **R14.** Empty network namespace (RL-JGDMS-0096), own uid, seccomp.
+- **R14.** Empty network namespace (RL-JGDMS-0096), own uid, seccomp. *Added 2026-11-23,
+  revised 2026-11-25:* a module holds proxies of one identity (RL-JGDMS-0238), whose JVMs
+  all run under one uid; JDK memory is never shared between processes of different uids
+  (RL-JGDMS-0236), so "own uid" means one per identity, not one per JVM (R16l).
 - **R15. Socket files** (proposal). An empty network namespace does not block path-based
   Unix sockets. Either the subprocess's mount namespace exposes only the relay's socket, or
   seccomp limits it to inherited descriptors. To be checked on Linux when a launcher
@@ -344,6 +411,51 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
   definition interrupted that way denies, never grants (DirtyChai HC-2, P6). Test: drive
   each permission-check and policy path with the stack nearly exhausted and the heap
   nearly full, and assert a denial.
+- **R16l. One identity per module** (RL-JGDMS-0238, -0239, -0234, -0236, -0237; added
+  2026-11-23, rewritten 2026-11-25; the layout, pinning, interrupts, memory and placement
+  below were proposed by the session and accepted by the operator, RL-JGDMS-0239). On
+  2026-11-23 the operator ruled that a module could host up to three server certificate
+  identities, one core and one L3 partition each (RL-JGDMS-0231, -0233, -0235). On
+  2026-11-25, after reviewing the risks, he replaced that: "So we really shouldn't have
+  shared identities on proxy boards, instead we should only segregate cache for system
+  tasks." The review's reasons: a breakout is attributable (R1, R3, R19, K9) and, on a
+  module that holds one identity, gains nothing: no keys, nothing of the host, no route to
+  the relay or other modules. With several identities a successful breakout would yield
+  the others' call arguments and live tokens, and DRAM, the kernel, the snoop filter and
+  the SoC's temperature would stay shared between them. The remaining cross-identity
+  exposure is the relay, which every module's traffic passes through.
+  - Layout (RL-JGDMS-0239). Four proxy cores and two system cores. At boot the modules'
+    Trusted Firmware gives the proxy cores one scheme ID with three of the four L3 way
+    groups and the system cores another with the fourth, makes both private, forces each
+    core's scheme ID through CLUSTERTHREADSIDOVR with the full mask, and delegates nothing
+    to EL2 or EL1 (K11). The proxies then cannot evict the system's L3 lines or time its
+    work through them. The i.MX 95's cluster uses Arm's original DSU (CL-RELAYCASE-0061),
+    whose 16-way, 512 KB L3 partitions by groups of four ways from r1p0
+    (CL-RELAYCASE-0063); whether the part's revision has it is CL-RELAYCASE-0064, and the
+    snoop filter is probably not partitioned (CL-RELAYCASE-0065).
+  - Pinning. The launcher creates two exclusive cgroup v2 cpusets: the proxy cores and the
+    system cores. The kernel's unbound work, offloaded RCU callbacks, timer migration, the
+    launcher and every trusted daemon run in the system cpuset. Each proxy JVM is pinned
+    to one core of the proxy cpuset, several JVMs to a core if need be, so that a second
+    thread, even one that escapes R16h, cannot run while the code it would time runs; it
+    sees only its own time slices. R16b's spreading of instances over cores applies within
+    the proxy cores, between JVMs of the one identity. The cgroup filesystem is absent
+    from the proxy's mount namespace and the syscall filter refuses `sched_setaffinity`.
+  - Interrupts. The Ethernet interrupts and packet processing run on the system cores,
+    never on a proxy core.
+  - Memory. Each JVM has the JVM's own limits (heap, metaspace, direct memory) and a
+    kernel `memory.max` on its cgroup, nested under one cgroup for the module's proxies;
+    R16b and R17 cap the JVM count. The JVM limits give a clean `OutOfMemoryError`; the
+    cgroup is the wall a JVM defect cannot move.
+  - Users and shared memory. The module's proxy JVMs all run under the identity's one uid
+    and may share JDK memory, including the Leyden AOT cache of trusted code
+    (RL-JGDMS-0234, -0236); processes of that uid cannot trace or read each other
+    (RL-JGDMS-0237).
+  - Placement. The identity is the server certificate identity the relay authenticated
+    when the proxy was obtained, never anything the proxy or its codebase states. The
+    relay places a proxy only on a module assigned to that identity, and a module passes
+    to another identity only with a re-image (K8). Capacity: one identity per module, 24
+    per case.
 - **R17. Resource limits** (proposal). Memory, CPU and thread-count limits per subprocess;
   the proxy JVM pinned to its own core; the relay given reserved memory and CPU so the
   proxy cannot starve it into a watchdog reset.
@@ -374,6 +486,29 @@ deserializes them, so the proxy never holds a host or port (RL-JGDMS-0083, RL-JG
     `clock_gettime` falling back to a system call that can be coarsened or refused, and
     the syscall filter refuses `perf_event_open`. A fine timer then needs a JVM defect and
     a kernel defect. To be confirmed against the board kernel.
+  *Added 2026-11-23 (proposals):*
+  - Socket timestamps. A proxy JVM that holds a socket descriptor, such as its connection
+    to the relay, could ask the kernel to timestamp every packet it receives: the
+    `SO_TIMESTAMP`, `SO_TIMESTAMPNS` and `SO_TIMESTAMPING` socket options, and the
+    `SIOCGSTAMP` and `SIOCGSTAMPNS` ioctls, return kernel time in nanoseconds or the NIC's
+    hardware time, and bypass the coarsened clock (CL-RELAYCASE-0047). The syscall filter
+    refuses those options in `setsockopt` and those ioctls, as it refuses
+    `perf_event_open`, whether or not PTP is used.
+  - The PTP clock. The i.MX 95's Ethernet has an IEEE 1588 hardware clock, a device
+    (`/dev/ptp0` on NXP's kit) that reads in nanoseconds (CL-RELAYCASE-0046). The device
+    is absent from the proxy's mount namespace, and the syscall filter refuses
+    `clock_gettime`, `clock_getres` and `clock_adjtime` on the file-descriptor clock ids
+    that such devices use. If modules take coarse time (open point 36), the module kernel
+    leaves out the NETC timer driver and the device does not exist (CL-RELAYCASE-0050).
+  - The RTC. The module's RTC runs from its own 32.768 kHz crystal, whose frequency
+    follows temperature on a different curve from the 24 MHz crystal's, so comparing the
+    two reads the module's temperature with no reference from the relay
+    (CL-RELAYCASE-0055). The `/dev/rtc*` devices are absent from the proxy's mount
+    namespace and the syscall filter refuses the RTC ioctls.
+  - The memory-mapped counter. NXP's workaround for a timer erratum reads the system
+    counter through a base all CPUs can reach (ERR052995, CL-RELAYCASE-0057); the module
+    kernel has no `/dev/mem`, `uio` or `vfio`, so no process can map it
+    (CL-RELAYCASE-0060).
 
 ## Open points for the operator
 
@@ -518,8 +653,9 @@ board layouts" (sheets of 2026-11-15, variant V2), and the hosts move to racks o
 own. The case then holds everything that runs other people's code and the one component
 that speaks for it; nothing from a proxy board leaves the case. Operator statements are
 quoted below; the firm ones are RL-JGDMS-0208, -0209, -0211, -0214, -0215, -0217, -0219,
--0220 and -0223 to -0229 (-0210, -0212, -0213, -0216, -0218, -0221 and -0222 were ruled
-and later replaced); everything else is a proposal of this session.
+-0220, -0223 to -0230, -0234 and -0236 to -0240 (-0210, -0212, -0213, -0216, -0218, -0221,
+-0222, -0231, -0232, -0233 and -0235 were ruled and later replaced); everything else is a
+proposal of this session.
 
 Operator statements, 2026-11-22:
 
@@ -600,7 +736,14 @@ Operator statements, 2026-11-22:
     boot-select straps and its power regulation, laid out once and placed twice, mirrored;
     and one strap per module position (front 0, rear 1). Only Ethernet pairs, power and
     slow control lines cross the card's backplane connector; no PCIe or USB does, so a
-    taken module never reaches anything that can write into memory (proposal).
+    taken module never reaches anything that can write into memory (proposal). Added
+    2026-11-23 (proposals): the card leaves unconnected each module's TEST# pin, which can
+    enable module test functions when pulled low, I2C_PM, the module's power-management
+    bus, which must never be shared between modules, GBE0_SDP and GBE1_SDP, the IEEE 1588
+    pins, GPIO5/PWM_OUT and GPIO6/TACHIN, since no fan is wired to a module (K10), and
+    VDD_RTC, with no RTC battery since the relay supplies time; the slot pins use the
+    dedicated GPIO7 to GPIO11 (CL-RELAYCASE-0054). None of these is among the lines the
+    controller drives.
   - Backplane: per card connector, the fixed slot ID pins (four bits for twelve cards,
     five with the card strap, for 24 modules; RL-JGDMS-0214); per module the power switch
     (an eFuse per slot, K8), watchdog, presence, console, boot-select and recovery lines,
@@ -670,6 +813,13 @@ Operator statements, 2026-11-22:
     or HTTP, checks its signature and rollback version before running it, and passes the
     slot number and address to the kernel on its command line. No DHCP or BOOTP server is
     needed.
+  - Boot source (proposals; open point 38). SMARC's three boot-select pins choose among
+    eight sources, among them module eMMC, module SPI or NAND and a vendor-specific remote
+    boot (CL-RELAYCASE-0054). Secure boot means only signed images run, but not that they
+    come from the card. The bootloader reads the boot device recorded by the boot ROM and
+    halts unless it is the card's SPI flash. Open point 38 asks whether the card should
+    also tie BOOT_SEL2# to ground, so the controller can choose only among carrier
+    sources, of which the card fits only the SPI flash.
   - The relay serves the images from a minimal, read-only static-file process on each
     slot's interface, with no access to the node key or to slot state. It serves only the
     address that matches the interface; a mismatch means a miswired or tampered module,
@@ -810,6 +960,42 @@ Operator statements, 2026-11-22:
     on the relay and the modules with throttle points above anything normal running
     reaches, and the relay's own duct keep proxies from moving the relay's or each other's
     timing through heat.
+  - Host in the same rack (RL-JGDMS-0230; the rest of this item is proposals). A host that
+    shares the rack with the case sets its fans and its supplies' fans to fixed speeds,
+    sized for its full load at 35 degrees C intake, with its BMC's fan curve, which
+    follows CPU temperature, turned off; it alarms rather than steps up. Fixed fans do not
+    stop the host's load leaving it: at a fixed airflow its exhaust temperature swings
+    more with load, not less. The paths from there to a proxy are exhaust recirculating to
+    the case's front, which warms every module and, if it crosses a step, moves every case
+    fan; changes in rack pressure from host fans that change speed, which change the
+    case's airflow at fixed fan speeds; vibration through the rails at the fans' rotation
+    rate; and the host's current on a shared mains circuit. A proxy has no sensor for any
+    of them (K11) and no fine timer (R20), but counting loop iterations between edges of a
+    time source that follows the relay's clock (the open question in R16) measures its
+    module's oscillator against the relay's, and the oscillator's frequency follows the
+    module's temperature (CL-RELAYCASE-0045). Quartz also shifts slightly under vibration,
+    but seeing that needs a fine timer, and fans at constant speed make a constant tone
+    that carries nothing.
+    The case's inlet temperature is therefore the input that matters. Every empty unit in
+    the rack has a blanking panel and the gaps beside the rails are sealed, so no exhaust
+    recirculates; the case sits below the host, since exhaust that does recirculate rises
+    at the rear; the host and the case take power from separate PDU feeds; and the case's
+    rails are isolated from the rack by rubber mounts if the depth allows. The
+    inlet-temperature steps of RL-JGDMS-0225 are set so that the largest swing the host
+    can cause never crosses one (open points 34 and 35).
+  - Speed, not temperature (proposal). The case's fans hold a speed, not a temperature.
+    A loop that holds the air or a module at a set temperature does it by changing fan
+    speed as the heat changes, so the fan speed, and with it the airflow over every module
+    and the relay, becomes a measure of the load in the case: the load-driven fan this
+    section rules out, with the loop's correction as the signal. At fixed speed each
+    module's temperature follows its own load, which only its own proxies cause, and the
+    inlet, which this item keeps independent of any load. A fixed temperature would help
+    only at the oscillator, and the i.MX 95's 24 MHz reference must be a crystal: the SoC
+    has no single-ended clock input, so no compensated or oven-controlled oscillator and
+    no external reference can take its place (CL-RELAYCASE-0051). CL-RELAYCASE-0045 is
+    therefore bounded, not closed: by this item keeping each module's temperature
+    independent of other modules' load and of the host's, by R16a's limit on the proxy's
+    running time, and by modules' clocks not following the relay's (open point 36).
   - Heatsinks: the module vendor's heat spreader with a fin block cut to the channel, its
     fins running front to rear across the module's 50 mm side (RL-JGDMS-0220).
     Off-the-shelf i.MX 95 SMARC heatsinks are 82 x 42 mm with fins of 5.5 to 14.7 mm, for
@@ -821,7 +1007,17 @@ Operator statements, 2026-11-22:
 - **K11. Proxy module requirements** (RL-JGDMS-0219; candidate modules CL-RELAYCASE-0027).
   - SMARC i.MX 95 short size (82 x 50 mm), 16 GB LPDDR5 with inline ECC enabled by the
     module's memory setup; usable memory is less by what ECC reserves (R16e).
+  - Fixed frequency (proposal): the industrial part's nominal operating point, 1.404 GHz
+    at 0.80 to 0.905 V, below the 1.8 GHz overdrive point, with junction temperature -40
+    to 105 degrees C; its two on-die temperature sensors, accurate to plus or minus 4
+    degrees C, are read only by the trusted kernel (CL-RELAYCASE-0056). The thermal test
+    (open point 24) runs every module at this point and full load.
   - No wireless variant: a radio would be a way out of the case that bypasses the relay.
+  - No microphone, audio codec, accelerometer or other sensor of sound or motion on the
+    module or the card; the card leaves the SoC's PDM digital-microphone and SAI audio
+    pins unconnected (CL-RELAYCASE-0052); and the module kernel leaves out the audio, PDM
+    and SAI drivers and the SoC's general-purpose ADC, so a proxy has no transducer for
+    the host's or the case's fans (K10; proposal).
   - Boots from its card's write-protected SPI flash through SMARC boot select (K4). Per
     vendor, check that this source is supported on the i.MX 95, and whether an on-module
     microcontroller translates the pins; its firmware is then trusted too.
@@ -838,7 +1034,41 @@ Operator statements, 2026-11-22:
     secure mode when secure boot is fused, so neither an open lid nor a debug header left
     on the module bypasses secure boot.
   - Time: modules take time only from the relay, consistent with the timer restrictions of
-    R20.
+    R20; how, by PTP or by coarse steps, is open point 36.
+  - Ethernet ownership (proposal). The module's Ethernet controller stays with the
+    Cortex-A kernel, its default owner, and NETC virtualization is not used
+    (CL-RELAYCASE-0048). In NXP's demo the Cortex-M7 owns the physical interface with its
+    own network stack and Linux gets virtual interfaces through shared memory and
+    messages; that adds the M7's firmware and a shared-memory interface Linux can write to
+    the trusted base, and a third sender on the wire Linux cannot see. Its benefit, the M7
+    enforcing each interface's MAC and VLAN, buys nothing here, because the relay knows
+    each module by the port its frames arrive on (K3).
+  - The Cortex-M7 runs nothing (proposal). The signed boot image carries no M7 image; the
+    System Manager configuration, part of the signed image, assigns the M7 no peripherals
+    and does not let the Cortex-A start, load or reset it (CL-RELAYCASE-0049, open point
+    37); the module kernel leaves out the M7's remoteproc and RPMSG drivers. Otherwise an
+    attacker who has the kernel gains a second core outside Linux's view, with its own
+    timers; the errata also list speculative accesses by the M7 (ERR011573,
+    CL-RELAYCASE-0057).
+  - System Manager pins (proposal). The System Manager on the Cortex-M33 owns LPUART2 as
+    its console, I2C1 and I2C2, and all of GPIO1, which other cores reach only through it
+    (CL-RELAYCASE-0052). The card connects nothing to LPUART2, I2C1 or I2C2; the project's
+    System Manager build has no console debug monitor (CL-RELAYCASE-0053); the slot pins
+    are outside GPIO1, or are read through the System Manager, which is trusted anyway
+    (open point 25).
+  - Cluster registers (proposal). The DSU's cluster registers (L3 partitioning, scheme
+    IDs, power, the L3 hit and miss counters and the cluster PMU) cannot be reached from
+    EL0, and EL1 may write them only if EL3 and EL2 allow it (CL-RELAYCASE-0062). The
+    modules' Trusted Firmware sets the partitions of R16l, if used, and leaves the
+    ACTLR_EL3 enable bits clear, so a compromised kernel cannot repartition the L3, change
+    the cluster's power or count its events; the module kernel leaves out the DSU PMU
+    driver.
+  - Drivers left out of the module kernel (proposal), besides GPU, NPU and video:
+    user-space device drivers (`uio`, `vfio`), which would give user space a NIC's DMA;
+    `/dev/mem`, since the system counter can also be read through a memory-mapped base
+    (CL-RELAYCASE-0060); the M7's remoteproc and RPMSG; audio, PDM, SAI and the
+    general-purpose ADC (above); and the NETC timer driver if modules take coarse time
+    (open point 36).
 - **K12. Candidate network controller** (2026-11-23; a candidate, not a decision;
   CL-RELAYCASE-0026). Innodisk EGPL-G401, an M.2 2280 to four-port gigabit module, six per
   case on the network carrier in the relay duct (RL-JGDMS-0223), each on its own MCIO
@@ -854,6 +1084,16 @@ Operator statements, 2026-11-22:
     facts in CL-RELAYCASE-0024). Host interface PCIe 2.1 x2; M.2 B+M key, which fits an
     M-key socket wired for two lanes. Four ports per module, so six modules give the 24
     ports; at about 500 MB/s each way per module an x2 link has headroom.
+  - NVM at commissioning (proposals; CL-RELAYCASE-0058, -0059). The I350 loads management
+    firmware patch code from its NVM and the host can rewrite the NVM unless protection is
+    on, so a compromised relay kernel could leave a change in a network module that
+    survives re-imaging the relay. Before first use, each EGPL-G401, and the outward
+    I350-T4 (K15), is set to Manageability Mode None, IOV Enabled 0 (the default exposes
+    SR-IOV), Proxying and Wake-on-LAN off, and its NVM protection turned on; the hash of
+    each NVM image is recorded and checked by the root-port check (K15). With SMBus
+    unwired (RL-JGDMS-0229) the datasheet's Release EEPROM command on SMBus address 0xC8
+    has no path. MCTP is documented over SMBus only, with one table note to the contrary
+    (CL-RELAYCASE-0041).
   - Power at most 3.8 W (1151 mA at 3.3 V); operating 0 to 55 degrees C ambient; 500 V
     HiPOT isolation; main board 22 x 80 x 15.3 mm.
   - Ports leave the M.2 board on a 25 cm micro-coaxial cable to a separate RJ45 daughter
@@ -989,7 +1229,13 @@ Operator statements, 2026-11-22:
     is taped on the card's fingers; the chosen card must have no NC-SI header. VMD is off
     on its connector, and it links at x4. Same controller and `igb` driver as the network
     modules.
-  - MCIO cables (RL-JGDMS-0229): one part number for all seven. Wired: the PCIe lanes and
+  - MCIO cables (RL-JGDMS-0229): one part number for all seven. Why (added 2026-11-25):
+    SMBus is the BMC's side door into a network controller. A BMC with SMBus to an I350
+    can share its ports (CL-RELAYCASE-0040), so a compromised BMC, or flawed BMC firmware,
+    could send and receive on a slot's port or an outward port without the relay ever
+    seeing it, and could reach the I350's Release EEPROM command (CL-RELAYCASE-0058).
+    Every cable is therefore built the same way and SMBus-free, so a cable swapped by
+    accident with the outward NIC's cannot open that path. Wired: the PCIe lanes and
     grounds, reference clock (A11/A12), reset (B11) and cable-present (B12). Not wired:
     the BMC's SMBus (B8/B9), the CPU's SMBus (A26/A27) and its alert (A9), the USB pair
     (A29/A30), the four FlexIO lines (B26, B27, B29, B30) and 3.3 V standby (A8)
@@ -1003,9 +1249,11 @@ Operator statements, 2026-11-22:
   - Root-port check (proposal): before any interface comes up, the relay checks that each
     root port holds the device it expects, by link width (x4 for the outward NIC, x2 for a
     network module), PCIe subsystem vendor ID (the card vendor's or Intel's against
-    Innodisk's) and MAC prefix, and brings up no interface if any differs. Without it, a
-    cable swapped between a module and the outward NIC would put proxy traffic on the
-    outward ports and treat an outward port as a slot's link (K3, K4).
+    Innodisk's) and MAC prefix, and, added 2026-11-23, the hash of each controller's NVM
+    against the one recorded at commissioning (K12), and brings up no interface if any
+    differs. Without it, a cable swapped between a module and the outward NIC would put
+    proxy traffic on the outward ports and treat an outward port as a slot's link (K3,
+    K4).
   - Prototype bench (RL-JGDMS-0228): a D3061 with its MGT1 and ROT1; three XIC 0582
     adapters (CL-RELAYCASE-0042) carrying six EGPL-G401 modules on SMBus-free cables; and
     the outward NIC. It is to show: x4x4 on the MCIO connectors in use
@@ -1014,6 +1262,37 @@ Operator statements, 2026-11-22:
     to the M.2 sockets' SMBus pins; the modules' lead clearance (about 5 mm between an
     adapter's two sockets); link training with B12 alone (CL-RELAYCASE-0039); and the
     root-port check failing closed when two cables are swapped.
+- **K16. The relay as a resource every identity shares** (RL-JGDMS-0240; proposed by the
+  session and accepted by the operator, 2026-11-25; the details below are to be settled in
+  open point 41). With one identity per module (RL-JGDMS-0238), the relay is the one
+  component through which every identity's traffic passes: its CPU, caches, memory,
+  network queues and TLS stack serve up to 24 identities. An attacker's cheapest move is
+  timing from outside (operator, 2026-11-25): a service times its own proxy's requests
+  through the relay, and the replies to its own calls, and so reads the relay's load,
+  which is other identities' activity.
+  - Outbound on the tick. R8 releases everything that reaches a proxy JVM on the relay's
+    tick; the relay also releases on the tick what it sends to services on a proxy's
+    behalf, so a request's departure shows the tick, not the relay's load. The cost is up
+    to one tick of latency per message.
+  - Per-module workers. Each module already arrives on its own I350 port (K3). The relay
+    handles each module's port, connections and TLS sessions in workers of its own, pinned
+    to relay cores reserved for them, so one module's load does not queue behind
+    another's; the relay's housekeeping and the management services have cores of their
+    own.
+  - The relay's L3 and memory bandwidth. If the relay's Xeon 6 supports Intel's cache and
+    memory bandwidth allocation with enough classes of service (CL-RELAYCASE-0066), each
+    module's workers get an L3 allocation of their own, in groups of modules if the
+    classes are fewer than 24, and a bandwidth cap.
+  - Shared accelerators and the outward link. If QAT takes TLS work (K13), its queues are
+    shared by every identity: per-module queues or none. The outward NIC carries every
+    identity's connections to services; it is scheduled per module, not first come, first
+    served.
+  - Cryptography. The node key is an elliptic-curve key or held in a signer (R20), and the
+    relay's TLS uses hardware AES and GHASH, so handshake and record timing does not
+    depend on secrets.
+  - What stays shared: the relay's total throughput. One identity flooding its own proxy's
+    traffic slows the relay as a whole; R6's request counts and per-identity rate limits
+    keep that within bounds, and the relay's monitoring reports it.
 
 Open points added by this section:
 
@@ -1066,13 +1345,26 @@ Open points added by this section:
     I350's expected discontinuance is 1H 2031.
 23. **Card pitch** (K10). SMARC connector stack heights and module component heights from
     vendor drawings (CL-RELAYCASE-0028); the narrow channel width from the fan curve.
+    Added 2026-11-23: a thermal simulation with NXP's FloTHERM or Icepak models of the
+    i.MX 95 (CL-RELAYCASE-0052), with every module at its fixed frequency and full power,
+    since the design does without the frequency scaling and low-power states that NXP's
+    thermal guidance relies on.
 24. **Thermal test** (K10). 35 degrees C inlet, every module and the relay at full load, a
     filter partly blocked, and one fan stopped in turn at each stage (front, middle and
     rear of the relay duct; front and rear of the card bank; one supply); record CPU,
     module and carrier temperatures against their limits, confirm the CPU never reaches
     its throttle point, and set the coarse inlet-temperature steps.
 25. **Module vendor checks** (K11). Boot from the card's SPI flash, any on-module
-    microcontroller, variants without eMMC, five free GPIO lines.
+    microcontroller, variants without eMMC, five free GPIO lines outside GPIO1, which the
+    System Manager owns (CL-RELAYCASE-0052). Added 2026-11-23: what the variant fits as
+    audio, ADC or motion sensing, and whether its PDM, SAI or LPUART2 pins reach the SMARC
+    connector (K11); the 24 MHz crystal's part number and its frequency against
+    temperature, for the bench test of CL-RELAYCASE-0045, since the SoC takes a crystal
+    only (CL-RELAYCASE-0051); and whether the SoC's tamper pin reaches the connector, so
+    that the card could wire the lid switch to it and each module's secure storage would
+    see an opening. Added 2026-11-23 16:30: the silicon revision fitted, since the errata
+    cover Rev B1 while the data sheet names B0 as production (CL-RELAYCASE-0056, -0057);
+    and the 24 MHz crystal's stability, which the data sheet leaves to the board.
 26. **Relay board** (K13). The MSI D3061 is the candidate. To confirm: each network module
     in an IOMMU group of its own at x2 on a booted board; the CPU part, its fixed
     frequency and package power on the relay's workload; the outward NIC and its adapter
@@ -1098,7 +1390,67 @@ Open points added by this section:
     recorded as a ruling if OpenBMC is not offered.
 32. **MCIO cables** (K15). A cable house to build seven to the RL-JGDMS-0229 pinout, with
     a drawing to check against; the outward cable's length or colour; whether the I350
-    supports MCTP over PCIe (CL-RELAYCASE-0041).
+    supports MCTP over PCIe: the datasheet says SMBus only, with one table note to the
+    contrary (CL-RELAYCASE-0041), to be settled on the bench.
 33. **Prototype bench** (K15, RL-JGDMS-0228). Buy and run the bench in K15; its results
     decide the carrier's layout and, with the card pitch (open point 23), whether
     off-the-shelf adapters could replace the carrier.
+34. **Rack and host test** (K10, RL-JGDMS-0230). With the case in its rack below the host:
+    cycle the host between idle and full load for several hours; log the case's inlet
+    sensors and, on the relay, each module's clock offset from the relay's time; check
+    that the host's fans and supplies hold their speeds over the cycle. Pass when neither
+    the inlet nor any module's clock correlates with the host's load above the noise and
+    no inlet step is crossed. The same run is the bench test of CL-RELAYCASE-0045 if a
+    proxy-side counting thread is added.
+35. **Fan steps or one speed** (K10, RL-JGDMS-0225). For the operator: if open point 34
+    cannot show that the host's swing stays inside one step, whether to drop the
+    inlet-temperature steps and run every case fan at one fixed speed sized for 35 degrees
+    C inlet, at the cost of noise and filter life. That would replace RL-JGDMS-0225.
+36. **Module time** (K11, R20). For the operator. Either the relay gives each module PTP
+    time over its port, which the i.MX 95 timestamps in hardware (CL-RELAYCASE-0046) and
+    the I350 does too, with a 72-bit timer and software-definable pins per port
+    (CL-RELAYCASE-0058), or it sets the module's clock at boot and steps it rarely. PTP
+    gives nanosecond time for the module's logs, but steers the module's clock to follow
+    the relay's oscillator, the precondition of CL-RELAYCASE-0045 in its strongest form,
+    and puts a hardware clock on every module that R20 must fence. Coarse steps let the
+    kernel leave out the NETC timer driver (CL-RELAYCASE-0050); CL-RELAYCASE-0045 still
+    has the relay's periodic messages as a reference, but no clock that follows the relay.
+    Proposal: coarse steps, since TLS and certificates are held by the relay (trust
+    boundaries) and nothing on a module is known to need fine time. The crystal cannot be
+    replaced by a better oscillator (CL-RELAYCASE-0051), which leaves the clock-rate route
+    to be bounded by not giving modules a clock that follows the relay.
+37. **System Manager configuration** (K11). Whether the i.MX 95 System Manager can assign
+    the Cortex-M7 nothing and deny the Cortex-A control of it (CL-RELAYCASE-0049); the
+    project's own System Manager configuration, built and signed with the boot image; and
+    per module vendor, whether their boot image or System Manager build starts the M7 or
+    gives it any peripheral. Added 2026-11-23: UG10210 says logical machines group cores,
+    peripherals and memory and the TRDC enforces their boundaries, which supports an M7
+    given nothing; whether the Cortex-A's logical machine can be denied starting or
+    resetting the M7 is still open. Also that the build has no console debug monitor
+    (CL-RELAYCASE-0053). The configuration must not rely on TRDC MDAC 39, which the errata
+    say does not exist (ERR051968, CL-RELAYCASE-0057).
+38. **Boot-select strap** (K4, RL-JGDMS-0219). For the operator: whether the card ties
+    each module's BOOT_SEL2# to ground, so the controller drives only BOOT_SEL1# and
+    BOOT_SEL0# and can choose only among carrier sources, which on the card means its SPI
+    flash; this refines RL-JGDMS-0219, which has the controller drive the boot-select
+    pins. The bootloader's boot-source check in K4 applies either way.
+39. **Documents still to read**. The i.MX 95's DSU revision, from NXP's reference manual
+    or a bench module's cluster ID register (CL-RELAYCASE-0064), which decides whether the
+    L3 partitioning of R16l exists; Arm's DSU manual 100453 r4p1 answers the rest
+    (CL-RELAYCASE-0062, -0063). EL0 access to the A55's generic counter is still to be
+    read in the Cortex-A55 manual. The SMARC hardware specification 2.1.1 or 2.2, as the
+    authoritative pin list in place of the 2017 design guide; the imx-sm source
+    (CL-RELAYCASE-0049, -0053); NXP's Security Reference Manual; the module vendors'
+    hardware manuals (open point 25); the Linux arm64 timer code on denying user space the
+    counter (R20); and the I350 NVM map for the words in CL-RELAYCASE-0059.
+40. **Module layout** (R16l, RL-JGDMS-0238, -0239). Settled 2026-11-25: one identity per
+    module; four proxy cores with three L3 way groups, two system cores with one; JVMs
+    pinned one to a core; interrupts on the system cores; per-JVM memory limits under one
+    cgroup. Still open: whether the part partitions its L3 (CL-RELAYCASE-0064, and the
+    bench test of CL-RELAYCASE-0065); how many proxy JVMs a core carries (R16c); how the
+    relay assigns identities to modules as demand changes.
+41. **The relay as a shared resource** (K16). The relay cores reserved per module or group
+    of modules, against the chosen Xeon 6's core count; whether the part's cache and
+    bandwidth allocation has enough classes of service (CL-RELAYCASE-0066); the latency
+    cost of releasing outbound messages on the tick; whether QAT is used, and if so its
+    queues per module; per-identity rate limits.

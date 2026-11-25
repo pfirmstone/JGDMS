@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0044); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0229; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
-LATEST ADDENDUM: "Addendum 7, 2026-11-23 midday" at the end of this file
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\RELAYCASE\INDEX.md  (this file's claims: CL-RELAYCASE-0001 to CL-RELAYCASE-0066); rulings: rulings\JGDMS\INDEX.md (RL-JGDMS-0208 to RL-JGDMS-0240; also RL-JGDMS-0037, RL-JGDMS-0096, RL-JGDMS-0113) and rulings\DIRTYCHAI\INDEX.md (RL-DIRTYCHAI-0016, RL-DIRTYCHAI-0017)
+LATEST ADDENDUM: "Addendum 18, 2026-11-25 14:15 wrap-up" at the end of this file
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: "Open items" - re-read the disk before acting on it
 -->
@@ -341,3 +341,281 @@ Open items, replacing 27 of Addendum 6 (the operator committed at 03:28; 24 to 2
     CL-RELAYCASE-0030 line).
 
 Note, 2026-11-23 14:25 wrap-up: no claim settled at this wrap-up. CL-RELAYCASE-0038, CL-RELAYCASE-0039 and CL-RELAYCASE-0044 wait on MSI and the card pitch; CL-RELAYCASE-0041 was searched again (Intel forum quoting the I350 datasheet names MCTP over SMBus only; the I210 datasheet names MCTP over SMBus/PCIe; neither settles the I350) and is left as it was. CL-RELAYCASE-0007 and CL-RELAYCASE-0012 are still without a source. The first save of the layout file at 13:46 left the old content on disk; it was saved again at 13:58 and now matches artifact version 1795405594-f216 byte for byte.
+
+## Addendum 8, 2026-11-23 afternoon
+
+Registered: RL-JGDMS-0230 (a host sharing the case's rack runs its fans at speeds that never follow its
+load), from the operator's message at 14:26 and his "Yes" at 14:30; CL-RELAYCASE-0045 (a proxy counting
+between edges of a time that follows the relay's clock reads its module's temperature through the
+module's oscillator).
+
+Proposals of this session, in DESIGN-security.md K10, K11 and open points 25, 34 and 35: the host's
+supply fans fixed too and its BMC fan curve off; blanking panels and sealed rail gaps, the case below
+the host, separate PDU feeds, rubber-isolated rails; inlet steps set so the host's swing never crosses
+one; no microphone, codec, accelerometer, audio or ADC driver on the modules; a temperature-compensated
+or oven oscillator, or an external reference, as a vendor question; a rack test with the host cycling.
+
+Answer given to the operator's question at 14:30: the case's fans should hold a speed, not a
+temperature, because a loop holding a temperature moves the fans with the load in the case, which
+RL-JGDMS-0225 rules out; a fixed temperature belongs at the oscillator only. Written into K10 as a
+proposal.
+
+Done: DESIGN-security.md header paragraph, the case-topology ruling list, K10 (two bullets), K11 (one
+bullet), open point 25 revised, 34 and 35 added. Drawings not changed.
+
+Open items (28 to 30 of Addendum 7 stand; 31 is replaced):
+
+31. Commit: DESIGN-security.md, this handover, the layout file, and the register logs for RL-JGDMS-0227
+    to RL-JGDMS-0230 and CL-RELAYCASE-0032 to CL-RELAYCASE-0045 (with the new CL-RELAYCASE-0030 line).
+
+32. For the operator: fan steps or one fixed speed (open point 35), after the rack test (open point 34).
+
+## Addendum 9, 2026-11-23 later afternoon
+
+The operator uploaded NXP AN14581 (TSN and PTP benchmarking on i.MX 9x, Rev. 2.0) at 14:51 and AN14542
+(NETC virtualization on i.MX 95, Rev. 4.0) at 14:59, and at 15:02 asked for both to be written up.
+
+Registered: CL-RELAYCASE-0046 and CL-RELAYCASE-0048 (facts read from the two notes); CL-RELAYCASE-0047
+(socket timestamp options and ioctls as a fine clock for a proxy holding a socket); CL-RELAYCASE-0049
+(System Manager able to give the Cortex-M7 nothing and deny the Cortex-A control of it);
+CL-RELAYCASE-0050 (module kernel without the NETC timer driver, Ethernet still working). No rulings.
+
+Proposals of this session, in DESIGN-security.md: R20 refuses the socket timestamp options and ioctls
+and fences the PTP clock device; K11 keeps the Ethernet with the Cortex-A without NETC virtualization,
+runs nothing on the Cortex-M7, and lists the drivers left out of the module kernel (uio, vfio, M7
+remoteproc and RPMSG, audio, ADC, and the NETC timer if time is coarse); open point 36 recommends coarse
+time steps over PTP for the modules.
+
+Done: DESIGN-security.md header paragraph, R20 (dated paragraph, two bullets), K11 (time bullet revised,
+three bullets added), open points 36 and 37. Drawings not changed. That the I350 timestamps PTP in
+hardware is the session's belief, not checked, and is marked so in open point 36.
+
+Open items (28 to 30 of Addendum 7 and 32 of Addendum 8 stand; 31 is replaced):
+
+31. Commit: DESIGN-security.md, this handover, the layout file, and the register logs for RL-JGDMS-0227
+    to RL-JGDMS-0230 and CL-RELAYCASE-0032 to CL-RELAYCASE-0050 (with the new CL-RELAYCASE-0030 line).
+
+33. For the operator: module time by PTP or coarse steps (open point 36); the System Manager
+    configuration (open point 37).
+
+## Addendum 10, 2026-11-23 15:15
+
+The operator uploaded NXP UG10210 (i.MX 95 Hardware Design Guide, Rev. 2.0) at 15:08 and at 15:14 asked
+for it to be written up, and what else to look for in documentation.
+
+Registered: CL-RELAYCASE-0051 and CL-RELAYCASE-0052 (facts read from the guide: the crystal-only 24 MHz
+reference and other clock inputs; the System Manager's always-on domain, logical machines, audio pins,
+tamper pin and thermal models); CL-RELAYCASE-0053 (a console debug monitor in the EVK System Manager
+builds, from recall); a new CL-RELAYCASE-0049 line citing the guide. No rulings.
+
+Correction to this session's own advice: at 14:30 and in Addendum 8 it proposed a
+temperature-compensated or oven-controlled oscillator on each module as a way to close CL-RELAYCASE-0045
+at its source; the guide says the i.MX 95 takes a crystal only. K10 and open point 25 are revised to say
+so.
+
+Done: DESIGN-security.md header paragraph, K10 (speed-not-temperature bullet), K11 (sensor bullet, new
+System Manager pins bullet, driver list), open points 23, 25, 36 and 37. An edit script left a doubled
+bullet marker on three K11 and K10 bullets; fixed before this note.
+
+Open items: 28 to 30 of Addendum 7, 32 of Addendum 8 and 31 and 33 of Addendum 9 stand, with 31 now covering CL-RELAYCASE-0032 to CL-RELAYCASE-0053.
+
+## Addendum 11, 2026-11-23 16:30
+
+The operator uploaded the SGET SMARC Design Guide 2.0 at 15:34, then at 15:38 the i.MX 95 industrial
+data sheet, the i.MX95_1P21N errata, the Intel I350 datasheet and a link to Arm document 101381 r4p0,
+asking for a Sonnet subagent to capture the relevant information. The subagent answered a fixed question
+list with page citations; its report is /home/claude/research/doc-findings.md in the session's cloud
+workspace (not on the operator's disk). This session checked its main points against the extracted text
+before registering them. The Arm page could not be reached (support.arm.com returns a script shell and
+is blocked by the egress proxy); nothing from it is recorded. At 16:27 the operator asked for everything
+to be written up.
+
+Registered: CL-RELAYCASE-0054 (SMARC 2.0 pins and boot select), CL-RELAYCASE-0056 (i.MX 95 operating
+points, sensors, crystal, revisions), CL-RELAYCASE-0057 (errata), CL-RELAYCASE-0058 (I350 manageability,
+NVM, SR-IOV, proxying, 1588, power); untested CL-RELAYCASE-0055 (RTC against the 24 MHz crystal as a
+module thermometer), CL-RELAYCASE-0059 (I350 NVM protection against the host driver), CL-RELAYCASE-0060
+(no /dev/mem, no mapped system counter); a new CL-RELAYCASE-0041 line. No rulings.
+
+Done: DESIGN-security.md header paragraph; K1 card bullet; K4 boot-source bullet; K11 fixed-frequency
+bullet, M7 errata, driver list; K12 NVM-at-commissioning bullet; K15 root-port check; R20 RTC and
+memory-mapped counter bullets; open points 25, 32, 36 and 37 revised, 38 and 39 added.
+
+Open items: 28 to 30 of Addendum 7, 32 of Addendum 8 and 33 of Addendum 9 stand; 31 now covers CL-RELAYCASE-0032 to CL-RELAYCASE-0060.
+
+34. For the operator: the BOOT_SEL2# strap (open point 38), which refines RL-JGDMS-0219.
+
+35. Arm 101381 r4p0 as a PDF, and the other documents in open point 39.
+
+## Addendum 12, 2026-11-23 20:30
+
+At 19:27 the operator supplied Arm's DSU-110 manual (101381 r4p0), copied from Arm's website; it covers
+Armv9 clusters and does not apply to the i.MX 95. At 20:17 and 20:24 he supplied the original DSU manual
+100453 at r0p2 and r4p1. The subagent's report was sent to him at 19:28 as doc-findings.md. On being
+told that L3 partitioning would matter only if a module hosts proxies of more than one service, he wrote
+at 20:29: "That could be useful, it allows more untrusted third parties." Taken as the go-ahead to write
+up; the remark is quoted in the design, not registered as a ruling.
+
+Registered: CL-RELAYCASE-0061 (the i.MX 95 uses the original DSU), CL-RELAYCASE-0062 (cluster registers
+closed to EL0, EL1 writes gated by EL3 and EL2), CL-RELAYCASE-0063 (L3 partitioning from r1p0); untested
+CL-RELAYCASE-0064 (the i.MX 95's DSU revision has partitioning) and CL-RELAYCASE-0065 (the snoop filter
+is not partitioned). No rulings.
+
+Correction to this session's own advice: at 19:27 it said from recall that the original DSU partitions
+its L3 through scheme IDs; the r0p2 manual shows CLUSTERPARTCR unused in that revision, and r4p1 shows
+partitioning was added in r1p0.
+
+Done: DESIGN-security.md header paragraph; R16l (services sharing a module: L3 partitions fixed by
+firmware, per-service JDK copies, per-service link scheduling, what stays shared); K11 cluster-registers
+bullet; open point 39 revised; 40 added.
+
+Open items: as in Addendum 11, with 31 now covering CL-RELAYCASE-0032 to CL-RELAYCASE-0065, and:
+
+36. For the operator: whether modules host more than one service (open point 40); the i.MX 95's DSU
+    revision (CL-RELAYCASE-0064).
+
+## Addendum 13, 2026-11-23 21:00
+
+Registered: RL-JGDMS-0231 (proxies sharing a module are grouped by the identity providing their
+services), from the operator's messages at 20:29 and 20:58; RL-JGDMS-0232 (at most three server
+certificate identities per module, two cores each), from 20:59. The 20:29 remark quoted in Addendum 12
+is now part of RL-JGDMS-0231's note.
+
+Proposals of this session in the revised R16l: the fourth L3 way group goes to a scheme ID no core uses,
+since a shared group would let identities evict each other's lines; the grouping key is the server
+certificate identity the relay authenticated, never what the proxy or codebase states; partitions change
+only with a re-image, and pass between identities only after scrubbing; each identity gets its own
+Ethernet rings with interrupts on its own cores.
+
+Done: DESIGN-security.md header paragraph, the case-topology ruling list, R16l rewritten by identity,
+open point 40 revised (grouping and count settled; partitioning on the part, kernel housekeeping,
+placement and hand-over still open). An edit script's header anchor failed once on a wrapped line;
+nothing was written by the failed run.
+
+Open items: as in Addendum 12, with 31 now also covering RL-JGDMS-0231 and RL-JGDMS-0232, and 36 narrowed to the rest of open point 40 and CL-RELAYCASE-0064.
+
+## Addendum 14, 2026-11-23 21:10
+
+At 21:01 the operator asked whether the cores must be pinned (yes: a core's scheme ID fixes its
+partition) and suggested four identities rather than leave a way group unused; the session showed six
+cores do not divide four ways and that a core with no private group falls back to group 0. At 21:03 he
+proposed one core per identity with the remaining three for the system, and at 21:06 confirmed that an
+identity's JVMs share its core, that Leyden lets one identity's JVMs share memory, and that each
+identity needs its own user.
+
+Registered: RL-JGDMS-0233 (three identities, one core each, three system cores with the fourth
+partition), RL-JGDMS-0234 (memory shared only within an identity, through Leyden), RL-JGDMS-0235 (an
+operating-system user per identity, at least three per module); RL-JGDMS-0232 marked superseded by
+RL-JGDMS-0233.
+
+Proposals of this session in the rewritten R16l: cpusets per identity and for the system, the cgroup
+filesystem hidden and sched_setaffinity refused; each identity's Ethernet rings with interrupts on a
+system core of its own; a separate copy per identity of the JDK files and the AOT cache, since one file
+mapped by several identities shares page-cache pages; a uid per JVM within a group per identity; R16b's
+spreading of instances over cores dropped within an identity.
+
+Done: DESIGN-security.md header paragraph, case-topology ruling list, R14, R16l rewritten, open point 40
+revised.
+
+Open items: as in Addendum 13, with 31 now also covering RL-JGDMS-0233 to RL-JGDMS-0235 and the RL-JGDMS-0232 status line.
+
+## Addendum 15, 2026-11-23 21:15
+
+Registered: RL-JGDMS-0236 (JDK memory never shared between processes of different uids), from the
+operator's reply at 21:09 to the session's proposal of a uid per JVM within a group per identity, which
+it replaces. With RL-JGDMS-0234, an identity's JVMs therefore share one uid; R14's "own uid" now means
+one per identity.
+
+Proposal of this session: processes of one uid cannot trace or read each other (Yama ptrace scope 3,
+syscall filter refusing ptrace and process_vm_readv/writev).
+
+Done: DESIGN-security.md header paragraph, case-topology ruling list, R14, the R16l user-identities
+bullet, open point 40.
+
+Open items: as in Addendum 14, with 31 now also covering RL-JGDMS-0236.
+
+Note, 2026-11-23 21:12: the operator agreed at 21:11 to the ptrace proposal of Addendum 15; registered as RL-JGDMS-0237 and cited in R16l. Item 31 now also covers RL-JGDMS-0237.
+
+Note, 2026-11-24 14:20: the operator confirmed he sent the earlier reply to Paul (his scoped-container
+email of 2026-11-21: three questions, DirtyChai's extra checks, hardware update), closing that open
+item. On 2026-11-23 at 21:11 the session drafted a link-free design update to Paul answering his first
+reply's points (the split, the four attacks, interpreter-only) with the case, module sharing, timing and
+management paths; it exists only in the conversation, and sending is the operator's.
+
+## Addendum 16, 2026-11-25
+
+On 2026-11-25 the operator asked whether memory could be segregated between identities; the session set
+out capacity limits, separate kernels (System Manager logical machines or a partitioning hypervisor),
+DRAM bank partitioning and bandwidth regulation, then at his request the risk of not doing each. He
+noted that each JVM can have a memory limit (the session added a kernel cgroup limit behind it), and
+that a breakout risks the attacker's identity for no gain, so its best option is timing from outside;
+the session agreed with three caveats (cheap identities, silent exploits, a shared module raising the
+prize) and pointed to the relay as the remaining shared component. He then ruled one identity per
+module.
+
+Registered: RL-JGDMS-0238 (one server certificate identity per module; L3 partitioning only between the
+system and the proxies); RL-JGDMS-0231, RL-JGDMS-0233 and RL-JGDMS-0235 marked superseded by it.
+RL-JGDMS-0234, RL-JGDMS-0236 and RL-JGDMS-0237 stand.
+
+Proposals of this session in the rewritten R16l: four proxy cores with three way groups and two system
+cores with one (the split is the operator's, open point 40); each proxy JVM pinned to one core; Ethernet
+interrupts on system cores; JVM limits plus a cgroup memory.max per JVM under one proxy cgroup. Offered
+but not written: a section on the relay as a resource shared by every module's identity (outbound
+messages on the tick, per-identity queues and workers on pinned relay cores, the relay's L3
+partitioned).
+
+Done: DESIGN-security.md header paragraph, case-topology ruling list, R14, R16l rewritten as one
+identity per module, open point 40 rewritten.
+
+Open items: as in Addendum 15, with 31 now also covering RL-JGDMS-0238 and the three status lines; 36 replaced by open point 40 (the core and way-group split, CL-RELAYCASE-0064) and the unwritten relay section.
+
+## Addendum 17, 2026-11-25 14:00
+
+At 14:00 the operator wrote "You proposals are sound and accepted." The session took this as accepting
+the R16l proposals of Addendum 16 (layout, pinning, interrupts, memory, placement) and registered them
+as RL-JGDMS-0239; the relay section, which had only been offered, was written as proposals (K16), not as
+a ruling.
+
+Registered: RL-JGDMS-0239; untested CL-RELAYCASE-0066 (the relay's Xeon 6 has Intel cache and bandwidth
+allocation with enough classes of service, from recall).
+
+Done: DESIGN-security.md header paragraph, case-topology ruling list, R16l marked as ruled, open point
+40 settled in part, K16 added after K15 (outbound messages on the tick, per-module workers on reserved
+relay cores, relay L3 and bandwidth allocation, QAT queues and the outward link per module,
+constant-time cryptography, shared throughput), open point 41 added. K16 was first inserted before the
+R-section's open points by an anchor error and moved before this note.
+
+Open items: as in Addendum 16, with 31 now also covering RL-JGDMS-0239 and CL-RELAYCASE-0066; the relay section is written (open point 41), and whether its proposals stand is the operator's.
+
+## Addendum 18, 2026-11-25 14:15 wrap-up
+
+At 14:10 the operator accepted K16 ("Your proposal is accepted."), registered as RL-JGDMS-0240 and cited
+in K16 and the header paragraph, and asked for the wrap-up.
+
+Claims settled from sources read at this wrap-up: CL-RELAYCASE-0007 has a new line from OpenJDK master
+source (init.cpp, interpreter.cpp, templateInterpreter.cpp, stubs.cpp, codeCache.cpp,
+memoryReserver.cpp, os_linux.cpp, read from GitHub); it was read in upstream, not in the DirtyChai fork.
+CL-RELAYCASE-0012 has a new line from the Linux kernel's arch/arm64/kernel/proton-pack.c; Arm's own page
+was not read. No other claim was settled: those added on 2026-11-23 and 2026-11-25 wait on bench tests,
+vendor answers or documents named in open points 25, 37, 39, 40 and 41.
+
+Uncommitted, all on the operator's disk: docs/relay-isolation/DESIGN-security.md, this handover,
+docs/LAYOUT-proxy-host-board-2026-11-23.html, and the register logs for RL-JGDMS-0227 to RL-JGDMS-0240
+and CL-RELAYCASE-0032 to CL-RELAYCASE-0066 with the status lines on CL-RELAYCASE-0007, -0012, -0030,
+-0041 and -0049 and on RL-JGDMS-0231, -0232, -0233 and -0235. The drawings were not changed after
+2026-11-23 midday, so they still show the network carrier and outward NIC but not module sharing,
+pinning or K16.
+
+Open items for the next session:
+
+37. The design update to Paul (drafted 2026-11-23 21:11, in the conversation only) predates
+    RL-JGDMS-0238 to RL-JGDMS-0240: its "sharing a module" section describes three identities per module
+    and must be revised to one identity per module, with the relay as the shared resource, before it is
+    sent.
+
+38. Open points 38 (BOOT_SEL2# strap), 40 (bench checks of L3 partitioning) and 41 (relay cores, classes
+    of service, tick latency, QAT, rate limits) are the operator's or the bench's.
+
+39. The drawings could show the module's core and cache split and K16 if the operator wants them
+    updated.
+
+Note, 2026-11-25 14:18: at the operator's request, K15's MCIO cables bullet in DESIGN-security.md gained one sentence stating why SMBus is cut (a BMC with SMBus to an I350 can use its ports unseen by the relay), citing CL-RELAYCASE-0040 and CL-RELAYCASE-0058. Nothing else changed.
