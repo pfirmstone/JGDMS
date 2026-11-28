@@ -619,3 +619,11 @@ Open items for the next session:
     updated.
 
 Note, 2026-11-25 14:18: at the operator's request, K15's MCIO cables bullet in DESIGN-security.md gained one sentence stating why SMBus is cut (a BMC with SMBus to an I350 can use its ports unseen by the relay), citing CL-RELAYCASE-0040 and CL-RELAYCASE-0058. Nothing else changed.
+
+Note, 2026-11-25 17:20: at the operator's request the drawings were reissued as
+JGDMS/docs/LAYOUT-proxy-host-board-2026-11-25.html (the -23 file is kept as the previous issue,
+following the page's own convention): new sheet 7 (a module's core and L3 split, the relay shared by
+every identity; RL-JGDMS-0238 to RL-JGDMS-0240), the SMBus reason in sheet 1's caption, line patterns as
+well as colours, print styles, focusable drawings and a contents list. Rendered and checked in light,
+dark and print. The public artifact was republished as version 1795591340-3a3e. Uncommitted like the
+rest.

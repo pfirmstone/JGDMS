@@ -1519,6 +1519,278 @@ Skills loaded: jgdms-board-review (SKILL.md, plus Guidance Part I G1-G13), hando
 Every line cited above as VERIFIED I re-opened myself.
 
 
+### G. Authors' replies to F
+
+Added 2026-11-28, on the operator's word ("Yes D and E authors should reply to section F."). The authors are the same agents that wrote D and E. They were resumed, and each replied to the findings that touch its own section. F's findings above stand unedited (SOW 4.F). Full texts of the replies: `J:\lookup-cel-2026-11-20\sections\D_reply_F.md` and `E_reply_F.md`. Model: claude-fable-5-2 for both, checked in the transcripts. Neither used helpers. Both read the source at the pin and checked with `git diff` that the cited files had not changed by df1e7e4e.
+
+**Coordinator summary**
+- **Disputes.** Neither author disputes a finding. D: 7 ACCEPT and 1 ACCEPT WITH AMENDMENT (F3). E: 11 ACCEPT and 5 ACCEPT WITH AMENDMENT (F2, F3, F6, F11, F16).
+- **F3: D refutes F's UNVERIFIED link.** `MarshalledInstance(val, ATOMIC_DER)` writes the record-level capture, `new DerObjectStreamCodec(false)`, which has no SchemaChainRef. So the `Doc{Point a; Point b}` shared-chain case cannot arise on that path. Coordinator VERIFIED at 83c4d4c7a: `DerMarshalOutputStream.java:107-109` and the `DerObjectStreamCodec` javadoc at lines 313-320.
+  - D proposes the definition: canonical bytes = `schemaDigest ++ payloadBytes` of the value's own record-level capture, never a slice.
+  - Still open: collection-valued fields, arrays other than `byte[]`, `Class` fields, and the conformance vectors.
+  - E, which did not see D's reply, withdraws digest matching until such a form is pinned. Non-scalar fields stay `has()`-only, and the decorator throws on a template with a non-null non-scalar field.
+- **F12: the authors now disagree in the opposite direction.**
+  - D now makes no recommendation, and leans to rejecting the registration in the native API, with the decorator choosing whether to strip.
+  - E now recommends that the decorator omits the field (configurable). Its reason: rejection would bar every service that carries a `UIDescriptor`.
+  - Both agree it is the operator's decision. This affects R14.
+- **Changes to recommendations (section 4), not applied to its table:**
+  - R6: "adopt in principle" once D's definition is pinned with vectors.
+  - R16: E withdraws the smaller-S lookup profile (E.1a option 2) for now. Derek uses a lower `maxExprCost` at the standard S. A different S waits until STD-011 carries S in the expression record.
+  - R17: E makes F5's three-step binding mandatory: authenticateServer, then ServerMinPrincipal, then the constrained proxy.
+  - R11, R22, R23, R24 and R25: accepted as written, with F11's marker form `has(field("<class>","#isa"))`.
+- **New operator decisions (from E):**
+  - an event-sender identity, if events are to be authenticated (F6);
+  - the meaning of "same principal" for ServiceID ownership (F8);
+  - the handback as plain bytes or as a `MarshalledInstance` (F17);
+  - whether to state that predicates are not confidential from registrants (F7).
+- **Spec-owner item** (both authors): the -0.0 conflict between STD-011 4.3.4 L442-444 and STD-006 L2014-2018. A template cannot select -0.0 in a value stored as DER, and C's `1.0/f < 0.0` idiom never matches.
+
+#### G.1 Section D author (ab652fcba9612c654)
+
+claude-fable-5-2 (self-reported)
+
+##### Section D author's reply to review F
+
+Pin: 83c4d4c7af7bcb14bd33e07a68bbaa4ee83f36d3. The working tree is now at df1e7e4e, so I ran `git diff --stat` from the pin to HEAD over every file cited below (`DerObjectStreamCodec.java`, `MarshalledInstance.java`, `EntryRep.java`, STD-006, STD-011, `jgdms-cel`). It printed nothing, so the lines I opened are the pinned lines. I edited, built and committed nothing, and used no helpers this round.
+
+Labels: V = VERIFIED (I opened it this session), R = RELAYED.
+
+###### Summary
+
+| Finding | Verdict | Effect on D |
+|---|---|---|
+| F3 | ACCEPT WITH AMENDMENT | (c2) moves from "adopt" to "adopt in principle; not ready until the bytes are defined". One link in F's scenario is refuted. |
+| F4 | ACCEPT | D §6 item 2 corrected: DER equality is also looser than Jini equality for -0.0. |
+| F9 | ACCEPT | The 15-octet limit is per predicate, summed over needles. |
+| F12 | ACCEPT | The D/E disagreement is real and is an operator decision. |
+| F15 | ACCEPT | Two claims downgraded; no recommendation changes. |
+| F10, F11 | ACCEPT | D §8 relayed C's marker form; the form changes. |
+| F1, F2 | ACCEPT as they bear on D | Notes added to (c2) and to the cost statements. |
+
+###### F3. ACCEPT WITH AMENDMENT
+
+**Accepted.** "The client encodes the template value with the same codec" is not a definition. The entry points differ:
+- Untyped `writeObject` rejects a bare collection (`DerObjectStreamCodec.java:1243-1246`, V).
+- STD-006's closed type model has no `java.lang.Class` (L816-826, V). This settles my open item 12.1: a `Class` field has no DER form.
+- D §6 item 3 said the bytes are "a slice made at projection". I withdraw that. A slice of an entry record is the declared-type field form, which is not what a client produces by encoding the value alone.
+
+**Amendment: F's unverified link is refuted.** `new MarshalledInstance(val, …ATOMIC_DER)` does not use the stream dedup form:
+- For an `@AtomicSerial` value, `DerMarshalInstanceOutput.java:207-212` writes `ObjectCodec.encodeHierarchy(obj, chain)` as the payload. The schema travels as separate `schemaBytes` and `schemaDigest` fields (V).
+- Other items go through `DerMarshalOutputStream.recordLevelCapture` (`:229-237`), which builds `new DerObjectStreamCodec(false)` (`DerMarshalOutputStream.java:108-109`, V).
+- That mode is "canonical record-level full forms only", with "no `SchemaChainRef`" (`DerObjectStreamCodec.java:315-320`, V).
+
+So the `Doc{Point a; Point b}` chainRef scenario cannot arise on the path Reggie's DER mode uses (`EntryRep.java:236-241`, V). One well-defined form already exists in the code; D failed to name it.
+
+**Proposed definition.** The canonical DER bytes of a field value are `schemaDigest ++ payloadBytes` of the record-level capture of that value encoded on its own. That is exactly what `new MarshalledInstance(value, context, ATOMIC_DER constraints)` holds. Derek takes them from the per-field `MarshalledInstance`, or computes them by strict decode then re-encode; it never slices a record.
+
+The digest must be included. `MarshalledInstance.equals` compares only `hash` and `payloadBytes` (`:993-1003`, V), and the payload of an `@AtomicSerial` value carries no schema.
+
+**Still needed to settle it:**
+1. Collection-valued fields. The untyped path rejects them, so the rule must name the typed route and the token taken from the field's declaration.
+2. Arrays other than `byte[]`. The code has a `[9]` array branch (`:1060-1065`, V); STD-006 open item 10 is unresolved (R).
+3. `Class` fields: map to the name string by an explicit rule, or leave unmatched.
+4. Conformance vectors, and a home for the rule in STD-006 §7.8 or STD-008.
+5. Whether Derek's registration form carries per-field `MarshalledInstance` values (E's design).
+
+**Corrected D text (§6 items 1, 3, 11):** "The companion value is `schemaDigest ++ payloadBytes` of the value's record-level capture, never a slice. Recommendation: adopt in principle; not ready until that form is pinned with vectors, including the collection and array rules."
+
+###### F4. ACCEPT
+
+- The encoder maps -0.0 to +0.0 for `float` and `double` (`DerObjectStreamCodec.java:882-886, 899-902`, V). STD-006 L2014-2018 says the same and has the decoder reject -0.0 bits (V).
+- So DER equality is looser than Java `equals` for signed zero, as well as stricter for insertion-ordered sets. D named only the stricter case.
+- C's -0.0 idiom, `f == 0.0 && 1.0/f < 0.0`, can never match a value stored through DER. D relayed C's table without noticing this.
+- The spec conflict is real on the text: STD-011 4.3.4 L442-444 says -0.0 "MUST be emitted with their exact bit pattern" (V), and a strict STD-006 reader rejects it. That is for the spec owner, outside D.
+
+**Corrected D text (§6 item 2):** "DER byte equality is neither finer nor coarser than Jini equality. It is stricter for `LinkedHashSet`/`LinkedHashMap` order and looser for signed zero: -0.0 and +0.0 encode alike. A template cannot select -0.0 in a DER-stored value."
+
+###### F9. ACCEPT
+
+- `And` adds 1 to its children's costs (`CostModel.java:165-167`, V).
+- F's arithmetic is right: two 8-octet needles cost 2 × 524,291 + 1 = 1,048,583, which is rejected.
+
+**Corrected D text (§0 item 4, and the glob and `in` limits):** "At the proposed ceilings, the needle octets of all `contains` calls in one predicate sum to at most 15, and to fewer when other terms are present."
+
+###### F12. ACCEPT
+
+- The disagreement is real. D §6 item 7 says omit the field; E rejects the registration.
+- Both satisfy the operator's ruling that the new API does not expose `MarshalledObject` (RL-JGDMS-0132, R).
+- D chose "omit" to avoid 8.1 item 2 failing the whole entry. It did not weigh that omitting drops data silently.
+- Since `Class` also has no DER form (F3), the same choice applies to `ServiceTypes.serviceType`.
+
+**Corrected D text:** "A field with no DER form is either rejected at registration (loud; such services cannot register with Derek) or omitted (they register; the field is silently unavailable). Operator decision. D no longer recommends one."
+
+If asked, I lean to rejection in the native API, with the legacy decorator deciding whether to strip, because it fails loudly.
+
+###### F15. ACCEPT
+
+- **(b1) allocation.** The probe copies the subject to an `int[]`, so it does not show an allocation-free matcher. Corrected text: "No allocation is required, since a matcher can walk the stored string in place. Untested."
+- **(a) length check.** A UTF-8 octet length of a Java `String` needs a scan. Corrected text: "Cost `1 + 3S` (two length scans and one copy), or `1 + S` if string values carry their octet length." The recommendation (reject) is unchanged.
+
+###### F10 and F11. ACCEPT (D §8 relayed the marker form)
+
+- The field-name slot is capped at 255 octets and the class-name slot at 1024 (`CelCeilings.java:58, 61`, V). A type name over 255 octets cannot be tested in the form D §8 quoted.
+- The collision with a registrant's class named `#…` rests on STD-006 L2296 (R; I did not open it).
+
+**Corrected D text (§8):** "Type and class tests put the name in the class-name slot, `has(field("<name>", "#isa"))`, and Derek rejects any registered class name that starts with `#`."
+
+###### F1 and F2, as they bear on D
+
+- **F1.** D did not consider exclusion. Under it, a (c2) mismatch caused by an encoding gap yields `false`, not an error, so the item passes. That makes the F3 definition a precondition for any use of (c2) in an excluded predicate. D's oversize rule yields `TYPE_MISMATCH`, which is safe under F1's fix.
+- **F2.** D's cost figures assume the same S at every evaluation site. D said so for (c2) and for `in`, but not in general. Added note: "Every bound in D holds only where the candidate side enforces the S the verifier used."
+
+###### "What both D and E assume"
+
+1. **Canonical bytes are one thing.** Accepted as a fault in D's wording. One such form does exist (record-level capture); see F3.
+2. **DER equality refines Jini equality.** Accepted; false for -0.0 (F4).
+3. **`#` names cannot collide.** Accepted; D relayed it from C (F10).
+4. **A cost bound holds wherever the bytes run.** Accepted with the note under F2.
+5. **Bounded language makes the path safe.** This is E's; D made no path claim.
+
+###### Not settled by this reply
+
+- The collection, array and `Class` rules in the F3 definition.
+- STD-006 L2296 and open item 10, which I did not open.
+- Nothing was built or run; all of the above rests on reading source at the pin.
+
+Helpers this round: none.
+
+#### G.2 Section E author (a5afe1509e6a0978c)
+
+claude-fable-5-2 (self-reported). Author's reply to review F, for section E and addendum E.1a.
+
+- **Read-only.** Nothing edited, built, committed or written.
+- **Helpers:** none dispatched. The checks were eight short line reads, so there are no agent ids to list.
+- **Commit.** The working tree is now at `df1e7e4ece25`, not `83c4d4c7af`. `git diff --name-only 83c4d4c7af HEAD` over the files I cite below returned nothing, so my line reads hold at 83c4d4c7af (VERIFIED). The files are `jgdms-cel`, `DerObjectStreamCodec.java`, `RegistrarImpl.java`, `BasicInvocationHandler.java`, `MarshalledInstance.java`, STD-006 and STD-011. `PayloadFormatGuard.java` I read with `git show 83c4d4c7af:`.
+- **Labels:** V = I opened the line this session. R = relayed from F and not re-opened.
+
+**Overall:** I dispute no finding. Eleven are ACCEPT and five are ACCEPT WITH AMENDMENT. Three change a recommendation of mine: F2 (I withdraw the smaller-S option for now), F3 (I withdraw digest matching until the encoding is defined) and F12 (I now lean towards omitting the field in the decorator).
+
+###### Replies
+
+**F1. ACCEPT.** F's fix is the one I would adopt.
+- My rule keyed on "an evaluation yields an error". Three paths produce no evaluation: an undecodable entry that is skipped, a budget that runs out, and an entry not visited. Spec 9.4 requires that a filter can only fail to select (STD-011 L1350-1356, V in my first pass).
+- Corrected E.1a text: "An item passes an excluded predicate only if that predicate was evaluated on every visible entry of the item and yielded exactly `false` each time. Any other outcome makes the item no-match: `true`, an error, an undecodable entry, an entry not evaluated, or a spent budget."
+- Corrected E.1 rule 2: "An undecodable entry cannot satisfy a required predicate, and it fails every excluded predicate."
+
+**F2. ACCEPT WITH AMENDMENT.**
+- `CostModel.java:93` is `private static final long S = CelCeilings.MAX_SCALAR_BYTES;` (V). `CelCeilings.java:52` ties it to `ObjectCodec.MAX_COLLECTION` (V). This settles my NC: the cost model cannot take a profile S today.
+- F's arithmetic for the 900-octet needle follows from the same row D gives (R).
+- Amendment: I would not adopt "the profile travels with the predicate" now. It changes the STD-011 record and jgdms-cel. I withdraw E.1a option 2 as a near-term option.
+- Corrected E.1a recommendation: "Derek uses option 1 (a lower `maxExprCost` per predicate and per query, at the standard S) with the E.6 budgets. The same bytes then verify under any conformant verifier. A smaller lookup S is deferred until STD-011 makes S a profile value carried in the expression record."
+- I also accept the second half. E.3 item 4 stated the scalar ceiling for row projections only. Corrected: "Every client projection that evaluates a predicate enforces the S the predicate was verified under, including the projection over the service's attribute records. A larger value makes the record undecodable."
+
+**F3. ACCEPT WITH AMENDMENT.**
+- E.2a said option (iv) "depends on D's open point 12.2" and recommended it anyway. F shows the condition fails for a slice of a shared-stream record. The recommendation was premature.
+- The three entry points and the Appendix C citations are R. I did not re-open `DerObjectStreamCodec.java:1218-1246`.
+- I adopt F's definition: the hashed bytes are the record-level canonical form of the value under the field's declared wire type, and Derek produces them by strict decode then re-encode, never by slicing.
+- Amendment, on what E offers until that form is specified with conformance vectors:
+  - "A non-scalar field has no companion. It is `has()`-only and retrievable by selection."
+  - "The decorator throws on a template with a non-null non-scalar field. It never emits a predicate that cannot match." This also closes the exclusion path F names.
+  - "A `java.lang.Class` field is projected as its name string. Arrays other than `byte[]` are rejected at registration."
+
+**F4. ACCEPT.** F's reading is right, and my E.11 row was wrong for values stored through DER.
+- `DerObjectStreamCodec.java:902` maps the -0.0 bit pattern to +0.0, and :885 does the same for float (V).
+- Corrected E.11 row: "`Float` or `Double` field: NaN becomes `f != f`. A template of +0.0 or -0.0 becomes `f == 0.0`. Derek cannot tell the two zeros apart, so this match is looser than Jini `equals`. The decorator documents it."
+- The STD-011 4.3.4 versus STD-006 conflict on emitting -0.0 belongs to the spec owner. It is one more reason to defer transform option 2C.
+
+**F5. ACCEPT.** F's three-step fix is the one I would adopt, as mandatory.
+- `BasicInvocationHandler.authenticateServer` returns `Collections.emptySet()` for any endpoint class other than `SslEndpoint`, `HttpsEndpoint` and `KerberosEndpoint` (V, :1867-1891). E.3 item 1 named a binding without naming this mechanism.
+- Corrected E.3 item 1:
+  1. "Call `authenticateServer`. An empty set means no client-side expression."
+  2. "Set `ServerMinPrincipal` to the returned set on the prepared proxy before calling the accessor."
+  3. "Send every argument call through that constrained proxy."
+- The same binding applies to the authenticated re-check of a lookup predicate (E.1a) and to the attribute-records accessor.
+- Reuse of `ServerIdentityPin` is R.
+
+**F6. ACCEPT WITH AMENDMENT.**
+- Reggie's default listener preparer is `new BasicProxyPreparer()` (V, `RegistrarImpl.java:5227`). The Subject facts at :575-578 and :6462-6466 are R.
+- E.6 item 8 treated the listener stub as hostile data but said nothing about the Subject of Derek's outbound call. That is the gap.
+- I accept as the default: Derek's listener preparer imposes `ClientAuthentication.NO`, the notify call runs under no Subject, and endpoint classes and target addresses are restricted.
+- Amendment: with no client authentication a listener cannot tell Derek's events from anyone else's. That is tolerable, because an event is only a prompt to look again and the client then authenticates the bootstrap proxy. A deployment that wants authenticated events needs a second option: a dedicated event-sender identity with no other authority, never Derek's service identity. That is an operator decision.
+- Corrected E.0a row P2, output column: "C's listener stub, called under no Subject with `ClientAuthentication.NO` by default."
+
+**F7. ACCEPT.** F's two fixes are the ones I would adopt.
+- I analysed the caller reading registrants' data. I missed the registrant reading the caller's predicate. No code is needed to see it: the registrant controls the candidate values and sees who then calls its service.
+- Ordering and prefix tests make a literal recoverable by bisection. That is a cost of the operator's requirement for logical comparison at the server, and it should be stated.
+- Added to E.6: "A lookup or event predicate is not confidential from registrants or from Derek. A client that must hide a literal sends a coarser predicate and applies the exact one locally."
+- Added to E.6 "what else is needed": "Event predicates are evaluated off the registrant's call path, under a global per-change ceiling as well as the per-principal caps."
+
+**F8. ACCEPT.** F's fix is the one I would adopt.
+- `registerDo` replaces an existing registration with the same ServiceID and makes no owner check in that block (V, `RegistrarImpl.java:5710-5712`). E.13 listed the registrant identity model as NC. It did not draw the consequence for the indexed ServiceID query.
+- Added to E.6 and E.9: "The first registration of a ServiceID binds it to the registering principals. Replacement, attribute changes and lease operations require the same principals. An unauthenticated registrant gets a Derek-assigned ServiceID."
+- New operator decision: what "the same principal" means (exact set, or a configured mapping).
+
+**F9. ACCEPT.** The limit is on the sum, not per call (arithmetic R, consistent with D's row). Corrected E.1a table cell: "Σ needle octets ≤ 15 per predicate at the proposed ceilings, shared with every other cost in that predicate."
+
+**F10. ACCEPT.** My sentence was false at the wire.
+- STD-006 L2296 is `className UTF8String (SIZE(1..1024))` with no syntax rule (V).
+- Corrected E.1: "Derek rejects at registration any class name or field wire name that begins with `#`, and any class name that is not a JVM binary name. A client projection treats such a record as undecodable." Field names are included because of F11.
+
+**F11. ACCEPT WITH AMENDMENT.**
+- The field-name slot is capped at 255 octets and the class-name slot at 1024 (V, `CelCeilings.java:58, 61`; `CelDecoder.java:294-295`).
+- I adopt F's form: `has(field("<class>","#isa"))`, and likewise `has(field("<type>","#type"))` for service types.
+- Amendment: the marker now sits in the real class's namespace, so:
+  - field wire names beginning with `#` must be rejected (as under F10);
+  - a class in the chain with no fields must still expose its namespace with the marker.
+- E.11's translation rows change to this form.
+
+**F12. ACCEPT.** The disagreement is real and neither text noted it.
+- Derek's API cannot carry a `MarshalledObject` or a JOSS-born value (RL-JGDMS-0132). So the only question is what the decorator does with such a field.
+- Options for the operator:
+  - (a) Fail the registration loudly. The service stays on Reggie only. This was E's text.
+  - (b) The decorator omits the field, registers the rest and logs it. This is D's position, applied in the decorator.
+  - (c) The decorator omits the whole entry.
+- Revised recommendation: (b), made configurable. Under (a) any service that carries a `UIDescriptor` could not register through the decorator at all. Under (b) a template that names the omitted field throws (as in F3).
+- `Class` fields are not in this group. They map to the name string.
+
+**F13. ACCEPT.** F's fix is the one I would adopt. Corrected E.2 row: "`fieldValues` returns distinct record-level DER values, under the selection ceilings. No digest is returned." With F3 accepted there is no digest to return in any case.
+
+**F14. ACCEPT.** F's fix is the one I would adopt. Corrected E.10: "`Selection.fields` has set semantics: sorted, duplicates rejected, with a count ceiling." My objection to 2C applied equally to my own sketch.
+
+**F16. ACCEPT WITH AMENDMENT.**
+- The item-view page gains a total. A bare count is wrong in two cases: when the call budget is spent, and when read control hides items.
+- Corrected E.10: "`ItemViewPage` carries `totalMatches` and an `exact` flag. The count covers visible items only. When the budget is spent the count is a lower bound and `exact` is false."
+- The decorator copies it into `ServiceMatches.totalMatches`. `lookUp` returns bootstrap proxies only and needs no total.
+
+**F17. ACCEPT.**
+- `PayloadFormatGuard.checkWrapper` and `checkFormat` compare the `getPayloadFormat()` string with the expected format and never inspect the bytes (V, `git show 83c4d4c7af:` lines 125-138). The tag is the sender's label. F's point holds for Reggie's guard too.
+- Corrected E.2a: "Derek checks the tag and also strictly parses the bytes as canonical DER, within ceilings and without constructing any object. The client's DER pin remains the enforcing control." Whether a class-free validating walker for whole values exists is not checked.
+- Option for the handback: carry it as plain bytes that Derek never interprets, with the decorator wrapping the caller's `MarshalledInstance`. That removes the format question for that field. Operator's call, given the ruling names `MarshalledInstance`.
+
+**Minor notes. ACCEPT both.**
+- Legacy `lookup` through the decorator: "The decorator re-evaluates the translated predicate over the service's attribute records before it returns an item." This is the E.1a re-check, made mandatory on that path.
+- Shared caches: "If Derek has per-item read control, a decorator instance and any lookup cache are bound to one Subject. Background threads call under that Subject."
+
+###### "What both D and E assume"
+
+| # | Assumption | Verdict | Reply |
+|---|---|---|---|
+| 1 | "Canonical DER bytes of a value" is one thing | ACCEPT | See F3. E now offers no byte or digest matching until the form is defined. |
+| 2 | DER equality refines Jini equality | ACCEPT | See F4. |
+| 3 | `#` names cannot collide | ACCEPT | See F10 and F11. |
+| 4 | The cost bound holds wherever the bytes are evaluated | ACCEPT | See F2. The bound holds only where the same S is enforced on candidates. |
+| 5 | A bounded language makes the path safe | ACCEPT WITH AMENDMENT | E.0a did name an author, evaluator and Subject for each path. What it lacked was the enforcing mechanism on three of them: P4 (F5), P2 outbound (F6) and registration ownership (F8). Those are now stated. |
+
+###### Changes to E.12 (operator decisions)
+
+- **Decision 4** (non-scalar matching) becomes: specify the record-level canonical form with vectors, or leave non-scalar fields `has()`-only.
+- **Decision 5** becomes the F12 choice: (a), (b) or (c).
+- **Decision 19** loses the smaller-S option for now.
+- **New decisions:**
+  - event-sender identity (F6);
+  - the meaning of "same principal" for ServiceID ownership (F8);
+  - the handback as plain bytes or as a `MarshalledInstance` (F17);
+  - whether to state that predicates are not confidential from registrants (F7).
+
+###### Not re-opened by me
+
+- The stream-codec lines and Appendix C text behind F3.
+- The Subject capture lines behind F6.
+- `ServerIdentityPin`.
+- The arithmetic in F9.
+
+These are relayed from F.
+
 ## 4. Recommendations
 
 
@@ -1578,7 +1850,7 @@ Every line cited above as VERIFIED I re-opened myself.
    - RL-JGDMS-0132: no MarshalledObject and no JOSS in Derek's API. Legacy Reggie is unchanged.
    - A decorator will serve ServiceRegistrar users.
    - "logical comparison of entry data for lookup filters at the server" (answered by E.1a).
-4. **D and E authors' replies to F.** Not yet collected (SOW 4.F). F's findings are recorded unedited. Replies would need two more Fable rounds; the coordinator held them for the operator's word, to save Fable budget.
+4. **D and E authors' replies to F.** Collected 2026-11-28 on the operator's word; recorded in section 3.G. F's findings are unedited.
 5. **Spec numbering.** STD-011 numbers refer to the v0.2 text at 83c4d4c7a, as the architect confirmed. C mapped the memo's moved v0.1 citations. The SOW's phrase `O(|E| x S)` is stale: spec 3.1 claim 3 withdrew it.
 6. **Coordinator spot checks** (VERIFIED by the coordinator):
    - CelDecoder.java:156: tag range ends at 26 (no REF);

@@ -1,6 +1,6 @@
 <!-- CLAIM-HEADER (edit in place; body is append-only)
-GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116, RL-JGDMS-0134 to RL-JGDMS-0191, RL-JGDMS-0198 to RL-JGDMS-0207) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
-LATEST ADDENDUM: add.16 dated 2026-11-21 at heading "ADDENDUM add.16, AS-OF 2026-11-21 14:52 +1000"  (addenda govern body text)
+GOVERNING STATE: E:\Claude\claim_register\hypotheses\PROXYBOARD\INDEX.md  (this file's claims: CL-PROXYBOARD-0001 to CL-PROXYBOARD-0031, CL-PROXYBOARD-0053); rulings: E:\Claude\claim_register\rulings\JGDMS\INDEX.md  (RL-JGDMS-0037 to RL-JGDMS-0050, RL-JGDMS-0052 to RL-JGDMS-0116, RL-JGDMS-0134 to RL-JGDMS-0191, RL-JGDMS-0198 to RL-JGDMS-0207, RL-JGDMS-0241 to RL-JGDMS-0249) and E:\Claude\claim_register\rulings\DIRTYCHAI\INDEX.md  (RL-DIRTYCHAI-0005 to RL-DIRTYCHAI-0015)
+LATEST ADDENDUM: add.27 dated 2026-11-28 at heading "ADDENDUM add.27, AS-OF 2026-11-28 09:40 +1000"  (addenda govern body text)
 SUPERSEDED BY: none
 FASTEST-AGEING SECTION: LIVE STATE - re-read the disk before acting on it
 -->
@@ -583,3 +583,245 @@ Author: Claude Fable 5.2, the same session. Not reviewed by a different model. W
 1. Rev 3 was edited in place after it was written, as rev 2 was.
 2. This session wrote RL-JGDMS-0192 into rev 3 before seeing that the register had allocated RL-JGDMS-0198 (another session had taken six IDs); corrected in the same minute.
 3. "I agree with all three" (11:05) was read as repeating the 04:27 assent already registered; nothing was registered for it.
+
+## ADDENDUM add.17, AS-OF 2026-11-27 23:20 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model. Written at the operator's wrap-up instruction of 2026-11-27 23:10, before a compaction. This session did no work between add.16 and this instruction.
+
+**CLAIMS SETTLED.** None. This session ran no test and opened no source since add.16, so it knows the answer to no further claim in its scope. CL-PROXYBOARD-0007 was not checked. The six pointers named in add.16 remain pointers only.
+
+**RULINGS REGISTERED SINCE add.16.** None by this session. Other sessions have registered JGDMS rulings up to RL-JGDMS-0240 (relay and board subjects); this session has not read them against rev 3.
+
+**FILES.** The five files add.15 and add.16 listed as uncommitted (rev 3, the rev 2 status line, the two rev 2 reviews, this handover as of add.16) are in commit `8d3e31250`, made by the operator on 2026-11-21. This addendum is the only uncommitted change by this session. Seen in `docs` and not this session's: a modified `HANDOVER-relay-case-2026-11-22.md` and an untracked `HANDOVER-limited-privilege-review-2026-11-27.md`.
+
+**NEXT ACTION.** Unchanged from add.16: no coding scope; the three items under NEXT ACTION there come first. One addition: before rev 3 is used, read it against the rulings other sessions registered after RL-JGDMS-0207.
+
+**OPEN ITEMS.** As add.16; none closed.
+
+**NOT VERIFIED.** Nothing was compiled or run. Whether commit `8d3e31250` holds the files exactly as this session left them was not compared; `git status` on `docs` shows no difference for them.
+
+**DEVIATIONS.** None.
+
+## ADDENDUM add.18, AS-OF 2026-11-27 23:45 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model. At 23:21 the operator invited this session to read the other sessions' work; at 23:28 he agreed to its recommendations ("Yes, please update as per your recommendations.").
+
+**READ.** The register entries RL-JGDMS-0192 to RL-JGDMS-0197 and RL-JGDMS-0208 to RL-JGDMS-0240; `HANDOVER-relay-case-2026-11-22.md` (head and addenda 14 to 18); in `relay-isolation/DESIGN-security.md` the header, trust boundaries, R16l, K2 to K7, K16 and open points 16, 17, 40 and 41; `HANDOVER-limited-privilege-review-2026-11-27.md`; in DirtyChai, `Uri.toURL()` and the log of `Uri.java`.
+
+**REV 3.** Read against those rulings: none of RL-JGDMS-0208 to RL-JGDMS-0240 bears on the entry design, and RL-JGDMS-0192, RL-JGDMS-0194 and RL-JGDMS-0196 were already taken in. This closes the addition under NEXT ACTION in add.17.
+
+**REGISTERED.** RL-JGDMS-0241 (new). A note logged on each of RL-JGDMS-0077, RL-JGDMS-0078, RL-JGDMS-0111, RL-JGDMS-0114, RL-JGDMS-0115 and RL-JGDMS-0116 answering open point 17 of DESIGN-security, and a reading note on RL-JGDMS-0211. See `show` for each.
+
+**FILES CHANGED (uncommitted).** `relay-isolation/DESIGN-security.md`: a header paragraph dated 2026-11-27; K3 (a proxy JVM cannot change its address); K5 (the tick count corrected from k + 1 to 2k + 1 for K16); open point 17 closed; open point 40 gains the admission and eviction question. `HANDOVER-limited-privilege-review-2026-11-27.md`: a dated note appended and its header's addendum line. This handover.
+
+**NOT DONE, FOR THE OPERATOR.**
+- RL-JGDMS-0037's rule that the board never calls the host and uses no call-back listeners is carried only by K5, a proposal. This session registered nothing for it: the operator has not said he still holds it.
+- The admission and eviction rule itself (open point 40) is not written.
+- The relay-case session has not been told of these changes to the file it last edited.
+- R16c's own text was not edited; K5 now tells it which figure to use.
+
+**NOT VERIFIED.** Nothing was compiled or run. The 2k + 1 figure is arithmetic from the text of K5 and K16, not a measurement. In DirtyChai only `Uri.java` was opened; `computeDigestFromStream` was searched for under `java/security` and `au` in `java.base` only and not found there.
+
+**DEVIATIONS.**
+1. Two register commands were run at the same time and one failed to take the lock; it was rerun. Each of the seven status lines and the new entry is in the log once.
+2. This session appended a note to another session's handover.
+
+## ADDENDUM add.19, AS-OF 2026-11-27 23:55 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model.
+
+**REGISTERED.** RL-JGDMS-0242, from the operator's message of 23:42 ("Yes, the board never calls the host.  Also the mail service might need some precautions as well."). It answers the first item under NOT DONE in add.18. This session had overlooked that RL-JGDMS-0038 already covers the host exporting no listener.
+
+**FILES CHANGED (uncommitted).** `relay-isolation/DESIGN-security.md`: K7 cites RL-JGDMS-0242 and RL-JGDMS-0038; open point 15 notes the operator's remark on the mail service; the 2026-11-27 header paragraph. This handover.
+
+**OPEN.** Precautions for the event mailbox: this session put proposals to the operator in conversation (who may deliver to a registration, events never unmarshalled on the mailbox or the host, the listener's address replaced by a relay-issued id, quotas, acknowledgements on the tick). None is written into the design or ruled. Other items as add.18.
+
+**NOT VERIFIED.** Nothing was compiled or run. The mailbox proposals were made without reading the Mercury source.
+
+**DEVIATIONS.** None.
+
+Note, 2026-11-27 23:58 +1000: RL-JGDMS-0243 registered from the operator's message of 23:47, replacing this session's mailbox proposal that the mailbox keep the handback; open point 15 of DESIGN-security cites it. Caveat put to the operator: the decoder fault found in the rev 2 board review (the wire-named class is loaded before it is checked against the declared slot, `ObjectCodec.java` 709 and 714) applies to decoding a handback on the host.
+
+Note, 2026-11-28 00:10 +1000: RL-JGDMS-0244 registered from the operator's message of 2026-11-27 23:58; a correction note logged on RL-JGDMS-0243 (inspection, not decoding to objects). Read for it: `DerReader.java` (searched for class loading and reflection, none found) and `ObjectCodec.java` lines 575-640, 688-745, 1840-1900, 2112-2130 and its `loadClass` call sites (709, 737, 2124, 2480, 2508, 2697 on decode; 1422 on encode). Advice given in conversation on how to make the check by name before loading; no scope written, nothing compiled or run.
+
+Note, 2026-11-28 00:20 +1000: the operator pointed out (00:08) that Atomic DER allows inheritance to be refactored to composition, so the wire's schema chain need not match the local superclass chain. This session withdrew its advice to compare the wire chain with the leaf's real superclasses and advised instead that field stores be keyed by class name and matched to the calling class's name, so no chain class is loaded by a wire name. Read for it: `ObjectCodec.java` lines 745-790 and the `storeMap` uses in `DerGetArg.java`. Not read: how a refactored class obtains its former superclass's store. Nothing registered.
+
+Note, 2026-11-28 00:25 +1000: RL-JGDMS-0245 registered from the operator's message of 00:13, if the register allocated that ID (see its log for 2026-11-28). Read for it: `ResolutionContext.java` and a search of `ObjectCodec`, `DerGetArg`, `DerFieldStore` and `SchemaChain` for static caches. Not read: `ClassLoading.loadClass`, the whole of `DerFieldStore`.
+
+## ADDENDUM add.20, AS-OF 2026-11-28 00:35 +1000
+
+Author: Claude Fable 5.2, the same session. Not reviewed by a different model. Written at the operator's wrap-up instruction of 2026-11-28 00:25, before a compaction. It gathers add.18, add.19 and the notes after them; where they differ, this governs.
+
+**CLAIMS SETTLED.** None. No test was run. CL-PROXYBOARD-0007 was not checked; a pointer for whoever checks it: the Javadoc of `admissibleConstructClass` in `ObjectCodec.java` (lines 575-590) speaks of `DerProxySerializer` being admitted to narrowly typed slots. The other entries of the scope without a test result are as they were.
+
+**RULINGS REGISTERED BY THIS SESSION SINCE add.17.** RL-JGDMS-0241 to RL-JGDMS-0246. Notes logged on RL-JGDMS-0077, RL-JGDMS-0078, RL-JGDMS-0111, RL-JGDMS-0114, RL-JGDMS-0115, RL-JGDMS-0116, RL-JGDMS-0211 and (a correction) RL-JGDMS-0243. Subjects, for finding them: the relay's identification of a subprocess (0241), the board and the host (0242), the event handback (0243), class loading in `ObjectCodec` (0244, 0245), whose dynamic code needs a proxy module (0246).
+
+**FILES CHANGED BY THIS SESSION, UNCOMMITTED.** `relay-isolation/DESIGN-security.md` (header paragraph of 2026-11-27, K3, K5, K7, open points 15, 17 and 40); `HANDOVER-limited-privilege-review-2026-11-27.md` (a note appended, header addendum line); this handover (add.17 to add.20). The register's JGDMS log. Nothing is committed; commit only when the operator asks.
+
+**NEXT ACTION.** The operator said at 00:25: "You may investigate further following compaction." What that covers, from the conversation:
+1. How many cases still need dynamic code once DER and CEL have taken their share, and which of them are third-party (RL-JGDMS-0246). Start with `docs/RESULTS-lookup-cel-investigation.md`, not yet reviewed by this session.
+2. For RL-JGDMS-0244 and RL-JGDMS-0245, read before anything is specified: how a class refactored from inheritance to composition obtains its former superclass's field store; the component-class load at `ObjectCodec.java` line 2697; whether `ClassLoading.loadClass` initialises the class; where the per-class deserialization permission check must move; and, for open slots, whether the name check is a build-time index, a policy permission (DirtyChai's `LoadClassPermission`, not read) or both. The operator has not chosen.
+3. Still no coding scope: "We aren't ready to write the scope yet" stands.
+
+**OPEN ITEMS.**
+- Event mailbox precautions: this session's proposals 1, 2, 3, 5, 6 and 7 (who may deliver; nothing unmarshalled on the mailbox; nothing service-defined unmarshalled on the host; the listener's address replaced by a relay-issued id; quotas; acknowledgements on the tick) are neither written into the design nor ruled. Proposal 4 is replaced by RL-JGDMS-0243. Whoever walks a handback should cap nesting depth and size; `DerReader` was seen to check lengths only.
+- The admission and eviction rule for modules (DESIGN-security open point 40) is not written.
+- The relay-case session has not been told that this session edited `DESIGN-security.md`.
+- R16c's own text still carries the old tick figure; K5 now says which to use.
+- Everything listed open in add.16 and add.17, except that rev 3 has now been read against the register to RL-JGDMS-0240 (add.18).
+
+**NOT VERIFIED.** Nothing was compiled or run in this session since add.16. Every statement about code since then comes from reading the lines named in add.18 and the notes after it. The account of Warres's report given to the operator was from recall.
+
+**DEVIATIONS.**
+1. As add.18: two register commands collided on the lock and one was rerun; a note was appended to another session's handover.
+2. The second sentence of RL-JGDMS-0246's statement is this session's wording, agreed by the operator, not his own; its note says so.
+3. The note of 00:25 above said "if the register allocated that ID" of RL-JGDMS-0245; it did.
+
+## ADDENDUM add.21, AS-OF 2026-11-28 01:15 +1000
+
+Investigation the operator allowed after compaction. Reading only; nothing built or run; no register entry made. Bears on RL-JGDMS-0244, RL-JGDMS-0245, RL-JGDMS-0246.
+
+### ObjectCodec (jgdms-der, paths as in add.20)
+
+1. Loading does not initialise, as far as read. `ClassLoading.loadClass` (jgdms-platform, line 343) hands to the installed provider or `RMIClassLoader.loadClass`; `PreferredClassProvider` (jgdms-pref-class-loader, lines 622 to 722) uses `LoadClass.forName(name, false, defaultLoader)`. NOT READ: `LoadClass.forName`, which provider a proxy JVM installs, the JDK fallback.
+2. The per-class `DeSerializationPermission("ATOMIC")` check (`ObjectCodec.java` 213 to 247, called at 330, 768, 2530) is made against the protection domains of the loaded classes, so it cannot run before the load. It already runs before any constructor. It does not need to move; the name check goes in front of the load.
+3. DirtyChai `LoadClassPermission` (58 lines) takes no class name (only "ALLOW") and gates which code source may define classes. It cannot say which names a remote end may cause to be loaded. For open slots the build-time index is the only option that needs no new permission class.
+4. Array component class (`ObjectCodec.java` 2697): the wire's component class name is loaded and used to allocate the array. The declared component type is passed in from `DerGetArg.java` 325 to 334 but is used only to admit each element, not to check the wire component name before or after loading. `DerObjectStreamCodec.java` 1641 to 1642 passes no declared type.
+5. Composition. Inferred from `AtomicSerial.GetArg.callerClass` (jgdms-platform `AtomicSerial.java` near 395): a class refactored from `extends S` to holding an `S` gets S's values by handing the same `GetArg` to `new S(arg)`; the stack walk finds S as the nearest frame in the registered set and returns S's store. This works today only because S was loaded from the wire chain at 737 or 2508. Name-keyed stores keep it working. NOT RUN; no test for this pattern was looked for.
+6. Conflict with STD-006. The draft v0.13 section "Class absent locally, fields present on the wire" (near line 3368) says the decoder reads the absent class's SEQUENCE and no error occurs. `decodeHierarchy` calls `loadClass` for every chain record (737, 2508), which throws "cannot load class" for a name absent locally. By reading only, the constructing path fails where the standard says it must not. Name-keyed stores would remove the conflict. For the STD-006 owner.
+7. `callerClass` returns the sole registered class without looking at the stack when only one class is registered (`serial.size() == 1`). A helper handed the `GetArg` then reads that class's store whatever the helper is. Under name-keyed stores this shortcut needs the same identity test as the other path.
+
+### Dynamic code that remains
+
+From `docs/RESULTS-lookup-cel-investigation.md` (another session's result at commit 83c4d4c7a; sections 2, A3, C4, E.8 read; RELAYED, not re-opened in source):
+- Every filter and template its survey found is expressible in CEL with no language addition.
+- Left outside CEL on the lookup path: smart proxies with state, shared logic or backend calls; `ServiceItemFilter` code that reads the service object (the four qa TestFilters); `MarshalledObject` values such as `UIDescriptor.factory`; legacy Reggie and JOSS-only clients.
+- Thirty client-path class-load or unmarshal sites are tabled in its A3.
+
+Download modules, counted by `find` (Java files under src/main/java; classes not opened): jgdms-lib-dl 117, reggie-dl 31, outrigger-dl 26, mercury-dl 15, norm-dl 12, fiddler-dl 10, phoenix-dl 9, mahalo-dl 8, policy-service-dl 5, verdict-registry-dl 1; jfr-telemetry-dl, hello-world-dl and bytecode-analysis-engine-dl 0.
+
+NOT DONE: a class-by-class sort of those modules into data (DER), predicate (CEL), reflective proxy over a resident interface, and code that must run on the client. Until that is done the number of remaining cases is not known.
+
+## ADDENDUM add.22, AS-OF 2026-11-28 01:50 +1000
+
+Sort of the download modules, asked for by the operator ("Word ;)" to my proposal of Sonnet agents). Three Sonnet sub-agents, read-only, one row per source file; their tables are in this session's transcript, not in a file. Bears on RL-JGDMS-0246. No register entry made.
+
+Bins: D data; X exception; M interface or other declaration only; P pure forwarder or proxy-trust plumbing; L work done in the client; U uncertain.
+
+| Module | D | X | M | P | L | U | files |
+|---|---|---|---|---|---|---|---|
+| jgdms-lib-dl | 31 | 6 | 48 | 4 | 27 | 1 | 117 |
+| reggie-dl | 2 | 0 | 2 | 11 | 16 | 0 | 31 |
+| outrigger-dl | 4 | 0 | 6 | 6 | 10 | 0 | 26 |
+| mercury-dl | 3 | 1 | 3 | 4 | 4 | 0 | 15 |
+| norm-dl | 2 | 3 | 2 | 4 | 1 | 0 | 12 |
+| fiddler-dl | 2 | 0 | 1 | 4 | 3 | 0 | 10 |
+| phoenix-dl | 0 | 1 | 6 | 1 | 1 | 0 | 9 |
+| mahalo-dl | 1 | 2 | 2 | 3 | 0 | 0 | 8 |
+| policy-service-dl | 1 | 0 | 1 | 2 | 1 | 0 | 5 |
+| verdict-registry-dl | 0 | 0 | 0 | 1 | 0 | 0 | 1 |
+| total | 46 | 13 | 71 | 40 | 63 | 1 | 234 |
+
+All rows RELAYED. The second agent's first totals did not add up; the figures above are its corrected row counts. Agents did not read comment text. A leaf class binned P can inherit L behaviour from its parent (for example ConstrainableSpaceProxy2 from SpaceProxy2).
+
+CHECKED by me (line opened, text matches the agent's claim): every class-load, unmarshal and thread site the agents cited in AbstractSmartProxy (480, 506), EntryBeans (49, 55, 80, 85), UIDescriptor (216 to 219), BasicRenewalFailureEvent (183, 218), Bootstrap (80 to 85, 108), MarshalledWrapper (205, 239, 275), CodebaseProvider (53, 58, 69, 74); reggie EntryClass 277, EntryRep 289, 301, 340, Item 268, 381, 395, 421, RegistrarProxy 252, 316, 352, 384, ServiceType 290, 298; outrigger EntryRep 324, 847, 1345 to 1351, IteratorProxy 116, MatchSetProxy 99, SpaceProxy2 1196; mercury RemoteEventData 114; norm SetProxy 170; fiddler FiddlerRegistration 817 to 818; phoenix AID 130, 132; PolicyUpdateListener 297, 401, 425. I did not re-read whole files, and did not re-open the L rows that load nothing.
+
+My grouping of the 63 L rows (from the agents' notes, not a second read):
+1. Entry and service-type machinery that loads classes from a codebase or unmarshals field values: reggie EntryClass, EntryClassBase, EntryRep, Item, Matches, RegistrarEvent, ConstrainableRegistrarEvent, RegistrarProxy, ServiceType, ServiceTypeBase; outrigger EntryRep and what reaches it (IteratorProxy, MatchSetProxy, OutriggerAvailabilityEvent, SpaceProxy2).
+2. A service handing the client an object that belongs to someone else, unmarshalled in the client: norm SetProxy.getLeases and BasicRenewalFailureEvent (other services' leases), fiddler FiddlerRegistration.getRegistrars (registrars, with integrity fixed to false at 818), mercury RemoteEventData (other services' events), phoenix AID.activate, UIDescriptor.getUIFactory (integrity fixed to false at 219, context loader swapped).
+3. Client behaviour with no class loading: SpaceProxy2's retry and poll loops, the paging iterators, the batching lease maps, PolicyUpdateListener (exports a listener at 297 and starts a thread at 401; compare RL-JGDMS-0242 and RL-JGDMS-0038).
+4. Local library code and helpers: lease arithmetic and maps, landlord utilities, constraint translation, LookupAttributes, AbstractEntry, the provider-loaded facades (LeaseRenewalManager, ServiceDiscoveryManager, JoinManager, which is the one U row), the ProxyUtil classes.
+5. Name-derived loading outside the assigned loader: EntryBeans; AbstractSmartProxy.createFor (name derived from a local interface, initialise true).
+
+jfr-telemetry-dl, hello-world-dl and bytecode-analysis-engine-dl hold no source, no pom, only target/ with a Backend interface and a Proxy with a nested Constrainable proxy each (agent report; I confirmed hello-world-dl holds only target/). `JiniService` appears in hello-world-api HelloService.java. Whether those proxies are generated from that annotation, and whether the directories are stale build output, NOT CHECKED.
+
+NOT DONE: deciding, class by class, which P rows a reflective proxy over a resident interface replaces and which L rows the entry redesign (rev 3) and the class-free lookup already remove. That is design and is not written.
+
+## ADDENDUM add.23, AS-OF 2026-11-28 02:20 +1000
+
+The operator asked for a scope: "Can you write a scope to address all issues with ObjectCodec and investigate design options for reducing code downloads by replacing them with CEL where possible?"
+
+- Written, uncommitted: `docs/SOW-ObjectCodec-Class-Admission-and-Code-Download-Reduction-2026-11-28.md`. Part A is the decoder change (acts on RL-JGDMS-0244 and RL-JGDMS-0245) with four operator decisions D1 to D4 that gate its coding steps. Part B is a read-only investigation (RL-JGDMS-0246). Not reviewed by anyone.
+- The add.22 tables are now on disk for two of the three sub-agents, written by the sub-agents themselves at my request: `docs/RESULTS-dl-module-class-sort-2026-11-28-part1-lib-dl-1-59.md` and `-part3-services.md`. Part 1 was retyped by its agent, not machine-compared with its first report.
+- Part 2 (jgdms-lib-dl sorted files 60 to 117) is NOT on disk: the sub-agent's write was refused by the permission system. I did not write it in its place. Its table is in this session's transcript only. The scope says what to do if the file is missing.
+- DEVIATION: add.22 said the tables were in the transcript only; two are now files. I gave sub-agents one permitted write each after telling them the task was read-only.
+
+Note, 2026-11-28 02:35 +1000 (after add.23). The operator said "I give permission to the sub agent to write the file."; the sub-agent's retry was refused again by the permission system. The operator then said "Yes, write the table please". I wrote `docs/RESULTS-dl-module-class-sort-2026-11-28-part2-lib-dl-60-117.md` myself from the sub-agent's report (58 rows; bins counted by script match its corrected totals). The scope's section 2 now names all three part files. This supersedes add.23's statement that part 2 is not on disk.
+
+## ADDENDUM add.24, AS-OF 2026-11-28 03:00 +1000
+
+Wrap-up before compaction, at the operator's instruction. Covers everything since add.20; add.21 to add.23 and the note after add.23 hold the detail.
+
+### CLAIMS SETTLED
+None. No test was run this period. CL-PROXYBOARD-0007 is still unchecked.
+
+### RULINGS REGISTERED THIS PERIOD
+RL-JGDMS-0247, RL-JGDMS-0248, RL-JGDMS-0249, from the operator's "Your recommended decisions are accepted." (decisions D1, D2, D3 of the scope below). Each statement is my wording; each note says so and gives his words. D4 is not a ruling.
+
+### FILES (all uncommitted)
+- New: `docs/SOW-ObjectCodec-Class-Admission-and-Code-Download-Reduction-2026-11-28.md` (CRLF). Section A.1 records D1 to D3 as decided and the index details, with three points marked open (generator, merged jars, OSGi).
+- New: `docs/RESULTS-dl-module-class-sort-2026-11-28-part1-lib-dl-1-59.md`, `-part2-lib-dl-60-117.md`, `-part3-services.md` (LF). Parts 1 and 3 written by their sub-agents; part 2 by me with the operator's permission.
+- Changed: this handover; the register's JGDMS ruling log.
+- Still uncommitted from before: `relay-isolation/DESIGN-security.md`, `HANDOVER-limited-privilege-review-2026-11-27.md`.
+
+### IN FLIGHT: the board review of the scope
+The operator said: "You can establish a board using the board skill to review the scope.  Have Opus and Sonnet review, if you think a difficult item warrants it, a Fable agent as well." The skill is `JGDMS/.claude/skills/jgdms-board-review/SKILL.md` (guidance: `docs/JGDMS-Board-Reviewer-Guidance.md`).
+- Dispatched 2026-11-28, read-only, both running when this was written: an Opus seat (adversarial security plus DER and module boundary; attacks the A3 gate and A4 stores, checks the order of checks, the tests, and Part B's trust moves) and a Sonnet seat (verifies every anchor in the scope, checks STD-006, STD-008, STD-011 and the earlier CEL scopes against it, looks for existing tests that already cover T1 to T7, checks the class-sort totals).
+- No Fable seat dispatched. I would add one only if the two seats disagree on a hard item, or for the name-level form of the `@Serializer` and `Resolve` rule in A3.
+- Their reports are NOT in. Nothing in the scope has been reviewed yet.
+
+### NEXT ACTION
+1. Read the two board reports when they arrive. Re-open every HIGH and MEDIUM finding in source before accepting it. Revise the scope. Report to the operator what was accepted, rejected and why.
+2. The operator then decides D4 and dispatches Part A and Part B. This session writes no code.
+
+### OPEN ITEMS
+- The scope is unreviewed until item 1 is done.
+- The index's resource name, line format, generator, merged-jar and OSGi handling (not ruled; see the note on RL-JGDMS-0247).
+- The STD-006 owner has not been told of the absent-class conflict (add.21 item 6) or of RL-JGDMS-0248.
+- Mailbox proposals 1, 2, 3, 5, 6, 7 (add.19) wait on the operator. BasicRenewalFailureEvent and mercury RemoteEventData (add.22 group 2) bear on them.
+- PolicyUpdateListener exports a listener and starts a thread; compare RL-JGDMS-0242 and RL-JGDMS-0038. Not raised as a defect anywhere yet.
+- Everything listed open in add.20.
+
+### NOT VERIFIED
+- The class-sort rows, beyond the cited load, unmarshal and thread lines I opened (add.22).
+- That the constructing decode fails on a locally absent chain class: by reading, not run.
+- Whether any installed provider initialises a class on load.
+- Decode-side load sites outside ObjectCodec (scope table A.2 row O7).
+
+### DEVIATIONS
+- Sub-agents were told read-only, then given one permitted write each; one write was refused twice by the permission system and I wrote that file after the operator said "Yes, write the table please".
+- The scope was dispatched to the board before the ruling IDs existed, so it cites "the handover" for them instead of the IDs.
+- A register log line count rose by more than my own entries during this period; other sessions were writing. I did not look at their entries.
+
+## ADDENDUM add.25, AS-OF 2026-11-28 03:30 +1000
+
+- CL-PROXYBOARD-0007: the operator asked for a scope for a coding agent and allowed the reading. Scope written: `SOW-CL-PROXYBOARD-0007-Proxy-Carrier-Decode-Test-2026-11-28.md` (new, uncommitted, tests only, not dispatched). No status change recorded; no test was run.
+- Reading by this session at commit 45f719aa7f342f69ba224c0820ff49e839c87db9 (nothing run): `ObjectCodec.java` 594 to 609 and 2363 to 2367; `DerProxySerializer.java` 149 to 185 and 260 to 266; `PreferredProxyCodebaseProvider.java` 1928 to 1969 and 2040 to 2060; `ServerIdentityPin.java` 100 to 135. The order read is: `ServerIdentityPin.probe` (invokes `authenticateServer` on a platform JERI handler), then `getClassAnnotation()`, then the isolation check. NOT CHECKED: whether `authenticateServer` connects; which handler classes decode into the `InvocationHandler` slot; which permission checks run before `readResolve`.
+- The scope for RL-JGDMS-0247 to RL-JGDMS-0249 now names those IDs in its A.1.
+- IN FLIGHT, unchanged: the two board seats on the ObjectCodec scope have not reported.
+- NEXT ACTION: operator dispatches the CL-PROXYBOARD-0007 test scope; this session records the result in the register when the report is in.
+
+## ADDENDUM add.26, AS-OF 2026-11-28 04:30 +1000
+
+- Both board seats reported on `SOW-ObjectCodec-Class-Admission-and-Code-Download-Reduction-2026-11-28.md` (Opus: adversarial security; Sonnet: rule fidelity and anchors). Neither ran a test. No Fable seat was used; the two did not disagree.
+- This session re-opened the lines behind every HIGH finding at commit 45f719aa7f342f69ba224c0820ff49e839c87db9 and found them as reported: `AtomicSerial.java` 691 to 697 and 395 to 400; `DerGetArg.java` 296 to 304, 350 to 356, 450 to 460; `DerMarshalInputStream.java` 396 to 404; `DerObjectStreamCodec.java` 2110 to 2117, 1724 to 1731, 1766 to 1772; `ObjectCodec.java` 2304 to 2310, 735 to 740; `DerFieldStore.java` 408 to 419, 326; `WireTypes.java` 126 to 130, 505 to 514; `ResolutionContext.java` 73; `DerReplacer.java` 124 to 162; `MarshalDelegateProcessor.java` 50 to 80; `ClassEvolutionTest.java` 170 to 200; `Std006DataIndependenceClassNamingFieldsTest.java` 236 to 249; `HelloService.java` 41 to 47. Test names in the scope's A.2a were confirmed by grep. Nothing was run.
+- The scope is now revision 2: new defects O10 to O18, an existing-test list (A.2a), tests T1 to T13, a review record (A.6), corrections in section 1 and Part B. What was taken, taken as an option, not taken and not re-opened is in its A.6.
+- OPEN FOR THE OPERATOR, none ruled: D5 to D10 in the scope's A.1 (the `Object` slot residual; whose index admits a name; proxy interface names; `Class` and enum field values; changing existing tests; composition against STD-006 section 3.9). Steps A3 to A7 are blocked on them. D4 is still open.
+- Corrections to earlier addenda: add.21 item 5 said no composition test was looked for; `ClassEvolutionTest` line 174 is one. add.22's "no existing annotation processor" is wrong; `MarshalDelegateProcessor` exists. The scope's first text called `DerReplacer`'s list a precedent for merging; it reads one resource.
+- NOT VERIFIED: the items marked RELAYED in the scope's A.2 and A.6; whether a jar signature covers a `META-INF` resource; the `RMIClassLoader` fallback.
+
+## ADDENDUM add.27, AS-OF 2026-11-28 09:40 +1000
+
+Wrap-up before compaction. This addendum supersedes the NEXT ACTION lines of add.24 to add.26.
+
+- CLAIMS SETTLED: none. No test was run by this session. CL-PROXYBOARD-0007 was re-read (add.25) and has a test scope; its status is unchanged.
+- RULINGS: none new since add.24. RL-JGDMS-0247 is under question (below) but stands until the operator rules.
+- OPERATOR'S POSITION, 2026-11-28 09:19, his words, NOT registered as a ruling: "there is a tension, we have DeserializationPermission that checks whether a class's ProtectionDomain says whether it's trustworthy to perform deserialization, and this is checked by SCAP.  We have LoadClassPermission to ensure only trusted and identified jar's can be loaded.  But we don't want to break encapsulation and turn deserialization into an administrative task either." And at 09:23: "I think this requires further investigation by a coding agent, before finalizing decisions".
+- THIS SESSION'S VIEW, not a ruling: the declared type of the reading slot is the non-administrative answer to "which trusted class in this slot"; if a load never runs code and is already gated by LoadClassPermission, the index of RL-JGDMS-0247 adds little and could become optional. D7's index section of interfaces is withdrawn as a recommendation. The question put to the operator and not answered: is the harm in RL-JGDMS-0244 the load itself, or code of a wire-named class running before the check.
+- WRITTEN, new, uncommitted, not dispatched: `SOW-ObjectCodec-Phase1-Decode-Class-Loading-Investigation-2026-11-28.md` (tests and reading only; five questions Q1 to Q5; tests P1 to P3, E1, E2 and the parent's T-tests).
+- UNCOMMITTED FILES of this session in `docs`: the phase 1 scope; `SOW-ObjectCodec-Class-Admission-and-Code-Download-Reduction-2026-11-28.md` (revision 2); `SOW-CL-PROXYBOARD-0007-Proxy-Carrier-Decode-Test-2026-11-28.md`; the three `RESULTS-dl-module-class-sort-2026-11-28-*` files; this handover; and from earlier `relay-isolation/DESIGN-security.md` and `HANDOVER-limited-privilege-review-2026-11-27.md`. Register log: RL-JGDMS-0247 to RL-JGDMS-0249.
+- IN FLIGHT: nothing. Both board seats have finished.
+- NEXT ACTION: the operator dispatches the phase 1 scope (and, if he wishes, the CL-PROXYBOARD-0007 test scope to the same agent) and relays the results. This session reviews them, re-opening findings in source, then puts D5 to D10 and the index question to the operator with the evidence. No code from this session.
+- OPEN FOR THE OPERATOR: D4 to D10 in the parent scope; the RL-JGDMS-0244 question above; Part B dispatch; and everything listed open in add.24.
+- NOT VERIFIED: everything in the parent scope marked RELAYED; whether any provider initialises on load; whether a wire name can cause a fetch; whether LoadClassPermission is checked on the decode load path.
+- DEVIATIONS: the lint counts rose by one log line between add.24 and add.25 without a write by this session; another session wrote to the register. Not investigated.

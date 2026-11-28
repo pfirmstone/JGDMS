@@ -121,6 +121,13 @@ accepted the R16l proposals (RL-JGDMS-0239). K16 (the relay as a resource every 
 shares) is added as proposals, with open point 41; CL-RELAYCASE-0066 is untested. At 14:10
 he accepted K16 as well (RL-JGDMS-0240).
 
+Revision of 2026-11-27, by the design session (Claude Fable 5.2) after reviewing the
+additions above, with the operator's agreement to its recommendations: K5's tick count is
+corrected for K16; K3 states that a proxy JVM cannot change its address (RL-JGDMS-0241);
+open point 17 is closed; open point 40 gains the question of admission when the modules
+run out. K7 cites RL-JGDMS-0242 (the board never calls the host), and open point 15 notes
+that precautions for the event mailbox are still to be written.
+
 
 ## Trust boundaries
 
@@ -793,7 +800,11 @@ Operator statements, 2026-11-22:
     The JVM's one socket is a TCP connection to the relay; the module's packet filter,
     matched on the subprocess's cgroup, allows only the relay's address and port, and the
     syscall filter (R14) refuses `listen` and `accept`. There is no SPIRE server inside
-    the case and no TrustZone or `/dev/tee0` access for proxies.
+    the case and no TrustZone or `/dev/tee0` access for proxies. The proxy JVM has no
+    network administration rights in its namespace (no `CAP_NET_ADMIN`, and no user
+    namespace that would grant it), so it cannot change the address the launcher gave
+    it: the relay tells one subprocess of a slot from another by that address
+    (RL-JGDMS-0241, 2026-11-27).
   - What this rests on: the backplane wiring, the numbered leads and MCIO cables, and the
     controller; the network controllers, whose configuration memory is read and checked
     before use and whose management interfaces (NC-SI, SMBus) are left unconnected; and
@@ -837,6 +848,9 @@ Operator statements, 2026-11-22:
   relay issued, and can start nothing towards the host. The relay applies the tick of R8
   to host dispatches and service replies alike. A call making k service round trips costs
   about k + 1 ticks plus network time, which R16c should include when the tick is chosen.
+  Corrected 2026-11-27: since K16 (RL-JGDMS-0240) the relay also releases on the tick what
+  it sends to services, so each round trip waits for a tick on the way out and another on
+  the way back, and the cost is about 2k + 1 ticks. R16c should use that figure.
 - **K6. Capacity.** Connections to services number about services x trust domains x
   ceil(concurrent calls / sessions per connection), independent of the number of boards;
   they are kept long-lived, with TLS 1.3 resumption, because each full handshake costs a
@@ -854,6 +868,8 @@ Operator statements, 2026-11-22:
   RL-JGDMS-0037 (each board wired to its host and to its service) is replaced by the
   operator (2026-11-22); its rule that the board never calls the host and that no
   call-back listeners are used carries on as K5, a proposal not separately registered.
+  2026-11-27: the operator restated that the board never calls the host (RL-JGDMS-0242);
+  that the host exports no listener and pulls events from the mailbox is RL-JGDMS-0038.
   Revised 2026-11-22 evening: the mutual TLS of RL-JGDMS-0210 and -0212, the relay's SPIRE
   server for the case, the per-JVM certificates and MAC-stealing detection are replaced by
   K3's slot VLANs (RL-JGDMS-0213).
@@ -1309,7 +1325,9 @@ Open points added by this section:
     server board.
 15. **Where the fetcher (C2) and the event mailbox run.** The fetcher as a keyless process
     on the relay hardware or on a board of its own; the mailbox (RL-JGDMS-0038) as a node
-    type in one of the bays, reaching services through the relay.
+    type in one of the bays, reaching services through the relay. 2026-11-27: the
+    operator said the mail service "might need some precautions as well"; none is written
+    yet. One is ruled: the host parses an event's handback using DER (RL-JGDMS-0243).
 16. **Keeping each proxy JVM to its own TrustZone key** (K3). One uid for all proxy JVMs
     (RL-JGDMS-0111) against OP-TEE's uid-or-gid client identity (CL-RELAYCASE-0015): a uid
     or supplementary gid per subprocess, which revises RL-JGDMS-0111 and the launcher
@@ -1324,6 +1342,10 @@ Open points added by this section:
     restated or stands read that way. As with the Unix socket, nothing on this hop
     satisfies `Integrity.YES` by cryptography; the slot's wiring and the module's kernel
     stand in for it, which is the case RL-JGDMS-0116 already allows for.
+    Closed 2026-11-27: the operator agreed that each of the six stands, read with the Unix
+    socket as the subprocess's connection to the relay (a note is logged on each ID). The
+    subprocess is identified by its slot's interface and the address the launcher assigned,
+    which the proxy JVM cannot change (RL-JGDMS-0241).
 18. **Switch chip** (K1, K3). Closed 2026-11-23: no Ethernet switch (RL-JGDMS-0216). A
     part that runs without firmware and whose registers the controller can set for
     per-port ingress tagging, dropping tagged frames on board ports, VLAN membership with
@@ -1448,7 +1470,10 @@ Open points added by this section:
     pinned one to a core; interrupts on the system cores; per-JVM memory limits under one
     cgroup. Still open: whether the part partitions its L3 (CL-RELAYCASE-0064, and the
     bench test of CL-RELAYCASE-0065); how many proxy JVMs a core carries (R16c); how the
-    relay assigns identities to modules as demand changes.
+    relay assigns identities to modules as demand changes. Added 2026-11-27: a module
+    changes identity only by re-image and a case holds 24, so modules can run out, by
+    demand or by someone presenting many cheap identities; an admission and eviction rule
+    is needed (who may claim a module, what is refused or evicted when none is free).
 41. **The relay as a shared resource** (K16). The relay cores reserved per module or group
     of modules, against the chosen Xeon 6's core count; whether the part's cache and
     bandwidth allocation has enough classes of service (CL-RELAYCASE-0066); the latency
