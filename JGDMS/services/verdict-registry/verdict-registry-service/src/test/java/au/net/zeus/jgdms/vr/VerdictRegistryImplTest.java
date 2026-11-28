@@ -647,6 +647,162 @@ public class VerdictRegistryImplTest {
     }
 
     // =========================================================================
+    // submitReport — engine-signature coverage of the per-class results
+    // (RL-JGDMS-0197).  CodebaseDownloaderImpl relays the engine's report to
+    // submitReport, so the engine signature is the only thing binding the
+    // per-class fields to the engine.  Each test re-presents a genuine engine
+    // signature over a report with ONE ClassAnalysisResult field altered: the
+    // registry must discard the forgery, then accept the genuine report (the
+    // in-test control that a discard is caused by the alteration, not by a
+    // registry that rejects everything).
+    // =========================================================================
+
+    private static final String RELAY_URL = "http://example.com/relayed.jar";
+
+    @Test
+    public void testSubmitReportForgedProxyVerdictDangerousToSafeIsDiscarded()
+            throws Exception {
+        registry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+        String hash = "f1f1";
+        JarAnalysisReport genuine = signReport(hash, oneClass(
+                ConstrainableProxyVerdict.JAVA_SERIALIZATION,
+                Collections.<String>emptyList(), Collections.<String>emptyList()),
+                engineKeyPair);
+        JarAnalysisReport forged = withSignature(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.<String>emptyList(), Collections.<String>emptyList()),
+                genuine.getEngineSignature());
+        // The altered field decides the verdict: the forgery is not vacuous.
+        assertEquals(VerdictType.DANGEROUS, genuine.deriveVerdictType());
+        assertEquals(VerdictType.SAFE, forged.deriveVerdictType());
+
+        assertDiscardedThenGenuineAccepted(hash, forged, genuine, VerdictType.DANGEROUS);
+    }
+
+    @Test
+    public void testSubmitReportForgedProxyVerdictSafeToDangerousIsDiscarded()
+            throws Exception {
+        registry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+        String hash = "f2f2";
+        JarAnalysisReport genuine = signReport(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.<String>emptyList(), Collections.<String>emptyList()),
+                engineKeyPair);
+        JarAnalysisReport forged = withSignature(hash, oneClass(
+                ConstrainableProxyVerdict.JAVA_SERIALIZATION,
+                Collections.<String>emptyList(), Collections.<String>emptyList()),
+                genuine.getEngineSignature());
+        assertEquals(VerdictType.SAFE, genuine.deriveVerdictType());
+        assertEquals(VerdictType.DANGEROUS, forged.deriveVerdictType());
+
+        assertDiscardedThenGenuineAccepted(hash, forged, genuine, VerdictType.SAFE);
+    }
+
+    @Test
+    public void testSubmitReportForgedBlockingCallPathIsDiscarded() throws Exception {
+        registry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+        String hash = "f3f3";
+        JarAnalysisReport genuine = signReport(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.singletonList("a/B/c()V"), Collections.<String>emptyList()),
+                engineKeyPair);
+        JarAnalysisReport forged = withSignature(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.singletonList("evil/X/y()V"), Collections.<String>emptyList()),
+                genuine.getEngineSignature());
+        // blockingCallPath does not feed deriveVerdictType today.
+        assertEquals(VerdictType.SAFE, genuine.deriveVerdictType());
+        assertEquals(VerdictType.SAFE, forged.deriveVerdictType());
+
+        assertDiscardedThenGenuineAccepted(hash, forged, genuine, VerdictType.SAFE);
+    }
+
+    @Test
+    public void testSubmitReportForgedCycleParticipantsIsDiscarded() throws Exception {
+        registry.registerAnalysisEngine("e1", engineKeyPair.getPublic(), SIG_ALGORITHM);
+        String hash = "f4f4";
+        JarAnalysisReport genuine = signReport(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.<String>emptyList(), Collections.singletonList("a/B")),
+                engineKeyPair);
+        JarAnalysisReport forged = withSignature(hash, oneClass(
+                ConstrainableProxyVerdict.NA,
+                Collections.<String>emptyList(), Collections.singletonList("evil/X")),
+                genuine.getEngineSignature());
+        // cycleParticipants does not feed deriveVerdictType today.
+        assertEquals(VerdictType.SAFE, genuine.deriveVerdictType());
+        assertEquals(VerdictType.SAFE, forged.deriveVerdictType());
+
+        assertDiscardedThenGenuineAccepted(hash, forged, genuine, VerdictType.SAFE);
+    }
+
+    /**
+     * Submits {@code forged} and requires that no verdict is published for
+     * {@code hash}; then submits {@code genuine} and requires {@code expected}.
+     */
+    private void assertDiscardedThenGenuineAccepted(String hash,
+                                                    JarAnalysisReport forged,
+                                                    JarAnalysisReport genuine,
+                                                    VerdictType expected)
+            throws Exception {
+        registry.submitReport("e1", forged);
+        RegistryVerdict afterForged = registry.getVerdictByHash(hash);
+        assertNull(new StringBuilder()
+                .append("forged report verified and published: ")
+                .append(afterForged).toString(), afterForged);
+
+        registry.submitReport("e1", genuine);
+        RegistryVerdict afterGenuine = registry.getVerdictByHash(hash);
+        assertNotNull("genuine engine-signed report must be accepted", afterGenuine);
+        assertEquals(expected, afterGenuine.getVerdict());
+    }
+
+    /** One CLEAN/COMPLIANT class whose remaining per-class fields are given. */
+    private static Map<String, ClassAnalysisResult> oneClass(
+            ConstrainableProxyVerdict proxyVerdict,
+            java.util.List<String> blockingCallPath,
+            java.util.List<String> cycleParticipants) {
+        Map<String, ClassAnalysisResult> results =
+                new LinkedHashMap<String, ClassAnalysisResult>();
+        results.put("com/example/Foo", new ClassAnalysisResult(
+                "com/example/Foo", ClinitVerdict.CLEAN, AtomicSerialVerdict.COMPLIANT,
+                proxyVerdict, blockingCallPath, cycleParticipants));
+        return results;
+    }
+
+    /** The relay's forgery: {@code results} carrying a captured signature. */
+    private static JarAnalysisReport withSignature(String contentHash,
+            Map<String, ClassAnalysisResult> results, byte[] signature) {
+        return new JarAnalysisReport(contentHash, results, signature,
+                new String[0], new String[]{ RELAY_URL });
+    }
+
+    /**
+     * Engine-signs {@code results} the way {@code JarAnalyzer} does: over
+     * {@link JarAnalysisReport#canonicalBytes()} of a placeholder-signature report.
+     */
+    private static JarAnalysisReport signReport(String contentHash,
+            Map<String, ClassAnalysisResult> results, KeyPair signingKey)
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        return signReport(contentHash, results, new String[0],
+                new String[]{ RELAY_URL }, signingKey);
+    }
+
+    private static JarAnalysisReport signReport(String contentHash,
+                                                Map<String, ClassAnalysisResult> results,
+                                                String[] declaredPermissions,
+                                                String[] codebaseUrls,
+                                                KeyPair signingKey)
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        JarAnalysisReport unsigned = new JarAnalysisReport(
+                contentHash, results, new byte[]{0},
+                declaredPermissions, codebaseUrls);
+        byte[] sig = rsaSign(signingKey, unsigned.canonicalBytes());
+        return new JarAnalysisReport(
+                contentHash, results, sig, declaredPermissions, codebaseUrls);
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
 
@@ -671,14 +827,8 @@ public class VerdictRegistryImplTest {
                 ConstrainableProxyVerdict.NA,
                 Collections.<String>emptyList(),
                 Collections.<String>emptyList()));
-
-        // Sign canonicalBytes() of an intermediate (placeholder-signature) report.
-        JarAnalysisReport unsigned = new JarAnalysisReport(
-                contentHash, results, new byte[]{0},
-                declaredPermissions, codebaseUrls);
-        byte[] sig = rsaSign(signingKey, unsigned.canonicalBytes());
-        return new JarAnalysisReport(
-                contentHash, results, sig, declaredPermissions, codebaseUrls);
+        return signReport(contentHash, results, declaredPermissions, codebaseUrls,
+                signingKey);
     }
 
     /**

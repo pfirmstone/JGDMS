@@ -27,6 +27,9 @@ package au.net.zeus.jgdms.api.codebase;
  * quorum policy and publishes an authoritative {@link RegistryVerdict} to
  * clients.
  *
+ * <p>Constants are signed by name (JGDMS-STD-006 &sect;7.4), so a constant must
+ * never be renamed.
+ *
  * @since 3.1.1
  * @author Peter Firmstone
  * @author GitHub Copilot

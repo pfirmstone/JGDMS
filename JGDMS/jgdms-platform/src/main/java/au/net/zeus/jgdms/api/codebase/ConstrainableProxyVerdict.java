@@ -35,6 +35,9 @@ package au.net.zeus.jgdms.api.codebase;
  * requirement — a downgrade attack the compiler cannot catch in third-party
  * bytecode.
  *
+ * <p>Constants are signed by name (JGDMS-STD-006 &sect;7.4), so a constant must
+ * never be renamed.
+ *
  * @see ClassAnalysisResult
  * @see AtomicSerialVerdict
  * @since 3.1.1

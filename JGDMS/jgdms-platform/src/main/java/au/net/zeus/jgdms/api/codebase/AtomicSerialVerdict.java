@@ -25,6 +25,9 @@ package au.net.zeus.jgdms.api.codebase;
  * checks that every class in a JAR that implements {@code Serializable} (or is
  * annotated {@code @AtomicSerial}) conforms to the protocol.
  *
+ * <p>Constants are signed by name (JGDMS-STD-006 &sect;7.4), so a constant must
+ * never be renamed.
+ *
  * @see ClassAnalysisResult
  * @since 3.1.1
  * @author Peter Firmstone

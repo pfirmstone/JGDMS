@@ -22,9 +22,11 @@ import java.io.InvalidObjectException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -122,13 +124,30 @@ public final class JarAnalysisReport {
         if (classNames.length != classResults.length)
             throw new InvalidObjectException(
                     "classNames.length != classResults.length");
+        // The signature covers the classNames array, but consumers read the
+        // results map, which keeps only the last of a repeated name: a repeat
+        // would put two different structures behind one signature.
+        Set<String> seen = new HashSet<String>(classNames.length * 2);
         for (String name : classNames) {
             if (name == null)
                 throw new InvalidObjectException("classNames must not contain null");
+            if (!seen.add(name))
+                throw new InvalidObjectException(new StringBuilder()
+                        .append("classNames must not contain a duplicate: ")
+                        .append(name).toString());
         }
         for (ClassAnalysisResult cr : classResults) {
             if (cr == null)
                 throw new InvalidObjectException("classResults must not contain null");
+        }
+        // classNames[i] is the signed name; a result naming another class
+        // would carry an unsigned className.
+        for (int i = 0; i < classNames.length; i++) {
+            if (!classNames[i].equals(classResults[i].getClassName()))
+                throw new InvalidObjectException(new StringBuilder()
+                        .append("classNames[").append(i)
+                        .append("] differs from classResults[").append(i)
+                        .append("].className").toString());
         }
         byte[] sig = (byte[]) arg.get(ENGINE_SIGNATURE, null);
         if (sig == null || sig.length == 0)
@@ -162,7 +181,8 @@ public final class JarAnalysisReport {
     private final String contentHash;
 
     /**
-     * Internal binary class names ({@code /}-separated), in insertion order.
+     * Internal binary class names ({@code /}-separated), in insertion order,
+     * each distinct.
      * Parallel to {@link #classResults}; together they form the serialized
      * representation of the per-class results.
      *
@@ -186,10 +206,12 @@ public final class JarAnalysisReport {
 
     /**
      * DER-encoded signature produced by the engine's private key over the
-     * canonical DER TBS content of this report (JGDMS-STD-006 &sect;7.4) —
-     * {@link #contentHash}, the per-class results, {@link #declaredPermissions},
-     * and {@link #codebaseUrls} — as computed by {@link #canonicalBytes()}.
-     * Excluded from its own TBS.
+     * canonical DER TBS content of this report (JGDMS-STD-006 &sect;7.4), as
+     * computed by {@link #canonicalBytes()}.  The TBS covers every other field
+     * of the report: {@link #contentHash}, all six fields of each
+     * {@link ClassAnalysisResult} (name, the three verdicts, blocking call path,
+     * cycle participants), {@link #declaredPermissions} and
+     * {@link #codebaseUrls}.  Excluded from its own TBS.
      */
     private final byte[] engineSignature;
 
@@ -305,7 +327,9 @@ public final class JarAnalysisReport {
      *
      * @param contentHash          SHA-256 hex digest of the analysed JAR; must
      *                             be non-null and non-empty
-     * @param results              per-class analysis results; must be non-null
+     * @param results              per-class analysis results; must be non-null,
+     *                             and each key must equal its value's
+     *                             {@link ClassAnalysisResult#getClassName()}
      * @param engineSignature      DER-encoded engine signature; must be non-null
      *                             and non-empty
      * @param declaredPermissions  lines from {@code META-INF/PERMISSIONS.LIST};
@@ -314,8 +338,11 @@ public final class JarAnalysisReport {
      * @param codebaseUrls         RFC 3986 URI strings of the JAR's origin; must
      *                             be non-null; individual elements must be
      *                             non-null; may be empty
-     * @throws IllegalArgumentException if any argument fails a precondition
-     * @throws NullPointerException     if any argument is {@code null}
+     * @throws IllegalArgumentException if any argument fails a precondition,
+     *                                  including a result whose className
+     *                                  differs from its key
+     * @throws NullPointerException     if any argument, or a key or value of
+     *                                  {@code results}, is {@code null}
      */
     public JarAnalysisReport(String contentHash,
                               Map<String, ClassAnalysisResult> results,
@@ -331,17 +358,31 @@ public final class JarAnalysisReport {
         if (declaredPermissions == null)  throw new NullPointerException("declaredPermissions");
         for (int i = 0; i < declaredPermissions.length; i++) {
             if (declaredPermissions[i] == null)
-                throw new NullPointerException("declaredPermissions[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("declaredPermissions[").append(i).append("]").toString());
         }
         if (codebaseUrls == null)         throw new NullPointerException("codebaseUrls");
         for (int i = 0; i < codebaseUrls.length; i++) {
             if (codebaseUrls[i] == null)
-                throw new NullPointerException("codebaseUrls[" + i + "]");
+                throw new NullPointerException(new StringBuilder()
+                        .append("codebaseUrls[").append(i).append("]").toString());
+        }
+
+        // Check the private copy: the caller's map may change after the check.
+        Map<String, ClassAnalysisResult> ordered =
+                new LinkedHashMap<String, ClassAnalysisResult>(results);
+        for (Map.Entry<String, ClassAnalysisResult> e : ordered.entrySet()) {
+            if (e.getKey() == null)   throw new NullPointerException("results key");
+            if (e.getValue() == null) throw new NullPointerException("results value");
+            // The key is the signed name; a result naming another class would
+            // carry an unsigned className.
+            if (!e.getKey().equals(e.getValue().getClassName()))
+                throw new IllegalArgumentException(new StringBuilder()
+                        .append("result className differs from its key: ")
+                        .append(e.getKey()).toString());
         }
 
         this.contentHash          = contentHash;
-        Map<String, ClassAnalysisResult> ordered =
-                new LinkedHashMap<String, ClassAnalysisResult>(results);
         int size = ordered.size();
         this.classNames           = new String[size];
         this.classResults         = new ClassAnalysisResult[size];
@@ -423,14 +464,23 @@ public final class JarAnalysisReport {
      *   SEQUENCE {
      *     UTF8String        contentHash,
      *     SEQUENCE OF SEQUENCE {          -- one per class, stored order
-     *         UTF8String    className,
+     *         UTF8String    className,                  -- classNames[i]
      *         UTF8String    clinitVerdict.name(),
-     *         UTF8String    atomicVerdict.name()
+     *         UTF8String    atomicVerdict.name(),
+     *         UTF8String    constrainableProxyVerdict.name(),
+     *         SEQUENCE OF UTF8String blockingCallPath,  -- stored order
+     *         SEQUENCE OF UTF8String cycleParticipants  -- stored order
      *     },
      *     SEQUENCE OF UTF8String          declaredPermissions,   -- stored order
      *     SEQUENCE OF UTF8String          codebaseUrls           -- stored order
      *   }
      * </pre>
+     *
+     * <p>Every field a {@link ClassAnalysisResult} carries is signed, and an
+     * enumeration is signed as the UTF8String of its constant name, never its
+     * ordinal.  The per-class {@code className} is {@code classNames[i]}; a
+     * result whose own className differs is refused at construction and on
+     * deserialization, so no unsigned name is carried.
      *
      * <p>Both the analysis engine (when signing) and the
      * {@link VerdictRegistry} (when verifying) MUST use exactly these bytes, so
@@ -448,21 +498,25 @@ public final class JarAnalysisReport {
             perClass.add(DerTbs.sequence(Arrays.asList(
                     DerTbs.utf8(classNames[i]),
                     DerTbs.utf8(cr.getClinitVerdict().name()),
-                    DerTbs.utf8(cr.getAtomicVerdict().name()))));
-        }
-        List<byte[]> perms = new ArrayList<byte[]>(declaredPermissions.length);
-        for (String perm : declaredPermissions) {
-            perms.add(DerTbs.utf8(perm));
-        }
-        List<byte[]> urls = new ArrayList<byte[]>(codebaseUrls.length);
-        for (String url : codebaseUrls) {
-            urls.add(DerTbs.utf8(url));
+                    DerTbs.utf8(cr.getAtomicVerdict().name()),
+                    DerTbs.utf8(cr.getConstrainableProxyVerdict().name()),
+                    utf8Sequence(cr.getBlockingCallPath()),
+                    utf8Sequence(cr.getCycleParticipants()))));
         }
         return DerTbs.sequence(Arrays.asList(
                 DerTbs.utf8(contentHash),
                 DerTbs.sequence(perClass),
-                DerTbs.sequence(perms),
-                DerTbs.sequence(urls)));
+                utf8Sequence(Arrays.asList(declaredPermissions)),
+                utf8Sequence(Arrays.asList(codebaseUrls))));
+    }
+
+    /** {@code SEQUENCE OF UTF8String} of {@code values}, in the given order. */
+    private static byte[] utf8Sequence(List<String> values) {
+        List<byte[]> encoded = new ArrayList<byte[]>(values.size());
+        for (String value : values) {
+            encoded.add(DerTbs.utf8(value));
+        }
+        return DerTbs.sequence(encoded);
     }
 
     /**
@@ -569,10 +623,12 @@ public final class JarAnalysisReport {
 
     @Override
     public String toString() {
-        return "JarAnalysisReport{contentHash='" + contentHash
-                + "', classCount=" + results.size()
-                + ", verdict=" + deriveVerdictType()
-                + ", declaredPermissions=" + declaredPermissions.length
-                + ", codebaseUrls=" + codebaseUrls.length + '}';
+        return new StringBuilder()
+                .append("JarAnalysisReport{contentHash='").append(contentHash)
+                .append("', classCount=").append(results.size())
+                .append(", verdict=").append(deriveVerdictType())
+                .append(", declaredPermissions=").append(declaredPermissions.length)
+                .append(", codebaseUrls=").append(codebaseUrls.length)
+                .append('}').toString();
     }
 }

@@ -25,6 +25,9 @@ package au.net.zeus.jgdms.api.codebase;
  * class initializer ({@code <clinit>}) blocks.  The BAE analyses the call graph
  * reachable from {@code <clinit>} (via BFS) to detect such patterns.
  *
+ * <p>Constants are signed by name (JGDMS-STD-006 &sect;7.4), so a constant must
+ * never be renamed.
+ *
  * @see ClassAnalysisResult
  * @since 3.1.1
  * @author Peter Firmstone
