@@ -454,29 +454,50 @@ class OperationJournal extends Thread {
 
 		    for (Iterator<TransitionWatcher> i = set.iterator(); i.hasNext() && !dead; ) {
 			final TransitionWatcher watcher = i.next();
-			watcher.process(t, now);
+			try {
+			    watcher.process(t, now);
+			} catch (RuntimeException e) {
+			    // One watcher's failure is that pair's "no match". Without this
+			    // the watchers sorted after it (every later registration) would
+			    // lose this transition, and every following one while it lives.
+			    watcher.recordFault("TransitionWatcher.process", e);
+			}
 		    }
 		} else if (payload instanceof CaughtUpMarker) {
 		    ((CaughtUpMarker)payload).watcher.caughtUp();
 		} else {
 		    throw new 
-			AssertionError("JournalNode with unknown payload:" +
-				       payload.getClass());
+			AssertionError(new StringBuilder(
+				"JournalNode with unknown payload:")
+				.append(payload.getClass()).toString());
 		}
 	    } catch (InterruptedException e) {
 		// fin
 		return;
 	    } catch (Throwable t) {
+		// One watcher or template failing for one transition is isolated per pair by the
+		// try around process above and by WatchersForTemplateClass.collectInterested and
+		// TemplateHandle.collectInterested (TransitionWatchers.allMatches has no try), so
+		// a RuntimeException that reaches here is a fault outside any single pair (the
+		// watcher lookup, caughtUp). It skips only this node. Rethrowing it ended the
+		// thread for good, so one transition a client could provoke (EntryRep.matches on
+		// a malformed body, board review 2026-11-20, F1) silenced every notify and every
+		// blocked read/take wake-up for all clients.
 		try {
-		    logger.log(Level.INFO,
-			       "OperationJournal.run encountered " +
-			           t.getClass().getName() + ", continuing",
+		    final boolean fatal = t instanceof Error;
+		    logger.log(fatal ? Level.SEVERE : Level.WARNING,
+			       new StringBuilder("OperationJournal.run encountered ")
+				   .append(t.getClass().getName())
+				   .append(fatal ? ", terminating"
+						 : ", transition skipped, continuing")
+				   .toString(),
 			       t);
 		} catch (Throwable tt) {
 		    // don't let a problem in logging kill the thread
 		}
+                // An Error is no pair's fault and is never isolated: it is logged SEVERE above
+                // and rethrown here, so it still ends the thread.
                 if (t instanceof Error) throw (Error) t;
-                if (t instanceof RuntimeException) throw (RuntimeException) t;
 	    }
 	}
     }

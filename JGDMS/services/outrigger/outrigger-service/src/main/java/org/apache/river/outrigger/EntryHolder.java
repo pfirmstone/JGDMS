@@ -17,6 +17,7 @@
  */
 package org.apache.river.outrigger;
 
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,6 +26,8 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -159,7 +162,7 @@ class EntryHolder implements TransactionConstants {
         matchingLogger.entering("EntryHolder", "hasMatch");
         final byte[] matchedTemplateDigest =
                 (filters == null || filters.isEmpty()) ? null : tmpl.entrySchemaDigest();
-        EntryHandleTmplDesc desc = null;
+        DescCache descs = null;
         long startTime = 0;
 
         /*
@@ -178,20 +181,23 @@ class EntryHolder implements TransactionConstants {
 
         for (EntryHandle handle : candidates) {
 
+            final EntryRep rep = handle.rep();
+
             if (startTime == 0) {
                 // First time through
-                desc = EntryHandle.descFor(tmpl, handle.rep().numFields());
+                descs = new DescCache(tmpl, rep.classFor(), rep.numFields());
                 startTime = System.currentTimeMillis();
             }
 
             if (handle.removed())
                 continue;
 
-            // Quick reject -- see the if handle mask is incompatible
+            // Quick reject -- see the if handle mask is incompatible. The
+            // descriptor is the one for THIS candidate's field count, the count
+            // its hash was packed with.
+            final EntryHandleTmplDesc desc = descs.forCount(rep.numFields());
             if ((handle.hash() & desc.mask) != desc.hash)
                 continue;
-
-            final EntryRep rep = handle.rep();
 
             if (!tmpl.matches(rep))
                 continue;
@@ -206,7 +212,81 @@ class EntryHolder implements TransactionConstants {
 
         return null;
     }
-    
+
+    /**
+     * Quick-reject descriptors of one template for the entries of one scan, computed per
+     * candidate field count and cached by that count.
+     * <p>
+     * A handle's hash packs its fields {@code 64 / numFields} bits apart, using the
+     * handle's own field count, so the descriptor that is compared with it must use that
+     * same count. All reps filed under one class are assumed to have one field count, but
+     * the class identity of a rep is client-supplied and not bound to its body (board
+     * review 2026-11-20, F1), so a holder can hold more than one. A descriptor built for
+     * the first candidate's count rejects true matches among candidates of another count:
+     * a loud failure turned into a silent miss. A consistent holder computes the
+     * descriptor once and pays one integer comparison per candidate.
+     */
+    private final class DescCache {
+	private final EntryRep tmpl;
+	private final String className;
+	private final int firstCount;
+	private final EntryHandleTmplDesc firstDesc;
+	/** Descriptors for the other counts seen; guarded by this. */
+	private Map<Integer, EntryHandleTmplDesc> others;
+
+	DescCache(EntryRep tmpl, String className, int firstCount) {
+	    this.tmpl = tmpl;
+	    this.className = className;
+	    this.firstCount = firstCount;
+	    this.firstDesc = EntryHandle.descFor(tmpl, firstCount);
+	}
+
+	EntryHandleTmplDesc forCount(int numFields) {
+	    return (numFields == firstCount) ? firstDesc : other(numFields);
+	}
+
+	private synchronized EntryHandleTmplDesc other(int numFields) {
+	    if (others == null) others = new HashMap<Integer, EntryHandleTmplDesc>();
+	    EntryHandleTmplDesc desc = others.get(Integer.valueOf(numFields));
+	    if (desc == null) {
+		desc = EntryHandle.descFor(tmpl, numFields);
+		others.put(Integer.valueOf(numFields), desc);
+		noteMixedFieldCounts(className, firstCount, numFields);
+	    }
+	    return desc;
+	}
+    }
+
+    /** Scans that met a second field count among the entries of one holder. */
+    private static final AtomicLong MIXED_FIELD_COUNT_SCANS = new AtomicLong();
+
+    /** Set once this holder has logged that it holds more than one field count. */
+    private final AtomicBoolean mixedFieldCountsLogged = new AtomicBoolean();
+
+    /**
+     * @return the number of scans, in every holder of this VM, that met a second field
+     *         count among the entries of one holder. Always zero unless an entry's
+     *         class identity was forged.
+     */
+    static long mixedFieldCountScans() {
+	return MIXED_FIELD_COUNT_SCANS.get();
+    }
+
+    /**
+     * A second field count in one holder is direct evidence that a rep's class identity
+     * does not describe its body. The scans now answer correctly, so this is the only
+     * place the evidence stays visible: count it, and log it once per holder.
+     */
+    private void noteMixedFieldCounts(String className, int first, int other) {
+	MIXED_FIELD_COUNT_SCANS.incrementAndGet();
+	if (mixedFieldCountsLogged.compareAndSet(false, true)) {
+	    matchingLogger.log(Level.WARNING, new StringBuilder("EntryHolder for ")
+		.append(className).append(" holds entries with different field counts (")
+		.append(first).append(" and ").append(other)
+		.append("): the class identity of at least one entry does not describe its body")
+		.toString());
+	}
+    }
 
     /**
      * Debug method:  Dump out the state of this holder, printing out
@@ -218,7 +298,8 @@ class EntryHolder implements TransactionConstants {
 	    for (EntryHandle handle : content)
 	    {
 		EntryRep rep = handle.rep();
-		System.out.println("    " + rep + ", " + rep.entry());
+		System.out.println(new StringBuilder("    ").append(rep)
+		    .append(", ").append(rep.entry()).toString());
 	    }
 	} catch (UnusableEntryException e) {
 	    e.printStackTrace();
@@ -394,8 +475,7 @@ class EntryHolder implements TransactionConstants {
 	       
 		// Must be a real conflict, log if we were told too
 		if (matchingLogger.isLoggable(Level.FINER)) {
-		    matchingLogger.log(Level.FINER, "match, but can''t " +
-			"perform {0}; handle.knownMgr(txn) == {1}", 
+		    matchingLogger.log(Level.FINER, "match, but can''t perform {0}; handle.knownMgr(txn) == {1}",
 			new Object[] {Integer.valueOf(op), 
 				      Boolean.valueOf(handle.knownMgr(txn))});
 		}
@@ -761,9 +841,13 @@ class EntryHolder implements TransactionConstants {
 	 */
 	final private boolean takeThem;
 
-	/** <code>EntryHandleTmplDesc</code> for the templates */
-        final private ThreadLocal<EntryHandleTmplDesc[]> descLocal;
-	    
+	/**
+	 * Quick-reject descriptors, one cache per template, built on the first
+	 * candidate. The query is used by one thread at a time, but it is handed
+	 * from thread to thread, so the field is volatile.
+	 */
+	private volatile DescCache[] descs;
+
 
 	/** Time used to weed out expired entries, ok if old */
 	volatile long now;
@@ -804,17 +888,11 @@ class EntryHolder implements TransactionConstants {
 	    this.now = now;
 	    this.filters = (filters == null) ? FilterSet.EMPTY : filters;
 	    contentsIterator = content.iterator();
-            descLocal = new ThreadLocal<EntryHandleTmplDesc[]>();
 	}
 
 	/**
-	 * <code>EntryHolder</code> queries have thread local state
-	 * that get clobbered if another query (on a different or same
-	 * <code>EntryHolder</code>, including <code>hasMatch</code>
-	 * calls) is started in the same thread. The state also needs
-	 * to be restored if it the query is continued in another
-	 * thread. The <code>restart</code> method must be called to
-	 * restore the thread local state.
+	 * Refresh the time used to weed out expired entries. Call it before
+	 * continuing the query in another thread.
 	 * @param now      Estimate of current time used to weed out
 	 *                 expired entries, ok if old
 	 */
@@ -827,9 +905,7 @@ class EntryHolder implements TransactionConstants {
 	 * Return the next matching entry. Returns <code>null</code>
 	 * if there are no matches remaining. Call {@link #restart
 	 * restart} first if query is being used in a different thread
-	 * from the last <code>next</code> call and/or the current
-	 * thread has done any form of <code>EntryHolder</code> query
-	 * on any holder since the last next call.
+	 * from the last <code>next</code> call.
 	 *
 	 * @param conflictSet If non-null the <code>TransactableMgr</code>
 	 *              objects of any transactions that prevent 
@@ -865,7 +941,6 @@ class EntryHolder implements TransactionConstants {
 	    throws CannotJoinException
 	{
 	    matchingLogger.entering("ContinuingQuery", "next");
-            EntryHandleTmplDesc[] descs = descLocal.get();
 	    /*
 	     * NOTE: the multi-template path still scans all of content. The
 	     * EntryFieldIndex is currently applied only to the single-template
@@ -876,14 +951,15 @@ class EntryHolder implements TransactionConstants {
 	     */
 	    while (contentsIterator.hasNext()) {
 	        EntryHandle handle = contentsIterator.next();
-	        if(descs == null){
+	        if (descs == null) {
 	            // first time
-	            descs = new EntryHandleTmplDesc[tmpls.length];
+	            final EntryRep first = handle.rep();
+	            final DescCache[] built = new DescCache[tmpls.length];
 	            for (int i=0; i<tmpls.length; i++) {
-	                descs[i] = EntryHandle.descFor(tmpls[i], 
-	                                               handle.rep().numFields());
+	                built[i] = new DescCache(tmpls[i], first.classFor(),
+	                                         first.numFields());
 	            }
-                    descLocal.set(descs);
+	            descs = built;
 	        }
 		if (handleMatch(handle, descs)) {
 		    final boolean available =
@@ -902,17 +978,20 @@ class EntryHolder implements TransactionConstants {
 	 * Returns <code>true</code> if handle has not been removed
 	 * and matches one or more of the templates 
 	 */
-	private boolean handleMatch(EntryHandle handle, EntryHandleTmplDesc[] descs) {
+	private boolean handleMatch(EntryHandle handle, DescCache[] descs) {
 	    if (handle.removed()) return false;
-            int length = tmpls.length;
+	    final EntryRep rep = handle.rep();
+	    final int count = rep.numFields();
+	    int length = tmpls.length;
 	    for (int i=0; i<length; i++) {
 		final EntryRep tmpl = tmpls[i];
-		final EntryHandleTmplDesc desc = descs[i];
+		// The descriptor for THIS candidate's field count, see DescCache.
+		final EntryHandleTmplDesc desc = descs[i].forCount(count);
 
 		// Quick reject
 		if ((handle.hash() & desc.mask) != desc.hash)
 		    continue;
-		if (!tmpl.matches(handle.rep()))
+		if (!tmpl.matches(rep))
 		    continue;
 		return true;
 	    }

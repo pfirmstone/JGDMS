@@ -53,6 +53,9 @@ abstract class TransitionWatcher implements Comparable<TransitionWatcher> {
     /** Next tiebreaker to use */
     private final static AtomicLong nextTiebreaker = new AtomicLong();
 
+    /** Faults the journal thread isolated for this watcher, see {@link FaultTally}. */
+    private final FaultTally faults = new FaultTally();
+
 
     /**
      * Create a new <code>TransitionWatcher</code>. 
@@ -188,4 +191,19 @@ abstract class TransitionWatcher implements Comparable<TransitionWatcher> {
      *         <code>null</code>.  
      */
     abstract void process(EntryTransition transition, long now);
-} 
+
+    /**
+     * Record that the journal thread isolated a failure of this watcher for one
+     * transition. The failed pair counts as "no match"; the watcher stays registered.
+     * @param phase which call failed, for the log line.
+     * @param fault the exception that was isolated.
+     */
+    final void recordFault(String phase, RuntimeException fault) {
+	faults.record(phase, this, fault);
+    }
+
+    /** @return the number of failures isolated for this watcher. */
+    final long faultCount() {
+	return faults.count();
+    }
+}
