@@ -22,9 +22,11 @@ import java.io.InvalidObjectException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -122,9 +124,17 @@ public final class JarAnalysisReport {
         if (classNames.length != classResults.length)
             throw new InvalidObjectException(
                     "classNames.length != classResults.length");
+        // The signature covers the classNames array, but consumers read the
+        // results map, which keeps only the last of a repeated name: a repeat
+        // would put two different structures behind one signature.
+        Set<String> seen = new HashSet<String>(classNames.length * 2);
         for (String name : classNames) {
             if (name == null)
                 throw new InvalidObjectException("classNames must not contain null");
+            if (!seen.add(name))
+                throw new InvalidObjectException(new StringBuilder()
+                        .append("classNames must not contain a duplicate: ")
+                        .append(name).toString());
         }
         for (ClassAnalysisResult cr : classResults) {
             if (cr == null)
@@ -171,7 +181,8 @@ public final class JarAnalysisReport {
     private final String contentHash;
 
     /**
-     * Internal binary class names ({@code /}-separated), in insertion order.
+     * Internal binary class names ({@code /}-separated), in insertion order,
+     * each distinct.
      * Parallel to {@link #classResults}; together they form the serialized
      * representation of the per-class results.
      *

@@ -22,9 +22,13 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -218,6 +222,98 @@ public class JarAnalysisReportSignatureTest {
                 ConstrainableProxyVerdict.NA,
                 Collections.<String>emptyList(), Collections.<String>emptyList()));
         new JarAnalysisReport("abc123", m, PLACEHOLDER, new String[0], new String[0]);
+    }
+
+    private static ClassAnalysisResult car(String name, ClinitVerdict cv,
+            AtomicSerialVerdict av, ConstrainableProxyVerdict pv,
+            String path, String cycle) {
+        return new ClassAnalysisResult(name, cv, av, pv,
+                Collections.singletonList(path), Collections.singletonList(cycle));
+    }
+
+    /** TBS of a one-class report; the arguments are the report's fields. */
+    private static byte[] tbs(String hash, ClassAnalysisResult cr, byte[] signature,
+                              String permission, String url) {
+        Map<String, ClassAnalysisResult> m = new LinkedHashMap<String, ClassAnalysisResult>();
+        m.put(cr.getClassName(), cr);
+        return new JarAnalysisReport(hash, m, signature,
+                new String[]{ permission }, new String[]{ url }).canonicalBytes();
+    }
+
+    /**
+     * Every field named in {@code JarAnalysisReport.serialForm()} and in
+     * {@code ClassAnalysisResult.serialForm()} must change
+     * {@link JarAnalysisReport#canonicalBytes()} when it changes; only
+     * {@code engineSignature} may not (JGDMS-STD-006 &sect;7.4, RL-JGDMS-0197).
+     * A field added to either form with no variant below fails here, and a
+     * field with a variant but missing from the TBS fails here.
+     */
+    @Test
+    public void everySerialFormField_exceptTheSignature_isInTheTbs() {
+        ClassAnalysisResult a = car("A", ClinitVerdict.CLEAN, AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.NA, "p", "q");
+        byte[] base = tbs("h", a, PLACEHOLDER, "x", "u");
+
+        // The TBS takes the class name from classNames[i], and a result whose
+        // className differs from its key is refused, so className and
+        // classNames can only be varied together.
+        ClassAnalysisResult b = car("B", ClinitVerdict.CLEAN, AtomicSerialVerdict.COMPLIANT,
+                ConstrainableProxyVerdict.NA, "p", "q");
+
+        Map<String, byte[]> report = new LinkedHashMap<String, byte[]>();
+        report.put("contentHash",         tbs("h2", a, PLACEHOLDER, "x", "u"));
+        report.put("classNames",          tbs("h", b, PLACEHOLDER, "x", "u"));
+        report.put("classResults",        tbs("h", car("A", ClinitVerdict.BLOCKING,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.NA, "p", "q"),
+                PLACEHOLDER, "x", "u"));
+        report.put("engineSignature",     tbs("h", a, new byte[] { 1, 2, 3 }, "x", "u"));
+        report.put("declaredPermissions", tbs("h", a, PLACEHOLDER, "x2", "u"));
+        report.put("codebaseUrls",        tbs("h", a, PLACEHOLDER, "x", "u2"));
+
+        Map<String, byte[]> perClass = new LinkedHashMap<String, byte[]>();
+        perClass.put("className",         tbs("h", b, PLACEHOLDER, "x", "u"));
+        perClass.put("clinitVerdict",     tbs("h", car("A", ClinitVerdict.BLOCKING,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.NA, "p", "q"),
+                PLACEHOLDER, "x", "u"));
+        perClass.put("atomicVerdict",     tbs("h", car("A", ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.MISSING_CONSTRUCTOR, ConstrainableProxyVerdict.NA, "p", "q"),
+                PLACEHOLDER, "x", "u"));
+        perClass.put("constrainableProxyVerdict", tbs("h", car("A", ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.JAVA_SERIALIZATION,
+                "p", "q"), PLACEHOLDER, "x", "u"));
+        perClass.put("blockingCallPath",  tbs("h", car("A", ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.NA, "p2", "q"),
+                PLACEHOLDER, "x", "u"));
+        perClass.put("cycleParticipants", tbs("h", car("A", ClinitVerdict.CLEAN,
+                AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.NA, "p", "q2"),
+                PLACEHOLDER, "x", "u"));
+
+        assertCovered("JarAnalysisReport", JarAnalysisReport.serialForm(), report, base);
+        assertCovered("ClassAnalysisResult", ClassAnalysisResult.serialForm(), perClass, base);
+    }
+
+    private static void assertCovered(String record, SerialForm[] form,
+                                      Map<String, byte[]> variants, byte[] base) {
+        Set<String> declared = new HashSet<String>();
+        for (SerialForm field : form) {
+            String name = field.getName();
+            declared.add(name);
+            byte[] variant = variants.get(name);
+            assertNotNull(new StringBuilder().append(record).append(".serialForm() field ")
+                    .append(name).append(" has no variant in this test: add one, and sign the field")
+                    .toString(), variant);
+            if ("engineSignature".equals(name)) {
+                assertArrayEquals("the signature must not be part of its own TBS",
+                        base, variant);
+            } else {
+                assertFalse(new StringBuilder().append(record).append('.').append(name)
+                        .append(" is in serialForm() but changing it leaves the signed TBS unchanged")
+                        .toString(), Arrays.equals(base, variant));
+            }
+        }
+        assertEquals(new StringBuilder().append(record)
+                .append(": a variant names a field serialForm() no longer has").toString(),
+                declared, variants.keySet());
     }
 
     /** Parses groups of space-separated hex octets, in order. */

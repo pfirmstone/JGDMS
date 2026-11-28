@@ -1892,6 +1892,9 @@ CrashReportTBS ::= SEQUENCE {
 
 - An enumeration in a TBS is the `UTF8String` of its Java constant name, never its
   ordinal: the signed octets do not depend on the declaration order of the enum.
+  Because the constant name is what is signed, a constant of `ClinitVerdict`,
+  `AtomicSerialVerdict`, `ConstrainableProxyVerdict` or `VerdictType` MUST NOT be
+  renamed, since a rename makes every stored signature over the old name fail to verify.
 - The per-class `className` in `JarAnalysisReportTBS` is `classNames[i]`. A
   `ClassAnalysisResult` whose own `className` differs from the paired `classNames[i]`
   is rejected (at construction and on decoding), so no unsigned name is carried.

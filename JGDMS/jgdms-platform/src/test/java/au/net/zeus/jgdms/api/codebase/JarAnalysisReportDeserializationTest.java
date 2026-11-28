@@ -37,6 +37,7 @@ import static org.junit.Assert.*;
  * {@code classResults[i].getClassName()} (RL-JGDMS-0197).  The Map constructor
  * cannot build such a report, so the stream is produced from a consistent report
  * and one {@code classNames} entry is rewritten in place to a same-length name.
+ * It must also refuse a report whose {@code classNames} repeats a name.
  *
  * <p>Serialization goes through {@link AtomicMarshalOutputStream} /
  * {@link AtomicMarshalInputStream}, as in {@code AnalysisRequestTest}.
@@ -57,6 +58,20 @@ public class JarAnalysisReportDeserializationTest {
         m.put(key, new ClassAnalysisResult(resultName, ClinitVerdict.CLEAN,
                 AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.NA,
                 Collections.<String>emptyList(), Collections.<String>emptyList()));
+        return new JarAnalysisReport("abc123", m, PLACEHOLDER,
+                new String[0], new String[0]);
+    }
+
+    /** Two classes, {@link #SIGNED_NAME} then {@link #FORGED_NAME}; every name
+     *  is a distinct String instance, so the stream carries each one twice. */
+    private static JarAnalysisReport twoClassReport() {
+        Map<String, ClassAnalysisResult> m = new LinkedHashMap<String, ClassAnalysisResult>();
+        for (String name : new String[] { SIGNED_NAME, FORGED_NAME }) {
+            m.put(new String(name), new ClassAnalysisResult(new String(name),
+                    ClinitVerdict.CLEAN, AtomicSerialVerdict.COMPLIANT,
+                    ConstrainableProxyVerdict.NA,
+                    Collections.<String>emptyList(), Collections.<String>emptyList()));
+        }
         return new JarAnalysisReport("abc123", m, PLACEHOLDER,
                 new String[0], new String[0]);
     }
@@ -113,6 +128,41 @@ public class JarAnalysisReportDeserializationTest {
             fail("classNames[0] differs from classResults[0].className: must be rejected");
         } catch (InvalidObjectException expected) {
             assertTrue(expected.getMessage(), expected.getMessage().contains("className"));
+        }
+    }
+
+    @Test
+    public void distinctClassNames_roundTrip() throws Exception {
+        JarAnalysisReport back = deserialize(serialize(twoClassReport()));
+        assertEquals(2, back.getResults().size());
+        assertNotNull(back.getResults().get(SIGNED_NAME));
+        assertNotNull(back.getResults().get(FORGED_NAME));
+    }
+
+    /**
+     * The signature covers the {@code classNames} array but consumers read the
+     * results map, which keeps only the last of a repeated name.  Every
+     * occurrence of the second name is rewritten to the first, so
+     * {@code classNames} and the per-class names still agree with each other
+     * and only the duplicate itself is wrong.
+     */
+    @Test
+    public void duplicateClassNames_areRejectedOnDeserialization() throws Exception {
+        byte[] stream = serialize(twoClassReport());
+        byte[] first = SIGNED_NAME.getBytes(StandardCharsets.UTF_8);
+        byte[] second = FORGED_NAME.getBytes(StandardCharsets.UTF_8);
+        assertEquals(first.length, second.length);
+        int rewritten = 0;
+        for (int at = indexOf(stream, second, 0); at >= 0; at = indexOf(stream, second, 0)) {
+            System.arraycopy(first, 0, stream, at, first.length);
+            rewritten++;
+        }
+        assertEquals("the second name occurs in classNames and in its result", 2, rewritten);
+        try {
+            deserialize(stream);
+            fail("classNames holds the same name twice: must be rejected");
+        } catch (InvalidObjectException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("duplicate"));
         }
     }
 }
