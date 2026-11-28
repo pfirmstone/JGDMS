@@ -364,6 +364,43 @@ public class PreferredProxyCodebaseProviderIsolationTest {
                 probe.invoked);
     }
 
+    // ------------------------------------------------------------------
+    // (5b) NULL codebase annotation -> nothing to download, and no NPE.
+    //
+    // REGRESSION GUARD.  A bootstrap proxy may legitimately declare no
+    // codebase at all.  PreferredClassProvider.pathToURIs() returns null for
+    // a null annotation by design, and resolve() passed that null straight to
+    // Arrays.asList(), throwing NullPointerException -- which reached callers
+    // as "DER proxy resolution failed: java.lang.NullPointerException".
+    // Contrast flagOff_neverRoutes above: with a real annotation the legacy
+    // path tries to download the codebase and throws, whereas here there is
+    // nothing to fetch, so resolution must complete against the parent loader
+    // and hand back the proxy.
+    // ------------------------------------------------------------------
+
+    @Test
+    public void nullCodebaseAnnotation_resolvesWithoutDownloadingOrThrowing()
+            throws Exception {
+        System.clearProperty(FLAG); // legacy path; isolation is a separate case
+        ProbeRouter probe = new ProbeRouter(new Object());
+        PreferredProxyCodebaseProvider.setIsolationRouter(probe);
+
+        Object sentinel = new Object();
+        RecordingMarshalledInstance serviceProxy =
+                new RecordingMarshalledInstance(sentinel);
+
+        Object result = new PreferredProxyCodebaseProvider().resolve(
+                accessor(null), serviceProxy, parentLoader(), null,
+                context(subject("spiffe://example/a")));
+
+        assertSame("a proxy that declares no codebase must resolve, not fail",
+                sentinel, result);
+        assertTrue("the service proxy must have been unmarshalled",
+                serviceProxy.getCalled);
+        assertFalse("the router must not be consulted with the flag off",
+                probe.invoked);
+    }
+
     @Test
     public void flagExplicitFalse_neverRoutes() {
         System.setProperty(FLAG, "false");
