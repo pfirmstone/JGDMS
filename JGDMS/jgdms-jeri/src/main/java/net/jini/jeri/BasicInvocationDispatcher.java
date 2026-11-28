@@ -35,6 +35,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -47,6 +48,7 @@ import java.rmi.UnmarshalException;
 import java.rmi.server.ExportException;
 import java.rmi.server.ServerNotActiveException;
 import java.security.AccessControlContext;
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -90,6 +92,7 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.AccessPermission;
+import net.jini.security.AdminAuthorizationMintPermission;
 import net.jini.security.AssertPrincipalPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
@@ -416,6 +419,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      */
     private static final Permission setJwtVerifierPermission =
 	    new SecurityPermission("setJwtVerifier");
+
+    /**
+     * Guards the one-shot diagnostic in {@link #reportMissingMintGrantOnce}.
+     * A missing mint grant fails EVERY identity-bearing request, so the
+     * diagnostic is emitted once per JVM rather than once per request.
+     */
+    private static final AtomicBoolean mintGrantDiagnosticIssued =
+	    new AtomicBoolean();
 
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
@@ -1140,6 +1151,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logLocalThrow(impl, null, t);
 	    }
+	    reportMissingMintGrantOnce(t);
 	    request.abort();
 	    return;
 	}
@@ -2166,6 +2178,71 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /**
      * Logs the local throw an an inbound call.
      **/
+    /**
+     * Reports an absent {@link AdminAuthorizationMintPermission} grant once per
+     * JVM, at a level that is visible under default logging.
+     * <p>
+     * Without this, a deployment whose policy lacks the grant fails in the most
+     * expensive way available: {@code AdminAuthorizationAssembler.assemble} runs
+     * for EVERY request that carries identity fields (wire protocol 0x02), its
+     * denial is caught by the dispatch {@code catch} above, and that catch logs
+     * at {@code Levels.FAILED} (600) -- BELOW the default {@code INFO} threshold
+     * -- and then aborts the request.  The result is a total loss of protocol
+     * 0x02 with no server-side explanation and no client-visible cause: the
+     * operator sees every identity-bearing call abort and nothing saying why.
+     * <p>
+     * This changes no security decision.  The denial still fails closed; only
+     * its diagnosability changes.  The message names the exact grant to add,
+     * because the permission is needed by BOTH seam code sources: the assembler
+     * mints under its own {@code doPrivileged} in {@code jgdms-jeri} while
+     * {@code AdminAuthorizationContext.seamMint} lives in {@code jgdms-platform},
+     * so the frames above the privileged marker span both modules and both
+     * protection domains are evaluated.
+     * <p>
+     * Emitted once per JVM: a missing grant denies every such request, so a
+     * per-request message would flood the log it is meant to inform.
+     *
+     * @param t the throwable caught by the dispatch identity-assembly block
+     */
+    private static void reportMissingMintGrantOnce(Throwable t) {
+	if (mintGrantDiagnosticIssued.get()) return;
+	for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+	    if (!(cause instanceof AccessControlException)) continue;
+	    Permission denied = ((AccessControlException) cause).getPermission();
+	    if (!(denied instanceof AdminAuthorizationMintPermission)) continue;
+	    if (!mintGrantDiagnosticIssued.compareAndSet(false, true)) return;
+	    StringBuilder message = new StringBuilder(
+		    "Every request carrying identity fields (wire protocol 0x02)");
+	    message.append(" will be aborted: this deployment's policy does not grant ");
+	    message.append(denied);
+	    message.append(". The trusted JERI seam cannot mint an authorization");
+	    message.append(" carrier, so identity-bearing dispatch fails closed.");
+	    message.append(" Grant it to BOTH seam code sources -- and to neither");
+	    message.append(" hosted nor business code, which could otherwise forge");
+	    message.append(" or replay a carrier:");
+	    message.append(System.lineSeparator());
+	    message.append("  grant codeBase \"file:${jgdms.lib}/jgdms-jeri.jar\" {");
+	    message.append(System.lineSeparator());
+	    message.append("      permission net.jini.security");
+	    message.append(".AdminAuthorizationMintPermission \"mint\";");
+	    message.append(System.lineSeparator());
+	    message.append("  };");
+	    message.append(System.lineSeparator());
+	    message.append("  grant codeBase \"file:${jgdms.lib}/jgdms-platform.jar\" {");
+	    message.append(System.lineSeparator());
+	    message.append("      permission net.jini.security");
+	    message.append(".AdminAuthorizationMintPermission \"mint\";");
+	    message.append(System.lineSeparator());
+	    message.append("  };");
+	    message.append(System.lineSeparator());
+	    message.append("This message is logged once per JVM; see");
+	    message.append(" JGDMS/docs/spiffe-admin-deployment.md, section");
+	    message.append(" \"Required grant -- carrier provenance AND bind\".");
+	    logger.log(Level.WARNING, message.toString(), cause);
+	    return;
+	}
+    }
+
     private void logLocalThrow(Remote impl, Method method, Throwable t) {
 	String msg = "inbound call {0}.{1} to {2} dispatch locally throws";
 	if (logger.isLoggable(Level.FINEST)) {
