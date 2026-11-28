@@ -190,10 +190,12 @@ public class JarAnalysisReportSignatureTest {
         m.put("A", new ClassAnalysisResult("A", ClinitVerdict.CLEAN,
                 AtomicSerialVerdict.COMPLIANT, ConstrainableProxyVerdict.JAVA_SERIALIZATION,
                 Collections.singletonList("p"), Collections.singletonList("q")));
+        // One distinct element in each list: two empty lists both encode as 30 00,
+        // so only distinct elements pin the declaredPermissions-before-codebaseUrls order.
         JarAnalysisReport r = new JarAnalysisReport("h", m, PLACEHOLDER,
-                new String[0], new String[0]);
+                new String[]{ "d" }, new String[]{ "u" });
         byte[] expected = hex(
-                "30 3E",                                    // TBS SEQUENCE
+                "30 44",                                    // TBS SEQUENCE
                 "0C 01 68",                                 //   contentHash "h"
                 "30 35",                                    //   SEQUENCE OF per-class
                 "30 33",                                    //     per-class SEQUENCE
@@ -204,8 +206,8 @@ public class JarAnalysisReportSignatureTest {
                                                             //       "JAVA_SERIALIZATION"
                 "30 03 0C 01 70",                           //       blockingCallPath ["p"]
                 "30 03 0C 01 71",                           //       cycleParticipants ["q"]
-                "30 00",                                    //   declaredPermissions []
-                "30 00");                                   //   codebaseUrls []
+                "30 03 0C 01 64",                           //   declaredPermissions ["d"]
+                "30 03 0C 01 75");                          //   codebaseUrls ["u"]
         assertArrayEquals(expected, r.canonicalBytes());
     }
 

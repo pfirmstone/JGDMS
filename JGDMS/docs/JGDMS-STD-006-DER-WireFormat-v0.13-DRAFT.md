@@ -1897,7 +1897,8 @@ CrashReportTBS ::= SEQUENCE {
   renamed, since a rename makes every stored signature over the old name fail to verify.
 - The per-class `className` in `JarAnalysisReportTBS` is `classNames[i]`. A
   `ClassAnalysisResult` whose own `className` differs from the paired `classNames[i]`
-  is rejected (at construction and on decoding), so no unsigned name is carried.
+  is rejected (at construction and on decoding), so no unsigned name is carried. A
+  verifier MUST also reject a report whose `classNames` contain a duplicate.
 - RL-JGDMS-0197: every field a signed record carries is covered by its signature, so an
   altered `ClassAnalysisResult` field cannot pass signature verification, and
   enumerations are signed by name so a reordered enum declaration does not change the
@@ -1919,13 +1920,9 @@ versioning are required** — the DER-canonical TBS is simply *the* signature in
 first release. (The verdict cache, keyed by the JAR content hash per STD-002, is
 independent of verdict encoding and is unaffected regardless.)
 
-> **Implementation follow-up (NOT in this doc branch — separate `jgdms-platform` code
-> change).** The SCAP `@AtomicSerial` classes currently compute/verify the signature
-> over the `writeUTF`-based `canonicalBytes()` (and the `RegistryVerdict`/`CrashReport`
-> equivalents). To conform to this ratified decision, the implementation MUST be changed
-> to compute and verify the signature over the **canonical DER TBS** (the per-record
-> field coverage above) instead. Flagged here as a distinct code task; this
-> documentation branch does not touch the SCAP classes.
+> **Implementation follow-up — superseded.** An earlier draft said the SCAP classes sign
+> the `writeUTF` `canonicalBytes()`; the normative TBS definitions above replace that, and
+> all three classes sign and verify the canonical DER TBS.
 
 #### 7.4.1 Signature input (NORMATIVE)
 
