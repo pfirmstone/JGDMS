@@ -475,13 +475,14 @@ class OperationJournal extends Thread {
 		// fin
 		return;
 	    } catch (Throwable t) {
-		// Failures of one watcher or template for one transition are isolated per pair
-		// above and in TransitionWatchers.allMatches, so a RuntimeException that reaches
-		// here is a fault outside any single pair (the watcher lookup, caughtUp). It
-		// skips only this node. Rethrowing it ended the thread for good, so one
-		// transition a client could provoke (EntryRep.matches on a malformed body,
-		// board review 2026-11-20, F1) silenced every notify and every blocked
-		// read/take wake-up for all clients. An Error still ends the thread.
+		// One watcher or template failing for one transition is isolated per pair by the
+		// try around process above and by WatchersForTemplateClass.collectInterested and
+		// TemplateHandle.collectInterested (TransitionWatchers.allMatches has no try), so
+		// a RuntimeException that reaches here is a fault outside any single pair (the
+		// watcher lookup, caughtUp). It skips only this node. Rethrowing it ended the
+		// thread for good, so one transition a client could provoke (EntryRep.matches on
+		// a malformed body, board review 2026-11-20, F1) silenced every notify and every
+		// blocked read/take wake-up for all clients.
 		try {
 		    final boolean fatal = t instanceof Error;
 		    logger.log(fatal ? Level.SEVERE : Level.WARNING,
@@ -494,6 +495,8 @@ class OperationJournal extends Thread {
 		} catch (Throwable tt) {
 		    // don't let a problem in logging kill the thread
 		}
+                // An Error is no pair's fault and is never isolated: it is logged SEVERE above
+                // and rethrown here, so it still ends the thread.
                 if (t instanceof Error) throw (Error) t;
 	    }
 	}

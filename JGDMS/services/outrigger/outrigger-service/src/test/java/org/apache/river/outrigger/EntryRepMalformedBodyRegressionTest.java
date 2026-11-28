@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -40,6 +41,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -218,21 +220,55 @@ public class EntryRepMalformedBodyRegressionTest {
 
     // ------------------------------------------------------------------ OperationJournal: thread survives
 
+    /** Numbers the first isInterested call of each CountingWatcher, across all watchers of a run. */
+    private static final AtomicLong ASKED_CLOCK = new AtomicLong();
+
     /** Counts the transitions it is asked to process; can be told to throw on chosen attempts. */
     static class CountingWatcher extends TransitionWatcher {
         final AtomicInteger processed = new AtomicInteger();
         final AtomicInteger attempts = new AtomicInteger();
-        CountingWatcher() { super(System.currentTimeMillis(), 0L); }
+        /** The place of this watcher's first isInterested call in the run's call order; 0 until it is asked. */
+        final AtomicLong firstAsked = new AtomicLong();
+        private final boolean hashFixed;
+        private final int fixedHash;
+
+        CountingWatcher() {
+            super(System.currentTimeMillis(), 0L);
+            hashFixed = false;
+            fixedHash = 0;
+        }
+
+        /**
+         * A watcher with a fixed hashCode. A template's watchers sit in a hash ordered set, so a fixed hash
+         * (not the identity hash, which differs from run to run) fixes the order they are asked in.
+         */
+        CountingWatcher(int fixedHash) {
+            super(System.currentTimeMillis(), 0L);
+            hashFixed = true;
+            this.fixedHash = fixedHash;
+        }
+
+        @Override public int hashCode() { return hashFixed ? fixedHash : super.hashCode(); }
         @Override boolean addTemplateHandle(TemplateHandle h) { return true; }
         @Override public long getExpiration() { return Long.MAX_VALUE; }
         @Override void removeIfExpired(long now) { }
-        @Override boolean isInterested(EntryTransition transition, long ordinal) { return true; }
+        @Override boolean isInterested(EntryTransition transition, long ordinal) {
+            noteAsked();
+            return true;
+        }
         @Override void process(EntryTransition transition, long now) {
             attempts.incrementAndGet();
             failFor(attempts.get());
             processed.incrementAndGet();
         }
         void failFor(int attempt) { }
+        final void noteAsked() { firstAsked.compareAndSet(0L, ASKED_CLOCK.incrementAndGet()); }
+    }
+
+    /** Throws a RuntimeException or an Error as it is, never wrapped. */
+    static void throwUnchecked(Throwable failure) {
+        if (failure instanceof Error) throw (Error) failure;
+        throw (RuntimeException) failure;
     }
 
     /** Throws the given throwable on the first attempt only. */
@@ -240,10 +276,7 @@ public class EntryRepMalformedBodyRegressionTest {
         private final Throwable failure;
         FailsOnceWatcher(Throwable failure) { this.failure = failure; }
         @Override void failFor(int attempt) {
-            if (attempt == 1) {
-                if (failure instanceof Error) throw (Error) failure;
-                throw (RuntimeException) failure;
-            }
+            if (attempt == 1) throwUnchecked(failure);
         }
     }
 
@@ -415,12 +448,36 @@ public class EntryRepMalformedBodyRegressionTest {
         @Override void failFor(int attempt) { throw new IllegalStateException("simulated process fault"); }
     }
 
-    /** Throws from isInterested on every attempt, so process is never reached. */
+    /**
+     * Throws from isInterested on every attempt, so process is never reached. It has a fixed hashCode,
+     * so it is asked before or after the other watchers of its template as the caller chooses.
+     */
     static final class AlwaysFailsInIsInterested extends CountingWatcher {
+        private final Throwable failure;
+
+        AlwaysFailsInIsInterested(int fixedHash) {
+            this(fixedHash, new IllegalStateException("simulated isInterested fault"));
+        }
+
+        AlwaysFailsInIsInterested(int fixedHash, Throwable failure) {
+            super(fixedHash);
+            this.failure = failure;
+        }
+
         @Override boolean isInterested(EntryTransition transition, long ordinal) {
             attempts.incrementAndGet();
-            throw new IllegalStateException("simulated isInterested fault");
+            noteAsked();
+            throwUnchecked(failure);
+            return false;
         }
+    }
+
+    /** The precondition of an order dependent test: {@code first} was asked before {@code second}. */
+    static void assertAskedBefore(CountingWatcher first, CountingWatcher second) {
+        assertTrue("precondition: both watchers must have been asked", first.firstAsked.get() > 0
+                && second.firstAsked.get() > 0);
+        assertTrue("precondition: the first watcher must be asked before the second, or this test does not bind",
+                first.firstAsked.get() < second.firstAsked.get());
     }
 
     private static void postWide(Rig rig, int count) throws Exception {
@@ -493,11 +550,18 @@ public class EntryRepMalformedBodyRegressionTest {
     /**
      * T2: a watcher whose isInterested throws is collected together with an honest one. The throw must not
      * discard the honest watcher from the set collected for the transition.
+     *
+     * <p>The two watchers share one template, so they sit in one hash ordered set, and the throwing watcher
+     * binds this test only when it is asked BEFORE the honest one (when it is asked after, the honest watcher
+     * is already collected and the test passes with or without the change). Fixed hash codes make that order
+     * the same in every run, and {@link #assertAskedBefore} checks it from the recorded call order, so the
+     * test cannot pass without binding. {@link #journal_T2control_honestWatcherAskedFirstIsNotAffected} is
+     * the same pair the other way round.
      */
     @Test
     public void journal_T2_isInterestedFaultDoesNotDiscardOtherWatchers() throws Exception {
-        AlwaysFailsInIsInterested thrower = new AlwaysFailsInIsInterested();
-        CountingWatcher honest = new CountingWatcher();
+        AlwaysFailsInIsInterested thrower = new AlwaysFailsInIsInterested(1);
+        CountingWatcher honest = new CountingWatcher(2);
         Rig rig = new Rig(thrower, honest);
         try {
             postWide(rig, 3);
@@ -509,7 +573,126 @@ public class EntryRepMalformedBodyRegressionTest {
             assertEquals("isInterested is still called for every transition", 3, thrower.attempts.get());
             assertEquals("process is never reached for the thrower", 0, thrower.processed.get());
             assertEquals("the honest watcher must receive every transition", 3, honest.processed.get());
+            assertAskedBefore(thrower, honest);
         } finally {
+            rig.stop();
+        }
+    }
+
+    /**
+     * T2 control: the same pair with the honest watcher asked first. The honest watcher is collected before
+     * the throw, so this reads the same with or without the change.
+     */
+    @Test
+    public void journal_T2control_honestWatcherAskedFirstIsNotAffected() throws Exception {
+        CountingWatcher honest = new CountingWatcher(1);
+        AlwaysFailsInIsInterested thrower = new AlwaysFailsInIsInterested(2);
+        Rig rig = new Rig(honest, thrower);
+        try {
+            postWide(rig, 3);
+            await(thrower.attempts, 3, 5000);
+            await(honest.processed, 3, 5000);
+
+            assertTrue(rig.journal.isAlive());
+            assertEquals(3, thrower.attempts.get());
+            assertEquals(3, honest.processed.get());
+            assertAskedBefore(honest, thrower);
+        } finally {
+            rig.stop();
+        }
+    }
+
+    /**
+     * What an Error from a per-pair call must lead to: the journal thread ends of that very Error (it was
+     * rethrown, not wrapped), and the Error was logged at SEVERE with itself as the cause (it was not
+     * isolated as a WARNING for the pair). Only a RuntimeException is a per-pair fault.
+     */
+    private static void assertSevereAndEnded(Rig rig, Error failure, CopyOnWriteArrayList<LogRecord> records)
+            throws InterruptedException {
+        rig.journal.join(5000);
+        assertFalse("an Error must still end the journal thread", rig.journal.isAlive());
+        assertSame("the thread must end of the Error itself", failure, rig.died.get());
+        LogRecord logged = null;
+        for (LogRecord r : records) {
+            if (r.getThrown() == failure) logged = r;
+        }
+        assertNotNull("the Error must be logged with itself as the cause", logged);
+        assertEquals("an Error is logged at SEVERE", Level.SEVERE, logged.getLevel());
+    }
+
+    /**
+     * E1: an Error from a watcher's isInterested is not isolated as a per-pair fault. It leaves
+     * {@code TemplateHandle.collectInterested} and {@code TransitionWatchers.allMatches}, and
+     * {@code OperationJournal.run} logs it at SEVERE and rethrows it.
+     */
+    @Test
+    public void journal_E1_errorFromIsInterestedIsLoggedSevereAndEndsTheThread() throws Exception {
+        final InternalError failure = new InternalError("simulated fatal error in isInterested");
+        final CopyOnWriteArrayList<LogRecord> records = new CopyOnWriteArrayList<LogRecord>();
+        Handler capture = capturing(records);
+        Logger opsLogger = Logger.getLogger(OutriggerServerImpl.opsLoggerName);
+        opsLogger.addHandler(capture);
+        AlwaysFailsInIsInterested thrower = new AlwaysFailsInIsInterested(1, failure);
+        Rig rig = new Rig(thrower);
+        try {
+            rig.post(wire(new Wide("1", "x")));
+            assertSevereAndEnded(rig, failure, records);
+        } finally {
+            opsLogger.removeHandler(capture);
+            rig.stop();
+        }
+    }
+
+    /** A template whose descFor fails with the given Error once armed: descFor asks isWildcard of each field. */
+    static final class ArmedTemplateRep extends EntryRep {
+        private volatile Error armed;
+
+        ArmedTemplateRep(Entry entry) throws Exception {
+            super(entry);
+        }
+
+        void arm(Error failure) { armed = failure; }
+
+        @Override public boolean isWildcard(int field) {
+            final Error failure = armed;
+            if (failure != null) throw failure;
+            return super.isWildcard(field);
+        }
+    }
+
+    /**
+     * E2: an Error from a template's descFor is not isolated as a per-pair fault. It leaves
+     * {@code WatchersForTemplateClass.collectInterested} and {@code TransitionWatchers.allMatches}, and
+     * {@code OperationJournal.run} logs it at SEVERE and rethrows it.
+     */
+    @Test
+    public void journal_E2_errorFromDescForIsLoggedSevereAndEndsTheThread() throws Exception {
+        final InternalError failure = new InternalError("simulated fatal error in descFor");
+        final CopyOnWriteArrayList<LogRecord> records = new CopyOnWriteArrayList<LogRecord>();
+        Handler capture = capturing(records);
+        Logger opsLogger = Logger.getLogger(OutriggerServerImpl.opsLoggerName);
+        opsLogger.addHandler(capture);
+        ArmedTemplateRep faulty = new ArmedTemplateRep(new Wide(null, "x"));
+        CountingWatcher faultyWatcher = new CountingWatcher();
+        CountingWatcher honest = new CountingWatcher();
+        Rig rig = new Rig();
+        try {
+            rig.register(faultyWatcher, faulty);
+            rig.register(honest, wire(new Wide("1", null)));
+            faulty.arm(failure);
+            boolean threw = false;
+            try {
+                EntryHandle.descFor(faulty, 2);
+            } catch (InternalError expected) {
+                threw = true;
+                assertSame(failure, expected);
+            }
+            assertTrue("precondition: descFor must throw the Error for the armed template", threw);
+
+            rig.post(wire(new Wide("1", "x")));
+            assertSevereAndEnded(rig, failure, records);
+        } finally {
+            opsLogger.removeHandler(capture);
             rig.stop();
         }
     }
